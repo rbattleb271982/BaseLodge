@@ -8,6 +8,9 @@
 
   --text: #1A1A1A;
   --text-muted: #5A5A5A;
+  
+  --danger: #dc2626;
+  --danger-dark: #b91c1c;
 }
 
 * {
@@ -30,6 +33,19 @@ body {
   align-items: center;
   min-height: 100vh;
   padding: 20px;
+}
+
+.profile-page {
+  padding: 20px;
+  min-height: 100vh;
+}
+
+.profile-container {
+  max-width: 420px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .auth-card {
@@ -170,6 +186,14 @@ body {
   background-color: rgba(143, 1, 27, 0.1);
 }
 
+.auth-button.danger {
+  background-color: var(--danger);
+}
+
+.auth-button.danger:hover:not(:disabled) {
+  background-color: var(--danger-dark);
+}
+
 .auth-helper {
   text-align: center;
   margin-top: 20px;
@@ -249,6 +273,197 @@ body {
   margin-top: 20px;
 }
 
+.section-title {
+  color: var(--primary);
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.trips-section {
+  text-align: left;
+}
+
+.trips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.trip-card {
+  background-color: var(--bg);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.trip-info {
+  flex: 1;
+}
+
+.trip-mountain {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.trip-state {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.trip-dates {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.trip-visibility {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.trip-visibility.public {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.trip-visibility.private {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.trip-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-small {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-small.secondary {
+  background-color: var(--surface);
+  color: var(--primary);
+  border: 1px solid var(--primary);
+}
+
+.btn-small.secondary:hover {
+  background-color: rgba(143, 1, 27, 0.1);
+}
+
+.btn-small.danger {
+  background-color: var(--surface);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.btn-small.danger:hover {
+  background-color: #fee2e2;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 24px;
+  background-color: var(--bg);
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.empty-state p {
+  margin: 4px 0;
+}
+
+.text-muted {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  position: relative;
+  z-index: 1001;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.modal-actions .auth-button {
+  flex: 1;
+  margin-top: 0;
+}
+
+.toggle-row {
+  flex-direction: row;
+  align-items: center;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.toggle-label input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+}
+
+.toggle-text {
+  font-size: 1rem;
+  color: var(--text);
+}
+
 .hidden {
   display: none !important;
 }
@@ -268,5 +483,9 @@ body {
   
   .profile-actions .auth-button {
     flex: 1;
+  }
+  
+  .trip-actions {
+    flex-direction: row;
   }
 }

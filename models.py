@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -12,6 +13,8 @@ class User(db.Model):
     rider_type = db.Column(db.String(50))
     pass_type = db.Column(db.String(100))
     profile_setup_complete = db.Column(db.Boolean, default=False)
+    
+    trips = db.relationship('SkiTrip', backref='user', lazy=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -21,3 +24,17 @@ class User(db.Model):
 
     def __repr__(self):
         return f'<User {self.email}>'
+
+
+class SkiTrip(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    state = db.Column(db.String(50))
+    mountain = db.Column(db.String(100))
+    start_date = db.Column(db.Date)
+    end_date = db.Column(db.Date)
+    is_public = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<SkiTrip {self.mountain}>'
