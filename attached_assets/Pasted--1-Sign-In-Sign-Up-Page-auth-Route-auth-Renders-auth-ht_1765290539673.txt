@@ -1,0 +1,83 @@
+🔐 1. Sign In / Sign Up Page (/auth)
+Route: /auth
+Renders auth.html
+Card-style layout, mobile-first, max width ~420px
+Show Sign Up first, with toggle to Log In
+Sign Up form fields:
+First Name (text)
+Last Name (text)
+Email (email)
+Password (password)
+Include toggle buttons to switch between Log In and Sign Up
+Add a tagline under the title:
+“The best days on the mountain don’t just happen — they’re made.”
+Add a footnote under the form:
+“By continuing, you agree this is an early test version of Base Lodge.”
+Use primary color #8F011B for buttons and headings
+👤 2. User Model
+Use SQLAlchemy to create a User model with the following fields:
+id = db.Column(db.Integer, primary_key=True)
+first_name = db.Column(db.String(80), nullable=False)
+last_name = db.Column(db.String(80), nullable=False)
+email = db.Column(db.String(120), unique=True, nullable=False)
+password_hash = db.Column(db.String(256), nullable=False)
+rider_type = db.Column(db.String(50))
+pass_type = db.Column(db.String(100))
+profile_setup_complete = db.Column(db.Boolean, default=False)
+Use a secure password hashing method (e.g., Werkzeug)
+Sessions can be stubbed or placeholder — real session logic is not required for now
+🧭 3. Two-Question Onboarding (/setup-profile)
+Route: /setup-profile
+After successful signup, redirect user here
+Show two onboarding questions in sequence:
+“What best describes you?” — dropdown:
+Skier
+Snowboarder
+Cross-Country Skier
+Snowshoer
+Other
+“What pass do you have?” — dropdown:
+Epic & Ikon
+Epic
+Epic Local
+Epic 4-day
+Ikon
+Ikon Base
+Ikon Plus
+Ikon Session
+Loveland
+No Pass
+Use a “Next” button between questions
+On submission, save both fields to the current user and set profile_setup_complete = True
+Redirect to /profile
+🏔 4. Profile Page (/profile)
+Route: /profile
+Display a card-style, mobile-friendly summary:
+First and Last name
+“I’m a [Skier/Snowboarder/etc.]”
+“Current pass: [Pass Type]”
+If user is not logged in or profile_setup_complete == False, redirect to /setup-profile
+Placeholder buttons (not functional yet):
+[Edit Profile] and [Add a Trip]
+🎨 5. Styling
+In static/styles.css, define this color system at the top:
+:root {
+  --primary: #8F011B;
+  --primary-dark: #660014;
+  --primary-light: #B30A2A;
+
+  --bg: #F7F7F7;
+  --surface: #FFFFFF;
+
+  --text: #1A1A1A;
+  --text-muted: #5A5A5A;
+}
+All buttons and headings should use var(--primary)
+Layout should be mobile-first and optimized for small screens
+Use clear tap targets, stacked forms, and max-width constraints (~420px)
+Avoid fixed-width or desktop-priority layouts
+🛑 Constraints
+Do not implement social login
+Do not include ski day form, dashboard, or homepage yet
+Sessions can be simulated or placeholder for now
+Use checkpoints sparingly
