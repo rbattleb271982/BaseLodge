@@ -3,22 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Base Lodge - Profile</title>
+    <title>Base Lodge - My Trips</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body class="profile-page">
     <div class="profile-container">
         <div class="auth-card profile-card">
-            <h1 class="auth-title">{{ user.first_name }} {{ user.last_name }}</h1>
-            
-            <div class="profile-info">
-                <p class="profile-detail">I'm a <strong>{{ user.rider_type }}</strong></p>
-                <p class="profile-detail">Current pass: <strong>{{ user.pass_type }}</strong></p>
-            </div>
+            <h1 class="auth-title">My Trips</h1>
             
             <div class="auth-helper">
-                <a href="{{ url_for('my_trips') }}" class="link-button">View All Trips</a>
-                <a href="{{ url_for('logout') }}" class="link-button">Log Out</a>
+                <a href="{{ url_for('profile') }}" class="link-button">Back to Profile</a>
             </div>
         </div>
         
@@ -58,7 +52,7 @@
                     
                     <div id="upcoming-empty-state" class="empty-state {% if upcoming_trips %}hidden{% endif %}">
                         <p>You don't have any upcoming ski days planned.</p>
-                        <p class="text-muted">Tap below to create one.</p>
+                        <p class="text-muted">Add one from your profile!</p>
                     </div>
                 </div>
                 
@@ -94,7 +88,7 @@
                 {% endif %}
             </div>
             
-            <button class="auth-button" id="create-trip-btn">Create Trip</button>
+            <button class="auth-button" id="create-trip-btn">Add New Trip</button>
         </div>
     </div>
     
@@ -188,8 +182,7 @@
             
             card.innerHTML = `
                 <div class="trip-info">
-                    <h3 class="trip-mountain">${escapeHtml(trip.mountain)}</h3>
-                    <p class="trip-state">${escapeHtml(trip.state)}</p>
+                    <h3 class="trip-mountain">${escapeHtml(trip.mountain)}, ${escapeHtml(trip.state)}</h3>
                     <p class="trip-dates">${formatDateRange(trip.start_date, trip.end_date)}</p>
                     <span class="trip-visibility ${trip.is_public ? 'public' : 'private'}">
                         ${trip.is_public ? 'Public' : 'Private'}
@@ -237,8 +230,7 @@
                 card.dataset.endDate = trip.end_date;
                 card.dataset.isPublic = trip.is_public;
                 
-                card.querySelector('.trip-mountain').textContent = trip.mountain;
-                card.querySelector('.trip-state').textContent = trip.state;
+                card.querySelector('.trip-mountain').textContent = trip.mountain + ', ' + trip.state;
                 card.querySelector('.trip-dates').textContent = formatDateRange(trip.start_date, trip.end_date);
                 const visibility = card.querySelector('.trip-visibility');
                 visibility.className = 'trip-visibility ' + (trip.is_public ? 'public' : 'private');
