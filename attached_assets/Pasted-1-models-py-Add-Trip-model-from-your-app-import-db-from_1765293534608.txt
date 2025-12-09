@@ -1,0 +1,102 @@
+1. 📦 models.py — Add Trip model
+from your_app import db
+from flask_login import UserMixin
+
+class Trip(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    resort_name = db.Column(db.String(100), nullable=False)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    pass_type = db.Column(db.String(50), nullable=False)
+    is_private = db.Column(db.Boolean, default=False)
+
+    user = db.relationship('User', backref='trips')
+Then in Replit shell:
+flask db migrate -m "Add Trip model"
+flask db upgrade
+2. 🧠 routes/user.py — Add Routes
+from flask import render_template, request, redirect, url_for, flash
+from flask_login import login_required, current_user
+from datetime import datetime
+from models import Trip, db
+
+@user_bp.route('/add-trip', methods=['GET', 'POST'])
+@login_required
+def add_trip():
+    if request.method == 'POST':
+        resort_name = request.form['resort']
+        start_date = datetime.strptime(request.form['start_date'], '%Y-%m-%d').date()
+        end_date = datetime.strptime(request.form['end_date'], '%Y-%m-%d').date()
+        pass_type = request.form['pass_type']
+        is_private = True if request.form.get('is_private') == 'on' else False
+
+        # Prevent overlapping trips
+        overlapping = Trip.query.filter(
+            Trip.user_id == current_user.id,
+            Trip.start_date <= end_date,
+            Trip.end_date >= start_date
+        ).first()
+
+        if overlapping:
+            flash("You already have a trip that overlaps with these dates.")
+            return redirect(url_for('user.add_trip'))
+
+        new_trip = Trip(
+            user_id=current_user.id,
+            resort_name=resort_name,
+            start_date=start_date,
+            end_date=end_date,
+            pass_type=pass_type,
+            is_private=is_private
+        )
+        db.session.add(new_trip)
+        db.session.commit()
+        return redirect(url_for('user.my_trips'))
+
+    return render_template('user/add_trip.html')
+3. 🖼️ templates/user/add_trip.html — Mobile-Friendly Form
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Trip</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="mobile-container">
+  <h2>Add a New Ski Trip</h2>
+  <form method="POST" class="trip-form">
+    <label for="resort">Resort Name:</label>
+    <input type="text" name="resort" required placeholder="e.g. Breckenridge">
+
+    <label for="start_date">Start Date:</label>
+    <input type="date" name="start_date" required>
+
+    <label for="end_date">End Date:</label>
+    <input type="date" name="end_date" required>
+
+    <label for="pass_type">Pass:</label>
+    <select name="pass_type" required>
+      <option disabled selected>-- Select Pass --</option>
+      <option value="Epic & Ikon">Epic & Ikon</option>
+      <option value="Epic">Epic</option>
+      <option value="Epic Local">Epic Local</option>
+      <option value="Epic 4-day">Epic 4-day</option>
+      <option value="Ikon">Ikon</option>
+      <option value="Ikon Base">Ikon Base</option>
+      <option value="Ikon Plus">Ikon Plus</option>
+      <option value="Ikon Session">Ikon Session</option>
+      <option value="Other">Other</option>
+      <option value="None">None</option>
+    </select>
+
+    <label for="is_private">Private Trip?</label>
+    <input type="checkbox" name="is_private">
+
+    <button type="submit">Add Trip</button>
+  </form>
+</body>
+</html>
+4. ✅ Register route in app.py if not already
+from routes.user import user_bp
+app.register_blueprint(user_bp)
