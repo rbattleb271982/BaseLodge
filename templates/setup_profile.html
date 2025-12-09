@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base Lodge - Setup Profile</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="auth-page">
+    <div class="auth-card">
+        <h1 class="auth-title">Welcome, {{ user.first_name }}!</h1>
+        <p class="auth-subtitle">Let's personalize your experience.</p>
+        
+        {% if step == "1" %}
+        <form class="auth-form" method="POST" action="{{ url_for('setup_profile', step='1') }}">
+            <div class="form-row">
+                <label for="rider_type">What best describes you?</label>
+                <select id="rider_type" name="rider_type" required class="auth-select">
+                    <option value="">Select one...</option>
+                    <option value="Skier">Skier</option>
+                    <option value="Snowboarder">Snowboarder</option>
+                    <option value="Cross-Country Skier">Cross-Country Skier</option>
+                    <option value="Snowshoer">Snowshoer</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <button type="submit" class="auth-button">Next</button>
+        </form>
+        {% elif step == "2" %}
+        <form class="auth-form" method="POST" action="{{ url_for('setup_profile', step='2') }}">
+            <div class="form-row">
+                <label for="pass_type">What pass do you have?</label>
+                <select id="pass_type" name="pass_type" required class="auth-select">
+                    <option value="">Select one...</option>
+                    <option value="Epic & Ikon">Epic & Ikon</option>
+                    <option value="Epic">Epic</option>
+                    <option value="Epic Local">Epic Local</option>
+                    <option value="Epic 4-day">Epic 4-day</option>
+                    <option value="Ikon">Ikon</option>
+                    <option value="Ikon Base">Ikon Base</option>
+                    <option value="Ikon Plus">Ikon Plus</option>
+                    <option value="Ikon Session">Ikon Session</option>
+                    <option value="Loveland">Loveland</option>
+                    <option value="No Pass">No Pass</option>
+                </select>
+            </div>
+            <button type="submit" class="auth-button">Complete Setup</button>
+        </form>
+        {% endif %}
+        
+        <div class="auth-helper">
+            <span class="step-indicator">Step {{ step }} of 2</span>
+        </div>
+    </div>
+</body>
+</html>

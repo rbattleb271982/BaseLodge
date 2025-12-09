@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base Lodge - Sign In</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="auth-page">
+    <div class="auth-card">
+        <h1 class="auth-title">Base Lodge</h1>
+        <p class="auth-subtitle">The best days on the mountain don't just happen — they're made.</p>
+        
+        <div class="auth-toggle">
+            <button class="auth-toggle-btn active" id="signup-toggle">Sign Up</button>
+            <button class="auth-toggle-btn" id="login-toggle">Log In</button>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="auth-message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <form class="auth-form" id="signup-form" method="POST" action="{{ url_for('auth') }}">
+            <input type="hidden" name="form_type" value="signup">
+            <div class="form-row">
+                <label for="first_name">First Name</label>
+                <input type="text" id="first_name" name="first_name" required placeholder="First name">
+            </div>
+            <div class="form-row">
+                <label for="last_name">Last Name</label>
+                <input type="text" id="last_name" name="last_name" required placeholder="Last name">
+            </div>
+            <div class="form-row">
+                <label for="signup_email">Email</label>
+                <input type="email" id="signup_email" name="email" required placeholder="you@example.com">
+            </div>
+            <div class="form-row">
+                <label for="signup_password">Password</label>
+                <input type="password" id="signup_password" name="password" required placeholder="Create a password">
+            </div>
+            <button type="submit" class="auth-button">Create Account</button>
+        </form>
+        
+        <form class="auth-form hidden" id="login-form" method="POST" action="{{ url_for('auth') }}">
+            <input type="hidden" name="form_type" value="login">
+            <div class="form-row">
+                <label for="login_email">Email</label>
+                <input type="email" id="login_email" name="email" required placeholder="you@example.com">
+            </div>
+            <div class="form-row">
+                <label for="login_password">Password</label>
+                <input type="password" id="login_password" name="password" required placeholder="Your password">
+            </div>
+            <button type="submit" class="auth-button">Log In</button>
+        </form>
+        
+        <p class="auth-footnote">By continuing, you agree this is an early test version of Base Lodge.</p>
+    </div>
+    
+    <script>
+        const signupToggle = document.getElementById('signup-toggle');
+        const loginToggle = document.getElementById('login-toggle');
+        const signupForm = document.getElementById('signup-form');
+        const loginForm = document.getElementById('login-form');
+        
+        signupToggle.addEventListener('click', function() {
+            signupToggle.classList.add('active');
+            loginToggle.classList.remove('active');
+            signupForm.classList.remove('hidden');
+            loginForm.classList.add('hidden');
+        });
+        
+        loginToggle.addEventListener('click', function() {
+            loginToggle.classList.add('active');
+            signupToggle.classList.remove('active');
+            loginForm.classList.remove('hidden');
+            signupForm.classList.add('hidden');
+        });
+    </script>
+</body>
+</html>
