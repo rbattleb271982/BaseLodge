@@ -1,0 +1,123 @@
+Display a logged-in user’s ski trips on a mobile-first page, split into “Upcoming” and “Past” sections. Include resort name, dates, pass, and whether it’s public/private. Add buttons to edit or delete trips.
+1. 🧠 routes/user.py — Add My Trips route
+from datetime import date
+
+@user_bp.route('/my-trips')
+@login_required
+def my_trips():
+    today = date.today()
+
+    upcoming_trips = Trip.query.filter(
+        Trip.user_id == current_user.id,
+        Trip.end_date >= today
+    ).order_by(Trip.start_date).all()
+
+    past_trips = Trip.query.filter(
+        Trip.user_id == current_user.id,
+        Trip.end_date < today
+    ).order_by(Trip.start_date.desc()).all()
+
+    return render_template(
+        'user/my_trips.html',
+        upcoming_trips=upcoming_trips,
+        past_trips=past_trips
+    )
+2. 📄 templates/user/my_trips.html — Responsive Trip List UI
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Trips</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="mobile-container">
+  <h2>My Trips</h2>
+
+  <a href="{{ url_for('user.add_trip') }}" class="cta-button">+ Add New Trip</a>
+
+  <h3>Upcoming Trips</h3>
+  {% if upcoming_trips %}
+    {% for trip in upcoming_trips %}
+      <div class="trip-card">
+        <strong>{{ trip.resort_name }}</strong><br>
+        {{ trip.start_date }} → {{ trip.end_date }}<br>
+        Pass: {{ trip.pass_type }}<br>
+        Privacy: {{ 'Private' if trip.is_private else 'Public' }}<br>
+        <a href="{{ url_for('user.edit_trip', trip_id=trip.id) }}">Edit</a> |
+        <a href="{{ url_for('user.delete_trip', trip_id=trip.id) }}" onclick="return confirm('Are you sure?')">Delete</a>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p>No upcoming trips.</p>
+  {% endif %}
+
+  <h3>Past Trips</h3>
+  {% if past_trips %}
+    {% for trip in past_trips %}
+      <div class="trip-card faded">
+        <strong>{{ trip.resort_name }}</strong><br>
+        {{ trip.start_date }} → {{ trip.end_date }}<br>
+        Pass: {{ trip.pass_type }}<br>
+        Privacy: {{ 'Private' if trip.is_private else 'Public' }}
+      </div>
+    {% endfor %}
+  {% else %}
+    <p>No past trips yet.</p>
+  {% endif %}
+</body>
+</html>
+3. 🗑️ routes/user.py — Add delete route (optional)
+@user_bp.route('/delete-trip/<int:trip_id>')
+@login_required
+def delete_trip(trip_id):
+    trip = Trip.query.get_or_404(trip_id)
+    if trip.user_id != current_user.id:
+        flash("Not authorized")
+        return redirect(url_for('user.my_trips'))
+
+    db.session.delete(trip)
+    db.session.commit()
+    flash("Trip deleted")
+    return redirect(url_for('user.my_trips'))
+4. ✏️ Add stub for edit_trip() (optional)
+We’ll build out editing next, but set up the route now:
+@user_bp.route('/edit-trip/<int:trip_id>', methods=['GET', 'POST'])
+@login_required
+def edit_trip(trip_id):
+    trip = Trip.query.get_or_404(trip_id)
+    if trip.user_id != current_user.id:
+        flash("Not authorized")
+        return redirect(url_for('user.my_trips'))
+
+    # Coming next...
+    return render_template('user/edit_trip.html', trip=trip)
+5. 💅 CSS Suggestion (in static/css/style.css)
+.mobile-container {
+  padding: 1rem;
+  font-family: sans-serif;
+  max-width: 500px;
+  margin: auto;
+}
+
+.trip-card {
+  border: 1px solid #ccc;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  background: #f9f9f9;
+}
+
+.trip-card.faded {
+  background: #f1f1f1;
+  opacity: 0.8;
+}
+
+.cta-button {
+  display: inline-block;
+  margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: #2a6f97;
+  color: white;
+  border-radius: 5px;
+  text-decoration: none;
+}

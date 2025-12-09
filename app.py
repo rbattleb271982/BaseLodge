@@ -21,22 +21,21 @@ with app.app_context():
     db.create_all()
 
 MOUNTAINS_BY_STATE = {
-    "Colorado": ["Vail", "Breckenridge", "Keystone", "Copper Mountain", "Arapahoe Basin", "Loveland", "Winter Park", "Steamboat", "Aspen Snowmass", "Telluride", "Crested Butte", "Eldora"],
-    "Utah": ["Park City", "Deer Valley", "Snowbird", "Alta", "Brighton", "Solitude", "Snowbasin", "Powder Mountain"],
-    "California": ["Mammoth Mountain", "Palisades Tahoe", "Northstar", "Heavenly", "Kirkwood", "Big Bear", "June Mountain"],
-    "Vermont": ["Stowe", "Killington", "Sugarbush", "Jay Peak", "Stratton", "Mount Snow", "Okemo"],
-    "Montana": ["Big Sky", "Whitefish Mountain", "Bridger Bowl", "Red Lodge Mountain"],
-    "Wyoming": ["Jackson Hole", "Grand Targhee", "Snow King"],
-    "New Mexico": ["Taos Ski Valley", "Ski Santa Fe", "Angel Fire"],
-    "Idaho": ["Sun Valley", "Schweitzer", "Bogus Basin", "Brundage Mountain"],
-    "Oregon": ["Mt. Hood Meadows", "Timberline", "Mt. Bachelor", "Anthony Lakes"],
-    "Washington": ["Crystal Mountain", "Stevens Pass", "Mt. Baker", "Snoqualmie"],
-    "New Hampshire": ["Bretton Woods", "Cannon Mountain", "Loon Mountain", "Wildcat Mountain"],
-    "Maine": ["Sugarloaf", "Sunday River", "Saddleback"],
-    "New York": ["Whiteface", "Gore Mountain", "Hunter Mountain", "Windham Mountain"],
-    "Michigan": ["Boyne Mountain", "Crystal Mountain MI", "Nubs Nob"],
-    "Wisconsin": ["Granite Peak", "Devil's Head", "Cascade Mountain"],
-    "Alaska": ["Alyeska Resort"]
+    "Alaska": sorted(["Alyeska Resort"]),
+    "California": sorted(["Mammoth Mountain", "Palisades Tahoe", "Northstar", "Heavenly", "Kirkwood", "Big Bear", "June Mountain"]),
+    "Colorado": sorted(["Vail", "Breckenridge", "Keystone", "Copper Mountain", "Arapahoe Basin", "Loveland", "Winter Park", "Steamboat", "Aspen Snowmass", "Telluride", "Crested Butte", "Eldora"]),
+    "Idaho": sorted(["Sun Valley", "Schweitzer", "Bogus Basin", "Brundage Mountain"]),
+    "Maine": sorted(["Sugarloaf", "Sunday River", "Saddleback"]),
+    "Michigan": sorted(["Boyne Mountain", "Crystal Mountain MI", "Nubs Nob"]),
+    "Montana": sorted(["Big Sky", "Whitefish Mountain", "Bridger Bowl", "Red Lodge Mountain"]),
+    "New Hampshire": sorted(["Bretton Woods", "Cannon Mountain", "Loon Mountain", "Wildcat Mountain"]),
+    "New Mexico": sorted(["Taos Ski Valley", "Ski Santa Fe", "Angel Fire"]),
+    "New York": sorted(["Whiteface", "Gore Mountain", "Hunter Mountain", "Windham Mountain"]),
+    "Oregon": sorted(["Mt. Hood Meadows", "Timberline", "Mt. Bachelor", "Anthony Lakes"]),
+    "Utah": sorted(["Park City", "Deer Valley", "Snowbird", "Alta", "Brighton", "Solitude", "Snowbasin", "Powder Mountain"]),
+    "Vermont": sorted(["Stowe", "Killington", "Sugarbush", "Jay Peak", "Stratton", "Mount Snow", "Okemo"]),
+    "Washington": sorted(["Crystal Mountain", "Stevens Pass", "Mt. Baker", "Snoqualmie"]),
+    "Wyoming": sorted(["Jackson Hole", "Grand Targhee", "Snow King"])
 }
 
 @app.route("/")
@@ -134,9 +133,14 @@ def profile():
         SkiTrip.start_date >= today
     ).order_by(SkiTrip.start_date.asc()).all()
     
+    past_trips = SkiTrip.query.filter(
+        SkiTrip.user_id == user.id,
+        SkiTrip.start_date < today
+    ).order_by(SkiTrip.start_date.desc()).all()
+    
     states = sorted(MOUNTAINS_BY_STATE.keys())
     
-    return render_template("profile.html", user=user, trips=upcoming_trips, states=states, mountains_by_state=MOUNTAINS_BY_STATE)
+    return render_template("profile.html", user=user, upcoming_trips=upcoming_trips, past_trips=past_trips, states=states, mountains_by_state=MOUNTAINS_BY_STATE)
 
 @app.route("/api/mountains/<state>")
 def get_mountains(state):
@@ -161,6 +165,18 @@ def create_trip():
     
     start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date() if start_date_str else None
     end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date() if end_date_str else None
+    
+    if not start_date or not end_date:
+        return jsonify({"success": False, "error": "Please provide both start and end dates."}), 400
+    
+    overlapping = SkiTrip.query.filter(
+        SkiTrip.user_id == user.id,
+        SkiTrip.start_date <= end_date,
+        SkiTrip.end_date >= start_date
+    ).first()
+    
+    if overlapping:
+        return jsonify({"success": False, "error": "You already have a trip during these dates."}), 409
     
     trip = SkiTrip(
         user_id=user.id,
@@ -203,6 +219,19 @@ def edit_trip(trip_id):
     
     trip.start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date() if start_date_str else None
     trip.end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date() if end_date_str else None
+    
+    if not trip.start_date or not trip.end_date:
+        return jsonify({"success": False, "error": "Please provide both start and end dates."}), 400
+    
+    overlapping = SkiTrip.query.filter(
+        SkiTrip.user_id == session["user_id"],
+        SkiTrip.id != trip_id,
+        SkiTrip.start_date <= trip.end_date,
+        SkiTrip.end_date >= trip.start_date
+    ).first()
+    
+    if overlapping:
+        return jsonify({"success": False, "error": "You already have a trip during these dates."}), 409
     
     db.session.commit()
     

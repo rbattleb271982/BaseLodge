@@ -22,42 +22,77 @@
         </div>
         
         <div class="auth-card trips-section">
-            <h2 class="section-title">Upcoming Trips</h2>
-            
             <div id="message-container"></div>
             
-            <div id="trips-list" class="trips-list">
-                {% if trips %}
-                    {% for trip in trips %}
-                    <div class="trip-card" 
-                         data-trip-id="{{ trip.id }}"
-                         data-state="{{ trip.state }}"
-                         data-mountain="{{ trip.mountain }}"
-                         data-start-date="{{ trip.start_date }}"
-                         data-end-date="{{ trip.end_date }}"
-                         data-is-public="{{ 'true' if trip.is_public else 'false' }}">
-                        <div class="trip-info">
-                            <h3 class="trip-mountain">{{ trip.mountain }}</h3>
-                            <p class="trip-state">{{ trip.state }}</p>
-                            <p class="trip-dates">
-                                {{ trip.start_date.strftime('%b %d') }}{% if trip.end_date and trip.end_date != trip.start_date %}–{{ trip.end_date.strftime('%d') }}{% endif %}
-                            </p>
-                            <span class="trip-visibility {{ 'public' if trip.is_public else 'private' }}">
-                                {{ 'Public' if trip.is_public else 'Private' }}
-                            </span>
-                        </div>
-                        <div class="trip-actions">
-                            <button class="btn-small secondary edit-btn">Edit</button>
-                            <button class="btn-small danger delete-btn">Delete</button>
-                        </div>
+            <div class="trips-wrapper">
+                <div class="trips-section-group">
+                    <h2 class="section-title">Upcoming Trips</h2>
+                    <div id="upcoming-trips-list" class="trips-list">
+                        {% if upcoming_trips %}
+                            {% for trip in upcoming_trips %}
+                            <div class="trip-card" 
+                                 data-trip-id="{{ trip.id }}"
+                                 data-state="{{ trip.state }}"
+                                 data-mountain="{{ trip.mountain }}"
+                                 data-start-date="{{ trip.start_date }}"
+                                 data-end-date="{{ trip.end_date }}"
+                                 data-is-public="{{ 'true' if trip.is_public else 'false' }}">
+                                <div class="trip-info">
+                                    <h3 class="trip-mountain">{{ trip.mountain }}</h3>
+                                    <p class="trip-state">{{ trip.state }}</p>
+                                    <p class="trip-dates">
+                                        {{ trip.start_date.strftime('%b %d') }}{% if trip.end_date and trip.end_date != trip.start_date %}–{{ trip.end_date.strftime('%d') }}{% endif %}
+                                    </p>
+                                    <span class="trip-visibility {{ 'public' if trip.is_public else 'private' }}">
+                                        {{ 'Public' if trip.is_public else 'Private' }}
+                                    </span>
+                                </div>
+                                <div class="trip-actions">
+                                    <button class="btn-small secondary edit-btn">Edit</button>
+                                    <button class="btn-small danger delete-btn">Delete</button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
                     </div>
-                    {% endfor %}
+                    
+                    <div id="upcoming-empty-state" class="empty-state {% if upcoming_trips %}hidden{% endif %}">
+                        <p>You don't have any upcoming ski days planned.</p>
+                        <p class="text-muted">Tap below to create one.</p>
+                    </div>
+                </div>
+                
+                {% if past_trips %}
+                <div class="trips-section-group">
+                    <h2 class="section-title">Past Trips</h2>
+                    <div id="past-trips-list" class="trips-list">
+                        {% for trip in past_trips %}
+                        <div class="trip-card trip-card-past" 
+                             data-trip-id="{{ trip.id }}"
+                             data-state="{{ trip.state }}"
+                             data-mountain="{{ trip.mountain }}"
+                             data-start-date="{{ trip.start_date }}"
+                             data-end-date="{{ trip.end_date }}"
+                             data-is-public="{{ 'true' if trip.is_public else 'false' }}">
+                            <div class="trip-info">
+                                <h3 class="trip-mountain">{{ trip.mountain }}</h3>
+                                <p class="trip-state">{{ trip.state }}</p>
+                                <p class="trip-dates">
+                                    {{ trip.start_date.strftime('%b %d') }}{% if trip.end_date and trip.end_date != trip.start_date %}–{{ trip.end_date.strftime('%d') }}{% endif %}
+                                </p>
+                                <span class="trip-visibility {{ 'public' if trip.is_public else 'private' }}">
+                                    {{ 'Public' if trip.is_public else 'Private' }}
+                                </span>
+                            </div>
+                            <div class="trip-actions">
+                                <button class="btn-small secondary edit-btn">Edit</button>
+                                <button class="btn-small danger delete-btn">Delete</button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
                 {% endif %}
-            </div>
-            
-            <div id="empty-state" class="empty-state {% if trips %}hidden{% endif %}">
-                <p>You don't have any ski days planned yet.</p>
-                <p class="text-muted">Tap below to create one.</p>
             </div>
             
             <button class="auth-button" id="create-trip-btn">Create Trip</button>
@@ -142,9 +177,9 @@
             return div.innerHTML;
         }
         
-        function createTripCard(trip) {
+        function createTripCard(trip, isPast = false) {
             const card = document.createElement('div');
-            card.className = 'trip-card';
+            card.className = 'trip-card' + (isPast ? ' trip-card-past' : '');
             card.dataset.tripId = trip.id;
             card.dataset.state = trip.state;
             card.dataset.mountain = trip.mountain;
@@ -191,7 +226,11 @@
         }
         
         function updateTripCard(trip) {
-            const card = document.querySelector(`.trip-card[data-trip-id="${trip.id}"]`);
+            const upcomingList = document.getElementById('upcoming-trips-list');
+            const pastList = document.getElementById('past-trips-list');
+            const card = upcomingList.querySelector(`.trip-card[data-trip-id="${trip.id}"]`) ||
+                        (pastList ? pastList.querySelector(`.trip-card[data-trip-id="${trip.id}"]`) : null);
+            
             if (card) {
                 card.dataset.state = trip.state;
                 card.dataset.mountain = trip.mountain;
@@ -208,9 +247,9 @@
             }
         }
         
-        function sortTripsList() {
-            const tripsList = document.getElementById('trips-list');
-            const cards = Array.from(tripsList.querySelectorAll('.trip-card'));
+        function sortTripsList(listId) {
+            const list = document.getElementById(listId);
+            const cards = Array.from(list.querySelectorAll('.trip-card'));
             
             cards.sort((a, b) => {
                 const dateA = new Date(a.dataset.startDate);
@@ -218,7 +257,7 @@
                 return dateA - dateB;
             });
             
-            cards.forEach(card => tripsList.appendChild(card));
+            cards.forEach(card => list.appendChild(card));
         }
         
         function showMessage(text, type) {
@@ -331,14 +370,14 @@
                     
                     if (isEditMode) {
                         updateTripCard(result.trip);
-                        sortTripsList();
+                        sortTripsList('upcoming-trips-list');
                         showMessage('Trip updated successfully!', 'success');
                     } else {
-                        const tripsList = document.getElementById('trips-list');
+                        const upcomingList = document.getElementById('upcoming-trips-list');
                         const newCard = createTripCard(result.trip);
-                        tripsList.appendChild(newCard);
-                        sortTripsList();
-                        document.getElementById('empty-state').classList.add('hidden');
+                        upcomingList.appendChild(newCard);
+                        sortTripsList('upcoming-trips-list');
+                        document.getElementById('upcoming-empty-state').classList.add('hidden');
                         showMessage('Trip created successfully!', 'success');
                     }
                 } else {
@@ -364,14 +403,17 @@
                 
                 if (result.success) {
                     closeDeleteModal();
-                    const card = document.querySelector(`.trip-card[data-trip-id="${tripId}"]`);
+                    const upcomingList = document.getElementById('upcoming-trips-list');
+                    const pastList = document.getElementById('past-trips-list');
+                    const card = upcomingList.querySelector(`.trip-card[data-trip-id="${tripId}"]`) ||
+                                (pastList ? pastList.querySelector(`.trip-card[data-trip-id="${tripId}"]`) : null);
+                    
                     if (card) {
                         card.remove();
                     }
                     
-                    const tripsList = document.getElementById('trips-list');
-                    if (tripsList.children.length === 0) {
-                        document.getElementById('empty-state').classList.remove('hidden');
+                    if (upcomingList.children.length === 0) {
+                        document.getElementById('upcoming-empty-state').classList.remove('hidden');
                     }
                     
                     showMessage('Trip deleted.', 'success');
