@@ -38,9 +38,16 @@ Base Lodge is a ski/snowboard trip planning application built with Flask. It hel
 │   ├── friends.html    # Friends list with pass filter pills
 │   ├── friend_profile.html  # Friend's public profile
 │   ├── my_trips.html   # Deprecated (redirects to /home)
+│   ├── components/
+│   │   ├── profile_summary.html  # Profile card component
+│   │   ├── stats_card.html  # Stats display component
+│   │   ├── segmented_trips_tabs.html  # Tab control component
+│   │   ├── trip_row.html  # Trip row component
+│   │   ├── friend_row.html  # Friend row component
+│   │   └── bottom_nav.html  # Bottom navigation component
 │   └── edit_profile.html  # Edit profile form
 ├── static/
-│   └── styles.css      # Mobile-first CSS with brand colors
+│   └── styles.css      # BaseLodge unified design system with color tokens, spacing, typography, components
 └── replit.md           # This file
 ```
 
@@ -104,10 +111,29 @@ Base Lodge is a ski/snowboard trip planning application built with Flask. It hel
 
 ## Recent Changes
 
+### Phase 4: Global Design System (Dec 10, 2025)
+- **Complete CSS Refactor:** Replaced old styles.css with unified BaseLodge design system
+- **Design Tokens:** Full :root CSS variables for colors, spacing (8pt scale), radius, typography, shadows
+- **Component Partials:** Created reusable templates in templates/components/:
+  - `profile_summary.html` - Profile card with name, pass type, skill level, rider type, mountains visited
+  - `stats_card.html` - 3-column stats display (Pass Type, Skill Level, Rider Type)
+  - `segmented_trips_tabs.html` - BaseLodge segmented control for My/Friends'/All Trips
+  - `trip_row.html` - Individual trip row with date, user, mountain, pass info
+  - `friend_row.html` - Friend profile row with name, pass type, rider type
+  - `bottom_nav.html` - Fixed bottom nav with Home/Trips/Friends/Profile using `request.endpoint` for active state
+- **Templates Refactored:**
+  - `home.html` - Profile summary + stats card + segmented tabs + trip feed + Add Trip button
+  - `profile.html` - Clean form with segmented controls for Pass Type & Rider Type
+  - `friends.html` - Friend list with chips filter by pass type
+  - `friend_profile.html` - Friend's public profile with upcoming/past trips
+- **Typography System:** Heading XL/L/M, Body, Label, Caption classes
+- **Button System:** Primary, Secondary, Ghost button variants with full hover/disabled states
+- **Color Tokens:** Primary (#8F011B), Primary Soft (#B31633), backgrounds, text, borders, success, error
+
 ### Phase 3: Home-First Navigation (Dec 10, 2025)
 - **Navigation Consolidation:** `/home` is now the landing page after login
 - **Routes Restructured:**
-  - Login now redirects to `/home` (not `/profile`)
+  - Login redirects to `/home` (not `/profile`)
   - `/my-trips` route deprecated → redirects to `/home`
   - `/home` shows 3 tabs: My Trips, Friends' Trips, All Trips (upcoming only)
 - **Profile Simplified:** Removed trip cards from `/profile` (trips now only on `/home`)
@@ -162,17 +188,22 @@ Base Lodge is a ski/snowboard trip planning application built with Flask. It hel
 
 ## User Preferences
 - Mobile-first design approach (now supporting both web & mobile)
-- Clean, modern UI with card-style layouts
-- Max width 420px for auth/profile cards on web
+- Unified design system using CSS variables for consistency
+- Reusable component partials for DRY templating
+- Max width 900px for main pages on web
 - Inline modals for trip management (no page navigation)
 - Incremental feature rollout prioritizing mobile
 - Home-first navigation structure (centralized trip management)
 - Segmented controls instead of dropdowns for pass/rider type
-- Bottom navigation across all main pages
+- Bottom navigation across all main pages with emoji icons
+- System font stack (system-ui, -apple-system, BlinkMacSystemFont, etc.)
 
 ## Technical Notes
 - App uses session-based auth (manual checks, no @login_required decorator)
-- Templates are standalone (no base.html inheritance)
+- Templates are standalone with component includes (no base.html inheritance)
 - Trip creation uses profile.js (modal + AJAX) - should work on /home with proper initialization
 - Segmented buttons use hidden inputs to store values for form submission
-- Bottom nav shows active state based on request.path matching
+- Bottom nav shows active state based on `request.endpoint` matching
+- CSS uses 8pt spacing scale (--bl-space-2 through --bl-space-8)
+- Design tokens: --bl-color-primary (#8F011B), --bl-color-bg (#FAFAFA), --bl-color-surface (#FFFFFF)
+- Fixed bottom nav (position: fixed) requires body padding-bottom: 80px to prevent content overlap

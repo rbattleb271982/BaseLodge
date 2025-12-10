@@ -6,88 +6,44 @@
     <title>Base Lodge - Friends</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
-<body class="profile-page">
-    <div class="profile-container">
-        <div class="profile-header">
-            <h1 class="auth-title">Friends</h1>
+<body>
+    <div class="page-container">
+        <h1 class="page-title">Friends</h1>
+        
+        <div style="margin-bottom: var(--bl-space-6);">
+            <button class="bl-btn-primary" onclick="copyInviteLink()" style="width: 100%;">Invite a Friend</button>
         </div>
-
+        
         {% if friends %}
-        <div class="auth-card trips-section">
-            <button class="auth-button invite-friend-btn" onclick="copyInviteLink()">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: middle;">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <line x1="19" y1="8" x2="19" y2="14"></line>
-                    <line x1="22" y1="11" x2="16" y2="11"></line>
-                </svg>
-                Invite a Friend
-            </button>
-            
-            <div class="filter-pills">
-                <button class="filter-pill active" data-filter="all">All</button>
-                <button class="filter-pill" data-filter="Epic">Epic</button>
-                <button class="filter-pill" data-filter="Ikon">Ikon</button>
-                <button class="filter-pill" data-filter="Other">Other</button>
-                <button class="filter-pill" data-filter="No Pass">None</button>
-            </div>
-            
-            <div class="friends-list">
-                {% for friend_rel in friends %}
-                {% set friend = friend_rel.friend %}
-                <a href="/profile/{{ friend.id }}" class="friend-card" data-pass="{{ friend.pass_type or 'No Pass' }}" style="text-decoration: none; display: block;">
-                    <div class="friend-info friend-inline">
-                        <span class="friend-inline-name">
-                            {{ friend.first_name }} {{ friend.last_name }}
-                        </span>
-                        <span class="friend-inline-sep">—</span>
-                        <span class="friend-inline-pass">
-                            {{ friend.pass_type or 'No Pass' }}
-                        </span>
-                        {% if friend.skill_level %}
-                        <span class="friend-inline-sep">—</span>
-                        <span class="friend-inline-skill">
-                            {{ friend.skill_level }}
-                        </span>
-                        {% endif %}
-                        {% if friend.rider_type %}
-                        <span class="friend-inline-sep">—</span>
-                        <span class="friend-inline-rider">
-                            {{ friend.rider_type }}
-                        </span>
-                        {% endif %}
-                    </div>
-                </a>
-                {% endfor %}
-            </div>
+        <div class="chip-row">
+            <span class="bl-chip bl-chip-active" onclick="filterFriends('all')">All</span>
+            <span class="bl-chip" onclick="filterFriends('Epic')">Epic</span>
+            <span class="bl-chip" onclick="filterFriends('Ikon')">Ikon</span>
+            <span class="bl-chip" onclick="filterFriends('Other')">Other</span>
+        </div>
+        
+        <div class="bl-card">
+            {% for friend_rel in friends %}
+            {% set friend = friend_rel.friend %}
+            <a href="/profile/{{ friend.id }}" style="text-decoration: none; color: inherit; display: block;">
+                <div class="bl-friend-row" data-pass="{{ friend.pass_type or 'No Pass' }}">
+                    <div class="friend-name">{{ friend.first_name }} {{ friend.last_name }}</div>
+                    <div class="friend-meta">{{ friend.pass_type or 'No Pass' }} · {{ friend.rider_type or 'Skier' }}</div>
+                </div>
+            </a>
+            {% endfor %}
         </div>
         
         {% else %}
-        <div class="auth-card trips-section">
-            <div class="empty-state">
-                <p style="font-size: 1.1rem; margin-bottom: 16px;">No friends yet</p>
-                <p>Invite someone to get started planning together!</p>
-                <button class="auth-button" style="margin-top: 16px;" onclick="copyInviteLink()">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: middle;">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <line x1="19" y1="8" x2="19" y2="14"></line>
-                        <line x1="22" y1="11" x2="16" y2="11"></line>
-                    </svg>
-                    Invite a Friend
-                </button>
-            </div>
+        <div class="bl-card" style="text-align: center; padding: var(--bl-space-8);">
+            <p class="bl-heading-m" style="margin-bottom: var(--bl-space-5);">No friends yet</p>
+            <p class="bl-body" style="margin-bottom: var(--bl-space-6); color: var(--bl-color-text-muted);">Invite someone to get started planning together!</p>
+            <button class="bl-btn-primary" onclick="copyInviteLink()">Invite a Friend</button>
         </div>
         {% endif %}
     </div>
     
-    <!-- Bottom Navigation -->
-    <nav class="main-nav">
-        <a href="{{ url_for('home') }}" class="nav-link {% if request.path.startswith('/home') %}active{% endif %}">Home</a>
-        <a href="{{ url_for('home') }}" class="nav-link {% if request.path.startswith('/home') %}active{% endif %}">Trips</a>
-        <a href="{{ url_for('friends') }}" class="nav-link {% if request.path.startswith('/friends') or '/profile/' in request.path %}active{% endif %}">Friends</a>
-        <a href="{{ url_for('profile') }}" class="nav-link {% if request.path == '/profile' %}active{% endif %}">Profile</a>
-    </nav>
+    {% include 'components/bottom_nav.html' %}
     
     <script>
         const currentUserId = {{ user.id }};
@@ -101,37 +57,22 @@
             });
         }
         
-        // Friend filtering
-        const filterPills = document.querySelectorAll('.filter-pill');
-        const friendCards = document.querySelectorAll('.friend-card');
-        
-        filterPills.forEach(pill => {
-            pill.addEventListener('click', () => {
-                const filter = pill.dataset.filter;
-                
-                // Update active pill
-                filterPills.forEach(p => p.classList.remove('active'));
-                pill.classList.add('active');
-                
-                // Filter friends
-                friendCards.forEach(card => {
-                    const passType = card.dataset.pass;
-                    if (filter === 'all') {
-                        card.style.display = 'block';
-                    } else if (filter === 'Epic' && (passType.includes('Epic') || passType === 'Epic & Ikon')) {
-                        card.style.display = 'block';
-                    } else if (filter === 'Ikon' && (passType.includes('Ikon') || passType === 'Epic & Ikon')) {
-                        card.style.display = 'block';
-                    } else if (filter === 'No Pass' && passType === 'No Pass') {
-                        card.style.display = 'block';
-                    } else if (filter === 'Other' && passType !== 'No Pass' && !passType.includes('Epic') && !passType.includes('Ikon')) {
-                        card.style.display = 'block';
-                    } else {
-                        card.style.display = 'none';
-                    }
-                });
+        function filterFriends(pass) {
+            const chips = document.querySelectorAll('.bl-chip');
+            chips.forEach(chip => chip.classList.remove('bl-chip-active'));
+            event.target.classList.add('bl-chip-active');
+            
+            const rows = document.querySelectorAll('.bl-friend-row');
+            rows.forEach(row => {
+                if (pass === 'all') {
+                    row.style.display = 'block';
+                } else if (row.getAttribute('data-pass').includes(pass)) {
+                    row.style.display = 'block';
+                } else {
+                    row.style.display = 'none';
+                }
             });
-        });
+        }
     </script>
 </body>
 </html>
