@@ -119,7 +119,7 @@ def seed_social_data():
         main_user = User.query.filter_by(email=main_user_email).first()
         
         if not main_user:
-            return jsonify({"error": f"User with email '{main_user_email}' not found. Sign up first."}), 404
+            return f"User with email '{main_user_email}' not found. Sign up first."
         
         main_user_id = main_user.id
         
@@ -137,10 +137,11 @@ def seed_social_data():
             users_to_create = 10 - len(existing_fake_users)
             for i in range(users_to_create):
                 user_idx = len(existing_fake_users) + i
+                email = f"fake{user_idx + 1}@example.com"
                 fake_user = User(
                     first_name=first_names[user_idx % len(first_names)],
                     last_name=last_names[user_idx % len(last_names)],
-                    email=f"fake{user_idx + 1}@example.com",
+                    email=email,
                     password_hash=generate_password_hash("test123"),
                     rider_type=random.choice(rider_types),
                     pass_type=random.choice(pass_types),
@@ -148,13 +149,13 @@ def seed_social_data():
                 )
                 db.session.add(fake_user)
                 fake_users.append(fake_user)
+                print(f"Creating fake user: {email}")
             db.session.commit()
         
         # Get all fake users
         all_fake_users = User.query.filter(User.email.like("fake%@example.com")).all()
         
         # Step 2 & 3: Create bidirectional friendships (only if they don't exist)
-        friendships_created = 0
         for fake_user in all_fake_users:
             # Check if friendship already exists (both directions)
             exists_forward = Friend.query.filter_by(user_id=main_user_id, friend_id=fake_user.id).first()
@@ -163,17 +164,16 @@ def seed_social_data():
             if not exists_forward:
                 friendship1 = Friend(user_id=main_user_id, friend_id=fake_user.id)
                 db.session.add(friendship1)
-                friendships_created += 1
+                print(f"Creating friendship: {main_user_id} -> {fake_user.id}")
             
             if not exists_backward:
                 friendship2 = Friend(user_id=fake_user.id, friend_id=main_user_id)
                 db.session.add(friendship2)
-                friendships_created += 1
+                print(f"Creating friendship: {fake_user.id} -> {main_user_id}")
         
         db.session.commit()
         
         # Step 4: Create 1-3 trips per friend
-        trips_created = 0
         for fake_user in all_fake_users:
             num_trips = random.randint(1, 3)
             for _ in range(num_trips):
@@ -191,25 +191,16 @@ def seed_social_data():
                     start_date=trip_start.date(),
                     end_date=trip_end.date(),
                     pass_type=random.choice(pass_types),
-                    is_public=random.choice([True, True, False])  # 2/3 chance of public
+                    is_public=random.choice([True, True, False])
                 )
                 db.session.add(trip)
-                trips_created += 1
+                print(f"Creating trip for: {fake_user.id}")
         
         db.session.commit()
         
-        return jsonify({
-            "message": "✅ Seeded friends, profiles, and trips.",
-            "details": {
-                "fake_users_total": len(all_fake_users),
-                "new_fake_users": len(fake_users),
-                "friendships_created": friendships_created,
-                "trips_created": trips_created,
-                "main_user_email": main_user_email,
-                "main_user_id": main_user_id
-            }
-        })
+        return "Social data seeded successfully."
     
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        print(f"Error seeding social data: {str(e)}")
+        return f"Error: {str(e)}", 500
