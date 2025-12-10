@@ -83,6 +83,7 @@ def auth():
             email = request.form.get("email")
             password = request.form.get("password")
             birthday_str = request.form.get("birthday")
+            inviter_id = request.args.get("ref")
             
             if not birthday_str:
                 flash("Please enter a valid date of birth.", "error")
@@ -108,6 +109,16 @@ def auth():
             user.set_password(password)
             db.session.add(user)
             db.session.commit()
+            
+            if inviter_id:
+                try:
+                    inviter = User.query.get(int(inviter_id))
+                    if inviter:
+                        invitation = Invitation(sender_id=inviter.id, receiver_id=user.id, status='pending')
+                        db.session.add(invitation)
+                        db.session.commit()
+                except (ValueError, TypeError):
+                    pass
             
             session["user_id"] = user.id
             return redirect(url_for("setup_profile"))
@@ -180,9 +191,10 @@ def profile():
         SkiTrip.start_date < today
     ).order_by(SkiTrip.start_date.desc()).all()
     
+    friends_count = Friend.query.filter_by(user_id=user.id).count()
     states = sorted(MOUNTAINS_BY_STATE.keys())
     
-    return render_template("profile.html", user=user, upcoming_trips=upcoming_trips, past_trips=past_trips, states=states, mountains_by_state=MOUNTAINS_BY_STATE, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS)
+    return render_template("profile.html", user=user, upcoming_trips=upcoming_trips, past_trips=past_trips, states=states, mountains_by_state=MOUNTAINS_BY_STATE, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS, friends_count=friends_count)
 
 @app.route("/my-trips")
 def my_trips():
@@ -460,6 +472,62 @@ def remove_friend(friend_id):
     db.session.commit()
     
     return jsonify({"success": True, "message": "Friend removed"}), 200
+
+@app.route("/friends")
+def friends():
+    if "user_id" not in session:
+        return redirect(url_for("auth"))
+    
+    user = User.query.get(session["user_id"])
+    if not user:
+        session.pop("user_id", None)
+        return redirect(url_for("auth"))
+    
+    if not user.profile_setup_complete:
+        return redirect(url_for("setup_profile"))
+    
+    friends_list = Friend.query.filter_by(user_id=user.id).all()
+    friend_ids = [f.friend_id for f in friends_list]
+    
+    friend_trips = {}
+    if friend_ids:
+        today = date.today()
+        trips = SkiTrip.query.filter(
+            SkiTrip.user_id.in_(friend_ids),
+            SkiTrip.start_date >= today,
+            SkiTrip.is_public == True
+        ).order_by(SkiTrip.start_date.asc()).all()
+        
+        for trip in trips:
+            if trip.user_id not in friend_trips:
+                friend_trips[trip.user_id] = []
+            friend_trips[trip.user_id].append(trip)
+    
+    return render_template("friends.html", user=user, friends=friends_list, friend_trips=friend_trips, state_abbr=STATE_ABBR)
+
+@app.route("/api/profile/update", methods=["POST"])
+def update_profile():
+    if "user_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+    
+    user = User.query.get(session["user_id"])
+    if not user:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+    
+    data = request.get_json()
+    
+    if "first_name" in data:
+        user.first_name = data.get("first_name", "").strip()
+    if "last_name" in data:
+        user.last_name = data.get("last_name", "").strip()
+    if "rider_type" in data:
+        user.rider_type = data.get("rider_type", "").strip()
+    if "pass_type" in data:
+        user.pass_type = data.get("pass_type", "").strip()
+    
+    db.session.commit()
+    
+    return jsonify({"success": True, "message": "Profile updated"}), 200
 
 @app.route("/logout")
 def logout():

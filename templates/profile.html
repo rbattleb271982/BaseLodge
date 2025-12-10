@@ -17,15 +17,58 @@
     
     <div class="profile-container">
         <div class="auth-card profile-card">
-            <h1 class="auth-title">{{ user.first_name }} {{ user.last_name }}</h1>
+            <h1 class="auth-title" id="display-name">{{ user.first_name }} {{ user.last_name }}</h1>
             
             <div class="profile-info">
-                <p class="profile-detail">I'm a <strong>{{ user.rider_type }}</strong></p>
-                <p class="profile-detail">Current pass: <strong>{{ user.pass_type }}</strong></p>
+                <div class="profile-field">
+                    <label>Name</label>
+                    <div class="field-display" onclick="enableEdit(this)">
+                        <span id="name-display">{{ user.first_name }} {{ user.last_name }}</span>
+                        <input type="text" id="first_name" placeholder="First name" class="hidden">
+                        <input type="text" id="last_name" placeholder="Last name" class="hidden">
+                    </div>
+                </div>
+                
+                <div class="profile-field">
+                    <label>Rider Type</label>
+                    <div class="field-display" onclick="enableEdit(this)">
+                        <span id="rider-display">{{ user.rider_type or 'Not specified' }}</span>
+                        <select id="rider_type" class="hidden">
+                            <option value="">Select...</option>
+                            <option value="Skier">Skier</option>
+                            <option value="Snowboarder">Snowboarder</option>
+                            <option value="Both">Both</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="profile-field">
+                    <label>Pass Type</label>
+                    <div class="field-display" onclick="enableEdit(this)">
+                        <span id="pass-display">{{ user.pass_type or 'No Pass' }}</span>
+                        <select id="pass_type" class="hidden">
+                            <option value="">Select...</option>
+                            {% for pass_opt in pass_options %}
+                            <option value="{{ pass_opt }}">{{ pass_opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="profile-field read-only">
+                    <label>Birthday</label>
+                    <div>{{ user.birthday.strftime('%b %d, %Y') if user.birthday else 'Not provided' }}</div>
+                </div>
+                
+                <div class="profile-field read-only">
+                    <label>Friends</label>
+                    <div>{{ friends_count }} friend{{ 's' if friends_count != 1 else '' }}</div>
+                </div>
             </div>
             
-            <div class="auth-helper">
-                <a href="{{ url_for('my_trips') }}" class="link-button">My Trips</a>
+            <div class="profile-actions">
+                <a href="{{ url_for('friends') }}" class="auth-button">View Friends</a>
+                <button id="copy-invite-btn" class="auth-button secondary" onclick="copyInviteLink()">Invite a Friend</button>
             </div>
         </div>
         
@@ -178,7 +221,61 @@
         const mountainsByState = {{ mountains_by_state | tojson }};
         const stateAbbr = {{ state_abbr | tojson }};
         const userPassType = "{{ user.pass_type or 'No Pass' }}";
+        const currentUserId = {{ user.id }};
         let isEditMode = false;
+        
+        function copyInviteLink() {
+            const inviteUrl = `${window.location.origin}/auth?ref=${currentUserId}`;
+            navigator.clipboard.writeText(inviteUrl).then(() => {
+                showMessage('Invite link copied to clipboard!', 'success');
+            }).catch(() => {
+                showMessage('Failed to copy link', 'error');
+            });
+        }
+        
+        function enableEdit(element) {
+            const field = element.parentElement;
+            const display = element.querySelector('span');
+            const inputs = element.querySelectorAll('input, select');
+            
+            if (display.style.display === 'none') return;
+            
+            display.style.display = 'none';
+            inputs.forEach(input => input.classList.remove('hidden'));
+            
+            if (field.id === 'name-field') {
+                document.getElementById('first_name').value = '{{ user.first_name }}';
+                document.getElementById('last_name').value = '{{ user.last_name }}';
+            }
+            
+            const updateBtn = document.createElement('button');
+            updateBtn.type = 'button';
+            updateBtn.className = 'auth-button';
+            updateBtn.textContent = 'Save';
+            updateBtn.onclick = () => saveProfileField(field);
+            
+            field.appendChild(updateBtn);
+        }
+        
+        function saveProfileField(field) {
+            const data = {};
+            const inputs = field.querySelectorAll('input:not(.hidden), select:not(.hidden)');
+            inputs.forEach(input => {
+                if (input.id) data[input.id] = input.value;
+            });
+            
+            fetch('/api/profile/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(res => res.json()).then(result => {
+                if (result.success) {
+                    location.reload();
+                } else {
+                    showMessage(result.error || 'Failed to update', 'error');
+                }
+            });
+        }
         
         function formatDateRange(startDate, endDate) {
             const start = new Date(startDate);
@@ -481,16 +578,6 @@
                 const endDateInput = document.getElementById('end_date');
                 if (!endDateInput.value || new Date(endDateInput.value) < new Date(this.value)) {
                     endDateInput.value = this.value;
-                }
-                endDateInput.min = this.value;
-            });
-            
-            document.querySelectorAll('.trip-card').forEach(attachCardEvents);
-            
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') {
-                    closeModal();
-                    closeDeleteModal();
                 }
             });
         });

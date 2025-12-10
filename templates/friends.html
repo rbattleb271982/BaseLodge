@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base Lodge - Friends</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="profile-page">
+    <a href="{{ url_for('logout') }}" class="logout-icon" title="Log Out">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+    </a>
+    
+    <div class="profile-container">
+        <div class="auth-card profile-card">
+            <h1 class="auth-title">Friends</h1>
+            
+            <div class="auth-helper">
+                <a href="{{ url_for('profile') }}" class="link-button">← Back to Profile</a>
+            </div>
+        </div>
+        
+        {% if friends %}
+        <div class="auth-card trips-section">
+            <h2 class="section-title">Your Friends</h2>
+            <div class="friends-list">
+                {% for friend_rel in friends %}
+                {% set friend = friend_rel.friend %}
+                <div class="friend-card">
+                    <div class="friend-info">
+                        <h3 class="friend-name">{{ friend.first_name }} {{ friend.last_name }}</h3>
+                        <p class="friend-detail">{{ friend.rider_type or 'Rider type not set' }}</p>
+                        <p class="friend-detail">Pass: <strong>{{ friend.pass_type or 'No Pass' }}</strong></p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="auth-card trips-section">
+            <h2 class="section-title">Friends' Upcoming Trips</h2>
+            {% if friend_trips %}
+            <div class="activity-feed">
+                {% for friend_id, trips in friend_trips.items() %}
+                    {% set friend = {} %}
+                    {% for f in friends %}
+                        {% if f.friend_id == friend_id %}
+                            {% set friend = f.friend %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for trip in trips %}
+                    <div class="activity-item">
+                        <div class="activity-header">
+                            <p class="activity-friend">{{ friend.first_name }} {{ friend.last_name }}</p>
+                            <p class="activity-date">{{ trip.start_date.strftime('%b %d') }}</p>
+                        </div>
+                        <div class="activity-trip">
+                            <p class="trip-mountain">{{ trip.mountain }}</p>
+                            <p class="trip-location">{{ state_abbr.get(trip.state, trip.state) }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>No upcoming trips from your friends yet.</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        {% else %}
+        <div class="auth-card trips-section">
+            <div class="empty-state">
+                <p style="font-size: 1.1rem; margin-bottom: 16px;">No friends yet</p>
+                <p>Invite someone to get started planning together!</p>
+                <button class="auth-button" style="margin-top: 16px;" onclick="copyInviteLink()">Invite a Friend</button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <script>
+        const currentUserId = {{ user.id }};
+        
+        function copyInviteLink() {
+            const inviteUrl = `${window.location.origin}/auth?ref=${currentUserId}`;
+            navigator.clipboard.writeText(inviteUrl).then(() => {
+                alert('Invite link copied to clipboard!');
+            }).catch(() => {
+                alert('Failed to copy link');
+            });
+        }
+    </script>
+</body>
+</html>
