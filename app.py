@@ -3,6 +3,7 @@ from datetime import datetime, date
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_migrate import Migrate
 from models import db, User, SkiTrip, Friend, Invitation
+from debug_routes import debug_bp
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
@@ -16,6 +17,7 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
 migrate = Migrate(app, db)
+app.register_blueprint(debug_bp)
 
 with app.app_context():
     db.create_all()
