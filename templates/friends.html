@@ -16,79 +16,29 @@
     </a>
     
     <div class="profile-container">
-        <div class="auth-card profile-card">
+        <div class="profile-header">
             <h1 class="auth-title">Friends</h1>
-            
-            <div class="friends-toggle">
-                <button id="toggleTrips" class="toggle-btn active">Trips</button>
-                <button id="toggleFriends" class="toggle-btn">Friends</button>
-            </div>
-            
-            <div class="auth-helper">
-                <a href="{{ url_for('profile') }}" class="link-button">← Back to Profile</a>
-            </div>
-        </div>
-        
-        {% if friends %}
-        <div id="tripsSection" class="toggle-section active-section">
-            <div class="auth-card trips-section">
-                <h2 class="section-title">Friends' Upcoming Trips</h2>
-                {% if friend_trips %}
-                <div class="activity-feed">
-                    {% for friend_id, trips in friend_trips.items() %}
-                        {% set friend = {} %}
-                        {% for f in friends %}
-                            {% if f.friend_id == friend_id %}
-                                {% set friend = f.friend %}
-                            {% endif %}
-                        {% endfor %}
-                        {% for trip in trips %}
-                        <div class="inline-trip">
-                            <div class="inline-trip-top">
-                                <span class="trip-friend">{{ friend.first_name }} {{ friend.last_name }}</span>
-                                <span class="trip-sep">—</span>
-                                <span class="trip-mountain">{{ trip.mountain }}, {{ state_abbr.get(trip.state, trip.state) }}</span>
-                            </div>
 
-                            <div class="inline-trip-bottom">
-                                <span class="trip-dates">
-                                    {{ trip.start_date.strftime('%b %d') }}
-                                    {% if trip.end_date and trip.end_date != trip.start_date %}
-                                        – {{ trip.end_date.strftime('%b %d') }}
-                                    {% endif %}
-                                </span>
-                                
-                                {% set num_days = (trip.end_date - trip.start_date).days + 1 %}
-                                <span class="dot-sep">•</span>
-                                <span class="trip-days">{{ num_days }} day{% if num_days > 1 %}s{% endif %}</span>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="empty-state">
-                    <p>No upcoming trips from your friends yet.</p>
-                </div>
-                {% endif %}
+            <div class="auth-helper">
+                <a href="{{ url_for('profile') }}" class="link-button">← Back to Home</a>
             </div>
         </div>
-        
-        <div id="friendsSection" class="toggle-section hidden-section">
-            <div class="auth-card trips-section">
-                <h2 class="section-title">Your Friends</h2>
-                <div class="friends-list">
-                    {% for friend_rel in friends %}
-                    {% set friend = friend_rel.friend %}
-                    <div class="friend-card">
-                        <div class="friend-info">
-                            <h3 class="friend-name">{{ friend.first_name }} {{ friend.last_name }}</h3>
-                            <p class="friend-detail">{{ friend.rider_type or 'Rider type not set' }}</p>
-                            <p class="friend-detail">Pass: <strong>{{ friend.pass_type or 'No Pass' }}</strong></p>
-                        </div>
-                    </div>
-                    {% endfor %}
+
+        {% if friends %}
+        <div class="auth-card trips-section">
+            <button class="auth-button" style="width: 100%; margin-bottom: 16px;" onclick="copyInviteLink()">Invite a Friend</button>
+            
+            <div class="friends-list">
+                {% for friend_rel in friends %}
+                {% set friend = friend_rel.friend %}
+                <div class="friend-card friend-inline">
+                    <span class="friend-name">{{ friend.first_name }} {{ friend.last_name }}</span>
+                    <span class="friend-sep">—</span>
+                    <span class="friend-detail-inline">{{ friend.rider_type or 'Rider type not set' }}</span>
+                    <span class="friend-sep">—</span>
+                    <span class="friend-detail-inline">{{ friend.pass_type or 'No Pass' }}</span>
                 </div>
+                {% endfor %}
             </div>
         </div>
         
@@ -114,24 +64,6 @@
                 alert('Failed to copy link');
             });
         }
-        
-        document.getElementById("toggleTrips").addEventListener("click", () => {
-            document.getElementById("tripsSection").classList.add("active-section");
-            document.getElementById("tripsSection").classList.remove("hidden-section");
-            document.getElementById("friendsSection").classList.remove("active-section");
-            document.getElementById("friendsSection").classList.add("hidden-section");
-            document.getElementById("toggleTrips").classList.add("active");
-            document.getElementById("toggleFriends").classList.remove("active");
-        });
-
-        document.getElementById("toggleFriends").addEventListener("click", () => {
-            document.getElementById("friendsSection").classList.add("active-section");
-            document.getElementById("friendsSection").classList.remove("hidden-section");
-            document.getElementById("tripsSection").classList.remove("active-section");
-            document.getElementById("tripsSection").classList.add("hidden-section");
-            document.getElementById("toggleFriends").classList.add("active");
-            document.getElementById("toggleTrips").classList.remove("active");
-        });
     </script>
 </body>
 </html>
