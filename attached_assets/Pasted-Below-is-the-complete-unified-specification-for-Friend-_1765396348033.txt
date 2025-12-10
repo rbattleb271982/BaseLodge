@@ -1,0 +1,180 @@
+Below is the complete, unified specification for:
+Friend Profile View redesign
+Trip Card redesign (global)
+Invite a Friend / Share button
+Friends page pass filters (Epic / Ikon / Other / None)
+Segmented controls for Pass Type + Skier/Snowboarder
+Navigation cleanup
+This is the entire Phase-2 UI/UX build.
+===========================
+🎨 PHASE 2 — COMPLETE UI/UX BLUEPRINT
+===========================
+1️⃣ FRIEND PROFILE VIEW (NEW friend_profile.html)
+Purpose: What friends see when they tap someone in their friend list.
+Top Summary Card (public version)
+Same visual layout as your own summary card EXCEPT:
+❌ No Edit Profile button
+❌ No profile completion bar
+❌ No Settings
+❌ No Gender, Birth Year, Home State
+Card content (in order):
+<div class="profile-summary-card">
+  <h2 class="profile-name">{{ friend.first_name }} {{ friend.last_name }}</h2>
+
+  <div class="profile-identity-line">
+      {{ friend.pass_type }} — {{ friend.skill_level }} — {{ friend.snow_type or "Skier" }}
+  </div>
+
+  <div class="profile-mountains">
+      {{ friend.mountains_visited or 0 }} mountains visited
+  </div>
+</div>
+2️⃣ TRIP CARD REDESIGN (USED IN BOTH PROFILE + FRIEND VIEW)
+Replace old trip blocks with a clean card design:
+<div class="trip-card">
+  <div class="trip-card-header">
+      <h3>{{ trip.mountain_name }}</h3>
+      <span class="trip-dates">{{ trip.start_date }} → {{ trip.end_date }}</span>
+  </div>
+
+  <div class="trip-pass-info">
+      Compatible Pass: <strong>{{ trip.pass_type }}</strong>
+  </div>
+</div>
+CSS (mobile-first):
+.trip-card {
+    background: #FFFFFF;
+    border: 1px solid #E5E5E5;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
+}
+
+.trip-card-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.trip-dates {
+    font-size: 0.85rem;
+    color: #555;
+}
+3️⃣ INVITE A FRIEND BUTTON (PROFILE PAGE)
+Add to the bottom of the /profile page (above Settings):
+HTML
+<button id="invite-friend-btn" class="primary-btn">
+  Invite a Friend to BaseLodge
+</button>
+JS Logic
+<script>
+document.getElementById('invite-friend-btn').addEventListener('click', function() {
+    const message = "Hey! I’m using BaseLodge to connect with friends for ski trips. You should join — it’s free and makes planning super easy: https://baselodge.app";
+    
+    if (navigator.share) {
+        navigator.share({ text: message });
+    } else {
+        window.location.href = "sms:?body=" + encodeURIComponent(message);
+    }
+});
+</script>
+4️⃣ FRIEND FILTERS ON FRIENDS PAGE (friends.html)
+Add filter pills for pass types:
+Epic | Ikon | Other | None
+HTML
+<div class="friend-filter-bar">
+  <button class="filter-pill" data-filter="Epic">Epic</button>
+  <button class="filter-pill" data-filter="Ikon">Ikon</button>
+  <button class="filter-pill" data-filter="Other">Other</button>
+  <button class="filter-pill" data-filter="None">None</button>
+</div>
+JS Logic
+<script>
+const pills = document.querySelectorAll('.filter-pill');
+
+pills.forEach(pill => {
+  pill.addEventListener('click', () => {
+    const pass = pill.dataset.filter;
+
+    document.querySelectorAll('.friend-card').forEach(card => {
+      if (pass === 'None' || card.dataset.pass === pass) {
+        card.style.display = 'block';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  });
+});
+</script>
+CSS
+.friend-filter-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.filter-pill {
+    padding: 8px 12px;
+    background: #F7F7F7;
+    border: 1px solid #DDD;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+5️⃣ SEGMENTED BUTTON CONTROLS (REPLACE SELECT DROPDOWNS)
+Pass Type:
+<div class="segmented-control">
+  <button data-value="Epic">Epic</button>
+  <button data-value="Ikon">Ikon</button>
+  <button data-value="Other">Other</button>
+  <button data-value="None">None</button>
+</div>
+<input type="hidden" name="pass_type" id="pass_type">
+Skier/Snowboarder:
+<div class="segmented-control">
+  <button data-value="Skier">Skier</button>
+  <button data-value="Snowboarder">Snowboarder</button>
+</div>
+<input type="hidden" name="snow_type" id="snow_type">
+Basic CSS
+.segmented-control {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.segmented-control button {
+    flex: 1;
+    padding: 10px;
+    background: #F7F7F7;
+    border: 1px solid #DDD;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+6️⃣ NAVIGATION CLEANUP (GLOBAL)
+Replace current nav bar with:
+<nav class="main-nav">
+  <a href="/home">Home</a>
+  <a href="/trips">Trips</a>
+  <a href="/friends">Friends</a>
+  <a href="/profile" class="active">Profile</a>
+</nav>
+CSS (mobile-first):
+.main-nav {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    border-top: 1px solid #DDD;
+    background: #FFF;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+}
+🎉 ALL FEATURES ARE NOW BLUEPRINTED.
+When you approve this, I will generate:
+👉 ONE unified, clean, zero-ambiguity AGENT prompt
+that edits:
+profile.html
+friend_profile.html
+friends.html
+style.css
+nav includes (if any)
+in one pass, with minimal checkpoints.
