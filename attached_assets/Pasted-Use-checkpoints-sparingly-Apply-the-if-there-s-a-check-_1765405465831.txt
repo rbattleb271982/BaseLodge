@@ -1,0 +1,73 @@
+Use checkpoints sparingly. Apply the “if there’s a check” rule everywhere. Do not duplicate code.
+STEP 1 — REMOVE OLD TRIPS PAGE AND ROUTE
+In app.py, search for any route that matches:
+/trips
+/my_trips
+/profile/trips
+If found:
+Comment it out
+Replace it with:
+return redirect(url_for('home'))
+Use the “if there’s a check” rule:
+If no such route exists, skip.
+In templates/, delete or rename:
+trips.html
+my_trips.html
+any template that shows “My Trips” header like screenshot #1
+If deleting is unsafe, wrap contents in:
+{# deprecated #}
+STEP 2 — REMOVE FLOATING “+” BUTTON FROM ALL TEMPLATES
+Search in templates for:
++
+or floating div/button elements with green or “add trip”.
+Remove the entire block.
+If CSS for a “floating-action-button” exists, remove it.
+STEP 3 — UPDATE NAVIGATION BAR
+Open templates/base.html (or nav include file).
+Replace the Trips nav item so it points to Home:
+<a href="{{ url_for('home') }}" class="{% if request.path.startswith('/home') %}active{% endif %}">
+    Trips
+</a>
+Use “if there’s a check”:
+If nav already exists → update only the link
+Do not duplicate nav bars
+STEP 4 — UPDATE /HOME TO BE THE ONLY TRIPS SCREEN
+Ensure the tab system is present.
+If not present, insert this structure inside home.html:
+<div class="home-tabs">
+    <button class="home-tab active" data-tab="my">My Trips</button>
+    <button class="home-tab" data-tab="friends">Friends' Trips</button>
+    <button class="home-tab" data-tab="all">All Trips</button>
+</div>
+Ensure empty states appear ONLY here.
+Remove duplicate empty states elsewhere.
+STEP 5 — REDIRECT ANY USE OF “My Trips” BUTTON TO /HOME
+Search for:
+Back to Profile
+My Trips
+See Trips
+Update them to:
+href="{{ url_for('home') }}"
+STEP 6 — CLEAN UP /PROFILE
+In profile.html:
+Ensure no trip cards appear
+Ensure no Add Trip buttons appear
+Ensure no Back to Trips buttons appear
+Only allow identity fields + invite + settings
+Use “if there’s a check” to remove old content.
+STEP 7 — VERIFY /FRIENDS DOES NOT SHOW TRIPS
+In friends.html:
+Should only show list + filter pills + invite button
+If any trip cards or trip buttons exist, remove them
+STEP 8 — REMOVE UNUSED CSS + JS
+Search static/styles.css and remove styles for:
+floating button
+my-trips-page
+deprecated trips card containers
+Only delete if they are not referenced by the new Home screen.
+STEP 9 — ENSURE LOGIN REDIRECTS TO /HOME
+In the login route:
+return redirect(url_for('home'))
+Replace other destinations if they exist.
+STEP 10 — SAVE ALL FILES
+Use minimal checkpoints.
