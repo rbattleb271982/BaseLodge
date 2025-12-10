@@ -2,10 +2,8 @@ import os
 from datetime import datetime, date
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from models import db, User, SkiTrip
-from debug_routes import debug_bp
 
 app = Flask(__name__)
-app.register_blueprint(debug_bp)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///baselodge.db")
