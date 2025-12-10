@@ -20,6 +20,38 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
+STATE_ABBR = {
+    "Alaska": "AK",
+    "California": "CA",
+    "Colorado": "CO",
+    "Idaho": "ID",
+    "Maine": "ME",
+    "Michigan": "MI",
+    "Montana": "MT",
+    "New Hampshire": "NH",
+    "New Mexico": "NM",
+    "New York": "NY",
+    "Oregon": "OR",
+    "Utah": "UT",
+    "Vermont": "VT",
+    "Washington": "WA",
+    "Wyoming": "WY"
+}
+
+PASS_OPTIONS = [
+    "Epic",
+    "Epic & Ikon",
+    "Epic 4-day",
+    "Epic Local",
+    "Ikon",
+    "Ikon Base",
+    "Ikon Plus",
+    "Ikon Session",
+    "Loveland",
+    "No Pass",
+    "Other"
+]
+
 MOUNTAINS_BY_STATE = {
     "Alaska": sorted(["Alyeska Resort"]),
     "California": sorted(["Mammoth Mountain", "Palisades Tahoe", "Northstar", "Heavenly", "Kirkwood", "Big Bear", "June Mountain"]),
@@ -127,9 +159,20 @@ def profile():
     if not user.profile_setup_complete:
         return redirect(url_for("setup_profile"))
     
+    today = date.today()
+    upcoming_trips = SkiTrip.query.filter(
+        SkiTrip.user_id == user.id,
+        SkiTrip.start_date >= today
+    ).order_by(SkiTrip.start_date.asc()).all()
+    
+    past_trips = SkiTrip.query.filter(
+        SkiTrip.user_id == user.id,
+        SkiTrip.start_date < today
+    ).order_by(SkiTrip.start_date.desc()).all()
+    
     states = sorted(MOUNTAINS_BY_STATE.keys())
     
-    return render_template("profile.html", user=user, states=states, mountains_by_state=MOUNTAINS_BY_STATE)
+    return render_template("profile.html", user=user, upcoming_trips=upcoming_trips, past_trips=past_trips, states=states, mountains_by_state=MOUNTAINS_BY_STATE, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS)
 
 @app.route("/my-trips")
 def my_trips():
@@ -157,7 +200,7 @@ def my_trips():
     
     states = sorted(MOUNTAINS_BY_STATE.keys())
     
-    return render_template("my_trips.html", user=user, upcoming_trips=upcoming_trips, past_trips=past_trips, states=states, mountains_by_state=MOUNTAINS_BY_STATE)
+    return render_template("my_trips.html", user=user, upcoming_trips=upcoming_trips, past_trips=past_trips, states=states, mountains_by_state=MOUNTAINS_BY_STATE, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS)
 
 @app.route("/api/mountains/<state>")
 def get_mountains(state):
@@ -178,6 +221,7 @@ def create_trip():
     mountain = data.get("mountain")
     start_date_str = data.get("start_date")
     end_date_str = data.get("end_date")
+    pass_type = data.get("pass_type", user.pass_type or "No Pass")
     is_public = data.get("is_public", True)
     
     start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date() if start_date_str else None
@@ -185,6 +229,9 @@ def create_trip():
     
     if not start_date or not end_date:
         return jsonify({"success": False, "error": "Please provide both start and end dates."}), 400
+    
+    if end_date < start_date:
+        return jsonify({"success": False, "error": "End date cannot be before start date."}), 400
     
     overlapping = SkiTrip.query.filter(
         SkiTrip.user_id == user.id,
@@ -201,6 +248,7 @@ def create_trip():
         mountain=mountain,
         start_date=start_date,
         end_date=end_date,
+        pass_type=pass_type,
         is_public=is_public
     )
     db.session.add(trip)
@@ -211,9 +259,11 @@ def create_trip():
         "trip": {
             "id": trip.id,
             "state": trip.state,
+            "state_abbr": STATE_ABBR.get(trip.state, trip.state),
             "mountain": trip.mountain,
             "start_date": trip.start_date.isoformat() if trip.start_date else None,
             "end_date": trip.end_date.isoformat() if trip.end_date else None,
+            "pass_type": trip.pass_type,
             "is_public": trip.is_public
         }
     })
@@ -232,6 +282,7 @@ def edit_trip(trip_id):
     trip.mountain = data.get("mountain")
     start_date_str = data.get("start_date")
     end_date_str = data.get("end_date")
+    trip.pass_type = data.get("pass_type", trip.pass_type or "No Pass")
     trip.is_public = data.get("is_public", True)
     
     trip.start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date() if start_date_str else None
@@ -239,6 +290,9 @@ def edit_trip(trip_id):
     
     if not trip.start_date or not trip.end_date:
         return jsonify({"success": False, "error": "Please provide both start and end dates."}), 400
+    
+    if trip.end_date < trip.start_date:
+        return jsonify({"success": False, "error": "End date cannot be before start date."}), 400
     
     overlapping = SkiTrip.query.filter(
         SkiTrip.user_id == session["user_id"],
@@ -257,9 +311,11 @@ def edit_trip(trip_id):
         "trip": {
             "id": trip.id,
             "state": trip.state,
+            "state_abbr": STATE_ABBR.get(trip.state, trip.state),
             "mountain": trip.mountain,
             "start_date": trip.start_date.isoformat() if trip.start_date else None,
             "end_date": trip.end_date.isoformat() if trip.end_date else None,
+            "pass_type": trip.pass_type,
             "is_public": trip.is_public
         }
     })

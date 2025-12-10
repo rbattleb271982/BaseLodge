@@ -33,6 +33,7 @@ class SkiTrip(db.Model):
     mountain = db.Column(db.String(100))
     start_date = db.Column(db.Date)
     end_date = db.Column(db.Date)
+    pass_type = db.Column(db.String(50), default="No Pass")
     is_public = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

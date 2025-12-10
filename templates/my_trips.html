@@ -7,6 +7,14 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body class="profile-page">
+    <a href="{{ url_for('logout') }}" class="logout-icon" title="Log Out">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+    </a>
+    
     <div class="profile-container">
         <div class="auth-card profile-card">
             <h1 class="auth-title">My Trips</h1>
@@ -25,21 +33,20 @@
                     <div id="upcoming-trips-list" class="trips-list">
                         {% if upcoming_trips %}
                             {% for trip in upcoming_trips %}
+                            {% set trip_days = (trip.end_date - trip.start_date).days + 1 %}
                             <div class="trip-card" 
                                  data-trip-id="{{ trip.id }}"
                                  data-state="{{ trip.state }}"
                                  data-mountain="{{ trip.mountain }}"
                                  data-start-date="{{ trip.start_date }}"
                                  data-end-date="{{ trip.end_date }}"
+                                 data-pass-type="{{ trip.pass_type or 'No Pass' }}"
                                  data-is-public="{{ 'true' if trip.is_public else 'false' }}">
                                 <div class="trip-info">
-                                    <h3 class="trip-mountain">{{ trip.mountain }}, {{ trip.state }}</h3>
-                                    <p class="trip-dates">
-                                        {{ trip.start_date.strftime('%b %d') }}{% if trip.end_date and trip.end_date != trip.start_date %}–{{ trip.end_date.strftime('%d') }}{% endif %}
-                                    </p>
-                                    <span class="trip-visibility {{ 'public' if trip.is_public else 'private' }}">
-                                        {{ 'Public' if trip.is_public else 'Private' }}
-                                    </span>
+                                    <h3 class="trip-mountain">{{ trip.mountain }}</h3>
+                                    <p class="trip-dates">{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} ({{ trip_days }} day trip)</p>
+                                    <p class="trip-state">{{ state_abbr.get(trip.state, trip.state) }}</p>
+                                    <p class="trip-pass">{{ trip.pass_type or 'No Pass' }}</p>
                                 </div>
                                 <div class="trip-actions">
                                     <button class="btn-small secondary edit-btn">Edit</button>
@@ -52,7 +59,7 @@
                     
                     <div id="upcoming-empty-state" class="empty-state {% if upcoming_trips %}hidden{% endif %}">
                         <p>You don't have any upcoming ski days planned.</p>
-                        <p class="text-muted">Add one from your profile!</p>
+                        <p class="text-muted">Tap the + button to add one!</p>
                     </div>
                 </div>
                 
@@ -61,21 +68,20 @@
                     <h2 class="section-title">Past Trips</h2>
                     <div id="past-trips-list" class="trips-list">
                         {% for trip in past_trips %}
+                        {% set trip_days = (trip.end_date - trip.start_date).days + 1 %}
                         <div class="trip-card trip-card-past" 
                              data-trip-id="{{ trip.id }}"
                              data-state="{{ trip.state }}"
                              data-mountain="{{ trip.mountain }}"
                              data-start-date="{{ trip.start_date }}"
                              data-end-date="{{ trip.end_date }}"
+                             data-pass-type="{{ trip.pass_type or 'No Pass' }}"
                              data-is-public="{{ 'true' if trip.is_public else 'false' }}">
                             <div class="trip-info">
-                                <h3 class="trip-mountain">{{ trip.mountain }}, {{ trip.state }}</h3>
-                                <p class="trip-dates">
-                                    {{ trip.start_date.strftime('%b %d') }}{% if trip.end_date and trip.end_date != trip.start_date %}–{{ trip.end_date.strftime('%d') }}{% endif %}
-                                </p>
-                                <span class="trip-visibility {{ 'public' if trip.is_public else 'private' }}">
-                                    {{ 'Public' if trip.is_public else 'Private' }}
-                                </span>
+                                <h3 class="trip-mountain">{{ trip.mountain }}</h3>
+                                <p class="trip-dates">{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} ({{ trip_days }} day trip)</p>
+                                <p class="trip-state">{{ state_abbr.get(trip.state, trip.state) }}</p>
+                                <p class="trip-pass">{{ trip.pass_type or 'No Pass' }}</p>
                             </div>
                             <div class="trip-actions">
                                 <button class="btn-small secondary edit-btn">Edit</button>
@@ -87,10 +93,15 @@
                 </div>
                 {% endif %}
             </div>
-            
-            <button class="auth-button" id="create-trip-btn">Add New Trip</button>
         </div>
     </div>
+    
+    <button class="fab" id="create-trip-btn" title="Add Trip">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+    </button>
     
     <div id="trip-modal" class="modal hidden">
         <div class="modal-backdrop" id="trip-modal-backdrop"></div>
@@ -122,11 +133,20 @@
                     <label for="end_date">End Date</label>
                     <input type="date" id="end_date" name="end_date" required>
                 </div>
+                <div class="form-row">
+                    <label for="pass_type">Pass Type</label>
+                    <select id="pass_type" name="pass_type" required class="auth-select">
+                        {% for pass_opt in pass_options %}
+                        <option value="{{ pass_opt }}" {% if pass_opt == user.pass_type %}selected{% endif %}>{{ pass_opt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <div class="form-row toggle-row">
                     <label class="toggle-label">
                         <input type="checkbox" id="is_public" name="is_public" checked>
-                        <span class="toggle-text">Public Trip</span>
+                        <span class="toggle-text">Visible to friends only</span>
                     </label>
+                    <p class="helper-text">Your friends can see this trip</p>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="auth-button secondary" id="trip-cancel-btn">Cancel</button>
@@ -151,6 +171,8 @@
     
     <script>
         const mountainsByState = {{ mountains_by_state | tojson }};
+        const stateAbbr = {{ state_abbr | tojson }};
+        const userPassType = "{{ user.pass_type or 'No Pass' }}";
         let isEditMode = false;
         
         function formatDateRange(startDate, endDate) {
@@ -158,10 +180,9 @@
             const end = new Date(endDate);
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const startStr = months[start.getMonth()] + ' ' + start.getDate();
-            if (startDate === endDate) {
-                return startStr;
-            }
-            return startStr + '–' + end.getDate();
+            const endStr = months[end.getMonth()] + ' ' + end.getDate();
+            const days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+            return startStr + '–' + endStr + ' (' + days + ' day trip)';
         }
         
         function escapeHtml(text) {
@@ -178,15 +199,17 @@
             card.dataset.mountain = trip.mountain;
             card.dataset.startDate = trip.start_date;
             card.dataset.endDate = trip.end_date;
+            card.dataset.passType = trip.pass_type || 'No Pass';
             card.dataset.isPublic = trip.is_public;
+            
+            const stateAbbrVal = stateAbbr[trip.state] || trip.state;
             
             card.innerHTML = `
                 <div class="trip-info">
-                    <h3 class="trip-mountain">${escapeHtml(trip.mountain)}, ${escapeHtml(trip.state)}</h3>
+                    <h3 class="trip-mountain">${escapeHtml(trip.mountain)}</h3>
                     <p class="trip-dates">${formatDateRange(trip.start_date, trip.end_date)}</p>
-                    <span class="trip-visibility ${trip.is_public ? 'public' : 'private'}">
-                        ${trip.is_public ? 'Public' : 'Private'}
-                    </span>
+                    <p class="trip-state">${escapeHtml(stateAbbrVal)}</p>
+                    <p class="trip-pass">${escapeHtml(trip.pass_type || 'No Pass')}</p>
                 </div>
                 <div class="trip-actions">
                     <button class="btn-small secondary edit-btn">Edit</button>
@@ -208,8 +231,9 @@
                 const mountain = card.dataset.mountain;
                 const startDate = card.dataset.startDate;
                 const endDate = card.dataset.endDate;
+                const passType = card.dataset.passType;
                 const isPublic = card.dataset.isPublic === 'true';
-                openEditModal(tripId, state, mountain, startDate, endDate, isPublic);
+                openEditModal(tripId, state, mountain, startDate, endDate, passType, isPublic);
             });
             
             deleteBtn.addEventListener('click', function() {
@@ -228,13 +252,15 @@
                 card.dataset.mountain = trip.mountain;
                 card.dataset.startDate = trip.start_date;
                 card.dataset.endDate = trip.end_date;
+                card.dataset.passType = trip.pass_type || 'No Pass';
                 card.dataset.isPublic = trip.is_public;
                 
-                card.querySelector('.trip-mountain').textContent = trip.mountain + ', ' + trip.state;
+                const stateAbbrVal = trip.state_abbr || stateAbbr[trip.state] || trip.state;
+                
+                card.querySelector('.trip-mountain').textContent = trip.mountain;
                 card.querySelector('.trip-dates').textContent = formatDateRange(trip.start_date, trip.end_date);
-                const visibility = card.querySelector('.trip-visibility');
-                visibility.className = 'trip-visibility ' + (trip.is_public ? 'public' : 'private');
-                visibility.textContent = trip.is_public ? 'Public' : 'Private';
+                card.querySelector('.trip-state').textContent = stateAbbrVal;
+                card.querySelector('.trip-pass').textContent = trip.pass_type || 'No Pass';
             }
         }
         
@@ -298,12 +324,13 @@
             document.getElementById('mountain').innerHTML = '<option value="">Select mountain...</option>';
             document.getElementById('start_date').value = '';
             document.getElementById('end_date').value = '';
+            document.getElementById('pass_type').value = userPassType;
             document.getElementById('is_public').checked = true;
             hideModalError();
             document.getElementById('trip-modal').classList.remove('hidden');
         }
         
-        function openEditModal(tripId, state, mountain, startDate, endDate, isPublic) {
+        function openEditModal(tripId, state, mountain, startDate, endDate, passType, isPublic) {
             isEditMode = true;
             document.getElementById('modal-title').textContent = 'Edit Trip';
             document.getElementById('submit-btn').textContent = 'Save Changes';
@@ -312,6 +339,7 @@
             updateMountains(mountain);
             document.getElementById('start_date').value = startDate;
             document.getElementById('end_date').value = endDate;
+            document.getElementById('pass_type').value = passType || userPassType;
             document.getElementById('is_public').checked = isPublic;
             hideModalError();
             document.getElementById('trip-modal').classList.remove('hidden');
@@ -331,8 +359,21 @@
             document.getElementById('delete-modal').classList.add('hidden');
         }
         
+        function validateDates() {
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+            
+            if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+                showModalError('End date cannot be before start date.');
+                return false;
+            }
+            return true;
+        }
+        
         async function submitTrip(e) {
             e.preventDefault();
+            
+            if (!validateDates()) return;
             
             const tripId = document.getElementById('edit-trip-id').value;
             const data = {
@@ -340,6 +381,7 @@
                 mountain: document.getElementById('mountain').value,
                 start_date: document.getElementById('start_date').value,
                 end_date: document.getElementById('end_date').value,
+                pass_type: document.getElementById('pass_type').value,
                 is_public: document.getElementById('is_public').checked
             };
             
@@ -428,6 +470,14 @@
             document.getElementById('trip-form').addEventListener('submit', submitTrip);
             document.getElementById('state').addEventListener('change', function() {
                 updateMountains(null);
+            });
+            
+            document.getElementById('start_date').addEventListener('change', function() {
+                const endDateInput = document.getElementById('end_date');
+                if (!endDateInput.value || new Date(endDateInput.value) < new Date(this.value)) {
+                    endDateInput.value = this.value;
+                }
+                endDateInput.min = this.value;
             });
             
             document.querySelectorAll('.trip-card').forEach(attachCardEvents);
