@@ -16,54 +16,19 @@
     </a>
     
     <div class="profile-container">
-        <div class="auth-card profile-card">
-            <h1 class="auth-title" id="display-name">{{ user.first_name }} {{ user.last_name }}</h1>
-            
-            <div class="profile-info">
-                <div class="profile-field">
-                    <label>Name</label>
-                    <div class="field-display" onclick="enableEdit(this)">
-                        <span id="name-display">{{ user.first_name }} {{ user.last_name }}</span>
-                        <input type="text" id="first_name" placeholder="First name" class="hidden">
-                        <input type="text" id="last_name" placeholder="Last name" class="hidden">
-                    </div>
-                </div>
-                
-                <div class="profile-field">
-                    <label>Rider Type</label>
-                    <div class="field-display" onclick="enableEdit(this)">
-                        <span id="rider-display">{{ user.rider_type or 'Not specified' }}</span>
-                        <select id="rider_type" class="hidden">
-                            <option value="">Select...</option>
-                            <option value="Skier">Skier</option>
-                            <option value="Snowboarder">Snowboarder</option>
-                            <option value="Both">Both</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="profile-field">
-                    <label>Pass Type</label>
-                    <div class="field-display" onclick="enableEdit(this)">
-                        <span id="pass-display">{{ user.pass_type or 'No Pass' }}</span>
-                        <select id="pass_type" class="hidden">
-                            <option value="">Select...</option>
-                            {% for pass_opt in pass_options %}
-                            <option value="{{ pass_opt }}">{{ pass_opt }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="profile-field read-only">
-                    <label>Friends</label>
-                    <div>{{ friends_count }} friend{{ 's' if friends_count != 1 else '' }}</div>
-                </div>
-            </div>
-            
-            <div class="profile-actions">
-                <a href="{{ url_for('friends') }}" class="auth-button">View Friends</a>
-                <button id="copy-invite-btn" class="auth-button secondary" onclick="copyInviteLink()">Invite a Friend</button>
+        <div class="profile-header">
+            <h1 class="auth-title">{{ user.first_name }} {{ user.last_name }}</h1>
+
+            <p class="profile-inline-meta">
+                {{ user.rider_type or 'Rider type not set' }} •
+                {{ user.pass_type or 'No pass selected' }} •
+                {{ friends_count }} friend{% if friends_count != 1 %}s{% endif %}
+            </p>
+
+            <div class="profile-inline-links">
+                <a href="{{ url_for('friends') }}" class="link-button">View Friends</a>
+                <button type="button" class="link-button" onclick="copyInviteLink()">Invite a Friend</button>
+                <a href="{{ url_for('edit_profile') }}" class="link-button">Edit Profile</a>
             </div>
         </div>
         

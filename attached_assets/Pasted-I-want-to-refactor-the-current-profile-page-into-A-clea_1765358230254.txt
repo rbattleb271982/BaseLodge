@@ -1,0 +1,252 @@
+I want to refactor the current profile page into:
+
+- A clean, minimal **Home screen** (at /profile), with:
+  - Inline header (no card)
+  - View Friends / Invite a Friend / Edit Profile links
+  - Existing My Trips | Friends’ Trips toggle + trip UI
+  - Existing FAB (+) for creating trips
+
+- A new **Edit Profile** page (at /edit_profile), which:
+  - Reuses the OLD profile card layout
+  - Has the logout icon in the top-right
+  - Has a "← Back to Home" link
+  - Does NOT show the FAB or trip modals
+
+Follow the steps below carefully and only modify what’s described.
+
+========================================================
+PART 1 — Create templates/edit_profile.html
+========================================================
+
+1) Open templates/profile.html (the current page that shows:
+   - "Me You"
+   - Big profile card with Name, Rider Type, Pass Type, Friends, and buttons like "View Friends" + "Invite a Friend"
+   - Upcoming Trips section
+   - FAB, etc.).
+
+2) Locate the large profile card at the top, something like:
+
+<div class="auth-card profile-card">
+    <h1 class="auth-title">...</h1>
+    <div class="profile-info">...</div>
+    <div class="profile-actions">...</div>
+</div>
+
+Copy this entire auth-card block (including the h1, profile-info, profile-actions).
+
+3) Create a new template file:
+
+- templates/edit_profile.html
+
+Base its structure on profile.html, but with a simpler focus:
+
+- Use the same <body class="profile-page"> and .profile-container wrapper as profile.html.
+- Include the logout icon at the top-right (same markup currently used in profile.html).
+- Inside .profile-container, include:
+  - A small "← Back to Home" link at the top that goes back to /profile.
+  - The copied auth-card profile card.
+
+Example structure (adapt to your existing markup and classes):
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base Lodge - Edit Profile</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="profile-page">
+    <!-- reuse same logout icon used in profile.html -->
+    <a href="{{ url_for('logout') }}" class="logout-icon" title="Log Out">
+        <!-- existing SVG icon -->
+    </a>
+
+    <div class="profile-container">
+        <div class="auth-card" style="margin-bottom: 12px;">
+            <a href="{{ url_for('profile') }}" class="link-button">← Back to Home</a>
+        </div>
+
+        <!-- Paste the original big profile card here -->
+        <div class="auth-card profile-card">
+            <!-- original profile card content (title, profile-info, profile-actions) -->
+        </div>
+    </div>
+</body>
+</html>
+
+Do NOT include the Upcoming Trips card or any trip-related content in edit_profile.html. This page is just for profile info, not trips.
+
+========================================================
+PART 2 — Add /edit_profile route in app.py
+========================================================
+
+1) In app.py, find the existing /profile route. It likely:
+   - Checks session["user_id"]
+   - Loads the User
+   - Loads friends_count
+   - Loads my_trips, friends_trips, friend_map, and/or state_abbr
+   - Renders profile.html
+
+2) Add a new route for /edit_profile that reuses the same user lookup and context data, but renders edit_profile.html instead of profile.html.
+
+Example (ADAPT variable names to what you actually use):
+
+@app.route("/edit_profile")
+def edit_profile():
+    if "user_id" not in session:
+        return redirect(url_for("auth"))
+    user = User.query.get(session["user_id"])
+    if not user:
+        session.pop("user_id", None)
+        return redirect(url_for("auth"))
+
+    # If the existing /profile route calculates things like friends_count, my_trips, friends_trips, friend_map,
+    # reuse that logic here so the template can show the same data.
+    # For example, copy the context building from the /profile route.
+    friends = Friend.query.filter_by(user_id=user.id).all()
+    friends_count = len(friends)
+
+    # If you already calculate my_trips, friends_trips, friend_map in /profile,
+    # either reuse that code here or omit trip-related context since edit_profile.html won't display trips.
+
+    return render_template(
+        "edit_profile.html",
+        user=user,
+        friends_count=friends_count,
+        state_abbr=STATE_ABBR,
+    )
+
+If your existing /profile route already computes friends_count and other context, you can refactor that logic into a helper function to avoid duplication, or just reuse the needed parts. Do NOT change /profile behavior yet in this step.
+
+========================================================
+PART 3 — Simplify top of templates/profile.html (Home screen header)
+========================================================
+
+Now we turn profile.html into the Home screen with an inline header and keep trips + FAB here.
+
+1) In templates/profile.html, inside .profile-container, locate the current large profile card at the top (the same auth-card profile-card you copied earlier). It will look like:
+
+<div class="auth-card profile-card">
+    <h1 class="auth-title">...</h1>
+    <div class="profile-info">...</div>
+    <div class="profile-actions">...</div>
+</div>
+
+REPLACE that entire card with a new inline header block:
+
+<div class="profile-header">
+    <h1 class="auth-title">{{ user.first_name }} {{ user.last_name }}</h1>
+
+    <p class="profile-inline-meta">
+        {{ user.rider_type or 'Rider type not set' }} •
+        {{ user.pass_type or 'No pass selected' }} •
+        {{ friends_count }} friend{% if friends_count != 1 %}s{% endif %}
+    </p>
+
+    <div class="profile-inline-links">
+        <a href="{{ url_for('friends') }}" class="link-button">View Friends</a>
+        <button type="button" class="link-button" onclick="copyInviteLink()">Invite a Friend</button>
+        <a href="{{ url_for('edit_profile') }}" class="link-button">Edit Profile</a>
+    </div>
+</div>
+
+Notes:
+- Adjust friends_count to match whatever variable you use for friend count on this page.
+- Do NOT remove the Upcoming Trips card or My Trips / Friends’ Trips toggle below this header; leave them intact.
+
+2) At the bottom of profile.html, before </body>, ensure there is a copyInviteLink() function (if not already present). Reuse the same logic you used on friends.html:
+
+<script>
+function copyInviteLink() {
+    const currentUserId = {{ user.id }};
+    const inviteUrl = `${window.location.origin}/auth?ref=${currentUserId}`;
+    navigator.clipboard.writeText(inviteUrl).then(() => {
+        alert('Invite link copied to clipboard!');
+    }).catch(() => {
+        alert('Failed to copy link');
+    });
+}
+</script>
+
+If this function already exists in profile.html, do not duplicate it.
+
+3) Do NOT remove or change:
+- The FAB (+) create-trip button on this page
+- Any trip modal HTML or JavaScript
+- The My Trips / Friends’ Trips toggle or the trip rendering logic
+
+All trip-related functionality should remain on profile.html (Home screen).
+
+========================================================
+PART 4 — CSS for inline header (static/styles.css)
+========================================================
+
+In static/styles.css, add this block toward the bottom (before the @media query is fine, or after, as long as no conflicts):
+
+/* --- Home / Profile Inline Header --- */
+.profile-header {
+  margin-bottom: 16px;
+}
+
+.profile-inline-meta {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+.profile-inline-links {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 16px;
+  overflow-x: auto;
+}
+
+.profile-inline-links .link-button {
+  font-size: 0.85rem;
+  text-decoration: underline;
+  padding: 0;
+  white-space: nowrap;
+}
+
+@media (min-width: 480px) {
+  .profile-inline-meta {
+    font-size: 0.95rem;
+  }
+}
+
+This ensures:
+- Minimal inline header (no card)
+- Meta line is subtle
+- View Friends / Invite / Edit Profile appear inline and can scroll horizontally on very small screens (Option A choice).
+
+========================================================
+PART 5 — Ensure FAB and Trips ONLY live on Home
+========================================================
+
+Do NOT add the FAB or any trip modals/scripts to edit_profile.html.
+
+Verify:
+- FAB (+) and all trip CRUD logic (modals, JS) remain only in profile.html.
+- edit_profile.html only includes:
+  - Logout icon (top-right)
+  - Back to Home link
+  - Profile card with user info (Name, Rider Type, Pass Type, Friends, etc.)
+
+========================================================
+GENERAL NOTES
+========================================================
+
+- Do NOT use checkpoints unless absolutely necessary.
+- Keep all My Trips / Friends’ Trips toggle and inline-trip behavior exactly as already implemented.
+- Only change templates/profile.html, templates/edit_profile.html (new), app.py (new route), and static/styles.css as described.
+- Do not disturb auth, friends, or trip routes beyond what is required to pass context.
+
+When done, /profile should feel like the Home screen with:
+- Inline identity header
+- Links: View Friends / Invite a Friend / Edit Profile
+- My Trips / Friends’ Trips toggle and trip feeds
+- FAB for creating trips
+
+/edit_profile should feel like a focused profile details page.
