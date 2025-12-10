@@ -1,0 +1,363 @@
+I want to (1) extend the User model with more profile fields, (2) modernize the profile page into a Carv-style "My Info" layout, (3) update the edit_profile page to edit those fields, and (4) update the Friends page to show skill level inline.
+
+Please follow these steps carefully and only modify what’s specified.
+
+========================================
+PART 1 — Update User model (models.py)
+========================================
+
+Open models.py and in the User model, ADD these new columns:
+
+    gender = db.Column(db.String(20))
+    birth_year = db.Column(db.Integer)
+    home_state = db.Column(db.String(50))
+    skill_level = db.Column(db.String(50))
+
+Keep existing fields intact (rider_type, pass_type, etc.).
+
+After modifying the model, ensure the database is updated. If this app uses simple db.create_all() (no Alembic), call it once in a safe place (or run in a Python shell) so the new columns are created. Do NOT drop tables or delete existing data.
+
+========================================
+PART 2 — Update Friends page inline row (templates/friends.html)
+========================================
+
+Goal: Friend rows should be inline in this exact order:
+
+    Name — Pass Type — Skill Level — Rider Type
+
+Example:
+
+    Alex Peak — Ikon — Advanced — Snowboarder
+
+1. In templates/friends.html, find the loop that renders each friend card. It likely looks something like:
+
+    {% for friend_rel in friends %}
+      {% set friend = friend_rel.friend %}
+      <div class="friend-card">
+          <div class="friend-info">
+              <h3 class="friend-name">{{ friend.first_name }} {{ friend.last_name }}</h3>
+              <p class="friend-detail">{{ friend.rider_type or 'Rider type not set' }}</p>
+              <p class="friend-detail">Pass: <strong>{{ friend.pass_type or 'No Pass' }}</strong></p>
+          </div>
+      </div>
+    {% endfor %}
+
+2. Replace the inner content of .friend-card with a single inline row like this:
+
+    <div class="friend-card">
+        <div class="friend-info friend-inline">
+            <span class="friend-inline-name">
+                {{ friend.first_name }} {{ friend.last_name }}
+            </span>
+            <span class="friend-inline-sep">—</span>
+            <span class="friend-inline-pass">
+                {{ friend.pass_type or 'No pass set' }}
+            </span>
+            <span class="friend-inline-sep">—</span>
+            <span class="friend-inline-skill">
+                {{ friend.skill_level or 'Skill not set' }}
+            </span>
+            <span class="friend-inline-sep">—</span>
+            <span class="friend-inline-rider">
+                {{ friend.rider_type or 'Rider type not set' }}
+            </span>
+        </div>
+    </div>
+
+3. Make sure this uses the existing {% set friend = friend_rel.friend %} pattern you already have.
+
+Do NOT change any of the Friends page routing logic — just the layout.
+
+========================================
+PART 3 — Add “My Info” section to profile.html (Carv-style)
+========================================
+
+Goal: profile.html should have a **My Info** section with tap-like rows for:
+
+- Gender
+- Birth Year
+- Rider Type
+- Pass Type
+- Home State
+- Skill Level
+
+Each row is label on the left and value on the right, within a card.
+
+1. Open templates/profile.html.
+
+You already added a lightweight inline header at the top (user name + inline meta), and below that you have the “Upcoming Trips” card with the My Trips / Friends’ Trips toggle. We will INSERT a new card between the header and the Upcoming Trips card.
+
+Right below the header block (e.g., <div class="profile-header">…</div>), add:
+
+    <div class="auth-card info-card">
+        <h2 class="section-title">My Info</h2>
+        <div class="info-row">
+            <span class="info-label">Gender</span>
+            <span class="info-value">
+                {{ user.gender or 'Not set' }}
+            </span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Birth Year</span>
+            <span class="info-value">
+                {{ user.birth_year or 'Not set' }}
+            </span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Rider Type</span>
+            <span class="info-value">
+                {{ user.rider_type or 'Not set' }}
+            </span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Pass Type</span>
+            <span class="info-value">
+                {{ user.pass_type or 'No pass selected' }}
+            </span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Home State</span>
+            <span class="info-value">
+                {{ user.home_state or 'Not set' }}
+            </span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Skill Level</span>
+            <span class="info-value">
+                {{ user.skill_level or 'Not set' }}
+            </span>
+        </div>
+        <div class="info-footer">
+            <a href="{{ url_for('edit_profile') }}" class="link-button">Edit Profile</a>
+        </div>
+    </div>
+
+2. Ensure this card appears ABOVE the upcoming trips card, but BELOW the profile header.
+
+Do NOT remove the trips card or the FAB. Leave all trip-related behavior intact.
+
+========================================
+PART 4 — Update edit_profile.html to edit all fields
+========================================
+
+Goal: /edit_profile should present a simple form where the user can edit all of:
+
+- Gender (dropdown)
+- Birth Year (number input)
+- Rider Type (dropdown)
+- Pass Type (dropdown)
+- Home State (text input)
+- Skill Level (dropdown)
+
+1. Open templates/edit_profile.html. It currently reuses the old big profile card. We will turn it into a simple edit form card.
+
+Inside the main .profile-container, you should have a card similar to:
+
+    <div class="auth-card profile-card">
+        ...
+    </div>
+
+Replace that main card content with:
+
+    <div class="auth-card profile-card">
+        <h1 class="auth-title">Edit Profile</h1>
+
+        <form method="POST" action="{{ url_for('edit_profile') }}" class="auth-form">
+            <div class="form-row">
+                <label for="gender">Gender</label>
+                <select id="gender" name="gender" class="auth-select">
+                    <option value="" {% if not user.gender %}selected{% endif %}>Select</option>
+                    <option value="Female" {% if user.gender == 'Female' %}selected{% endif %}>Female</option>
+                    <option value="Male" {% if user.gender == 'Male' %}selected{% endif %}>Male</option>
+                    <option value="Non-binary" {% if user.gender == 'Non-binary' %}selected{% endif %}>Non-binary</option>
+                    <option value="Prefer not to say" {% if user.gender == 'Prefer not to say' %}selected{% endif %}>Prefer not to say</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <label for="birth_year">Birth Year</label>
+                <input
+                    type="number"
+                    id="birth_year"
+                    name="birth_year"
+                    min="1900"
+                    max="2100"
+                    value="{{ user.birth_year or '' }}"
+                >
+            </div>
+
+            <div class="form-row">
+                <label for="rider_type">Rider Type</label>
+                <select id="rider_type" name="rider_type" class="auth-select">
+                    <option value="" {% if not user.rider_type %}selected{% endif %}>Select</option>
+                    <option value="Skier" {% if user.rider_type == 'Skier' %}selected{% endif %}>Skier</option>
+                    <option value="Snowboarder" {% if user.rider_type == 'Snowboarder' %}selected{% endif %}>Snowboarder</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <label for="pass_type">Pass Type</label>
+                <select id="pass_type" name="pass_type" class="auth-select">
+                    <option value="" {% if not user.pass_type %}selected{% endif %}>Select</option>
+                    <option value="Epic" {% if user.pass_type == 'Epic' %}selected{% endif %}>Epic</option>
+                    <option value="Ikon" {% if user.pass_type == 'Ikon' %}selected{% endif %}>Ikon</option>
+                    <option value="Indy" {% if user.pass_type == 'Indy' %}selected{% endif %}>Indy</option>
+                    <option value="Other" {% if user.pass_type == 'Other' %}selected{% endif %}>Other</option>
+                    <option value="None" {% if user.pass_type == 'None' %}selected{% endif %}>None</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <label for="home_state">Home State</label>
+                <input
+                    type="text"
+                    id="home_state"
+                    name="home_state"
+                    value="{{ user.home_state or '' }}"
+                    placeholder="e.g., Colorado"
+                >
+            </div>
+
+            <div class="form-row">
+                <label for="skill_level">Skill Level</label>
+                <select id="skill_level" name="skill_level" class="auth-select">
+                    <option value="" {% if not user.skill_level %}selected{% endif %}>Select</option>
+                    <option value="Beginner" {% if user.skill_level == 'Beginner' %}selected{% endif %}>Beginner</option>
+                    <option value="Intermediate" {% if user.skill_level == 'Intermediate' %}selected{% endif %}>Intermediate</option>
+                    <option value="Advanced" {% if user.skill_level == 'Advanced' %}selected{% endif %}>Advanced</option>
+                    <option value="Expert" {% if user.skill_level == 'Expert' %}selected{% endif %}>Expert</option>
+                </select>
+            </div>
+
+            <button type="submit" class="auth-button">Save Changes</button>
+        </form>
+    </div>
+
+2. Make sure the surrounding structure still has:
+   - The logout icon at top-right (as before)
+   - A back link (e.g., “← Back”) inside a small card above this main card, if that already exists.
+
+========================================
+PART 5 — Update /edit_profile route (app.py)
+========================================
+
+In app.py, update the /edit_profile route to handle POST submissions:
+
+1. Locate the existing /edit_profile route. Modify it to accept both GET and POST:
+
+    @app.route("/edit_profile", methods=["GET", "POST"])
+    def edit_profile():
+        if "user_id" not in session:
+            return redirect(url_for("auth"))
+
+        user = User.query.get(session["user_id"])
+        if not user:
+            session.pop("user_id", None)
+            return redirect(url_for("auth"))
+
+        if request.method == "POST":
+            user.gender = request.form.get("gender") or None
+            birth_year_raw = request.form.get("birth_year")
+            user.birth_year = int(birth_year_raw) if birth_year_raw else None
+            user.rider_type = request.form.get("rider_type") or None
+            user.pass_type = request.form.get("pass_type") or None
+            user.home_state = request.form.get("home_state") or None
+            user.skill_level = request.form.get("skill_level") or None
+
+            db.session.commit()
+            return redirect(url_for("profile"))
+
+        # for GET, render edit_profile.html with current user
+        return render_template("edit_profile.html", user=user)
+
+Make sure `request` is imported at the top of app.py:
+
+    from flask import request
+
+And ensure db and User are already imported.
+
+========================================
+PART 6 — CSS for My Info rows (static/styles.css)
+========================================
+
+In static/styles.css, add this block near the bottom:
+
+/* --- My Info Card --- */
+.info-card {
+  margin-top: 8px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.info-value {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.info-footer {
+  margin-top: 12px;
+  text-align: right;
+}
+
+.info-footer .link-button {
+  font-size: 0.85rem;
+}
+
+.friend-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+.friend-inline-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.friend-inline-pass,
+.friend-inline-skill,
+.friend-inline-rider {
+  color: var(--text-muted);
+}
+
+.friend-inline-sep {
+  color: var(--text-muted);
+}
+
+@media (min-width: 480px) {
+  .info-label,
+  .info-value {
+    font-size: 0.95rem;
+  }
+}
+
+========================================
+DO NOT:
+- Remove any trip-related logic or existing My Trips / Friends’ Trips toggle on profile.html.
+- Change auth, login, or signup flows.
+- Use checkpoints unless strictly necessary.
+
+Return:
+1) The updated models.py User class
+2) The full updated templates/profile.html
+3) The full updated templates/edit_profile.html
+4) The full updated templates/friends.html
+5) The added CSS block from styles.css
+
