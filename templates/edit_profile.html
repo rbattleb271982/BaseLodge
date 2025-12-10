@@ -16,116 +16,80 @@
     </a>
     
     <div class="profile-container">
-        <div class="auth-card" style="margin-bottom: 12px;">
-            <a href="{{ url_for('profile') }}" class="link-button">← Back to Home</a>
-        </div>
-
         <div class="auth-card profile-card">
-            <h1 class="auth-title" id="display-name">{{ user.first_name }} {{ user.last_name }}</h1>
-            
-            <div class="profile-info">
-                <div class="profile-field">
-                    <label>Name</label>
-                    <div class="field-display" onclick="enableEdit(this)">
-                        <span id="name-display">{{ user.first_name }} {{ user.last_name }}</span>
-                        <input type="text" id="first_name" placeholder="First name" class="hidden">
-                        <input type="text" id="last_name" placeholder="Last name" class="hidden">
-                    </div>
+            <h1 class="auth-title">Edit Profile</h1>
+
+            <form method="POST" action="{{ url_for('edit_profile') }}" class="auth-form">
+                <div class="form-row">
+                    <label for="gender">Gender</label>
+                    <select id="gender" name="gender" class="auth-select">
+                        <option value="" {% if not user.gender %}selected{% endif %}>Select</option>
+                        <option value="Female" {% if user.gender == 'Female' %}selected{% endif %}>Female</option>
+                        <option value="Male" {% if user.gender == 'Male' %}selected{% endif %}>Male</option>
+                        <option value="Non-binary" {% if user.gender == 'Non-binary' %}selected{% endif %}>Non-binary</option>
+                        <option value="Prefer not to say" {% if user.gender == 'Prefer not to say' %}selected{% endif %}>Prefer not to say</option>
+                    </select>
                 </div>
-                
-                <div class="profile-field">
-                    <label>Rider Type</label>
-                    <div class="field-display" onclick="enableEdit(this)">
-                        <span id="rider-display">{{ user.rider_type or 'Not specified' }}</span>
-                        <select id="rider_type" class="hidden">
-                            <option value="">Select...</option>
-                            <option value="Skier">Skier</option>
-                            <option value="Snowboarder">Snowboarder</option>
-                            <option value="Both">Both</option>
-                        </select>
-                    </div>
+
+                <div class="form-row">
+                    <label for="birth_year">Birth Year</label>
+                    <input
+                        type="number"
+                        id="birth_year"
+                        name="birth_year"
+                        min="1900"
+                        max="2100"
+                        value="{{ user.birth_year or '' }}"
+                    >
                 </div>
-                
-                <div class="profile-field">
-                    <label>Pass Type</label>
-                    <div class="field-display" onclick="enableEdit(this)">
-                        <span id="pass-display">{{ user.pass_type or 'No Pass' }}</span>
-                        <select id="pass_type" class="hidden">
-                            <option value="">Select...</option>
-                            {% for pass_opt in pass_options %}
-                            <option value="{{ pass_opt }}">{{ pass_opt }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+
+                <div class="form-row">
+                    <label for="rider_type">Rider Type</label>
+                    <select id="rider_type" name="rider_type" class="auth-select">
+                        <option value="" {% if not user.rider_type %}selected{% endif %}>Select</option>
+                        <option value="Skier" {% if user.rider_type == 'Skier' %}selected{% endif %}>Skier</option>
+                        <option value="Snowboarder" {% if user.rider_type == 'Snowboarder' %}selected{% endif %}>Snowboarder</option>
+                    </select>
                 </div>
-                
-                <div class="profile-field read-only">
-                    <label>Friends</label>
-                    <div>{{ friends_count }} friend{{ 's' if friends_count != 1 else '' }}</div>
+
+                <div class="form-row">
+                    <label for="pass_type">Pass Type</label>
+                    <select id="pass_type" name="pass_type" class="auth-select">
+                        <option value="" {% if not user.pass_type %}selected{% endif %}>Select</option>
+                        <option value="Epic" {% if user.pass_type == 'Epic' %}selected{% endif %}>Epic</option>
+                        <option value="Ikon" {% if user.pass_type == 'Ikon' %}selected{% endif %}>Ikon</option>
+                        <option value="Indy" {% if user.pass_type == 'Indy' %}selected{% endif %}>Indy</option>
+                        <option value="Other" {% if user.pass_type == 'Other' %}selected{% endif %}>Other</option>
+                        <option value="None" {% if user.pass_type == 'None' %}selected{% endif %}>None</option>
+                    </select>
                 </div>
-            </div>
-            
-            <div class="profile-actions">
-                <a href="{{ url_for('friends') }}" class="auth-button">View Friends</a>
-                <button id="copy-invite-btn" class="auth-button secondary" onclick="copyInviteLink()">Invite a Friend</button>
-            </div>
+
+                <div class="form-row">
+                    <label for="home_state">Home State</label>
+                    <input
+                        type="text"
+                        id="home_state"
+                        name="home_state"
+                        value="{{ user.home_state or '' }}"
+                        placeholder="e.g., Colorado"
+                    >
+                </div>
+
+                <div class="form-row">
+                    <label for="skill_level">Skill Level</label>
+                    <select id="skill_level" name="skill_level" class="auth-select">
+                        <option value="" {% if not user.skill_level %}selected{% endif %}>Select</option>
+                        <option value="Beginner" {% if user.skill_level == 'Beginner' %}selected{% endif %}>Beginner</option>
+                        <option value="Intermediate" {% if user.skill_level == 'Intermediate' %}selected{% endif %}>Intermediate</option>
+                        <option value="Advanced" {% if user.skill_level == 'Advanced' %}selected{% endif %}>Advanced</option>
+                        <option value="Expert" {% if user.skill_level == 'Expert' %}selected{% endif %}>Expert</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="auth-button">Save Changes</button>
+                <a href="{{ url_for('profile') }}" class="link-button" style="display: block; text-align: center; margin-top: 12px;">← Back to Profile</a>
+            </form>
         </div>
     </div>
-    
-    <script>
-        function copyInviteLink() {
-            const currentUserId = {{ user.id }};
-            const inviteUrl = `${window.location.origin}/auth?ref=${currentUserId}`;
-            navigator.clipboard.writeText(inviteUrl).then(() => {
-                alert('Invite link copied to clipboard!');
-            }).catch(() => {
-                alert('Failed to copy link');
-            });
-        }
-        
-        function enableEdit(element) {
-            const field = element.parentElement;
-            const display = element.querySelector('span');
-            const inputs = element.querySelectorAll('input, select');
-            
-            if (display.style.display === 'none') return;
-            
-            display.style.display = 'none';
-            inputs.forEach(input => input.classList.remove('hidden'));
-            
-            if (field.id === 'name-field') {
-                document.getElementById('first_name').value = '{{ user.first_name }}';
-                document.getElementById('last_name').value = '{{ user.last_name }}';
-            }
-            
-            const updateBtn = document.createElement('button');
-            updateBtn.type = 'button';
-            updateBtn.className = 'auth-button';
-            updateBtn.textContent = 'Save';
-            updateBtn.onclick = () => saveProfileField(field);
-            
-            field.appendChild(updateBtn);
-        }
-        
-        function saveProfileField(field) {
-            const data = {};
-            const inputs = field.querySelectorAll('input:not(.hidden), select:not(.hidden)');
-            inputs.forEach(input => {
-                if (input.id) data[input.id] = input.value;
-            });
-            
-            fetch('/api/profile/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            }).then(res => res.json()).then(result => {
-                if (result.success) {
-                    location.reload();
-                } else {
-                    alert(result.error || 'Failed to update');
-                }
-            });
-        }
-    </script>
 </body>
 </html>

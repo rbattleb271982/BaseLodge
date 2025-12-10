@@ -29,12 +29,24 @@
             <div class="friends-list">
                 {% for friend_rel in friends %}
                 {% set friend = friend_rel.friend %}
-                <div class="friend-card friend-inline">
-                    <span class="friend-name">{{ friend.first_name }} {{ friend.last_name }}</span>
-                    <span class="friend-sep">—</span>
-                    <span class="friend-detail-inline">{{ friend.rider_type or 'Rider type not set' }}</span>
-                    <span class="friend-sep">—</span>
-                    <span class="friend-detail-inline">{{ friend.pass_type or 'No Pass' }}</span>
+                <div class="friend-card">
+                    <div class="friend-info friend-inline">
+                        <span class="friend-inline-name">
+                            {{ friend.first_name }} {{ friend.last_name }}
+                        </span>
+                        <span class="friend-inline-sep">—</span>
+                        <span class="friend-inline-pass">
+                            {{ friend.pass_type or 'No pass set' }}
+                        </span>
+                        <span class="friend-inline-sep">—</span>
+                        <span class="friend-inline-skill">
+                            {{ friend.skill_level or 'Skill not set' }}
+                        </span>
+                        <span class="friend-inline-sep">—</span>
+                        <span class="friend-inline-rider">
+                            {{ friend.rider_type or 'Rider type not set' }}
+                        </span>
+                    </div>
                 </div>
                 {% endfor %}
             </div>

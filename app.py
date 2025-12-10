@@ -202,7 +202,7 @@ def profile():
     
     return render_template("profile.html", user=user, upcoming_trips=upcoming_trips, past_trips=past_trips, my_trips=upcoming_trips, friends_trips=friends_trips, friend_map=friend_map, states=states, mountains_by_state=MOUNTAINS_BY_STATE, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS, friends_count=friends_count)
 
-@app.route("/edit_profile")
+@app.route("/edit_profile", methods=["GET", "POST"])
 def edit_profile():
     if "user_id" not in session:
         return redirect(url_for("auth"))
@@ -214,6 +214,18 @@ def edit_profile():
     
     if not user.profile_setup_complete:
         return redirect(url_for("setup_profile"))
+    
+    if request.method == "POST":
+        user.gender = request.form.get("gender") or None
+        birth_year_raw = request.form.get("birth_year")
+        user.birth_year = int(birth_year_raw) if birth_year_raw else None
+        user.rider_type = request.form.get("rider_type") or None
+        user.pass_type = request.form.get("pass_type") or None
+        user.home_state = request.form.get("home_state") or None
+        user.skill_level = request.form.get("skill_level") or None
+        
+        db.session.commit()
+        return redirect(url_for("profile"))
     
     friends_count = Friend.query.filter_by(user_id=user.id).count()
     
