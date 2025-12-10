@@ -1,0 +1,75 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ friend.first_name }} {{ friend.last_name }} - Base Lodge</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="profile-page">
+    <div class="profile-container">
+        <a href="/friends" class="back-link">← Back to Friends</a>
+        
+        <!-- FRIEND SUMMARY CARD (PUBLIC VERSION) -->
+        <div class="profile-summary-card">
+            <h2 class="profile-name">{{ friend.first_name }} {{ friend.last_name }}</h2>
+            
+            <div class="profile-identity-line">
+                {{ friend.pass_type or 'No Pass' }} — {{ friend.skill_level or 'Not Set' }} — {{ friend.rider_type or 'Skier' }}
+            </div>
+            
+            <div class="profile-mountains">
+                {{ upcoming_trips|length + past_trips|length }} trips logged
+            </div>
+        </div>
+        
+        <!-- TRIPS SECTION -->
+        <div class="trips-section">
+            {% if upcoming_trips %}
+            <div class="trips-section-group">
+                <h2 class="section-title">Upcoming Trips</h2>
+                <div class="trips-list">
+                    {% for trip in upcoming_trips %}
+                    {% set trip_days = (trip.end_date - trip.start_date).days + 1 %}
+                    <div class="trip-card">
+                        <div class="trip-info">
+                            <h3 class="trip-mountain">{{ trip.mountain }}</h3>
+                            <p class="trip-dates">{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} ({{ trip_days }} day{% if trip_days > 1 %}s{% endif %})</p>
+                            <p class="trip-state">{{ state_abbr.get(trip.state, trip.state) }}</p>
+                            <p class="trip-pass">{{ trip.pass_type or 'No Pass' }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if past_trips %}
+            <div class="trips-section-group">
+                <h2 class="section-title">Past Trips</h2>
+                <div class="trips-list">
+                    {% for trip in past_trips %}
+                    {% set trip_days = (trip.end_date - trip.start_date).days + 1 %}
+                    <div class="trip-card trip-card-past">
+                        <div class="trip-info">
+                            <h3 class="trip-mountain">{{ trip.mountain }}</h3>
+                            <p class="trip-dates">{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} ({{ trip_days }} day{% if trip_days > 1 %}s{% endif %})</p>
+                            <p class="trip-state">{{ state_abbr.get(trip.state, trip.state) }}</p>
+                            <p class="trip-pass">{{ trip.pass_type or 'No Pass' }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if not upcoming_trips and not past_trips %}
+            <div class="empty-state">
+                <p>{{ friend.first_name }} hasn't logged any trips yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

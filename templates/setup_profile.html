@@ -14,40 +14,60 @@
         {% if step == "1" %}
         <form class="auth-form" method="POST" action="{{ url_for('setup_profile', step='1') }}">
             <div class="form-row">
-                <label for="rider_type">What best describes you?</label>
-                <select id="rider_type" name="rider_type" required class="auth-select">
-                    <option value="">Select one...</option>
-                    <option value="Skier">Skier</option>
-                    <option value="Snowboarder">Snowboarder</option>
-                    <option value="Cross-Country Skier">Cross-Country Skier</option>
-                    <option value="Snowshoer">Snowshoer</option>
-                    <option value="Other">Other</option>
-                </select>
+                <label>What best describes you?</label>
+                <div class="segmented-control">
+                    <button type="button" class="rider-btn" data-value="Skier">Skier</button>
+                    <button type="button" class="rider-btn" data-value="Snowboarder">Snowboarder</button>
+                </div>
+                <input type="hidden" id="rider_type" name="rider_type" required>
             </div>
             <button type="submit" class="auth-button">Next</button>
         </form>
         {% elif step == "2" %}
         <form class="auth-form" method="POST" action="{{ url_for('setup_profile', step='2') }}">
             <div class="form-row">
-                <label for="pass_type">What pass do you have?</label>
-                <select id="pass_type" name="pass_type" required class="auth-select">
-                    <option value="">Select one...</option>
-                    <option value="Epic">Epic</option>
-                    <option value="Epic & Ikon">Epic & Ikon</option>
-                    <option value="Epic 4-day">Epic 4-day</option>
-                    <option value="Epic Local">Epic Local</option>
-                    <option value="Ikon">Ikon</option>
-                    <option value="Ikon Base">Ikon Base</option>
-                    <option value="Ikon Plus">Ikon Plus</option>
-                    <option value="Ikon Session">Ikon Session</option>
-                    <option value="Loveland">Loveland</option>
-                    <option value="No Pass">No Pass</option>
-                    <option value="Other">Other</option>
-                </select>
+                <label>What pass do you have?</label>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px;">
+                    <button type="button" class="pass-btn" data-value="Epic">Epic</button>
+                    <button type="button" class="pass-btn" data-value="Ikon">Ikon</button>
+                    <button type="button" class="pass-btn" data-value="Epic Local">Epic Local</button>
+                    <button type="button" class="pass-btn" data-value="Ikon Base">Ikon Base</button>
+                    <button type="button" class="pass-btn" data-value="Epic & Ikon">Epic & Ikon</button>
+                    <button type="button" class="pass-btn" data-value="Loveland">Loveland</button>
+                    <button type="button" class="pass-btn" data-value="Other">Other</button>
+                    <button type="button" class="pass-btn" data-value="No Pass">No Pass</button>
+                </div>
+                <input type="hidden" id="pass_type" name="pass_type" required>
             </div>
             <button type="submit" class="auth-button">Complete Setup</button>
         </form>
         {% endif %}
+        
+        <script>
+        {% if step == "1" %}
+        const riderBtns = document.querySelectorAll('.rider-btn');
+        const riderInput = document.getElementById('rider_type');
+        
+        riderBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                riderBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                riderInput.value = btn.dataset.value;
+            });
+        });
+        {% elif step == "2" %}
+        const passBtns = document.querySelectorAll('.pass-btn');
+        const passInput = document.getElementById('pass_type');
+        
+        passBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                passBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                passInput.value = btn.dataset.value;
+            });
+        });
+        {% endif %}
+        </script>
         
         <div class="auth-helper">
             <span class="step-indicator">Step {{ step }} of 2</span>

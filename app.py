@@ -540,6 +540,43 @@ def friends():
     
     return render_template("friends.html", user=user, friends=friends_list, friend_trips=friend_trips, state_abbr=STATE_ABBR)
 
+@app.route("/profile/<int:user_id>")
+def friend_profile(user_id):
+    if "user_id" not in session:
+        return redirect(url_for("auth"))
+    
+    current_user = User.query.get(session["user_id"])
+    if not current_user:
+        session.pop("user_id", None)
+        return redirect(url_for("auth"))
+    
+    # Check if viewing own profile
+    if user_id == current_user.id:
+        return redirect(url_for("profile"))
+    
+    friend_user = User.query.get_or_404(user_id)
+    
+    # Verify friendship
+    friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=user_id).first()
+    if not friendship:
+        flash("You can only view profiles of your friends.", "error")
+        return redirect(url_for("friends"))
+    
+    today = date.today()
+    upcoming_trips = SkiTrip.query.filter(
+        SkiTrip.user_id == user_id,
+        SkiTrip.start_date >= today,
+        SkiTrip.is_public == True
+    ).order_by(SkiTrip.start_date.asc()).all()
+    
+    past_trips = SkiTrip.query.filter(
+        SkiTrip.user_id == user_id,
+        SkiTrip.start_date < today,
+        SkiTrip.is_public == True
+    ).order_by(SkiTrip.start_date.desc()).all()
+    
+    return render_template("friend_profile.html", user=current_user, friend=friend_user, upcoming_trips=upcoming_trips, past_trips=past_trips, state_abbr=STATE_ABBR)
+
 @app.route("/api/profile/update", methods=["POST"])
 def update_profile():
     if "user_id" not in session:

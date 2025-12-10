@@ -21,6 +21,30 @@
 
             <form method="POST" action="{{ url_for('edit_profile') }}" class="auth-form">
                 <div class="form-row">
+                    <label>Rider Type</label>
+                    <div class="segmented-control">
+                        <button type="button" class="rider-btn {% if user.rider_type == 'Skier' %}active{% endif %}" data-value="Skier">Skier</button>
+                        <button type="button" class="rider-btn {% if user.rider_type == 'Snowboarder' %}active{% endif %}" data-value="Snowboarder">Snowboarder</button>
+                    </div>
+                    <input type="hidden" id="rider_type" name="rider_type" value="{{ user.rider_type or '' }}">
+                </div>
+
+                <div class="form-row">
+                    <label>Pass Type</label>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px;">
+                        <button type="button" class="pass-btn {% if user.pass_type == 'Epic' %}active{% endif %}" data-value="Epic">Epic</button>
+                        <button type="button" class="pass-btn {% if user.pass_type == 'Ikon' %}active{% endif %}" data-value="Ikon">Ikon</button>
+                        <button type="button" class="pass-btn {% if user.pass_type == 'Epic Local' %}active{% endif %}" data-value="Epic Local">Epic Local</button>
+                        <button type="button" class="pass-btn {% if user.pass_type == 'Ikon Base' %}active{% endif %}" data-value="Ikon Base">Ikon Base</button>
+                        <button type="button" class="pass-btn {% if user.pass_type == 'Epic & Ikon' %}active{% endif %}" data-value="Epic & Ikon">Epic & Ikon</button>
+                        <button type="button" class="pass-btn {% if user.pass_type == 'Loveland' %}active{% endif %}" data-value="Loveland">Loveland</button>
+                        <button type="button" class="pass-btn {% if user.pass_type == 'Other' %}active{% endif %}" data-value="Other">Other</button>
+                        <button type="button" class="pass-btn {% if user.pass_type == 'No Pass' %}active{% endif %}" data-value="No Pass">No Pass</button>
+                    </div>
+                    <input type="hidden" id="pass_type" name="pass_type" value="{{ user.pass_type or '' }}">
+                </div>
+
+                <div class="form-row">
                     <label for="gender">Gender</label>
                     <select id="gender" name="gender" class="auth-select">
                         <option value="" {% if not user.gender %}selected{% endif %}>Select</option>
@@ -41,27 +65,6 @@
                         max="2100"
                         value="{{ user.birth_year or '' }}"
                     >
-                </div>
-
-                <div class="form-row">
-                    <label for="rider_type">Rider Type</label>
-                    <select id="rider_type" name="rider_type" class="auth-select">
-                        <option value="" {% if not user.rider_type %}selected{% endif %}>Select</option>
-                        <option value="Skier" {% if user.rider_type == 'Skier' %}selected{% endif %}>Skier</option>
-                        <option value="Snowboarder" {% if user.rider_type == 'Snowboarder' %}selected{% endif %}>Snowboarder</option>
-                    </select>
-                </div>
-
-                <div class="form-row">
-                    <label for="pass_type">Pass Type</label>
-                    <select id="pass_type" name="pass_type" class="auth-select">
-                        <option value="" {% if not user.pass_type %}selected{% endif %}>Select</option>
-                        <option value="Epic" {% if user.pass_type == 'Epic' %}selected{% endif %}>Epic</option>
-                        <option value="Ikon" {% if user.pass_type == 'Ikon' %}selected{% endif %}>Ikon</option>
-                        <option value="Indy" {% if user.pass_type == 'Indy' %}selected{% endif %}>Indy</option>
-                        <option value="Other" {% if user.pass_type == 'Other' %}selected{% endif %}>Other</option>
-                        <option value="None" {% if user.pass_type == 'None' %}selected{% endif %}>None</option>
-                    </select>
                 </div>
 
                 <div class="form-row">
@@ -89,6 +92,30 @@
                 <button type="submit" class="auth-button">Save Changes</button>
                 <a href="{{ url_for('profile') }}" class="link-button" style="display: block; text-align: center; margin-top: 12px;">← Back to Profile</a>
             </form>
+            
+            <script>
+            const riderBtns = document.querySelectorAll('.rider-btn');
+            const riderInput = document.getElementById('rider_type');
+            
+            riderBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    riderBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    riderInput.value = btn.dataset.value;
+                });
+            });
+            
+            const passBtns = document.querySelectorAll('.pass-btn');
+            const passInput = document.getElementById('pass_type');
+            
+            passBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    passBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    passInput.value = btn.dataset.value;
+                });
+            });
+            </script>
         </div>
     </div>
 </body>
