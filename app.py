@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, date
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask_migrate import Migrate
 from models import db, User, SkiTrip, Friend, Invitation
 
 app = Flask(__name__)
@@ -14,6 +15,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
+migrate = Migrate(app, db)
 
 with app.app_context():
     db.create_all()
