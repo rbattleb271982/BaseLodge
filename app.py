@@ -84,18 +84,7 @@ def auth():
             last_name = request.form.get("last_name")
             email = request.form.get("email")
             password = request.form.get("password")
-            birthday_str = request.form.get("birthday")
             inviter_id = request.args.get("ref")
-            
-            if not birthday_str:
-                flash("Please enter a valid date of birth.", "error")
-                return render_template("auth.html")
-            
-            try:
-                birthday = datetime.strptime(birthday_str, "%Y-%m-%d").date()
-            except ValueError:
-                flash("Please enter a valid date of birth.", "error")
-                return render_template("auth.html")
             
             existing_user = User.query.filter_by(email=email).first()
             if existing_user:
@@ -105,8 +94,7 @@ def auth():
             user = User(
                 first_name=first_name,
                 last_name=last_name,
-                email=email,
-                birthday=birthday
+                email=email
             )
             user.set_password(password)
             db.session.add(user)
