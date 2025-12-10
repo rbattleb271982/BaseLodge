@@ -1,0 +1,174 @@
+I need you to update the friends.html template and the styles.css file to match the improved mobile-friendly design described below. Make only the changes described, do not modify unrelated sections.
+
+--------------------------------------------
+PART 1 — Modify templates/friends.html
+--------------------------------------------
+
+1. After the <h1 class="auth-title">Friends</h1> heading, insert this toggle block:
+
+<div class="friends-toggle">
+    <button id="toggleFriends" class="toggle-btn active">Friends</button>
+    <button id="toggleTrips" class="toggle-btn">Trips</button>
+</div>
+
+2. Wrap the existing friends list section in:
+
+<div id="friendsSection" class="toggle-section active-section">
+    <!-- existing friends section content here -->
+</div>
+
+This wrapper should contain:
+- The "Your Friends" section header
+- The list of friend cards
+Do NOT change the internal structure of the friend loop.
+
+3. Wrap the entire "Friends' Upcoming Trips" section in:
+
+<div id="tripsSection" class="toggle-section hidden-section">
+    <!-- existing trips section content here -->
+</div>
+
+4. Replace the current per-trip HTML inside the trips loop with the following inline trip card:
+
+<div class="inline-trip">
+    <div class="inline-trip-top">
+        <span class="trip-friend">{{ friend.first_name }} {{ friend.last_name }}</span>
+        <span class="dot-sep">•</span>
+        <span class="trip-mountain">{{ trip.mountain }}</span>
+        <span class="trip-state">{{ state_abbr.get(trip.state, trip.state) }}</span>
+    </div>
+
+    <div class="inline-trip-bottom">
+        <span class="trip-dates">
+            {{ trip.start_date.strftime('%b %d') }}
+            {% if trip.end_date and trip.end_date != trip.start_date %}
+                – {{ trip.end_date.strftime('%b %d') }}
+            {% endif %}
+        </span>
+        
+        {% set num_days = (trip.end_date - trip.start_date).days + 1 %}
+        <span class="dot-sep">•</span>
+        <span class="trip-days">{{ num_days }} day{% if num_days > 1 %}s{% endif %}</span>
+    </div>
+</div>
+
+5. Before the closing </body> tag, add the toggle JavaScript:
+
+<script>
+document.getElementById("toggleFriends").addEventListener("click", () => {
+    document.getElementById("friendsSection").classList.add("active-section");
+    document.getElementById("friendsSection").classList.remove("hidden-section");
+    document.getElementById("tripsSection").classList.remove("active-section");
+    document.getElementById("tripsSection").classList.add("hidden-section");
+    document.getElementById("toggleFriends").classList.add("active");
+    document.getElementById("toggleTrips").classList.remove("active");
+});
+
+document.getElementById("toggleTrips").addEventListener("click", () => {
+    document.getElementById("friendsSection").classList.remove("active-section");
+    document.getElementById("friendsSection").classList.add("hidden-section");
+    document.getElementById("tripsSection").classList.add("active-section");
+    document.getElementById("tripsSection").classList.remove("hidden-section");
+    document.getElementById("toggleTrips").classList.add("active");
+    document.getElementById("toggleFriends").classList.remove("active");
+});
+</script>
+
+--------------------------------------------
+PART 2 — Modify static/styles.css
+--------------------------------------------
+
+Append the following CSS to the end of the file:
+
+/* --- Friends Page Toggle --- */
+.friends-toggle {
+  display: flex;
+  background-color: var(--bg);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 16px;
+  gap: 6px;
+}
+
+.toggle-btn {
+  flex: 1;
+  padding: 12px 0;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  background-color: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.toggle-btn.active {
+  background-color: var(--primary);
+  color: white;
+}
+
+.toggle-section.hidden-section {
+  display: none;
+}
+
+.toggle-section.active-section {
+  display: block;
+}
+
+/* --- Inline Trip Cards --- */
+.inline-trip {
+  background-color: var(--surface);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inline-trip-top,
+.inline-trip-bottom {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.trip-friend {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.trip-mountain {
+  font-weight: 600;
+  color: var(--primary);
+  font-size: 0.9rem;
+}
+
+.trip-state {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.trip-dates {
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.trip-days {
+  color: var(--primary-dark);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.dot-sep {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+--------------------------------------------
+Do not use checkpoints unless absolutely required.
+Make no changes outside the specified modifications.
+--------------------------------------------
