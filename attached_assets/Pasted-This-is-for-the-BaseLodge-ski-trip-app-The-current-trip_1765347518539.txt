@@ -1,0 +1,70 @@
+This is for the BaseLodge ski trip app. The current trip system works but needs better UI and logic. You’ll be updating both frontend and backend behavior. Prioritize mobile-first responsiveness and clean layout.
+✅ FRONTEND (HTML + JS + CSS)
+🧩 Trip Cards (on profile & all trips page)
+Show:
+Mountain name (e.g., “Vail”)
+State (e.g., “CO”)
+Trip length (e.g., “3 days”) → calculated from start and end date
+Pass type (e.g., Epic, Ikon, None)
+Sort trips by start_date ascending
+Remove any placeholder cards or hardcoded samples
+🧩 Trip Modals (Add, Edit, Delete)
+Use inline modal layout on desktop
+On mobile, modals should appear full-screen with:
+"Close" button
+Adequate top/bottom padding
+Add a floating Add Trip button (mobile-friendly)
+Submit behavior:
+Auto-close modal after successful save
+Reset modal form fields after submit
+Include error messaging if trip dates overlap (see logic below)
+🧩 Filters on “All Trips” Page
+Add multi-select filter for pass_type:
+Options: Epic, Ikon, Epic & Ikon, Other, None
+Filtering should update trip cards in real time
+✅ BACKEND (Flask / SQLAlchemy)
+🧩 Trip Model
+Fields:
+mountain (string)
+state (string)
+start_date (date)
+end_date (date)
+pass_type (string) — one of Epic, Ikon, etc.
+Derived:
+Do not store trip_length, but calculate and display it on the frontend
+🧩 User Model
+Add pass_type (string)
+Users may only select one pass type (e.g., Epic, Ikon, Epic & Ikon, Other, None)
+🧩 Trip Overlap Logic
+Users cannot create or edit a trip that overlaps in dates with another one of their own trips
+Overlap includes start and end dates
+Example: Jan 12–14 overlaps with Jan 14–16 (Jan 14 is not allowed)
+Return a clear error message if this happens
+✅ CLEANUP / REMOVALS
+Remove:
+All raise_hand, meetup, and QR code logic for now (from both frontend and backend)
+Any references to home mountain
+Do not include:
+Searchable friend lists
+Public visibility to non-friends
+Multiple passes per user (single pass only for now)
+✅ DATA + STYLING
+Use this pass list (alphabetized):
+Epic
+Epic & Ikon
+Epic 4-day
+Epic Local
+Ikon
+Ikon Base
+Ikon Plus
+Ikon Session
+Loveland
+No Pass
+Other
+Ensure pass list is alphabetical in all dropdowns
+Sort all trips by start_date ascending in displays
+Mobile-first styling across all views
+✅ FINAL REMINDER
+Do not use checkpoints unless explicitly told
+Treat all modals and buttons as mobile-first
+Focus only on logged-in user experience — admin is not relevant in this pass
