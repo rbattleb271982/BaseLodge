@@ -123,7 +123,7 @@ def auth():
             if user and user.check_password(password):
                 session["user_id"] = user.id
                 if user.profile_setup_complete:
-                    return redirect(url_for("profile"))
+                    return redirect(url_for("home"))
                 else:
                     return redirect(url_for("setup_profile"))
             else:
@@ -600,6 +600,55 @@ def update_profile():
     db.session.commit()
     
     return jsonify({"success": True, "message": "Profile updated"}), 200
+
+@app.route("/home")
+def home():
+    if "user_id" not in session:
+        return redirect(url_for("auth"))
+    
+    user = User.query.get(session["user_id"])
+    if not user:
+        session.pop("user_id", None)
+        return redirect(url_for("auth"))
+    
+    if not user.profile_setup_complete:
+        return redirect(url_for("setup_profile"))
+    
+    today = date.today()
+    
+    # My upcoming trips
+    my_trips = SkiTrip.query.filter(
+        SkiTrip.user_id == user.id,
+        SkiTrip.start_date >= today
+    ).order_by(SkiTrip.start_date.asc()).all()
+    
+    # Friends' upcoming trips
+    friends = Friend.query.filter_by(user_id=user.id).all()
+    friend_ids = [f.friend_id for f in friends]
+    
+    friend_trips = []
+    if friend_ids:
+        friend_trips = SkiTrip.query.filter(
+            SkiTrip.user_id.in_(friend_ids),
+            SkiTrip.start_date >= today,
+            SkiTrip.is_public == True
+        ).order_by(SkiTrip.start_date.asc()).all()
+    
+    # Combined list for All Trips (upcoming only)
+    all_trips = (my_trips or []) + (friend_trips or [])
+    try:
+        all_trips = sorted(all_trips, key=lambda t: t.start_date)
+    except Exception:
+        pass
+    
+    return render_template(
+        'home.html',
+        user=user,
+        my_trips=my_trips,
+        friend_trips=friend_trips,
+        all_trips=all_trips,
+        state_abbr=STATE_ABBR
+    )
 
 @app.route("/logout")
 def logout():

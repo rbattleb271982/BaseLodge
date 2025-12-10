@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base Lodge - Home</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="profile-page">
+    <div class="profile-container">
+        <h1 class="home-title">Home</h1>
+
+        <div class="home-tabs">
+            <button class="home-tab active" data-tab="my">My Trips</button>
+            <button class="home-tab" data-tab="friends">Friends' Trips</button>
+            <button class="home-tab" data-tab="all">All Trips</button>
+        </div>
+
+        <div class="home-actions">
+            <a href="{{ url_for('my_trips') }}" class="primary-btn add-trip-btn">Add a Trip</a>
+        </div>
+
+        <!-- My Trips -->
+        <div class="home-tab-panel active" id="tab-my">
+            {% if my_trips %}
+                {% for trip in my_trips %}
+                <div class="trip-card">
+                    <div class="trip-card-header">
+                        <h3>{{ trip.mountain }}</h3>
+                        <span class="trip-dates">{{ trip.start_date.strftime('%b %d') }} → {{ trip.end_date.strftime('%b %d') }}</span>
+                    </div>
+                    <div class="trip-pass-info">
+                        Compatible Pass: <strong>{{ trip.pass_type }}</strong>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="empty-state">You don't have any upcoming trips yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- Friends' Trips -->
+        <div class="home-tab-panel" id="tab-friends">
+            {% if friend_trips %}
+                {% for trip in friend_trips %}
+                <div class="trip-card">
+                    <div class="trip-card-header">
+                        <h3>{{ trip.mountain }}</h3>
+                        <span class="trip-dates">{{ trip.start_date.strftime('%b %d') }} → {{ trip.end_date.strftime('%b %d') }}</span>
+                    </div>
+                    <div class="trip-pass-info">
+                        {{ trip.user.first_name }} {{ trip.user.last_name }} · Pass: <strong>{{ trip.pass_type }}</strong>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="empty-state">Your friends don't have any upcoming trips yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- All Trips (upcoming only) -->
+        <div class="home-tab-panel" id="tab-all">
+            {% if all_trips %}
+                {% for trip in all_trips %}
+                <div class="trip-card">
+                    <div class="trip-card-header">
+                        <h3>{{ trip.mountain }}</h3>
+                        <span class="trip-dates">{{ trip.start_date.strftime('%b %d') }} → {{ trip.end_date.strftime('%b %d') }}</span>
+                    </div>
+                    <div class="trip-pass-info">
+                        {% if trip.user_id == user.id %}
+                            You · Pass: <strong>{{ trip.pass_type }}</strong>
+                        {% else %}
+                            {{ trip.user.first_name }} {{ trip.user.last_name }} · Pass: <strong>{{ trip.pass_type }}</strong>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="empty-state">No upcoming trips yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="main-nav">
+        <a href="{{ url_for('home') }}" class="nav-link active">Home</a>
+        <a href="{{ url_for('my_trips') }}" class="nav-link">Trips</a>
+        <a href="{{ url_for('friends') }}" class="nav-link">Friends</a>
+        <a href="{{ url_for('profile') }}" class="nav-link">Profile</a>
+    </nav>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const tabs = document.querySelectorAll('.home-tab');
+            const panels = document.querySelectorAll('.home-tab-panel');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const target = tab.getAttribute('data-tab');
+
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    panels.forEach(panel => {
+                        if (panel.id === 'tab-' + target) {
+                            panel.classList.add('active');
+                        } else {
+                            panel.classList.remove('active');
+                        }
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>

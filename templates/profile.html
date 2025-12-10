@@ -36,14 +36,14 @@
         <div id="profile-edit">
             <form method="POST" action="{{ url_for('profile') }}" class="profile-form">
                 <div class="form-group">
-                    <label for="pass_type">Pass Type</label>
-                    <select name="pass_type" id="pass_type" class="form-control">
-                        <option value="">Select Pass Type</option>
-                        <option value="Epic" {% if user.pass_type == 'Epic' %}selected{% endif %}>Epic</option>
-                        <option value="Ikon" {% if user.pass_type == 'Ikon' %}selected{% endif %}>Ikon</option>
-                        <option value="Other" {% if user.pass_type == 'Other' %}selected{% endif %}>Other</option>
-                        <option value="None" {% if user.pass_type == 'None' %}selected{% endif %}>None</option>
-                    </select>
+                    <label>Pass Type</label>
+                    <div class="pass-buttons">
+                        <button type="button" class="pass-btn" data-value="Epic" {% if user.pass_type == 'Epic' %}data-selected="true"{% endif %}>Epic</button>
+                        <button type="button" class="pass-btn" data-value="Ikon" {% if user.pass_type == 'Ikon' %}data-selected="true"{% endif %}>Ikon</button>
+                        <button type="button" class="pass-btn" data-value="Other" {% if user.pass_type == 'Other' %}data-selected="true"{% endif %}>Other</button>
+                        <button type="button" class="pass-btn" data-value="None" {% if user.pass_type == 'None' %}data-selected="true"{% endif %}>None</button>
+                    </div>
+                    <input type="hidden" id="pass_type" name="pass_type" value="{{ user.pass_type or '' }}" />
                 </div>
 
                 <div class="form-group">
@@ -58,13 +58,13 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="rider_type">Skier/Snowboarder</label>
-                    <select name="rider_type" id="rider_type" class="form-control">
-                        <option value="">Select Type</option>
-                        <option value="Skier" {% if user.rider_type == 'Skier' %}selected{% endif %}>Skier</option>
-                        <option value="Snowboarder" {% if user.rider_type == 'Snowboarder' %}selected{% endif %}>Snowboarder</option>
-                        <option value="Both" {% if user.rider_type == 'Both' %}selected{% endif %}>Both</option>
-                    </select>
+                    <label>Skier/Snowboarder</label>
+                    <div class="rider-buttons">
+                        <button type="button" class="rider-btn" data-value="Skier" {% if user.rider_type == 'Skier' %}data-selected="true"{% endif %}>Skier</button>
+                        <button type="button" class="rider-btn" data-value="Snowboarder" {% if user.rider_type == 'Snowboarder' %}data-selected="true"{% endif %}>Snowboarder</button>
+                        <button type="button" class="rider-btn" data-value="Both" {% if user.rider_type == 'Both' %}data-selected="true"{% endif %}>Both</button>
+                    </div>
+                    <input type="hidden" id="rider_type" name="rider_type" value="{{ user.rider_type or '' }}" />
                 </div>
 
                 <div class="form-group">
@@ -208,6 +208,11 @@
             </div>
         </div>
 
+        <!-- INVITE BUTTON -->
+        <button id="invite-friend-btn" class="primary-btn invite-btn">
+            Invite a Friend to BaseLodge
+        </button>
+
         <!-- SETTINGS SECTION -->
         <div class="settings-section">
             <h3>Settings</h3>
@@ -215,7 +220,63 @@
         </div>
     </div>
 
+    <!-- Bottom Navigation -->
+    <nav class="main-nav">
+        <a href="{{ url_for('home') }}" class="nav-link">Home</a>
+        <a href="{{ url_for('my_trips') }}" class="nav-link">Trips</a>
+        <a href="{{ url_for('friends') }}" class="nav-link">Friends</a>
+        <a href="{{ url_for('profile') }}" class="nav-link active">Profile</a>
+    </nav>
+
     <!-- Keep existing trip and modal scripts from original -->
     <script src="{{ url_for('static', filename='profile.js') }}"></script>
+
+    <script>
+        // Segmented pass type buttons
+        const passBtns = document.querySelectorAll('.pass-btn');
+        const passInput = document.getElementById('pass_type');
+        
+        passBtns.forEach(btn => {
+            if (btn.dataset.selected === 'true') {
+                btn.classList.add('active');
+            }
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                passBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                passInput.value = btn.dataset.value;
+            });
+        });
+
+        // Segmented rider type buttons
+        const riderBtns = document.querySelectorAll('.rider-btn');
+        const riderInput = document.getElementById('rider_type');
+        
+        riderBtns.forEach(btn => {
+            if (btn.dataset.selected === 'true') {
+                btn.classList.add('active');
+            }
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                riderBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                riderInput.value = btn.dataset.value;
+            });
+        });
+
+        // Invite button
+        const inviteBtn = document.getElementById('invite-friend-btn');
+        if (inviteBtn) {
+            inviteBtn.addEventListener('click', function() {
+                const message = "Hey! I'm using BaseLodge to connect with friends for ski trips. You should join — it's free and makes planning super easy: https://baselodge.app";
+
+                if (navigator.share) {
+                    navigator.share({ text: message });
+                } else {
+                    window.location.href = "sms:?body=" + encodeURIComponent(message);
+                }
+            });
+        }
+    </script>
 </body>
 </html>
