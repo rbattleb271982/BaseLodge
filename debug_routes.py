@@ -24,16 +24,18 @@ RIDER_TYPES = ["Skier", "Snowboarder"]
 @debug_bp.route('/seed_friends', methods=['GET'])
 def seed_friends_and_trips():
     """
-    Create 10 dummy users with 3 trips each and bidirectional friend connections to main_user_id=1.
+    Create 10 dummy users with 3 trips each and bidirectional friend connections to main user.
     For manual testing in the browser to visualize friends and trips.
     """
     try:
-        # Main user (typically user ID 1)
-        main_user_id = 1
-        main_user = User.query.get(main_user_id)
+        # Main user lookup by email
+        main_user_email = "me@example.com"
+        main_user = User.query.filter_by(email=main_user_email).first()
         
         if not main_user:
-            return jsonify({"error": "Main user (ID=1) not found. Sign up first."}), 404
+            return jsonify({"error": f"User with email '{main_user_email}' not found. Sign up first."}), 404
+        
+        main_user_id = main_user.id
 
         first_names = ["Ava", "Liam", "Mia", "Noah", "Zoe", "Ethan", "Emma", "Lucas", "Nora", "Levi"]
         last_names = ["Snow", "Powder", "Slope", "Ridge", "Peak", "Chute", "Ice", "Glide", "Trail", "Drop"]
@@ -95,6 +97,7 @@ def seed_friends_and_trips():
                 "trips_per_user": 3,
                 "total_trips": 30,
                 "bidirectional_friendships": 10,
+                "main_user_email": main_user_email,
                 "main_user_id": main_user_id
             }
         })
