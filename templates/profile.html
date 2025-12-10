@@ -7,258 +7,93 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body class="profile-page">
-    <a href="{{ url_for('logout') }}" class="logout-icon" title="Log Out">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
-    </a>
-    
     <div class="profile-container">
-        <!-- TOP SUMMARY BLOCK -->
-        <div class="profile-top-summary">
-            <div class="summary-title">
-                {{ user.first_name }} {{ user.last_name }}
-                {% if user.pass_type %} – {{ user.pass_type }}{% endif %}
-                {% if user.skill_level %} – {{ user.skill_level }}{% endif %}
-                {% if user.rider_type %} – {{ user.rider_type }}{% endif %}
+        <!-- SUMMARY CARD -->
+        <div class="profile-summary-card">
+            <h2 class="profile-name">{{ user.first_name }} {{ user.last_name }}</h2>
+
+            <div class="profile-identity-line">
+                {{ user.pass_type or 'No Pass' }} — {{ user.skill_level or 'Not Set' }} — {{ user.rider_type or 'Skier' }}
+                <!-- TODO: Connect real skier/snowboarder field -->
             </div>
-            {% if user.home_state %}
-            <div class="summary-detail">Home State: {{ user.home_state }}</div>
-            {% endif %}
-            <!-- TODO: later make this tappable for friends -->
-            <div class="summary-detail">Mountains visited: <strong>{{ user.mountains_visited_count or 0 }}</strong></div>
-            <!-- TODO: later create modal showing mountains, state, pass, + add/remove UI -->
+
+            <div class="profile-mountains">
+                {{ user.mountains_visited or 0 }} mountains visited
+                <!-- TODO: Replace with real mountains visited count -->
+            </div>
+
+            <a href="#profile-edit" class="edit-profile-btn">Edit Profile</a>
+
+            <div class="profile-progress-text">
+                Profile {{ profile_completion_percent or 40 }}% complete
+            </div>
+            <div class="profile-progress-bar">
+                <div class="profile-progress-fill" style="width: {{ profile_completion_percent or 40 }}%;"></div>
+            </div>
         </div>
 
-        <!-- PROFILE COMPLETENESS BAR -->
-        <div class="profile-completeness">
-            <div class="completeness-bar">
-                <div class="completeness-fill" style="width: 50%;"></div>
-            </div>
-            <p class="completeness-label">50% complete</p>
-            <!-- TODO: compute real completeness later -->
+        <!-- EDITABLE PROFILE SECTION -->
+        <div id="profile-edit">
+            <form method="POST" action="{{ url_for('profile') }}" class="profile-form">
+                <div class="form-group">
+                    <label for="pass_type">Pass Type</label>
+                    <select name="pass_type" id="pass_type" class="form-control">
+                        <option value="">Select Pass Type</option>
+                        <option value="Epic" {% if user.pass_type == 'Epic' %}selected{% endif %}>Epic</option>
+                        <option value="Ikon" {% if user.pass_type == 'Ikon' %}selected{% endif %}>Ikon</option>
+                        <option value="Other" {% if user.pass_type == 'Other' %}selected{% endif %}>Other</option>
+                        <option value="None" {% if user.pass_type == 'None' %}selected{% endif %}>None</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="skill_level">Skill Level</label>
+                    <select name="skill_level" id="skill_level" class="form-control">
+                        <option value="">Select Skill Level</option>
+                        <option value="Beginner" {% if user.skill_level == 'Beginner' %}selected{% endif %}>Beginner</option>
+                        <option value="Intermediate" {% if user.skill_level == 'Intermediate' %}selected{% endif %}>Intermediate</option>
+                        <option value="Advanced" {% if user.skill_level == 'Advanced' %}selected{% endif %}>Advanced</option>
+                        <option value="Expert" {% if user.skill_level == 'Expert' %}selected{% endif %}>Expert</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="rider_type">Skier/Snowboarder</label>
+                    <select name="rider_type" id="rider_type" class="form-control">
+                        <option value="">Select Type</option>
+                        <option value="Skier" {% if user.rider_type == 'Skier' %}selected{% endif %}>Skier</option>
+                        <option value="Snowboarder" {% if user.rider_type == 'Snowboarder' %}selected{% endif %}>Snowboarder</option>
+                        <option value="Both" {% if user.rider_type == 'Both' %}selected{% endif %}>Both</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="gender">Gender</label>
+                    <select name="gender" id="gender" class="form-control">
+                        <option value="">Not specified</option>
+                        <option value="Female" {% if user.gender == 'Female' %}selected{% endif %}>Female</option>
+                        <option value="Male" {% if user.gender == 'Male' %}selected{% endif %}>Male</option>
+                        <option value="Non-binary" {% if user.gender == 'Non-binary' %}selected{% endif %}>Non-binary</option>
+                        <option value="Prefer not to say" {% if user.gender == 'Prefer not to say' %}selected{% endif %}>Prefer not to say</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="birth_year">Birth Year</label>
+                    <input type="number" name="birth_year" id="birth_year" class="form-control" min="1900" max="2100" value="{{ user.birth_year or '' }}" />
+                </div>
+
+                <div class="form-group">
+                    <label for="home_state">Home State</label>
+                    <input type="text" name="home_state" id="home_state" class="form-control" value="{{ user.home_state or '' }}" placeholder="e.g., Colorado" />
+                </div>
+
+                <button type="submit" class="btn-save">Save Profile</button>
+            </form>
         </div>
 
-        <!-- FORM WITH COLLAPSIBLE SECTIONS -->
-        <form method="POST" action="{{ url_for('profile') }}" class="profile-form">
-            <!-- SECTION 1: BASICS (EXPANDED BY DEFAULT) -->
-            <div class="profile-card basics-section">
-                <div class="card-header" onclick="toggleSection(this)">
-                    <div class="header-left">
-                        <h2 class="card-title">Basics</h2>
-                        <p class="card-subtitle">A few details to help friends recognize you.</p>
-                    </div>
-                    <div class="caret">▼</div>
-                </div>
-                <div class="card-body expanded">
-                    <div class="form-row">
-                        <label for="first_name">First Name</label>
-                        <input type="text" id="first_name" name="first_name" value="{{ user.first_name or '' }}" />
-                    </div>
-                    <div class="form-row">
-                        <label for="last_name">Last Name</label>
-                        <input type="text" id="last_name" name="last_name" value="{{ user.last_name or '' }}" />
-                    </div>
-                    <div class="form-row">
-                        <label for="gender">Gender</label>
-                        <select id="gender" name="gender" class="form-select">
-                            <option value="">Not specified</option>
-                            <option value="Female" {% if user.gender == 'Female' %}selected{% endif %}>Female</option>
-                            <option value="Male" {% if user.gender == 'Male' %}selected{% endif %}>Male</option>
-                            <option value="Non-binary" {% if user.gender == 'Non-binary' %}selected{% endif %}>Non-binary</option>
-                            <option value="Prefer not to say" {% if user.gender == 'Prefer not to say' %}selected{% endif %}>Prefer not to say</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <label for="birth_year">Birth Year</label>
-                        <input type="number" id="birth_year" name="birth_year" min="1900" max="2100" value="{{ user.birth_year or '' }}" />
-                    </div>
-                    <div class="form-row">
-                        <label for="home_state">Home State</label>
-                        <input type="text" id="home_state" name="home_state" value="{{ user.home_state or '' }}" placeholder="e.g., Colorado" />
-                    </div>
-                </div>
-            </div>
-
-            <!-- SECTION 2: MOUNTAIN IDENTITY (COLLAPSED) -->
-            <div class="profile-card mountain-identity-section">
-                <div class="card-header" onclick="toggleSection(this)">
-                    <div class="header-left">
-                        <h2 class="card-title">Mountain Identity</h2>
-                        <p class="card-subtitle">How you tend to ride on the mountain.</p>
-                    </div>
-                    <div class="caret">▶</div>
-                </div>
-                <div class="card-summary">
-                    <span id="mountain-summary" class="summary-chips">No preferences set yet</span>
-                </div>
-                <div class="card-body">
-                    <div class="form-row">
-                        <label>Preferred Terrain</label>
-                        <div class="chip-group">
-                            <input type="checkbox" id="terrain-groomers" name="terrain_groomers" value="Groomers" class="chip-input" onchange="updateMountainSummary()" />
-                            <label for="terrain-groomers" class="chip-label">Groomers</label>
-                            
-                            <input type="checkbox" id="terrain-trees" name="terrain_trees" value="Trees" class="chip-input" onchange="updateMountainSummary()" />
-                            <label for="terrain-trees" class="chip-label">Trees</label>
-                            
-                            <input type="checkbox" id="terrain-bowls" name="terrain_bowls" value="Bowls" class="chip-input" onchange="updateMountainSummary()" />
-                            <label for="terrain-bowls" class="chip-label">Bowls</label>
-                            
-                            <input type="checkbox" id="terrain-steeps" name="terrain_steeps" value="Steeps" class="chip-input" onchange="updateMountainSummary()" />
-                            <label for="terrain-steeps" class="chip-label">Steeps</label>
-                            
-                            <input type="checkbox" id="terrain-park" name="terrain_park" value="Park" class="chip-input" onchange="updateMountainSummary()" />
-                            <label for="terrain-park" class="chip-label">Park</label>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <label>Vibe Type</label>
-                        <div class="chip-group">
-                            <input type="checkbox" id="vibe-cruiser" name="vibe_cruiser" value="Cruiser" class="chip-input" onchange="updateMountainSummary()" />
-                            <label for="vibe-cruiser" class="chip-label">Cruiser</label>
-                            
-                            <input type="checkbox" id="vibe-sendy" name="vibe_sendy" value="Sendy" class="chip-input" onchange="updateMountainSummary()" />
-                            <label for="vibe-sendy" class="chip-label">Sendy</label>
-                            
-                            <input type="checkbox" id="vibe-first-chair" name="vibe_first_chair" value="First-chair Hunter" class="chip-input" onchange="updateMountainSummary()" />
-                            <label for="vibe-first-chair" class="chip-label">First-chair Hunter</label>
-                            
-                            <input type="checkbox" id="vibe-apres" name="vibe_apres" value="Après-heavy" class="chip-input" onchange="updateMountainSummary()" />
-                            <label for="vibe-apres" class="chip-label">Après-heavy</label>
-                            
-                            <input type="checkbox" id="vibe-photo" name="vibe_photo" value="Photo-taker" class="chip-input" onchange="updateMountainSummary()" />
-                            <label for="vibe-photo" class="chip-label">Photo-taker</label>
-                            
-                            <input type="checkbox" id="vibe-touring" name="vibe_touring" value="Touring" class="chip-input" onchange="updateMountainSummary()" />
-                            <label for="vibe-touring" class="chip-label">Touring</label>
-                        </div>
-                    </div>
-                    <!-- TODO: add backend fields for mountain identity -->
-                </div>
-            </div>
-
-            <!-- SECTION 3: TRIP BEHAVIOR (COLLAPSED) -->
-            <div class="profile-card trip-behavior-section">
-                <div class="card-header" onclick="toggleSection(this)">
-                    <div class="header-left">
-                        <h2 class="card-title">Trip Behavior</h2>
-                        <p class="card-subtitle">Your riding habits so friends know what to expect.</p>
-                    </div>
-                    <div class="caret">▶</div>
-                </div>
-                <div class="card-summary">
-                    <span id="behavior-summary" class="summary-chips">No preferences set yet</span>
-                </div>
-                <div class="card-body">
-                    <div class="form-row">
-                        <label for="start_time">Typical Start Time</label>
-                        <select id="start_time" name="start_time" class="form-select" onchange="updateBehaviorSummary()">
-                            <option value="">Not specified</option>
-                            <option value="Early Riser">Early Riser</option>
-                            <option value="Mid-Morning">Mid-Morning</option>
-                            <option value="Late Starter">Late Starter</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <label for="pace">Pace</label>
-                        <select id="pace" name="pace" class="form-select" onchange="updateBehaviorSummary()">
-                            <option value="">Not specified</option>
-                            <option value="Moderate">Moderate Pace</option>
-                            <option value="Fast">Fast Pace</option>
-                            <option value="Leisurely">Leisurely</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <label for="break_style">Break Style</label>
-                        <select id="break_style" name="break_style" class="form-select" onchange="updateBehaviorSummary()">
-                            <option value="">Not specified</option>
-                            <option value="Non-stop">Non-stop</option>
-                            <option value="Mid-day">Mid-day Lunch</option>
-                            <option value="Frequent">Frequent Breaks</option>
-                        </select>
-                    </div>
-                    <!-- TODO: add backend fields for trip behavior -->
-                </div>
-            </div>
-
-            <!-- SECTION 4: SOCIAL INDICATORS (COLLAPSED) -->
-            <div class="profile-card social-indicators-section">
-                <div class="card-header" onclick="toggleSection(this)">
-                    <div class="header-left">
-                        <h2 class="card-title">Social Indicators</h2>
-                        <p class="card-subtitle">How you like to ride with friends.</p>
-                    </div>
-                    <div class="caret">▶</div>
-                </div>
-                <div class="card-summary">
-                    <span id="social-summary" class="summary-chips">No preferences set yet</span>
-                </div>
-                <div class="card-body">
-                    <div class="form-row">
-                        <label for="group_size">Preferred Group Size</label>
-                        <select id="group_size" name="group_size" class="form-select" onchange="updateSocialSummary()">
-                            <option value="">Not specified</option>
-                            <option value="Solo">Solo rider</option>
-                            <option value="2-3">2–3 People</option>
-                            <option value="4+">4+ People</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <label>Connection Preferences</label>
-                        <div class="chip-group">
-                            <input type="checkbox" id="connect-carpool" name="connect_carpool" value="Open to carpooling" class="chip-input" onchange="updateSocialSummary()" />
-                            <label for="connect-carpool" class="chip-label">Open to carpooling</label>
-                            
-                            <input type="checkbox" id="connect-lodge" name="connect_lodge" value="Open to meeting at the lodge" class="chip-input" onchange="updateSocialSummary()" />
-                            <label for="connect-lodge" class="chip-label">Open to meeting at the lodge</label>
-                            
-                            <input type="checkbox" id="connect-ride" name="connect_ride" value="Down to ride together" class="chip-input" onchange="updateSocialSummary()" />
-                            <label for="connect-ride" class="chip-label">Down to ride together</label>
-                            
-                            <input type="checkbox" id="connect-solo" name="connect_solo" value="Prefer solo but friendly" class="chip-input" onchange="updateSocialSummary()" />
-                            <label for="connect-solo" class="chip-label">Prefer solo but friendly</label>
-                        </div>
-                    </div>
-                    <!-- TODO: add backend fields for social indicators -->
-                </div>
-            </div>
-
-            <!-- SECTION 5: GEAR (COLLAPSED, MODAL EDITING) -->
-            <div class="profile-card gear-section">
-                <div class="card-header" onclick="toggleSection(this)">
-                    <div class="header-left">
-                        <h2 class="card-title">Gear</h2>
-                        <p class="card-subtitle">Your go-to setup.</p>
-                    </div>
-                    <div class="caret">▶</div>
-                </div>
-                <div class="card-summary">
-                    <span id="gear-summary" class="summary-chips">Primary Setup: Not set</span>
-                </div>
-                <div class="card-body">
-                    <button type="button" class="btn-edit-gear" onclick="openGearModal()">Edit Gear</button>
-                    <!-- Hidden gear fields that are part of the main form -->
-                    <input type="hidden" id="skis_brand" name="skis_brand" />
-                    <input type="hidden" id="skis_model" name="skis_model" />
-                    <input type="hidden" id="skis_length" name="skis_length" />
-                    <input type="hidden" id="boots_brand" name="boots_brand" />
-                    <input type="hidden" id="boots_model" name="boots_model" />
-                    <input type="hidden" id="boots_flex" name="boots_flex" />
-                    <input type="hidden" id="bindings_brand" name="bindings_brand" />
-                    <input type="hidden" id="bindings_model" name="bindings_model" />
-                    <!-- TODO: integrate with backend gear fields -->
-                </div>
-            </div>
-
-            <!-- SAVE BUTTON -->
-            <button type="submit" class="btn-save">Save changes</button>
-        </form>
-
-        <!-- UPCOMING TRIPS SECTION (kept from original) -->
-        <div class="auth-card trips-section">
+        <!-- TRIPS SECTION -->
+        <div class="trips-section">
             <div id="message-container"></div>
             
             <h2 class="section-title">Upcoming Trips</h2>
@@ -350,7 +185,6 @@
                                     <span class="trip-sep">—</span>
                                     <span class="trip-mountain">{{ trip.mountain }}, {{ state_abbr.get(trip.state, trip.state) }}</span>
                                 </div>
-
                                 <div class="inline-trip-bottom">
                                     <span class="trip-dates">
                                         {{ trip.start_date.strftime('%b %d') }}
@@ -358,7 +192,6 @@
                                             – {{ trip.end_date.strftime('%b %d') }}
                                         {% endif %}
                                     </span>
-                                    
                                     {% set num_days = (trip.end_date - trip.start_date).days + 1 %}
                                     <span class="dot-sep">•</span>
                                     <span class="trip-days">{{ num_days }} day{% if num_days > 1 %}s{% endif %}</span>
@@ -374,192 +207,13 @@
                 {% endif %}
             </div>
         </div>
-    </div>
 
-    <!-- GEAR MODAL -->
-    <div id="gearModal" class="modal">
-        <div class="modal-overlay" onclick="closeGearModal()"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Edit Gear</h2>
-                <button type="button" class="modal-close" onclick="closeGearModal()">✕</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-row">
-                    <label for="modal-skis-brand">Skis/Board Brand</label>
-                    <input type="text" id="modal-skis-brand" placeholder="e.g., Atomic" />
-                </div>
-                <div class="form-row">
-                    <label for="modal-skis-model">Skis/Board Model</label>
-                    <input type="text" id="modal-skis-model" placeholder="e.g., Bent Chetler" />
-                </div>
-                <div class="form-row">
-                    <label for="modal-skis-length">Length (cm)</label>
-                    <input type="number" id="modal-skis-length" placeholder="e.g., 180" />
-                </div>
-                <div class="form-row">
-                    <label for="modal-boots-brand">Boots Brand</label>
-                    <input type="text" id="modal-boots-brand" placeholder="e.g., Tecnica" />
-                </div>
-                <div class="form-row">
-                    <label for="modal-boots-model">Boots Model</label>
-                    <input type="text" id="modal-boots-model" placeholder="e.g., Mach1" />
-                </div>
-                <div class="form-row">
-                    <label for="modal-boots-flex">Boots Flex</label>
-                    <input type="text" id="modal-boots-flex" placeholder="e.g., 120" />
-                </div>
-                <div class="form-row">
-                    <label for="modal-bindings-brand">Bindings Brand</label>
-                    <input type="text" id="modal-bindings-brand" placeholder="e.g., Marker" />
-                </div>
-                <div class="form-row">
-                    <label for="modal-bindings-model">Bindings Model</label>
-                    <input type="text" id="modal-bindings-model" placeholder="e.g., Griffon" />
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-modal-cancel" onclick="closeGearModal()">Cancel</button>
-                <button type="button" class="btn-modal-save" onclick="saveGearModal()">Save</button>
-            </div>
+        <!-- SETTINGS SECTION -->
+        <div class="settings-section">
+            <h3>Settings</h3>
+            <a class="logout-link" href="{{ url_for('logout') }}">Log Out</a>
         </div>
     </div>
-
-    <script>
-        // Expand/collapse sections
-        function toggleSection(headerElement) {
-            const card = headerElement.closest('.profile-card');
-            const body = card.querySelector('.card-body');
-            const caret = headerElement.querySelector('.caret');
-            
-            if (body.classList.contains('expanded')) {
-                body.classList.remove('expanded');
-                caret.textContent = '▶';
-            } else {
-                body.classList.add('expanded');
-                caret.textContent = '▼';
-            }
-        }
-
-        // Update Mountain Identity summary
-        function updateMountainSummary() {
-            const terrains = [];
-            document.querySelectorAll('[name^="terrain_"]:checked').forEach(cb => {
-                terrains.push(cb.value);
-            });
-            
-            const vibes = [];
-            document.querySelectorAll('[name^="vibe_"]:checked').forEach(cb => {
-                vibes.push(cb.value);
-            });
-            
-            const allSelected = [...terrains, ...vibes];
-            const summaryEl = document.getElementById('mountain-summary');
-            
-            if (allSelected.length === 0) {
-                summaryEl.textContent = 'No preferences set yet';
-            } else {
-                summaryEl.innerHTML = allSelected.map(s => `<span class="chip">${s}</span>`).join(' · ');
-            }
-        }
-
-        // Update Trip Behavior summary
-        function updateBehaviorSummary() {
-            const startTime = document.getElementById('start_time').value || '';
-            const pace = document.getElementById('pace').value || '';
-            const breakStyle = document.getElementById('break_style').value || '';
-            
-            const parts = [startTime, pace, breakStyle].filter(p => p);
-            const summaryEl = document.getElementById('behavior-summary');
-            
-            if (parts.length === 0) {
-                summaryEl.textContent = 'No preferences set yet';
-            } else {
-                summaryEl.textContent = parts.join(' · ');
-            }
-        }
-
-        // Update Social Indicators summary
-        function updateSocialSummary() {
-            const groupSize = document.getElementById('group_size').value || '';
-            const connections = [];
-            
-            document.querySelectorAll('[name^="connect_"]:checked').forEach(cb => {
-                connections.push(cb.value);
-            });
-            
-            const parts = [groupSize, ...connections].filter(p => p);
-            const summaryEl = document.getElementById('social-summary');
-            
-            if (parts.length === 0) {
-                summaryEl.textContent = 'No preferences set yet';
-            } else {
-                summaryEl.innerHTML = parts.map(s => `<span class="chip">${s}</span>`).join(' · ');
-            }
-        }
-
-        // Gear Modal functions
-        function openGearModal() {
-            const modal = document.getElementById('gearModal');
-            modal.classList.add('open');
-            
-            // Load existing values from hidden form fields if they exist
-            document.getElementById('modal-skis-brand').value = document.getElementById('skis_brand').value || '';
-            document.getElementById('modal-skis-model').value = document.getElementById('skis_model').value || '';
-            document.getElementById('modal-skis-length').value = document.getElementById('skis_length').value || '';
-            document.getElementById('modal-boots-brand').value = document.getElementById('boots_brand').value || '';
-            document.getElementById('modal-boots-model').value = document.getElementById('boots_model').value || '';
-            document.getElementById('modal-boots-flex').value = document.getElementById('boots_flex').value || '';
-            document.getElementById('modal-bindings-brand').value = document.getElementById('bindings_brand').value || '';
-            document.getElementById('modal-bindings-model').value = document.getElementById('bindings_model').value || '';
-        }
-
-        function closeGearModal() {
-            const modal = document.getElementById('gearModal');
-            modal.classList.remove('open');
-        }
-
-        function saveGearModal() {
-            // Copy values from modal to hidden form fields
-            document.getElementById('skis_brand').value = document.getElementById('modal-skis-brand').value;
-            document.getElementById('skis_model').value = document.getElementById('modal-skis-model').value;
-            document.getElementById('skis_length').value = document.getElementById('modal-skis-length').value;
-            document.getElementById('boots_brand').value = document.getElementById('modal-boots-brand').value;
-            document.getElementById('boots_model').value = document.getElementById('modal-boots-model').value;
-            document.getElementById('boots_flex').value = document.getElementById('modal-boots-flex').value;
-            document.getElementById('bindings_brand').value = document.getElementById('modal-bindings-brand').value;
-            document.getElementById('bindings_model').value = document.getElementById('modal-bindings-model').value;
-            
-            // Update gear summary
-            const brand = document.getElementById('modal-skis-brand').value;
-            const model = document.getElementById('modal-skis-model').value;
-            const bootBrand = document.getElementById('modal-boots-brand').value;
-            const bootModel = document.getElementById('modal-boots-model').value;
-            
-            const summary = [brand, model].filter(s => s).join(' ') || 'Not set';
-            const bootSummary = [bootBrand, bootModel].filter(s => s).join(' ') || 'Not set';
-            
-            document.getElementById('gear-summary').textContent = 
-                `Primary Setup: ${summary} · ${bootSummary}`;
-            
-            closeGearModal();
-        }
-
-        // Close modal when clicking outside
-        document.addEventListener('click', (e) => {
-            const modal = document.getElementById('gearModal');
-            if (e.target === modal) {
-                closeGearModal();
-            }
-        });
-
-        // Initialize summaries on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            updateMountainSummary();
-            updateBehaviorSummary();
-            updateSocialSummary();
-        });
-    </script>
 
     <!-- Keep existing trip and modal scripts from original -->
     <script src="{{ url_for('static', filename='profile.js') }}"></script>
