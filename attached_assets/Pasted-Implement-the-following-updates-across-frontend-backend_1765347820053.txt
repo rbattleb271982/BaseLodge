@@ -1,0 +1,88 @@
+Implement the following updates across frontend, backend, and UX. This is a mobile-first project.
+Use clean HTML/CSS and keep everything touch-friendly. Only use checkpoints if I explicitly say so.
+🔁 GENERAL CLEANUP
+1. Remove deprecated logic
+Remove all traces of:
+raise_hand
+meetup
+qr_code
+Confirm there are no lingering conditionals or buttons tied to these fields.
+📅 TRIP FORM UPDATES
+2. Trip Creation/Edit Logic
+Enforce:
+end_date cannot be earlier than start_date (date validation in JS and backend).
+Under the “Public trip” toggle:
+Change label to:
+Visible to friends only
+Add helper text:
+"Only your friends can see this trip" (smaller gray font under the toggle)
+🗺️ STATE DISPLAY LOGIC
+3. State abbreviation logic
+Keep full state names (e.g., "Colorado") in the database.
+In all templates (e.g., trip cards, filters), display state abbreviations (e.g., CO).
+Use a Python dictionary in your utilities:
+STATE_ABBR = {
+  "Colorado": "CO",
+  "Utah": "UT",
+  "Vermont": "VT",
+  # Add more as needed
+}
+Use: STATE_ABBR.get(trip.state, trip.state) in templates.
+🏔️ PASS TYPE LOGIC
+4. Pass List (Backend)
+Update pass_type options globally with the following list:
+PASS_OPTIONS = [
+    "Epic & Ikon",
+    "Epic",
+    "Epic Local",
+    "Epic 4-day",
+    "Ikon",
+    "Ikon Base",
+    "Ikon Plus",
+    "Ikon Session",
+    "Loveland",
+    "Other",
+    "No Pass"
+]
+Replace all dropdowns and logic using the old pass list with this updated list.
+Sort this list alphabetically in the UI dropdown.
+5. Onboarding + Trip Forms
+Onboarding:
+Keep single-select pass_type for the user.
+Trip form:
+Add its own pass_type field (independent from user’s pass).
+Pre-fill trip form pass_type to user’s default, but allow change.
+6. Existing Trips
+For any trip in the database missing a pass_type:
+Set trip.pass_type = "No Pass"
+📱 UI LAYOUT CHANGES (Mobile-First)
+7. Trip Card Improvements
+Reduce vertical spacing between elements on the trip cards.
+Reorganize top-to-bottom spacing for mobile:
+Resort name
+Dates (show as Jan 3–Jan 6 or 3 day trip)
+State (abbreviated)
+Pass type
+Action buttons
+8. Trip Length Display
+Show as:
+3 day trip (not just “3 days”)
+🧭 NAVIGATION / BUTTONS
+9. Floating “Add Trip” Button
+Add floating + Add Trip button:
+Position: bottom right corner
+Appear on both:
+/profile
+/my-trips
+Style:
+Circular green button (#669127)
+White plus icon
+Mobile-first tap size
+10. Logout Button
+Remove “Logout” button from next to ‘All Trips’ heading
+Relocate Logout:
+To a dropdown menu or tucked into a Profile/settings section
+Or, use a mobile-friendly icon in the top right corner
+11. "View All Trips"
+Clarify what this means or remove it entirely.
+If not implemented yet, delete the button.
