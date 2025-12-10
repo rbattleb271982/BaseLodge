@@ -1,0 +1,149 @@
+We are updating the BaseLodge /profile page.
+Make all changes below in the exact order listed.
+Use checkpoints sparingly and only when absolutely necessary.
+STEP 1 — Open templates/profile.html
+Modify ONLY this file in this step.
+Remove the old floating logout icon
+Delete any <a>, <button>, or <div> in this template that triggers logout and is positioned as a floating icon.
+It may have absolute/fixed positioning.
+Delete it completely.
+Remove the entire Social Indicators section
+Find any <div> or section with names like:
+"social"
+"social-indicators"
+"friends", "connections", or similar placeholder tiles
+Delete the entire block — markup, headings, and content.
+At the very top of the page content, insert the new Summary Card.
+Replace ANY existing summary section with the following block:
+<div class="profile-summary-card">
+    <h2 class="profile-name">{{ current_user.name }}</h2>
+
+    <div class="profile-identity-line">
+        {{ current_user.pass_type }} — {{ current_user.skill_level }} — {{ current_user.snow_type }}
+    </div>
+
+    <div class="profile-mountains">
+        {{ current_user.mountains_visited or 0 }} mountains visited
+    </div>
+
+    <a href="#profile-edit" class="edit-profile-btn">Edit Profile</a>
+
+    <div class="profile-progress-text">
+        Profile {{ profile_completion_percent or 40 }}% complete
+    </div>
+    <div class="profile-progress-bar">
+        <div class="profile-progress-fill" style="width: {{ profile_completion_percent or 40 }}%;"></div>
+    </div>
+</div>
+Find the existing editable profile form and wrap it in a container with id="profile-edit":
+Add:
+<div id="profile-edit">
+before the form starts.
+Add:
+</div>
+after the form ends.
+Ensure the editable profile section includes, in this order:
+Pass Type
+Skill Level
+Skier/Snowboarder preference
+Gender
+Birth Year
+Home State
+If fields are missing, create fields following existing form conventions:
+<div class="form-group">
+    <label for="pass_type">Pass Type</label>
+    <select name="pass_type" id="pass_type">
+        <option value="Epic" {% if current_user.pass_type == 'Epic' %}selected{% endif %}>Epic</option>
+        <option value="Ikon" {% if current_user.pass_type == 'Ikon' %}selected{% endif %}>Ikon</option>
+        <option value="Other" {% if current_user.pass_type == 'Other' %}selected{% endif %}>Other</option>
+        <option value="None" {% if current_user.pass_type == 'None' %}selected{% endif %}>None</option>
+    </select>
+</div>
+Repeat for the other fields using similar structure and naming.
+Move the Settings/Logout section to the bottom of the page
+After the Trips section (whatever exists), insert:
+<div class="settings-section">
+    <h3>Settings</h3>
+    <a class="logout-link" href="{{ url_for('logout') }}">Log Out</a>
+</div>
+STEP 2 — Open static/css/style.css
+Append the following CSS at the bottom of the file:
+/* Profile Summary Card */
+.profile-summary-card {
+    background: #F7F7F7;
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+.profile-name {
+    font-size: 1.4rem;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.profile-identity-line {
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+    color: #444;
+}
+
+.profile-mountains {
+    font-size: 0.9rem;
+    margin-bottom: 14px;
+}
+
+.edit-profile-btn {
+    display: inline-block;
+    padding: 8px 12px;
+    background: #2d6cdf;
+    color: white;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    text-decoration: none;
+    margin-bottom: 16px;
+}
+
+.profile-progress-text {
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+}
+
+.profile-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.profile-progress-fill {
+    height: 100%;
+    background: #2d6cdf;
+}
+
+/* Settings Section */
+.settings-section {
+    margin-top: 40px;
+    padding: 16px 0;
+}
+
+.settings-section h3 {
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+}
+
+.logout-link {
+    color: #b00020;
+    font-size: 1rem;
+    text-decoration: none;
+}
+STEP 3 — Verify Page Order
+Ensure the final order in profile.html is:
+Summary Card
+Editable Profile Section (#profile-edit)
+Trips Section
+Settings (with Log Out)
+If not, reorder accordingly.
+STEP 4 — Save All Files
+Use no more than 2–3 checkpoints total for the entire operation.
