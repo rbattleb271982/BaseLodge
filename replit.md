@@ -31,10 +31,14 @@ Base Lodge is a ski/snowboard trip planning application built with Flask. It hel
 ├── app.py              # Main Flask application with routes & APIs
 ├── models.py           # SQLAlchemy models (User, SkiTrip, Friend, Invitation)
 ├── templates/
-│   ├── auth.html       # Sign up / Login page (with birthday field)
+│   ├── auth.html       # Sign up / Login page
 │   ├── setup_profile.html  # Two-question onboarding
-│   ├── profile.html    # User profile and trip management
-│   └── my_trips.html   # Dedicated trips view
+│   ├── home.html       # Landing page with trip tabs (My Trips / Friends' Trips / All Trips)
+│   ├── profile.html    # User profile (summary + editable fields + settings)
+│   ├── friends.html    # Friends list with pass filter pills
+│   ├── friend_profile.html  # Friend's public profile
+│   ├── my_trips.html   # Deprecated (redirects to /home)
+│   └── edit_profile.html  # Edit profile form
 ├── static/
 │   └── styles.css      # Mobile-first CSS with brand colors
 └── replit.md           # This file
@@ -44,7 +48,11 @@ Base Lodge is a ski/snowboard trip planning application built with Flask. It hel
 - `/` - Redirects to /auth
 - `/auth` - Sign up and login page
 - `/setup-profile` - Two-step onboarding (rider type, pass type)
-- `/profile` - User profile page with trip management
+- `/home` - Landing page with 3 tabs: My Trips, Friends' Trips, All Trips (authoritative trips view)
+- `/profile` - User profile page (summary card + editable fields + settings)
+- `/my-trips` - Deprecated route (redirects to /home)
+- `/friends` - Friends list with pass filter pills
+- `/profile/<user_id>` - Friend's public profile with trips
 - `/logout` - Clears session and redirects to auth
 
 ### API Routes
@@ -96,6 +104,25 @@ Base Lodge is a ski/snowboard trip planning application built with Flask. It hel
 
 ## Recent Changes
 
+### Phase 3: Home-First Navigation (Dec 10, 2025)
+- **Navigation Consolidation:** `/home` is now the landing page after login
+- **Routes Restructured:**
+  - Login now redirects to `/home` (not `/profile`)
+  - `/my-trips` route deprecated → redirects to `/home`
+  - `/home` shows 3 tabs: My Trips, Friends' Trips, All Trips (upcoming only)
+- **Profile Simplified:** Removed trip cards from `/profile` (trips now only on `/home`)
+- **Bottom Navigation:** Added persistent footer nav to all main pages (Home, Trips, Friends, Profile)
+- **Navigation Updates:**
+  - Both "Home" and "Trips" nav buttons point to `/home`
+  - "Friends" button navigates to `/friends`
+  - "Profile" button shows user's own profile
+- **UI/UX Refinement:**
+  - Replaced Pass Type & Rider Type dropdowns with segmented button controls
+  - Profile shows summary card + editable fields + invite button + settings
+  - Segmented controls match setup_profile.html pattern for consistency
+- **Trip Creation:** "Add a Trip" button on `/home` triggers trip creation modal (AJAX, no page nav)
+- **Cleanup:** Deprecated `/my_trips.html` template
+
 ### Phase 2: Friends System (Dec 2024)
 - **Backend:** Added `birthday` field to User model (required at signup)
 - **Backend:** Created Friend model with bidirectional relationships and unique constraints
@@ -127,10 +154,11 @@ Base Lodge is a ski/snowboard trip planning application built with Flask. It hel
 - Optional: "Next Mountain" feature on friends profile
 
 ## Known Limitations
-- Birthday field is captured but not yet displayed in profile (mobile only)
-- Friends feature is API-only - no UI in web app yet (mobile priority)
-- "Visible to friends only" toggle is placeholder - visibility not enforced yet
-- No email notifications for friend invitations (phase 2)
+- Trip creation modal exists but needs to be properly initialized on `/home`
+- Profile completion percentage (40%) is placeholder - needs real calculation
+- Mountains visited count shows 0 - needs real calculation
+- "Visible to friends only" toggle - visibility logic exists but may need verification
+- No email notifications for friend invitations
 
 ## User Preferences
 - Mobile-first design approach (now supporting both web & mobile)
@@ -138,3 +166,13 @@ Base Lodge is a ski/snowboard trip planning application built with Flask. It hel
 - Max width 420px for auth/profile cards on web
 - Inline modals for trip management (no page navigation)
 - Incremental feature rollout prioritizing mobile
+- Home-first navigation structure (centralized trip management)
+- Segmented controls instead of dropdowns for pass/rider type
+- Bottom navigation across all main pages
+
+## Technical Notes
+- App uses session-based auth (manual checks, no @login_required decorator)
+- Templates are standalone (no base.html inheritance)
+- Trip creation uses profile.js (modal + AJAX) - should work on /home with proper initialization
+- Segmented buttons use hidden inputs to store values for form submission
+- Bottom nav shows active state based on request.path matching

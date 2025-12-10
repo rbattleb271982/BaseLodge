@@ -233,31 +233,8 @@ def edit_profile():
 
 @app.route("/my-trips")
 def my_trips():
-    if "user_id" not in session:
-        return redirect(url_for("auth"))
-    
-    user = User.query.get(session["user_id"])
-    if not user:
-        session.pop("user_id", None)
-        return redirect(url_for("auth"))
-    
-    if not user.profile_setup_complete:
-        return redirect(url_for("setup_profile"))
-    
-    today = date.today()
-    upcoming_trips = SkiTrip.query.filter(
-        SkiTrip.user_id == user.id,
-        SkiTrip.start_date >= today
-    ).order_by(SkiTrip.start_date.asc()).all()
-    
-    past_trips = SkiTrip.query.filter(
-        SkiTrip.user_id == user.id,
-        SkiTrip.start_date < today
-    ).order_by(SkiTrip.start_date.desc()).all()
-    
-    states = sorted(MOUNTAINS_BY_STATE.keys())
-    
-    return render_template("my_trips.html", user=user, upcoming_trips=upcoming_trips, past_trips=past_trips, states=states, mountains_by_state=MOUNTAINS_BY_STATE, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS)
+    # Deprecated: Redirect to home which is now the authoritative trips page
+    return redirect(url_for("home"))
 
 @app.route("/api/mountains/<state>")
 def get_mountains(state):
