@@ -59,7 +59,7 @@ Base Lodge is a ski/snowboard trip planning application built with Flask. It hel
 
 #### SkiTrip
 - id, user_id (FK), state, mountain
-- start_date, end_date, is_public, created_at
+- start_date, end_date, pass_type, is_public, created_at
 
 ### Brand Colors
 - Primary: #8F011B (deep red)
@@ -69,6 +69,15 @@ Base Lodge is a ski/snowboard trip planning application built with Flask. It hel
 - Surface: #FFFFFF
 
 ## Recent Changes
+- December 2024: Added pass_type field to SkiTrip model (trips can have different passes)
+- December 2024: Added STATE_ABBR dictionary for compact state display (CO, UT, VT, etc.)
+- December 2024: Updated pass options to 11 choices (Epic, Ikon variants, Loveland, No Pass, Other)
+- December 2024: Added floating green Add Trip button (#669127) with plus icon
+- December 2024: Replaced logout link with circular icon button in top-right corner
+- December 2024: Trip cards now show: Mountain, date range with trip length (X day trip), state abbr, pass type
+- December 2024: Added date validation (end date cannot be before start date)
+- December 2024: Changed visibility toggle label to "Visible to friends only"
+- December 2024: Created dedicated /my-trips route
 - December 2024: Added SkiTrip model with CRUD operations
 - December 2024: Implemented inline modal forms with AJAX
 - December 2024: Added state/mountain dropdown filtering
