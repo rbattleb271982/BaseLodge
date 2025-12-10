@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, date
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
-from models import db, User, SkiTrip
+from models import db, User, SkiTrip, Friend, Invitation
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
@@ -82,6 +82,17 @@ def auth():
             last_name = request.form.get("last_name")
             email = request.form.get("email")
             password = request.form.get("password")
+            birthday_str = request.form.get("birthday")
+            
+            if not birthday_str:
+                flash("Please enter a valid date of birth.", "error")
+                return render_template("auth.html")
+            
+            try:
+                birthday = datetime.strptime(birthday_str, "%Y-%m-%d").date()
+            except ValueError:
+                flash("Please enter a valid date of birth.", "error")
+                return render_template("auth.html")
             
             existing_user = User.query.filter_by(email=email).first()
             if existing_user:
@@ -91,7 +102,8 @@ def auth():
             user = User(
                 first_name=first_name,
                 last_name=last_name,
-                email=email
+                email=email,
+                birthday=birthday
             )
             user.set_password(password)
             db.session.add(user)
@@ -331,6 +343,123 @@ def delete_trip(trip_id):
     db.session.commit()
     
     return jsonify({"success": True})
+
+@app.route("/api/friends/invite", methods=["POST"])
+def invite_friend():
+    if "user_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+    
+    user_id = session["user_id"]
+    data = request.get_json()
+    friend_email = data.get("friend_email")
+    
+    if not friend_email:
+        return jsonify({"success": False, "error": "Friend email is required"}), 400
+    
+    friend = User.query.filter_by(email=friend_email).first()
+    if not friend:
+        return jsonify({"success": False, "error": "User not found"}), 404
+    
+    if friend.id == user_id:
+        return jsonify({"success": False, "error": "Cannot add yourself as a friend"}), 400
+    
+    existing_friendship = Friend.query.filter_by(user_id=user_id, friend_id=friend.id).first()
+    if existing_friendship:
+        return jsonify({"success": False, "error": "Already friends"}), 409
+    
+    existing_invitation = Invitation.query.filter_by(sender_id=user_id, receiver_id=friend.id, status='pending').first()
+    if existing_invitation:
+        return jsonify({"success": False, "error": "Invitation already sent"}), 409
+    
+    invitation = Invitation(sender_id=user_id, receiver_id=friend.id, status='pending')
+    db.session.add(invitation)
+    db.session.commit()
+    
+    return jsonify({"success": True, "message": "Invitation sent"}), 201
+
+@app.route("/api/friends", methods=["GET"])
+def get_friends():
+    if "user_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+    
+    user_id = session["user_id"]
+    friends = Friend.query.filter_by(user_id=user_id).all()
+    
+    friends_list = [{
+        "id": f.friend.id,
+        "name": f"{f.friend.first_name} {f.friend.last_name}",
+        "email": f.friend.email,
+        "pass_type": f.friend.pass_type or "No Pass"
+    } for f in friends]
+    
+    return jsonify({"success": True, "friends": friends_list}), 200
+
+@app.route("/api/friends/<int:friend_id>", methods=["GET"])
+def get_friend_profile(friend_id):
+    if "user_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+    
+    friend = User.query.get(friend_id)
+    if not friend:
+        return jsonify({"success": False, "error": "User not found"}), 404
+    
+    return jsonify({
+        "success": True,
+        "friend": {
+            "id": friend.id,
+            "name": f"{friend.first_name} {friend.last_name}",
+            "email": friend.email,
+            "pass_type": friend.pass_type or "No Pass",
+            "rider_type": friend.rider_type or "Not specified"
+        }
+    }), 200
+
+@app.route("/api/friends/invite/<int:invitation_id>/accept", methods=["POST"])
+def accept_invitation(invitation_id):
+    if "user_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+    
+    user_id = session["user_id"]
+    invitation = Invitation.query.get(invitation_id)
+    
+    if not invitation:
+        return jsonify({"success": False, "error": "Invitation not found"}), 404
+    
+    if invitation.receiver_id != user_id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+    
+    invitation.status = 'accepted'
+    
+    friend_relationship = Friend(user_id=user_id, friend_id=invitation.sender_id)
+    reverse_friend = Friend(user_id=invitation.sender_id, friend_id=user_id)
+    
+    db.session.add(friend_relationship)
+    db.session.add(reverse_friend)
+    db.session.commit()
+    
+    return jsonify({"success": True, "message": "Friend added"}), 200
+
+@app.route("/api/friends/<int:friend_id>", methods=["DELETE"])
+def remove_friend(friend_id):
+    if "user_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+    
+    user_id = session["user_id"]
+    
+    friend1 = Friend.query.filter_by(user_id=user_id, friend_id=friend_id).first()
+    friend2 = Friend.query.filter_by(user_id=friend_id, friend_id=user_id).first()
+    
+    if not friend1 and not friend2:
+        return jsonify({"success": False, "error": "Friendship not found"}), 404
+    
+    if friend1:
+        db.session.delete(friend1)
+    if friend2:
+        db.session.delete(friend2)
+    
+    db.session.commit()
+    
+    return jsonify({"success": True, "message": "Friend removed"}), 200
 
 @app.route("/logout")
 def logout():
