@@ -1,0 +1,265 @@
+I need you to update the Friends page and Profile page based on the final UX decisions below. 
+Please follow these instructions exactly, without modifying anything not specified.
+
+=================================================
+GLOBAL UX RULES (APPLY EVERYWHERE)
+=================================================
+
+TRIP CARD FORMAT (Option C):
+Display friend + mountain + state like this:
+
+    Alex Peak — Squaw Valley, CA
+
+Dates format:
+
+    Dec 25 – Dec 26 • 2 days
+
+Mountain and state must be combined as ONE element:
+    {{ trip.mountain }}, {{ state_abbr.get(trip.state, trip.state) }}
+
+Do NOT separate trip-state into its own span.
+
+My Trips (Profile page):
+- MUST use the existing full trip-card UI (DO NOT convert to inline-trip).
+
+Friends' Trips (Friends page + Profile page):
+- MUST use the new inline-trip layout provided below.
+
+Trip sorting:
+- Sort ALL trips by start_date ascending.
+
+Trip visibility:
+- Friends' Trips must show ONLY trips where is_public == True.
+
+Create Trip behavior:
+- Empty-state "Create a Trip" button MUST call the same JavaScript function used by the green FAB button.
+- DO NOT link to a new route.
+- Use the exact same function name the FAB uses.
+
+Empty-state friend logic:
+- If user has no friends, still show the Friends’ Trips tab.
+- Inside it, show an empty-state card with an Invite Friends button.
+
+=================================================
+PART 1 — UPDATE templates/friends.html
+=================================================
+
+1) Replace the toggle so that "Trips" is first and active by default:
+
+<div class="friends-toggle">
+    <button id="toggleTrips" class="toggle-btn active">Trips</button>
+    <button id="toggleFriends" class="toggle-btn">Friends</button>
+</div>
+
+2) Wrap both main sections like this:
+
+Trips section (should start active):
+
+<div id="tripsSection" class="toggle-section active-section">
+    <!-- Friends' Trips content lives here -->
+</div>
+
+Friends section (should start hidden):
+
+<div id="friendsSection" class="toggle-section hidden-section">
+    <!-- Friends list content lives here -->
+</div>
+
+3) In the Friends’ Trips loop, REPLACE the trip card with:
+
+<div class="inline-trip">
+    <div class="inline-trip-top">
+        <span class="trip-friend">{{ friend.first_name }} {{ friend.last_name }}</span>
+        <span class="trip-sep">—</span>
+        <span class="trip-mountain">{{ trip.mountain }}, {{ state_abbr.get(trip.state, trip.state) }}</span>
+    </div>
+
+    <div class="inline-trip-bottom">
+        <span class="trip-dates">
+            {{ trip.start_date.strftime('%b %d') }}
+            {% if trip.end_date and trip.end_date != trip.start_date %}
+                – {{ trip.end_date.strftime('%b %d') }}
+            {% endif %}
+        </span>
+        {% set num_days = (trip.end_date - trip.start_date).days + 1 %}
+        <span class="dot-sep">•</span>
+        <span class="trip-days">{{ num_days }} day{% if num_days > 1 %}s{% endif %}</span>
+    </div>
+</div>
+
+4) Ensure the Trips <-> Friends toggle JavaScript is updated so that:
+- Trips is active initially
+- Clicking "Trips" shows tripsSection and hides friendsSection
+- Clicking "Friends" does the opposite.
+
+=================================================
+PART 2 — UPDATE static/styles.css (Inline Trip Cards)
+=================================================
+
+Append to the end of the file:
+
+/* --- Inline Trip Cards (Friends & Profile) --- */
+.inline-trip {
+  background-color: var(--surface);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inline-trip-top,
+.inline-trip-bottom {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.trip-friend {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.trip-sep {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.trip-mountain {
+  font-weight: 600;
+  color: var(--primary);
+  font-size: 0.9rem;
+}
+
+.trip-dates {
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.trip-days {
+  color: var(--primary-dark);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.dot-sep {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+=================================================
+PART 3 — UPDATE PROFILE PAGE (templates/profile.html)
+=================================================
+
+1) In the "Upcoming Trips" card, insert a toggle:
+
+<div class="friends-toggle">
+    <button id="profileToggleMyTrips" class="toggle-btn active">My Trips</button>
+    <button id="profileToggleFriendsTrips" class="toggle-btn">Friends' Trips</button>
+</div>
+
+2) Wrap My Trips and Friends’ Trips:
+
+<!-- My Trips section -->
+<div id="profileMyTripsSection" class="toggle-section active-section">
+    {% if my_trips %}
+        <!-- USE EXISTING full trip-card layout here -->
+    {% else %}
+        <div class="empty-state">
+            <p>You don’t have any trips planned yet.</p>
+            <button class="auth-button" onclick="openTripModal()">+ Create a Trip</button>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Friends' Trips section -->
+<div id="profileFriendsTripsSection" class="toggle-section hidden-section">
+    {% if friends_trips %}
+        {% for trip in friends_trips %}
+            {% set friend = friend_map.get(trip.user_id) %}
+            <div class="inline-trip">
+                <div class="inline-trip-top">
+                    <span class="trip-friend">{{ friend.first_name }} {{ friend.last_name }}</span>
+                    <span class="trip-sep">—</span>
+                    <span class="trip-mountain">{{ trip.mountain }}, {{ state_abbr.get(trip.state, trip.state) }}</span>
+                </div>
+                <div class="inline-trip-bottom">
+                    <span class="trip-dates">
+                        {{ trip.start_date.strftime('%b %d') }}
+                        {% if trip.end_date and trip.end_date != trip.start_date %}
+                            – {{ trip.end_date.strftime('%b %d') }}
+                        {% endif %}
+                    </span>
+                    {% set num_days = (trip.end_date - trip.start_date).days + 1 %}
+                    <span class="dot-sep">•</span>
+                    <span class="trip-days">{{ num_days }} day{% if num_days > 1 %}s{% endif %}</span>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <p>Your friends don’t have any upcoming trips yet.</p>
+            <button class="auth-button secondary" onclick="window.location.href='{{ url_for('friends') }}'">
+                Invite Friends
+            </button>
+        </div>
+    {% endif %}
+</div>
+
+3) Add Profile toggle JS at the bottom of profile.html:
+
+<script>
+const myTripsBtn = document.getElementById("profileToggleMyTrips");
+const friendsTripsBtn = document.getElementById("profileToggleFriendsTrips");
+const myTripsSection = document.getElementById("profileMyTripsSection");
+const friendsTripsSection = document.getElementById("profileFriendsTripsSection");
+
+myTripsBtn.addEventListener("click", () => {
+    myTripsSection.classList.add("active-section");
+    myTripsSection.classList.remove("hidden-section");
+    friendsTripsSection.classList.add("hidden-section");
+    friendsTripsSection.classList.remove("active-section");
+    myTripsBtn.classList.add("active");
+    friendsTripsBtn.classList.remove("active");
+});
+
+friendsTripsBtn.addEventListener("click", () => {
+    friendsTripsSection.classList.add("active-section");
+    friendsTripsSection.classList.remove("hidden-section");
+    myTripsSection.classList.remove("active-section");
+    myTripsSection.classList.add("hidden-section");
+    friendsTripsBtn.classList.add("active");
+    myTripsBtn.classList.remove("active");
+});
+</script>
+
+=================================================
+PART 4 — PROFILE ROUTE (Backend)
+=================================================
+
+In the profile route (app.py):
+
+- KEEP the existing query for the user’s own trips.
+- Add:
+
+friends = Friend.query.filter_by(user_id=user.id).all()
+friend_ids = [f.friend_id for f in friends]
+
+today = date.today()
+friends_trips = SkiTrip.query.filter(
+    SkiTrip.user_id.in_(friend_ids),
+    SkiTrip.start_date >= today,
+    SkiTrip.is_public == True
+).order_by(SkiTrip.start_date.asc()).all()
+
+friend_map = { f.friend_id: f.friend for f in friends }
+
+- Pass my_trips, friends_trips, and friend_map to the template.
+
+=================================================
+DO NOT use checkpoints unless required.
+Make only the changes listed.
+=================================================

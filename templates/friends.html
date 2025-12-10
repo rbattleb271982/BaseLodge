@@ -20,8 +20,8 @@
             <h1 class="auth-title">Friends</h1>
             
             <div class="friends-toggle">
-                <button id="toggleFriends" class="toggle-btn active">Friends</button>
-                <button id="toggleTrips" class="toggle-btn">Trips</button>
+                <button id="toggleTrips" class="toggle-btn active">Trips</button>
+                <button id="toggleFriends" class="toggle-btn">Friends</button>
             </div>
             
             <div class="auth-helper">
@@ -30,25 +30,7 @@
         </div>
         
         {% if friends %}
-        <div id="friendsSection" class="toggle-section active-section">
-            <div class="auth-card trips-section">
-                <h2 class="section-title">Your Friends</h2>
-                <div class="friends-list">
-                    {% for friend_rel in friends %}
-                    {% set friend = friend_rel.friend %}
-                    <div class="friend-card">
-                        <div class="friend-info">
-                            <h3 class="friend-name">{{ friend.first_name }} {{ friend.last_name }}</h3>
-                            <p class="friend-detail">{{ friend.rider_type or 'Rider type not set' }}</p>
-                            <p class="friend-detail">Pass: <strong>{{ friend.pass_type or 'No Pass' }}</strong></p>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-        
-        <div id="tripsSection" class="toggle-section hidden-section">
+        <div id="tripsSection" class="toggle-section active-section">
             <div class="auth-card trips-section">
                 <h2 class="section-title">Friends' Upcoming Trips</h2>
                 {% if friend_trips %}
@@ -64,9 +46,8 @@
                         <div class="inline-trip">
                             <div class="inline-trip-top">
                                 <span class="trip-friend">{{ friend.first_name }} {{ friend.last_name }}</span>
-                                <span class="dot-sep">•</span>
-                                <span class="trip-mountain">{{ trip.mountain }}</span>
-                                <span class="trip-state">{{ state_abbr.get(trip.state, trip.state) }}</span>
+                                <span class="trip-sep">—</span>
+                                <span class="trip-mountain">{{ trip.mountain }}, {{ state_abbr.get(trip.state, trip.state) }}</span>
                             </div>
 
                             <div class="inline-trip-bottom">
@@ -93,6 +74,24 @@
             </div>
         </div>
         
+        <div id="friendsSection" class="toggle-section hidden-section">
+            <div class="auth-card trips-section">
+                <h2 class="section-title">Your Friends</h2>
+                <div class="friends-list">
+                    {% for friend_rel in friends %}
+                    {% set friend = friend_rel.friend %}
+                    <div class="friend-card">
+                        <div class="friend-info">
+                            <h3 class="friend-name">{{ friend.first_name }} {{ friend.last_name }}</h3>
+                            <p class="friend-detail">{{ friend.rider_type or 'Rider type not set' }}</p>
+                            <p class="friend-detail">Pass: <strong>{{ friend.pass_type or 'No Pass' }}</strong></p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
         {% else %}
         <div class="auth-card trips-section">
             <div class="empty-state">
@@ -116,6 +115,15 @@
             });
         }
         
+        document.getElementById("toggleTrips").addEventListener("click", () => {
+            document.getElementById("tripsSection").classList.add("active-section");
+            document.getElementById("tripsSection").classList.remove("hidden-section");
+            document.getElementById("friendsSection").classList.remove("active-section");
+            document.getElementById("friendsSection").classList.add("hidden-section");
+            document.getElementById("toggleTrips").classList.add("active");
+            document.getElementById("toggleFriends").classList.remove("active");
+        });
+
         document.getElementById("toggleFriends").addEventListener("click", () => {
             document.getElementById("friendsSection").classList.add("active-section");
             document.getElementById("friendsSection").classList.remove("hidden-section");
@@ -123,15 +131,6 @@
             document.getElementById("tripsSection").classList.add("hidden-section");
             document.getElementById("toggleFriends").classList.add("active");
             document.getElementById("toggleTrips").classList.remove("active");
-        });
-
-        document.getElementById("toggleTrips").addEventListener("click", () => {
-            document.getElementById("friendsSection").classList.remove("active-section");
-            document.getElementById("friendsSection").classList.add("hidden-section");
-            document.getElementById("tripsSection").classList.add("active-section");
-            document.getElementById("tripsSection").classList.remove("hidden-section");
-            document.getElementById("toggleTrips").classList.add("active");
-            document.getElementById("toggleFriends").classList.remove("active");
         });
     </script>
 </body>

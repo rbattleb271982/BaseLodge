@@ -186,7 +186,21 @@ def profile():
     friends_count = Friend.query.filter_by(user_id=user.id).count()
     states = sorted(MOUNTAINS_BY_STATE.keys())
     
-    return render_template("profile.html", user=user, upcoming_trips=upcoming_trips, past_trips=past_trips, states=states, mountains_by_state=MOUNTAINS_BY_STATE, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS, friends_count=friends_count)
+    # Load friends' trips
+    friends = Friend.query.filter_by(user_id=user.id).all()
+    friend_ids = [f.friend_id for f in friends]
+    
+    friends_trips = []
+    if friend_ids:
+        friends_trips = SkiTrip.query.filter(
+            SkiTrip.user_id.in_(friend_ids),
+            SkiTrip.start_date >= today,
+            SkiTrip.is_public == True
+        ).order_by(SkiTrip.start_date.asc()).all()
+    
+    friend_map = {f.friend_id: f.friend for f in friends}
+    
+    return render_template("profile.html", user=user, upcoming_trips=upcoming_trips, past_trips=past_trips, my_trips=upcoming_trips, friends_trips=friends_trips, friend_map=friend_map, states=states, mountains_by_state=MOUNTAINS_BY_STATE, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS, friends_count=friends_count)
 
 @app.route("/my-trips")
 def my_trips():
