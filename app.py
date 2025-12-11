@@ -176,8 +176,15 @@ def auth():
     return render_template("auth.html")
 
 @app.route("/setup-profile", methods=["GET", "POST"])
-@login_required
 def setup_profile():
+    if "user_id" not in session:
+        return redirect(url_for("auth"))
+    
+    user = User.query.get(session["user_id"])
+    if not user:
+        session.pop("user_id", None)
+        return redirect(url_for("auth"))
+    
     if request.method == "POST":
         rider_type = request.form.get("rider_type")
         skill_level = request.form.get("skill_level")
@@ -188,9 +195,9 @@ def setup_profile():
             return redirect(url_for("setup_profile"))
 
         # Save fields to user
-        current_user.rider_type = rider_type
-        current_user.skill_level = skill_level
-        current_user.profile_setup_complete = True
+        user.rider_type = rider_type
+        user.skill_level = skill_level
+        user.profile_setup_complete = True
         db.session.commit()
 
         next_url = session.pop("next_after_setup", None)
