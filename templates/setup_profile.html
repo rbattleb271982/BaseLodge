@@ -1,207 +1,171 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Base Lodge - Setup Profile</title>
+    <title>Setup Profile - Base Lodge</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
+        body {
+            font-family: var(--bl-font-family, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+            background: var(--bl-color-bg, #f7f7f7);
+            padding: 20px;
+            margin: 0;
+        }
+
         .setup-container {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: var(--bl-color-bg);
-            padding: var(--bl-space-6);
+            max-width: 500px;
+            margin: 60px auto 0;
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
-        
-        .setup-card {
-            width: 100%;
-            max-width: 400px;
-            background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-lg);
-            border: 1px solid var(--bl-color-border-soft);
-            box-shadow: var(--bl-shadow-soft);
-            padding: var(--bl-space-8);
-        }
-        
-        .setup-header {
-            margin-bottom: var(--bl-space-8);
-        }
-        
-        .setup-title {
+
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 8px;
             font-size: 24px;
-            font-weight: 700;
-            color: var(--bl-color-text);
-            margin-bottom: var(--bl-space-2);
+            color: var(--bl-color-text, #000);
         }
-        
-        .setup-subtitle {
-            font-size: 14px;
-            color: var(--bl-color-text-muted);
-            line-height: 1.5;
+
+        .subtitle {
+            text-align: center;
+            color: var(--bl-color-text-muted, #666);
+            margin-bottom: 30px;
+            font-size: 15px;
         }
-        
-        .form-group {
-            margin-bottom: var(--bl-space-8);
-        }
-        
-        .form-label {
-            display: block;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--bl-color-text);
-            margin-bottom: var(--bl-space-5);
-        }
-        
-        .bl-segmented-control {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-            gap: var(--bl-space-3);
-        }
-        
-        .bl-segment {
-            padding: var(--bl-space-4) var(--bl-space-5);
-            border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-md);
-            background: var(--bl-color-surface);
-            color: var(--bl-color-text);
-            font-size: 13px;
+
+        .section-label {
             font-weight: 600;
+            margin-top: 20px;
+            margin-bottom: 12px;
+            color: var(--bl-color-text, #000);
+            font-size: 16px;
+        }
+
+        .chip-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .chip {
+            padding: 12px 18px;
+            border-radius: 25px;
+            border: 1px solid var(--bl-color-border, #ddd);
+            background: white;
+            cursor: pointer;
+            user-select: none;
+            font-size: 15px;
+            color: var(--bl-color-text, #000);
+            transition: all 0.2s ease;
+        }
+
+        .chip:hover {
+            border-color: var(--bl-color-primary, #8f011b);
+        }
+
+        .chip.selected {
+            background-color: var(--bl-color-primary, #8f011b);
+            border-color: var(--bl-color-primary, #8f011b);
+            color: white;
+        }
+
+        .finish-btn {
+            margin-top: 40px;
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--bl-color-primary, #8f011b);
+            color: white;
             cursor: pointer;
             transition: all 0.2s ease;
-            text-align: center;
         }
-        
-        .bl-segment:hover {
-            border-color: var(--bl-color-primary);
-            background: rgba(143, 1, 27, 0.02);
+
+        .finish-btn:hover:not(:disabled) {
+            background-color: #720115;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
         }
-        
-        .bl-segment.active {
-            background: var(--bl-color-primary);
-            color: white;
-            border-color: var(--bl-color-primary);
+
+        .finish-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
-        
-        .hidden-input {
-            display: none;
-        }
-        
-        .form-submit {
-            width: 100%;
-            margin-bottom: var(--bl-space-6);
-        }
-        
-        .step-indicator {
-            font-size: 12px;
-            color: var(--bl-color-text-muted);
-            text-align: center;
-            display: block;
+
+        .error-message {
+            color: #d9534f;
+            font-size: 14px;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
     <div class="setup-container">
-        <div class="setup-card">
-            <div class="setup-header">
-                <h1 class="setup-title">Welcome, {{ user.first_name }}!</h1>
-                <p class="setup-subtitle">Let's personalize your experience.</p>
-            </div>
-            
-            {% if step == "1" %}
-            <!-- Step 1: Rider Type -->
-            <form method="POST" action="{{ url_for('setup_profile', step='1') }}">
-                <div class="form-group">
-                    <label class="form-label">What type of rider are you?</label>
-                    <select name="rider_type" id="rider_type" required style="margin-top: var(--bl-space-5); width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px;">
-                        <option value="">Select a rider type</option>
-                        <option value="Skier">Skier</option>
-                        <option value="Snowboarder">Snowboarder</option>
-                        <option value="Cross-Country Skier">Cross-Country Skier</option>
-                        <option value="Snowshoer">Snowshoer</option>
-                        <option value="Both Skier & Snowboarder">Both Skier & Snowboarder</option>
-                    </select>
+        <h2>Let's get started!</h2>
+        <p class="subtitle">Just 2 quick questions. Takes less than 10 seconds.</p>
+
+        {% with messages = get_flashed_messages(category_filter=["error"]) %}
+            {% if messages %}
+                <div class="error-message">
+                    {{ messages[0] }}
                 </div>
-                
-                <button type="submit" class="bl-btn-primary form-submit">Next</button>
-                
-                <div class="step-indicator">Step 1 of 3</div>
-            </form>
-            
-            {% elif step == "2" %}
-            <!-- Step 2: Pass Type -->
-            <form method="POST" action="{{ url_for('setup_profile', step='2') }}">
-                <div class="form-group">
-                    <label class="form-label">Which pass do you have?</label>
-                    <select name="pass_type" id="pass_type" required style="margin-top: var(--bl-space-5); width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px;">
-                        <option value="">Select a pass type</option>
-                        <option value="Epic">Epic</option>
-                        <option value="Epic Local">Epic Local</option>
-                        <option value="Epic Military">Epic Military</option>
-                        <option value="Epic Adaptive">Epic Adaptive</option>
-                        <option value="Epic Northeast Value">Epic Northeast Value</option>
-                        <option value="Epic 4-Day">Epic 4-Day</option>
-                        <option value="Epic 5-Day">Epic 5-Day</option>
-                        <option value="Epic 7-Day">Epic 7-Day</option>
-                        <option value="Ikon">Ikon</option>
-                        <option value="Ikon Base">Ikon Base</option>
-                        <option value="Ikon Session Pass (2-Day, 3-Day, 4-Day)">Ikon Session Pass (2-Day, 3-Day, 4-Day)</option>
-                        <option value="Indy">Indy</option>
-                        <option value="Mountain Collective">Mountain Collective</option>
-                        <option value="Other">Other</option>
-                        <option value="None">None</option>
-                    </select>
-                </div>
-                
-                <button type="submit" class="bl-btn-primary form-submit">Next</button>
-                
-                <div class="step-indicator">Step 2 of 3</div>
-            </form>
-            
-            {% elif step == "3" %}
-            <!-- Step 3: Home State + Birth Year + Skill Level -->
-            <form method="POST" action="{{ url_for('setup_profile', step='3') }}">
-                <div class="form-group">
-                    <label class="form-label">Where do you live?</label>
-                    {% set states = ["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"] %}
-                    <select name="home_state" id="home_state" required style="margin-top: var(--bl-space-5); width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px;">
-                        <option value="">Select your state</option>
-                        {% for state in states %}
-                            <option value="{{ state }}">{{ state }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">What is your birth year?</label>
-                    <select name="birth_year" id="birth_year" required style="margin-top: var(--bl-space-5); width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px;">
-                        <option value="">Select your birth year</option>
-                        {% for year in range(2010, 1939, -1) %}
-                            <option value="{{ year }}">{{ year }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">What is your skill level?</label>
-                    <select name="skill_level" id="skill_level" required style="margin-top: var(--bl-space-5); width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px;">
-                        <option value="">Select your skill level</option>
-                        <option value="Beginner">Beginner</option>
-                        <option value="Intermediate">Intermediate</option>
-                        <option value="Advanced">Advanced</option>
-                        <option value="Expert">Expert</option>
-                    </select>
-                </div>
-                
-                <button type="submit" class="bl-btn-primary form-submit">Complete Setup</button>
-                
-                <div class="step-indicator">Step 3 of 3</div>
-            </form>
             {% endif %}
-        </div>
+        {% endwith %}
+
+        <form id="onboardingForm" method="POST">
+
+            <!-- Rider Type -->
+            <div class="section-label">What do you ride?</div>
+            <div class="chip-group" id="riderTypeGroup">
+                {% for rt in ["Skier", "Snowboarder", "Cross-country", "Telemark", "Adaptive", "Other"] %}
+                    <div class="chip" data-value="{{ rt }}">{{ rt }}</div>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="rider_type" id="rider_type">
+
+            <!-- Skill Level -->
+            <div class="section-label">What's your skill level?</div>
+            <div class="chip-group" id="skillLevelGroup">
+                {% for lvl in ["Beginner", "Intermediate", "Advanced", "Expert"] %}
+                    <div class="chip" data-value="{{ lvl }}">{{ lvl }}</div>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="skill_level" id="skill_level">
+
+            <button class="finish-btn" id="finishBtn" type="submit" disabled>Finish</button>
+        </form>
     </div>
-    
+
+    <script>
+        function setupSelectable(groupId, hiddenInputId) {
+            const group = document.getElementById(groupId);
+            const hidden = document.getElementById(hiddenInputId);
+
+            group.addEventListener("click", (e) => {
+                if (!e.target.dataset.value) return;
+
+                [...group.children].forEach(btn => btn.classList.remove("selected"));
+                e.target.classList.add("selected");
+
+                hidden.value = e.target.dataset.value;
+                checkEnableFinish();
+            });
+        }
+
+        function checkEnableFinish() {
+            const r = document.getElementById("rider_type").value;
+            const s = document.getElementById("skill_level").value;
+            document.getElementById("finishBtn").disabled = !(r && s);
+        }
+
+        setupSelectable("riderTypeGroup", "rider_type");
+        setupSelectable("skillLevelGroup", "skill_level");
+    </script>
 </body>
 </html>

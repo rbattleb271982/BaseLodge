@@ -176,44 +176,29 @@ def auth():
     return render_template("auth.html")
 
 @app.route("/setup-profile", methods=["GET", "POST"])
+@login_required
 def setup_profile():
-    if "user_id" not in session:
-        return redirect(url_for("auth"))
-    
-    user = User.query.get(session["user_id"])
-    if not user:
-        session.pop("user_id", None)
-        return redirect(url_for("auth"))
-    
-    step = request.args.get("step", "1")
-    
     if request.method == "POST":
-        if step == "1":
-            rider_type = request.form.get("rider_type")
-            user.rider_type = rider_type
-            db.session.commit()
-            return redirect(url_for("setup_profile", step="2"))
-        elif step == "2":
-            pass_type = request.form.get("pass_type")
-            user.pass_type = pass_type
-            db.session.commit()
-            return redirect(url_for("setup_profile", step="3"))
-        elif step == "3":
-            home_state = request.form.get("home_state")
-            birth_year = request.form.get("birth_year")
-            skill_level = request.form.get("skill_level")
-            user.home_state = home_state
-            user.birth_year = int(birth_year) if birth_year else None
-            user.skill_level = skill_level
-            user.profile_setup_complete = True
-            db.session.commit()
-            
-            next_url = session.pop("next_after_setup", None)
-            if next_url:
-                return redirect(next_url)
-            return redirect(url_for("home"))
-    
-    return render_template("setup_profile.html", step=step, user=user)
+        rider_type = request.form.get("rider_type")
+        skill_level = request.form.get("skill_level")
+
+        # Validate required fields
+        if not rider_type or not skill_level:
+            flash("Please select one option for each field.", "error")
+            return redirect(url_for("setup_profile"))
+
+        # Save fields to user
+        current_user.rider_type = rider_type
+        current_user.skill_level = skill_level
+        current_user.profile_setup_complete = True
+        db.session.commit()
+
+        next_url = session.pop("next_after_setup", None)
+        if next_url:
+            return redirect(next_url)
+        return redirect(url_for("home"))
+
+    return render_template("setup_profile.html")
 
 @app.route("/profile", methods=["GET", "POST"])
 def profile():
