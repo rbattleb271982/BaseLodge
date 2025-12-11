@@ -1,72 +1,208 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="page-container">
-  <h1 class="page-title">My trips</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base Lodge - My Trips</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .add-trip-container {
+            margin-bottom: var(--bl-space-6);
+        }
 
-  <div class="add-trip-container">
-    <a href="{{ url_for('add_trip') }}" class="add-trip-button">+ Add trip</a>
-  </div>
+        .add-trip-button {
+            width: 100%;
+            padding: var(--bl-space-5) var(--bl-space-6);
+            background: var(--bl-color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--bl-radius-lg);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+        }
 
-  <section class="trips-section">
-    <h2 class="section-title">Upcoming trips</h2>
-    {% if upcoming_trips %}
-      <ul class="trip-list">
-        {% for trip in upcoming_trips %}
-          <li class="trip-card">
-            <div class="trip-main">
-              <div class="trip-mountain">{{ trip.mountain }}</div>
-              <div class="trip-location">{{ trip.state }}</div>
-              <div class="trip-dates">
-                {% if trip.start_date == trip.end_date %}
-                  {{ trip.start_date.strftime("%b %d, %Y") }}
-                {% else %}
-                  {{ trip.start_date.strftime("%b %d") }} – {{ trip.end_date.strftime("%b %d, %Y") }}
-                {% endif %}
-              </div>
-              <div class="trip-visibility">
-                {% if trip.is_public %}👥 Visible to friends{% else %}🔒 Private{% endif %}
-              </div>
-            </div>
-            <div class="trip-actions">
-              <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="trip-action-link">Change</a>
-              <form method="POST" action="{{ url_for('delete_trip_form', trip_id=trip.id) }}" onsubmit="return confirm('Delete this trip?');">
-                <button type="submit" class="trip-delete-button">Delete</button>
-              </form>
-            </div>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p>You don't have any upcoming trips yet.</p>
-    {% endif %}
-  </section>
+        .add-trip-button:active {
+            background: #6B000F;
+        }
 
-  <section class="trips-section">
-    <h2 class="section-title">Past trips</h2>
-    {% if past_trips %}
-      <ul class="trip-list">
-        {% for trip in past_trips %}
-          <li class="trip-card">
-            <div class="trip-main">
-              <div class="trip-mountain">{{ trip.mountain }}</div>
-              <div class="trip-location">{{ trip.state }}</div>
-              <div class="trip-dates">
-                {% if trip.start_date == trip.end_date %}
-                  {{ trip.start_date.strftime("%b %d, %Y") }}
-                {% else %}
-                  {{ trip.start_date.strftime("%b %d") }} – {{ trip.end_date.strftime("%b %d, %Y") }}
-                {% endif %}
-              </div>
-              <div class="trip-visibility">
-                {% if trip.is_public %}👥 Visible to friends{% else %}🔒 Private{% endif %}
-              </div>
-            </div>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p>No past trips yet.</p>
-    {% endif %}
-  </section>
-</div>
-{% endblock %}
+        .trips-section {
+            margin-bottom: var(--bl-space-8);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin-bottom: var(--bl-space-4);
+        }
+
+        .trip-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .trip-card {
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: var(--bl-radius-lg);
+            padding: var(--bl-space-5);
+            margin-bottom: var(--bl-space-4);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: var(--bl-space-4);
+        }
+
+        .trip-main {
+            flex: 1;
+        }
+
+        .trip-mountain {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin-bottom: var(--bl-space-2);
+        }
+
+        .trip-location {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin-bottom: var(--bl-space-2);
+        }
+
+        .trip-dates {
+            font-size: 14px;
+            color: var(--bl-color-text);
+            margin-bottom: var(--bl-space-2);
+        }
+
+        .trip-visibility {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+        }
+
+        .trip-actions {
+            display: flex;
+            gap: var(--bl-space-3);
+            align-items: center;
+        }
+
+        .trip-action-link {
+            font-size: 14px;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+            font-weight: 500;
+            padding: var(--bl-space-2) var(--bl-space-3);
+        }
+
+        .trip-action-link:active {
+            opacity: 0.7;
+        }
+
+        .trip-delete-button {
+            font-size: 14px;
+            color: #D00;
+            background: none;
+            border: none;
+            padding: var(--bl-space-2) var(--bl-space-3);
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .trip-delete-button:active {
+            opacity: 0.7;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: var(--bl-space-8);
+            color: var(--bl-color-text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <h1 class="page-title">My trips</h1>
+
+        <div class="add-trip-container">
+            <a href="{{ url_for('add_trip') }}" class="add-trip-button">+ Add trip</a>
+        </div>
+
+        <section class="trips-section">
+            <h2 class="section-title">Upcoming trips</h2>
+            {% if upcoming_trips %}
+                <ul class="trip-list">
+                    {% for trip in upcoming_trips %}
+                    <li class="trip-card">
+                        <div class="trip-main">
+                            <div class="trip-mountain">{{ trip.mountain }}</div>
+                            <div class="trip-location">{{ trip.state }}</div>
+                            <div class="trip-dates">
+                                {% if trip.start_date == trip.end_date %}
+                                    {{ trip.start_date.strftime("%b %d, %Y") }}
+                                {% else %}
+                                    {{ trip.start_date.strftime("%b %d") }} – {{ trip.end_date.strftime("%b %d, %Y") }}
+                                {% endif %}
+                            </div>
+                            <div class="trip-visibility">
+                                {% if trip.is_public %}👥 Visible to friends{% else %}🔒 Private{% endif %}
+                            </div>
+                        </div>
+                        <div class="trip-actions">
+                            <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="trip-action-link">Change</a>
+                            <form method="POST" action="{{ url_for('delete_trip_form', trip_id=trip.id) }}" onsubmit="return confirm('Delete this trip?');" style="margin: 0;">
+                                <button type="submit" class="trip-delete-button">Delete</button>
+                            </form>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="empty-state">You don't have any upcoming trips yet.</div>
+            {% endif %}
+        </section>
+
+        <section class="trips-section">
+            <h2 class="section-title">Past trips</h2>
+            {% if past_trips %}
+                <ul class="trip-list">
+                    {% for trip in past_trips %}
+                    <li class="trip-card">
+                        <div class="trip-main">
+                            <div class="trip-mountain">{{ trip.mountain }}</div>
+                            <div class="trip-location">{{ trip.state }}</div>
+                            <div class="trip-dates">
+                                {% if trip.start_date == trip.end_date %}
+                                    {{ trip.start_date.strftime("%b %d, %Y") }}
+                                {% else %}
+                                    {{ trip.start_date.strftime("%b %d") }} – {{ trip.end_date.strftime("%b %d, %Y") }}
+                                {% endif %}
+                            </div>
+                            <div class="trip-visibility">
+                                {% if trip.is_public %}👥 Visible to friends{% else %}🔒 Private{% endif %}
+                            </div>
+                        </div>
+                        <div class="trip-actions">
+                            <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="trip-action-link">Change</a>
+                            <form method="POST" action="{{ url_for('delete_trip_form', trip_id=trip.id) }}" onsubmit="return confirm('Delete this trip?');" style="margin: 0;">
+                                <button type="submit" class="trip-delete-button">Delete</button>
+                            </form>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="empty-state">You don't have any past trips yet.</div>
+            {% endif %}
+        </section>
+    </div>
+
+    {% include 'components/bottom_nav.html' %}
+</body>
+</html>

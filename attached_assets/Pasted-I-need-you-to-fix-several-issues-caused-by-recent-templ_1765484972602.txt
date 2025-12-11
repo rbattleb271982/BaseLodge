@@ -1,0 +1,111 @@
+I need you to fix several issues caused by recent template and route changes.
+
+DO NOT guess: inspect the repository first.
+
+----------------------
+STEP 1 — Detect the correct layout file
+----------------------
+Search the templates directory and identify which template the original pages were extending before the trip rewrite. 
+This file contains:
+- the correct bottom nav bar with icons (🏠, 👥, ✉️, ⋯)
+- the existing mobile design styles
+- the main wrapper div for spacing
+It may be called layout.html, index.html, main.html, or base.html.
+
+Once found:
+- Confirm that this layout file is the one the app should extend.
+- Ensure all templates (add_trip, my_trips, friends, more, profile, etc.) extend this correct layout file instead of an incorrect or newly created base.html.
+- Remove or ignore any incorrect base.html that was added earlier if it conflicts.
+
+----------------------
+STEP 2 — Fix the Add Trip page
+----------------------
+The Add Trip page must match the EXISTING visual design language used across the app:
+- Rounded grey iOS-style inputs
+- Correct spacing and margins
+- Correct blue button styling
+- Works properly inside the layout template
+- Bottom navigation should match the rest of the app
+
+Rewrite add_trip.html so that:
+- It extends the correct layout file found in Step 1
+- It uses the existing styling patterns already in the app
+- The form fields visually match the design of the other forms in the app
+- No duplicate nav bars appear
+- No unstyled HTML components appear
+
+----------------------
+STEP 3 — Fix AttributeError when saving a trip
+----------------------
+Debug the exact AttributeError and repair it. 
+Likely causes:
+- SkiTrip model missing a required field (state, mountain, start_date, end_date, is_public)
+- my_trips or friends view referencing incorrect fields
+Fix whatever object attribute mismatch is causing the error so that:
+- Adding a trip succeeds
+- Redirect to /my-trips works
+- Trip data displays correctly
+
+----------------------
+STEP 4 — Fix AttributeError on the Friends page
+----------------------
+Inspect the friends route and friends.html. 
+The recent update may have assumed a relationship structure different from the existing schema.
+
+Fix the friends list loop so that it:
+- Works with the actual User / Friends relationship in the database
+- Still supports tapping a friend’s card to open their uneditable profile
+- Does not assume friend_rel.friend if that attribute does not exist
+
+----------------------
+STEP 5 — Restore the correct “More” page structure
+----------------------
+The correct order should be:
+
+More info  → opens profile edit screen
+  - Rider type
+  - Pass type
+  - Skill level
+  - Gear
+  - Home state
+  - Birth year (optional)
+  - Mountains visited (nested inside this)
+
+Friends
+Invite friends
+Log out
+
+Update more.html AND any associated route so that:
+- “More info” appears FIRST
+- “Mountains visited” is INSIDE that screen
+- The old, incorrect structure is removed
+- Styling matches the rest of the app
+
+----------------------
+STEP 6 — Fix bottom navigation
+----------------------
+Bottom nav currently shows purple links and emojis. 
+Replace that with the correct nav bar code that was originally used in the layout file.
+
+Bottom nav must:
+- Use icons AND styling consistent with the rest of the app
+- Highlight the active page if the original design did so
+- Not appear twice
+- Not be replaced by simplified/unstyled links
+
+----------------------
+STEP 7 — Test all flows
+----------------------
+Do not finish until you verify:
+
+- Add Trip loads with correct design and no TemplateNotFound errors
+- Adding a trip saves without AttributeError
+- /my-trips displays Upcoming and Past trips
+- Friends page loads without error
+- Clicking a friend opens their profile
+- "More" page appears with correct structure
+- "Mountains visited" appears under "More info"
+- Bottom nav appears correctly on every page
+
+Use checkpoints sparingly and only when necessary. Do not modify unrelated files.
+

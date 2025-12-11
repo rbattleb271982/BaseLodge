@@ -18,18 +18,6 @@ login_manager.login_view = "auth"
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if "user_id" not in session:
-            return redirect(url_for("auth"))
-        user = User.query.get(session["user_id"])
-        if not user:
-            session.pop("user_id", None)
-            return redirect(url_for("auth"))
-        return f(*args, **kwargs)
-    return decorated_function
-
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///baselodge.db")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
