@@ -14,18 +14,18 @@
         
         {% include 'components/stats_card.html' %}
         
-        {% set active_tab = 'my' %}
+        {% set active_tab = request.args.get('tab', 'my') %}
         {% include 'components/segmented_trips_tabs.html' %}
         
         <div style="margin-top: var(--bl-space-6);">
             <!-- My Trips -->
-            <div id="tab-my" class="bl-trip-row-group">
+            <div id="tab-my" class="bl-trip-row-group" {% if active_tab != 'my' %}style="display: none;"{% endif %}>
                 {% if my_trips %}
                     {% for trip in my_trips %}
                     <div class="bl-trip-row">
                         <span class="trip-date">{{ trip.start_date.strftime('%b %d') }}</span> —
                         <span class="trip-name">{{ trip.mountain }}</span>
-                        <span class="trip-info">{{ state_abbr.get(trip.state, trip.state) }}, {{ trip.pass_type }}</span>
+                        <span class="trip-info">{{ trip.state }}, {{ trip.pass_type }}</span>
                     </div>
                     {% endfor %}
                 {% else %}
@@ -34,13 +34,13 @@
             </div>
             
             <!-- Friends' Trips -->
-            <div id="tab-friends" class="bl-trip-row-group" style="display: none;">
+            <div id="tab-friends" class="bl-trip-row-group" {% if active_tab != 'friends' %}style="display: none;"{% endif %}>
                 {% if friend_trips %}
                     {% for trip in friend_trips %}
                     <div class="bl-trip-row">
                         <span class="trip-date">{{ trip.start_date.strftime('%b %d') }}</span> —
                         <span class="trip-name">{{ trip.user.first_name }} {{ trip.user.last_name }}</span>
-                        <span class="trip-info">@ {{ trip.mountain }}, {{ state_abbr.get(trip.state, trip.state) }}</span>
+                        <span class="trip-info">@ {{ trip.mountain }}, {{ trip.state }}</span>
                     </div>
                     {% endfor %}
                 {% else %}
@@ -49,13 +49,13 @@
             </div>
             
             <!-- All Trips -->
-            <div id="tab-all" class="bl-trip-row-group" style="display: none;">
+            <div id="tab-all" class="bl-trip-row-group" {% if active_tab != 'all' %}style="display: none;"{% endif %}>
                 {% if all_trips %}
                     {% for trip in all_trips %}
                     <div class="bl-trip-row">
                         <span class="trip-date">{{ trip.start_date.strftime('%b %d') }}</span> —
                         <span class="trip-name">{% if trip.user_id == user.id %}You{% else %}{{ trip.user.first_name }} {{ trip.user.last_name }}{% endif %}</span>
-                        <span class="trip-info">@ {{ trip.mountain }}, {{ state_abbr.get(trip.state, trip.state) }}</span>
+                        <span class="trip-info">@ {{ trip.mountain }}, {{ trip.state }}</span>
                     </div>
                     {% endfor %}
                 {% else %}
@@ -65,15 +65,13 @@
         </div>
         
         <div style="margin-top: var(--bl-space-8);">
-            <button class="bl-btn-primary" onclick="openCreateModal()" style="width: 100%;">+ Add a Trip</button>
+            <a href="{{ url_for('create_trip_page') }}" class="bl-btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none;">+ Add a Trip</a>
         </div>
     </div>
     
     {% include 'components/bottom_nav.html' %}
     
     <script>
-        const mountainsByState = {{ mountains_by_state | tojson }};
-        
         document.addEventListener('DOMContentLoaded', function() {
             const segments = document.querySelectorAll('.bl-segment');
             const panels = document.querySelectorAll('.bl-trip-row-group');
@@ -89,6 +87,8 @@
                         panel.style.display = 'none';
                     });
                     document.getElementById('tab-' + tab).style.display = 'block';
+                    
+                    window.history.replaceState({}, '', '{{ url_for("home") }}?tab=' + tab);
                 });
             });
         });

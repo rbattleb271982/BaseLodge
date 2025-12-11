@@ -1,0 +1,124 @@
+FULL FIX + ANSWERS TO ALL QUESTIONS + IMPLEMENTATION ORDER
+I need you to fix a critical error and update several behaviors.
+Please follow this prompt exactly and do not use checkpoints unless I explicitly ask.
+✅ STEP 1 — Fix the JSON serialization error
+The crash occurs because the template home.html contains this line:
+const mountainsByState = {{ mountains_by_state | tojson }};
+But mountains_by_state is Undefined, so Jinja2 throws:
+TypeError: Object of type Undefined is not JSON serializable
+Remove ALL references to:
+mountains_by_state
+state_abbr
+ANY related JS variables that try to serialize them
+ANY lines using tojson involving these keys
+This includes:
+home.html
+profile.html
+friend_profile.html
+any file in /templates accidentally referencing these variables
+After removing them, the homepage and login should load normally.
+If there's a check for undefined values, remove that too.
+✅ STEP 2 — Clarifications & Answers to All Your Questions
+1. Source Design File
+YES — the design system HTML+CSS file was provided in the previous message.
+Use that file as the authoritative source of the BaseLodge design system.
+You do NOT need to look for public/index.html.
+You already have the complete system — use the file I provided exactly.
+2. User Model Name Mismatch
+Use this field:
+user.rider_type
+Do NOT introduce a new snow_type field.
+Replace all template references to user.snow_type with:
+{{ user.rider_type }}
+3. Bottom Nav Trips Link
+Use:
+url_for('home')
+We are deprecating /my_trips.
+If /my_trips still exists, keep the route but redirect it to /home.
+4. Existing styles.css
+We will NOT replace styles.css yet.
+Instead:
+Keep static/styles.css
+Merge the new design system tokens + components into it
+Do NOT delete existing CSS until the UI is stable
+5. Active Nav Detection
+Use request.endpoint, not request.path.
+Correct example:
+<a class="bl-nav-item {% if request.endpoint == 'home' %}active{% endif %}">
+Repeat for:
+home
+trips (deprecated → use home)
+friends
+profile
+6. LSP Errors
+YES — fix all LSP diagnostics in app.py after the JSON serialization fix.
+Most are usually unused imports or undefined functions.
+7. Trip Creation Modal
+openCreateModal() does not exist anymore and should be removed.
+The homepage will use a Full Page or Link-Based Trip Create, not a modal.
+Remove:
+onclick="openCreateModal()"
+any JS modal code
+modal markup if present
+8. Profile Form Submissions
+YES — verify backend routes for:
+updating pass type
+updating skill level
+updating rider type
+updating gender
+updating birth year
+updating home state
+If any field is not handled in POST logic → implement it.
+9. Home Tabs (Segmented Control)
+Currently they are visual only.
+Implement real server-side behavior:
+“My Trips” → trips owned by current_user
+“Friends’ Trips” → trips from users the current_user is connected to
+“All Trips” → merge of both
+Use a query parameter: ?tab=my, ?tab=friends, ?tab=all
+Example:
+tab = request.args.get("tab", "my")
+10. Missing Backend Data
+Since mountains_by_state is removed:
+Do NOT reintroduce it anywhere
+We do NOT need mountain filtering on the homepage anymore
+11. Design System Completeness
+Your tasks:
+Integrate the BaseLodge design system into styles.css
+Add utility classes (chips, cards, segmented controls, etc.)
+Ensure login/signup use the design system
+Ensure home/profile/trips/friends use it
+NO design reference page needed right now
+12. Segmented Controls & JS Validation
+YES — test and fix:
+selectPass()
+selectSkill()
+selectRider()
+These must bind selected buttons → hidden inputs → POST update.
+✅ STEP 3 — Remove ALL JSON serialization of undefined data
+If any template has:
+{{ something | tojson }}
+and "something" may be undefined → remove it.
+If there's a check, remove the check.
+Do NOT serialize missing data.
+🚨 PRIORITY ORDER (DO THESE IN EXACT ORDER)
+Remove mountains_by_state & state_abbr from all templates
+Fix JSON serialization and undefined variables crash
+Ensure login/signup loads normally
+Fix LSP errors in app.py
+Fix profile update POST routes
+Implement segmented tab switching on home
+Remove openCreateModal() and modal remnants
+Integrate design-system.css into styles.css
+Apply design system to login/signup/home/profile/friends
+Set correct bottom nav links + active state
+🎯 GOAL
+After these steps:
+The app loads normally
+Login/signup functional
+Home screen stable
+No JSON errors
+All undefined variables removed
+Foundation ready for full design overhaul
+⛷️ Please begin.
+Do not use checkpoints unless I explicitly request them.

@@ -172,35 +172,15 @@ def profile():
     if not user.profile_setup_complete:
         return redirect(url_for("setup_profile"))
     
-    today = date.today()
-    upcoming_trips = SkiTrip.query.filter(
-        SkiTrip.user_id == user.id,
-        SkiTrip.start_date >= today
-    ).order_by(SkiTrip.start_date.asc()).all()
+    if request.method == "POST":
+        user.pass_type = request.form.get("pass_type") or user.pass_type
+        user.skill_level = request.form.get("skill_level") or user.skill_level
+        user.rider_type = request.form.get("rider_type") or user.rider_type
+        user.gender = request.form.get("gender") or user.gender
+        db.session.commit()
+        return redirect(url_for("profile"))
     
-    past_trips = SkiTrip.query.filter(
-        SkiTrip.user_id == user.id,
-        SkiTrip.start_date < today
-    ).order_by(SkiTrip.start_date.desc()).all()
-    
-    friends_count = Friend.query.filter_by(user_id=user.id).count()
-    states = sorted(MOUNTAINS_BY_STATE.keys())
-    
-    # Load friends' trips
-    friends = Friend.query.filter_by(user_id=user.id).all()
-    friend_ids = [f.friend_id for f in friends]
-    
-    friends_trips = []
-    if friend_ids:
-        friends_trips = SkiTrip.query.filter(
-            SkiTrip.user_id.in_(friend_ids),
-            SkiTrip.start_date >= today,
-            SkiTrip.is_public == True
-        ).order_by(SkiTrip.start_date.asc()).all()
-    
-    friend_map = {f.friend_id: f.friend for f in friends}
-    
-    return render_template("profile.html", user=user, upcoming_trips=upcoming_trips, past_trips=past_trips, my_trips=upcoming_trips, friends_trips=friends_trips, friend_map=friend_map, states=states, mountains_by_state=MOUNTAINS_BY_STATE, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS, friends_count=friends_count)
+    return render_template("profile.html", user=user)
 
 @app.route("/edit_profile", methods=["GET", "POST"])
 def edit_profile():
@@ -577,6 +557,18 @@ def update_profile():
     db.session.commit()
     
     return jsonify({"success": True, "message": "Profile updated"}), 200
+
+@app.route("/create-trip")
+def create_trip_page():
+    if "user_id" not in session:
+        return redirect(url_for("auth"))
+    
+    user = User.query.get(session["user_id"])
+    if not user or not user.profile_setup_complete:
+        return redirect(url_for("auth"))
+    
+    states = sorted(MOUNTAINS_BY_STATE.keys())
+    return render_template("create_trip.html", user=user, states=states, mountains_by_state=MOUNTAINS_BY_STATE, pass_options=PASS_OPTIONS)
 
 @app.route("/home")
 def home():
