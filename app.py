@@ -1,12 +1,25 @@
 import os
 from datetime import datetime, date
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from functools import wraps
 from flask_migrate import Migrate
 from models import db, User, SkiTrip, Friend, Invitation
 from debug_routes import debug_bp
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("auth"))
+        user = User.query.get(session["user_id"])
+        if not user:
+            session.pop("user_id", None)
+            return redirect(url_for("auth"))
+        return f(*args, **kwargs)
+    return decorated_function
 
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///baselodge.db")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
@@ -571,6 +584,11 @@ def create_trip_page():
     
     states = sorted(MOUNTAINS_BY_STATE.keys())
     return render_template("create_trip.html", user=user, states=states, mountains_by_state=MOUNTAINS_BY_STATE, pass_options=PASS_OPTIONS)
+
+@app.route("/invite")
+@login_required
+def invite():
+    return render_template("invite.html")
 
 @app.route("/home")
 def home():

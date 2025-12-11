@@ -5,14 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Base Lodge - Home</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .header-card {
+            background: linear-gradient(135deg, #F8F3EE 0%, white 100%);
+            border-radius: var(--bl-radius-lg);
+            padding: var(--bl-space-8);
+            margin-bottom: var(--bl-space-8);
+            border: 1px solid var(--bl-color-border-soft);
+        }
+        
+        .header-welcome {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--bl-color-text);
+            margin-bottom: var(--bl-space-4);
+        }
+        
+        .header-meta {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin-bottom: var(--bl-space-6);
+            line-height: 1.6;
+        }
+        
+        .header-info {
+            display: flex;
+            flex-direction: column;
+            gap: var(--bl-space-4);
+            font-size: 14px;
+            color: var(--bl-color-text);
+        }
+    </style>
 </head>
 <body>
     <div class="page-container">
-        <h1 class="page-title">Home</h1>
-        
-        {% include 'components/profile_summary.html' %}
-        
-        {% include 'components/stats_card.html' %}
+        <div class="header-card">
+            <div class="header-welcome">Welcome back, {{ user.first_name }}!</div>
+            <div class="header-meta">
+                {{ user.pass_type or 'No Pass' }} · {{ user.rider_type or 'Skier' }} · {{ user.skill_level or 'Beginner' }}
+            </div>
+            <div class="header-info">
+                <div>Mountains visited: 0</div>
+                <div>Next Trip: Not scheduled</div>
+            </div>
+        </div>
         
         {% set active_tab = request.args.get('tab', 'my') %}
         {% include 'components/segmented_trips_tabs.html' %}

@@ -31,20 +31,21 @@ Base Lodge is a ski/snowboard trip planning application built with Flask. It hel
 ├── app.py              # Main Flask application with routes & APIs
 ├── models.py           # SQLAlchemy models (User, SkiTrip, Friend, Invitation)
 ├── templates/
-│   ├── auth.html       # Sign up / Login page
-│   ├── setup_profile.html  # Two-question onboarding
-│   ├── home.html       # Landing page with trip tabs (My Trips / Friends' Trips / All Trips)
-│   ├── profile.html    # User profile (summary + editable fields + settings)
-│   ├── friends.html    # Friends list with pass filter pills
-│   ├── friend_profile.html  # Friend's public profile
+│   ├── auth.html       # Sign up / Login page (BaseLodge styled)
+│   ├── setup_profile.html  # Two-step onboarding (skill level, rider type, pass type)
+│   ├── home.html       # Landing page with welcome header + trip tabs (My Trips / Friends' Trips / All Trips)
+│   ├── profile.html    # User profile settings (editable fields)
+│   ├── friends.html    # Friends list with inline rows
+│   ├── friend_profile.html  # Friend's public profile with trips
+│   ├── invite.html     # NEW - Invite a friend page (copy link + QR code)
 │   ├── my_trips.html   # Deprecated (redirects to /home)
 │   ├── components/
 │   │   ├── profile_summary.html  # Profile card component
 │   │   ├── stats_card.html  # Stats display component
 │   │   ├── segmented_trips_tabs.html  # Tab control component
 │   │   ├── trip_row.html  # Trip row component
-│   │   ├── friend_row.html  # Friend row component
-│   │   └── bottom_nav.html  # Bottom navigation component
+│   │   ├── friend_row.html  # Friend row (inline with name, pass, rider, skill)
+│   │   └── bottom_nav.html  # 4-tab bottom navigation (Home, Friends, Invite, Settings)
 │   └── edit_profile.html  # Edit profile form
 ├── static/
 │   └── styles.css      # BaseLodge unified design system with color tokens, spacing, typography, components
@@ -58,12 +59,19 @@ Base Lodge is a ski/snowboard trip planning application built with Flask. It hel
   - Step 1: Skill Level (Beginner/Intermediate/Advanced/Expert) + Rider Type (Skier/Snowboarder/Both)
   - Step 2: Pass Type (Epic/Ikon/Other/None) using segmented controls
 - `/create-trip` - Trip creation page (full page, not modal)
-- `/home` - Landing page with 3-tab interface: My Trips / Friends' Trips / All Trips
-- `/profile` - User profile page (editable fields with segmented controls for pass/rider type)
-- `/my-trips` - Deprecated route (redirects to /home)
-- `/friends` - Friends list with pass filter pills
+- `/home` - Landing page with welcome header + 3-tab interface: My Trips / Friends' Trips / All Trips
+- `/profile` - User settings page (editable profile fields)
+- `/invite` - Invite a friend page (copy invite link, QR code placeholder)
+- `/friends` - Friends list with inline rows
 - `/profile/<user_id>` - Friend's public profile with trips
+- `/my-trips` - Deprecated route (redirects to /home)
 - `/logout` - Clears session and redirects to auth
+
+**Bottom Navigation (4 tabs):**
+- Home 🏠 → `/home`
+- Friends 👥 → `/friends`
+- Invite ✉️ → `/invite`
+- Settings ⚙️ → `/profile`
 
 ### API Routes
 
@@ -113,6 +121,28 @@ Base Lodge is a ski/snowboard trip planning application built with Flask. It hel
 - Surface: #FFFFFF
 
 ## Recent Changes
+
+### Phase 6: Navigation & Invite System (Dec 11, 2025)
+- **Bottom Navigation Redesign:** Updated from 3 tabs to 4-tab system
+  - Removed duplicate "Trips" tab (now consolidated into Home)
+  - New tabs: Home 🏠 | Friends 👥 | Invite ✉️ | Settings ⚙️
+  - Settings correctly routes to `/profile`
+- **New Invite Page:** Created `/invite` route with copy link + QR placeholder
+  - Copy button copies placeholder invite URL to clipboard
+  - QR code placeholder (no dynamic generation yet)
+  - Full BaseLodge styling
+  - Requires login via @login_required decorator
+- **Home Page Header Redesign:** Added welcome card with gradient background
+  - "Welcome back, {{ first_name }}!"
+  - Pass Type · Rider Type · Skill Level metadata
+  - Placeholder data: "Mountains visited: 0" and "Next Trip: Not scheduled"
+- **Friend Row Inline:** Updated friend_row component
+  - Single-row display: "Name — Pass Type — Rider Type — Skill Level"
+  - Entire row clickable → `/friend/<friend_id>`
+- **Code Improvements:**
+  - Added custom @login_required decorator (Flask doesn't have built-in)
+  - All 4 bottom nav tabs now require login
+  - Removed redundant Trips tab
 
 ### Phase 5: Auth & Onboarding Redesign (Dec 11, 2025)
 - **Complete Auth/Signup Rebuild:** Redesigned auth.html using BaseLodge design system
