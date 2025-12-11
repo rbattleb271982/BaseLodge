@@ -38,6 +38,24 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 
 ## Recent Changes (Dec 11, 2025)
 
+### Invite Flow & Link Sharing - COMPLETE ✅
+1. **Home intro card restored** - Welcome card displays above tabs showing rider type, pass type, skill level, and "X upcoming trip(s)" count
+2. **Backend improvement** - Home route now calculates `upcoming_trips` (end_date >= today) and passes to template
+3. **Invite page UI enhanced**:
+   - "Copy Invite Link" button copies invite URL to clipboard
+   - "Share" button triggers native mobile share sheet (with title, text, URL)
+   - Both buttons positioned above QR code section
+   - Page header is "Invite a Friend" (simplified)
+4. **Backend /invite/<user_id> route** - New route handles invite link flow:
+   - Not logged in → redirects to auth with next= parameter
+   - Already friends → shows "already_friends.html"
+   - Self-invite → shows "connect_self.html"
+   - Otherwise → creates bidirectional friendship and shows connect_success.html
+5. **Auth flow improvements** - Both signup and login routes now respect ?next= parameter:
+   - If profile complete AND next= exists → redirect immediately
+   - If profile NOT complete AND next= exists → store in session["next_after_setup"]
+   - After profile setup completes → redirect to next_after_setup if it exists
+
 ### UI/UX Refactor & Home Page Optimization - COMPLETE ✅
 1. **Flash messages protection** - Wrapped flash message blocks with `{% if current_user.is_authenticated %}` in auth.html and add_trip.html to prevent "Trip added" messages from appearing on login/signup screens
 2. **Home tabs simplified** - Removed "All Trips" tab, kept: My Trips | Friends' Trips | Overlaps (updated segmented_trips_tabs.html and home.html)

@@ -126,6 +126,11 @@ def auth():
             
             login_user(user)
             session["user_id"] = user.id
+            
+            next_url = request.args.get("next")
+            if next_url:
+                session["next_after_setup"] = next_url
+            
             return redirect(url_for("setup_profile"))
         
         elif form_type == "login":
@@ -712,6 +717,33 @@ def connect_add(user_id):
     db.session.commit()
     return render_template("connect_success.html", friend=inviter)
 
+@app.route("/invite/<int:user_id>")
+def invite_link(user_id):
+    inviter = User.query.get_or_404(user_id)
+
+    # If not logged in → send to login/signup
+    if not current_user.is_authenticated:
+        return redirect(url_for("auth", next=url_for("invite_link", user_id=user_id)))
+
+    # Prevent connecting to self
+    if current_user.id == inviter.id:
+        return render_template("connect_self.html")
+
+    # Check if already friends
+    existing = Friend.query.filter_by(user_id=current_user.id, friend_id=inviter.id).first()
+    if existing:
+        return render_template("already_friends.html", friend=inviter)
+
+    # Create mutual friendship
+    pair1 = Friend(user_id=current_user.id, friend_id=inviter.id)
+    pair2 = Friend(user_id=inviter.id, friend_id=current_user.id)
+
+    db.session.add(pair1)
+    db.session.add(pair2)
+    db.session.commit()
+
+    return render_template("connect_success.html", friend=inviter)
+
 def date_ranges_overlap(start1, end1, start2, end2):
     """Check if two date ranges overlap"""
     return start1 <= end2 and start2 <= end1
@@ -730,6 +762,12 @@ def home():
         return redirect(url_for("setup_profile"))
     
     today = date.today()
+    
+    # Upcoming trips for intro card
+    upcoming_trips = SkiTrip.query.filter(
+        SkiTrip.user_id == user.id,
+        SkiTrip.end_date >= today
+    ).order_by(SkiTrip.start_date.asc()).all()
     
     # My upcoming trips
     my_trips = SkiTrip.query.filter(
@@ -775,6 +813,7 @@ def home():
     return render_template(
         'home.html',
         user=user,
+        upcoming_trips=upcoming_trips,
         my_trips=my_trips,
         friend_trips=friend_trips,
         all_trips=all_trips,

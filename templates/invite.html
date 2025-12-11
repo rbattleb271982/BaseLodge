@@ -90,14 +90,16 @@
         <div class="invite-container">
             <div class="invite-header">
                 <h1 class="invite-title">Invite a Friend</h1>
-                <p class="invite-description">Share Base Lodge with your ski crew. Copy your invite link or let your friend scan your QR code.</p>
             </div>
             
-            <h2 style="font-size: 18px; font-weight: 600; margin-top: var(--bl-space-8); margin-bottom: var(--bl-space-5); color: var(--bl-color-text);">Invite via QR Code</h2>
-            <p style="font-size: 14px; color: var(--bl-color-text-muted); margin-bottom: var(--bl-space-6);">Let your friends scan this QR code to connect with you instantly.</p>
+            <div class="invite-buttons">
+                <button id="copyInvite" class="invite-btn invite-btn-primary">Copy Invite Link</button>
+                <button id="shareInvite" class="invite-btn invite-btn-secondary">Share</button>
+            </div>
             
-            <div style="text-align: center; background: white; padding: var(--bl-space-6); border-radius: var(--bl-radius-lg); border: 1px solid var(--bl-color-border); margin-bottom: var(--bl-space-8);">
-                <img src="{{ url_for('my_qr') }}" alt="Your QR Code" style="width: 260px; height: 260px; display: block;">
+            <div class="invite-qr-section bl-card" style="background: white; padding: var(--bl-space-6); border-radius: var(--bl-radius-lg); border: 1px solid var(--bl-color-border); text-align: center;">
+                <h2 style="font-size: 16px; font-weight: 600; margin-bottom: var(--bl-space-5); color: var(--bl-color-text);">Invite via QR Code</h2>
+                <img src="{{ url_for('my_qr') }}" alt="Your QR Code" style="width: 260px; height: 260px; display: block; margin: 0 auto;">
                 <p style="font-size: 13px; color: var(--bl-color-text-muted); margin-top: var(--bl-space-4);">Scan with any camera or QR reader</p>
             </div>
         </div>
@@ -105,5 +107,28 @@
     
     {% include 'components/bottom_nav.html' %}
     
+    <script>
+        const inviteUrl = "{{ url_for('invite_link', user_id=current_user.id, _external=True) }}";
+
+        document.getElementById("copyInvite").onclick = () => {
+            navigator.clipboard.writeText(inviteUrl).then(() => {
+                alert("Invite link copied!");
+            }).catch(() => {
+                alert("Failed to copy link");
+            });
+        };
+
+        document.getElementById("shareInvite").onclick = async () => {
+            if (navigator.share) {
+                await navigator.share({
+                    title: "Join me on BaseLodge!",
+                    text: "Use this link to connect with me on BaseLodge:",
+                    url: inviteUrl,
+                });
+            } else {
+                alert("Sharing not supported on this device.");
+            }
+        };
+    </script>
 </body>
 </html>
