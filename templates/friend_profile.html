@@ -12,6 +12,47 @@
         
         {% include 'components/profile_summary.html' with context %}
         
+        <div style="margin-top: var(--bl-space-8); background: var(--bl-color-surface); border-radius: var(--bl-radius-md); border: 1px solid var(--bl-color-border-soft); padding: var(--bl-space-6);">
+            <h2 style="font-size: 18px; font-weight: 600; margin-bottom: var(--bl-space-6);">Profile</h2>
+            
+            <div class="settings-row">
+                <span class="settings-label">Rider Type</span>
+                <span class="settings-value">{{ friend.rider_type or 'Not set' }}</span>
+            </div>
+            
+            <div class="settings-row">
+                <span class="settings-label">Skill Level</span>
+                <span class="settings-value">{{ friend.skill_level or 'Not set' }}</span>
+            </div>
+            
+            <div class="settings-row">
+                <span class="settings-label">Pass Type</span>
+                <span class="settings-value">{{ friend.pass_type or 'Not set' }}</span>
+            </div>
+            
+            <div class="settings-row">
+                <span class="settings-label">Home State</span>
+                <span class="settings-value">{{ friend.home_state or 'Not set' }}</span>
+            </div>
+            
+            <div class="settings-row">
+                <span class="settings-label">Birth Year</span>
+                <span class="settings-value">{{ friend.birth_year or 'Not set' }}</span>
+            </div>
+            
+            <div class="settings-row">
+                <span class="settings-label">Gear</span>
+                <span class="settings-value">{{ friend.gear or 'Not specified' }}</span>
+            </div>
+            
+            {% if friend.mountains_visited %}
+            <div class="settings-row">
+                <span class="settings-label">Mountains Visited</span>
+                <span class="settings-value">{{ friend.mountains_visited | length }}</span>
+            </div>
+            {% endif %}
+        </div>
+        
         {% if upcoming_trips %}
         <h2 class="page-title" style="margin-top: var(--bl-space-8);">Upcoming Trips</h2>
         <div class="bl-card">

@@ -171,8 +171,10 @@ def setup_profile():
         elif step == "3":
             home_state = request.form.get("home_state")
             birth_year = request.form.get("birth_year")
+            skill_level = request.form.get("skill_level")
             user.home_state = home_state
             user.birth_year = int(birth_year) if birth_year else None
+            user.skill_level = skill_level
             user.profile_setup_complete = True
             db.session.commit()
             return redirect(url_for("home"))
@@ -200,14 +202,15 @@ def profile():
         db.session.commit()
         return redirect(url_for("profile"))
     
-    selected_mountains = session.get("selected_mountains", [])
-    mountains_visited_count = len(selected_mountains)
+    mountains_visited = user.mountains_visited or []
+    mountains_visited_count = len(mountains_visited)
     trips_count = 0
     friends_count = Friend.query.filter_by(user_id=user.id).count()
     
     return render_template(
         "profile.html", 
         user=user,
+        mountains_visited=mountains_visited,
         mountains_visited_count=mountains_visited_count,
         trips_count=trips_count,
         friends_count=friends_count
@@ -234,6 +237,7 @@ def edit_profile():
         user.pass_type = request.form.get("pass_type") or None
         user.home_state = request.form.get("home_state") or None
         user.skill_level = request.form.get("skill_level") or None
+        user.gear = request.form.get("gear") or None
         
         db.session.commit()
         return redirect(url_for("profile"))
@@ -673,6 +677,10 @@ def add_trip():
 @app.route("/mountains-visited", methods=["GET", "POST"])
 @login_required
 def mountains_visited():
+    user = User.query.get(session["user_id"])
+    if not user:
+        return redirect(url_for("auth"))
+    
     mountains_by_state = {
         "California": [
             "Heavenly",
@@ -707,11 +715,11 @@ def mountains_visited():
     
     if request.method == "POST":
         selected_mountains = request.form.getlist("mountains")
-        session["selected_mountains"] = selected_mountains
-        session.modified = True
+        user.mountains_visited = selected_mountains
+        db.session.commit()
         return redirect(url_for("profile"))
     
-    selected_mountains = session.get("selected_mountains", [])
+    selected_mountains = user.mountains_visited or []
     mountains_visited_count = len(selected_mountains)
     
     return render_template(

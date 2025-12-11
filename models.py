@@ -17,6 +17,8 @@ class User(db.Model):
     birth_year = db.Column(db.Integer)
     home_state = db.Column(db.String(50))
     skill_level = db.Column(db.String(50))
+    gear = db.Column(db.String(200))
+    mountains_visited = db.Column(db.JSON, default=[])
     
     trips = db.relationship('SkiTrip', backref='user', lazy=True)
     friend_requests_sent = db.relationship('Invitation', foreign_keys='Invitation.sender_id', backref='sender', lazy=True)
