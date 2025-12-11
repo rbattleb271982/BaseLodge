@@ -554,10 +554,8 @@ def friends():
 def friend_profile(friend_id):
     friend = User.query.get_or_404(friend_id)
     
-    if hasattr(friend, "mountains_visited"):
-        friend_mountains_count = len(friend.mountains_visited)
-    else:
-        friend_mountains_count = 0
+    mountains = friend.mountains_visited or []
+    friend_mountains_count = len(mountains)
     
     today = date.today()
     trips = (
@@ -705,20 +703,16 @@ def home():
 @app.route("/more")
 @login_required
 def more():
-    if hasattr(current_user, "mountains_visited"):
-        mountains_visited_count = len(current_user.mountains_visited)
-    else:
-        mountains_visited_count = 0
+    mountains = current_user.mountains_visited or []
+    mountains_visited_count = len(mountains)
     
     return render_template("more.html", mountains_visited_count=mountains_visited_count)
 
 @app.route("/more_info")
 @login_required
 def more_info():
-    if hasattr(current_user, "mountains_visited"):
-        mountains_visited_count = len(current_user.mountains_visited)
-    else:
-        mountains_visited_count = 0
+    mountains = current_user.mountains_visited or []
+    mountains_visited_count = len(mountains)
     
     return render_template("more_info.html", mountains_visited_count=mountains_visited_count)
 
