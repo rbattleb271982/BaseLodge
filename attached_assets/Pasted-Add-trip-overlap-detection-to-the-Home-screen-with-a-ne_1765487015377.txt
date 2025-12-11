@@ -1,0 +1,71 @@
+Add trip-overlap detection to the Home screen with a new “Overlaps” tab.
+1. UPDATE app.py — Add helper function near other utilities:
+def date_ranges_overlap(start1, end1, start2, end2):
+    return start1 <= end2 and start2 <= end1
+2. UPDATE the /home route — modify the existing route:
+Find:
+friend_trips = friend_trips
+Add AFTER it:
+# Build overlaps list
+overlaps = []
+
+for my in my_trips:
+    for friend_trip in friend_trips:
+        if my["user_id"] != friend_trip["user_id"]:
+            if my["mountain"] == friend_trip["mountain"]:
+                if date_ranges_overlap(my["start_date"], my["end_date"], friend_trip["start_date"], friend_trip["end_date"]):
+                    overlaps.append({
+                        "friend_name": friend_trip["user_name"],
+                        "friend_id": friend_trip["user_id"],
+                        "mountain": my["mountain"],
+                        "start_date": max(my["start_date"], friend_trip["start_date"]),
+                        "end_date": min(my["end_date"], friend_trip["end_date"])
+                    })
+Then add overlaps=overlaps to the render_template call:
+return render_template(
+    'home.html',
+    user=user,
+    my_trips=my_trips,
+    friend_trips=friend_trips,
+    all_trips=all_trips,
+    overlaps=overlaps,
+    state_abbr=STATE_ABBR
+)
+3. UPDATE segmented_trips_tabs.html — Add Overlaps tab button
+Add this button after the All Trips button:
+<button class="bl-segment {% if active_tab == 'overlaps' %}active{% endif %}" data-tab="overlaps">
+    Overlaps
+</button>
+4. UPDATE home.html — Add “Overlaps” content panel
+Add a new section below the existing tab panels:
+<div id="tab-overlaps" class="tab-panel" style="display:none;">
+
+    {% if overlaps and overlaps|length > 0 %}
+        <div class="trip-list">
+            {% for o in overlaps %}
+                <div class="trip-card">
+                    <a href="/friends/{{ o.friend_id }}">
+                        <strong>{{ o.friend_name }}</strong>
+                    </a> — 
+                    {{ o.mountain }} • 
+                    {{ o.start_date.strftime("%b %d") }}
+                    to
+                    {{ o.end_date.strftime("%b %d") }}
+                </div>
+            {% endfor %}
+        </div>
+
+    {% else %}
+        <p>You don't overlap with any friends.</p>
+    {% endif %}
+
+</div>
+5. UPDATE the JavaScript toggle logic in home.html
+Find the JS that switches tabs (around lines 116–136).
+Add this inside the logic where panels are shown/hidden:
+document.querySelector("[data-tab='overlaps']").addEventListener("click", () => {
+    setActiveTab("overlaps");
+});
+And ensure your setActiveTab() function hides/shows:
+document.getElementById("tab-overlaps").style.display =
+    tab === "overlaps" ? "block" : "none";
