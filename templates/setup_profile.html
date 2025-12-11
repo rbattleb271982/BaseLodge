@@ -127,7 +127,7 @@
                 
                 <button type="submit" class="bl-btn-primary form-submit">Next</button>
                 
-                <div class="step-indicator">Step 1 of 2</div>
+                <div class="step-indicator">Step 1 of 3</div>
             </form>
             
             {% elif step == "2" %}
@@ -155,9 +155,38 @@
                     </select>
                 </div>
                 
+                <button type="submit" class="bl-btn-primary form-submit">Next</button>
+                
+                <div class="step-indicator">Step 2 of 3</div>
+            </form>
+            
+            {% elif step == "3" %}
+            <!-- Step 3: Home State + Birth Year -->
+            <form method="POST" action="{{ url_for('setup_profile', step='3') }}">
+                <div class="form-group">
+                    <label class="form-label">Where do you live?</label>
+                    {% set states = ["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"] %}
+                    <select name="home_state" id="home_state" required style="margin-top: var(--bl-space-5); width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px;">
+                        <option value="">Select your state</option>
+                        {% for state in states %}
+                            <option value="{{ state }}">{{ state }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">What is your birth year?</label>
+                    <select name="birth_year" id="birth_year" required style="margin-top: var(--bl-space-5); width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px;">
+                        <option value="">Select your birth year</option>
+                        {% for year in range(2010, 1939, -1) %}
+                            <option value="{{ year }}">{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
                 <button type="submit" class="bl-btn-primary form-submit">Complete Setup</button>
                 
-                <div class="step-indicator">Step 2 of 2</div>
+                <div class="step-indicator">Step 3 of 3</div>
             </form>
             {% endif %}
         </div>

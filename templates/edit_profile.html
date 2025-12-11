@@ -57,25 +57,23 @@
 
                 <div class="form-row">
                     <label for="birth_year">Birth Year</label>
-                    <input
-                        type="number"
-                        id="birth_year"
-                        name="birth_year"
-                        min="1900"
-                        max="2100"
-                        value="{{ user.birth_year or '' }}"
-                    >
+                    <select id="birth_year" name="birth_year" class="auth-select">
+                        <option value="">Select your birth year</option>
+                        {% for year in range(2010, 1939, -1) %}
+                            <option value="{{ year }}" {% if user.birth_year == year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
 
                 <div class="form-row">
                     <label for="home_state">Home State</label>
-                    <input
-                        type="text"
-                        id="home_state"
-                        name="home_state"
-                        value="{{ user.home_state or '' }}"
-                        placeholder="e.g., Colorado"
-                    >
+                    {% set states = ["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"] %}
+                    <select id="home_state" name="home_state" class="auth-select">
+                        <option value="">Select your state</option>
+                        {% for state in states %}
+                            <option value="{{ state }}" {% if user.home_state == state %}selected{% endif %}>{{ state }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
 
                 <div class="form-row">

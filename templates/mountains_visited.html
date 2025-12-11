@@ -46,12 +46,18 @@
         
         <form method="POST">
             <div class="form-group">
+                <label for="state-select" class="form-label">State</label>
                 <select name="state" id="state-select" onchange="updateMountains()" style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px; margin-bottom: var(--bl-space-6);">
                     <option value="">Select a state</option>
                     {% for state in mountains_by_state.keys() | sort %}
                     <option value="{{ state }}">{{ state }}</option>
                     {% endfor %}
                 </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="mountain-search" class="form-label">Search mountains</label>
+                <input type="search" id="mountain-search" placeholder="Search within selected state..." style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px; margin-bottom: var(--bl-space-6);" oninput="filterMountains()">
             </div>
             
             <div class="mountains-list" id="mountains-container"></div>
@@ -80,11 +86,28 @@
                 const isChecked = selectedMountains.includes(mountain);
                 const label = document.createElement('label');
                 label.className = 'mountain-option';
+                label.setAttribute('data-mountain-name', mountain.toLowerCase());
                 label.innerHTML = `
                     <input type="checkbox" name="mountains" value="${mountain}" ${isChecked ? 'checked' : ''} />
                     ${mountain}
                 `;
                 container.appendChild(label);
+            });
+            filterMountains();
+        }
+        
+        function filterMountains() {
+            const searchInput = document.getElementById('mountain-search');
+            const searchTerm = searchInput.value.toLowerCase();
+            const labels = document.querySelectorAll('.mountain-option');
+            
+            labels.forEach(label => {
+                const mountainName = label.getAttribute('data-mountain-name');
+                if (mountainName.includes(searchTerm)) {
+                    label.style.display = 'flex';
+                } else {
+                    label.style.display = 'none';
+                }
             });
         }
     </script>
