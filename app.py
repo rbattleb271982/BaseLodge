@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, date
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort
-from flask_login import LoginManager, login_required, current_user
+from flask_login import LoginManager, login_required, current_user, login_user
 from functools import wraps
 from flask_migrate import Migrate
 from models import db, User, SkiTrip, Friend, Invitation
@@ -122,6 +122,7 @@ def auth():
                 except (ValueError, TypeError):
                     pass
             
+            login_user(user)
             session["user_id"] = user.id
             return redirect(url_for("setup_profile"))
         
@@ -131,6 +132,7 @@ def auth():
             
             user = User.query.filter_by(email=email).first()
             if user and user.check_password(password):
+                login_user(user)
                 session["user_id"] = user.id
                 if user.profile_setup_complete:
                     return redirect(url_for("home"))
