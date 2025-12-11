@@ -76,3 +76,27 @@ class Invitation(db.Model):
 
     def __repr__(self):
         return f'<Invitation {self.sender_id} -> {self.receiver_id}>'
+
+
+class InviteToken(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    inviter_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    token = db.Column(db.String(64), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    used = db.Column(db.Boolean, default=False)
+    used_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+
+    @staticmethod
+    def generate(inviter_user_id):
+        import secrets
+        token_value = secrets.token_urlsafe(32)
+        invite = InviteToken(
+            inviter_user_id=inviter_user_id,
+            token=token_value
+        )
+        db.session.add(invite)
+        db.session.commit()
+        return invite
+
+    def __repr__(self):
+        return f'<InviteToken {self.token[:8]}... by user {self.inviter_user_id}>'

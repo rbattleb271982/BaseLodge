@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_required, current_user, login_user
 from functools import wraps
 from flask_migrate import Migrate
-from models import db, User, SkiTrip, Friend, Invitation
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken
 from debug_routes import debug_bp
 from io import BytesIO
 import segno
@@ -121,20 +121,26 @@ def auth():
             db.session.add(user)
             db.session.commit()
             
-            # --- FRIEND CONNECTION VIA INVITE ---
-            inviter_id = session.get("invited_by")
-            if inviter_id:
-                inviter = User.query.get(int(inviter_id))
-                if inviter:
-                    # Create two-way friendship
-                    friendship1 = Friend(user_id=inviter.id, friend_id=user.id)
-                    friendship2 = Friend(user_id=user.id, friend_id=inviter.id)
-                    db.session.add(friendship1)
-                    db.session.add(friendship2)
+            # --- FRIEND CONNECTION VIA INVITE TOKEN ---
+            token_value = request.args.get("token") or session.get("invite_token")
+
+            if token_value:
+                token_obj = InviteToken.query.filter_by(token=token_value).first()
+
+                if token_obj and not token_obj.used:
+                    inviter = User.query.get(token_obj.inviter_user_id)
+
+                    if inviter:
+                        friendship1 = Friend(user_id=inviter.id, friend_id=user.id)
+                        friendship2 = Friend(user_id=user.id, friend_id=inviter.id)
+                        db.session.add(friendship1)
+                        db.session.add(friendship2)
+
+                    token_obj.used = True
+                    token_obj.used_by = user.id
                     db.session.commit()
 
-                # Clear the session flag
-                session.pop("invited_by", None)
+                session.pop("invite_token", None)
             
             login_user(user)
             session["user_id"] = user.id
@@ -682,12 +688,15 @@ def create_trip_page():
 @app.route("/invite")
 @login_required
 def invite():
-    return render_template("invite.html", user=current_user)
+    invite = InviteToken.generate(current_user.id)
+    invite_url = f"{request.host_url}auth?token={invite.token}"
+    return render_template("invite.html", user=current_user, invite_url=invite_url)
 
 @app.route("/my-qr")
 @login_required
 def my_qr():
-    qr_url = url_for("connect_via_qr", user_id=current_user.id, _external=True)
+    invite = InviteToken.generate(current_user.id)
+    qr_url = f"{request.host_url}auth?token={invite.token}"
     qr = segno.make(qr_url)
     buf = BytesIO()
     qr.save(buf, kind="png", scale=8)
