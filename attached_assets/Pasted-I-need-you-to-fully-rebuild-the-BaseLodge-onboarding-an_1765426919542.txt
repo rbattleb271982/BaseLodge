@@ -1,0 +1,58 @@
+I need you to fully rebuild the BaseLodge onboarding and authentication experience using the **BaseLodge Design System** provided in `public/index.html` (the large HTML+CSS file I supplied). This means:
+
+- Use all BaseLodge tokens (colors, spacing, radius, typography).
+- Use BaseLodge button, card, segmented control, input styles.
+- Do NOT use browser default styles.
+
+---------------------------------------
+SUMMARY OF REQUIRED WORK
+---------------------------------------
+
+## 1. FIX THE LOGIN/SIGNUP UI REGRESSION
+The current login page is broken and showing unstyled default HTML.  
+You must rebuild login.html and signup.html using the BaseLodge Design System.  
+They must look modern, mobile-first, and consistent with the rest of the app.
+
+## 2. IMPLEMENT THE NEW TWO-SCREEN ONBOARDING FLOW
+This replaces the old onboarding pages entirely.
+
+### Screen 1 — Account Creation
+Route: GET/POST /signup  
+Fields:
+- first_name
+- last_name
+- email
+- password
+
+Use BaseLodge input components and layout patterns.
+After successful POST → redirect to `/setup-profile`.
+
+### Screen 2 — Quick Profile Setup
+Route: GET/POST /setup-profile  
+This page uses BaseLodge **segmented controls**, not dropdowns.
+Fields:
+- pass_type  (Epic, Ikon, Other, None)
+- rider_type  (Skier, Snowboarder, Both)
+- skill_level (Beginner, Intermediate, Advanced, Expert)
+
+After successful POST → redirect to `/home`.
+
+Note: Gender, birth year, and home state WILL NOT APPEAR HERE.  
+These can be filled out later on profile.html.
+
+## 3. UPDATE THE BACKEND ROUTES IF NEEDED
+- /signup must create the user AND set session so we know who is onboarding.
+- /setup-profile must update pass_type, skill_level, rider_type for that user.
+- After /setup-profile POST, redirect to `/home`.
+
+## 4. UPDATE LOGIN FLOW
+- Successful login must redirect to `/home`.
+- Use BaseLodge button and input styles.
+
+## 5. IMPLEMENT NAVIGATION & LAYOUT CONSISTENCY
+- All pages (login, signup, setup-profile) must follow the BaseLodge spacing system.
+- Use BaseLodge typography classes for headings and labels.
+- Ensure colors match: primary = #8F011B.
+
+## 6. FIX THE JSON SERIALIZATION ERROR
+There is a crash on home.html:

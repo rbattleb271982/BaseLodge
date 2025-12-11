@@ -5,80 +5,223 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Base Lodge - Sign In</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--bl-color-bg);
+            padding: var(--bl-space-6);
+        }
+        
+        .auth-card {
+            width: 100%;
+            max-width: 400px;
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-lg);
+            border: 1px solid var(--bl-color-border-soft);
+            box-shadow: var(--bl-shadow-soft);
+            padding: var(--bl-space-8);
+        }
+        
+        .auth-header {
+            text-align: center;
+            margin-bottom: var(--bl-space-8);
+        }
+        
+        .auth-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--bl-color-primary);
+            margin-bottom: var(--bl-space-2);
+        }
+        
+        .auth-subtitle {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            line-height: 1.5;
+        }
+        
+        .auth-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--bl-space-4);
+            margin-bottom: var(--bl-space-8);
+        }
+        
+        .auth-tab-btn {
+            background: none;
+            border: none;
+            padding: var(--bl-space-4) var(--bl-space-5);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--bl-color-text-muted);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .auth-tab-btn.active {
+            color: var(--bl-color-primary);
+            border-bottom-color: var(--bl-color-primary);
+        }
+        
+        .auth-form {
+            display: none;
+        }
+        
+        .auth-form.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: var(--bl-space-6);
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            margin-bottom: var(--bl-space-3);
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: var(--bl-space-4) var(--bl-space-5);
+            font-size: 15px;
+            border: 1px solid var(--bl-color-border);
+            border-radius: var(--bl-radius-md);
+            background: var(--bl-color-surface);
+            color: var(--bl-color-text);
+            transition: border-color 0.2s ease;
+            font-family: inherit;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--bl-color-primary);
+            box-shadow: 0 0 0 3px rgba(143, 1, 27, 0.1);
+        }
+        
+        .form-input::placeholder {
+            color: var(--bl-color-text-muted);
+        }
+        
+        .form-submit {
+            width: 100%;
+            margin-bottom: var(--bl-space-6);
+        }
+        
+        .form-error {
+            background: #FFEBEE;
+            border: 1px solid var(--bl-color-error);
+            border-radius: var(--bl-radius-md);
+            padding: var(--bl-space-5);
+            margin-bottom: var(--bl-space-6);
+            font-size: 13px;
+            color: var(--bl-color-error);
+        }
+        
+        .auth-footer {
+            text-align: center;
+            font-size: 12px;
+            color: var(--bl-color-text-muted);
+            line-height: 1.6;
+        }
+    </style>
 </head>
-<body class="auth-page">
-    <div class="auth-card">
-        <h1 class="auth-title">Base Lodge</h1>
-        <p class="auth-subtitle">The best days on the mountain don't just happen — they're made.</p>
-        
-        <div class="auth-toggle">
-            <button class="auth-toggle-btn active" id="signup-toggle">Sign Up</button>
-            <button class="auth-toggle-btn" id="login-toggle">Log In</button>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1 class="auth-title">Base Lodge</h1>
+                <p class="auth-subtitle">The best days on the mountain don't just happen — they're made.</p>
+            </div>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="form-error">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <div class="auth-tabs">
+                <button class="auth-tab-btn active" id="tab-signup">Sign Up</button>
+                <button class="auth-tab-btn" id="tab-login">Log In</button>
+            </div>
+            
+            <!-- Signup Form -->
+            <form class="auth-form active" id="signup-form" method="POST" action="{{ url_for('auth') }}">
+                <input type="hidden" name="form_type" value="signup">
+                
+                <div class="form-group">
+                    <label class="form-label">First Name</label>
+                    <input type="text" name="first_name" class="form-input" required placeholder="First name">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Last Name</label>
+                    <input type="text" name="last_name" class="form-input" required placeholder="Last name">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-input" required placeholder="you@example.com">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="password" class="form-input" required placeholder="Create a password">
+                </div>
+                
+                <button type="submit" class="bl-btn-primary form-submit">Create Account</button>
+                
+                <p class="auth-footer">By continuing, you agree this is an early test version of Base Lodge.</p>
+            </form>
+            
+            <!-- Login Form -->
+            <form class="auth-form" id="login-form" method="POST" action="{{ url_for('auth') }}">
+                <input type="hidden" name="form_type" value="login">
+                
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-input" required placeholder="you@example.com">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="password" class="form-input" required placeholder="Your password">
+                </div>
+                
+                <button type="submit" class="bl-btn-primary form-submit">Log In</button>
+                
+                <p class="auth-footer">By continuing, you agree this is an early test version of Base Lodge.</p>
+            </form>
         </div>
-        
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="auth-message {{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        
-        <form class="auth-form" id="signup-form" method="POST" action="{{ url_for('auth', ref=request.args.get('ref', '')) }}">
-            <input type="hidden" name="form_type" value="signup">
-            <div class="form-row">
-                <label for="first_name">First Name</label>
-                <input type="text" id="first_name" name="first_name" required placeholder="First name">
-            </div>
-            <div class="form-row">
-                <label for="last_name">Last Name</label>
-                <input type="text" id="last_name" name="last_name" required placeholder="Last name">
-            </div>
-            <div class="form-row">
-                <label for="signup_email">Email</label>
-                <input type="email" id="signup_email" name="email" required placeholder="you@example.com">
-            </div>
-            <div class="form-row">
-                <label for="signup_password">Password</label>
-                <input type="password" id="signup_password" name="password" required placeholder="Create a password">
-            </div>
-            <button type="submit" class="auth-button">Create Account</button>
-        </form>
-        
-        <form class="auth-form hidden" id="login-form" method="POST" action="{{ url_for('auth') }}">
-            <input type="hidden" name="form_type" value="login">
-            <div class="form-row">
-                <label for="login_email">Email</label>
-                <input type="email" id="login_email" name="email" required placeholder="you@example.com">
-            </div>
-            <div class="form-row">
-                <label for="login_password">Password</label>
-                <input type="password" id="login_password" name="password" required placeholder="Your password">
-            </div>
-            <button type="submit" class="auth-button">Log In</button>
-        </form>
-        
-        <p class="auth-footnote">By continuing, you agree this is an early test version of Base Lodge.</p>
     </div>
     
     <script>
-        const signupToggle = document.getElementById('signup-toggle');
-        const loginToggle = document.getElementById('login-toggle');
-        const signupForm = document.getElementById('signup-form');
-        const loginForm = document.getElementById('login-form');
+        const tabSignup = document.getElementById('tab-signup');
+        const tabLogin = document.getElementById('tab-login');
+        const formSignup = document.getElementById('signup-form');
+        const formLogin = document.getElementById('login-form');
         
-        signupToggle.addEventListener('click', function() {
-            signupToggle.classList.add('active');
-            loginToggle.classList.remove('active');
-            signupForm.classList.remove('hidden');
-            loginForm.classList.add('hidden');
+        tabSignup.addEventListener('click', () => {
+            tabSignup.classList.add('active');
+            tabLogin.classList.remove('active');
+            formSignup.classList.add('active');
+            formLogin.classList.remove('active');
         });
         
-        loginToggle.addEventListener('click', function() {
-            loginToggle.classList.add('active');
-            signupToggle.classList.remove('active');
-            loginForm.classList.remove('hidden');
-            signupForm.classList.add('hidden');
+        tabLogin.addEventListener('click', () => {
+            tabLogin.classList.add('active');
+            tabSignup.classList.remove('active');
+            formLogin.classList.add('active');
+            formSignup.classList.remove('active');
         });
     </script>
 </body>

@@ -5,73 +5,183 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Base Lodge - Setup Profile</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .setup-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--bl-color-bg);
+            padding: var(--bl-space-6);
+        }
+        
+        .setup-card {
+            width: 100%;
+            max-width: 400px;
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-lg);
+            border: 1px solid var(--bl-color-border-soft);
+            box-shadow: var(--bl-shadow-soft);
+            padding: var(--bl-space-8);
+        }
+        
+        .setup-header {
+            margin-bottom: var(--bl-space-8);
+        }
+        
+        .setup-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--bl-color-text);
+            margin-bottom: var(--bl-space-2);
+        }
+        
+        .setup-subtitle {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            line-height: 1.5;
+        }
+        
+        .form-group {
+            margin-bottom: var(--bl-space-8);
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            margin-bottom: var(--bl-space-5);
+        }
+        
+        .bl-segmented-control {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: var(--bl-space-3);
+        }
+        
+        .bl-segment {
+            padding: var(--bl-space-4) var(--bl-space-5);
+            border: 1px solid var(--bl-color-border);
+            border-radius: var(--bl-radius-md);
+            background: var(--bl-color-surface);
+            color: var(--bl-color-text);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        
+        .bl-segment:hover {
+            border-color: var(--bl-color-primary);
+            background: rgba(143, 1, 27, 0.02);
+        }
+        
+        .bl-segment.active {
+            background: var(--bl-color-primary);
+            color: white;
+            border-color: var(--bl-color-primary);
+        }
+        
+        .hidden-input {
+            display: none;
+        }
+        
+        .form-submit {
+            width: 100%;
+            margin-bottom: var(--bl-space-6);
+        }
+        
+        .step-indicator {
+            font-size: 12px;
+            color: var(--bl-color-text-muted);
+            text-align: center;
+            display: block;
+        }
+    </style>
 </head>
-<body class="auth-page">
-    <div class="auth-card">
-        <h1 class="auth-title">Welcome, {{ user.first_name }}!</h1>
-        <p class="auth-subtitle">Let's personalize your experience.</p>
-        
-        {% if step == "1" %}
-        <form class="auth-form" method="POST" action="{{ url_for('setup_profile', step='1') }}">
-            <div class="form-row">
-                <label>What best describes you?</label>
-                <div class="segmented-control">
-                    <button type="button" class="rider-btn" data-value="Skier">Skier</button>
-                    <button type="button" class="rider-btn" data-value="Snowboarder">Snowboarder</button>
-                </div>
-                <input type="hidden" id="rider_type" name="rider_type" required>
+<body>
+    <div class="setup-container">
+        <div class="setup-card">
+            <div class="setup-header">
+                <h1 class="setup-title">Welcome, {{ user.first_name }}!</h1>
+                <p class="setup-subtitle">Let's personalize your experience.</p>
             </div>
-            <button type="submit" class="auth-button">Next</button>
-        </form>
-        {% elif step == "2" %}
-        <form class="auth-form" method="POST" action="{{ url_for('setup_profile', step='2') }}">
-            <div class="form-row">
-                <label>What pass do you have?</label>
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px;">
-                    <button type="button" class="pass-btn" data-value="Epic">Epic</button>
-                    <button type="button" class="pass-btn" data-value="Ikon">Ikon</button>
-                    <button type="button" class="pass-btn" data-value="Epic Local">Epic Local</button>
-                    <button type="button" class="pass-btn" data-value="Ikon Base">Ikon Base</button>
-                    <button type="button" class="pass-btn" data-value="Epic & Ikon">Epic & Ikon</button>
-                    <button type="button" class="pass-btn" data-value="Loveland">Loveland</button>
-                    <button type="button" class="pass-btn" data-value="Other">Other</button>
-                    <button type="button" class="pass-btn" data-value="No Pass">No Pass</button>
+            
+            {% if step == "1" %}
+            <!-- Step 1: Skill Level & Rider Type -->
+            <form method="POST" action="{{ url_for('setup_profile', step='1') }}">
+                <div class="form-group">
+                    <label class="form-label">What's your skill level?</label>
+                    <div class="bl-segmented-control">
+                        <button type="button" class="bl-segment" onclick="selectSkill('Beginner')">Beginner</button>
+                        <button type="button" class="bl-segment" onclick="selectSkill('Intermediate')">Intermediate</button>
+                        <button type="button" class="bl-segment" onclick="selectSkill('Advanced')">Advanced</button>
+                        <button type="button" class="bl-segment" onclick="selectSkill('Expert')">Expert</button>
+                    </div>
+                    <input type="hidden" name="skill_level" id="skill_level" value="" required>
                 </div>
-                <input type="hidden" id="pass_type" name="pass_type" required>
-            </div>
-            <button type="submit" class="auth-button">Complete Setup</button>
-        </form>
-        {% endif %}
-        
-        <script>
-        {% if step == "1" %}
-        const riderBtns = document.querySelectorAll('.rider-btn');
-        const riderInput = document.getElementById('rider_type');
-        
-        riderBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                riderBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                riderInput.value = btn.dataset.value;
-            });
-        });
-        {% elif step == "2" %}
-        const passBtns = document.querySelectorAll('.pass-btn');
-        const passInput = document.getElementById('pass_type');
-        
-        passBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                passBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                passInput.value = btn.dataset.value;
-            });
-        });
-        {% endif %}
-        </script>
-        
-        <div class="auth-helper">
-            <span class="step-indicator">Step {{ step }} of 2</span>
+                
+                <div class="form-group">
+                    <label class="form-label">Are you a skier or snowboarder?</label>
+                    <div class="bl-segmented-control">
+                        <button type="button" class="bl-segment" onclick="selectRider('Skier')">Skier</button>
+                        <button type="button" class="bl-segment" onclick="selectRider('Snowboarder')">Snowboarder</button>
+                        <button type="button" class="bl-segment" onclick="selectRider('Both')">Both</button>
+                    </div>
+                    <input type="hidden" name="rider_type" id="rider_type" value="" required>
+                </div>
+                
+                <button type="submit" class="bl-btn-primary form-submit">Next</button>
+                
+                <div class="step-indicator">Step 1 of 2</div>
+            </form>
+            
+            {% elif step == "2" %}
+            <!-- Step 2: Pass Type -->
+            <form method="POST" action="{{ url_for('setup_profile', step='2') }}">
+                <div class="form-group">
+                    <label class="form-label">What's your pass?</label>
+                    <div class="bl-segmented-control">
+                        <button type="button" class="bl-segment" onclick="selectPass('Epic')">Epic</button>
+                        <button type="button" class="bl-segment" onclick="selectPass('Ikon')">Ikon</button>
+                        <button type="button" class="bl-segment" onclick="selectPass('Other')">Other</button>
+                        <button type="button" class="bl-segment" onclick="selectPass('None')">None</button>
+                    </div>
+                    <input type="hidden" name="pass_type" id="pass_type" value="" required>
+                </div>
+                
+                <button type="submit" class="bl-btn-primary form-submit">Complete Setup</button>
+                
+                <div class="step-indicator">Step 2 of 2</div>
+            </form>
+            {% endif %}
         </div>
     </div>
+    
+    <script>
+        function selectSkill(value) {
+            const buttons = document.querySelectorAll('.bl-segmented-control')[0]?.querySelectorAll('.bl-segment') || [];
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('skill_level').value = value;
+        }
+        
+        function selectRider(value) {
+            const buttons = document.querySelectorAll('.bl-segmented-control')[1]?.querySelectorAll('.bl-segment') || [];
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('rider_type').value = value;
+        }
+        
+        function selectPass(value) {
+            const buttons = document.querySelectorAll('.bl-segmented-control')[0]?.querySelectorAll('.bl-segment') || [];
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('pass_type').value = value;
+        }
+    </script>
 </body>
 </html>

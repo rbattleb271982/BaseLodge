@@ -4,14 +4,14 @@
 Base Lodge is a ski/snowboard trip planning application built with Flask. It helps mountain enthusiasts track their ski days and manage their resort passes.
 
 ## Current State
-- Authentication system with sign up, login, and **birthday capture**
-- User profile with rider type and pass type
-- Two-step onboarding flow after registration
+- **Authentication:** Modern signup/login using BaseLodge design system
+- **Onboarding:** Two-step flow (Step 1: Skill Level + Rider Type; Step 2: Pass Type)
+- User profile with rider type, pass type, skill level, gender
 - Ski trip creation, editing, and deletion
-- State and mountain selection with filtering
-- Mobile-first responsive design
+- Mobile-first responsive design with BaseLodge design tokens
 - **Friends system** (invitation-based, bidirectional friendships)
-- **Friend management APIs** (invite, list, remove, accept)
+- **Home-first navigation:** /home is central trip management hub with 3-tab interface
+- **Design System:** Unified BaseLodge tokens (colors, spacing, typography, components)
 
 ## Project Architecture
 
@@ -53,10 +53,13 @@ Base Lodge is a ski/snowboard trip planning application built with Flask. It hel
 
 ### Routes
 - `/` - Redirects to /auth
-- `/auth` - Sign up and login page
-- `/setup-profile` - Two-step onboarding (rider type, pass type)
-- `/home` - Landing page with 3 tabs: My Trips, Friends' Trips, All Trips (authoritative trips view)
-- `/profile` - User profile page (summary card + editable fields + settings)
+- `/auth` - Sign up / Login page (unified form with tabs, BaseLodge styled)
+- `/setup-profile` - Two-step onboarding:
+  - Step 1: Skill Level (Beginner/Intermediate/Advanced/Expert) + Rider Type (Skier/Snowboarder/Both)
+  - Step 2: Pass Type (Epic/Ikon/Other/None) using segmented controls
+- `/create-trip` - Trip creation page (full page, not modal)
+- `/home` - Landing page with 3-tab interface: My Trips / Friends' Trips / All Trips
+- `/profile` - User profile page (editable fields with segmented controls for pass/rider type)
 - `/my-trips` - Deprecated route (redirects to /home)
 - `/friends` - Friends list with pass filter pills
 - `/profile/<user_id>` - Friend's public profile with trips
@@ -110,6 +113,27 @@ Base Lodge is a ski/snowboard trip planning application built with Flask. It hel
 - Surface: #FFFFFF
 
 ## Recent Changes
+
+### Phase 5: Auth & Onboarding Redesign (Dec 11, 2025)
+- **Complete Auth/Signup Rebuild:** Redesigned auth.html using BaseLodge design system
+  - Modern centered card layout with Sign Up / Log In tabs
+  - Proper form styling using --bl-color-primary, spacing tokens, typography classes
+  - Mobile-first responsive design
+- **Onboarding Flow Overhaul:** Rebuilt setup_profile.html with 2-step flow
+  - Step 1: Skill Level (4 options) + Rider Type (3 options) - both using segmented controls
+  - Step 2: Pass Type (4 options) - segmented controls instead of grid
+  - Fixed redirect to `/home` after completion (not `/profile`)
+- **Backend Updates:**
+  - setup_profile route now handles skill_level in Step 1
+  - Login redirects to `/home` (not `/profile`)
+  - Onboarding completion redirects to `/home`
+- **Removed:**
+  - Modal-based trip creation (now uses `/create-trip` page route)
+  - All JSON serialization of undefined data (state_abbr, mountains_by_state)
+  - Browser default form styling
+- **Fixed:**
+  - state_abbr references in home.html and friend_profile.html (now uses trip.state directly)
+  - openCreateModal() remnants and button behavior
 
 ### Phase 4: Global Design System (Dec 10, 2025)
 - **Complete CSS Refactor:** Replaced old styles.css with unified BaseLodge design system

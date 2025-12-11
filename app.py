@@ -146,7 +146,9 @@ def setup_profile():
     
     if request.method == "POST":
         if step == "1":
+            skill_level = request.form.get("skill_level")
             rider_type = request.form.get("rider_type")
+            user.skill_level = skill_level
             user.rider_type = rider_type
             db.session.commit()
             return redirect(url_for("setup_profile", step="2"))
@@ -155,7 +157,7 @@ def setup_profile():
             user.pass_type = pass_type
             user.profile_setup_complete = True
             db.session.commit()
-            return redirect(url_for("profile"))
+            return redirect(url_for("home"))
     
     return render_template("setup_profile.html", step=step, user=user)
 
