@@ -200,7 +200,8 @@ def profile():
         db.session.commit()
         return redirect(url_for("profile"))
     
-    mountains_visited_count = 0
+    selected_mountains = session.get("selected_mountains", [])
+    mountains_visited_count = len(selected_mountains)
     trips_count = 0
     friends_count = Friend.query.filter_by(user_id=user.id).count()
     
@@ -704,12 +705,13 @@ def mountains_visited():
         "Wyoming": ["Jackson Hole"],
     }
     
-    selected_mountains = []
-    
     if request.method == "POST":
         selected_mountains = request.form.getlist("mountains")
+        session["selected_mountains"] = selected_mountains
+        session.modified = True
         return redirect(url_for("profile"))
     
+    selected_mountains = session.get("selected_mountains", [])
     mountains_visited_count = len(selected_mountains)
     
     return render_template(
