@@ -1008,5 +1008,112 @@ def logout():
     session.pop("user_id", None)
     return redirect(url_for("auth"))
 
+@app.route("/seed_dummy_data")
+def seed_dummy_data():
+    from datetime import timedelta
+    import random
+
+    # Get the main user
+    main_user = User.query.filter_by(email="me@example.com").first()
+    if not main_user:
+        return "Main user me@example.com not found."
+
+    # 1. Delete all users except main_user
+    other_users = User.query.filter(User.email != "me@example.com").all()
+    for u in other_users:
+        db.session.delete(u)
+    db.session.commit()
+
+    # Data pools
+    all_mountains = [
+        "Vail", "Beaver Creek", "Breckenridge", "Keystone", "Aspen",
+        "Snowmass", "Copper Mountain", "Winter Park", "Steamboat",
+        "Park City", "Deer Valley", "Jackson Hole", "Big Sky",
+        "Mammoth", "Heavenly", "Northstar"
+    ]
+
+    rider_types = ["Skier", "Snowboarder"]
+    pass_types = ["Epic", "Ikon", "Other"]
+    skill_levels = ["Beginner", "Intermediate", "Advanced", "Expert"]
+    states = ["Colorado", "Utah", "California", "Wyoming", "Montana", "Idaho"]
+
+    created = 0
+    trips_created = 0
+
+    for i in range(1, 31):
+        email = f"testuser{i}@example.com"
+
+        user = User(
+            first_name=f"Test{i}",
+            last_name="User",
+            email=email,
+            rider_type=random.choice(rider_types),
+            pass_type=random.choice(pass_types),
+            skill_level=random.choice(skill_levels),
+            home_state=random.choice(states),
+            birth_year=random.randint(1980, 2002),
+            profile_setup_complete=True,
+            mountains_visited=[]
+        )
+        user.set_password("password123")
+        db.session.add(user)
+        db.session.commit()
+
+        # Mountains visited
+        user.mountains_visited = random.sample(all_mountains, random.randint(2, 8))
+        db.session.commit()
+
+        # Create trips
+        today = date.today()
+
+        # 1–3 upcoming
+        for _ in range(random.randint(1, 3)):
+            start = today + timedelta(days=random.randint(5, 60))
+            end = start + timedelta(days=random.randint(2, 5))
+            mtn = random.choice(all_mountains)
+
+            trip = SkiTrip(
+                user_id=user.id,
+                state="Colorado",
+                mountain=mtn,
+                start_date=start,
+                end_date=end,
+                is_public=True,
+            )
+            db.session.add(trip)
+            trips_created += 1
+
+        # 1–2 past
+        for _ in range(random.randint(1, 2)):
+            end = today - timedelta(days=random.randint(10, 120))
+            start = end - timedelta(days=random.randint(2, 5))
+            mtn = random.choice(all_mountains)
+
+            trip = SkiTrip(
+                user_id=user.id,
+                state="Colorado",
+                mountain=mtn,
+                start_date=start,
+                end_date=end,
+                is_public=True,
+            )
+            db.session.add(trip)
+            trips_created += 1
+
+        db.session.commit()
+
+        # Mutual friendships
+        def add_friend(u1, u2):
+            if not Friend.query.filter_by(user_id=u1.id, friend_id=u2.id).first():
+                db.session.add(Friend(user_id=u1.id, friend_id=u2.id))
+
+        add_friend(main_user, user)
+        add_friend(user, main_user)
+        db.session.commit()
+
+        created += 1
+
+    return f"Created {created} dummy users and {trips_created} trips."
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
