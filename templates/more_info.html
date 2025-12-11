@@ -3,75 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ friend.first_name }} {{ friend.last_name }} - Base Lodge</title>
+    <title>Base Lodge - Profile Information</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
     <div class="page-container">
-        <h1 class="page-title">{{ friend.first_name }} {{ friend.last_name }}</h1>
+        <h1 class="page-title">Profile Information</h1>
         
         <section class="settings-section">
             
             <div class="settings-row">
                 <div class="settings-main">
                     <div class="settings-label">Rider type</div>
-                    <div class="settings-value">{{ friend.rider_type or "Not set" }}</div>
+                    <div class="settings-value">{{ current_user.rider_type or "Not set" }}</div>
                 </div>
+                <a href="{{ url_for('edit_profile') }}" class="settings-action">Change</a>
             </div>
             
             <div class="settings-row">
                 <div class="settings-main">
                     <div class="settings-label">Pass type</div>
-                    <div class="settings-value">{{ friend.pass_type or "Not set" }}</div>
+                    <div class="settings-value">{{ current_user.pass_type or "Not set" }}</div>
                 </div>
+                <a href="{{ url_for('edit_profile') }}" class="settings-action">Change</a>
             </div>
             
             <div class="settings-row">
                 <div class="settings-main">
                     <div class="settings-label">Skill level</div>
-                    <div class="settings-value">{{ friend.skill_level or "Not set" }}</div>
+                    <div class="settings-value">{{ current_user.skill_level or "Not set" }}</div>
                 </div>
+                <a href="{{ url_for('edit_profile') }}" class="settings-action">Change</a>
             </div>
             
             <div class="settings-row">
                 <div class="settings-main">
                     <div class="settings-label">Home state</div>
-                    <div class="settings-value">{{ friend.home_state or "Not set" }}</div>
+                    <div class="settings-value">{{ current_user.home_state or "Not set" }}</div>
                 </div>
+                <a href="{{ url_for('edit_profile') }}" class="settings-action">Change</a>
             </div>
             
             <div class="settings-row">
                 <div class="settings-main">
                     <div class="settings-label">Mountains visited</div>
                     <div class="settings-value">
-                        {% if friend_mountains_count %}
-                            {{ friend_mountains_count }} mountains
+                        {% if mountains_visited_count %}
+                            {{ mountains_visited_count }} selected
                         {% else %}
-                            None shared yet
+                            None selected
                         {% endif %}
                     </div>
                 </div>
+                <a href="{{ url_for('mountains_visited') }}" class="settings-action">Change</a>
             </div>
             
         </section>
-        
-        <h2 class="page-title" style="margin-top: var(--bl-space-8);">Upcoming trips</h2>
-        
-        {% if trips %}
-            <div class="bl-card">
-                {% for trip in trips %}
-                <div class="bl-trip-row">
-                    <span class="trip-date">{{ trip.start_date.strftime('%b %d') }}</span> —
-                    <span class="trip-name">{{ trip.mountain }}</span>
-                    <span class="trip-info">{{ trip.state }}</span>
-                </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="bl-card" style="text-align: center; padding: var(--bl-space-8);">
-                <p class="bl-body">No upcoming public trips.</p>
-            </div>
-        {% endif %}
     </div>
     
     {% include 'components/bottom_nav.html' %}

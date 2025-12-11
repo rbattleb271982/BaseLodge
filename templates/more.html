@@ -10,23 +10,56 @@
     <div class="page-container">
         <h1 class="page-title">More</h1>
         
-        <div class="settings-menu">
-            <a href="{{ url_for('profile') }}" class="settings-row">
-                <span class="settings-label">My Info</span>
-            </a>
+        <section class="settings-section">
             
-            <a href="{{ url_for('settings') }}" class="settings-row">
-                <span class="settings-label">Settings</span>
-            </a>
+            <!-- Mountains Visited -->
+            <div class="settings-row">
+                <div class="settings-main">
+                    <div class="settings-label">Mountains visited</div>
+                    <div class="settings-value">
+                        {% if mountains_visited_count %}
+                            {{ mountains_visited_count }} selected
+                        {% else %}
+                            None selected yet
+                        {% endif %}
+                    </div>
+                </div>
+                <a href="{{ url_for('mountains_visited') }}" class="settings-action">Change</a>
+            </div>
             
-            <a href="{{ url_for('invite') }}" class="settings-row">
-                <span class="settings-label">Invite a Friend</span>
-            </a>
+            <!-- More Info -->
+            <div class="settings-row">
+                <div class="settings-main">
+                    <div class="settings-label">More info</div>
+                </div>
+                <a href="{{ url_for('more_info') }}" class="settings-action">Change</a>
+            </div>
             
-            <a href="{{ url_for('logout') }}" class="settings-row settings-logout">
-                <span class="settings-label">Sign Out</span>
-            </a>
-        </div>
+            <!-- Friends -->
+            <div class="settings-row">
+                <div class="settings-main">
+                    <div class="settings-label">Friends</div>
+                </div>
+                <a href="{{ url_for('friends') }}" class="settings-action">Open</a>
+            </div>
+            
+            <!-- Invite Friends -->
+            <div class="settings-row">
+                <div class="settings-main">
+                    <div class="settings-label">Invite friends</div>
+                </div>
+                <a href="{{ url_for('invite') }}" class="settings-action">Open</a>
+            </div>
+            
+            <!-- Logout -->
+            <div class="settings-row">
+                <div class="settings-main">
+                    <div class="settings-label">Log out</div>
+                </div>
+                <a href="{{ url_for('logout') }}" class="settings-action">Log out</a>
+            </div>
+            
+        </section>
     </div>
     
     {% include 'components/bottom_nav.html' %}

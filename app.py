@@ -501,14 +501,9 @@ def remove_friend(friend_id):
     return jsonify({"success": True, "message": "Friend removed"}), 200
 
 @app.route("/friends")
+@login_required
 def friends():
-    if "user_id" not in session:
-        return redirect(url_for("auth"))
-    
-    user = User.query.get(session["user_id"])
-    if not user:
-        session.pop("user_id", None)
-        return redirect(url_for("auth"))
+    user = current_user
     
     if not user.profile_setup_complete:
         return redirect(url_for("setup_profile"))
@@ -532,8 +527,34 @@ def friends():
     
     return render_template("friends.html", user=user, friends=friends_list, friend_trips=friend_trips, state_abbr=STATE_ABBR)
 
+@app.route("/friends/<int:friend_id>")
+@login_required
+def friend_profile(friend_id):
+    friend = User.query.get_or_404(friend_id)
+    
+    if hasattr(friend, "mountains_visited"):
+        friend_mountains_count = len(friend.mountains_visited)
+    else:
+        friend_mountains_count = 0
+    
+    today = date.today()
+    trips = (
+        SkiTrip.query
+        .filter_by(user_id=friend.id, is_public=True)
+        .filter(SkiTrip.end_date >= today)
+        .order_by(SkiTrip.start_date.asc())
+        .all()
+    )
+    
+    return render_template(
+        "friend_profile.html",
+        friend=friend,
+        friend_mountains_count=friend_mountains_count,
+        trips=trips
+    )
+
 @app.route("/profile/<int:user_id>")
-def friend_profile(user_id):
+def friend_profile_legacy(user_id):
     if "user_id" not in session:
         return redirect(url_for("auth"))
     
@@ -662,7 +683,22 @@ def home():
 @app.route("/more")
 @login_required
 def more():
-    return render_template("more.html")
+    if hasattr(current_user, "mountains_visited"):
+        mountains_visited_count = len(current_user.mountains_visited)
+    else:
+        mountains_visited_count = 0
+    
+    return render_template("more.html", mountains_visited_count=mountains_visited_count)
+
+@app.route("/more_info")
+@login_required
+def more_info():
+    if hasattr(current_user, "mountains_visited"):
+        mountains_visited_count = len(current_user.mountains_visited)
+    else:
+        mountains_visited_count = 0
+    
+    return render_template("more_info.html", mountains_visited_count=mountains_visited_count)
 
 @app.route("/settings")
 @login_required
