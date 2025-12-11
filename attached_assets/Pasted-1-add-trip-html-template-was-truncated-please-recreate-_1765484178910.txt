@@ -1,0 +1,649 @@
+1) add_trip.html template was truncated — please recreate it fully
+Create or replace templates/add_trip.html with this complete template (including JavaScript for loading mountains dynamically). It does not handle submission itself – that’s done by the Flask routes /add_trip and /trips/<id>/edit:
+{% extends "base.html" %}
+{% block content %}
+<div class="page-container">
+  <h1 class="page-title">
+    {% if trip %}Edit trip{% else %}Add a trip{% endif %}
+  </h1>
+
+  <form method="POST" action="{{ form_action }}" class="form-card">
+
+    <!-- State -->
+    <div class="form-group">
+      <label for="state">State</label>
+      <select id="state" name="state" required>
+        <option value="">Select a state</option>
+        {% set state_value = trip.state if trip else "" %}
+        {% for abbr, name in [
+          ('AL','Alabama'),('AK','Alaska'),('AZ','Arizona'),('AR','Arkansas'),
+          ('CA','California'),('CO','Colorado'),('CT','Connecticut'),('DE','Delaware'),
+          ('FL','Florida'),('GA','Georgia'),('HI','Hawaii'),('ID','Idaho'),
+          ('IL','Illinois'),('IN','Indiana'),('IA','Iowa'),('KS','Kansas'),
+          ('KY','Kentucky'),('LA','Louisiana'),('ME','Maine'),('MD','Maryland'),
+          ('MA','Massachusetts'),('MI','Michigan'),('MN','Minnesota'),('MS','Mississippi'),
+          ('MO','Missouri'),('MT','Montana'),('NE','Nebraska'),('NV','Nevada'),
+          ('NH','New Hampshire'),('NJ','New Jersey'),('NM','New Mexico'),('NY','New York'),
+          ('NC','North Carolina'),('ND','North Dakota'),('OH','Ohio'),('OK','Oklahoma'),
+          ('OR','Oregon'),('PA','Pennsylvania'),('RI','Rhode Island'),('SC','South Carolina'),
+          ('SD','South Dakota'),('TN','Tennessee'),('TX','Texas'),('UT','Utah'),
+          ('VT','Vermont'),('VA','Virginia'),('WA','Washington'),('WV','West Virginia'),
+          ('WI','Wisconsin'),('WY','Wyoming')
+        ] %}
+          <option value="{{ abbr }}" {% if state_value == abbr %}selected{% endif %}>
+            {{ name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Mountain -->
+    <div class="form-group">
+      <label for="mountain">Mountain</label>
+      <select id="mountain" name="mountain" required data-current-mountain="{{ trip.mountain if trip else '' }}">
+        {% if trip and trip.mountain %}
+          <option value="{{ trip.mountain }}">{{ trip.mountain }}</option>
+        {% else %}
+          <option value="">Select a state first</option>
+        {% endif %}
+      </select>
+    </div>
+
+    <!-- Start date -->
+    <div class="form-group">
+      <label for="start_date">Start date</label>
+      <input
+        type="date"
+        id="start_date"
+        name="start_date"
+        required
+        value="{% if trip and trip.start_date %}{{ trip.start_date.isoformat() }}{% endif %}"
+      >
+    </div>
+
+    <!-- End date -->
+    <div class="form-group">
+      <label for="end_date">End date</label>
+      <input
+        type="date"
+        id="end_date"
+        name="end_date"
+        required
+        value="{% if trip and trip.end_date %}{{ trip.end_date.isoformat() }}{% endif %}"
+      >
+    </div>
+
+    <!-- Public toggle -->
+    <div class="form-group toggle-group">
+      {% set public_checked = (trip.is_public if trip is not none else True) %}
+      <label class="toggle-label">
+        <input type="checkbox" name="is_public" id="is_public" {% if public_checked %}checked{% endif %}>
+        <span>Make this trip visible to friends</span>
+      </label>
+      <p class="helper-text">Only friends can see this trip.</p>
+    </div>
+
+    <button type="submit" class="primary-button">
+      {% if trip %}Save changes{% else %}Save trip{% endif %}
+    </button>
+  </form>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const stateSelect = document.getElementById("state");
+    const mountainSelect = document.getElementById("mountain");
+
+    function loadMountainsForState(stateCode, currentMountain) {
+      mountainSelect.innerHTML = "";
+      mountainSelect.disabled = true;
+
+      if (!stateCode) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "Select a state first";
+        mountainSelect.appendChild(opt);
+        return;
+      }
+
+      fetch(`/api/mountains/${stateCode}`)
+        .then((res) => res.json())
+        .then((data) => {
+          mountainSelect.disabled = false;
+
+          if (!Array.isArray(data) || data.length === 0) {
+            const opt = document.createElement("option");
+            opt.value = "";
+            opt.textContent = "No mountains defined for this state yet";
+            mountainSelect.appendChild(opt);
+            mountainSelect.disabled = true;
+            return;
+          }
+
+          const placeholder = document.createElement("option");
+          placeholder.value = "";
+          placeholder.textContent = "Select a mountain";
+          mountainSelect.appendChild(placeholder);
+
+          data.forEach((name) => {
+            const opt = document.createElement("option");
+            opt.value = name;
+            opt.textContent = name;
+            mountainSelect.appendChild(opt);
+          });
+
+          if (currentMountain) {
+            mountainSelect.value = currentMountain;
+          }
+        })
+        .catch(() => {
+          const opt = document.createElement("option");
+          opt.value = "";
+          opt.textContent = "Error loading mountains";
+          mountainSelect.appendChild(opt);
+          mountainSelect.disabled = true;
+        });
+    }
+
+    stateSelect.addEventListener("change", function () {
+      loadMountainsForState(stateSelect.value, null);
+    });
+
+    // If we’re editing a trip, auto-load mountains for the selected state
+    const existingState = stateSelect.value;
+    const currentMountain = mountainSelect.dataset.currentMountain;
+    if (existingState) {
+      loadMountainsForState(existingState, currentMountain);
+    }
+  });
+</script>
+{% endblock %}
+This answers your “truncated template” question: use this complete version.
+2) my_trips.html — yes, create it from scratch with Upcoming and Past sections
+Create or replace templates/my_trips.html with this full template. Use card-style layout, with sections for Upcoming and Past trips:
+{% extends "base.html" %}
+{% block content %}
+<div class="page-container">
+  <h1 class="page-title">My trips</h1>
+
+  <!-- Add Trip Button -->
+  <div class="add-trip-container">
+    <a href="{{ url_for('add_trip') }}" class="add-trip-button">+ Add trip</a>
+  </div>
+
+  <!-- Upcoming trips -->
+  <section class="trips-section">
+    <h2 class="section-title">Upcoming trips</h2>
+    {% if upcoming_trips %}
+      <ul class="trip-list">
+        {% for trip in upcoming_trips %}
+          <li class="trip-card">
+            <div class="trip-main">
+              <div class="trip-mountain">{{ trip.mountain }}</div>
+              <div class="trip-location">{{ trip.state }}</div>
+              <div class="trip-dates">
+                {% if trip.start_date == trip.end_date %}
+                  {{ trip.start_date.strftime("%b %d, %Y") }}
+                {% else %}
+                  {{ trip.start_date.strftime("%b %d") }} – {{ trip.end_date.strftime("%b %d, %Y") }}
+                {% endif %}
+              </div>
+              <div class="trip-visibility">
+                {% if trip.is_public %}
+                  👥 Visible to friends
+                {% else %}
+                  🔒 Private
+                {% endif %}
+              </div>
+            </div>
+            <div class="trip-actions">
+              <a href="{{ url_for('edit_trip', trip_id=trip.id) }}" class="trip-action-link">Change</a>
+              <form method="POST" action="{{ url_for('delete_trip', trip_id=trip.id) }}" onsubmit="return confirm('Delete this trip?');">
+                <button type="submit" class="trip-delete-button">Delete</button>
+              </form>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>You don’t have any upcoming trips yet.</p>
+    {% endif %}
+  </section>
+
+  <!-- Past trips -->
+  <section class="trips-section">
+    <h2 class="section-title">Past trips</h2>
+    {% if past_trips %}
+      <ul class="trip-list">
+        {% for trip in past_trips %}
+          <li class="trip-card">
+            <div class="trip-main">
+              <div class="trip-mountain">{{ trip.mountain }}</div>
+              <div class="trip-location">{{ trip.state }}</div>
+              <div class="trip-dates">
+                {% if trip.start_date == trip.end_date %}
+                  {{ trip.start_date.strftime("%b %d, %Y") }}
+                {% else %}
+                  {{ trip.start_date.strftime("%b %d") }} – {{ trip.end_date.strftime("%b %d, %Y") }}
+                {% endif %}
+              </div>
+              <div class="trip-visibility">
+                {% if trip.is_public %}
+                  👥 Visible to friends
+                {% else %}
+                  🔒 Private
+                {% endif %}
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No past trips yet.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+Layout preference: card-style trips as above, not plain rows.
+3) SkiTrip model — verify and ensure required fields exist
+You asked whether to verify the existing SkiTrip model. Yes: verify and adjust if needed.
+In app.py, find class SkiTrip(db.Model) and ensure it has at least:
+class SkiTrip(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    state = db.Column(db.String(2), nullable=False)
+    mountain = db.Column(db.String(100), nullable=False)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    is_public = db.Column(db.Boolean, nullable=False, default=True)
+If any of these fields are missing, add them.
+If the types differ (e.g., state is a longer string), that’s okay as long as they are present and usable.
+If you’re using a dev SQLite DB and schema conflicts, recreate tables via db.drop_all() / db.create_all() in a safe, dev-only way.
+4) Existing /add_trip route — replace it with the new version
+You mentioned there is already an /add_trip route.
+Yes, replace it entirely with this version so behavior is consistent with the template:
+from datetime import date, datetime
+from flask import abort, jsonify, flash  # ensure these are imported
+from flask_login import login_required, current_user
+
+@app.route("/add_trip", methods=["GET", "POST"])
+@login_required
+def add_trip():
+    if request.method == "POST":
+        state = request.form.get("state")
+        mountain = request.form.get("mountain")
+        start_date_str = request.form.get("start_date")
+        end_date_str = request.form.get("end_date")
+        is_public = request.form.get("is_public") == "on"
+
+        errors = []
+
+        if not state:
+            errors.append("Please select a state.")
+        if not mountain:
+            errors.append("Please select a mountain.")
+        if not start_date_str:
+            errors.append("Please select a start date.")
+        if not end_date_str:
+            errors.append("Please select an end date.")
+
+        start_date = None
+        end_date = None
+        if start_date_str and end_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+                if end_date < start_date:
+                    errors.append("End date cannot be before start date.")
+            except ValueError:
+                errors.append("Invalid date format.")
+
+        if errors:
+            for e in errors:
+                flash(e, "error")
+            return render_template(
+                "add_trip.html",
+                trip=None,
+                form_action=url_for("add_trip"),
+            )
+
+        trip = SkiTrip(
+            user_id=current_user.id,
+            state=state,
+            mountain=mountain,
+            start_date=start_date,
+            end_date=end_date,
+            is_public=is_public,
+        )
+        db.session.add(trip)
+        db.session.commit()
+        flash("Trip added.", "success")
+        return redirect(url_for("my_trips"))
+
+    # GET
+    return render_template(
+        "add_trip.html",
+        trip=None,
+        form_action=url_for("add_trip"),
+    )
+Do not try to merge behaviors; just use this as the canonical Add Trip handler.
+5) /api/mountains/<state> — update or create to use MOUNTAINS_BY_STATE
+If /api/mountains/<state> already exists, update it to use the curated mapping below.
+If it does not exist, create it.
+At the top of app.py, ensure:
+from flask import jsonify
+from datetime import date, datetime
+Add this mapping (if not present) near your other config/constants:
+MOUNTAINS_BY_STATE = {
+    "CO": [
+        "Vail",
+        "Breckenridge",
+        "Keystone",
+        "Beaver Creek",
+        "Copper Mountain",
+        "Winter Park",
+        "Aspen Snowmass",
+    ],
+    "UT": [
+        "Park City",
+        "Snowbird",
+        "Alta",
+        "Solitude",
+        "Brighton",
+    ],
+    "CA": [
+        "Mammoth Mountain",
+        "Palisades Tahoe",
+        "Heavenly",
+        "Northstar California",
+        "Kirkwood",
+    ],
+    # Add more later as needed
+}
+Then define/update the route:
+@app.route("/api/mountains/<state>")
+def api_mountains(state):
+    state_code = state.upper()
+    mountains = MOUNTAINS_BY_STATE.get(state_code, [])
+    return jsonify(mountains)
+This answers your “does it exist / how to update it” question:
+→ If it exists, use this logic; if not, create it.
+6) /home integration — redirect trips to /my-trips
+You asked whether /home should still show trips or redirect to /my-trips.
+I want /my-trips to be the canonical trip view.
+So:
+Keep /my-trips as implemented (using upcoming_trips and past_trips).
+Update /home to redirect to /my-trips if it currently shows trips and is redundant.
+In app.py, set:
+@app.route("/home")
+@login_required
+def home():
+    return redirect(url_for("my_trips"))
+This way, both /home and the nav item for “My Trips” land on the same page and you don’t duplicate layout or logic.
+The /my_trips route should be:
+@app.route("/my-trips")
+@login_required
+def my_trips():
+    today = date.today()
+
+    upcoming_trips = (
+        SkiTrip.query
+        .filter_by(user_id=current_user.id)
+        .filter(SkiTrip.end_date >= today)
+        .order_by(SkiTrip.start_date.asc())
+        .all()
+    )
+
+    past_trips = (
+        SkiTrip.query
+        .filter_by(user_id=current_user.id)
+        .filter(SkiTrip.end_date < today)
+        .order_by(SkiTrip.start_date.desc())
+        .all()
+    )
+
+    return render_template(
+        "my_trips.html",
+        upcoming_trips=upcoming_trips,
+        past_trips=past_trips,
+    )
+7) Edit Trip and Delete Trip (for completeness)
+If not already present, add:
+@app.route("/trips/<int:trip_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_trip(trip_id):
+    trip = SkiTrip.query.get_or_404(trip_id)
+    if trip.user_id != current_user.id:
+        abort(403)
+
+    if request.method == "POST":
+        state = request.form.get("state")
+        mountain = request.form.get("mountain")
+        start_date_str = request.form.get("start_date")
+        end_date_str = request.form.get("end_date")
+        is_public = request.form.get("is_public") == "on"
+
+        errors = []
+
+        if not state:
+            errors.append("Please select a state.")
+        if not mountain:
+            errors.append("Please select a mountain.")
+        if not start_date_str:
+            errors.append("Please select a start date.")
+        if not end_date_str:
+            errors.append("Please select an end date.")
+
+        start_date = None
+        end_date = None
+        if start_date_str and end_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+                if end_date < start_date:
+                    errors.append("End date cannot be before start date.")
+            except ValueError:
+                errors.append("Invalid date format.")
+
+        if errors:
+            for e in errors:
+                flash(e, "error")
+            return render_template(
+                "add_trip.html",
+                trip=trip,
+                form_action=url_for("edit_trip", trip_id=trip.id),
+            )
+
+        trip.state = state
+        trip.mountain = mountain
+        trip.start_date = start_date
+        trip.end_date = end_date
+        trip.is_public = is_public
+
+        db.session.commit()
+        flash("Trip updated.", "success")
+        return redirect(url_for("my_trips"))
+
+    # GET
+    return render_template(
+        "add_trip.html",
+        trip=trip,
+        form_action=url_for("edit_trip", trip_id=trip.id),
+    )
+
+
+@app.route("/trips/<int:trip_id>/delete", methods=["POST"])
+@login_required
+def delete_trip(trip_id):
+    trip = SkiTrip.query.get_or_404(trip_id)
+    if trip.user_id != current_user.id:
+        abort(403)
+
+    db.session.delete(trip)
+    db.session.commit()
+    flash("Trip deleted.", "success")
+    return redirect(url_for("my_trips"))
+8) CSS goes in static/styles.css
+Append the following to static/styles.css (not a different path):
+.add-trip-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin: 16px 0 20px;
+}
+
+.add-trip-button {
+  display: inline-block;
+  padding: 10px 18px;
+  background-color: #4A7DE2;
+  color: #fff;
+  font-weight: 600;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 1rem;
+}
+
+.add-trip-button:hover {
+  background-color: #3b66ba;
+}
+
+.trips-section {
+  margin-bottom: 24px;
+}
+
+.trip-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.trip-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.trip-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.trip-mountain {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.trip-location {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.trip-dates {
+  font-size: 0.9rem;
+  color: #444;
+}
+
+.trip-visibility {
+  font-size: 0.85rem;
+  color: #777;
+  margin-top: 4px;
+}
+
+.trip-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-left: 10px;
+}
+
+.trip-action-link {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #4A7DE2;
+  text-decoration: none;
+}
+
+.trip-action-link:hover {
+  text-decoration: underline;
+}
+
+.trip-delete-button {
+  border: none;
+  background: none;
+  color: #b00020;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.trip-delete-button:hover {
+  text-decoration: underline;
+}
+
+.form-card {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px;
+  border-radius: 12px;
+  background-color: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.form-group select,
+.form-group input[type="date"] {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+}
+
+.toggle-group {
+  margin-top: 4px;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.helper-text {
+  margin-top: 4px;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.primary-button {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: none;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  background-color: #4A7DE2;
+  color: white;
+}
+
+.primary-button:hover {
+  background-color: #3b66ba;
+}

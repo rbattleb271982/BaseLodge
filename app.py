@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, date
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort
+from flask_login import LoginManager, login_required, current_user
 from functools import wraps
 from flask_migrate import Migrate
 from models import db, User, SkiTrip, Friend, Invitation
@@ -8,6 +9,14 @@ from debug_routes import debug_bp
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "auth"
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 def login_required(f):
     @wraps(f)
@@ -68,21 +77,21 @@ PASS_OPTIONS = [
 ]
 
 MOUNTAINS_BY_STATE = {
-    "Alaska": sorted(["Alyeska Resort"]),
-    "California": sorted(["Mammoth Mountain", "Palisades Tahoe", "Northstar", "Heavenly", "Kirkwood", "Big Bear", "June Mountain"]),
-    "Colorado": sorted(["Vail", "Breckenridge", "Keystone", "Copper Mountain", "Arapahoe Basin", "Loveland", "Winter Park", "Steamboat", "Aspen Snowmass", "Telluride", "Crested Butte", "Eldora"]),
-    "Idaho": sorted(["Sun Valley", "Schweitzer", "Bogus Basin", "Brundage Mountain"]),
-    "Maine": sorted(["Sugarloaf", "Sunday River", "Saddleback"]),
-    "Michigan": sorted(["Boyne Mountain", "Crystal Mountain MI", "Nubs Nob"]),
-    "Montana": sorted(["Big Sky", "Whitefish Mountain", "Bridger Bowl", "Red Lodge Mountain"]),
-    "New Hampshire": sorted(["Bretton Woods", "Cannon Mountain", "Loon Mountain", "Wildcat Mountain"]),
-    "New Mexico": sorted(["Taos Ski Valley", "Ski Santa Fe", "Angel Fire"]),
-    "New York": sorted(["Whiteface", "Gore Mountain", "Hunter Mountain", "Windham Mountain"]),
-    "Oregon": sorted(["Mt. Hood Meadows", "Timberline", "Mt. Bachelor", "Anthony Lakes"]),
-    "Utah": sorted(["Park City", "Deer Valley", "Snowbird", "Alta", "Brighton", "Solitude", "Snowbasin", "Powder Mountain"]),
-    "Vermont": sorted(["Stowe", "Killington", "Sugarbush", "Jay Peak", "Stratton", "Mount Snow", "Okemo"]),
-    "Washington": sorted(["Crystal Mountain", "Stevens Pass", "Mt. Baker", "Snoqualmie"]),
-    "Wyoming": sorted(["Jackson Hole", "Grand Targhee", "Snow King"])
+    "CO": sorted(["Vail", "Breckenridge", "Keystone", "Copper Mountain", "Arapahoe Basin", "Loveland", "Winter Park", "Steamboat", "Aspen Snowmass", "Telluride", "Crested Butte", "Eldora"]),
+    "UT": sorted(["Park City", "Deer Valley", "Snowbird", "Alta", "Brighton", "Solitude", "Snowbasin", "Powder Mountain"]),
+    "CA": sorted(["Mammoth Mountain", "Palisades Tahoe", "Northstar", "Heavenly", "Kirkwood", "Big Bear", "June Mountain"]),
+    "AK": sorted(["Alyeska Resort"]),
+    "ID": sorted(["Sun Valley", "Schweitzer", "Bogus Basin", "Brundage Mountain"]),
+    "ME": sorted(["Sugarloaf", "Sunday River", "Saddleback"]),
+    "MI": sorted(["Boyne Mountain", "Crystal Mountain MI", "Nubs Nob"]),
+    "MT": sorted(["Big Sky", "Whitefish Mountain", "Bridger Bowl", "Red Lodge Mountain"]),
+    "NH": sorted(["Bretton Woods", "Cannon Mountain", "Loon Mountain", "Wildcat Mountain"]),
+    "NM": sorted(["Taos Ski Valley", "Ski Santa Fe", "Angel Fire"]),
+    "NY": sorted(["Whiteface", "Gore Mountain", "Hunter Mountain", "Windham Mountain"]),
+    "OR": sorted(["Mt. Hood Meadows", "Timberline", "Mt. Bachelor", "Anthony Lakes"]),
+    "VT": sorted(["Stowe", "Killington", "Sugarbush", "Jay Peak", "Stratton", "Mount Snow", "Okemo"]),
+    "WA": sorted(["Crystal Mountain", "Stevens Pass", "Mt. Baker", "Snoqualmie"]),
+    "WY": sorted(["Jackson Hole", "Grand Targhee", "Snow King"])
 }
 
 @app.route("/")
@@ -247,13 +256,36 @@ def edit_profile():
     return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS)
 
 @app.route("/my-trips")
+@login_required
 def my_trips():
-    # Deprecated: Redirect to home which is now the authoritative trips page
-    return redirect(url_for("home"))
+    today = date.today()
+
+    upcoming_trips = (
+        SkiTrip.query
+        .filter_by(user_id=current_user.id)
+        .filter(SkiTrip.end_date >= today)
+        .order_by(SkiTrip.start_date.asc())
+        .all()
+    )
+
+    past_trips = (
+        SkiTrip.query
+        .filter_by(user_id=current_user.id)
+        .filter(SkiTrip.end_date < today)
+        .order_by(SkiTrip.start_date.desc())
+        .all()
+    )
+
+    return render_template(
+        "my_trips.html",
+        upcoming_trips=upcoming_trips,
+        past_trips=past_trips,
+    )
 
 @app.route("/api/mountains/<state>")
 def get_mountains(state):
-    mountains = MOUNTAINS_BY_STATE.get(state, [])
+    state_code = state.upper()
+    mountains = MOUNTAINS_BY_STATE.get(state_code, [])
     return jsonify(mountains)
 
 @app.route("/api/trip/create", methods=["POST"])
@@ -708,19 +740,15 @@ def settings():
 @app.route("/add_trip", methods=["GET", "POST"])
 @login_required
 def add_trip():
-    user = User.query.get(session["user_id"])
-    if not user:
-        return redirect(url_for("auth"))
-    
     if request.method == "POST":
         state = request.form.get("state")
         mountain = request.form.get("mountain")
         start_date_str = request.form.get("start_date")
         end_date_str = request.form.get("end_date")
         is_public = request.form.get("is_public") == "on"
-        
-        # Validation
+
         errors = []
+
         if not state:
             errors.append("Please select a state.")
         if not mountain:
@@ -729,7 +757,7 @@ def add_trip():
             errors.append("Please select a start date.")
         if not end_date_str:
             errors.append("Please select an end date.")
-        
+
         start_date = None
         end_date = None
         if start_date_str and end_date_str:
@@ -740,33 +768,114 @@ def add_trip():
                     errors.append("End date cannot be before start date.")
             except ValueError:
                 errors.append("Invalid date format.")
-        
+
         if errors:
             for e in errors:
                 flash(e, "error")
-            return render_template("add_trip.html")
-        
+            return render_template(
+                "add_trip.html",
+                trip=None,
+                form_action=url_for("add_trip"),
+            )
+
         trip = SkiTrip(
-            user_id=user.id,
+            user_id=current_user.id,
             state=state,
             mountain=mountain,
             start_date=start_date,
             end_date=end_date,
-            is_public=is_public
+            is_public=is_public,
         )
         db.session.add(trip)
         db.session.commit()
-        flash("Trip added!", "success")
-        return redirect(url_for("home"))
-    
-    return render_template("add_trip.html", MOUNTAINS_BY_STATE=MOUNTAINS_BY_STATE)
+        flash("Trip added.", "success")
+        return redirect(url_for("my_trips"))
+
+    # GET
+    return render_template(
+        "add_trip.html",
+        trip=None,
+        form_action=url_for("add_trip"),
+    )
+
+@app.route("/trips/<int:trip_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_trip_form(trip_id):
+    trip = SkiTrip.query.get_or_404(trip_id)
+    if trip.user_id != current_user.id:
+        abort(403)
+
+    if request.method == "POST":
+        state = request.form.get("state")
+        mountain = request.form.get("mountain")
+        start_date_str = request.form.get("start_date")
+        end_date_str = request.form.get("end_date")
+        is_public = request.form.get("is_public") == "on"
+
+        errors = []
+
+        if not state:
+            errors.append("Please select a state.")
+        if not mountain:
+            errors.append("Please select a mountain.")
+        if not start_date_str:
+            errors.append("Please select a start date.")
+        if not end_date_str:
+            errors.append("Please select an end date.")
+
+        start_date = None
+        end_date = None
+        if start_date_str and end_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+                if end_date < start_date:
+                    errors.append("End date cannot be before start date.")
+            except ValueError:
+                errors.append("Invalid date format.")
+
+        if errors:
+            for e in errors:
+                flash(e, "error")
+            return render_template(
+                "add_trip.html",
+                trip=trip,
+                form_action=url_for("edit_trip_form", trip_id=trip.id),
+            )
+
+        trip.state = state
+        trip.mountain = mountain
+        trip.start_date = start_date
+        trip.end_date = end_date
+        trip.is_public = is_public
+
+        db.session.commit()
+        flash("Trip updated.", "success")
+        return redirect(url_for("my_trips"))
+
+    # GET
+    return render_template(
+        "add_trip.html",
+        trip=trip,
+        form_action=url_for("edit_trip_form", trip_id=trip.id),
+    )
+
+@app.route("/trips/<int:trip_id>/delete", methods=["POST"])
+@login_required
+def delete_trip_form(trip_id):
+    trip = SkiTrip.query.get_or_404(trip_id)
+    if trip.user_id != current_user.id:
+        abort(403)
+
+    db.session.delete(trip)
+    db.session.commit()
+    flash("Trip deleted.", "success")
+    return redirect(url_for("my_trips"))
 
 @app.route("/mountains-visited", methods=["GET", "POST"])
 @login_required
 def mountains_visited():
-    user = User.query.get(session["user_id"])
-    if not user:
-        return redirect(url_for("auth"))
+    user = current_user
     
     mountains_by_state = {
         "California": [

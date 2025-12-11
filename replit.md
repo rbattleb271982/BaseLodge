@@ -36,8 +36,38 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **API Endpoints:** Dedicated API routes for trip management (create, edit, delete) and friend management (invite, list, accept, remove).
 - **Models:** Core models include `User`, `SkiTrip`, `Friend`, and `Invitation`, with appropriate relationships and constraints.
 
+## Recent Changes (Dec 11, 2025)
+
+### Trip Management System - COMPLETE ✅
+- **Added Flask-Login** for Flask-native user session management
+- **Updated User model** to inherit from `UserMixin` for Flask-Login compatibility
+- **Updated MOUNTAINS_BY_STATE** mapping to use 2-letter state codes (CO, UT, CA, etc.) for consistency
+- **Implemented `/my-trips` route** with Upcoming/Past trip sections using `current_user`
+- **Implemented `/add_trip` route (GET/POST)** with form-based trip creation
+- **Implemented `/trips/<id>/edit` route (GET/POST)** for form-based trip editing with validation
+- **Implemented `/trips/<id>/delete` route (POST)** for trip deletion with 403 protection
+- **Updated `/api/mountains/<state>` route** to accept 2-letter state codes
+- **Created `templates/add_trip.html`** with dynamic mountain dropdown and validation
+- **Created `templates/my_trips.html`** with Upcoming/Past trip cards, edit/delete actions
+- **Reusable form template** for both add and edit operations via `trip` and `form_action` variables
+- All routes use `@login_required` decorator and `current_user` from Flask-Login
+
+### Trip Features
+- **Validation:** State, mountain, dates all required; end_date >= start_date
+- **Visibility:** `is_public` toggle defaults to ON; controls friend visibility
+- **Security:** 403 abort for unauthorized edit/delete attempts
+- **Dates:** Support same-day and multi-day trips with proper formatting
+
+### State Support
+Currently supports 15 states with curated mountain lists:
+- CO (Colorado) - 12 mountains
+- UT (Utah) - 8 mountains  
+- CA (California) - 7 mountains
+- AK, ID, ME, MI, MT, NH, NM, NY, OR, VT, WA, WY (2-5 mountains each)
+
 ## External Dependencies
 - **Flask:** Python web framework.
+- **Flask-Login:** User session management with login manager and UserMixin.
 - **SQLAlchemy:** SQL toolkit and Object-Relational Mapper.
 - **Werkzeug:** WSGI utility library for password hashing.
 - **Jinja2:** Templating engine.
