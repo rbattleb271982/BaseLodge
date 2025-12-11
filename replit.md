@@ -52,11 +52,25 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **Reusable form template** for both add and edit operations via `trip` and `form_action` variables
 - All routes use `@login_required` decorator and `current_user` from Flask-Login
 
+### Bug Fixes - COMPLETE ✅
+- **Fixed Flask-Login session persistence** by adding `login_user()` calls after signup and login
+- **Fixed mountains_visited TypeError** by replacing `hasattr()` checks with safe pattern: `mountains = user.mountains_visited or []`
+- **Fixed mutable default bug** by changing `mountains_visited = db.Column(db.JSON, default=[])` to `default=list`
+- Applied consistent null-safety pattern across `friend_profile()`, `more()`, and `more_info()` routes
+
+### Trip Overlap Detection - COMPLETE ✅
+- **Added `date_ranges_overlap()` helper** to detect when two date ranges overlap
+- **Enhanced `/home` route** to build overlaps list comparing user's trips with friends' public trips
+- **Added "Overlaps" tab** to trip view alongside My Trips, Friends' Trips, and All Trips
+- **Overlap display** shows friend name (clickable to profile), mountain, state, and overlap date range
+- Uses `bl-trip-row` styling for visual consistency with BaseLodge design system
+
 ### Trip Features
 - **Validation:** State, mountain, dates all required; end_date >= start_date
 - **Visibility:** `is_public` toggle defaults to ON; controls friend visibility
 - **Security:** 403 abort for unauthorized edit/delete attempts
 - **Dates:** Support same-day and multi-day trips with proper formatting
+- **Overlap Detection:** Identifies when user and friends are at same mountain on overlapping dates
 
 ### State Support
 Currently supports 15 states with curated mountain lists:

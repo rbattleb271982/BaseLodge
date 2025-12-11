@@ -651,6 +651,10 @@ def create_trip_page():
 def invite():
     return render_template("invite.html")
 
+def date_ranges_overlap(start1, end1, start2, end2):
+    """Check if two date ranges overlap"""
+    return start1 <= end2 and start2 <= end1
+
 @app.route("/home")
 def home():
     if "user_id" not in session:
@@ -684,6 +688,22 @@ def home():
             SkiTrip.is_public == True
         ).order_by(SkiTrip.start_date.asc()).all()
     
+    # Build overlaps list
+    overlaps = []
+    for my in my_trips:
+        for friend_trip in friend_trips:
+            if my.user_id != friend_trip.user_id:
+                if my.mountain == friend_trip.mountain:
+                    if date_ranges_overlap(my.start_date, my.end_date, friend_trip.start_date, friend_trip.end_date):
+                        overlaps.append({
+                            "friend_name": friend_trip.user.first_name + " " + friend_trip.user.last_name,
+                            "friend_id": friend_trip.user_id,
+                            "mountain": my.mountain,
+                            "state": my.state,
+                            "start_date": max(my.start_date, friend_trip.start_date),
+                            "end_date": min(my.end_date, friend_trip.end_date)
+                        })
+    
     # Combined list for All Trips (upcoming only)
     all_trips = (my_trips or []) + (friend_trips or [])
     try:
@@ -697,6 +717,7 @@ def home():
         my_trips=my_trips,
         friend_trips=friend_trips,
         all_trips=all_trips,
+        overlaps=overlaps,
         state_abbr=STATE_ABBR
     )
 

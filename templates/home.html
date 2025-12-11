@@ -104,6 +104,23 @@
                     <p class="bl-caption">No upcoming trips yet.</p>
                 {% endif %}
             </div>
+            
+            <!-- Overlaps -->
+            <div id="tab-overlaps" class="bl-trip-row-group" {% if active_tab != 'overlaps' %}style="display: none;"{% endif %}>
+                {% if overlaps and overlaps|length > 0 %}
+                    {% for o in overlaps %}
+                    <div class="bl-trip-row">
+                        <span class="trip-date">{{ o.start_date.strftime('%b %d') }}</span> —
+                        <a href="{{ url_for('friend_profile', friend_id=o.friend_id) }}" style="text-decoration: none; color: inherit;">
+                            <span class="trip-name">{{ o.friend_name }}</span>
+                        </a>
+                        <span class="trip-info">@ {{ o.mountain }}, {{ o.state }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="bl-caption">You don't overlap with any friends on trips.</p>
+                {% endif %}
+            </div>
         </div>
         
         <div style="margin-top: var(--bl-space-8);">
