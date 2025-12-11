@@ -1,0 +1,168 @@
+1. FLASH MESSAGES – “TRIP ADDED” SHOULD NEVER SHOW WHILE LOGGED OUT
+Goal:
+Flash messages (like “Trip added”) should only appear after an action while a user is logged in, and never on the login/signup screens.
+Changes:
+Find the template where flash messages are rendered (likely base.html or similar).
+Wrap the flash message block with a check so it only displays for authenticated users:
+{% if current_user.is_authenticated %}
+  {# existing get_flashed_messages code #}
+{% endif %}
+Confirm that the login and signup pages no longer show leftover messages when opening the app logged out or when navigating to auth pages.
+2. HOME TABS – REMOVE “ALL TRIPS”, KEEP 3 TABS: MY / FRIENDS / OVERLAPS
+Goal:
+The segmented control on home.html should be:
+My Trips | Friends’ Trips | Overlaps
+There should be no “All Trips” tab anymore.
+Changes:
+Open templates/components/segmented_trips_tabs.html.
+Ensure the buttons are exactly:
+<button class="bl-segment {% if active_tab == 'my' %}active{% endif %}" data-tab="my">My Trips</button>
+<button class="bl-segment {% if active_tab == 'friends' %}active{% endif %}" data-tab="friends">Friends' Trips</button>
+<button class="bl-segment {% if active_tab == 'overlaps' %}active{% endif %}" data-tab="overlaps">Overlaps</button>
+Open templates/home.html and:
+Remove the All Trips panel (tab-all) and any content for it.
+Update the tab-switching JavaScript so it only toggles:
+tab-my
+tab-friends
+tab-overlaps
+and does not reference tab-all.
+Keep the existing Overlaps tab we already added, but make sure it still works after removing All Trips.
+3. HOME – REMOVE “NEXT TRIP” CARD AT TOP
+Goal:
+The top of the Home screen shouldn’t show a separate “Next Trip” hero/card now that My Trips is front and center.
+Changes:
+In home.html, find any card or section labelled something like “Next Trip” or similar at the very top.
+Remove that block entirely so the page starts with the header + segmented control + trip lists.
+Make sure the layout still looks balanced on mobile.
+4. MY TRIPS LIST – ADD EXPLICIT “EDIT” ACTION
+Goal:
+On the Home screen, in the My Trips tab, the user should clearly see how to edit a trip.
+Changes:
+In home.html, locate the loop that renders my_trips inside the tab-my panel.
+For each trip row (usually styled with bl-trip-row or similar), add an explicit “Edit” action on the right side, either as:
+A small link: Edit
+Or a button styled consistently with the design system.
+Use the existing edit-trip route already defined in the project. To find it:
+Search for a template like my_trips.html or another page where trips are editable.
+Reuse the same url_for(...) used there (e.g., url_for('edit_trip', trip_id=trip.id) or similar).
+The user should be able to tap the trip’s Edit control to go to the existing edit screen for that trip.
+5. FRIENDS PAGE – MAKE LIST MORE COMPACT & REMOVE TOP “INVITE” BUTTON
+Goal:
+The Friends list should feel tighter and more like a proper roster. Also, we don’t need a duplicate Invite entry.
+Changes:
+Find the template used when tapping Friends in the bottom navigation (likely friends.html or similar).
+Remove the “Invite a Friend” button at the top of that page. The primary Invite entry point will be the bottom nav icon.
+Reduce vertical whitespace in the list:
+Decrease top/bottom padding on each friend row.
+Adjust margins so the list feels compact (similar to Venmo/Strava contact lists).
+Keep the same information (name, pass, rider type, etc.), just closer together.
+Keep existing BaseLodge styles (bl- classes); only tweak spacing, not colors.
+6. MOUNTAINS VISITED – REDESIGN SELECTION FLOW
+Goal:
+The Mountains Visited screen (under More → Mountains Visited) should:
+NOT use a state dropdown
+USE a search bar that filters mountains
+Show selected mountains as pills at the top
+Show a floating counter (“X selected”)
+Have a Save button that is always obvious (no scrolling required to find it)
+Backend (app.py):
+Open the /mountains_visited route (around the code that currently uses user.mountains_visited, selected_mountains, etc.).
+Ensure it passes to the template:
+all_mountains = full list of mountains (no state grouping needed in the template anymore).
+selected_mountains = user.mountains_visited or [].
+mountains_visited_count = len(selected_mountains).
+Keep POST logic the same conceptually: the submitted list replaces user.mountains_visited.
+Template (mountains_visited.html):
+Remove the state dropdown and per-state lists.
+Add at the top:
+A search <input> that filters the mountain list as the user types (client-side JS is fine).
+A horizontal area that shows selected mountains as pills, e.g.:
+<div class="selected-mountains">
+  {% for m in selected_mountains %}
+    <span class="mountain-pill">{{ m }}</span>
+  {% endfor %}
+</div>
+Show a floating “X selected” counter near the top (e.g., right side under the search bar):
+<div class="selected-counter">
+  {{ mountains_visited_count }} selected
+</div>
+Render the main mountains list as (for example) a scrollable list of checkboxes matching your design system:
+<div class="mountain-list">
+  {% for mountain in all_mountains %}
+    <label class="mountain-row">
+      <input type="checkbox" name="mountains" value="{{ mountain }}"
+             {% if mountain in selected_mountains %}checked{% endif %}>
+      {{ mountain }}
+    </label>
+  {% endfor %}
+</div>
+Place the Save button at the top of the form (beneath the search and selected pills), so on mobile it’s visible without scrolling. Use your standard button class:
+<button type="submit" class="bl-button-primary">Save</button>
+JS:
+Add simple client-side filtering so typing in the search bar hides non-matching mountain rows (case-insensitive).
+As checkboxes are toggled, update:
+the selected pills container
+the X selected counter
+Use lightweight JS; no frameworks.
+7. “MY INFO” → “MY PROFILE” + TRIP COUNT (UPCOMING ONLY) + PENCILS
+Goal:
+Rename “My Info” to “My Profile”, count only upcoming trips, and visually indicate editability with pencil icons.
+Backend (app.py):
+Find the route that renders the current “My Info” / profile summary page (likely /profile or /my-info).
+Add logic to compute upcoming_trips_count:
+today = date.today()
+upcoming_trips_count = SkiTrip.query.filter(
+    SkiTrip.user_id == current_user.id,
+    SkiTrip.end_date >= today
+).count()
+Pass upcoming_trips_count into the template as trips_count or similar.
+Template (profile/my info template):
+Change page title and any navigation labels from “My Info” to “My Profile”.
+Replace the current layout with a clean list of rows, each row showing:
+Label on the left (e.g., “Rider Type”)
+Current value in the middle (e.g., “Skier”)
+A pencil icon on the right indicating it’s editable
+Use a structure like:
+<div class="profile-row">
+  <div class="profile-label">Rider Type</div>
+  <div class="profile-value">{{ user.rider_type or "Not set" }}</div>
+  <a href="{{ url_for('edit_profile') }}" class="profile-edit-icon">✏️</a>
+</div>
+Trips row should use only upcoming trips count:
+<div class="profile-row">
+  <div class="profile-label">Trips</div>
+  <div class="profile-value">{{ trips_count }} upcoming</div>
+  <!-- no pencil here, trips are edited via My Trips, not this screen -->
+</div>
+Mountains row should show something like:
+<div class="profile-row">
+  <div class="profile-label">Mountains Visited</div>
+  <div class="profile-value">{{ mountains_visited_count }} mountains</div>
+  <a href="{{ url_for('mountains_visited') }}" class="profile-edit-icon">›</a>
+</div>
+(Chevron instead of pencil is fine here.)
+Gear row:
+Show label “Gear”
+Value text: “Coming soon”
+No pencil or link (non-interactive / greyed out)
+Add minimal CSS (in your main stylesheet) for .profile-row, .profile-label, .profile-value, .profile-edit-icon to make rows compact and mobile-friendly, aligned with the BaseLodge design language.
+8. EDIT PROFILE PAGE – KEEP USING EXISTING ROUTE BUT PROFILE PAGE IS NOW MAIN ENTRY
+For now, keep the existing /edit_profile route and form functional, but:
+The main way users understand profile editing is via the new “My Profile” screen with rows + pencils.
+Every pencil icon (Rider Type, Pass Type, Gender, Birth Year, Home State, Skill Level) can link to the same /edit_profile route for now; later we can split into sub-edit screens if needed.
+No need to refactor the full edit form layout in this pass; just make sure the new “My Profile” screen exists and is reachable from the bottom nav / More / wherever “My Info” was.
+9. GEAR – “COMING SOON”
+Ensure Gear is:
+Displayed as a row on My Profile
+Shows “Coming soon” as the value
+Non-editable (no pencil, no link in that row)
+In the edit form (edit_profile.html), either:
+Disable the input, or
+Replace it with a read-only label saying “Coming soon”
+After applying all of the above, please run the app and verify:
+No flash messages appear on login/signup when logged out.
+Home screen has tabs: My Trips / Friends’ Trips / Overlaps, no All Trips, and no Next Trip card.
+My Trips entries each have a clear Edit action.
+Friends page is visually tighter and has no Invite button.
+Mountains Visited screen has search, pills, a visible Save button at the top, and a live selected counter.
+My Profile page exists (renamed from My Info), shows rows with pencil icons, only counts upcoming trips, and shows Gear as “Coming soon”.
