@@ -38,6 +38,24 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 
 ## Recent Changes (Dec 11, 2025)
 
+### QR-Based Friend Connection - COMPLETE ✅
+- **Installed segno library** for QR code generation
+- **Added `/my-qr` route** - Generates scannable QR code PNG pointing to `/connect/<user_id>`
+- **Added `/connect/<user_id>` route** - Displays connection confirmation with smart auth handling
+- **Added `/connect/<user_id>/add` POST route** - Creates bidirectional friendships (A→B and B→A)
+- **Enhanced auth flow** - Login/signup now honor `next=` parameter for post-auth redirects
+- **Enhanced profile setup** - Stores `next_after_setup` in session to redirect after onboarding
+- **Updated `/invite` page** - Features QR code section with clear "Invite via QR Code" heading
+- **Created connection templates:**
+  - `connect_confirm.html` - Confirmation page before adding friend
+  - `connect_success.html` - Success message after adding friend
+  - `connect_self.html` - Error: cannot add yourself
+  - `already_friends.html` - Already connected message
+- All templates styled with BaseLodge CSS variables for consistency
+- Bidirectional friendship: When User A scans User B's QR and confirms, both are added as friends
+
+## Previous Changes (Dec 11, 2025)
+
 ### Trip Management System - COMPLETE ✅
 - **Added Flask-Login** for Flask-native user session management
 - **Updated User model** to inherit from `UserMixin` for Flask-Login compatibility

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base Lodge - Connect</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="page-container" style="padding: var(--bl-space-8); max-width: 500px; margin: 0 auto;">
+        <div style="text-align: center; margin-bottom: var(--bl-space-8);">
+            <h2 style="font-size: 24px; font-weight: 700; color: var(--bl-color-text); margin-bottom: var(--bl-space-4);">Connect with {{ friend.first_name }} {{ friend.last_name }}?</h2>
+            <p style="font-size: 15px; color: var(--bl-color-text-muted);">You'll be able to see each other's trips and plan together.</p>
+        </div>
+        
+        <form method="POST" action="{{ url_for('connect_add', user_id=friend.id) }}" style="display: flex; flex-direction: column; gap: var(--bl-space-5);">
+            <button type="submit" class="bl-btn-primary" style="width: 100%;">Add as Friend</button>
+            <a href="{{ url_for('home') }}" class="bl-btn-secondary" style="width: 100%; text-align: center; text-decoration: none;">Cancel</a>
+        </form>
+    </div>
+    {% include 'components/bottom_nav.html' %}
+</body>
+</html>

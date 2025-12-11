@@ -1,11 +1,13 @@
 import os
 from datetime import datetime, date
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file
 from flask_login import LoginManager, login_required, current_user, login_user
 from functools import wraps
 from flask_migrate import Migrate
 from models import db, User, SkiTrip, Friend, Invitation
 from debug_routes import debug_bp
+from io import BytesIO
+import segno
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
@@ -134,9 +136,15 @@ def auth():
             if user and user.check_password(password):
                 login_user(user)
                 session["user_id"] = user.id
-                if user.profile_setup_complete:
+                
+                next_url = request.args.get("next")
+                if next_url and user.profile_setup_complete:
+                    return redirect(next_url)
+                elif user.profile_setup_complete:
                     return redirect(url_for("home"))
                 else:
+                    if next_url:
+                        session["next_after_setup"] = next_url
                     return redirect(url_for("setup_profile"))
             else:
                 flash("Invalid email or password.", "error")
@@ -176,6 +184,10 @@ def setup_profile():
             user.skill_level = skill_level
             user.profile_setup_complete = True
             db.session.commit()
+            
+            next_url = session.pop("next_after_setup", None)
+            if next_url:
+                return redirect(next_url)
             return redirect(url_for("home"))
     
     return render_template("setup_profile.html", step=step, user=user)
@@ -649,7 +661,52 @@ def create_trip_page():
 @app.route("/invite")
 @login_required
 def invite():
-    return render_template("invite.html")
+    return render_template("invite.html", user=current_user)
+
+@app.route("/my-qr")
+@login_required
+def my_qr():
+    qr_url = url_for("connect_via_qr", user_id=current_user.id, _external=True)
+    qr = segno.make(qr_url)
+    buf = BytesIO()
+    qr.save(buf, kind="png", scale=8)
+    buf.seek(0)
+    return send_file(buf, mimetype="image/png")
+
+@app.route("/connect/<int:user_id>")
+def connect_via_qr(user_id):
+    inviter = User.query.get_or_404(user_id)
+    
+    if not current_user.is_authenticated:
+        return redirect(url_for("auth", next=url_for("connect_via_qr", user_id=user_id)))
+    
+    if current_user.id == inviter.id:
+        return render_template("connect_self.html")
+    
+    existing = Friend.query.filter_by(user_id=current_user.id, friend_id=inviter.id).first()
+    if existing:
+        return render_template("already_friends.html", friend=inviter)
+    
+    return render_template("connect_confirm.html", friend=inviter)
+
+@app.route("/connect/<int:user_id>/add", methods=["POST"])
+@login_required
+def connect_add(user_id):
+    inviter = User.query.get_or_404(user_id)
+    
+    existing_a_to_b = Friend.query.filter_by(user_id=current_user.id, friend_id=inviter.id).first()
+    existing_b_to_a = Friend.query.filter_by(user_id=inviter.id, friend_id=current_user.id).first()
+    
+    if not existing_a_to_b:
+        new_a_to_b = Friend(user_id=current_user.id, friend_id=inviter.id)
+        db.session.add(new_a_to_b)
+    
+    if not existing_b_to_a:
+        new_b_to_a = Friend(user_id=inviter.id, friend_id=current_user.id)
+        db.session.add(new_b_to_a)
+    
+    db.session.commit()
+    return render_template("connect_success.html", friend=inviter)
 
 def date_ranges_overlap(start1, end1, start2, end2):
     """Check if two date ranges overlap"""
