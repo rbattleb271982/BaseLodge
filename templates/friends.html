@@ -10,10 +10,6 @@
     <div class="page-container">
         <h1 class="page-title">Friends</h1>
         
-        <div style="margin-bottom: var(--bl-space-6);">
-            <button class="bl-btn-primary" onclick="copyInviteLink()" style="width: 100%;">Invite a Friend</button>
-        </div>
-        
         {% if friends %}
         <div class="chip-row">
             <span class="bl-chip bl-chip-active" onclick="filterFriends('all')">All</span>
@@ -26,8 +22,9 @@
             {% for friend_rel in friends %}
             {% set friend = friend_rel.friend %}
             <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; display: block;" class="friend-row-link" data-pass="{{ friend.pass_type or 'No Pass' }}">
-                <div class="friend-row">
-                    {{ friend.first_name }} {{ friend.last_name }} — {{ friend.rider_type or 'Skier' }} — {{ friend.pass_type or 'No Pass' }} — {{ friend.skill_level or 'Not set' }}
+                <div class="friend-row" style="padding: var(--bl-space-4) 0; border-bottom: 1px solid var(--bl-color-border); font-size: 14px;">
+                    <div style="font-weight: 600; margin-bottom: 2px;">{{ friend.first_name }} {{ friend.last_name }}</div>
+                    <div style="font-size: 13px; color: var(--bl-color-text-muted);">{{ friend.rider_type or 'Skier' }} • {{ friend.pass_type or 'No Pass' }}</div>
                 </div>
             </a>
             {% endfor %}
@@ -46,32 +43,6 @@
     
     <script>
         const currentUserId = {{ user.id }};
-        
-        function copyInviteLink() {
-            const inviteUrl = `${window.location.origin}/auth?ref=${currentUserId}`;
-            navigator.clipboard.writeText(inviteUrl).then(() => {
-                alert('Invite link copied to clipboard!');
-            }).catch(() => {
-                alert('Failed to copy link');
-            });
-        }
-        
-        function filterFriends(pass) {
-            const chips = document.querySelectorAll('.bl-chip');
-            chips.forEach(chip => chip.classList.remove('bl-chip-active'));
-            event.target.classList.add('bl-chip-active');
-            
-            const rows = document.querySelectorAll('.bl-friend-row');
-            rows.forEach(row => {
-                if (pass === 'all') {
-                    row.style.display = 'block';
-                } else if (row.getAttribute('data-pass').includes(pass)) {
-                    row.style.display = 'block';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        }
     </script>
 </body>
 </html>

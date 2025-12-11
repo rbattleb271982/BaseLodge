@@ -6,27 +6,61 @@
     <title>Base Lodge - Mountains Visited</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .mountains-list {
-            max-height: 400px;
-            overflow-y: auto;
-            margin-top: var(--bl-space-6);
+        .mountain-search {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--bl-color-border);
+            border-radius: var(--bl-radius-md);
+            font-size: 15px;
+            margin-bottom: var(--bl-space-4);
         }
         
-        .mountain-option {
-            display: flex;
-            align-items: center;
-            padding: 10px 0;
-        }
-        
-        .mountain-option input {
-            margin-right: var(--bl-space-4);
-            cursor: pointer;
+        .selected-counter {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin-bottom: var(--bl-space-6);
         }
         
         .selected-mountains {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--bl-space-3);
             margin-bottom: var(--bl-space-6);
+        }
+        
+        .mountain-pill {
+            background: var(--bl-color-primary);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .mountain-list {
+            max-height: 500px;
+            overflow-y: auto;
+            margin-bottom: var(--bl-space-6);
+        }
+        
+        .mountain-row {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--bl-color-border);
             font-size: 14px;
-            color: var(--bl-color-text-muted);
+            cursor: pointer;
+        }
+        
+        .mountain-row input {
+            margin-right: var(--bl-space-4);
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+        
+        .mountain-row.hidden {
+            display: none;
         }
     </style>
 </head>
@@ -34,80 +68,68 @@
     <div class="page-container">
         <h1 class="page-title">Mountains Visited</h1>
         
-        {% if mountains_visited_count > 0 %}
-        <div class="selected-mountains">
-            You've visited: {{ selected_mountains | join(' • ') }}
-        </div>
-        {% else %}
-        <div class="selected-mountains">
-            You've visited: 0 mountains
-        </div>
-        {% endif %}
-        
         <form method="POST">
-            <div class="form-group">
-                <label for="state-select" class="form-label">State</label>
-                <select name="state" id="state-select" onchange="updateMountains()" style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px; margin-bottom: var(--bl-space-6);">
-                    <option value="">Select a state</option>
-                    {% for state in mountains_by_state.keys() | sort %}
-                    <option value="{{ state }}">{{ state }}</option>
-                    {% endfor %}
-                </select>
+            <input type="text" class="mountain-search" id="mountain-search" placeholder="Search mountains..." oninput="filterMountains()">
+            
+            <div class="selected-counter">
+                <span id="count-display">{{ mountains_visited_count }} selected</span>
             </div>
             
-            <div class="form-group">
-                <label for="mountain-search" class="form-label">Search mountains</label>
-                <input type="search" id="mountain-search" placeholder="Search within selected state..." style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px; margin-bottom: var(--bl-space-6);" oninput="filterMountains()">
+            {% if selected_mountains %}
+            <div class="selected-mountains" id="selected-pills">
+                {% for m in selected_mountains %}
+                <span class="mountain-pill">{{ m }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <div class="mountain-list" id="mountain-list">
+                {% for mountain in all_mountains %}
+                <label class="mountain-row" data-mountain="{{ mountain.lower() }}">
+                    <input type="checkbox" name="mountains" value="{{ mountain }}"
+                           {% if mountain in selected_mountains %}checked{% endif %} onchange="updatePills()">
+                    {{ mountain }}
+                </label>
+                {% endfor %}
             </div>
             
-            <div class="mountains-list" id="mountains-container"></div>
-            
-            <button type="submit" class="bl-btn-primary" style="width: 100%; margin-top: var(--bl-space-6);">Save</button>
+            <button type="submit" class="bl-btn-primary" style="width: 100%;">Save</button>
         </form>
     </div>
     
     {% include 'components/bottom_nav.html' %}
     
     <script>
-        const mountainsByState = {{ mountains_by_state | tojson }};
         const selectedMountains = {{ selected_mountains | tojson }};
         
-        function updateMountains() {
-            const state = document.getElementById('state-select').value;
-            const container = document.getElementById('mountains-container');
-            container.innerHTML = '';
+        function filterMountains() {
+            const searchTerm = document.getElementById('mountain-search').value.toLowerCase();
+            const rows = document.querySelectorAll('.mountain-row');
             
-            if (!state || !mountainsByState[state]) {
-                return;
-            }
-            
-            const mountains = mountainsByState[state].sort();
-            mountains.forEach(mountain => {
-                const isChecked = selectedMountains.includes(mountain);
-                const label = document.createElement('label');
-                label.className = 'mountain-option';
-                label.setAttribute('data-mountain-name', mountain.toLowerCase());
-                label.innerHTML = `
-                    <input type="checkbox" name="mountains" value="${mountain}" ${isChecked ? 'checked' : ''} />
-                    ${mountain}
-                `;
-                container.appendChild(label);
+            rows.forEach(row => {
+                const mountain = row.getAttribute('data-mountain');
+                if (mountain.includes(searchTerm)) {
+                    row.classList.remove('hidden');
+                } else {
+                    row.classList.add('hidden');
+                }
             });
-            filterMountains();
         }
         
-        function filterMountains() {
-            const searchInput = document.getElementById('mountain-search');
-            const searchTerm = searchInput.value.toLowerCase();
-            const labels = document.querySelectorAll('.mountain-option');
+        function updatePills() {
+            const checks = document.querySelectorAll('input[name="mountains"]:checked');
+            const pillsContainer = document.getElementById('selected-pills');
+            const countDisplay = document.getElementById('count-display');
             
-            labels.forEach(label => {
-                const mountainName = label.getAttribute('data-mountain-name');
-                if (mountainName.includes(searchTerm)) {
-                    label.style.display = 'flex';
-                } else {
-                    label.style.display = 'none';
-                }
+            const selected = Array.from(checks).map(c => c.value);
+            countDisplay.textContent = selected.length + ' selected';
+            
+            pillsContainer.innerHTML = '';
+            selected.forEach(m => {
+                const pill = document.createElement('span');
+                pill.className = 'mountain-pill';
+                pill.textContent = m;
+                pillsContainer.appendChild(pill);
             });
         }
     </script>

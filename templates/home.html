@@ -45,17 +45,6 @@
 </head>
 <body>
     <div class="page-container">
-        <div class="header-card">
-            <div class="header-welcome">Welcome, {{ user.first_name }}!</div>
-            <p class="stats-line">
-                {{ user.pass_type or 'No Pass' }} — {{ user.rider_type or 'Skier' }} — {{ user.skill_level or 'Beginner' }}
-            </p>
-            <div class="header-info">
-                <div>Mountains visited: 0</div>
-                <div>Next Trip: Not scheduled</div>
-            </div>
-        </div>
-        
         {% set active_tab = request.args.get('tab', 'my') %}
         {% include 'components/segmented_trips_tabs.html' %}
         
@@ -64,10 +53,13 @@
             <div id="tab-my" class="bl-trip-row-group" {% if active_tab != 'my' %}style="display: none;"{% endif %}>
                 {% if my_trips %}
                     {% for trip in my_trips %}
-                    <div class="bl-trip-row">
-                        <span class="trip-date">{{ trip.start_date.strftime('%b %d') }}</span> —
-                        <span class="trip-name">{{ trip.mountain }}</span>
-                        <span class="trip-info">{{ trip.state }}, {{ trip.pass_type }}</span>
+                    <div class="bl-trip-row" style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span class="trip-date">{{ trip.start_date.strftime('%b %d') }}</span> —
+                            <span class="trip-name">{{ trip.mountain }}</span>
+                            <span class="trip-info">{{ trip.state }}, {{ trip.pass_type }}</span>
+                        </div>
+                        <a href="{{ url_for('edit_trip', trip_id=trip.id) }}" style="text-decoration: none; color: var(--bl-color-primary); font-size: 14px; font-weight: 600;">Edit</a>
                     </div>
                     {% endfor %}
                 {% else %}
@@ -87,21 +79,6 @@
                     {% endfor %}
                 {% else %}
                     <p class="bl-caption">Your friends don't have any upcoming trips yet.</p>
-                {% endif %}
-            </div>
-            
-            <!-- All Trips -->
-            <div id="tab-all" class="bl-trip-row-group" {% if active_tab != 'all' %}style="display: none;"{% endif %}>
-                {% if all_trips %}
-                    {% for trip in all_trips %}
-                    <div class="bl-trip-row">
-                        <span class="trip-date">{{ trip.start_date.strftime('%b %d') }}</span> —
-                        <span class="trip-name">{% if trip.user_id == user.id %}You{% else %}{{ trip.user.first_name }} {{ trip.user.last_name }}{% endif %}</span>
-                        <span class="trip-info">@ {{ trip.mountain }}, {{ trip.state }}</span>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <p class="bl-caption">No upcoming trips yet.</p>
                 {% endif %}
             </div>
             

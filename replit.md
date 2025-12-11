@@ -38,6 +38,28 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 
 ## Recent Changes (Dec 11, 2025)
 
+### UI/UX Refactor & Home Page Optimization - COMPLETE ✅
+1. **Flash messages protection** - Wrapped flash message blocks with `{% if current_user.is_authenticated %}` in auth.html and add_trip.html to prevent "Trip added" messages from appearing on login/signup screens
+2. **Home tabs simplified** - Removed "All Trips" tab, kept: My Trips | Friends' Trips | Overlaps (updated segmented_trips_tabs.html and home.html)
+3. **Home header redesigned** - Removed "Next Trip" card at top; page now starts with tab control and trip lists
+4. **My Trips edit action** - Added explicit "Edit" link to each trip row in My Trips tab for quick access to trip editing
+5. **Friends page compacted** - Removed top "Invite a Friend" button (primary entry is bottom nav); made friend list more compact with 2-line layout (name on line 1, rider type + pass on line 2)
+6. **Mountains Visited redesigned** - Complete overhaul:
+   - Removed state dropdown entirely
+   - Added global search bar that filters mountains in real-time
+   - Display selected mountains as pills at top
+   - Floating "X selected" counter
+   - Save button at top (no scroll needed on mobile)
+   - Client-side JS updates pills and counter as checkboxes toggle
+7. **My Profile page** - Renamed from "My Info", new clean layout:
+   - Profile rows showing: Rider Type, Pass Type, Skill Level, Gender, Home State, Birth Year, Trips (upcoming only), Mountains Visited, Gear
+   - Pencil icons (✏️) on editable fields for visual clarity
+   - Chevron (›) on Mountains Visited to indicate sub-page
+   - No edits on non-editable rows
+   - Trips count now shows "X upcoming" (filtered by end_date >= today)
+8. **Edit Profile page** - Gear field now displays "Coming soon" (non-editable, greyed out)
+9. **Backend updates** - Updated profile route to calculate upcoming_trips_count; updated mountains_visited route to flatten all mountains from MOUNTAINS_BY_STATE into a single sorted list (no state grouping in template)
+
 ### QR-Based Friend Connection - COMPLETE ✅
 - **Installed segno library** for QR code generation
 - **Added `/my-qr` route** - Generates scannable QR code PNG pointing to `/connect/<user_id>`

@@ -215,7 +215,11 @@ def profile():
     
     mountains_visited = user.mountains_visited or []
     mountains_visited_count = len(mountains_visited)
-    trips_count = 0
+    today = date.today()
+    upcoming_trips_count = SkiTrip.query.filter(
+        SkiTrip.user_id == user.id,
+        SkiTrip.end_date >= today
+    ).count()
     friends_count = Friend.query.filter_by(user_id=user.id).count()
     
     return render_template(
@@ -223,7 +227,7 @@ def profile():
         user=user,
         mountains_visited=mountains_visited,
         mountains_visited_count=mountains_visited_count,
-        trips_count=trips_count,
+        trips_count=upcoming_trips_count,
         friends_count=friends_count
     )
 
@@ -939,37 +943,10 @@ def delete_trip_form(trip_id):
 def mountains_visited():
     user = current_user
     
-    mountains_by_state = {
-        "California": [
-            "Heavenly",
-            "Kirkwood",
-            "Mammoth Mountain",
-            "Northstar",
-            "Palisades Tahoe",
-        ],
-        "Colorado": [
-            "Arapahoe Basin",
-            "Aspen Highlands",
-            "Aspen Snowmass",
-            "Beaver Creek",
-            "Breckenridge",
-            "Copper Mountain",
-            "Keystone",
-            "Steamboat",
-            "Telluride",
-            "Vail",
-            "Winter Park",
-        ],
-        "Utah": [
-            "Alta",
-            "Brighton",
-            "Deer Valley",
-            "Park City",
-            "Snowbird",
-            "Solitude",
-        ],
-        "Wyoming": ["Jackson Hole"],
-    }
+    all_mountains = []
+    for state_mountains in MOUNTAINS_BY_STATE.values():
+        all_mountains.extend(state_mountains)
+    all_mountains = sorted(list(set(all_mountains)))
     
     if request.method == "POST":
         selected_mountains = request.form.getlist("mountains")
@@ -982,7 +959,7 @@ def mountains_visited():
     
     return render_template(
         "mountains_visited.html",
-        mountains_by_state=mountains_by_state,
+        all_mountains=all_mountains,
         selected_mountains=selected_mountains,
         mountains_visited_count=mountains_visited_count,
     )
