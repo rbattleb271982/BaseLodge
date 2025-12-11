@@ -669,10 +669,61 @@ def more():
 def settings():
     return render_template("settings.html")
 
-@app.route("/add_trip")
+@app.route("/add_trip", methods=["GET", "POST"])
 @login_required
 def add_trip():
-    return render_template("add_trip.html")
+    user = User.query.get(session["user_id"])
+    if not user:
+        return redirect(url_for("auth"))
+    
+    if request.method == "POST":
+        state = request.form.get("state")
+        mountain = request.form.get("mountain")
+        start_date_str = request.form.get("start_date")
+        end_date_str = request.form.get("end_date")
+        is_public = request.form.get("is_public") == "on"
+        
+        # Validation
+        errors = []
+        if not state:
+            errors.append("Please select a state.")
+        if not mountain:
+            errors.append("Please select a mountain.")
+        if not start_date_str:
+            errors.append("Please select a start date.")
+        if not end_date_str:
+            errors.append("Please select an end date.")
+        
+        start_date = None
+        end_date = None
+        if start_date_str and end_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+                if end_date < start_date:
+                    errors.append("End date cannot be before start date.")
+            except ValueError:
+                errors.append("Invalid date format.")
+        
+        if errors:
+            for e in errors:
+                flash(e, "error")
+            return render_template("add_trip.html")
+        
+        trip = SkiTrip(
+            user_id=user.id,
+            state=state,
+            mountain=mountain,
+            start_date=start_date,
+            end_date=end_date,
+            is_public=is_public
+        )
+        db.session.add(trip)
+        db.session.commit()
+        flash("Trip added!", "success")
+        return redirect(url_for("home"))
+    
+    return render_template("add_trip.html", MOUNTAINS_BY_STATE=MOUNTAINS_BY_STATE)
 
 @app.route("/mountains-visited", methods=["GET", "POST"])
 @login_required

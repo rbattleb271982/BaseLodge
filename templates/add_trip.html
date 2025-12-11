@@ -8,13 +8,117 @@
 </head>
 <body>
     <div class="page-container">
-        <h1 class="page-title">Add a Trip (Coming Soon)</h1>
+        <h1 class="page-title">Add a Trip</h1>
         
-        <div class="bl-card">
-            <p>Soon you'll be able to add upcoming ski days here.</p>
-        </div>
+        {% with messages = get_flashed_messages(category_filter=['error']) %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="bl-alert bl-alert-error" style="margin-bottom: var(--bl-space-6);">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% with messages = get_flashed_messages(category_filter=['success']) %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="bl-alert bl-alert-success" style="margin-bottom: var(--bl-space-6);">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <form method="POST" action="{{ url_for('add_trip') }}" style="background: var(--bl-color-surface); border-radius: var(--bl-radius-md); padding: var(--bl-space-8); border: 1px solid var(--bl-color-border-soft);">
+            
+            <!-- State -->
+            <div style="margin-bottom: var(--bl-space-6);">
+                <label for="state" style="display: block; font-weight: 600; margin-bottom: var(--bl-space-3); color: var(--bl-color-text);">State</label>
+                <select id="state" name="state" required style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px;">
+                    <option value="">Select a state</option>
+                    {% for state_name in MOUNTAINS_BY_STATE.keys() | sort %}
+                        <option value="{{ state_name }}">{{ state_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Mountain -->
+            <div style="margin-bottom: var(--bl-space-6);">
+                <label for="mountain" style="display: block; font-weight: 600; margin-bottom: var(--bl-space-3); color: var(--bl-color-text);">Mountain</label>
+                <select id="mountain" name="mountain" required disabled style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px;">
+                    <option value="">Select a state first</option>
+                </select>
+            </div>
+            
+            <!-- Start Date -->
+            <div style="margin-bottom: var(--bl-space-6);">
+                <label for="start_date" style="display: block; font-weight: 600; margin-bottom: var(--bl-space-3); color: var(--bl-color-text);">Start Date</label>
+                <input type="date" id="start_date" name="start_date" required style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px; box-sizing: border-box;">
+            </div>
+            
+            <!-- End Date -->
+            <div style="margin-bottom: var(--bl-space-6);">
+                <label for="end_date" style="display: block; font-weight: 600; margin-bottom: var(--bl-space-3); color: var(--bl-color-text);">End Date</label>
+                <input type="date" id="end_date" name="end_date" required style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px; box-sizing: border-box;">
+            </div>
+            
+            <!-- Public Toggle -->
+            <div style="margin-bottom: var(--bl-space-8); background: var(--bl-color-bg); padding: var(--bl-space-5); border-radius: var(--bl-radius-md);">
+                <label style="display: flex; align-items: center; gap: var(--bl-space-3); cursor: pointer;">
+                    <input type="checkbox" id="is_public" name="is_public" checked style="width: 18px; height: 18px; cursor: pointer;">
+                    <span style="font-weight: 500; color: var(--bl-color-text);">Make this trip visible to friends</span>
+                </label>
+                <p style="font-size: 13px; color: var(--bl-color-text-muted); margin-top: var(--bl-space-3); margin-bottom: 0;">Only friends can see this trip.</p>
+            </div>
+            
+            <button type="submit" class="bl-btn-primary" style="width: 100%;">Save Trip</button>
+        </form>
     </div>
     
     {% include 'components/bottom_nav.html' %}
+    
+    <script>
+        const mountainsByState = {{ MOUNTAINS_BY_STATE | tojson }};
+        
+        document.addEventListener("DOMContentLoaded", function () {
+            const stateSelect = document.getElementById("state");
+            const mountainSelect = document.getElementById("mountain");
+            
+            stateSelect.addEventListener("change", function () {
+                const state = stateSelect.value;
+                mountainSelect.innerHTML = "";
+                
+                if (!state) {
+                    const opt = document.createElement("option");
+                    opt.value = "";
+                    opt.textContent = "Select a state first";
+                    mountainSelect.appendChild(opt);
+                    mountainSelect.disabled = true;
+                    return;
+                }
+                
+                const mountains = mountainsByState[state] || [];
+                if (mountains.length === 0) {
+                    const opt = document.createElement("option");
+                    opt.value = "";
+                    opt.textContent = "No mountains found";
+                    mountainSelect.appendChild(opt);
+                    mountainSelect.disabled = true;
+                    return;
+                }
+                
+                const placeholder = document.createElement("option");
+                placeholder.value = "";
+                placeholder.textContent = "Select a mountain";
+                mountainSelect.appendChild(placeholder);
+                
+                mountains.forEach((mountain) => {
+                    const opt = document.createElement("option");
+                    opt.value = mountain;
+                    opt.textContent = mountain;
+                    mountainSelect.appendChild(opt);
+                });
+                
+                mountainSelect.disabled = false;
+            });
+        });
+    </script>
 </body>
 </html>
