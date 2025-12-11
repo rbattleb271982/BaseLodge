@@ -3,84 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Base Lodge - Profile</title>
+    <title>Base Lodge - My Info</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
     <div class="page-container">
-        <h1 class="page-title">Profile</h1>
+        <h1 class="page-title">My Info</h1>
         
-        {% include 'components/profile_summary.html' %}
-        
-        <div class="bl-card">
-            <form method="POST" action="{{ url_for('profile') }}">
-                <div style="margin-bottom: var(--bl-space-6);">
-                    <label class="bl-label">Pass Type</label>
-                    <div class="bl-segmented-control" style="margin-top: var(--bl-space-5);">
-                        <button type="button" class="bl-segment {% if user.pass_type == 'Epic' %}active{% endif %}" onclick="selectPass('Epic')">Epic</button>
-                        <button type="button" class="bl-segment {% if user.pass_type == 'Ikon' %}active{% endif %}" onclick="selectPass('Ikon')">Ikon</button>
-                        <button type="button" class="bl-segment {% if user.pass_type == 'Other' %}active{% endif %}" onclick="selectPass('Other')">Other</button>
-                        <button type="button" class="bl-segment {% if user.pass_type == 'None' %}active{% endif %}" onclick="selectPass('None')">None</button>
-                    </div>
-                    <input type="hidden" id="pass_type" name="pass_type" value="{{ user.pass_type or '' }}">
-                </div>
-                
-                <div style="margin-bottom: var(--bl-space-6);">
-                    <label class="bl-label" for="skill_level">Skill Level</label>
-                    <select id="skill_level" name="skill_level" style="margin-top: var(--bl-space-5);">
-                        <option value="">Select</option>
-                        <option value="Beginner" {% if user.skill_level == 'Beginner' %}selected{% endif %}>Beginner</option>
-                        <option value="Intermediate" {% if user.skill_level == 'Intermediate' %}selected{% endif %}>Intermediate</option>
-                        <option value="Advanced" {% if user.skill_level == 'Advanced' %}selected{% endif %}>Advanced</option>
-                        <option value="Expert" {% if user.skill_level == 'Expert' %}selected{% endif %}>Expert</option>
-                    </select>
-                </div>
-                
-                <div style="margin-bottom: var(--bl-space-6);">
-                    <label class="bl-label">Rider Type</label>
-                    <div class="bl-segmented-control" style="margin-top: var(--bl-space-5);">
-                        <button type="button" class="bl-segment {% if user.rider_type == 'Skier' %}active{% endif %}" onclick="selectRider('Skier')">Skier</button>
-                        <button type="button" class="bl-segment {% if user.rider_type == 'Snowboarder' %}active{% endif %}" onclick="selectRider('Snowboarder')">Snowboarder</button>
-                        <button type="button" class="bl-segment {% if user.rider_type == 'Both' %}active{% endif %}" onclick="selectRider('Both')">Both</button>
-                    </div>
-                    <input type="hidden" id="rider_type" name="rider_type" value="{{ user.rider_type or '' }}">
-                </div>
-                
-                <div style="margin-bottom: var(--bl-space-6);">
-                    <label class="bl-label" for="gender">Gender</label>
-                    <select id="gender" name="gender" style="margin-top: var(--bl-space-5);">
-                        <option value="">Prefer not to say</option>
-                        <option value="Female" {% if user.gender == 'Female' %}selected{% endif %}>Female</option>
-                        <option value="Male" {% if user.gender == 'Male' %}selected{% endif %}>Male</option>
-                        <option value="Non-binary" {% if user.gender == 'Non-binary' %}selected{% endif %}>Non-binary</option>
-                    </select>
-                </div>
-                
-                <button type="submit" class="bl-btn-primary" style="width: 100%;">Save Profile</button>
-            </form>
+        <div class="profile-stats">
+            <div>Mountains visited: {{ mountains_visited_count }}</div>
+            <div>Trips: {{ trips_count }}</div>
+            <div>Friends: {{ friends_count }}</div>
         </div>
         
-        <button class="bl-btn-secondary" style="width: 100%; margin-top: var(--bl-space-6);">Invite a Friend</button>
-        
-        <div style="margin-top: var(--bl-space-8); padding-top: var(--bl-space-8); border-top: 1px solid var(--bl-color-border-soft);">
-            <a href="{{ url_for('logout') }}" class="bl-btn-ghost">Log Out</a>
+        <div class="settings-menu">
+            <a href="{{ url_for('edit_profile') }}" class="settings-row">
+                <span class="settings-label">Rider Type</span>
+                <span class="settings-value">{{ user.rider_type or 'Not set' }}</span>
+                <span class="settings-chevron">&gt;</span>
+            </a>
+            
+            <a href="{{ url_for('edit_profile') }}" class="settings-row">
+                <span class="settings-label">Skill Level</span>
+                <span class="settings-value">{{ user.skill_level or 'Not set' }}</span>
+                <span class="settings-chevron">&gt;</span>
+            </a>
+            
+            <a href="{{ url_for('edit_profile') }}" class="settings-row">
+                <span class="settings-label">Pass Type</span>
+                <span class="settings-value">{{ user.pass_type or 'Not set' }}</span>
+                <span class="settings-chevron">&gt;</span>
+            </a>
+            
+            <a href="{{ url_for('edit_profile') }}" class="settings-row">
+                <span class="settings-label">Gender</span>
+                <span class="settings-value">{{ user.gender or 'Not set' }}</span>
+                <span class="settings-chevron">&gt;</span>
+            </a>
+            
+            <a href="{{ url_for('edit_profile') }}" class="settings-row">
+                <span class="settings-label">Home State</span>
+                <span class="settings-value">Coming soon</span>
+                <span class="settings-chevron">&gt;</span>
+            </a>
+            
+            <a href="{{ url_for('edit_profile') }}" class="settings-row">
+                <span class="settings-label">Birth Year</span>
+                <span class="settings-value">Coming soon</span>
+                <span class="settings-chevron">&gt;</span>
+            </a>
+            
+            <div class="settings-row">
+                <span class="settings-label">Gear</span>
+                <span class="settings-value">Coming soon</span>
+            </div>
+            
+            <a href="{{ url_for('mountains_visited') }}" class="settings-row">
+                <span class="settings-label">Mountains Visited</span>
+                <span class="settings-value">{{ mountains_visited_count }}</span>
+                <span class="settings-chevron">&gt;</span>
+            </a>
         </div>
+        
+        <a href="{{ url_for('edit_profile') }}" class="bl-btn-secondary" style="width: 100%; margin-top: var(--bl-space-8); display: block; text-align: center; text-decoration: none;">Edit Profile</a>
     </div>
     
     {% include 'components/bottom_nav.html' %}
-    
-    <script>
-        function selectPass(pass) {
-            document.getElementById('pass_type').value = pass;
-            document.querySelectorAll('.bl-segmented-control')[0].querySelectorAll('.bl-segment').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-        }
-        
-        function selectRider(rider) {
-            document.getElementById('rider_type').value = rider;
-            document.querySelectorAll('.bl-segmented-control')[1].querySelectorAll('.bl-segment').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-        }
-    </script>
 </body>
 </html>

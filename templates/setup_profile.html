@@ -111,27 +111,18 @@
             </div>
             
             {% if step == "1" %}
-            <!-- Step 1: Skill Level & Rider Type -->
+            <!-- Step 1: Rider Type -->
             <form method="POST" action="{{ url_for('setup_profile', step='1') }}">
                 <div class="form-group">
-                    <label class="form-label">What's your skill level?</label>
-                    <div class="bl-segmented-control">
-                        <button type="button" class="bl-segment" onclick="selectSkill('Beginner')">Beginner</button>
-                        <button type="button" class="bl-segment" onclick="selectSkill('Intermediate')">Intermediate</button>
-                        <button type="button" class="bl-segment" onclick="selectSkill('Advanced')">Advanced</button>
-                        <button type="button" class="bl-segment" onclick="selectSkill('Expert')">Expert</button>
-                    </div>
-                    <input type="hidden" name="skill_level" id="skill_level" value="" required>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Are you a skier or snowboarder?</label>
-                    <div class="bl-segmented-control">
-                        <button type="button" class="bl-segment" onclick="selectRider('Skier')">Skier</button>
-                        <button type="button" class="bl-segment" onclick="selectRider('Snowboarder')">Snowboarder</button>
-                        <button type="button" class="bl-segment" onclick="selectRider('Both')">Both</button>
-                    </div>
-                    <input type="hidden" name="rider_type" id="rider_type" value="" required>
+                    <label class="form-label">What type of rider are you?</label>
+                    <select name="rider_type" id="rider_type" required style="margin-top: var(--bl-space-5); width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px;">
+                        <option value="">Select a rider type</option>
+                        <option value="Skier">Skier</option>
+                        <option value="Snowboarder">Snowboarder</option>
+                        <option value="Cross-Country Skier">Cross-Country Skier</option>
+                        <option value="Snowshoer">Snowshoer</option>
+                        <option value="Both Skier & Snowboarder">Both Skier & Snowboarder</option>
+                    </select>
                 </div>
                 
                 <button type="submit" class="bl-btn-primary form-submit">Next</button>
@@ -143,14 +134,25 @@
             <!-- Step 2: Pass Type -->
             <form method="POST" action="{{ url_for('setup_profile', step='2') }}">
                 <div class="form-group">
-                    <label class="form-label">What's your pass?</label>
-                    <div class="bl-segmented-control">
-                        <button type="button" class="bl-segment" onclick="selectPass('Epic')">Epic</button>
-                        <button type="button" class="bl-segment" onclick="selectPass('Ikon')">Ikon</button>
-                        <button type="button" class="bl-segment" onclick="selectPass('Other')">Other</button>
-                        <button type="button" class="bl-segment" onclick="selectPass('None')">None</button>
-                    </div>
-                    <input type="hidden" name="pass_type" id="pass_type" value="" required>
+                    <label class="form-label">Which pass do you have?</label>
+                    <select name="pass_type" id="pass_type" required style="margin-top: var(--bl-space-5); width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: var(--bl-radius-md); font-size: 15px;">
+                        <option value="">Select a pass type</option>
+                        <option value="Epic">Epic</option>
+                        <option value="Epic Local">Epic Local</option>
+                        <option value="Epic Military">Epic Military</option>
+                        <option value="Epic Adaptive">Epic Adaptive</option>
+                        <option value="Epic Northeast Value">Epic Northeast Value</option>
+                        <option value="Epic 4-Day">Epic 4-Day</option>
+                        <option value="Epic 5-Day">Epic 5-Day</option>
+                        <option value="Epic 7-Day">Epic 7-Day</option>
+                        <option value="Ikon">Ikon</option>
+                        <option value="Ikon Base">Ikon Base</option>
+                        <option value="Ikon Session Pass (2-Day, 3-Day, 4-Day)">Ikon Session Pass (2-Day, 3-Day, 4-Day)</option>
+                        <option value="Indy">Indy</option>
+                        <option value="Mountain Collective">Mountain Collective</option>
+                        <option value="Other">Other</option>
+                        <option value="None">None</option>
+                    </select>
                 </div>
                 
                 <button type="submit" class="bl-btn-primary form-submit">Complete Setup</button>
@@ -161,27 +163,5 @@
         </div>
     </div>
     
-    <script>
-        function selectSkill(value) {
-            const buttons = document.querySelectorAll('.bl-segmented-control')[0]?.querySelectorAll('.bl-segment') || [];
-            buttons.forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('skill_level').value = value;
-        }
-        
-        function selectRider(value) {
-            const buttons = document.querySelectorAll('.bl-segmented-control')[1]?.querySelectorAll('.bl-segment') || [];
-            buttons.forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('rider_type').value = value;
-        }
-        
-        function selectPass(value) {
-            const buttons = document.querySelectorAll('.bl-segmented-control')[0]?.querySelectorAll('.bl-segment') || [];
-            buttons.forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('pass_type').value = value;
-        }
-    </script>
 </body>
 </html>

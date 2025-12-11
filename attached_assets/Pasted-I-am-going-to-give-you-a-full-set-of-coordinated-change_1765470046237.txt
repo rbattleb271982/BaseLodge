@@ -1,0 +1,310 @@
+I am going to give you a full set of coordinated changes to implement across multiple templates, routes, and styles in the BaseLodge Flask project.
+Please follow all steps carefully.
+Use checkpoints only when truly necessary.
+Do not modify database models in this pass.
+UI-first only, with placeholder storage where needed.
+============================================
+1️⃣ BOTTOM NAVIGATION — REPLACE “SETTINGS” WITH “MORE”
+============================================
+File: templates/components/bottom_nav.html
+Replace the existing “Settings” tab with “More”.
+Do not add a 5th tab.
+Final tab order must be:
+Home
+Friends
+Invite
+More
+“More” should link to:
+url_for("more")
+(You will create this route.)
+============================================
+2️⃣ CREATE THE “MORE” PAGE (Carv-style list)
+============================================
+ROUTE
+File: app.py
+Add:
+@app.route("/more")
+@login_required
+def more():
+    return render_template("more.html")
+TEMPLATE
+File: templates/more.html
+Create a clean, mobile-friendly vertical list (Carv-style), no icons, containing:
+My Info → /profile
+Settings → /settings
+Invite a Friend → /invite
+Sign Out → logout route (use existing logout route)
+Each row must be:
+A full-width clickable row
+Left-aligned label
+Right-aligned “>” chevron
+Divider line between rows
+Include bottom nav at the bottom.
+============================================
+3️⃣ UPDATE ONBOARDING (setup_profile.html)
+============================================
+File: templates/setup_profile.html
+Replace segmented controls with <select> dropdowns.
+STEP 1 — Rider Type Dropdown
+Label: “What type of rider are you?”
+Dropdown options (exact order):
+Skier
+Snowboarder
+Cross-Country Skier
+Snowshoer
+Both Skier & Snowboarder
+Use the existing form field name for rider type.
+STEP 2 — Pass Type Dropdown
+Label: “Which pass do you have?”
+Dropdown options:
+Epic
+Epic Local
+Epic Military
+Epic Adaptive
+Epic Northeast Value
+Epic 4-Day
+Epic 5-Day
+Epic 7-Day
+Ikon
+Ikon Base
+Ikon Session Pass (2-Day, 3-Day, 4-Day)
+Indy
+Mountain Collective
+Other
+None
+Keep the existing two-step onboarding flow intact.
+============================================
+4️⃣ HOME SCREEN UPDATES
+============================================
+File: templates/home.html
+A. Welcome Text
+Change:
+Welcome back, {{ current_user.first_name }}
+→
+Welcome, {{ current_user.first_name }}
+B. Make Stat Line Larger
+Find:
+{{ current_user.pass_type }} — {{ current_user.rider_type }} — {{ current_user.skill_level }}
+Wrap in:
+<p class="stats-line">
+  {{ current_user.pass_type }} — {{ current_user.rider_type }} — {{ current_user.skill_level }}
+</p>
+In static/styles.css, add:
+.stats-line {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+C. Fix “Add a Trip” Button
+If /create-trip does not work:
+Add in app.py:
+@app.route("/add_trip")
+@login_required
+def add_trip():
+    return render_template("add_trip.html")
+Create templates/add_trip.html:
+Header: “Add a Trip (Coming Soon)”
+Short description
+Include bottom nav
+Update button in home.html:
+<a href="{{ url_for('add_trip') }}" class="primary-button">Add a trip</a>
+(Use correct button classes.)
+============================================
+5️⃣ MY INFO PAGE (REPLACES PROFILE UI)
+============================================
+This uses templates/profile.html, but will behave as “My Info”.
+A. Route remains /profile but accessed via “My Info” in More Page.
+B. Add stats row at top:
+<div class="profile-stats">
+  <div>Mountains visited: {{ mountains_visited_count }}</div>
+  <div>Trips: {{ trips_count }}</div>
+  <div>Friends: {{ friends_count }}</div>
+</div>
+C. Convert editable fields into Carv-style rows:
+Rows must be clickable rows with:
+Label on left
+Current value on right
+Chevron (>) on far right
+Rows needed:
+Rider Type
+Skill Level
+Pass Type
+Gender
+Home State
+Birth Year
+Gear (for now: “Coming soon”)
+Editing does NOT happen inline yet.
+Keep the existing edit_profile route/page.
+Include a button at bottom:
+Edit Profile
+that links to /edit_profile (or whatever route exists).
+D. Add “Mountains Visited” row (clickable)
+<a href="{{ url_for('mountains_visited') }}" class="settings-row">
+  <span class="settings-label">Mountains Visited</span>
+  <span class="settings-value">{{ mountains_visited_count }}</span>
+  <span class="settings-chevron">&gt;</span>
+</a>
+============================================
+6️⃣ MOUNTAINS VISITED SELECTOR PAGE
+============================================
+ROUTE — add to app.py:
+@app.route("/mountains-visited", methods=["GET", "POST"])
+@login_required
+def mountains_visited():
+    mountains_by_state = {
+        "California": [
+            "Heavenly",
+            "Kirkwood",
+            "Mammoth Mountain",
+            "Northstar",
+            "Palisades Tahoe",
+        ],
+        "Colorado": [
+            "Arapahoe Basin",
+            "Aspen Highlands",
+            "Aspen Snowmass",
+            "Beaver Creek",
+            "Breckenridge",
+            "Copper Mountain",
+            "Keystone",
+            "Steamboat",
+            "Telluride",
+            "Vail",
+            "Winter Park",
+        ],
+        "Utah": [
+            "Alta",
+            "Brighton",
+            "Deer Valley",
+            "Park City",
+            "Snowbird",
+            "Solitude",
+        ],
+        "Wyoming": ["Jackson Hole"],
+    }
+
+    selected_mountains = []  # Placeholder list
+
+    if request.method == "POST":
+        selected_mountains = request.form.getlist("mountains")
+        return redirect(url_for("profile"))
+
+    mountains_visited_count = len(selected_mountains)
+
+    return render_template(
+        "mountains_visited.html",
+        mountains_by_state=mountains_by_state,
+        selected_mountains=selected_mountains,
+        mountains_visited_count=mountains_visited_count,
+    )
+Make sure request, redirect, url_for are imported.
+TEMPLATE — templates/mountains_visited.html
+Requirements:
+Header: Mountains Visited
+Show selected mountains immediately under header:
+You’ve visited:
+Vail • Mammoth Mountain • Jackson Hole
+State dropdown (default: empty — user must choose):
+<select name="state" id="state-select">
+  <option value="">Select a state</option>
+  {% for state in mountains_by_state.keys() | sort %}
+  <option value="{{ state }}">{{ state }}</option>
+  {% endfor %}
+</select>
+After a state is chosen, show checkboxes of mountains alphabetically:
+{% for mountain in mountains_by_state[state] %}
+<label class="mountain-option">
+  <input
+    type="checkbox"
+    name="mountains"
+    value="{{ mountain }}"
+    {% if mountain in selected_mountains %}checked{% endif %}
+  />
+  {{ mountain }}
+</label>
+{% endfor %}
+Add Save button (full width):
+<button type="submit" class="primary-button">Save</button>
+Make sure layout is scrollable on mobile.
+============================================
+7️⃣ SETTINGS PAGE
+============================================
+Create:
+ROUTE:
+@app.route("/settings")
+@login_required
+def settings():
+    return render_template("settings.html")
+TEMPLATE — templates/settings.html
+Rows:
+Notifications — Coming Soon
+Location Sharing — Coming Soon
+Units (Imperial / Metric) — Coming Soon
+No logout here.
+============================================
+8️⃣ STYLING — static/styles.css
+============================================
+Add styles for:
+Carv-style rows:
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.settings-label {
+  font-weight: 500;
+  color: #222;
+}
+
+.settings-value {
+  color: #666;
+  margin-right: 8px;
+}
+
+.settings-chevron {
+  color: #999;
+}
+Mountain checkboxes:
+.mountain-option {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+}
+Stats row:
+.profile-stats {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 16px;
+}
+============================================
+9️⃣ QA CHECKLIST (DO NOT SKIP)
+============================================
+Verify:
+Bottom Nav
+Home / Friends / Invite / More show correctly.
+More opens the correct screen.
+More Page
+My Info works
+Settings loads
+Invite a Friend loads
+Sign Out works
+My Info Page
+Stats appear at top
+Rows appear clean, clickable
+Edit Profile button works
+Mountains Visited row navigates correctly
+Mountains Selector
+State dropdown appears
+Mountains list shows alphabetically
+Checkboxes work
+Save returns to My Info
+Onboarding
+Rider Type dropdown works
+Pass Type dropdown works
+Home
+Welcome text updated
+Stat line enlarged
+Add Trip works or shows placeholder page

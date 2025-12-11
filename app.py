@@ -195,7 +195,17 @@ def profile():
         db.session.commit()
         return redirect(url_for("profile"))
     
-    return render_template("profile.html", user=user)
+    mountains_visited_count = 0
+    trips_count = 0
+    friends_count = Friend.query.filter_by(user_id=user.id).count()
+    
+    return render_template(
+        "profile.html", 
+        user=user,
+        mountains_visited_count=mountains_visited_count,
+        trips_count=trips_count,
+        friends_count=friends_count
+    )
 
 @app.route("/edit_profile", methods=["GET", "POST"])
 def edit_profile():
@@ -637,6 +647,71 @@ def home():
         friend_trips=friend_trips,
         all_trips=all_trips,
         state_abbr=STATE_ABBR
+    )
+
+@app.route("/more")
+@login_required
+def more():
+    return render_template("more.html")
+
+@app.route("/settings")
+@login_required
+def settings():
+    return render_template("settings.html")
+
+@app.route("/add_trip")
+@login_required
+def add_trip():
+    return render_template("add_trip.html")
+
+@app.route("/mountains-visited", methods=["GET", "POST"])
+@login_required
+def mountains_visited():
+    mountains_by_state = {
+        "California": [
+            "Heavenly",
+            "Kirkwood",
+            "Mammoth Mountain",
+            "Northstar",
+            "Palisades Tahoe",
+        ],
+        "Colorado": [
+            "Arapahoe Basin",
+            "Aspen Highlands",
+            "Aspen Snowmass",
+            "Beaver Creek",
+            "Breckenridge",
+            "Copper Mountain",
+            "Keystone",
+            "Steamboat",
+            "Telluride",
+            "Vail",
+            "Winter Park",
+        ],
+        "Utah": [
+            "Alta",
+            "Brighton",
+            "Deer Valley",
+            "Park City",
+            "Snowbird",
+            "Solitude",
+        ],
+        "Wyoming": ["Jackson Hole"],
+    }
+    
+    selected_mountains = []
+    
+    if request.method == "POST":
+        selected_mountains = request.form.getlist("mountains")
+        return redirect(url_for("profile"))
+    
+    mountains_visited_count = len(selected_mountains)
+    
+    return render_template(
+        "mountains_visited.html",
+        mountains_by_state=mountains_by_state,
+        selected_mountains=selected_mountains,
+        mountains_visited_count=mountains_visited_count,
     )
 
 @app.route("/logout")

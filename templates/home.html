@@ -28,6 +28,12 @@
             line-height: 1.6;
         }
         
+        .stats-line {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
         .header-info {
             display: flex;
             flex-direction: column;
@@ -40,10 +46,10 @@
 <body>
     <div class="page-container">
         <div class="header-card">
-            <div class="header-welcome">Welcome back, {{ user.first_name }}!</div>
-            <div class="header-meta">
+            <div class="header-welcome">Welcome, {{ user.first_name }}!</div>
+            <p class="stats-line">
                 {{ user.pass_type or 'No Pass' }} · {{ user.rider_type or 'Skier' }} · {{ user.skill_level or 'Beginner' }}
-            </div>
+            </p>
             <div class="header-info">
                 <div>Mountains visited: 0</div>
                 <div>Next Trip: Not scheduled</div>
@@ -101,7 +107,7 @@
         </div>
         
         <div style="margin-top: var(--bl-space-8);">
-            <a href="{{ url_for('create_trip_page') }}" class="bl-btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none;">+ Add a Trip</a>
+            <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none;">Add a trip</a>
         </div>
     </div>
     
