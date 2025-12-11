@@ -92,6 +92,11 @@ def index():
 
 @app.route("/auth", methods=["GET", "POST"])
 def auth():
+    # Capture inviter reference from URL parameter
+    ref = request.args.get("ref")
+    if ref:
+        session["invited_by"] = ref
+    
     if request.method == "POST":
         form_type = request.form.get("form_type")
         
@@ -116,15 +121,20 @@ def auth():
             db.session.add(user)
             db.session.commit()
             
+            # --- FRIEND CONNECTION VIA INVITE ---
+            inviter_id = session.get("invited_by")
             if inviter_id:
-                try:
-                    inviter = User.query.get(int(inviter_id))
-                    if inviter:
-                        invitation = Invitation(sender_id=inviter.id, receiver_id=user.id, status='pending')
-                        db.session.add(invitation)
-                        db.session.commit()
-                except (ValueError, TypeError):
-                    pass
+                inviter = User.query.get(int(inviter_id))
+                if inviter:
+                    # Create two-way friendship
+                    friendship1 = Friend(user_id=inviter.id, friend_id=user.id)
+                    friendship2 = Friend(user_id=user.id, friend_id=inviter.id)
+                    db.session.add(friendship1)
+                    db.session.add(friendship2)
+                    db.session.commit()
+
+                # Clear the session flag
+                session.pop("invited_by", None)
             
             login_user(user)
             session["user_id"] = user.id
