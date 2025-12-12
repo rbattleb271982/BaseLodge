@@ -2,7 +2,7 @@ import os
 import secrets
 from datetime import datetime, date, timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file
-from flask_login import LoginManager, login_required, current_user, login_user
+from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps
 from flask_migrate import Migrate
 from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort
@@ -159,7 +159,6 @@ def auth():
             db.session.commit()
             
             login_user(user)
-            session["user_id"] = user.id
             
             # Connect with inviter if pending_inviter_id exists in session
             _connect_pending_inviter(user)
@@ -177,7 +176,6 @@ def auth():
             user = User.query.filter_by(email=email).first()
             if user and user.check_password(password):
                 login_user(user)
-                session["user_id"] = user.id
                 
                 # Connect with inviter if pending_inviter_id exists in session
                 _connect_pending_inviter(user)
@@ -371,13 +369,9 @@ def get_mountains(state):
     return jsonify(mountains)
 
 @app.route("/api/trip/create", methods=["POST"])
+@login_required
 def create_trip():
-    if "user_id" not in session:
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
-    
-    user = User.query.get(session["user_id"])
-    if not user:
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
+    user = current_user
     
     data = request.get_json()
     state = data.get("state")
@@ -432,12 +426,10 @@ def create_trip():
     })
 
 @app.route("/api/trip/<int:trip_id>/edit", methods=["POST"])
+@login_required
 def edit_trip(trip_id):
-    if "user_id" not in session:
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
-    
     trip = SkiTrip.query.get_or_404(trip_id)
-    if trip.user_id != session["user_id"]:
+    if trip.user_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
     
     data = request.get_json()
@@ -458,7 +450,7 @@ def edit_trip(trip_id):
         return jsonify({"success": False, "error": "End date cannot be before start date."}), 400
     
     overlapping = SkiTrip.query.filter(
-        SkiTrip.user_id == session["user_id"],
+        SkiTrip.user_id == current_user.id,
         SkiTrip.id != trip_id,
         SkiTrip.start_date <= trip.end_date,
         SkiTrip.end_date >= trip.start_date
@@ -484,12 +476,10 @@ def edit_trip(trip_id):
     })
 
 @app.route("/api/trip/<int:trip_id>/delete", methods=["POST"])
+@login_required
 def delete_trip(trip_id):
-    if "user_id" not in session:
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
-    
     trip = SkiTrip.query.get_or_404(trip_id)
-    if trip.user_id != session["user_id"]:
+    if trip.user_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
     
     db.session.delete(trip)
@@ -498,11 +488,8 @@ def delete_trip(trip_id):
     return jsonify({"success": True})
 
 @app.route("/api/friends/invite", methods=["POST"])
+@login_required
 def invite_friend():
-    if "user_id" not in session:
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
-    
-    user_id = session["user_id"]
     data = request.get_json()
     friend_email = data.get("friend_email")
     
@@ -513,30 +500,27 @@ def invite_friend():
     if not friend:
         return jsonify({"success": False, "error": "User not found"}), 404
     
-    if friend.id == user_id:
+    if friend.id == current_user.id:
         return jsonify({"success": False, "error": "Cannot add yourself as a friend"}), 400
     
-    existing_friendship = Friend.query.filter_by(user_id=user_id, friend_id=friend.id).first()
+    existing_friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=friend.id).first()
     if existing_friendship:
         return jsonify({"success": False, "error": "Already friends"}), 409
     
-    existing_invitation = Invitation.query.filter_by(sender_id=user_id, receiver_id=friend.id, status='pending').first()
+    existing_invitation = Invitation.query.filter_by(sender_id=current_user.id, receiver_id=friend.id, status='pending').first()
     if existing_invitation:
         return jsonify({"success": False, "error": "Invitation already sent"}), 409
     
-    invitation = Invitation(sender_id=user_id, receiver_id=friend.id, status='pending')
+    invitation = Invitation(sender_id=current_user.id, receiver_id=friend.id, status='pending')
     db.session.add(invitation)
     db.session.commit()
     
     return jsonify({"success": True, "message": "Invitation sent"}), 201
 
 @app.route("/api/friends", methods=["GET"])
+@login_required
 def get_friends():
-    if "user_id" not in session:
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
-    
-    user_id = session["user_id"]
-    friends = Friend.query.filter_by(user_id=user_id).all()
+    friends = Friend.query.filter_by(user_id=current_user.id).all()
     
     friends_list = [{
         "id": f.friend.id,
@@ -548,9 +532,8 @@ def get_friends():
     return jsonify({"success": True, "friends": friends_list}), 200
 
 @app.route("/api/friends/<int:friend_id>", methods=["GET"])
+@login_required
 def get_friend_profile(friend_id):
-    if "user_id" not in session:
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
     
     friend = User.query.get(friend_id)
     if not friend:
@@ -568,23 +551,20 @@ def get_friend_profile(friend_id):
     }), 200
 
 @app.route("/api/friends/invite/<int:invitation_id>/accept", methods=["POST"])
+@login_required
 def accept_invitation(invitation_id):
-    if "user_id" not in session:
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
-    
-    user_id = session["user_id"]
     invitation = Invitation.query.get(invitation_id)
     
     if not invitation:
         return jsonify({"success": False, "error": "Invitation not found"}), 404
     
-    if invitation.receiver_id != user_id:
+    if invitation.receiver_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
     
     invitation.status = 'accepted'
     
-    friend_relationship = Friend(user_id=user_id, friend_id=invitation.sender_id)
-    reverse_friend = Friend(user_id=invitation.sender_id, friend_id=user_id)
+    friend_relationship = Friend(user_id=current_user.id, friend_id=invitation.sender_id)
+    reverse_friend = Friend(user_id=invitation.sender_id, friend_id=current_user.id)
     
     db.session.add(friend_relationship)
     db.session.add(reverse_friend)
@@ -593,14 +573,10 @@ def accept_invitation(invitation_id):
     return jsonify({"success": True, "message": "Friend added"}), 200
 
 @app.route("/api/friends/<int:friend_id>", methods=["DELETE"])
+@login_required
 def remove_friend(friend_id):
-    if "user_id" not in session:
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
-    
-    user_id = session["user_id"]
-    
-    friend1 = Friend.query.filter_by(user_id=user_id, friend_id=friend_id).first()
-    friend2 = Friend.query.filter_by(user_id=friend_id, friend_id=user_id).first()
+    friend1 = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
+    friend2 = Friend.query.filter_by(user_id=friend_id, friend_id=current_user.id).first()
     
     if not friend1 and not friend2:
         return jsonify({"success": False, "error": "Friendship not found"}), 404
@@ -685,14 +661,8 @@ def friend_profile(friend_id):
     )
 
 @app.route("/profile/<int:user_id>")
+@login_required
 def friend_profile_legacy(user_id):
-    if "user_id" not in session:
-        return redirect(url_for("auth"))
-    
-    current_user = User.query.get(session["user_id"])
-    if not current_user:
-        session.pop("user_id", None)
-        return redirect(url_for("auth"))
     
     # Check if viewing own profile
     if user_id == current_user.id:
@@ -722,13 +692,9 @@ def friend_profile_legacy(user_id):
     return render_template("friend_profile.html", user=current_user, friend=friend_user, upcoming_trips=upcoming_trips, past_trips=past_trips, state_abbr=STATE_ABBR)
 
 @app.route("/api/profile/update", methods=["POST"])
+@login_required
 def update_profile():
-    if "user_id" not in session:
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
-    
-    user = User.query.get(session["user_id"])
-    if not user:
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
+    user = current_user
     
     data = request.get_json()
     
@@ -1169,8 +1135,10 @@ def mountains_visited():
     )
 
 @app.route("/logout")
+@login_required
 def logout():
-    session.pop("user_id", None)
+    logout_user()
+    session.clear()
     return redirect(url_for("auth"))
 
 @app.route("/seed_dummy_data")
