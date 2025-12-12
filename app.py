@@ -1146,106 +1146,230 @@ def seed_dummy_data():
     from datetime import timedelta
     import random
 
-    # Get the main user
-    main_user = User.query.filter_by(email="me@example.com").first()
-    if not main_user:
-        return "Main user me@example.com not found."
+    # Realistic name pools
+    first_names = [
+        "Alex", "Jordan", "Sam", "Casey", "Riley", "Morgan", "Jamie", "Taylor",
+        "Jesse", "Charlie", "Skylar", "Quinn", "Dakota", "Avery", "Blake", "Parker",
+        "Rowan", "Drew", "Phoenix", "River", "Jordan", "Morgan", "Bailey", "Cameron",
+        "Jade", "Connor", "Reese", "Emerson", "Sage", "Justice", "Scout", "Parker",
+        "Lex", "Hayden", "Aspen", "Storm", "Finley", "Devyn", "Canyon", "Sierra",
+        "Teton", "Range", "Peak", "Boulder", "Summit", "Ridge", "Trail", "Alpine",
+        "Powder", "Backcountry", "Mogul", "Gnar", "Shred", "Carve"
+    ]
+    
+    last_names = [
+        "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis",
+        "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson",
+        "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson",
+        "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson", "Young",
+        "Skinner", "Powder", "Steep", "Shred", "Carve", "Peak", "Summit", "Ridge"
+    ]
 
-    # 1. Delete all users except main_user
-    other_users = User.query.filter(User.email != "me@example.com").all()
+    rider_types = ["Skier", "Snowboarder"]
+    pass_types = ["Epic", "Ikon", "Indy", "None"]
+    skill_levels = ["Beginner", "Intermediate", "Advanced", "Expert"]
+    states = ["Colorado", "Utah", "California", "Wyoming", "Montana", "Idaho", "Washington"]
+    
+    # Popular resorts for overlaps
+    popular_resorts = ["Vail", "Breckenridge", "Park City", "Heavenly", "Whistler"]
+    all_resorts = [
+        "Vail", "Breckenridge", "Keystone", "Copper Mountain", "Winter Park", "Aspen",
+        "Snowmass", "Telluride", "Park City", "Deer Valley", "Snowbird", "Alta",
+        "Jackson Hole", "Big Sky", "Heavenly", "Mammoth", "Northstar", "Palisades Tahoe",
+        "Whistler", "Lake Louise", "Banff", "Steamboat", "Loveland", "Eldora"
+    ]
+    
+    state_map = {
+        "Vail": "Colorado", "Breckenridge": "Colorado", "Keystone": "Colorado",
+        "Copper Mountain": "Colorado", "Winter Park": "Colorado", "Aspen": "Colorado",
+        "Snowmass": "Colorado", "Telluride": "Colorado", "Steamboat": "Colorado",
+        "Park City": "Utah", "Deer Valley": "Utah", "Snowbird": "Utah", "Alta": "Utah",
+        "Jackson Hole": "Wyoming", "Big Sky": "Montana", "Heavenly": "California",
+        "Mammoth": "California", "Northstar": "California", "Palisades Tahoe": "California",
+        "Whistler": "British Columbia", "Lake Louise": "Alberta", "Banff": "Alberta",
+        "Loveland": "Colorado", "Eldora": "Colorado"
+    }
+
+    # Ensure Richard Battle-Baxter exists
+    richard_email = "richardbattlebaxter@gmail.com"
+    richard = User.query.filter_by(email=richard_email).first()
+    
+    if not richard:
+        richard = User(
+            first_name="Richard",
+            last_name="Battle-Baxter",
+            email=richard_email,
+            rider_type="Skier",
+            pass_type="Epic",
+            skill_level="Advanced",
+            home_state="Colorado",
+            birth_year=1985
+        )
+        richard.set_password("12345678")
+        db.session.add(richard)
+        db.session.commit()
+
+    # Delete all dummy users (keep Richard)
+    other_users = User.query.filter(User.email != richard_email).all()
     for u in other_users:
         db.session.delete(u)
     db.session.commit()
 
-    # Data pools
-    all_mountains = [
-        "Vail", "Beaver Creek", "Breckenridge", "Keystone", "Aspen",
-        "Snowmass", "Copper Mountain", "Winter Park", "Steamboat",
-        "Park City", "Deer Valley", "Jackson Hole", "Big Sky",
-        "Mammoth", "Heavenly", "Northstar"
+    # Create Richard's trips as anchors for overlaps
+    today = date.today()
+    richard_trips = []
+    
+    richard_trip_dates = [
+        (today + timedelta(days=15), today + timedelta(days=22)),  # Jan 27 - Feb 3
+        (today + timedelta(days=35), today + timedelta(days=42)),  # Feb 16 - Feb 23
+        (today + timedelta(days=60), today + timedelta(days=67)),  # Mar 12 - Mar 19
     ]
+    
+    for start, end in richard_trip_dates:
+        resort = random.choice(popular_resorts)
+        state = state_map.get(resort, "Colorado")
+        
+        trip = SkiTrip(
+            user_id=richard.id,
+            mountain=resort,
+            state=state,
+            start_date=start,
+            end_date=end,
+            pass_type="Epic",
+            is_public=True
+        )
+        db.session.add(trip)
+        richard_trips.append((start, end, resort, state))
+    
+    db.session.commit()
 
-    rider_types = ["Skier", "Snowboarder"]
-    pass_types = ["Epic", "Ikon", "Other"]
-    skill_levels = ["Beginner", "Intermediate", "Advanced", "Expert"]
-    states = ["Colorado", "Utah", "California", "Wyoming", "Montana", "Idaho"]
-
-    created = 0
+    # Create 50 dummy users
+    users_created = 0
+    friendships_created = 0
     trips_created = 0
+    overlaps_with_richard = 0
 
-    for i in range(1, 31):
-        email = f"testuser{i}@example.com"
-
+    dummy_users = []
+    
+    for i in range(50):
+        first = random.choice(first_names)
+        last = random.choice(last_names)
+        email = f"user_{i}_{first.lower()}_{last.lower()}@example.com".replace(" ", "_")
+        
+        # Ensure unique email
+        existing = User.query.filter_by(email=email).first()
+        if existing:
+            email = f"user_{i}_{random.randint(1000, 9999)}@example.com"
+        
         user = User(
-            first_name=f"Test{i}",
-            last_name="User",
+            first_name=first,
+            last_name=last,
             email=email,
             rider_type=random.choice(rider_types),
             pass_type=random.choice(pass_types),
             skill_level=random.choice(skill_levels),
             home_state=random.choice(states),
-            birth_year=random.randint(1980, 2002),
-            mountains_visited=[]
+            birth_year=random.randint(1975, 2003),
+            mountains_visited=random.sample(all_resorts, random.randint(2, 6))
         )
         user.set_password("password123")
         db.session.add(user)
-        db.session.commit()
+        db.session.flush()
+        
+        dummy_users.append(user)
+        users_created += 1
 
-        # Mountains visited
-        user.mountains_visited = random.sample(all_mountains, random.randint(2, 8))
-        db.session.commit()
+    db.session.commit()
 
-        # Create trips
-        today = date.today()
+    # Create friendships: all 50 dummy users → Richard (bidirectional)
+    for user in dummy_users:
+        if not Friend.query.filter_by(user_id=richard.id, friend_id=user.id).first():
+            db.session.add(Friend(user_id=richard.id, friend_id=user.id))
+            friendships_created += 1
+        if not Friend.query.filter_by(user_id=user.id, friend_id=richard.id).first():
+            db.session.add(Friend(user_id=user.id, friend_id=richard.id))
+            friendships_created += 1
+    
+    db.session.commit()
 
-        # 1–3 upcoming
-        for _ in range(random.randint(1, 3)):
-            start = today + timedelta(days=random.randint(5, 60))
-            end = start + timedelta(days=random.randint(2, 5))
-            mtn = random.choice(all_mountains)
-
+    # Create trips: ensure overlaps
+    overlap_count = 0
+    
+    for idx, user in enumerate(dummy_users):
+        # First 20 users get guaranteed overlaps with Richard
+        if idx < 20:
+            richard_trip = random.choice(richard_trips)
+            start_richard, end_richard, resort, state = richard_trip
+            
+            # Create overlapping trip
+            overlap_start = start_richard + timedelta(days=random.randint(-2, 2))
+            overlap_end = overlap_start + timedelta(days=random.randint(2, 7))
+            
             trip = SkiTrip(
                 user_id=user.id,
-                state="Colorado",
-                mountain=mtn,
-                start_date=start,
-                end_date=end,
-                is_public=True,
+                mountain=resort,
+                state=state,
+                start_date=overlap_start,
+                end_date=overlap_end,
+                pass_type=user.pass_type or "No Pass",
+                is_public=True
             )
             db.session.add(trip)
             trips_created += 1
-
-        # 1–2 past
+            overlap_count += 1
+        
+        # Create 1-2 additional trips (some may overlap with other users)
         for _ in range(random.randint(1, 2)):
-            end = today - timedelta(days=random.randint(10, 120))
-            start = end - timedelta(days=random.randint(2, 5))
-            mtn = random.choice(all_mountains)
-
+            start = today + timedelta(days=random.randint(5, 90))
+            end = start + timedelta(days=random.randint(2, 6))
+            resort = random.choice(all_resorts)
+            state = state_map.get(resort, "Colorado")
+            
             trip = SkiTrip(
                 user_id=user.id,
-                state="Colorado",
-                mountain=mtn,
+                mountain=resort,
+                state=state,
                 start_date=start,
                 end_date=end,
-                is_public=True,
+                pass_type=user.pass_type or "No Pass",
+                is_public=True
             )
             db.session.add(trip)
             trips_created += 1
+    
+    db.session.commit()
 
-        db.session.commit()
+    # Summary
+    total_overlaps = SkiTrip.query.filter(
+        SkiTrip.user_id != richard.id
+    ).all()
+    richard_resort_dates = [(r[2], r[0], r[1]) for r in richard_trips]
+    actual_overlaps = 0
+    
+    for trip in total_overlaps:
+        for resort, rstart, rend in richard_resort_dates:
+            if trip.mountain == resort and not (trip.end_date < rstart or trip.start_date > rend):
+                actual_overlaps += 1
+                break
 
-        # Mutual friendships
-        def add_friend(u1, u2):
-            if not Friend.query.filter_by(user_id=u1.id, friend_id=u2.id).first():
-                db.session.add(Friend(user_id=u1.id, friend_id=u2.id))
-
-        add_friend(main_user, user)
-        add_friend(user, main_user)
-        db.session.commit()
-
-        created += 1
-
-    return f"Created {created} dummy users and {trips_created} trips."
+    summary = f"""
+    ✅ SEED DATA COMPLETE
+    
+    Users Created: {users_created}
+    Friendships Created: {friendships_created}
+    Trips Created: {trips_created}
+    Guaranteed Overlaps with Richard: {overlap_count}
+    Actual Overlaps Detected: {actual_overlaps}
+    
+    Richard's Email: {richard_email}
+    Password: 12345678
+    
+    Dummy User Password: password123
+    
+    Test accounts are ready for trip/friend/overlap testing!
+    """
+    
+    return summary
 
 @app.route("/skip-pass-prompt")
 @login_required
