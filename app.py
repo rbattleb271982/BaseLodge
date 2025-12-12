@@ -129,10 +129,20 @@ def auth():
         form_type = request.form.get("form_type")
         
         if form_type == "signup":
-            first_name = request.form.get("first_name")
-            last_name = request.form.get("last_name")
+            first_name = request.form.get("first_name", "").strip()
+            last_name = request.form.get("last_name", "").strip()
             email = request.form.get("email", "").lower().strip()
-            password = request.form.get("password")
+            password = request.form.get("password", "")
+            
+            # Validate required fields
+            if not first_name or not last_name or not email or not password:
+                flash("All fields are required.", "error")
+                return render_template("auth.html")
+            
+            # Validate password length
+            if len(password) < 8:
+                flash("Password must be at least 8 characters.", "error")
+                return render_template("auth.html")
             
             existing_user = User.query.filter_by(email=email).first()
             if existing_user:
