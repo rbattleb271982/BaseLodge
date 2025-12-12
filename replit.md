@@ -39,6 +39,26 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 
 ## Recent Changes (Dec 12, 2025)
 
+### Admin Routes Added ✅
+1. **`/generate-dummy-users` (Admin-only)** - Creates 30 fully-functional dummy test users:
+   - Protected with `@admin_required` decorator (only richardbattlebaxter@gmail.com)
+   - Each user has random rider_type, skill_level, pass_type
+   - 2–8 mountains visited from pool
+   - 1–3 upcoming trips with realistic dates
+   - Returns JSON with list of created emails
+   - Skips already-existing dummy users (safe to run multiple times)
+2. **`/connect-jonathan-to-dummies` (Admin-only)** - Connects all dummy users to both main accounts:
+   - Protected with `@admin_required` decorator
+   - Creates bidirectional friendships between:
+     - richardbattlebaxter@gmail.com ↔ all dummies
+     - jonathanmschmitz@gmail.com ↔ all dummies
+   - Returns JSON with count and list of connected dummy emails
+   - Safe to run multiple times (checks for existing connections)
+3. **Admin Helper** - Added `@admin_required` decorator:
+   - Checks `current_user.email == "richardbattlebaxter@gmail.com"`
+   - Returns 403 Forbidden if not authenticated or wrong email
+   - Used to protect sensitive routes
+
 ### Pass Selection Feature - COMPLETE ✅
 1. **Added `/select-pass` route** - GET/POST endpoint with pass list:
    - Major Passes: Epic, Ikon, Indy, Mountain Collective

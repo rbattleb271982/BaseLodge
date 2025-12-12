@@ -21,6 +21,15 @@ login_manager.login_view = "auth"
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+def admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        admin_email = "richardbattlebaxter@gmail.com"
+        if not current_user.is_authenticated or current_user.email != admin_email:
+            return "Admin privileges required.", 403
+        return f(*args, **kwargs)
+    return wrapper
+
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///baselodge.db")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
@@ -1157,11 +1166,9 @@ def select_pass():
     )
 
 @app.route("/generate-dummy-users")
+@login_required
+@admin_required
 def generate_dummy_users():
-    main_user = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
-    if not main_user:
-        return {"status": "error", "message": "Main user not found. Create account first."}, 400
-
     rider_types = ["Skier", "Snowboarder", "Cross-country", "Telemark", "Adaptive", "Other"]
     skill_levels = ["Beginner", "Intermediate", "Advanced", "Expert"]
     pass_types = ["Epic", "Ikon", "Indy", "Mountain Collective", "Other", "None"]
@@ -1175,51 +1182,79 @@ def generate_dummy_users():
     created_users = []
 
     for i in range(30):
-        first = "User"
-        last = f"Test{i+1}"
         email = f"dummy{i+1}@example.com"
+        existing = User.query.filter_by(email=email).first()
+        if existing:
+            continue
 
         u = User(
-            first_name=first,
-            last_name=last,
+            first_name="User",
+            last_name=f"Test{i+1}",
             email=email,
             rider_type=random.choice(rider_types),
             skill_level=random.choice(skill_levels),
-            pass_type=random.choice(pass_types),
-            profile_setup_complete=True
+            pass_type=random.choice(pass_types)
         )
         u.set_password("password123")
         db.session.add(u)
         db.session.commit()
 
-        f1 = Friend(user_id=main_user.id, friend_id=u.id)
-        f2 = Friend(user_id=u.id, friend_id=main_user.id)
-        db.session.add(f1)
-        db.session.add(f2)
-
         chosen_mountains = random.sample(mountains_pool, random.randint(2, 8))
-        u.mountains_visited = chosen_mountains
+        if hasattr(u, "mountains_visited"):
+            u.mountains_visited = chosen_mountains
         db.session.commit()
 
         for _ in range(random.randint(1, 3)):
             start = datetime.utcnow() + timedelta(days=random.randint(5, 60))
             end = start + timedelta(days=2)
             mountain_choice = random.choice(mountains_pool)
-
             trip = SkiTrip(
                 user_id=u.id,
                 state="Colorado",
                 mountain=mountain_choice,
                 start_date=start,
-                end_date=end,
-                is_public=True
+                end_date=end
             )
             db.session.add(trip)
 
         db.session.commit()
         created_users.append(email)
 
-    return {"status": "success", "created_count": len(created_users), "created_users": created_users}
+    return {"status": "success", "dummy_users_created": created_users}
+
+@app.route("/connect-jonathan-to-dummies")
+@login_required
+@admin_required
+def connect_jonathan_to_dummies():
+    richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+    jonathan = User.query.filter_by(email="jonathanmschmitz@gmail.com").first()
+
+    if not richard or not jonathan:
+        return "One or both main users not found.", 400
+
+    dummy_users = User.query.filter(User.email.like("dummy%@example.com")).all()
+    linked = []
+
+    for u in dummy_users:
+        if not Friend.query.filter_by(user_id=richard.id, friend_id=u.id).first():
+            db.session.add(Friend(user_id=richard.id, friend_id=u.id))
+        if not Friend.query.filter_by(user_id=u.id, friend_id=richard.id).first():
+            db.session.add(Friend(user_id=u.id, friend_id=richard.id))
+
+        if not Friend.query.filter_by(user_id=jonathan.id, friend_id=u.id).first():
+            db.session.add(Friend(user_id=jonathan.id, friend_id=u.id))
+        if not Friend.query.filter_by(user_id=u.id, friend_id=jonathan.id).first():
+            db.session.add(Friend(user_id=u.id, friend_id=jonathan.id))
+
+        linked.append(u.email)
+
+    db.session.commit()
+
+    return {
+        "status": "success",
+        "dummy_users_linked_to_richard_and_jonathan": linked,
+        "count": len(linked)
+    }
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
