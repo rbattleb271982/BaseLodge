@@ -6,13 +6,29 @@ Run with: python seed_resorts.py
 import os
 import sys
 
-# Add the project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app import app, db
 from models import Resort
 
-# All resorts organized by state with brand info
+STATE_FULL_NAMES = {
+    "AK": "Alaska",
+    "CA": "California",
+    "CO": "Colorado",
+    "ID": "Idaho",
+    "ME": "Maine",
+    "MI": "Michigan",
+    "MT": "Montana",
+    "NH": "New Hampshire",
+    "NM": "New Mexico",
+    "NY": "New York",
+    "OR": "Oregon",
+    "UT": "Utah",
+    "VT": "Vermont",
+    "WA": "Washington",
+    "WY": "Wyoming",
+}
+
 RESORTS = [
     # Colorado
     {"name": "Aspen Snowmass", "state": "CO", "brand": "Ikon"},
@@ -129,36 +145,34 @@ RESORTS = [
 
 def seed_resorts():
     with app.app_context():
-        # Clear existing resorts
-        print("Clearing existing resorts...")
-        Resort.query.delete()
-        db.session.commit()
+        print("Updating resorts with state_full names...")
         
-        # Add all resorts
-        print(f"Adding {len(RESORTS)} resorts...")
-        resorts_to_add = []
         for r in RESORTS:
             slug = r["name"].lower().replace(" ", "-").replace(".", "")
-            resort = Resort(
-                name=r["name"],
-                state=r["state"],
-                brand=r["brand"],
-                slug=slug,
-                is_active=True
-            )
-            resorts_to_add.append(resort)
+            state_full = STATE_FULL_NAMES.get(r["state"], r["state"])
+            
+            existing = Resort.query.filter_by(slug=slug).first()
+            if existing:
+                existing.state_full = state_full
+            else:
+                resort = Resort(
+                    name=r["name"],
+                    state=r["state"],
+                    state_full=state_full,
+                    brand=r["brand"],
+                    slug=slug,
+                    is_active=True
+                )
+                db.session.add(resort)
         
-        db.session.add_all(resorts_to_add)
         db.session.commit()
         
-        print(f"Successfully added {len(resorts_to_add)} resorts!")
+        total = Resort.query.count()
+        epic_count = Resort.query.filter_by(brand="Epic").count()
+        ikon_count = Resort.query.filter_by(brand="Ikon").count()
+        other_count = Resort.query.filter_by(brand="Other").count()
         
-        # Print summary by brand
-        epic_count = len([r for r in RESORTS if r["brand"] == "Epic"])
-        ikon_count = len([r for r in RESORTS if r["brand"] == "Ikon"])
-        other_count = len([r for r in RESORTS if r["brand"] == "Other"])
-        
-        print(f"\nBreakdown:")
+        print(f"Total resorts: {total}")
         print(f"  Epic: {epic_count}")
         print(f"  Ikon: {ikon_count}")
         print(f"  Other: {other_count}")

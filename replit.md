@@ -39,6 +39,17 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 
 ## Recent Changes (Dec 12, 2025)
 
+### Full Resort Model Migration - COMPLETE ✅
+Migrated all trip displays to use unified Resort model with consistent formatting:
+1. **Added `state_full` field to Resort** - Full state names (Colorado, California, etc.)
+2. **Updated all templates** to use resort data with inline format: `Dec 18–Dec 21 — Vail CO, Epic`
+   - home.html (My Trips, Friends' Trips, Overlaps tabs)
+   - my_trips.html
+   - friend_profile.html
+   - friend_trip_details.html
+3. **Added `/migrate-trips-to-resorts` route** - Admin-protected route to backfill resort_id for existing trips
+4. **Backward compatibility** - Templates fall back to trip.mountain/trip.state for trips without resort_id
+
 ### Extra Dummy Users with Overlapping Trips - COMPLETE ✅
 Added admin route to create 10 additional test users (Test31-40) with overlapping trips:
 1. **`/create-extra-dummy-users` route** - Admin-protected route that:

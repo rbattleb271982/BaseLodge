@@ -61,9 +61,8 @@
             <div class="bl-card">
                 {% for trip in trips %}
                 <div class="bl-trip-row">
-                    <span class="trip-date">{{ trip.start_date.strftime('%b %d') }}</span> —
-                    <span class="trip-name">{{ trip.mountain }}</span>
-                    <span class="trip-info">{{ trip.state }}</span>
+                    {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} — 
+                    {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }} {{ trip.state }}{% endif %}
                 </div>
                 {% endfor %}
             </div>

@@ -897,11 +897,14 @@ def home():
             if my.user_id != friend_trip.user_id:
                 if my.mountain == friend_trip.mountain:
                     if date_ranges_overlap(my.start_date, my.end_date, friend_trip.start_date, friend_trip.end_date):
+                        # Get resort info from my trip (or friend's trip if mine doesn't have it)
+                        resort = my.resort or friend_trip.resort
                         overlaps.append({
                             "friend_name": friend_trip.user.first_name + " " + friend_trip.user.last_name,
                             "friend_id": friend_trip.user_id,
-                            "mountain": my.mountain,
-                            "state": my.state,
+                            "mountain": resort.name if resort else my.mountain,
+                            "state": resort.state if resort else my.state,
+                            "brand": resort.brand if resort else None,
                             "start_date": max(my.start_date, friend_trip.start_date),
                             "end_date": min(my.end_date, friend_trip.end_date)
                         })
@@ -1401,6 +1404,39 @@ def connect_jonathan_to_dummies():
         "status": "success",
         "dummy_users_linked_to_richard_and_jonathan": linked,
         "count": len(linked)
+    }
+
+@app.route("/migrate-trips-to-resorts")
+@login_required
+@admin_required
+def migrate_trips_to_resorts():
+    """Backfill resort_id for all existing trips based on mountain name."""
+    trips = SkiTrip.query.all()
+    migrated = 0
+    not_found = []
+
+    for trip in trips:
+        if trip.resort_id:
+            continue
+
+        # Best-effort lookup by mountain name
+        resort = Resort.query.filter(
+            db.func.lower(Resort.name) == trip.mountain.lower()
+        ).first()
+
+        if resort:
+            trip.resort_id = resort.id
+            migrated += 1
+        else:
+            if trip.mountain and trip.mountain not in not_found:
+                not_found.append(trip.mountain)
+
+    db.session.commit()
+
+    return {
+        "status": "success",
+        "trips_migrated": migrated,
+        "mountains_not_found": not_found
     }
 
 @app.route("/create-extra-dummy-users")

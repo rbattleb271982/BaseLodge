@@ -27,25 +27,31 @@
         
         <div class="trip-detail-card">
             <div class="trip-detail-row">
-                <span class="trip-detail-label">Mountain</span>
-                <span class="trip-detail-value">{{ trip.mountain }}</span>
+                <span class="trip-detail-label">Resort</span>
+                <span class="trip-detail-value">
+                    {% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}
+                </span>
             </div>
             
             <div class="trip-detail-row">
-                <span class="trip-detail-label">State</span>
-                <span class="trip-detail-value">{{ trip.state }}</span>
+                <span class="trip-detail-label">Location</span>
+                <span class="trip-detail-value">
+                    {% if trip.resort %}{{ trip.resort.state_full or trip.resort.state }}{% else %}{{ trip.state }}{% endif %}
+                </span>
             </div>
             
             <div class="trip-detail-row">
                 <span class="trip-detail-label">Dates</span>
                 <span class="trip-detail-value">
-                    {{ trip.start_date.strftime('%b %d, %Y') }} – {{ trip.end_date.strftime('%b %d, %Y') }}
+                    {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d, %Y') }}
                 </span>
             </div>
             
             <div class="trip-detail-row">
                 <span class="trip-detail-label">Pass Type</span>
-                <span class="trip-detail-value">{{ trip.pass_type or 'Not specified' }}</span>
+                <span class="trip-detail-value">
+                    {% if trip.resort %}{{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.pass_type or 'Not specified' }}{% endif %}
+                </span>
             </div>
             
             <div class="trip-detail-row">

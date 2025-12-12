@@ -141,16 +141,14 @@
                     {% for trip in upcoming_trips %}
                     <li class="trip-card">
                         <div class="trip-main">
-                            <div class="trip-mountain">{{ trip.mountain }}, {{ trip.state }}</div>
+                            <div class="trip-mountain">
+                                {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}
+                            </div>
                             <div class="trip-dates">
-                                {% if trip.start_date == trip.end_date %}
-                                    {{ trip.start_date.strftime("%b %d, %Y") }}
-                                {% else %}
-                                    {{ trip.start_date.strftime("%b %d") }} – {{ trip.end_date.strftime("%b %d, %Y") }}
-                                {% endif %}
+                                {{ trip.start_date.strftime("%b %d") }}–{{ trip.end_date.strftime("%b %d, %Y") }}
                             </div>
                             <div class="trip-visibility">
-                                {% if trip.is_public %}👥 Visible to friends{% else %}🔒 Private{% endif %}
+                                {% if trip.is_public %}Visible to friends{% else %}Private{% endif %}
                             </div>
                         </div>
                         <div class="trip-actions">

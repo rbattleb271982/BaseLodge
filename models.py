@@ -40,7 +40,8 @@ class User(UserMixin, db.Model):
 class Resort(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    state = db.Column(db.String(2), nullable=False)
+    state = db.Column(db.String(2), nullable=False)  # Abbreviation: CO, CA, etc.
+    state_full = db.Column(db.String(50), nullable=True)  # Full name: Colorado, California, etc.
     brand = db.Column(db.String(20), nullable=True)  # 'Epic', 'Ikon', 'Indy', 'Other'
     slug = db.Column(db.String(120), unique=True, nullable=False)
     is_active = db.Column(db.Boolean, default=True)

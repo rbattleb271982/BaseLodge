@@ -94,9 +94,8 @@
                     {% for trip in my_trips %}
                     <div class="bl-trip-row" style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <span class="trip-date">{{ trip.start_date.strftime('%b %d') }}</span> —
-                            <span class="trip-name">{{ trip.mountain }}</span>
-                            <span class="trip-info">{{ trip.state }}, {{ trip.pass_type }}</span>
+                            {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} — 
+                            {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }} {{ trip.state }}{% endif %}
                         </div>
                         <a href="{{ url_for('edit_trip', trip_id=trip.id) }}" style="text-decoration: none; color: var(--bl-color-primary); font-size: 14px; font-weight: 600;">Edit</a>
                     </div>
@@ -112,11 +111,10 @@
                     {% for trip in friend_trips %}
                     <a class="friend-trip-row" href="{{ url_for('friend_trip_details', trip_id=trip.id) }}">
                         <div class="friend-trip-date">
-                            {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d') }}
-                            — {{ trip.user.first_name }} {{ trip.user.last_name }}
+                            {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} — {{ trip.user.first_name }}
                         </div>
                         <div class="friend-trip-location">
-                            @ {{ trip.mountain }}, {{ trip.state }}
+                            {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}
                         </div>
                     </a>
                     {% endfor %}
@@ -130,11 +128,9 @@
                 {% if overlaps and overlaps|length > 0 %}
                     {% for o in overlaps %}
                     <div class="bl-trip-row">
-                        <span class="trip-date">{{ o.start_date.strftime('%b %d') }}</span> —
-                        <a href="{{ url_for('friend_profile', friend_id=o.friend_id) }}" style="text-decoration: none; color: inherit;">
-                            <span class="trip-name">{{ o.friend_name }}</span>
-                        </a>
-                        <span class="trip-info">@ {{ o.mountain }}, {{ o.state }}</span>
+                        {{ o.start_date.strftime('%b %d') }}–{{ o.end_date.strftime('%b %d') }} — 
+                        <a href="{{ url_for('friend_profile', friend_id=o.friend_id) }}" style="text-decoration: none; color: inherit;">{{ o.friend_name }}</a>
+                        @ {{ o.mountain }} {{ o.state }}{% if o.brand %}, {{ o.brand }}{% endif %}
                     </div>
                     {% endfor %}
                 {% else %}
