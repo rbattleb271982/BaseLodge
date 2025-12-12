@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base Lodge - Add Open Dates</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="page-container">
+        <h1 class="page-title">Add open dates</h1>
+        <p class="bl-text-muted" style="margin-bottom: 20px;">Let friends know when you're free to ski.</p>
+        
+        <form method="POST">
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; font-size: 0.9rem; font-weight: 500; margin-bottom: 6px;">Start date</label>
+                <input type="date" name="start_date" required style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: 6px; font-size: 1rem; box-sizing: border-box;">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 0.9rem; font-weight: 500; margin-bottom: 6px;">End date</label>
+                <input type="date" name="end_date" required style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: 6px; font-size: 1rem; box-sizing: border-box;" id="end_date">
+            </div>
+            
+            <button type="submit" class="bl-btn-primary" style="width: 100%; padding: 12px;">Save open dates</button>
+        </form>
+        
+        <a href="{{ url_for('home') }}?tab=open" style="display: block; text-align: center; text-decoration: none; color: var(--bl-color-text-muted); margin-top: 16px;">
+            Cancel
+        </a>
+    </div>
+    
+    <script>
+        document.getElementById('end_date').addEventListener('change', function() {
+            const startInput = document.querySelector('input[name="start_date"]');
+            if (startInput.value && this.value < startInput.value) {
+                alert('End date cannot be before start date.');
+                this.value = '';
+            }
+        });
+        
+        document.querySelector('input[name="start_date"]').addEventListener('change', function() {
+            document.getElementById('end_date').min = this.value;
+        });
+    </script>
+</body>
+</html>

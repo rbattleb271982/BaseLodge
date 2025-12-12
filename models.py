@@ -107,3 +107,16 @@ class InviteToken(db.Model):
 
     def __repr__(self):
         return f'<InviteToken {self.token[:8]}... by user {self.inviter_id}>'
+
+
+class OpenDate(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref='open_dates')
+
+    def __repr__(self):
+        return f'<OpenDate {self.user_id} {self.start_date}-{self.end_date}>'

@@ -58,6 +58,7 @@
                 <button class="bl-tab-button {% if active_tab == 'my' %}active{% endif %}" data-tab="my">My Trips</button>
                 <button class="bl-tab-button {% if active_tab == 'friends' %}active{% endif %}" data-tab="friends">Friends' Trips</button>
                 <button class="bl-tab-button {% if active_tab == 'overlaps' %}active{% endif %}" data-tab="overlaps">Overlaps</button>
+                <button class="bl-tab-button {% if active_tab == 'open' %}active{% endif %}" data-tab="open">Open</button>
             </div>
         </div>
         
@@ -116,9 +117,43 @@
             {% endif %}
         </div>
         
-        <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none; margin-top: 18px;">
-            + Add a trip
-        </a>
+        <div id="tab-open" class="bl-trip-list" {% if active_tab != 'open' %}style="display: none;"{% endif %}>
+            {% if open_overlaps and open_overlaps|length > 0 %}
+                {% for oo in open_overlaps %}
+                <div class="bl-trip-card">
+                    <div style="flex: 1;">
+                        <p style="font-size: 0.9rem; font-weight: 500; margin: 0;">
+                            <strong>{{ oo.start_date.strftime('%b %d') }}–{{ oo.end_date.strftime('%b %d') }}</strong> — Open
+                        </p>
+                        <p style="font-size: 0.85rem; margin: 4px 0 0 0; color: var(--bl-color-text-muted);">
+                            You and {{ oo.friend_name }} are both open for {{ oo.overlap_days }} {% if oo.overlap_days == 1 %}day{% else %}days{% endif %}
+                            {% if oo.pass_match %} • Both on {{ oo.pass_match }}{% endif %}
+                        </p>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="bl-text-muted">You haven't added any open dates yet.</p>
+                <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="display: block; text-align: center; text-decoration: none; margin-top: 12px;">
+                    + Add open dates
+                </a>
+            {% endif %}
+        </div>
+        
+        <div style="display: flex; gap: 8px; margin-top: 18px;">
+            <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="flex: 1; text-align: center; text-decoration: none;">
+                + Add a trip
+            </a>
+            {% if active_tab == 'open' and open_overlaps and open_overlaps|length > 0 %}
+            <a href="{{ url_for('add_open_dates') }}" class="bl-btn-secondary" style="flex: 1; text-align: center; text-decoration: none;">
+                + Add dates
+            </a>
+            {% elif active_tab == 'open' %}
+            <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="flex: 1; text-align: center; text-decoration: none;">
+                + Add open dates
+            </a>
+            {% endif %}
+        </div>
     </div>
     
     {% include 'components/bottom_nav.html' %}

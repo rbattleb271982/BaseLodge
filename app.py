@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps
 from flask_migrate import Migrate
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, OpenDate
 from debug_routes import debug_bp
 from io import BytesIO
 import segno
@@ -692,11 +692,20 @@ def friend_profile(friend_id):
         .all()
     )
     
+    friend_open_dates = (
+        OpenDate.query
+        .filter_by(user_id=friend.id)
+        .filter(OpenDate.end_date >= today)
+        .order_by(OpenDate.start_date.asc())
+        .all()
+    )
+    
     return render_template(
         "friend_profile.html",
         friend=friend,
         friend_mountains_count=friend_mountains_count,
-        trips=trips
+        trips=trips,
+        friend_open_dates=friend_open_dates
     )
 
 @app.route("/profile/<int:user_id>")
@@ -892,6 +901,35 @@ def home():
                             "end_date": min(my.end_date, friend_trip.end_date)
                         })
     
+    # Open dates overlaps
+    my_open_dates = OpenDate.query.filter_by(user_id=user.id).order_by(OpenDate.start_date.asc()).all()
+    open_overlaps = []
+    
+    if my_open_dates and friend_ids:
+        friend_open_dates_list = OpenDate.query.filter(OpenDate.user_id.in_(friend_ids)).all()
+        for my_open in my_open_dates:
+            for friend_open in friend_open_dates_list:
+                overlap_start = max(my_open.start_date, friend_open.start_date)
+                overlap_end = min(my_open.end_date, friend_open.end_date)
+                overlap_days = (overlap_end - overlap_start).days + 1
+                
+                if overlap_days > 0:
+                    friend_obj = User.query.get(friend_open.user_id)
+                    pass_match = None
+                    if user.pass_type and friend_obj.pass_type and user.pass_type == friend_obj.pass_type:
+                        pass_match = user.pass_type
+                    
+                    open_overlaps.append({
+                        "start_date": overlap_start,
+                        "end_date": overlap_end,
+                        "overlap_days": overlap_days,
+                        "friend_name": friend_obj.first_name,
+                        "friend_id": friend_obj.id,
+                        "pass_match": pass_match
+                    })
+    
+    open_overlaps = sorted(open_overlaps, key=lambda x: x['start_date'])
+    
     # Combined list for All Trips (upcoming only)
     all_trips = (my_trips or []) + (friend_trips or [])
     try:
@@ -907,6 +945,7 @@ def home():
         friend_trips=friend_trips,
         all_trips=all_trips,
         overlaps=overlaps,
+        open_overlaps=open_overlaps,
         state_abbr=STATE_ABBR
     )
 
@@ -981,6 +1020,33 @@ def more_info():
 @login_required
 def settings():
     return render_template("settings.html")
+
+@app.route("/add-open-dates", methods=["GET", "POST"])
+@login_required
+def add_open_dates():
+    if request.method == "POST":
+        start_date_str = request.form.get("start_date")
+        end_date_str = request.form.get("end_date")
+        
+        from datetime import datetime as dt
+        start_date = dt.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = dt.strptime(end_date_str, "%Y-%m-%d").date()
+        
+        if end_date < start_date:
+            flash("End date cannot be before start date.", "error")
+            return redirect(url_for("add_open_dates"))
+        
+        open_date = OpenDate(
+            user_id=current_user.id,
+            start_date=start_date,
+            end_date=end_date
+        )
+        db.session.add(open_date)
+        db.session.commit()
+        
+        return redirect(url_for("home", tab="open"))
+    
+    return render_template("add_open_dates.html")
 
 @app.route("/add_trip", methods=["GET", "POST"])
 @login_required

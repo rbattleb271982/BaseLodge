@@ -171,6 +171,22 @@ Structural hardening to prevent regressions and add trip duration display:
    - No profile.html template reference test
    - Trip duration calculation test
 
+### Phase 1 "Open Dates" Feature (Dec 12, 2025) - COMPLETE
+Lightweight availability signal separate from trips:
+1. **Data Model** - New `OpenDate` table (id, user_id, start_date, end_date, created_at)
+2. **Home Toggle** - Added "Open" tab to My Trips/Friends' Trips/Overlaps
+3. **Add Open Dates** - Separate form at /add-open-dates (not part of trip creation)
+4. **Overlap Matching** - Open dates ↔ Open dates only (ignored in Trips and Overlap tabs)
+5. **Overlap Display** - "You and [friend] are both open for X days" with optional pass match
+6. **Friend Profile** - Read-only "Open dates" section showing friend's availability
+7. **Smart Display** - Passes displayed only when both users have same pass type
+8. **Guardrails** - Open dates never appear in My Trips/Friends' Trips/Overlap tabs
+
+**Phase 2 Features (NOT implemented):**
+- Notifications for open date overlaps
+- Sorting overlaps by duration/closeness
+- Dummy data seeding for UI QA
+
 ## External Dependencies
 - **Flask:** Python web framework.
 - **Flask-Login:** User session management.

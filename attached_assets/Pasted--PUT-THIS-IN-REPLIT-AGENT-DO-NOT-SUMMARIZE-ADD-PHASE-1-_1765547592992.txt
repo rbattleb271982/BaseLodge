@@ -1,0 +1,129 @@
+🛑 PUT THIS IN REPLIT AGENT — DO NOT SUMMARIZE
+🚀 ADD PHASE 1 “OPEN DATES” FEATURE (SEPARATE FROM TRIPS)
+We are adding Open dates as a Phase 1, first-class feature, distinct from Trips.
+This is not a variant of “Add a Trip.”
+This is a separate availability signal.
+🎯 GOALS (ALL REQUIRED)
+Add Open as a new Home feed toggle:
+[ My Trips ] [ Friends’ Trips ] [ Overlap ] [ Open ]
+Allow users to create Open dates from the Open tab only
+Match Open dates ↔ Open dates only
+Display overlap copy and shared pass copy when applicable
+Do not affect existing Trips, Overlap, or Add Trip behavior
+1️⃣ DATA MODEL (MINIMAL — PHASE 1)
+Create a new model/table:
+open_date
+id
+user_id (FK → User)
+start_date
+end_date
+created_at
+Constraints:
+End date ≥ start date
+A user may have multiple open date ranges
+No resort, no state, no notes (Phase 1)
+2️⃣ UI — HOME TOGGLE
+Add a new toggle option to the Home feed:
+My Trips | Friends’ Trips | Overlap | Open
+Rules:
+Toggle switches feed content only
+No route change required
+Preserve existing behavior for other tabs
+3️⃣ OPEN TAB — EMPTY & LIST STATES
+Empty state (when user has no open dates):
+Show:
+You haven’t added any open dates yet.
+Add dates to let friends know when you’re free to ski.
+Button:
++ Add open dates
+List state:
+For each overlapping open date between the logged-in user and a friend, render:
+Feb 16–18 — Open
+You and Alex are both open for 3 days
+Formatting rules:
+Same inline date style as trips
+Explicit “Open” label
+Overlap copy is required
+Sorted by soonest start date
+4️⃣ OPEN DATES CREATION FLOW (SEPARATE ENTRY POINT)
+Entry point:
+Button: + Add open dates
+Location: Top of the Open tab only
+Form fields:
+Start date
+End date
+Validation:
+End date ≥ start date
+Prevent overlapping open date ranges for the same user (merge or block)
+On save:
+Persist open_date
+Redirect back to Home with Open tab active
+⚠️ DO NOT:
+Add a “Trip vs Open” toggle to Add a Trip
+Require a resort
+Reuse the Add Trip form
+5️⃣ MATCHING LOGIC (PHASE 1 — LOCKED)
+Matching Behavior A ONLY:
+Open dates ↔ Open dates
+Match when:
+overlap_days =
+min(my.end_date, their.end_date)
+-
+max(my.start_date, their.start_date)
++ 1
+
+overlap_days > 0
+If overlap_days ≤ 0 → do not show.
+6️⃣ PASS MATCH SIGNAL (ADDITIVE ONLY)
+If both users have the same pass_type, append:
+Both on Ikon
+Rules:
+Pass match does NOT affect matching
+Do NOT show anything if passes differ or are missing
+Display is secondary/subtle
+7️⃣ FRIEND PROFILE (READ-ONLY)
+On a friend’s profile card, add a section:
+Open dates
+Feb 16–20
+Mar 5–7
+Rules:
+Read-only
+No editing here
+No overlap copy on profile
+8️⃣ GUARDRAILS (NON-NEGOTIABLE)
+Open dates:
+❌ do NOT appear in My Trips
+❌ do NOT appear in Friends’ Trips
+❌ do NOT appear in Overlap
+Overlap tab remains confirmed trips only
+No changes to:
+Add Trip flow
+Trip overlap logic
+Auth/session behavior
+9️⃣ ACCEPTANCE CRITERIA
+Before marking complete, verify:
+✅ Open tab appears in Home toggle
+✅ User can add open dates
+✅ Open dates persist
+✅ Friends with overlapping open dates appear
+✅ Correct overlap copy (“both open for X days”)
+✅ Pass match copy appears only when applicable
+✅ Trips behavior is unchanged
+🔮 PHASE 2 / OUT-OF-SCOPE (DO NOT IMPLEMENT NOW)
+The following are explicitly NOT part of this task and should only be noted for future work:
+🔔 Notifications
+Example: “2 friends are open next weekend”
+🔃 Sorting logic tweaks
+Ranking overlaps by duration, closeness, or shared pass
+🧪 Dummy data seeding
+Generating Open dates for test users to visually QA the feature
+These should not be partially implemented, stubbed, or scaffolded in Phase 1.
+🧠 CONTEXT (DO NOT IGNORE)
+Open dates are about possibility, not plans.
+They must remain:
+Lightweight
+Separate from trips
+Socially visible
+Easy to extend later without refactoring
+If you encounter ambiguity:
+Default to separation over reuse.
