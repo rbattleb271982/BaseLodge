@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_required, current_user, login_user
 from functools import wraps
 from flask_migrate import Migrate
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort
 from debug_routes import debug_bp
 from io import BytesIO
 import segno
@@ -971,23 +971,28 @@ def settings():
 @app.route("/add_trip", methods=["GET", "POST"])
 @login_required
 def add_trip():
+    resorts = Resort.query.filter_by(is_active=True).order_by(Resort.state, Resort.name).all()
+    
     if request.method == "POST":
-        state = request.form.get("state")
-        mountain = request.form.get("mountain")
+        resort_id = request.form.get("resort_id")
         start_date_str = request.form.get("start_date")
         end_date_str = request.form.get("end_date")
         is_public = request.form.get("is_public") == "on"
 
         errors = []
 
-        if not state:
-            errors.append("Please select a state.")
-        if not mountain:
-            errors.append("Please select a mountain.")
+        if not resort_id:
+            errors.append("Please select a resort.")
         if not start_date_str:
             errors.append("Please select a start date.")
         if not end_date_str:
             errors.append("Please select an end date.")
+
+        resort = None
+        if resort_id:
+            resort = Resort.query.get(resort_id)
+            if not resort:
+                errors.append("Invalid resort selected.")
 
         start_date = None
         end_date = None
@@ -1006,13 +1011,15 @@ def add_trip():
             return render_template(
                 "add_trip.html",
                 trip=None,
+                resorts=resorts,
                 form_action=url_for("add_trip"),
             )
 
         trip = SkiTrip(
             user_id=current_user.id,
-            state=state,
-            mountain=mountain,
+            resort_id=resort.id,
+            state=resort.state,
+            mountain=resort.name,
             start_date=start_date,
             end_date=end_date,
             is_public=is_public,
@@ -1026,6 +1033,7 @@ def add_trip():
     return render_template(
         "add_trip.html",
         trip=None,
+        resorts=resorts,
         form_action=url_for("add_trip"),
     )
 
@@ -1035,24 +1043,29 @@ def edit_trip_form(trip_id):
     trip = SkiTrip.query.get_or_404(trip_id)
     if trip.user_id != current_user.id:
         abort(403)
+    
+    resorts = Resort.query.filter_by(is_active=True).order_by(Resort.state, Resort.name).all()
 
     if request.method == "POST":
-        state = request.form.get("state")
-        mountain = request.form.get("mountain")
+        resort_id = request.form.get("resort_id")
         start_date_str = request.form.get("start_date")
         end_date_str = request.form.get("end_date")
         is_public = request.form.get("is_public") == "on"
 
         errors = []
 
-        if not state:
-            errors.append("Please select a state.")
-        if not mountain:
-            errors.append("Please select a mountain.")
+        if not resort_id:
+            errors.append("Please select a resort.")
         if not start_date_str:
             errors.append("Please select a start date.")
         if not end_date_str:
             errors.append("Please select an end date.")
+
+        resort = None
+        if resort_id:
+            resort = Resort.query.get(resort_id)
+            if not resort:
+                errors.append("Invalid resort selected.")
 
         start_date = None
         end_date = None
@@ -1071,11 +1084,13 @@ def edit_trip_form(trip_id):
             return render_template(
                 "add_trip.html",
                 trip=trip,
+                resorts=resorts,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
             )
 
-        trip.state = state
-        trip.mountain = mountain
+        trip.resort_id = resort.id
+        trip.state = resort.state
+        trip.mountain = resort.name
         trip.start_date = start_date
         trip.end_date = end_date
         trip.is_public = is_public
@@ -1088,6 +1103,7 @@ def edit_trip_form(trip_id):
     return render_template(
         "add_trip.html",
         trip=trip,
+        resorts=resorts,
         form_action=url_for("edit_trip_form", trip_id=trip.id),
     )
 

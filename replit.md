@@ -35,9 +35,20 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **Database:** SQLite for development, PostgreSQL for production, managed via SQLAlchemy.
 - **File Structure:** Organized for clarity, separating application logic (`app.py`), database models (`models.py`), templates, and static assets.
 - **API Endpoints:** Dedicated API routes for trip management (create, edit, delete) and friend management (invite, list, accept, remove).
-- **Models:** Core models include `User`, `SkiTrip`, `Friend`, `Invitation`, and `InviteToken`, with appropriate relationships and constraints.
+- **Models:** Core models include `User`, `SkiTrip`, `Resort`, `Friend`, `Invitation`, and `InviteToken`, with appropriate relationships and constraints.
 
 ## Recent Changes (Dec 12, 2025)
+
+### Resort Model & Trip Form Update - COMPLETE ✅
+Created unified Resort model replacing state+mountain dropdowns:
+1. **Resort model** - New model with fields: name, state, brand (Epic/Ikon/Other), slug, is_active
+2. **Seeded 81 resorts** - 16 Epic, 33 Ikon, 32 Other across 15 states
+3. **Updated SkiTrip model** - Added resort_id foreign key (kept state/mountain for backward compatibility)
+4. **Updated add_trip route** - Now accepts resort_id, populates state/mountain from Resort
+5. **Updated edit_trip route** - Same resort selection logic
+6. **Updated add_trip.html** - Single Resort dropdown with "(State) — Brand" format
+7. **seed_resorts.py** - Script to populate Resort table with all resorts
+8. **Migration** - Added resort table and resort_id to ski_trip
 
 ### Friend Trip Details Page - COMPLETE ✅
 Enhanced Friends' Trips with clickable rows and a details page:

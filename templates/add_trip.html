@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Base Lodge - Add Trip</title>
+    <title>Base Lodge - {% if trip %}Edit{% else %}Add{% endif %} Trip</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
         .form-card {
@@ -105,13 +105,7 @@
             {% if trip %}Edit trip{% else %}Add a trip{% endif %}
         </h1>
 
-        {% if current_user.home_mountain and not trip %}
-        <button id="useHomeMountain" type="button" class="primary-button" style="margin-bottom: 1rem; background: var(--bl-color-primary);">
-            🏠 Use My Home Mountain ({{ current_user.home_mountain }})
-        </button>
-        {% endif %}
-
-        {% with messages = get_flashed_messages(category_filter=["trip"]) %}
+        {% with messages = get_flashed_messages(category_filter=["trip", "error"]) %}
             {% if messages %}
                 {% for message in messages %}
                     <div class="error-message">{{ message }}</div>
@@ -121,32 +115,15 @@
 
         <form method="POST" action="{{ form_action }}" class="form-card">
             <div class="form-group">
-                <label for="state">State</label>
-                <select id="state" name="state" required onchange="loadMountains()">
-                    <option value="">Select a state</option>
-                    {% set state_value = trip.state if trip else "" %}
-                    <option value="AK" {% if state_value == 'AK' %}selected{% endif %}>Alaska</option>
-                    <option value="CA" {% if state_value == 'CA' %}selected{% endif %}>California</option>
-                    <option value="CO" {% if state_value == 'CO' %}selected{% endif %}>Colorado</option>
-                    <option value="ID" {% if state_value == 'ID' %}selected{% endif %}>Idaho</option>
-                    <option value="ME" {% if state_value == 'ME' %}selected{% endif %}>Maine</option>
-                    <option value="MI" {% if state_value == 'MI' %}selected{% endif %}>Michigan</option>
-                    <option value="MT" {% if state_value == 'MT' %}selected{% endif %}>Montana</option>
-                    <option value="NH" {% if state_value == 'NH' %}selected{% endif %}>New Hampshire</option>
-                    <option value="NM" {% if state_value == 'NM' %}selected{% endif %}>New Mexico</option>
-                    <option value="NY" {% if state_value == 'NY' %}selected{% endif %}>New York</option>
-                    <option value="OR" {% if state_value == 'OR' %}selected{% endif %}>Oregon</option>
-                    <option value="UT" {% if state_value == 'UT' %}selected{% endif %}>Utah</option>
-                    <option value="VT" {% if state_value == 'VT' %}selected{% endif %}>Vermont</option>
-                    <option value="WA" {% if state_value == 'WA' %}selected{% endif %}>Washington</option>
-                    <option value="WY" {% if state_value == 'WY' %}selected{% endif %}>Wyoming</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="mountain">Mountain</label>
-                <select id="mountain" name="mountain" required data-existing="{{ trip.mountain if trip else '' }}">
-                    {% if trip and trip.mountain %}<option value="{{ trip.mountain }}" selected>{{ trip.mountain }}</option>{% else %}<option value="">Select a state first</option>{% endif %}
+                <label for="resort_id">Resort</label>
+                <select id="resort_id" name="resort_id" required>
+                    <option value="">Choose a resort...</option>
+                    {% for r in resorts %}
+                        <option value="{{ r.id }}"
+                            {% if trip and trip.resort_id == r.id %}selected{% endif %}>
+                            {{ r.name }} ({{ r.state }}) {% if r.brand and r.brand != 'Other' %}— {{ r.brand }}{% endif %}
+                        </option>
+                    {% endfor %}
                 </select>
             </div>
 
@@ -174,86 +151,5 @@
     </div>
 
     {% include 'components/bottom_nav.html' %}
-
-    <script>
-        const MOUNTAINS = {
-            'AK': ['Alyeska'],
-            'CA': ['Mammoth', 'Northstar', 'Palisades Tahoe', 'June Mountain', 'Sierra at Tahoe', 'China Peak', 'Boreal'],
-            'CO': ['Aspen', 'Beaver Creek', 'Breckenridge', 'Copper', 'Loveland', 'Keystone', 'Winter Park', 'Eldora', 'Powderhorn', 'Monarch', 'Sunlight', 'Telluride'],
-            'ID': ['Bogus Basin', 'Schweitzer', 'Sun Valley'],
-            'ME': ['Sugarloaf', 'Sunday River'],
-            'MI': ['Boyne Highlands', 'Nubs Nob'],
-            'MT': ['Big Sky', 'Whitefish'],
-            'NH': ['Cannon', 'Loon', 'Wildcat', 'Mount Sunapee', 'Waterville Valley'],
-            'NM': ['Taos', 'Santa Fe'],
-            'NY': ['Whiteface', 'Gore', 'Belleayre'],
-            'OR': ['Mount Hood', 'Timberline', 'Hoodoo'],
-            'UT': ['Alta', 'Brighton', 'The Canyons', 'Powder Mountain', 'Park City', 'Snowbasin', 'Nordic Valley', 'Sundance'],
-            'VT': ['Stowe', 'Smugglers Notch', 'Jay Peak', 'Killington', 'Sugarbush'],
-            'WA': ['Crystal', 'Mission Ridge', 'The Summit at Snoqualmie', 'White Pass'],
-            'WY': ['Jackson Hole', 'Grand Targhee']
-        };
-
-        function loadMountains(selectedMountain = null) {
-            const state = document.getElementById('state').value;
-            const mountainSelect = document.getElementById('mountain');
-            mountainSelect.innerHTML = '';
-
-            if (!state) {
-                mountainSelect.innerHTML = '<option value="">Select a state first</option>';
-                return;
-            }
-
-            const mountains = MOUNTAINS[state] || [];
-
-            // Insert placeholder
-            const placeholder = document.createElement('option');
-            placeholder.value = "";
-            placeholder.text = "Choose one...";
-            placeholder.disabled = true;
-            placeholder.selected = true;
-            mountainSelect.appendChild(placeholder);
-
-            // Add mountains
-            mountains.forEach(m => {
-                const option = document.createElement('option');
-                option.value = m;
-                option.text = (m === userHomeMountain) ? m + " (Home Mountain)" : m;
-
-                // Preserve selected mountain when editing a trip
-                if (selectedMountain && selectedMountain === m) {
-                    option.selected = true;
-                    placeholder.selected = false;
-                }
-
-                mountainSelect.appendChild(option);
-            });
-        }
-
-        const userHomeMountain = "{{ current_user.home_mountain or '' }}";
-
-        document.getElementById("useHomeMountain")?.addEventListener("click", () => {
-            if (!userHomeMountain) return;
-
-            // Find correct state based on mountain dictionary
-            for (const [state, mountains] of Object.entries(MOUNTAINS)) {
-                if (mountains.includes(userHomeMountain)) {
-                    document.getElementById("state").value = state;
-                    loadMountains();
-                    document.getElementById("mountain").value = userHomeMountain;
-                    break;
-                }
-            }
-        });
-
-        // Load mountains on page load if state is already selected
-        document.addEventListener('DOMContentLoaded', () => {
-            const state = document.getElementById('state').value;
-            const existingMountain = document.getElementById('mountain').getAttribute('data-existing');
-            if (state) {
-                loadMountains(existingMountain);
-            }
-        });
-    </script>
 </body>
 </html>

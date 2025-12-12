@@ -37,11 +37,26 @@ class User(UserMixin, db.Model):
         return f'<User {self.email}>'
 
 
+class Resort(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    state = db.Column(db.String(2), nullable=False)
+    brand = db.Column(db.String(20), nullable=True)  # 'Epic', 'Ikon', 'Indy', 'Other'
+    slug = db.Column(db.String(120), unique=True, nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+
+    trips = db.relationship('SkiTrip', backref='resort', lazy=True)
+
+    def __repr__(self):
+        return f'<Resort {self.name} ({self.state})>'
+
+
 class SkiTrip(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    state = db.Column(db.String(50))
-    mountain = db.Column(db.String(100))
+    resort_id = db.Column(db.Integer, db.ForeignKey('resort.id'), nullable=True)
+    state = db.Column(db.String(50))  # Kept for backward compatibility
+    mountain = db.Column(db.String(100))  # Kept for backward compatibility
     start_date = db.Column(db.Date)
     end_date = db.Column(db.Date)
     pass_type = db.Column(db.String(50), default="No Pass")

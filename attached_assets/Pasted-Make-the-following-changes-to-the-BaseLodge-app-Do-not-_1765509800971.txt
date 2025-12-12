@@ -1,0 +1,220 @@
+Make the following changes to the BaseLodge app. Do not use checkpoints unless absolutely required.
+
+-----------------------------------
+PART 1 — CREATE A UNIFIED RESORT MODEL
+-----------------------------------
+
+1. Add a new SQLAlchemy model in models.py named Resort:
+
+class Resort(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    state = db.Column(db.String(2), nullable=False)
+    brand = db.Column(db.String(20), nullable=True)   # 'Epic', 'Ikon', 'Indy', 'Other'
+    slug = db.Column(db.String(120), unique=True, nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+
+Add a relationship:
+Resort.trips = db.relationship('SkiTrip', backref='resort', lazy=True)
+
+2. Update the SkiTrip model:
+- Add resort_id = db.Column(db.Integer, db.ForeignKey('resort.id'))
+- KEEP the existing 'state' and 'mountain' string fields for backward compatibility, but begin switching the app to use resort_id as the primary source.
+- When editing or adding a trip, populate both the resort_id and the string fields so nothing breaks.
+
+3. Create a migration (if migrations folder exists, add migration manually; if not, recreate db and run db.create_all).
+
+-----------------------------------
+PART 2 — SEED ALL RESORTS INTO ONE TABLE
+-----------------------------------
+
+Create a new script in the root folder: seed_resorts.py
+
+This script should:
+
+- Import db and Resort
+- Drop existing Resort rows (not the table)
+- Insert a curated list of Epic + Ikon + major independents:
+
+Examples (add all):
+
+Colorado:
+- Aspen Snowmass (Ikon)
+- Aspen Highlands (Ikon)
+- Buttermilk (Ikon)
+- Snowmass (Ikon)
+- Beaver Creek (Epic)
+- Breckenridge (Epic)
+- Keystone (Epic)
+- Vail (Epic)
+- Copper Mountain (Ikon)
+- Winter Park (Ikon)
+- Eldora (Ikon)
+- Telluride (Ikon)
+- Monarch (Other)
+- Sunlight (Other)
+
+Utah:
+- Alta (Ikon)
+- Snowbird (Ikon)
+- Solitude (Ikon)
+- Brighton (Ikon)
+- Park City (Epic)
+- Deer Valley (Ikon)
+- Snowbasin (Ikon)
+- Powder Mountain (Other)
+
+California:
+- Palisades Tahoe (Ikon)
+- Northstar (Epic)
+- Heavenly (Epic)
+- Kirkwood (Epic)
+- Mammoth (Ikon)
+- June Mountain (Ikon)
+
+Wyoming:
+- Jackson Hole (Ikon)
+- Grand Targhee (Ikon)
+
+Montana:
+- Big Sky (Ikon)
+- Whitefish (Other)
+
+Washington:
+- Crystal Mountain (Ikon)
+- Snoqualmie (Other)
+- Mission Ridge (Other)
+- Stevens Pass (Epic)
+
+Oregon:
+- Mt. Hood Meadows (Other)
+- Timberline (Other)
+- Bachelor (Ikon)
+
+Vermont:
+- Killington (Ikon)
+- Sugarbush (Ikon)
+- Stowe (Epic)
+- Stratton (Ikon)
+- Jay Peak (Other)
+- Smugglers Notch (Other)
+
+New Hampshire:
+- Loon (Ikon)
+- Cannon (Other)
+- Waterville Valley (Other)
+
+Maine:
+- Sunday River (Ikon)
+- Sugarloaf (Ikon)
+
+New York:
+- Whiteface (Other)
+- Gore (Other)
+- Belleayre (Other)
+
+Assign a slug automatically:
+slug = name.lower().replace(" ", "-")
+
+Run db.session.add_all([...]) and db.session.commit().
+
+Then run the script manually through the Replit shell:
+python seed_resorts.py
+
+-----------------------------------
+PART 3 — UPDATE ADD TRIP & EDIT TRIP FOR THE NEW RESORT TABLE
+-----------------------------------
+
+Update routes in app.py:
+
+1. In /add-trip (GET):
+- Query all resorts sorted by state then alphabetically.
+resorts = Resort.query.order_by(Resort.state, Resort.name).all()
+
+- Pass "resorts" into the template.
+
+2. In /add-trip (POST):
+- Read resort_id from form (resort_id)
+- Lookup resort = Resort.query.get(resort_id)
+- Save:
+    trip.resort_id = resort.id
+    trip.state = resort.state
+    trip.mountain = resort.name
+
+Do not accept manual state/mountain anymore.
+
+3. In /edit-trip:
+Same behavior.
+
+-----------------------------------
+PART 4 — UPDATE add_trip.html AND edit_trip.html
+-----------------------------------
+
+Replace the current State dropdown + Mountain dropdown system with a SINGLE resort dropdown:
+
+<label for="resort">Resort</label>
+<select id="resort" name="resort_id" required>
+    <option value="">Choose a resort...</option>
+    {% for r in resorts %}
+        <option value="{{ r.id }}"
+            {% if trip and trip.resort_id == r.id %}selected{% endif %}>
+            {{ r.name }} ({{ r.state }})
+        </option>
+    {% endfor %}
+</select>
+
+Remove all JS that dynamically loads mountains by state. It is no longer needed.
+
+-----------------------------------
+PART 5 — UPDATE FRIEND FILTERING BY PASS TYPE
+-----------------------------------
+
+On the Friends page:
+
+Pass buttons at top:
+All | Epic | Ikon | Other
+
+When a user is displayed, the pass type should be determined by their pass_type field (existing) — no change needed.
+
+However, when Friends’ Trips is shown, trip.resort.brand should be used to filter.
+
+Update queries accordingly.
+
+-----------------------------------
+PART 6 — UPDATE HOME PAGE / FRIENDS' TRIPS / OVERLAPS
+-----------------------------------
+
+Replace trip.mountain and trip.state formatting with:
+
+{{ trip.resort.name }}, {{ trip.resort.state }}
+
+Replace All date displays to show BOTH start and end date:
+Example:
+Dec 20–23 — User Test3 @ Palisades Tahoe, CA
+
+-----------------------------------
+PART 7 — ENSURE BACKWARD COMPATIBILITY
+-----------------------------------
+
+Until all features use resort_id, continue writing the string fields.
+Old trips without resort_id:
+- Detect them and map them automatically if the name matches a Resort row.
+- If no match, show them as-is.
+
+-----------------------------------
+PART 8 — TESTS
+-----------------------------------
+
+Verify:
+
+- Add Trip works
+- Edit Trip works
+- Friends’ Trips shows correct resort info
+- Overlaps still work
+- Sorting is alphabetical
+- Everything uses the unified resort table
+- No page still uses the old JS mountain lists
+
+-----------------------------------
+END
+-----------------------------------
