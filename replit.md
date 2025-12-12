@@ -39,6 +39,19 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 
 ## Recent Changes (Dec 12, 2025)
 
+### Token-Based Invite System - COMPLETE ✅
+Replaced the old invite logic with a reusable token-based system:
+1. **Updated InviteToken model** - New fields: `inviter_id`, `used_at`, `max_uses` (0 = unlimited)
+2. **Added `get_or_create_invite_token()` helper** - Returns existing token or creates new one per user
+3. **New `/r/<token>` landing route** - Personalized page showing "{Name} has invited you to connect"
+   - Stores `pending_inviter_id` in session
+   - If already logged in, connects immediately and redirects to Friends
+4. **Updated `/invite` and `/my-qr` routes** - Both use same reusable token URL format
+5. **Updated `auth()` route** - Consumes `pending_inviter_id` from session after signup/login
+6. **Added `_connect_pending_inviter()` helper** - Creates bidirectional friendship and updates token usage
+7. **Created templates** - `invite_landing.html` and `invite_invalid.html` with BaseLodge styling
+8. **Token URLs** - Format: `/r/<token>` (e.g., `/r/abc123def456`)
+
 ### Admin Routes Added ✅
 1. **`/generate-dummy-users` (Admin-only)** - Creates 30 fully-functional dummy test users:
    - Protected with `@admin_required` decorator (only richardbattlebaxter@gmail.com)

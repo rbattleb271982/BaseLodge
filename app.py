@@ -1,4 +1,5 @@
 import os
+import secrets
 from datetime import datetime, date, timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file
 from flask_login import LoginManager, login_required, current_user, login_user
@@ -43,6 +44,18 @@ app.register_blueprint(debug_bp)
 
 with app.app_context():
     db.create_all()
+
+def get_or_create_invite_token(user):
+    """Get existing invite token for user or create a new one."""
+    existing = InviteToken.query.filter_by(inviter_id=user.id).first()
+    if existing:
+        return existing
+    
+    token = secrets.token_urlsafe(16)
+    invite = InviteToken(token=token, inviter_id=user.id)
+    db.session.add(invite)
+    db.session.commit()
+    return invite
 
 STATE_ABBR = {
     "Alaska": "AK",
@@ -102,11 +115,6 @@ def index():
 
 @app.route("/auth", methods=["GET", "POST"])
 def auth():
-    # Capture inviter reference from URL parameter
-    ref = request.args.get("ref")
-    if ref:
-        session["invited_by"] = ref
-    
     if request.method == "POST":
         form_type = request.form.get("form_type")
         
@@ -115,7 +123,6 @@ def auth():
             last_name = request.form.get("last_name")
             email = request.form.get("email", "").lower().strip()
             password = request.form.get("password")
-            inviter_id = request.args.get("ref")
             
             existing_user = User.query.filter_by(email=email).first()
             if existing_user:
@@ -131,29 +138,11 @@ def auth():
             db.session.add(user)
             db.session.commit()
             
-            # --- FRIEND CONNECTION VIA INVITE TOKEN ---
-            token_value = request.args.get("token") or session.get("invite_token")
-
-            if token_value:
-                token_obj = InviteToken.query.filter_by(token=token_value).first()
-
-                if token_obj and not token_obj.used:
-                    inviter = User.query.get(token_obj.inviter_user_id)
-
-                    if inviter:
-                        friendship1 = Friend(user_id=inviter.id, friend_id=user.id)
-                        friendship2 = Friend(user_id=user.id, friend_id=inviter.id)
-                        db.session.add(friendship1)
-                        db.session.add(friendship2)
-
-                    token_obj.used = True
-                    token_obj.used_by = user.id
-                    db.session.commit()
-
-                session.pop("invite_token", None)
-            
             login_user(user)
             session["user_id"] = user.id
+            
+            # Connect with inviter if pending_inviter_id exists in session
+            _connect_pending_inviter(user)
             
             next_url = request.args.get("next")
             if next_url:
@@ -170,6 +159,9 @@ def auth():
                 login_user(user)
                 session["user_id"] = user.id
                 
+                # Connect with inviter if pending_inviter_id exists in session
+                _connect_pending_inviter(user)
+                
                 next_url = request.args.get("next")
                 if next_url and user.profile_setup_complete:
                     return redirect(next_url)
@@ -184,6 +176,71 @@ def auth():
                 return render_template("auth.html")
     
     return render_template("auth.html")
+
+
+def _connect_pending_inviter(user):
+    """Helper to connect user with pending inviter from session."""
+    inviter_id = session.get("pending_inviter_id")
+    if inviter_id and inviter_id != user.id:
+        inviter = User.query.get(inviter_id)
+        if inviter:
+            # Check if already friends
+            existing = Friend.query.filter(
+                db.or_(
+                    db.and_(Friend.user_id == user.id, Friend.friend_id == inviter.id),
+                    db.and_(Friend.user_id == inviter.id, Friend.friend_id == user.id),
+                )
+            ).first()
+            if not existing:
+                f1 = Friend(user_id=user.id, friend_id=inviter.id)
+                f2 = Friend(user_id=inviter.id, friend_id=user.id)
+                db.session.add_all([f1, f2])
+                
+                # Update invite token used_at timestamp
+                invite_token = InviteToken.query.filter_by(inviter_id=inviter.id).first()
+                if invite_token:
+                    invite_token.used_at = datetime.utcnow()
+                
+                db.session.commit()
+        session.pop("pending_inviter_id", None)
+
+
+@app.route("/r/<token>")
+def invite_token_landing(token):
+    """Landing page for invite token links."""
+    invite = InviteToken.query.filter_by(token=token).first()
+
+    if not invite:
+        return render_template("invite_invalid.html")
+
+    inviter = invite.inviter
+    if not inviter:
+        return render_template("invite_invalid.html")
+
+    # Store inviter in session so auth flow can use it
+    session["pending_inviter_id"] = inviter.id
+
+    # If user is already logged in, connect immediately
+    if current_user.is_authenticated and current_user.id != inviter.id:
+        existing = Friend.query.filter(
+            db.or_(
+                db.and_(Friend.user_id == current_user.id, Friend.friend_id == inviter.id),
+                db.and_(Friend.user_id == inviter.id, Friend.friend_id == current_user.id),
+            )
+        ).first()
+        if not existing:
+            f1 = Friend(user_id=current_user.id, friend_id=inviter.id)
+            f2 = Friend(user_id=inviter.id, friend_id=current_user.id)
+            db.session.add_all([f1, f2])
+            # Update invite token used_at timestamp
+            invite.used_at = datetime.utcnow()
+            db.session.commit()
+        session.pop("pending_inviter_id", None)
+        return redirect(url_for("friends"))
+
+    # Otherwise render the landing page for signup / login
+    return render_template("invite_landing.html", inviter=inviter)
+
 
 @app.route("/setup-profile", methods=["GET", "POST"])
 def setup_profile():
@@ -691,15 +748,15 @@ def create_trip_page():
 @app.route("/invite")
 @login_required
 def invite():
-    invite = InviteToken.generate(current_user.id)
-    invite_url = f"{request.host_url}auth?token={invite.token}"
+    invite_token = get_or_create_invite_token(current_user)
+    invite_url = url_for("invite_token_landing", token=invite_token.token, _external=True)
     return render_template("invite.html", user=current_user, invite_url=invite_url)
 
 @app.route("/my-qr")
 @login_required
 def my_qr():
-    invite = InviteToken.generate(current_user.id)
-    qr_url = f"{request.host_url}auth?token={invite.token}"
+    invite_token = get_or_create_invite_token(current_user)
+    qr_url = url_for("invite_token_landing", token=invite_token.token, _external=True)
     qr = segno.make(qr_url)
     buf = BytesIO()
     qr.save(buf, kind="png", scale=8)

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>You're invited to BaseLodge</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .invite-landing-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bl-color-bg);
+            padding: var(--bl-space-6);
+        }
+        
+        .invite-landing-card {
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-lg);
+            padding: var(--bl-space-8);
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: var(--bl-shadow-soft);
+        }
+        
+        .invite-landing-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--bl-color-primary);
+            margin-bottom: var(--bl-space-4);
+        }
+        
+        .invite-landing-subtitle {
+            font-size: 18px;
+            color: var(--bl-color-text);
+            margin-bottom: var(--bl-space-4);
+            font-weight: 600;
+        }
+        
+        .invite-landing-description {
+            font-size: 15px;
+            color: var(--bl-color-text-muted);
+            line-height: 1.6;
+            margin-bottom: var(--bl-space-8);
+        }
+        
+        .invite-landing-button {
+            display: block;
+            width: 100%;
+            padding: var(--bl-space-5);
+            background: var(--bl-color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--bl-radius-md);
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        
+        .invite-landing-button:hover {
+            background: #720115;
+        }
+        
+        .invite-landing-fine-print {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin-top: var(--bl-space-6);
+        }
+    </style>
+</head>
+<body>
+    <div class="invite-landing-page">
+        <div class="invite-landing-card">
+            <h1 class="invite-landing-title">Base Lodge</h1>
+            <p class="invite-landing-subtitle">
+                {{ inviter.first_name }} has invited you to connect on BaseLodge.
+            </p>
+            <p class="invite-landing-description">
+                See each other's trips, passes, and mountain overlaps.
+            </p>
+
+            <a href="{{ url_for('auth') }}" class="invite-landing-button">
+                Sign up or log in to connect
+            </a>
+
+            <p class="invite-landing-fine-print">
+                By continuing, you'll create a BaseLodge account or log in to an existing one.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
