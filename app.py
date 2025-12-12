@@ -2039,5 +2039,66 @@ def open_data_debug():
         "matches": matches
     })
 
+@app.cli.command()
+def create_jonathan_and_connect():
+    """Create Jonathan user and connect them as friends to all existing users."""
+    
+    JONATHAN_FIRST = "Jonathan"
+    JONATHAN_LAST = "Schmitz"
+    JONATHAN_EMAIL = "Jonathanmschmitz@gmail.com"
+    JONATHAN_PASSWORD = "12345678"
+    
+    # Step 1: Check if Jonathan exists
+    jonathan = User.query.filter_by(email=JONATHAN_EMAIL).first()
+    
+    if jonathan:
+        print(f"✓ Jonathan already exists (ID: {jonathan.id})")
+    else:
+        jonathan = User(
+            first_name=JONATHAN_FIRST,
+            last_name=JONATHAN_LAST,
+            email=JONATHAN_EMAIL
+        )
+        jonathan.set_password(JONATHAN_PASSWORD)
+        db.session.add(jonathan)
+        db.session.commit()
+        print(f"✓ Created Jonathan (ID: {jonathan.id})")
+    
+    # Step 2: Get all OTHER users (exclude Jonathan)
+    other_users = User.query.filter(User.id != jonathan.id).all()
+    print(f"✓ Found {len(other_users)} existing users to connect")
+    
+    # Step 3: Create bidirectional friendships
+    connections_created = 0
+    connections_skipped = 0
+    
+    for other_user in other_users:
+        # Create friendship: jonathan -> other_user
+        friendship_1 = Friend.query.filter_by(user_id=jonathan.id, friend_id=other_user.id).first()
+        if not friendship_1:
+            friendship_1 = Friend(user_id=jonathan.id, friend_id=other_user.id)
+            db.session.add(friendship_1)
+            connections_created += 1
+        else:
+            connections_skipped += 1
+        
+        # Create friendship: other_user -> jonathan
+        friendship_2 = Friend.query.filter_by(user_id=other_user.id, friend_id=jonathan.id).first()
+        if not friendship_2:
+            friendship_2 = Friend(user_id=other_user.id, friend_id=jonathan.id)
+            db.session.add(friendship_2)
+            connections_created += 1
+        else:
+            connections_skipped += 1
+    
+    db.session.commit()
+    
+    # Step 4: Summary
+    print(f"\n✓ Friendship connections created: {connections_created}")
+    print(f"✓ Friendship connections skipped (already exist): {connections_skipped}")
+    print(f"\n✓ Jonathan can now login with:")
+    print(f"  Email: {JONATHAN_EMAIL}")
+    print(f"  Password: {JONATHAN_PASSWORD}")
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

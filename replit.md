@@ -39,6 +39,12 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **Models:** Core models include `User`, `SkiTrip`, `Resort`, `Friend`, `Invitation`, and `InviteToken`, with defined relationships.
 - **Authentication:** Flask-Login is fully integrated for session management, replacing manual session handling, and configured for cross-origin iframe compatibility.
 
+## Test Users
+- **Primary test user:** richardbattlebaxter@gmail.com / 12345678
+- **Jonathan Schmitz:** Jonathanmschmitz@gmail.com / 12345678
+  - Connected as friends to all 78 existing users (bidirectional)
+  - Created via Flask CLI command: `flask create-jonathan-and-connect`
+
 ## External Dependencies
 - **Flask:** Python web framework.
 - **Flask-Login:** User session management.
