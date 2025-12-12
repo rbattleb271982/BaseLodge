@@ -1256,5 +1256,40 @@ def connect_jonathan_to_dummies():
         "count": len(linked)
     }
 
+@app.route("/delete-account-data")
+@login_required
+@admin_required
+def delete_account_data():
+    target_emails = [
+        "richardbattlebaxter@gmail.com",
+        "jonathanmschmitz@gmail.com"
+    ]
+
+    deleted_summary = {}
+
+    for email in target_emails:
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            deleted_summary[email] = "User not found"
+            continue
+
+        SkiTrip.query.filter_by(user_id=user.id).delete()
+
+        Friend.query.filter_by(user_id=user.id).delete()
+        Friend.query.filter_by(friend_id=user.id).delete()
+
+        if hasattr(user, "mountains_visited"):
+            user.mountains_visited = []
+        
+        db.session.delete(user)
+        db.session.commit()
+
+        deleted_summary[email] = "All associated data deleted"
+
+    return {
+        "status": "success",
+        "details": deleted_summary
+    }
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
