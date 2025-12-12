@@ -56,6 +56,21 @@ Updated Home Screen to match new v0 design:
 5. **Trip cards** - Unified display format with "No Pass" fallback
 6. **Simplified bottom nav** - Text-only labels
 
+### Setup Profile & Before Request Handler - COMPLETE
+1. **Created /setup-profile route** - Collects Rider Type and Pass Type with segmented controls
+2. **Added @login_required** - Protects setup_profile and cleaned up old session logic
+3. **Added before_request handler** - Redirects incomplete users (missing rider_type or pass_type) to /setup-profile
+4. **Updated auth flow** - Login/signup now check rider_type and pass_type instead of profile_setup_complete field
+5. **Cleaned up all profile_setup_complete references** - Removed deprecated field usage throughout app
+
+### Trip Row Design Standardization - COMPLETE
+Unified trip card design across all trip displays:
+1. **Canonical trip row design** - Single horizontal row: bold dates, location inline, subtle card container
+2. **Applied to Home Screen tabs** - My Trips, Friends' Trips, Overlaps all use consistent .bl-trip-card
+3. **Updated My Trips page** - Refactored from vertical stacking to inline horizontal design
+4. **Consistent CSS** - Updated .bl-trip-card and related styles for unified appearance
+5. **Updated trip_row.html component** - Made it more reusable and aligned with canonical design
+
 ## External Dependencies
 - **Flask:** Python web framework.
 - **Flask-Login:** User session management.
