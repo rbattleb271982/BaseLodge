@@ -1291,5 +1291,58 @@ def delete_account_data():
         "details": deleted_summary
     }
 
+@app.route("/create-real-users-and-connect")
+@login_required
+@admin_required
+def create_real_users_and_connect():
+    richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+    if not richard:
+        richard = User(
+            first_name="Richard",
+            last_name="Battle",
+            email="richardbattlebaxter@gmail.com"
+        )
+        richard.set_password("123456")
+        db.session.add(richard)
+        db.session.commit()
+
+    jonathan = User.query.filter_by(email="jonathanmschmitz@gmail.com").first()
+    if not jonathan:
+        jonathan = User(
+            first_name="Jonathan",
+            last_name="Schmitz",
+            email="jonathanmschmitz@gmail.com"
+        )
+        jonathan.set_password("123456")
+        db.session.add(jonathan)
+        db.session.commit()
+
+    dummy_users = User.query.filter(User.email.like("dummy%@example.com")).all()
+
+    linked_richard = []
+    linked_jonathan = []
+
+    for u in dummy_users:
+        if not Friend.query.filter_by(user_id=richard.id, friend_id=u.id).first():
+            db.session.add(Friend(user_id=richard.id, friend_id=u.id))
+        if not Friend.query.filter_by(user_id=u.id, friend_id=richard.id).first():
+            db.session.add(Friend(user_id=u.id, friend_id=richard.id))
+        linked_richard.append(u.email)
+
+        if not Friend.query.filter_by(user_id=jonathan.id, friend_id=u.id).first():
+            db.session.add(Friend(user_id=jonathan.id, friend_id=u.id))
+        if not Friend.query.filter_by(user_id=u.id, friend_id=jonathan.id).first():
+            db.session.add(Friend(user_id=u.id, friend_id=jonathan.id))
+        linked_jonathan.append(u.email)
+
+    db.session.commit()
+
+    return {
+        "status": "success",
+        "richard_connected_to": linked_richard,
+        "jonathan_connected_to": linked_jonathan,
+        "dummy_count": len(dummy_users)
+    }
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
