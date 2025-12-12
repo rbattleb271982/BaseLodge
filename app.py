@@ -14,6 +14,12 @@ import random
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
+# Session configuration for development
+app.config['SESSION_COOKIE_SECURE'] = False  # Allow HTTP in development
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # More permissive for iframes
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "auth"
