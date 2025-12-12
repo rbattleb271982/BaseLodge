@@ -113,7 +113,7 @@ def auth():
         if form_type == "signup":
             first_name = request.form.get("first_name")
             last_name = request.form.get("last_name")
-            email = request.form.get("email")
+            email = request.form.get("email", "").lower().strip()
             password = request.form.get("password")
             inviter_id = request.args.get("ref")
             
@@ -162,7 +162,7 @@ def auth():
             return redirect(url_for("setup_profile"))
         
         elif form_type == "login":
-            email = request.form.get("email")
+            email = request.form.get("email", "").lower().strip()
             password = request.form.get("password")
             
             user = User.query.filter_by(email=email).first()
