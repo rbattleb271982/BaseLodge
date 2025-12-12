@@ -57,12 +57,13 @@
         
         {% if friend_open_dates and friend_open_dates|length > 0 %}
         <h2 class="page-title" style="margin-top: var(--bl-space-8);">Open dates</h2>
-        <div class="bl-card">
-            {% for open_date in friend_open_dates %}
-            <div style="padding: 10px 0; border-bottom: 1px solid var(--bl-color-border-soft);">
-                <p style="font-size: 0.9rem; margin: 0;">{{ open_date.start_date.strftime('%b %d') }}–{{ open_date.end_date.strftime('%b %d') }}</p>
-            </div>
-            {% endfor %}
+        <div class="bl-card" style="padding: 12px;">
+            <p style="font-size: 0.9rem; margin: 0;">
+                <strong>Open on {{ friend_open_dates|length }} day{% if friend_open_dates|length != 1 %}s{% endif %}</strong>
+            </p>
+            {% if friend_open_dates_display %}
+            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">{{ friend_open_dates_display }}</p>
+            {% endif %}
         </div>
         {% endif %}
         

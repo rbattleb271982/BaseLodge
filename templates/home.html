@@ -118,42 +118,60 @@
         </div>
         
         <div id="tab-open" class="bl-trip-list" {% if active_tab != 'open' %}style="display: none;"{% endif %}>
-            {% if open_overlaps and open_overlaps|length > 0 %}
-                {% for oo in open_overlaps %}
-                <div class="bl-trip-card">
-                    <div style="flex: 1;">
-                        <p style="font-size: 0.9rem; font-weight: 500; margin: 0;">
-                            <strong>{{ oo.start_date.strftime('%b %d') }}–{{ oo.end_date.strftime('%b %d') }}</strong> — Open
-                        </p>
-                        <p style="font-size: 0.85rem; margin: 4px 0 0 0; color: var(--bl-color-text-muted);">
-                            You and {{ oo.friend_name }} are both open for {{ oo.overlap_days }} {% if oo.overlap_days == 1 %}day{% else %}days{% endif %}
-                            {% if oo.pass_match %} • Both on {{ oo.pass_match }}{% endif %}
+            <div style="background: var(--bl-color-surface); border-radius: 10px; padding: 14px; margin-bottom: 16px;">
+                <h3 style="font-size: 1rem; font-weight: 600; margin: 0 0 6px 0;">Open dates</h3>
+                <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">Days you're free to ski. Add dates you're open, see when friends are available on the same days, and whether you're on the same pass.</p>
+            </div>
+            
+            {% if user_open_dates and user_open_dates|length > 0 %}
+            <div class="bl-card" style="margin-bottom: 16px; padding: 12px;">
+                <p style="font-size: 0.9rem; margin: 0;">
+                    <strong>You're open on {{ user_open_dates|length }} day{% if user_open_dates|length != 1 %}s{% endif %}</strong>
+                </p>
+                {% if user_open_dates_display %}
+                <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">{{ user_open_dates_display }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            {% if open_date_matches and open_date_matches|length > 0 %}
+                {% for match in open_date_matches %}
+                <div class="bl-trip-card" style="flex-direction: column; align-items: flex-start;">
+                    <p style="font-size: 0.9rem; font-weight: 600; margin: 0 0 6px 0;">
+                        {{ match.day_name }}, {{ match.display_date }}
+                    </p>
+                    {% for friend in match.friends %}
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        <p style="font-size: 0.85rem; margin: 0;">
+                            You + <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; font-weight: 500;">{{ friend.name }}</a> are both open
                         </p>
                     </div>
+                    <p style="font-size: 0.8rem; color: var(--bl-color-text-muted); margin: 0;">
+                        {% if friend.pass_info %}{{ friend.pass_info }}{% endif %}
+                        {% if friend.pass_info and friend.skill_level %} · {% endif %}
+                        {% if friend.skill_level %}{{ friend.skill_level }}{% endif %}
+                    </p>
+                    {% endfor %}
                 </div>
                 {% endfor %}
+            {% elif user_open_dates and user_open_dates|length > 0 %}
+                <p class="bl-text-muted">You're open on these days, but none of your friends are yet.</p>
             {% else %}
                 <p class="bl-text-muted">You haven't added any open dates yet.</p>
-                <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="display: block; text-align: center; text-decoration: none; margin-top: 12px;">
-                    + Add open dates
-                </a>
             {% endif %}
+            
+            <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none; margin-top: 16px;">
+                {% if user_open_dates and user_open_dates|length > 0 %}Edit open dates{% else %}+ Add open dates{% endif %}
+            </a>
         </div>
         
-        <div style="display: flex; gap: 8px; margin-top: 18px;">
-            <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="flex: 1; text-align: center; text-decoration: none;">
+        {% if active_tab != 'open' %}
+        <div style="margin-top: 18px;">
+            <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none;">
                 + Add a trip
             </a>
-            {% if active_tab == 'open' and open_overlaps and open_overlaps|length > 0 %}
-            <a href="{{ url_for('add_open_dates') }}" class="bl-btn-secondary" style="flex: 1; text-align: center; text-decoration: none;">
-                + Add dates
-            </a>
-            {% elif active_tab == 'open' %}
-            <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="flex: 1; text-align: center; text-decoration: none;">
-                + Add open dates
-            </a>
-            {% endif %}
         </div>
+        {% endif %}
     </div>
     
     {% include 'components/bottom_nav.html' %}

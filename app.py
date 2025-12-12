@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps
 from flask_migrate import Migrate
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, OpenDate
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort
 from debug_routes import debug_bp
 from io import BytesIO
 import segno
@@ -692,20 +692,19 @@ def friend_profile(friend_id):
         .all()
     )
     
-    friend_open_dates = (
-        OpenDate.query
-        .filter_by(user_id=friend.id)
-        .filter(OpenDate.end_date >= today)
-        .order_by(OpenDate.start_date.asc())
-        .all()
-    )
+    # Get friend's open dates from JSON field (filter to future dates only)
+    today_str = today.strftime('%Y-%m-%d')
+    friend_open_dates_raw = friend.open_dates or []
+    friend_open_dates = sorted([d for d in friend_open_dates_raw if d >= today_str])
+    friend_open_dates_display = format_open_dates_summary(friend_open_dates) if friend_open_dates else None
     
     return render_template(
         "friend_profile.html",
         friend=friend,
         friend_mountains_count=friend_mountains_count,
         trips=trips,
-        friend_open_dates=friend_open_dates
+        friend_open_dates=friend_open_dates,
+        friend_open_dates_display=friend_open_dates_display
     )
 
 @app.route("/profile/<int:user_id>")
@@ -851,6 +850,48 @@ def date_ranges_overlap(start1, end1, start2, end2):
     """Check if two date ranges overlap"""
     return start1 <= end2 and start2 <= end1
 
+def format_open_dates_summary(date_strings):
+    """Format a list of YYYY-MM-DD strings into human-readable summary.
+    E.g., ['2024-12-14', '2024-12-18', '2024-12-19', '2025-01-03', '2025-01-04'] 
+    -> 'Dec 14, Dec 18–19, Jan 3–4'
+    """
+    if not date_strings:
+        return None
+    
+    from datetime import datetime as dt
+    
+    # Parse and sort dates
+    dates = sorted([dt.strptime(d, '%Y-%m-%d').date() for d in date_strings])
+    
+    # Group consecutive dates
+    groups = []
+    current_group = [dates[0]]
+    
+    for i in range(1, len(dates)):
+        if (dates[i] - dates[i-1]).days == 1:
+            current_group.append(dates[i])
+        else:
+            groups.append(current_group)
+            current_group = [dates[i]]
+    groups.append(current_group)
+    
+    # Format each group
+    formatted = []
+    for group in groups:
+        if len(group) == 1:
+            formatted.append(group[0].strftime('%b %d').replace(' 0', ' '))
+        else:
+            start = group[0].strftime('%b %d').replace(' 0', ' ')
+            end = group[-1].strftime('%d').lstrip('0')
+            # If same month, just show "Dec 14–19"
+            if group[0].month == group[-1].month:
+                formatted.append(f"{start}–{end}")
+            else:
+                end_full = group[-1].strftime('%b %d').replace(' 0', ' ')
+                formatted.append(f"{start}–{end_full}")
+    
+    return ', '.join(formatted)
+
 @app.route("/home")
 @login_required
 def home():
@@ -901,34 +942,58 @@ def home():
                             "end_date": min(my.end_date, friend_trip.end_date)
                         })
     
-    # Open dates overlaps
-    my_open_dates = OpenDate.query.filter_by(user_id=user.id).order_by(OpenDate.start_date.asc()).all()
-    open_overlaps = []
+    # Open dates from JSON field (list of YYYY-MM-DD strings)
+    my_open_dates = set(user.open_dates or [])
+    # Filter to only future/today dates
+    my_open_dates = {d for d in my_open_dates if d >= today.strftime('%Y-%m-%d')}
+    
+    # Build open date overlaps grouped by date
+    open_date_matches = []  # List of {date, friends: [{name, id, pass_type}]}
     
     if my_open_dates and friend_ids:
-        friend_open_dates_list = OpenDate.query.filter(OpenDate.user_id.in_(friend_ids)).all()
-        for my_open in my_open_dates:
-            for friend_open in friend_open_dates_list:
-                overlap_start = max(my_open.start_date, friend_open.start_date)
-                overlap_end = min(my_open.end_date, friend_open.end_date)
-                overlap_days = (overlap_end - overlap_start).days + 1
-                
-                if overlap_days > 0:
-                    friend_obj = User.query.get(friend_open.user_id)
-                    pass_match = None
-                    if user.pass_type and friend_obj.pass_type and user.pass_type == friend_obj.pass_type:
-                        pass_match = user.pass_type
+        friends_with_open = User.query.filter(User.id.in_(friend_ids)).all()
+        
+        for date_str in sorted(my_open_dates):
+            matching_friends = []
+            for friend in friends_with_open:
+                friend_dates = set(friend.open_dates or [])
+                if date_str in friend_dates:
+                    # Determine pass compatibility (safely handle None/empty)
+                    user_pass = user.pass_type.strip() if user.pass_type else None
+                    friend_pass = friend.pass_type.strip() if friend.pass_type else None
                     
-                    open_overlaps.append({
-                        "start_date": overlap_start,
-                        "end_date": overlap_end,
-                        "overlap_days": overlap_days,
-                        "friend_name": friend_obj.first_name,
-                        "friend_id": friend_obj.id,
-                        "pass_match": pass_match
+                    if user_pass and friend_pass:
+                        if user_pass == friend_pass:
+                            pass_info = user_pass
+                        else:
+                            pass_info = f"{user_pass} · {friend_pass} (different passes)"
+                    elif user_pass or friend_pass:
+                        # Only one has a pass
+                        pass_info = user_pass or friend_pass
+                    else:
+                        pass_info = None
+                    
+                    matching_friends.append({
+                        "name": friend.first_name,
+                        "id": friend.id,
+                        "pass_type": friend.pass_type,
+                        "skill_level": friend.skill_level,
+                        "pass_info": pass_info
                     })
+            
+            if matching_friends:
+                # Parse date for display
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+                open_date_matches.append({
+                    "date_str": date_str,
+                    "date_obj": date_obj,
+                    "day_name": date_obj.strftime('%A'),  # Saturday, Sunday, etc.
+                    "display_date": date_obj.strftime('%b %d'),  # Dec 14
+                    "friends": matching_friends
+                })
     
-    open_overlaps = sorted(open_overlaps, key=lambda x: x['start_date'])
+    # Format user's open dates for display
+    user_open_dates_display = format_open_dates_summary(sorted(my_open_dates)) if my_open_dates else None
     
     # Combined list for All Trips (upcoming only)
     all_trips = (my_trips or []) + (friend_trips or [])
@@ -945,7 +1010,9 @@ def home():
         friend_trips=friend_trips,
         all_trips=all_trips,
         overlaps=overlaps,
-        open_overlaps=open_overlaps,
+        open_date_matches=open_date_matches,
+        user_open_dates=sorted(my_open_dates) if my_open_dates else [],
+        user_open_dates_display=user_open_dates_display,
         state_abbr=STATE_ABBR
     )
 
@@ -1025,28 +1092,32 @@ def settings():
 @login_required
 def add_open_dates():
     if request.method == "POST":
-        start_date_str = request.form.get("start_date")
-        end_date_str = request.form.get("end_date")
+        # Get selected dates from form (comma-separated YYYY-MM-DD strings)
+        selected_dates = request.form.get("selected_dates", "")
         
-        from datetime import datetime as dt
-        start_date = dt.strptime(start_date_str, "%Y-%m-%d").date()
-        end_date = dt.strptime(end_date_str, "%Y-%m-%d").date()
+        if selected_dates:
+            dates_list = [d.strip() for d in selected_dates.split(",") if d.strip()]
+            # Validate and filter dates
+            valid_dates = []
+            today_str = date.today().strftime('%Y-%m-%d')
+            for d in dates_list:
+                try:
+                    datetime.strptime(d, '%Y-%m-%d')
+                    if d >= today_str:
+                        valid_dates.append(d)
+                except ValueError:
+                    pass
+            
+            current_user.open_dates = sorted(set(valid_dates))
+        else:
+            current_user.open_dates = []
         
-        if end_date < start_date:
-            flash("End date cannot be before start date.", "error")
-            return redirect(url_for("add_open_dates"))
-        
-        open_date = OpenDate(
-            user_id=current_user.id,
-            start_date=start_date,
-            end_date=end_date
-        )
-        db.session.add(open_date)
         db.session.commit()
-        
         return redirect(url_for("home", tab="open"))
     
-    return render_template("add_open_dates.html")
+    # Pre-populate with existing dates
+    existing_dates = current_user.open_dates or []
+    return render_template("add_open_dates.html", existing_dates=existing_dates)
 
 @app.route("/add_trip", methods=["GET", "POST"])
 @login_required

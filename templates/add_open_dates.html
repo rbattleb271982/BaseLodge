@@ -3,24 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Base Lodge - Add Open Dates</title>
+    <title>Base Lodge - Open Dates</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .calendar-container {
+            background: var(--bl-color-surface);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .calendar-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+        .calendar-nav {
+            display: flex;
+            gap: 8px;
+        }
+        .calendar-nav button {
+            background: var(--bl-color-bg);
+            border: 1px solid var(--bl-color-border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .calendar-nav button:hover {
+            background: var(--bl-color-border);
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+        .calendar-day-header {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--bl-color-text-muted);
+            padding: 8px 0;
+        }
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: 2px solid transparent;
+        }
+        .calendar-day:hover:not(.disabled):not(.past) {
+            background: var(--bl-color-bg);
+        }
+        .calendar-day.selected {
+            background: var(--bl-color-primary);
+            color: white;
+        }
+        .calendar-day.past, .calendar-day.disabled {
+            color: var(--bl-color-text-muted);
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .calendar-day.empty {
+            visibility: hidden;
+        }
+        .selected-count {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--bl-color-text-muted);
+            margin-bottom: 16px;
+        }
+        .selected-count strong {
+            color: var(--bl-color-text);
+        }
+    </style>
 </head>
 <body>
     <div class="page-container">
-        <h1 class="page-title">Add open dates</h1>
-        <p class="bl-text-muted" style="margin-bottom: 20px;">Let friends know when you're free to ski.</p>
+        <h1 class="page-title">{{ 'Edit open dates' if existing_dates else 'Add open dates' }}</h1>
+        <p class="bl-text-muted" style="margin-bottom: 20px;">Tap dates to select or deselect. These are days you're free to ski.</p>
         
-        <form method="POST">
-            <div style="margin-bottom: 16px;">
-                <label style="display: block; font-size: 0.9rem; font-weight: 500; margin-bottom: 6px;">Start date</label>
-                <input type="date" name="start_date" required style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: 6px; font-size: 1rem; box-sizing: border-box;">
+        <form method="POST" id="openDatesForm">
+            <input type="hidden" name="selected_dates" id="selectedDatesInput">
+            
+            <div class="calendar-container">
+                <div class="calendar-header">
+                    <button type="button" class="calendar-nav-btn" onclick="prevMonth()">&larr;</button>
+                    <h3 id="monthYearLabel"></h3>
+                    <button type="button" class="calendar-nav-btn" onclick="nextMonth()">&rarr;</button>
+                </div>
+                <div class="calendar-grid" id="calendarGrid"></div>
             </div>
             
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; font-size: 0.9rem; font-weight: 500; margin-bottom: 6px;">End date</label>
-                <input type="date" name="end_date" required style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border); border-radius: 6px; font-size: 1rem; box-sizing: border-box;" id="end_date">
-            </div>
+            <div class="selected-count" id="selectedCount">No dates selected</div>
             
             <button type="submit" class="bl-btn-primary" style="width: 100%; padding: 12px;">Save open dates</button>
         </form>
@@ -31,17 +114,161 @@
     </div>
     
     <script>
-        document.getElementById('end_date').addEventListener('change', function() {
-            const startInput = document.querySelector('input[name="start_date"]');
-            if (startInput.value && this.value < startInput.value) {
-                alert('End date cannot be before start date.');
-                this.value = '';
+        const existingDates = {{ existing_dates | tojson }};
+        let selectedDates = new Set(existingDates);
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const maxDate = new Date(2026, 4, 31); // May 31, 2026
+        
+        let currentMonth = today.getMonth();
+        let currentYear = today.getFullYear();
+        
+        const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        function formatDate(d) {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const label = document.getElementById('monthYearLabel');
+            
+            label.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+            
+            grid.innerHTML = '';
+            
+            // Day headers
+            dayNames.forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'calendar-day-header';
+                header.textContent = day;
+                grid.appendChild(header);
+            });
+            
+            // First day of month
+            const firstDay = new Date(currentYear, currentMonth, 1);
+            const lastDay = new Date(currentYear, currentMonth + 1, 0);
+            
+            // Empty cells before first day
+            for (let i = 0; i < firstDay.getDay(); i++) {
+                const empty = document.createElement('div');
+                empty.className = 'calendar-day empty';
+                grid.appendChild(empty);
             }
+            
+            // Days of month
+            for (let day = 1; day <= lastDay.getDate(); day++) {
+                const dateObj = new Date(currentYear, currentMonth, day);
+                const dateStr = formatDate(dateObj);
+                
+                const cell = document.createElement('div');
+                cell.className = 'calendar-day';
+                cell.textContent = day;
+                cell.dataset.date = dateStr;
+                
+                const isPast = dateObj < today;
+                const isFuture = dateObj > maxDate;
+                
+                if (isPast || isFuture) {
+                    cell.classList.add('past');
+                } else {
+                    if (selectedDates.has(dateStr)) {
+                        cell.classList.add('selected');
+                    }
+                    cell.addEventListener('click', () => toggleDate(dateStr, cell));
+                }
+                
+                grid.appendChild(cell);
+            }
+        }
+        
+        function toggleDate(dateStr, cell) {
+            if (selectedDates.has(dateStr)) {
+                selectedDates.delete(dateStr);
+                cell.classList.remove('selected');
+            } else {
+                selectedDates.add(dateStr);
+                cell.classList.add('selected');
+            }
+            updateCount();
+        }
+        
+        function updateCount() {
+            const count = selectedDates.size;
+            const countEl = document.getElementById('selectedCount');
+            if (count === 0) {
+                countEl.innerHTML = 'No dates selected';
+            } else if (count === 1) {
+                countEl.innerHTML = '<strong>1</strong> date selected';
+            } else {
+                countEl.innerHTML = `<strong>${count}</strong> dates selected`;
+            }
+        }
+        
+        function canGoPrev() {
+            // Can't go before current month
+            return !(currentYear === today.getFullYear() && currentMonth === today.getMonth());
+        }
+        
+        function canGoNext() {
+            // Can't go past May 2026
+            return !(currentYear === 2026 && currentMonth === 4);
+        }
+        
+        function updateNavButtons() {
+            const prevBtn = document.querySelector('.calendar-header button:first-child');
+            const nextBtn = document.querySelector('.calendar-header button:last-child');
+            
+            prevBtn.disabled = !canGoPrev();
+            prevBtn.style.opacity = canGoPrev() ? '1' : '0.3';
+            prevBtn.style.cursor = canGoPrev() ? 'pointer' : 'not-allowed';
+            
+            nextBtn.disabled = !canGoNext();
+            nextBtn.style.opacity = canGoNext() ? '1' : '0.3';
+            nextBtn.style.cursor = canGoNext() ? 'pointer' : 'not-allowed';
+        }
+        
+        function prevMonth() {
+            if (!canGoPrev()) return;
+            
+            if (currentMonth === 0) {
+                currentMonth = 11;
+                currentYear--;
+            } else {
+                currentMonth--;
+            }
+            renderCalendar();
+            updateNavButtons();
+        }
+        
+        function nextMonth() {
+            if (!canGoNext()) return;
+            
+            if (currentMonth === 11) {
+                currentMonth = 0;
+                currentYear++;
+            } else {
+                currentMonth++;
+            }
+            renderCalendar();
+            updateNavButtons();
+        }
+        
+        document.getElementById('openDatesForm').addEventListener('submit', function(e) {
+            document.getElementById('selectedDatesInput').value = Array.from(selectedDates).join(',');
         });
         
-        document.querySelector('input[name="start_date"]').addEventListener('change', function() {
-            document.getElementById('end_date').min = this.value;
-        });
+        // Initialize
+        renderCalendar();
+        updateCount();
+        updateNavButtons();
     </script>
 </body>
 </html>
