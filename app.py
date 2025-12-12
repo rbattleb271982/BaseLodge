@@ -7,6 +7,7 @@ from functools import wraps
 from flask_migrate import Migrate
 from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort
 from debug_routes import debug_bp
+from services.open_dates import get_open_date_matches
 from io import BytesIO
 import segno
 import random
@@ -1960,6 +1961,24 @@ def force_reset_passwords():
             results[email] = "user not found"
 
     return {"status": "success", "results": results}
+
+@app.route("/open-data-debug")
+@login_required
+def open_data_debug():
+    """
+    Debug endpoint to verify open date matching logic.
+    Returns JSON with all open date matches for the current user.
+    """
+    matches = get_open_date_matches(current_user)
+    
+    return jsonify({
+        "user_id": current_user.id,
+        "user_email": current_user.email,
+        "user_open_dates": current_user.open_dates or [],
+        "user_pass_type": current_user.pass_type,
+        "matches_count": len(matches),
+        "matches": matches
+    })
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

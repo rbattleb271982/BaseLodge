@@ -1,0 +1,129 @@
+🎯 Objective
+Implement deterministic SQLAlchemy query logic to support the Open Dates feature.
+This task is backend-only and focuses on:
+Fetching friends
+Comparing open dates
+Computing overlaps
+Returning clean, structured data for the frontend
+No UI changes.
+No calendar work.
+No notifications.
+1️⃣ Data assumptions (do not change unless missing)
+Confirm or add the following fields/models:
+User model
+class User(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    pass_type = db.Column(db.String)
+    open_dates = db.Column(db.JSON)  # ["YYYY-MM-DD", ...]
+Friend relationship
+Assume bidirectional friendships via a Friend table:
+class Friend(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    friend_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+If friendship is modeled differently, adapt logic but preserve behavior.
+2️⃣ Core requirement
+Create a single, reusable service function that returns Open Date matches for the logged-in user.
+Function signature (required)
+def get_open_date_matches(current_user):
+    """
+    Returns a list of open-date overlaps between current_user and their friends.
+    """
+3️⃣ Matching rules (NON-NEGOTIABLE)
+A match exists when:
+current_user.open_dates contains a date
+A friend’s open_dates contains the same date
+Matching is:
+Date-by-date
+Open ↔ Open only
+No trips involved
+No scoring
+No filtering by pass
+4️⃣ Required output structure
+The function must return a list of dictionaries, shaped exactly like this:
+[
+  {
+    "date": "2025-12-14",
+    "friend_id": 42,
+    "friend_name": "Alex",
+    "friend_pass": "Epic",
+    "same_pass": True
+  },
+  ...
+]
+Rules:
+One entry per overlapping date per friend
+same_pass = boolean comparison of pass_type
+Skip friends with:
+No open_dates
+Empty open_dates
+Invalid date values
+5️⃣ Exact SQLAlchemy logic (implementation guidance)
+Step 1: Normalize current user dates
+my_dates = set(current_user.open_dates or [])
+if not my_dates:
+    return []
+Step 2: Fetch friends (single query)
+friends = (
+    db.session.query(User)
+    .join(Friend, Friend.friend_id == User.id)
+    .filter(Friend.user_id == current_user.id)
+    .all()
+)
+(If friendship is stored bidirectionally, account for both directions.)
+Step 3: Compute overlaps in Python (intentional)
+Do not attempt JSON containment SQL.
+This logic must be explicit and debuggable.
+matches = []
+
+for friend in friends:
+    friend_dates = set(friend.open_dates or [])
+    overlapping = my_dates & friend_dates
+
+    for date in overlapping:
+        matches.append({
+            "date": date,
+            "friend_id": friend.id,
+            "friend_name": friend.first_name,
+            "friend_pass": friend.pass_type,
+            "same_pass": friend.pass_type == current_user.pass_type
+        })
+Step 4: Sort results
+Sort by:
+Date ascending
+Friend name ascending
+matches.sort(key=lambda x: (x["date"], x["friend_name"]))
+6️⃣ Add minimal unit sanity check (required)
+Add a small internal test or debug helper (can be commented):
+# Example expectation:
+# If I have open_dates ["2025-12-14", "2025-12-18"]
+# And Alex has ["2025-12-14"]
+# Then exactly ONE match should return for Dec 14
+7️⃣ Expose result for later use (but don’t wire UI)
+Optionally:
+Return this from a service module
+Or attach to context processor
+Or make available to a route like /open-data-debug
+Do not modify templates yet.
+8️⃣ Guardrails (do not violate)
+❌ No raw SQL
+❌ No UI rendering
+❌ No calendar logic
+❌ No notifications
+❌ No trip logic
+❌ No future “Open ↔ Trip” matching
+This task is data correctness only.
+9️⃣ Definition of Done
+Function returns correct overlaps
+Same-pass detection works
+No crashes when open_dates is empty or missing
+Output is deterministic and sorted
+Logic is readable and debuggable
+🧠 Context reminder
+This logic is the foundation for:
+Open tab display
+Pass compatibility badges
+Notifications later
+“Who’s open this weekend?”
+If anything is ambiguous:
+Favor clarity over cleverness.
