@@ -1,7 +1,7 @@
 # Base Lodge
 
 ## Overview
-Base Lodge is a Flask-based ski/snowboard trip planning application designed for mountain enthusiasts. Its primary purpose is to help users track their ski days, manage resort passes, and connect with friends. The project features a modern, mobile-first design, robust authentication, and a comprehensive system for planning and sharing ski trips. Key capabilities include user profile management, an invitation-based friends system, and a centralized trip management hub. The ambition is to provide a seamless and engaging experience for planning and documenting snow sports adventures, with future plans for a native mobile application.
+Base Lodge is a Flask-based ski/snowboard trip planning application designed to help users track ski days, manage resort passes, and connect with friends. It features a modern, mobile-first design, robust authentication, and comprehensive trip planning and sharing. Key capabilities include user profile management, an invitation-based friends system, and a centralized trip management hub. The project aims to provide a seamless and engaging experience for snow sports enthusiasts, with future plans for a native mobile application.
 
 ## User Preferences
 - Mobile-first design approach (now supporting both web & mobile)
@@ -18,172 +18,28 @@ Base Lodge is a Flask-based ski/snowboard trip planning application designed for
 ## System Architecture
 
 ### UI/UX Decisions
-The application prioritizes a mobile-first responsive design, utilizing a unified "BaseLodge" design system with CSS variables for color, spacing, typography, and components. Key UI elements include segmented controls for selections (e.g., pass/rider type), a 4-tab bottom navigation with emoji icons, and a home-first navigation paradigm. The brand colors are focused around a deep red primary (#8F011B), with a clean background (#F7F7F7) and surface (#FFFFFF). Component partials are used for reusability across templates.
+The application prioritizes a mobile-first responsive design, utilizing a unified "BaseLodge" design system with CSS variables. Key UI elements include segmented controls, a 4-tab bottom navigation with emoji icons, and a home-first navigation paradigm. The brand colors are a deep red primary (#8F011B) with clean background (#F7F7F7) and surface (#FFFFFF). Component partials are used for reusability.
 
 ### Technical Implementations
-The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for password hashing. Jinja2 handles templating, complemented by custom CSS for styling and Vanilla JS for interactive elements and AJAX calls. The application uses session-based authentication.
+The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for password hashing. Jinja2 handles templating, complemented by custom CSS and Vanilla JS for interactive elements and AJAX. The application uses session-based authentication.
 
 ### Feature Specifications
-- **Authentication & Onboarding:** Modern signup/login, followed by simplified one-step onboarding asking only rider_type and skill_level.
-- **User Profile:** Comprehensive user profiles storing rider type, pass type, skill level, home state, birth year, gender, gear, and mountains visited.
-- **Trip Management:** Users can create ski trips with state-to-mountain linking, date selection, and `is_public` toggles for visibility control. Trips are displayed in a 3-tab interface on the home screen (My Trips, Friends' Trips, Overlaps).
-- **Friends System:** Invitation-based, bidirectional friendships with dedicated friend profile pages showing public trip information. Token-based secure invites via `/invite/<token>` and QR codes.
-- **Pass Selection:** Dedicated pass selection screen (`/select-pass`) with search bar, grouped pass lists (Major, Regional, Other), and a "Choose your pass" card on Home screen (shown only if pass_type is empty, dismissible with "Skip for now").
-- **Navigation:** A 4-tab bottom navigation (Home, Friends, Invite, More) provides consistent access to core features.
+- **Authentication & Onboarding:** Modern signup/login with a simplified one-step onboarding for rider_type and skill_level.
+- **User Profile:** Comprehensive profiles storing rider type, pass type, skill level, home state, birth year, gender, gear, and mountains visited.
+- **Trip Management:** Users can create ski trips with state-to-mountain linking, date selection, and `is_public` toggles. Trips are displayed in a 3-tab interface (My Trips, Friends' Trips, Overlaps).
+- **Friends System:** Invitation-based, bidirectional friendships with dedicated friend profile pages showing public trip information. Secure token-based invites are supported via `/invite/<token>` and QR codes.
+- **Pass Selection:** A dedicated screen (`/select-pass`) with search, grouped pass lists (Major, Regional, Other), and a dismissible "Choose your pass" card on the Home screen.
+- **Navigation:** A consistent 4-tab bottom navigation (Home, Friends, Invite, More) provides access to core features.
 
 ### System Design Choices
 - **Database:** SQLite for development, PostgreSQL for production, managed via SQLAlchemy.
-- **File Structure:** Organized for clarity, separating application logic (`app.py`), database models (`models.py`), templates, and static assets.
+- **File Structure:** Organized for clarity, separating application logic, models, templates, and static assets.
 - **API Endpoints:** Dedicated API routes for trip management (create, edit, delete) and friend management (invite, list, accept, remove).
-- **Models:** Core models include `User`, `SkiTrip`, `Resort`, `Friend`, `Invitation`, and `InviteToken`, with appropriate relationships and constraints.
-
-## Recent Changes (Dec 12, 2025)
-
-### Full Resort Model Migration - COMPLETE ✅
-Migrated all trip displays to use unified Resort model with consistent formatting:
-1. **Added `state_full` field to Resort** - Full state names (Colorado, California, etc.)
-2. **Updated all templates** to use resort data with inline format: `Dec 18–Dec 21 — Vail CO, Epic`
-   - home.html (My Trips, Friends' Trips, Overlaps tabs)
-   - my_trips.html
-   - friend_profile.html
-   - friend_trip_details.html
-3. **Added `/migrate-trips-to-resorts` route** - Admin-protected route to backfill resort_id for existing trips
-4. **Backward compatibility** - Templates fall back to trip.mountain/trip.state for trips without resort_id
-
-### Extra Dummy Users with Overlapping Trips - COMPLETE ✅
-Added admin route to create 10 additional test users (Test31-40) with overlapping trips:
-1. **`/create-extra-dummy-users` route** - Admin-protected route that:
-   - Creates 10 users (usertest31@example.com through usertest40@example.com)
-   - Each user has random rider_type, pass_type, skill_level
-   - Each user gets 1-3 trips that exactly overlap with anchor users' trips
-   - Copies resort_id when available for proper Resort linking
-   - Creates bidirectional friendships with both main accounts
-2. **Password** - All new dummy users have password: `skitest123`
-
-### Friend Trip Overlap Message - COMPLETE ✅
-Enhanced Friend Trip Details page to show smart overlap messaging:
-1. **Updated `/friend-trip/<trip_id>` route** - Now calculates overlapping days between friend's trip and current user's trips
-2. **Added overlap calculation logic** - Uses `overlapping_days()` helper function
-3. **Updated `friend_trip_details.html`** - Shows blue info box with message:
-   - "You'll be there 1 of the same day." (singular)
-   - "You'll be there X days during this time." (plural)
-4. **CSS styling** - `.overlap-box` with light blue background (#F5F9FF)
-
-### Resort Model & Trip Form Update - COMPLETE ✅
-Created unified Resort model replacing state+mountain dropdowns:
-1. **Resort model** - New model with fields: name, state, brand (Epic/Ikon/Other), slug, is_active
-2. **Seeded 81 resorts** - 16 Epic, 33 Ikon, 32 Other across 15 states
-3. **Updated SkiTrip model** - Added resort_id foreign key (kept state/mountain for backward compatibility)
-4. **Updated add_trip route** - Now accepts resort_id, populates state/mountain from Resort
-5. **Updated edit_trip route** - Same resort selection logic
-6. **Updated add_trip.html** - Single Resort dropdown with "(State) — Brand" format
-7. **seed_resorts.py** - Script to populate Resort table with all resorts
-8. **Migration** - Added resort table and resort_id to ski_trip
-
-### Friend Trip Details Page - COMPLETE ✅
-Enhanced Friends' Trips with clickable rows and a details page:
-1. **Updated Friends' Trips list** - Shows full date range (Dec 20–25) + friend name + location
-2. **Clickable trip rows** - Each trip links to `/friend-trip/<trip_id>`
-3. **New `/friend-trip/<trip_id>` route** - Shows trip details with friend authorization check
-4. **New `friend_trip_details.html` template** - Displays mountain, state, dates, pass type, visibility
-5. **CSS styles** - `.friend-trip-row`, `.friend-trip-date`, `.friend-trip-location`, `.trip-detail-card`, `.back-link`
-
-### Friends List Redesign - COMPLETE ✅
-Redesigned Friends page with cleaner layout and pass-type filtering:
-1. **New 2-column inline layout** - Friend name on left, meta info (rider type, skill, pass) on right
-2. **Working pass-type filters** - All / Epic / Ikon / Other with URL-based filtering
-3. **Friend counts per category** - Each filter button shows count (e.g., "Epic (5)")
-4. **pass_category() helper** - Categorizes passes into Epic, Ikon, or Other groups
-5. **Clean CSS styles** - `.filter-row`, `.filter-btn`, `.friend-row`, `.friend-name`, `.friend-meta`
-
-### Token-Based Invite System - COMPLETE ✅
-Replaced the old invite logic with a reusable token-based system:
-1. **Updated InviteToken model** - New fields: `inviter_id`, `used_at`, `max_uses` (0 = unlimited)
-2. **Added `get_or_create_invite_token()` helper** - Returns existing token or creates new one per user
-3. **New `/r/<token>` landing route** - Personalized page showing "{Name} has invited you to connect"
-   - Stores `pending_inviter_id` in session
-   - If already logged in, connects immediately and redirects to Friends
-4. **Updated `/invite` and `/my-qr` routes** - Both use same reusable token URL format
-5. **Updated `auth()` route** - Consumes `pending_inviter_id` from session after signup/login
-6. **Added `_connect_pending_inviter()` helper** - Creates bidirectional friendship and updates token usage
-7. **Created templates** - `invite_landing.html` and `invite_invalid.html` with BaseLodge styling
-8. **Token URLs** - Format: `/r/<token>` (e.g., `/r/abc123def456`)
-
-### Admin Routes Added ✅
-1. **`/generate-dummy-users` (Admin-only)** - Creates 30 fully-functional dummy test users:
-   - Protected with `@admin_required` decorator (only richardbattlebaxter@gmail.com)
-   - Each user has random rider_type, skill_level, pass_type
-   - 2–8 mountains visited from pool
-   - 1–3 upcoming trips with realistic dates
-   - Returns JSON with list of created emails
-   - Skips already-existing dummy users (safe to run multiple times)
-2. **`/connect-jonathan-to-dummies` (Admin-only)** - Connects all dummy users to both main accounts:
-   - Protected with `@admin_required` decorator
-   - Creates bidirectional friendships between:
-     - richardbattlebaxter@gmail.com ↔ all dummies
-     - jonathanmschmitz@gmail.com ↔ all dummies
-   - Returns JSON with count and list of connected dummy emails
-   - Safe to run multiple times (checks for existing connections)
-3. **Admin Helper** - Added `@admin_required` decorator:
-   - Checks `current_user.email == "richardbattlebaxter@gmail.com"`
-   - Returns 403 Forbidden if not authenticated or wrong email
-   - Used to protect sensitive routes
-
-### Pass Selection Feature - COMPLETE ✅
-1. **Added `/select-pass` route** - GET/POST endpoint with pass list:
-   - Major Passes: Epic, Ikon, Indy, Mountain Collective
-   - Regional Passes: Power Pass, Boyne Pass, A-Basin Pass, Loveland Pass
-   - Other: Other, None
-2. **Created `select_pass.html` template** - Fully styled with:
-   - Search bar for filtering passes
-   - Grouped sections for pass categories
-   - Client-side JS for selection and filtering
-   - Checkbox-style radio selection UI
-   - Disabled Save button until pass selected
-   - Back link to home
-3. **Added `/skip-pass-prompt` route** - Sets `session["pass_prompt_skipped"] = True` and redirects to home
-4. **Updated Home screen** - Added conditional "Choose your pass" card showing:
-   - Only if `current_user.pass_type` is None or empty
-   - Only if `session.get('pass_prompt_skipped')` is not True
-   - Contains "Select Pass" button + "Skip for now" link
-   - Styled with BaseLodge colors and shadows
-5. **Pass submission flow** - Selecting a pass:
-   - Sets `current_user.pass_type` to selected value
-   - Commits to database
-   - Resets `pass_prompt_skipped` to False so card shows again for users without pass
-   - Redirects to home
-6. **User Model** - `pass_type` field already exists (db.String(100), nullable)
-
-## Previous Changes (Dec 11, 2025)
-
-### Auth & Signup Fixes - COMPLETE ✅
-- **Fixed flash message visibility** - Removed `is_authenticated` check from error messages on auth.html so duplicate email/invalid password errors display to all users
-- **Simplified onboarding** - Single-screen setup asking only rider_type and skill_level
-- **Signup flow working** - Users can successfully sign up and progress through onboarding
-
-### Invite Flow & Link Sharing - COMPLETE ✅
-1. **Home intro card restored** - Welcome card displays above tabs showing rider type, pass type, skill level, and "X upcoming trip(s)" count
-2. **Backend improvement** - Home route now calculates `upcoming_trips` (end_date >= today) and passes to template
-3. **Invite page UI enhanced** - "Copy Invite Link" and "Share" buttons with QR code section
-4. **Backend /invite/<user_id> route** - Handles invite link flow with auth redirection
-5. **Auth flow improvements** - Both signup and login routes respect `?next=` parameter
-
-### Trip Management System - COMPLETE ✅
-- **Added Flask-Login** for Flask-native user session management
-- **Updated User model** to inherit from `UserMixin`
-- **Implemented `/my-trips` route** with Upcoming/Past trip sections
-- **Implemented `/add_trip` and `/trips/<id>/edit` routes** with form-based trip management
-- **Implemented `/trips/<id>/delete` route** with 403 protection
-- **Created trip management templates** with validation
-
-### Trip Overlap Detection - COMPLETE ✅
-- **Added `date_ranges_overlap()` helper** to detect when two date ranges overlap
-- **Enhanced `/home` route** to build overlaps list comparing user's trips with friends' public trips
-- **Added "Overlaps" tab** to trip view alongside My Trips and Friends' Trips
+- **Models:** Core models include `User`, `SkiTrip`, `Resort`, `Friend`, `Invitation`, and `InviteToken`, with appropriate relationships.
 
 ## External Dependencies
 - **Flask:** Python web framework.
-- **Flask-Login:** User session management with login manager and UserMixin.
+- **Flask-Login:** User session management.
 - **SQLAlchemy:** SQL toolkit and Object-Relational Mapper.
 - **Werkzeug:** WSGI utility library for password hashing.
 - **Jinja2:** Templating engine.
