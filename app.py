@@ -134,6 +134,8 @@ STATE_ABBR = {
     "Wyoming": "WY"
 }
 
+RIDER_TYPES = ["Skier", "Snowboarder", "Both", "Other"]
+
 PASS_OPTIONS = [
     "Epic",
     "Epic & Ikon",
@@ -345,7 +347,7 @@ def setup_profile():
 
         return redirect(url_for("home"))
 
-    return render_template("setup_profile.html")
+    return render_template("setup_profile.html", rider_types=RIDER_TYPES)
 
 @app.route("/profile")
 def deprecated_profile():
@@ -373,7 +375,7 @@ def edit_profile():
     
     friends_count = Friend.query.filter_by(user_id=user.id).count()
     
-    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS)
+    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS, rider_types=RIDER_TYPES)
 
 @app.route("/my-trips")
 @login_required

@@ -128,9 +128,10 @@
             <form method="POST" action="{{ url_for('setup_profile') }}" id="setup-form">
                 <div class="setup-section">
                     <label class="setup-label">I am a...</label>
-                    <div class="segmented-control" id="rider-control">
-                        <button type="button" class="segment-btn" data-value="Skier">Skier</button>
-                        <button type="button" class="segment-btn" data-value="Snowboarder">Snowboarder</button>
+                    <div class="segmented-control wrap" id="rider-control">
+                        {% for rider_type in rider_types %}
+                        <button type="button" class="segment-btn" data-value="{{ rider_type }}">{{ rider_type }}</button>
+                        {% endfor %}
                     </div>
                     <input type="hidden" name="rider_type" id="rider_type" value="">
                 </div>
