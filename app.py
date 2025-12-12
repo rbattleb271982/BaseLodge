@@ -917,7 +917,7 @@ def add_trip():
         )
         db.session.add(trip)
         db.session.commit()
-        flash("Trip added.", "success")
+        flash("Trip added.", "trip")
         return redirect(url_for("my_trips"))
 
     # GET
@@ -979,7 +979,7 @@ def edit_trip_form(trip_id):
         trip.is_public = is_public
 
         db.session.commit()
-        flash("Trip updated.", "success")
+        flash("Trip updated.", "trip")
         return redirect(url_for("my_trips"))
 
     # GET
@@ -998,7 +998,7 @@ def delete_trip_form(trip_id):
 
     db.session.delete(trip)
     db.session.commit()
-    flash("Trip deleted.", "success")
+    flash("Trip deleted.", "trip")
     return redirect(url_for("my_trips"))
 
 @app.route("/mountains-visited", methods=["GET", "POST"])

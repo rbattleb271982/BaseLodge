@@ -141,13 +141,17 @@
                 <p class="auth-subtitle">The best days on the mountain don't just happen — they're made.</p>
             </div>
             
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="form-error">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
+            {% if current_user.is_authenticated %}
+                {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                        <div class="form-error">
+                            {% for message in messages %}
+                                {{ message }}<br>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+            {% endif %}
             
             <div class="auth-tabs">
                 <button class="auth-tab-btn active" id="tab-signup">Sign Up</button>

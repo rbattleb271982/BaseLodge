@@ -111,15 +111,13 @@
         </button>
         {% endif %}
 
-        {% if current_user.is_authenticated %}
-        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% with messages = get_flashed_messages(category_filter=["trip"]) %}
             {% if messages %}
-                {% for category, message in messages %}
+                {% for message in messages %}
                     <div class="error-message">{{ message }}</div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
-        {% endif %}
 
         <form method="POST" action="{{ form_action }}" class="form-card">
             <div class="form-group">
