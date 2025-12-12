@@ -683,6 +683,7 @@ def friend_profile(friend_id):
     
     mountains = friend.mountains_visited or []
     friend_mountains_count = len(mountains)
+    friend_mountains_sorted = sorted([m.name if hasattr(m, 'name') else m for m in mountains])
     
     today = date.today()
     trips = (
@@ -703,6 +704,7 @@ def friend_profile(friend_id):
         "friend_profile.html",
         friend=friend,
         friend_mountains_count=friend_mountains_count,
+        friend_mountains=friend_mountains_sorted,
         trips=trips,
         friend_open_dates=friend_open_dates,
         friend_open_dates_display=friend_open_dates_display
@@ -996,6 +998,10 @@ def home():
     # Format user's open dates for display
     user_open_dates_display = format_open_dates_summary(sorted(my_open_dates)) if my_open_dates else None
     
+    # Get user's mountains visited
+    user_mountains = user.mountains_visited or []
+    user_mountains_sorted = sorted([m.name if hasattr(m, 'name') else m for m in user_mountains])
+    
     # Combined list for All Trips (upcoming only)
     all_trips = (my_trips or []) + (friend_trips or [])
     try:
@@ -1014,6 +1020,7 @@ def home():
         open_date_matches=open_date_matches,
         user_open_dates=sorted(my_open_dates) if my_open_dates else [],
         user_open_dates_display=user_open_dates_display,
+        user_mountains=user_mountains_sorted,
         state_abbr=STATE_ABBR
     )
 

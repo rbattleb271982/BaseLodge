@@ -44,14 +44,27 @@
                 <div class="settings-main">
                     <div class="settings-label">Mountains visited</div>
                     <div class="settings-value">
-                        {% if friend_mountains_count %}
-                            {{ friend_mountains_count }} mountains
+                        {% if friend_mountains and friend_mountains|length > 0 %}
+                            <button onclick="toggleFriendMountainsList()" style="background: none; border: none; color: inherit; font-size: inherit; cursor: pointer; text-decoration: underline; text-decoration-style: dotted;">
+                                {{ friend_mountains_count }} mountain{% if friend_mountains_count != 1 %}s{% endif %}
+                            </button>
                         {% else %}
                             None shared yet
                         {% endif %}
                     </div>
                 </div>
             </div>
+            
+            <!-- Mountains list (hidden by default) -->
+            {% if friend_mountains and friend_mountains|length > 0 %}
+            <div id="friendMountainsList" style="display: none; padding: 12px 0; border-top: 1px solid var(--bl-color-border-soft); margin-top: 8px;">
+                <ul style="margin: 0; padding: 0 0 0 20px; font-size: 0.9rem;">
+                    {% for mountain in friend_mountains %}
+                    <li style="margin-bottom: 6px;">{{ mountain }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
             
         </section>
         
@@ -86,5 +99,15 @@
     </div>
     
     {% include 'components/bottom_nav.html' %}
+    
+    <script>
+        let friendMountainsListOpen = false;
+        
+        function toggleFriendMountainsList() {
+            const list = document.getElementById('friendMountainsList');
+            friendMountainsListOpen = !friendMountainsListOpen;
+            list.style.display = friendMountainsListOpen ? 'block' : 'none';
+        }
+    </script>
 </body>
 </html>
