@@ -1344,5 +1344,39 @@ def create_real_users_and_connect():
         "dummy_count": len(dummy_users)
     }
 
+@app.route("/force-create-base-users")
+def force_create_base_users():
+    created = {}
+
+    richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+    if not richard:
+        richard = User(
+            first_name="Richard",
+            last_name="Battle",
+            email="richardbattlebaxter@gmail.com"
+        )
+        richard.set_password("123456")
+        db.session.add(richard)
+        db.session.commit()
+        created["richard"] = "created"
+    else:
+        created["richard"] = "already existed"
+
+    jonathan = User.query.filter_by(email="jonathanmschmitz@gmail.com").first()
+    if not jonathan:
+        jonathan = User(
+            first_name="Jonathan",
+            last_name="Schmitz",
+            email="jonathanmschmitz@gmail.com"
+        )
+        jonathan.set_password("123456")
+        db.session.add(jonathan)
+        db.session.commit()
+        created["jonathan"] = "created"
+    else:
+        created["jonathan"] = "already existed"
+
+    return {"status": "success", "result": created}
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
