@@ -1378,5 +1378,25 @@ def force_create_base_users():
 
     return {"status": "success", "result": created}
 
+@app.route("/force-reset-passwords")
+def force_reset_passwords():
+    results = {}
+
+    users_to_reset = {
+        "richardbattlebaxter@gmail.com": "123456",
+        "jonathanmschmitz@gmail.com": "123456"
+    }
+
+    for email, new_pw in users_to_reset.items():
+        user = User.query.filter_by(email=email).first()
+        if user:
+            user.set_password(new_pw)
+            db.session.commit()
+            results[email] = "password reset"
+        else:
+            results[email] = "user not found"
+
+    return {"status": "success", "results": results}
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
