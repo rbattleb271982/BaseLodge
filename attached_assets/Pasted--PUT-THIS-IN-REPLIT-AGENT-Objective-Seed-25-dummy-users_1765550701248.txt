@@ -1,0 +1,95 @@
+🛑 PUT THIS IN REPLIT AGENT
+🎯 Objective
+Seed 25 dummy users connected to
+richardbattlebaxter@gmail.com
+with overlapping open dates so the Open tab matching UI can be visually QA’d.
+This must work even if the database was previously inconsistent.
+0️⃣ Preconditions (MANDATORY)
+Before creating dummy users:
+Ensure the main user exists
+Email: richardbattlebaxter@gmail.com
+Password: 12345678
+If user does NOT exist → create them
+If user exists → reuse exactly that user
+This user must be able to log in after this script runs
+Fail loudly if:
+User cannot be queried
+Database session cannot commit
+1️⃣ Dummy User Creation (25 total)
+Create 25 users with:
+Required fields
+Realistic first + last names
+Unique emails (e.g. parker.williams+1@test.com)
+Password: password123
+rider_type: skier or snowboarder (mixed)
+pass_type: rotate through Epic, Ikon, Indy
+skill_level: Intermediate, Advanced, Expert
+home_state: rotate through CO, UT, CA
+IMPORTANT
+Do not reuse emails
+Do not skip profile completion
+Commit after user creation
+2️⃣ Friend Connections (CRITICAL)
+For each dummy user:
+Create a bidirectional friend relationship
+Dummy user ↔ Richard Battle-Baxter
+Use the existing Friend / Friendship model
+Ensure:
+No duplicates
+Safe to re-run (check before insert)
+Example logic:
+if not are_friends(main_user, dummy_user):
+    create_friendship(main_user, dummy_user)
+3️⃣ Open Dates Seeding (KEY PART)
+Use these anchor dates (must match exactly):
+Dec 18, 2025
+Dec 26, 2025
+Dec 31, 2025
+Jan 3, 2026
+Jan 10, 2026
+Assignment rules
+All dummy users get at least 2 overlapping dates with Richard
+Some get 3–4 overlapping dates
+Some get non-overlapping dates (to test empty states)
+Richard must have at least:
+Dec 18, Dec 26, Dec 31
+Example distribution
+10 users: Dec 18, Dec 26, Dec 31 (perfect overlap)
+8 users: Dec 26, Jan 3 (partial overlap)
+5 users: Jan 10 only (no overlap)
+2 users: Dec 18, Jan 10 (edge case)
+Store as:
+["2025-12-18", "2025-12-26"]
+4️⃣ Pass Matching Coverage
+Ensure:
+At least 10 users share Richard’s pass
+At least 10 users have a different pass
+Remaining users mixed
+This is required to validate:
+“Same pass” vs “Different pass” UI copy
+5️⃣ Database Safety Rules
+Commit after:
+User creation
+Friendship creation
+Open date assignment
+Roll back and stop if any integrity error occurs
+Log summary at end:
+Users created
+Friendships created
+Open dates assigned
+6️⃣ Definition of Done (DO NOT SKIP)
+After this script runs, I should be able to:
+Log in as richardbattlebaxter@gmail.com
+Go to Open tab
+See:
+Multiple days listed as open
+Multiple friends on the same days
+Clear same-pass / different-pass indicators
+Some days with no friends (empty state)
+Edit open dates without breaking data
+❌ Explicitly Do NOT
+Touch trips
+Touch notifications
+Change UI code
+Change matching logic
+Delete any existing users
