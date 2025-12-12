@@ -1,0 +1,81 @@
+You are modifying the existing BaseLodge Flask app.
+
+GOAL:
+Add ONE additional real main user (Sam Stookesberry) and connect him into the
+already-seeded dataset (Richard, Jonathan, and the 50 dummy users).
+
+IMPORTANT RULES:
+- DO NOT recreate existing users
+- DO NOT delete or modify existing trips or friendships
+- DO NOT hardcode IDs — always query by email
+- Use existing models only
+- This must be safe to run once (idempotent)
+
+--------------------------------------------------
+STEP 1: CREATE / ENSURE SAM EXISTS
+--------------------------------------------------
+
+Create or fetch the following user:
+
+- First name: Sam
+- Last name: Stookesberry
+- Email: samstookes@gmail.com
+- Password: 12345678 (use existing password hashing)
+- Rider type: Skier
+- Pass type: Epic
+- Profile: fully completed
+  - Skill level (random but realistic)
+  - Home state (ski state)
+  - Birth year if supported
+
+If Sam already exists, DO NOT recreate — just fetch.
+
+--------------------------------------------------
+STEP 2: FRIEND CONNECTIONS
+--------------------------------------------------
+
+Fetch:
+- Richard (richardbattlebaxter@gmail.com)
+- Jonathan (jonathanmschmitz@gmail.com)
+- All existing dummy users (exclude Richard, Jonathan, Sam)
+
+For EVERY dummy user:
+- Create bidirectional Friend records:
+  - Dummy ↔ Sam
+
+Also ensure:
+- Sam ↔ Richard
+- Sam ↔ Jonathan
+
+No duplicates. Bidirectional only.
+
+--------------------------------------------------
+STEP 3: TRIPS FOR SAM
+--------------------------------------------------
+
+Create 3–5 future trips for Sam:
+- Use real mountains already in the database
+- Dates within the next 6 months
+- 2–5 day trips
+- Ensure overlap:
+  - At least 2 trips overlap with Richard
+  - At least 2 trips overlap with Jonathan
+  - At least 1 trip overlaps with multiple dummy users
+
+Include:
+- Some open/flexible days if the app supports it
+
+--------------------------------------------------
+STEP 4: SAFETY + OUTPUT
+--------------------------------------------------
+
+- Wrap all logic in a Flask app context
+- Commit once at the end
+- Print summary:
+  - Sam created or fetched
+  - # of friends connected
+  - # of trips created for Sam
+- Do NOT expose passwords
+- Do NOT touch migrations
+
+STOP when complete.

@@ -2268,5 +2268,163 @@ def seed_database():
     print(f"   Friendships: {friendship_count}")
     print(f"   Trips: {trip_count}")
 
+@app.cli.command()
+def add_sam_stookesberry():
+    """Add Sam Stookesberry as main user and connect to all existing users with trips."""
+    
+    # Step 1: Create or fetch Sam
+    sam = User.query.filter_by(email="samstookes@gmail.com").first()
+    if sam:
+        print(f"✓ Sam already exists (ID: {sam.id})")
+    else:
+        sam = User(
+            first_name="Sam",
+            last_name="Stookesberry",
+            email="samstookes@gmail.com"
+        )
+        sam.set_password("12345678")
+        sam.rider_type = "Skier"
+        sam.pass_type = "Epic"
+        sam.skill_level = "Advanced"
+        sam.home_state = "WY"
+        sam.birth_year = 1988
+        sam.profile_setup_complete = True
+        db.session.add(sam)
+        db.session.commit()
+        print(f"✓ Created Sam (ID: {sam.id})")
+    
+    # Step 2: Fetch Richard and Jonathan
+    richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+    jonathan = User.query.filter_by(email="jonathanmschmitz@gmail.com").first()
+    
+    # Step 3: Fetch all dummy users
+    dummy_users = User.query.filter(
+        ~User.email.in_(["richardbattlebaxter@gmail.com", "jonathanmschmitz@gmail.com", "samstookes@gmail.com"])
+    ).all()
+    
+    # Step 4: Create bidirectional friendships
+    friendship_count = 0
+    
+    # Sam ↔ Richard
+    if richard:
+        f1 = Friend.query.filter_by(user_id=sam.id, friend_id=richard.id).first()
+        if not f1:
+            db.session.add(Friend(user_id=sam.id, friend_id=richard.id))
+            friendship_count += 1
+        
+        f2 = Friend.query.filter_by(user_id=richard.id, friend_id=sam.id).first()
+        if not f2:
+            db.session.add(Friend(user_id=richard.id, friend_id=sam.id))
+            friendship_count += 1
+    
+    # Sam ↔ Jonathan
+    if jonathan:
+        f1 = Friend.query.filter_by(user_id=sam.id, friend_id=jonathan.id).first()
+        if not f1:
+            db.session.add(Friend(user_id=sam.id, friend_id=jonathan.id))
+            friendship_count += 1
+        
+        f2 = Friend.query.filter_by(user_id=jonathan.id, friend_id=sam.id).first()
+        if not f2:
+            db.session.add(Friend(user_id=jonathan.id, friend_id=sam.id))
+            friendship_count += 1
+    
+    # Sam ↔ All dummy users
+    for dummy in dummy_users:
+        f1 = Friend.query.filter_by(user_id=sam.id, friend_id=dummy.id).first()
+        if not f1:
+            db.session.add(Friend(user_id=sam.id, friend_id=dummy.id))
+            friendship_count += 1
+        
+        f2 = Friend.query.filter_by(user_id=dummy.id, friend_id=sam.id).first()
+        if not f2:
+            db.session.add(Friend(user_id=dummy.id, friend_id=sam.id))
+            friendship_count += 1
+    
+    db.session.commit()
+    print(f"✓ Created {friendship_count} bidirectional friendships")
+    
+    # Step 5: Create trips for Sam with overlaps
+    resorts = Resort.query.filter_by(is_active=True).all()
+    base_date = date.today() + timedelta(days=30)
+    trip_count = 0
+    
+    # Get existing trips from Richard and Jonathan for overlap
+    richard_trips = SkiTrip.query.filter_by(user_id=richard.id).all() if richard else []
+    jonathan_trips = SkiTrip.query.filter_by(user_id=jonathan.id).all() if jonathan else []
+    dummy_trips = []
+    for dummy in dummy_users[:10]:  # Sample some dummy trips
+        dummy_trips.extend(SkiTrip.query.filter_by(user_id=dummy.id).all())
+    
+    # Trip 1: Overlap with Richard
+    if richard_trips:
+        overlap_trip = richard_trips[0]
+        trip = SkiTrip(
+            user_id=sam.id,
+            resort_id=overlap_trip.resort_id,
+            state=overlap_trip.state,
+            mountain=overlap_trip.mountain,
+            start_date=overlap_trip.start_date,
+            end_date=overlap_trip.end_date,
+            is_public=True
+        )
+        db.session.add(trip)
+        trip_count += 1
+    
+    # Trip 2: Overlap with Jonathan
+    if jonathan_trips:
+        overlap_trip = jonathan_trips[0]
+        trip = SkiTrip(
+            user_id=sam.id,
+            resort_id=overlap_trip.resort_id,
+            state=overlap_trip.state,
+            mountain=overlap_trip.mountain,
+            start_date=overlap_trip.start_date,
+            end_date=overlap_trip.end_date,
+            is_public=True
+        )
+        db.session.add(trip)
+        trip_count += 1
+    
+    # Trip 3: Overlap with dummy users
+    if dummy_trips:
+        overlap_trip = dummy_trips[0]
+        trip = SkiTrip(
+            user_id=sam.id,
+            resort_id=overlap_trip.resort_id,
+            state=overlap_trip.state,
+            mountain=overlap_trip.mountain,
+            start_date=overlap_trip.start_date,
+            end_date=overlap_trip.end_date,
+            is_public=True
+        )
+        db.session.add(trip)
+        trip_count += 1
+    
+    # Trip 4-5: Random future trips
+    for i in range(2):
+        resort = random.choice(resorts)
+        start = base_date + timedelta(days=random.randint(0, 90))
+        end = start + timedelta(days=random.randint(2, 5))
+        trip = SkiTrip(
+            user_id=sam.id,
+            resort_id=resort.id,
+            state=resort.state,
+            mountain=resort.name,
+            start_date=start,
+            end_date=end,
+            is_public=True
+        )
+        db.session.add(trip)
+        trip_count += 1
+    
+    db.session.commit()
+    print(f"✓ Created {trip_count} trips for Sam")
+    
+    print(f"\n✅ Sam Stookesberry successfully added!")
+    print(f"   Email: samstookes@gmail.com")
+    print(f"   Friendships: {friendship_count}")
+    print(f"   Trips: {trip_count}")
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

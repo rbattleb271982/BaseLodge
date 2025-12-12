@@ -39,11 +39,22 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **Models:** Core models include `User`, `SkiTrip`, `Resort`, `Friend`, `Invitation`, and `InviteToken`, with defined relationships.
 - **Authentication:** Flask-Login is fully integrated for session management, replacing manual session handling, and configured for cross-origin iframe compatibility.
 
-## Test Users
-- **Primary test user:** richardbattlebaxter@gmail.com / 12345678
-- **Jonathan Schmitz:** Jonathanmschmitz@gmail.com / 12345678
-  - Connected as friends to all 78 existing users (bidirectional)
-  - Created via Flask CLI command: `flask create-jonathan-and-connect`
+## Test Users (Main)
+- **Richard Battle-Baxter:** richardbattlebaxter@gmail.com / 12345678
+  - Epic pass, Advanced skier, Colorado
+  - Original primary test user
+- **Jonathan Schmitz:** jonathanmschmitz@gmail.com / 12345678
+  - Epic pass, Advanced skier, Utah
+  - Created via: `flask create-jonathan-and-connect`
+- **Sam Stookesberry:** samstookes@gmail.com / 12345678
+  - Epic pass, Advanced skier, Wyoming
+  - Created via: `flask add-sam-stookesberry`
+
+## Test Users (Seeded Data)
+- **50 dummy users** with realistic profiles, mixed pass types (Epic/Ikon), various skill levels
+  - All bidirectionally connected to Richard, Jonathan, and Sam
+  - Each has 4+ future-dated ski trips with overlaps
+  - Created via: `flask seed-database`
 
 ## External Dependencies
 - **Flask:** Python web framework.
