@@ -1,0 +1,290 @@
+PUT THIS IN AGENT
+
+Goal: Replace the current invite / QR logic with a token-based system that:
+
+- Generates a unique invite token per inviter
+- Uses a personalized landing page: “<Name> has invited you to connect on BaseLodge”
+- Stores inviter context in session when the receiver clicks the link or QR
+- After the receiver signs up OR logs in, automatically creates a two-way Friend connection
+- Works for both QR codes and shareable links
+- Uses checkpoints sparingly
+
+High-level design:
+
+- New model: InviteToken
+- New route: /r/<token>  (invite landing page)
+- /invite page will show the sender’s unique link (and QR uses the same link)
+- auth() login/signup route will read session["pending_inviter_id"] and create a friendship
+
+------------------------------------------------
+STEP 1 — ADD InviteToken MODEL
+------------------------------------------------
+File: app.py (or models.py if models are separated)
+
+1) Locate where the `User` and `Friend` models are defined.
+2) Directly below them, add:
+
+class InviteToken(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    inviter_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    used_at = db.Column(db.DateTime, nullable=True)
+    max_uses = db.Column(db.Integer, default=0)  # 0 = unlimited uses
+
+    inviter = db.relationship("User", backref="invite_tokens")
+
+Make sure `datetime` is imported at the top if it isn’t already:
+
+from datetime import datetime
+
+------------------------------------------------
+STEP 2 — CREATE MIGRATION
+------------------------------------------------
+Run in the Replit shell:
+
+flask db migrate -m "Add InviteToken model"
+flask db upgrade
+
+------------------------------------------------
+STEP 3 — HELPER FUNCTION TO GET/CREATE TOKEN
+------------------------------------------------
+Still in app.py, near your routes, add this helper:
+
+import secrets
+
+def get_or_create_invite_token(user):
+    existing = InviteToken.query.filter_by(inviter_id=user.id).first()
+    if existing:
+        return existing
+
+    token = secrets.token_urlsafe(16)
+    invite = InviteToken(token=token, inviter_id=user.id)
+    db.session.add(invite)
+    db.session.commit()
+    return invite
+
+------------------------------------------------
+STEP 4 — UPDATE /invite ROUTE TO USE TOKEN
+------------------------------------------------
+File: app.py
+
+Find the existing /invite route:
+
+@app.route("/invite")
+@login_required
+def invite():
+    return render_template("invite.html", user=current_user)
+
+Replace it with:
+
+@app.route("/invite")
+@login_required
+def invite():
+    invite = get_or_create_invite_token(current_user)
+    invite_url = url_for("invite_token_landing", token=invite.token, _external=True)
+    return render_template("invite.html", user=current_user, invite_url=invite_url)
+
+------------------------------------------------
+STEP 5 — UPDATE /my-qr ROUTE TO USE TOKEN URL
+------------------------------------------------
+Find the /my-qr route, which currently generates a QR code pointing at something like /connect_via_qr or /auth?ref=...
+
+Replace its QR URL line with one that uses the same invite token:
+
+@app.route("/my-qr")
+@login_required
+def my_qr():
+    invite = get_or_create_invite_token(current_user)
+    qr_url = url_for("invite_token_landing", token=invite.token, _external=True)
+    qr = segno.make(qr_url)
+    buf = BytesIO()
+    qr.save(buf, kind="png", scale=8)
+    buf.seek(0)
+    return send_file(buf, mimetype="image/png")
+
+(Only the `qr_url` line changes; keep the rest of the function as-is.)
+
+------------------------------------------------
+STEP 6 — NEW LANDING ROUTE /r/<token>
+------------------------------------------------
+Add this new route in app.py:
+
+@app.route("/r/<token>")
+def invite_token_landing(token):
+    invite = InviteToken.query.filter_by(token=token).first()
+
+    if not invite:
+        # Invalid or unknown token
+        return render_template("invite_invalid.html")
+
+    inviter = invite.inviter
+    if not inviter:
+        return render_template("invite_invalid.html")
+
+    # Store inviter in session so auth flow can use it
+    session["pending_inviter_id"] = inviter.id
+
+    # If user is already logged in, connect immediately
+    if current_user.is_authenticated and current_user.id != inviter.id:
+        from sqlalchemy import or_
+        existing = Friend.query.filter(
+            or_(
+                db.and_(Friend.user_id == current_user.id, Friend.friend_id == inviter.id),
+                db.and_(Friend.user_id == inviter.id, Friend.friend_id == current_user.id),
+            )
+        ).first()
+        if not existing:
+            f1 = Friend(user_id=current_user.id, friend_id=inviter.id)
+            f2 = Friend(user_id=inviter.id, friend_id=current_user.id)
+            db.session.add_all([f1, f2])
+            db.session.commit()
+        # Redirect an already-logged-in user to Friends (or Home)
+        return redirect(url_for("friends"))
+
+    # Otherwise render a special landing page for signup / login
+    return render_template("invite_landing.html", inviter=inviter)
+
+Note: adjust `url_for("friends")` to whatever your Friends list route endpoint name is. If it’s `friends_page` or similar, use that instead.
+
+------------------------------------------------
+STEP 7 — UPDATE auth() ROUTE TO CONSUME pending_inviter_id
+------------------------------------------------
+File: app.py
+
+Locate your auth() route that handles Sign Up / Log In and where it currently reads a `ref` query parameter or uses `session["invited_by"]`.
+
+We want to:
+
+- REMOVE any logic relying on `request.args.get("ref")`
+- REPLACE it with logic that reads `session.get("pending_inviter_id")`
+- Use that logic after both successful signup and successful login
+
+Pseudo-code for the relevant pieces (adapt to your existing structure):
+
+Inside the branch where a new user is created (signup success) AND inside the branch where an existing user successfully logs in, add:
+
+    inviter_id = session.get("pending_inviter_id")
+    if inviter_id and inviter_id != current_user.id:
+        inviter = User.query.get(inviter_id)
+        if inviter:
+            # Check if already friends
+            existing = Friend.query.filter(
+                db.or_(
+                    db.and_(Friend.user_id == current_user.id, Friend.friend_id == inviter.id),
+                    db.and_(Friend.user_id == inviter.id, Friend.friend_id == current_user.id),
+                )
+            ).first()
+            if not existing:
+                f1 = Friend(user_id=current_user.id, friend_id=inviter.id)
+                f2 = Friend(user_id=inviter.id, friend_id=current_user.id)
+                db.session.add_all([f1, f2])
+                db.session.commit()
+        session.pop("pending_inviter_id", None)
+
+Make sure this logic executes AFTER `login_user(user)` has been called so `current_user` is set.
+
+Also delete any old use of `session["invited_by"]` or `?ref=` if present, to avoid conflicting mechanisms.
+
+------------------------------------------------
+STEP 8 — UPDATE invite.html TO USE invite_url
+------------------------------------------------
+File: templates/invite.html
+
+Previously Replit reported an issue like:
+
+const inviteUrl = "{{ url_for('invite_link', user_id=current_user.id, _external=True) }}";
+
+We now have `invite_url` passed from the route. Replace any JS line building the link with:
+
+    const inviteUrl = "{{ invite_url }}";
+
+Keep the rest of the copy/share logic the same.
+
+Also ensure the QR <img> tag is still pointing to `/my-qr`:
+
+    <img src="{{ url_for('my_qr') }}" ...>
+
+------------------------------------------------
+STEP 9 — CREATE invite_landing.html
+------------------------------------------------
+File: templates/invite_landing.html (new file)
+
+Create a simple, mobile-first landing page that matches your auth card style:
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>You're invited to BaseLodge</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+<div class="auth-page">
+    <div class="auth-card">
+        <h1 class="app-title">Base Lodge</h1>
+        <p class="app-subtitle">
+            {{ inviter.first_name }} has invited you to connect on BaseLodge.
+        </p>
+        <p style="margin-bottom: 1.5rem;">
+            See each other's trips, passes, and mountain overlaps.
+        </p>
+
+        <div class="button-group-vertical">
+            <a href="{{ url_for('auth') }}" class="primary-button">
+                Sign up or log in to connect
+            </a>
+        </div>
+
+        <p class="fine-print" style="margin-top: 1.5rem;">
+            By continuing, you'll create a BaseLodge account or log in to an existing one.
+        </p>
+    </div>
+</div>
+</body>
+</html>
+
+(Adjust class names to match your current auth.html styles if needed: e.g., `auth-container`, `auth-card`, `primary-button`.)
+
+------------------------------------------------
+STEP 10 — CREATE invite_invalid.html
+------------------------------------------------
+File: templates/invite_invalid.html (new file)
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Invite not found</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+<div class="auth-page">
+    <div class="auth-card">
+        <h1 class="app-title">Base Lodge</h1>
+        <p class="app-subtitle">
+            This invite link is no longer valid.
+        </p>
+        <p style="margin-bottom: 1.5rem;">
+            You can still join BaseLodge to connect with friends and plan trips.
+        </p>
+        <a href="{{ url_for('auth') }}" class="primary-button">
+            Go to sign up / log in
+        </a>
+    </div>
+</div>
+</body>
+</html>
+
+------------------------------------------------
+STEP 11 — OPTIONAL: CLEAN UP OLD /connect OR ?ref LOGIC
+------------------------------------------------
+If there is an old route like /connect/<user_id> or logic that uses `auth?ref=...`, leave it in place for now if you want backward compatibility, but mark it with a comment:
+
+    # TODO: legacy invite flow — can be removed once token-based invites are fully rolled out
+
+Going forward, the app should ONLY generate invite links and QR codes using the new tokenized system:
+
+- /invite → uses invite_url from InviteToken
+- /my-qr → encodes /r/<token> in the QR
+
+------------------------------------------------
+END
