@@ -60,6 +60,34 @@ app.register_blueprint(debug_bp)
 
 with app.app_context():
     db.create_all()
+    
+    # ✅ HARD GUARANTEE: Ensure primary user exists and is valid
+    primary_user = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+    if not primary_user:
+        # Create primary user if missing
+        primary_user = User(
+            first_name="Richard",
+            last_name="Battle-Baxter",
+            email="richardbattlebaxter@gmail.com",
+            rider_type="Skier",
+            pass_type="Epic",
+            skill_level="Advanced",
+            home_state="Colorado",
+            birth_year=1985
+        )
+        primary_user.set_password("12345678")
+        db.session.add(primary_user)
+        db.session.commit()
+        app.logger.info("✅ PRIMARY USER CREATED: richardbattlebaxter@gmail.com")
+    else:
+        # Verify password is correct
+        if not primary_user.check_password("12345678"):
+            # Repair password if incorrect
+            primary_user.set_password("12345678")
+            db.session.commit()
+            app.logger.warning("⚠️ PRIMARY USER PASSWORD REPAIRED: richardbattlebaxter@gmail.com")
+        else:
+            app.logger.info("✅ PRIMARY USER VERIFIED: richardbattlebaxter@gmail.com (ID=%d)", primary_user.id)
 
 def get_or_create_invite_token(user):
     """Get existing invite token for user or create a new one."""
