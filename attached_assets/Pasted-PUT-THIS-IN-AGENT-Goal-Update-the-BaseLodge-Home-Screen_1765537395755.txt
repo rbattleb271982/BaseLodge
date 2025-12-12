@@ -1,0 +1,433 @@
+PUT THIS IN AGENT
+
+Goal: Update the BaseLodge Home Screen to match the new v0 design while keeping all backend logic intact.
+
+Do NOT change any Python models or routes. Only update:
+- templates/home.html
+- templates/components/bottom_nav.html (or equivalent bottom nav include file)
+- static/styles.css
+
+Use checkpoints sparingly.
+
+-----------------------------------
+STEP 1 — UPDATE static/styles.css WITH NEW DESIGN SYSTEM
+-----------------------------------
+
+1) Open static/styles.css.
+
+2) At the TOP of the file (after any reset rules if present), add or update a small design token section to define the new BaseLodge theme. If similar variables already exist, update them rather than duplicating.
+
+Add something equivalent to:
+
+:root {
+  /* BaseLodge brand colors */
+  --bl-bg: #FAF7F2;          /* warm neutral page background */
+  --bl-card-bg: #FFFFFF;     /* card background */
+  --bl-card-border: #E9E4DE; /* hairline border */
+  --bl-text-main: #1F1C1A;   /* main text */
+  --bl-text-muted: #7A716D;  /* muted text */
+  --bl-primary: #8F011B;     /* existing BaseLodge red (keep this) */
+  --bl-primary-hover: #700015;
+  --bl-radius-lg: 20px;
+  --bl-radius-md: 16px;
+  --bl-shadow-soft: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+3) Add or adjust utility classes for page background and typography if needed. For example:
+
+body {
+  background-color: var(--bl-bg);
+  color: var(--bl-text-main);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+4) Add shared card styles that all Home Screen cards can use:
+
+.bl-card {
+  background-color: var(--bl-card-bg);
+  border: 1px solid var(--bl-card-border);
+  border-radius: var(--bl-radius-lg);
+  box-shadow: var(--bl-shadow-soft);
+  padding: 16px 20px;
+}
+
+.bl-card-small {
+  background-color: var(--bl-card-bg);
+  border: 1px solid var(--bl-card-border);
+  border-radius: 18px;
+  box-shadow: var(--bl-shadow-soft);
+  padding: 14px 18px;
+}
+
+.bl-card-section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.bl-text-muted {
+  color: var(--bl-text-muted);
+  font-size: 0.9rem;
+}
+
+5) Add styles for the tab bar "My Trips / Friends’ Trips / Overlaps":
+
+.bl-tabs-wrapper {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 999px;
+  background-color: #F7F4EF;
+  margin-bottom: 12px;
+}
+
+.bl-tab-button {
+  border: none;
+  background: transparent;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--bl-text-muted);
+  cursor: pointer;
+}
+
+.bl-tab-button.active {
+  background-color: var(--bl-primary);
+  color: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.bl-tab-button:not(.active):hover {
+  color: var(--bl-text-main);
+}
+
+6) Add styles for the trip list cards:
+
+.bl-trip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* slightly tighter spacing */
+}
+
+.bl-trip-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--bl-card-bg);
+  border-radius: 18px;
+  border: 1px solid var(--bl-card-border);
+  box-shadow: var(--bl-shadow-soft);
+  padding: 14px 20px;
+}
+
+.bl-trip-card-text {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.bl-trip-edit {
+  margin-left: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--bl-primary);
+  text-decoration: none;
+}
+
+.bl-trip-edit:hover {
+  color: var(--bl-primary-hover);
+}
+
+7) Add styles for the onboarding cards:
+
+.bl-onboarding-card {
+  background-color: var(--bl-card-bg);
+  border-radius: 20px;
+  border: 1px solid var(--bl-card-border);
+  box-shadow: var(--bl-shadow-soft);
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+
+.bl-onboarding-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.bl-onboarding-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background-color: #F7F4EF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bl-onboarding-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+8) Add a full-width primary button style to reuse:
+
+.bl-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 999px;
+  background-color: var(--bl-primary);
+  color: #FFFFFF;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+.bl-btn-primary:hover {
+  background-color: var(--bl-primary-hover);
+}
+
+.bl-btn-text {
+  border: none;
+  background: none;
+  font-size: 0.85rem;
+  color: var(--bl-text-muted);
+  cursor: pointer;
+}
+
+.bl-btn-text:hover {
+  color: var(--bl-text-main);
+}
+
+9) Add styles for the bottom nav:
+
+.bl-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--bl-card-bg);
+  border-top: 1px solid var(--bl-card-border);
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.06);
+  z-index: 50;
+}
+
+.bl-bottom-nav-inner {
+  max-width: 600px;
+  margin: 0 auto;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 16px;
+}
+
+.bl-bottom-nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 0.7rem;
+  color: var(--bl-text-muted);
+  text-decoration: none;
+}
+
+.bl-bottom-nav-btn.active {
+  color: var(--bl-primary);
+}
+
+-----------------------------------
+STEP 2 — UPDATE components/bottom_nav.html
+-----------------------------------
+
+1) Open the file used as the bottom nav include, likely:
+   templates/components/bottom_nav.html
+
+2) Replace its content with a simpler, icon-less but modern nav that matches the v0 layout. Use the existing Flask route URLs. For example:
+
+<div class="bl-bottom-nav">
+  <div class="bl-bottom-nav-inner">
+    <a href="{{ url_for('home') }}" class="bl-bottom-nav-btn {% if active_nav == 'home' %}active{% endif %}">
+      <span>Home</span>
+    </a>
+    <a href="{{ url_for('friends') }}" class="bl-bottom-nav-btn {% if active_nav == 'friends' %}active{% endif %}">
+      <span>Friends</span>
+    </a>
+    <a href="{{ url_for('invite') }}" class="bl-bottom-nav-btn {% if active_nav == 'invite' %}active{% endif %}">
+      <span>Invite</span>
+    </a>
+    <a href="{{ url_for('more') }}" class="bl-bottom-nav-btn {% if active_nav == 'more' %}active{% endif %}">
+      <span>More</span>
+    </a>
+  </div>
+</div>
+
+3) Adjust the url_for endpoints above to match whatever routes actually exist in this app (e.g. 'friends_trips', 'invite_page', 'profile', etc.). Reuse whatever naming is already in the current bottom_nav include.
+
+4) Ensure that the Home Screen view sets an active_nav variable in render_template (if not already present). If current home route doesn’t set this, you can:
+   - Either update only the nav to NOT rely on active_nav, or
+   - Add active_nav='home' in the home route in app.py if trivial.
+
+If modifying the Python route is required for active_nav, keep the change minimal.
+
+-----------------------------------
+STEP 3 — REBUILD templates/home.html LAYOUT
+-----------------------------------
+
+1) Open templates/home.html.
+
+2) Keep any top-level Jinja blocks (e.g., {% extends %}, {% block content %}, etc.) if they exist. However, earlier Replit feedback indicated this app does NOT use template inheritance and each template is a full HTML document with `{% include 'components/bottom_nav.html' %}`.
+
+Follow the existing structure but replace the inner content with the new layout.
+
+3) Make the Home Screen content follow this structure inside the <body>:
+
+- A main container with padding on the sides and room for the fixed bottom nav, e.g.:
+
+<div class="page-container" style="padding: 16px 16px 88px;">
+
+4) At the top of page-container, build the profile header card using the v0 layout but with Jinja variables instead of mock data. For example (adapt variable names based on what home.html currently uses — user, current_user, etc.):
+
+<div class="bl-card">
+  <h1 class="bl-card-section-title">
+    Welcome back, {{ current_user.first_name }} 👋
+  </h1>
+  <div class="flex-row-meta" style="display:flex;flex-wrap:wrap;gap:6px 10px;font-size:0.85rem;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bl-card-border);color:var(--bl-text-muted);">
+    <span>{{ current_user.rider_type or 'Rider' }}</span>
+    <span>•</span>
+    <span>{{ current_user.pass_type or 'No pass selected' }}</span>
+    <span>•</span>
+    <span>{{ current_user.skill_level or 'Skill level TBD' }}</span>
+  </div>
+  <p style="font-size:0.9rem;font-weight:500;">
+    {{ upcoming_trip_count }} upcoming trip{% if upcoming_trip_count != 1 %}s{% endif %}
+  </p>
+</div>
+
+If home.html already calculates an upcoming trip count, reuse that. If not, reuse whatever count/label is currently shown for "upcoming trips". Adjust the variable names to match existing context.
+
+5) Below the profile card, add the onboarding cards container. Reuse existing logic for whether pass/home mountain exist. For example:
+
+{% if not current_user.pass_type %}
+  <div class="bl-onboarding-card">
+    <div class="bl-onboarding-header">
+      <div class="bl-onboarding-icon">
+        <!-- Simple pass icon placeholder -->
+        <span>🎟️</span>
+      </div>
+      <div>
+        <h3 class="bl-card-section-title" style="font-size:1rem;margin-bottom:4px;">Choose your pass to get better matches</h3>
+        <p class="bl-text-muted">Most BaseLodge features work better when we know your pass.</p>
+      </div>
+    </div>
+    <div class="bl-onboarding-actions">
+      <button class="bl-btn-primary">Select Pass</button>
+      <button class="bl-btn-text">Skip for now</button>
+    </div>
+  </div>
+{% endif %}
+
+{% if not current_user.home_mountain %}
+  <div class="bl-onboarding-card">
+    <div class="bl-onboarding-header">
+      <div class="bl-onboarding-icon" style="background:none;">
+        <!-- Mountain icon placeholder -->
+        <span>🏔️</span>
+      </div>
+      <div>
+        <h3 class="bl-card-section-title" style="font-size:1rem;margin-bottom:4px;">Set your home mountain</h3>
+        <p class="bl-text-muted">We use this to suggest better trip matches.</p>
+      </div>
+    </div>
+    <button class="bl-btn-primary">Set Home Mountain</button>
+  </div>
+{% endif %}
+
+If your User model uses different field names for pass/home mountain, update accordingly.
+
+6) Below onboarding, add the tab bar (My Trips, Friends’ Trips, Overlaps). The backend already controls which data is shown; you can either:
+   - Use three separate sections within home.html, or
+   - Use links that go to separate routes.
+
+If the current home.html already implements tabs or anchor links, reuse that logic but wrap the labels in the new markup. For example, if you keep all three lists on one page:
+
+<div style="margin-top:16px;margin-bottom:12px;">
+  <div class="bl-tabs-wrapper">
+    <button class="bl-tab-button active">My Trips</button>
+    <button class="bl-tab-button">Friends' Trips</button>
+    <button class="bl-tab-button">Overlaps</button>
+  </div>
+</div>
+
+If your app uses different pages for each view (e.g. /my-trips, /friends-trips, /overlaps), instead make each tab a link with a conditional "active" class based on the section you’re in. Mirror whatever is already wired today.
+
+7) For the trip lists:
+   - Identify the current Jinja loops for "My Trips", "Friends’ Trips", and "Overlaps" in home.html (or referenced partials).
+   - Replace the inner markup of those loops with the new .bl-trip-card layout.
+
+Example for My Trips:
+
+<div class="bl-trip-list">
+  {% for trip in my_trips %}
+    <div class="bl-trip-card">
+      <p class="bl-trip-card-text">
+        {{ trip.start_date|strftime("%b %-d") }}–{{ trip.end_date|strftime("%b %-d") }} — 
+        {% if trip.resort %}
+          {{ trip.resort.name }} {{ trip.resort.state_abbrev or trip.resort.state }}
+        {% else %}
+          {{ trip.mountain }} {{ trip.state }}
+        {% endif %}
+      </p>
+      <a href="{{ url_for('edit_trip', trip_id=trip.id) }}" class="bl-trip-edit">Edit</a>
+    </div>
+  {% else %}
+    <p class="bl-text-muted">No trips yet.</p>
+  {% endfor %}
+</div>
+
+For Friends’ Trips and Overlaps, reuse the same card structure but adjust the text to add friend name if you already display it. For example:
+
+{{ friend.first_name }} – {{ trip.start_date|... }}–{{ trip.end_date|... }} — {{ resort info }}
+
+Use whatever variables are currently in the template; do NOT invent new context, just restyle the existing loops.
+
+8) Add the full-width bottom “Add a trip” button after the trip list content and above the bottom nav include:
+
+<button class="bl-btn-primary" style="margin-top:18px;">
+  + Add a trip
+</button>
+
+Wrap it in a form or link as appropriate, reusing whatever the current Home Screen uses to link to the add-trip page (e.g., url_for('add_trip')):
+
+<a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="text-align:center;margin-top:18px;text-decoration:none;">
+  + Add a trip
+</a>
+
+9) At the very bottom of home.html, keep the bottom nav include:
+
+{% include 'components/bottom_nav.html' %}
+
+Make sure the page’s bottom padding leaves room for the fixed nav (the earlier padding: 16px 16px 88px is fine).
+
+-----------------------------------
+STEP 4 — FINAL PASS
+-----------------------------------
+
+- Confirm that:
+  - templates/home.html renders without Jinja errors.
+  - The trip lists still show the correct trips.
+  - The “Add a trip” button still routes to the correct page.
+  - The bottom nav appears and respects the active_nav logic (if used).
+- Do NOT change any database logic, models, or core route code besides potentially adding active_nav='home' in the home route if needed.
+
+END
