@@ -37,6 +37,25 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **API Endpoints:** Dedicated API routes for trip management (create, edit, delete) and friend management (invite, list, accept, remove).
 - **Models:** Core models include `User`, `SkiTrip`, `Resort`, `Friend`, `Invitation`, and `InviteToken`, with appropriate relationships.
 
+## Recent Changes (Dec 12, 2025)
+
+### Auth Screen UX Improvements - COMPLETE
+Updated signup/login screen with improved clarity:
+1. **Segmented control tabs** - Pill-style buttons with red active state
+2. **Show/hide password toggle** - Both signup and login forms
+3. **Password helper text** - "At least 8 characters" below signup password field
+4. **Updated disclaimer** - "You're joining an early test version of Base Lodge."
+5. **Autocomplete attributes** - Added for better browser autofill support
+
+### Home Screen Redesign (v0 Layout) - COMPLETE
+Updated Home Screen to match new v0 design:
+1. **CSS design tokens** - Warm neutral theme (#FAF7F2 background, #E9E4DE borders)
+2. **Profile header card** - Welcome message, rider type, pass, skill level, trip count
+3. **Onboarding card** - Pass selection prompt with "Skip for now" option
+4. **Pill-style tabs** - "My Trips", "Friends' Trips", "Overlaps" with rounded pill buttons
+5. **Trip cards** - Unified display format with "No Pass" fallback
+6. **Simplified bottom nav** - Text-only labels
+
 ## External Dependencies
 - **Flask:** Python web framework.
 - **Flask-Login:** User session management.

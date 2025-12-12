@@ -45,27 +45,34 @@
         }
         
         .auth-tabs {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: var(--bl-space-4);
+            display: flex;
+            background: #F7F4EF;
+            border-radius: 999px;
+            padding: 4px;
             margin-bottom: var(--bl-space-8);
         }
         
         .auth-tab-btn {
-            background: none;
+            flex: 1;
+            background: transparent;
             border: none;
-            padding: var(--bl-space-4) var(--bl-space-5);
+            padding: 10px 16px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             color: var(--bl-color-text-muted);
-            border-bottom: 2px solid transparent;
+            border-radius: 999px;
             transition: all 0.2s ease;
         }
         
         .auth-tab-btn.active {
-            color: var(--bl-color-primary);
-            border-bottom-color: var(--bl-color-primary);
+            background: var(--bl-color-primary);
+            color: #FFFFFF;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+        
+        .auth-tab-btn:not(.active):hover {
+            color: var(--bl-color-text);
         }
         
         .auth-form {
@@ -108,6 +115,38 @@
         
         .form-input::placeholder {
             color: var(--bl-color-text-muted);
+        }
+        
+        .password-wrapper {
+            position: relative;
+        }
+        
+        .password-wrapper .form-input {
+            padding-right: 48px;
+        }
+        
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--bl-color-text-muted);
+            font-size: 13px;
+            font-weight: 500;
+            padding: 4px 8px;
+        }
+        
+        .password-toggle:hover {
+            color: var(--bl-color-text);
+        }
+        
+        .form-helper {
+            font-size: 12px;
+            color: var(--bl-color-text-muted);
+            margin-top: 6px;
         }
         
         .form-submit {
@@ -164,27 +203,31 @@
                 
                 <div class="form-group">
                     <label class="form-label">First Name</label>
-                    <input type="text" name="first_name" class="form-input" required placeholder="First name">
+                    <input type="text" name="first_name" class="form-input" required placeholder="First name" autocomplete="given-name">
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label">Last Name</label>
-                    <input type="text" name="last_name" class="form-input" required placeholder="Last name">
+                    <input type="text" name="last_name" class="form-input" required placeholder="Last name" autocomplete="family-name">
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-input" required placeholder="you@example.com">
+                    <input type="email" name="email" class="form-input" required placeholder="you@example.com" autocomplete="email">
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label">Password</label>
-                    <input type="password" name="password" class="form-input" required placeholder="Create a password">
+                    <div class="password-wrapper">
+                        <input type="password" name="password" class="form-input" required placeholder="Create a password" autocomplete="new-password" id="signup-password">
+                        <button type="button" class="password-toggle" data-target="signup-password">Show</button>
+                    </div>
+                    <p class="form-helper">At least 8 characters</p>
                 </div>
                 
                 <button type="submit" class="bl-btn-primary form-submit">Create Account</button>
                 
-                <p class="auth-footer">By continuing, you agree this is an early test version of Base Lodge.</p>
+                <p class="auth-footer">You're joining an early test version of Base Lodge.</p>
             </form>
             
             <!-- Login Form -->
@@ -193,17 +236,20 @@
                 
                 <div class="form-group">
                     <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-input" required placeholder="you@example.com">
+                    <input type="email" name="email" class="form-input" required placeholder="you@example.com" autocomplete="email">
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label">Password</label>
-                    <input type="password" name="password" class="form-input" required placeholder="Your password">
+                    <div class="password-wrapper">
+                        <input type="password" name="password" class="form-input" required placeholder="Your password" autocomplete="current-password" id="login-password">
+                        <button type="button" class="password-toggle" data-target="login-password">Show</button>
+                    </div>
                 </div>
                 
                 <button type="submit" class="bl-btn-primary form-submit">Log In</button>
                 
-                <p class="auth-footer">By continuing, you agree this is an early test version of Base Lodge.</p>
+                <p class="auth-footer">You're joining an early test version of Base Lodge.</p>
             </form>
         </div>
     </div>
@@ -226,6 +272,20 @@
             tabSignup.classList.remove('active');
             formLogin.classList.add('active');
             formSignup.classList.remove('active');
+        });
+        
+        document.querySelectorAll('.password-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    btn.textContent = 'Hide';
+                } else {
+                    input.type = 'password';
+                    btn.textContent = 'Show';
+                }
+            });
         });
     </script>
 </body>
