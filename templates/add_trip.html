@@ -105,6 +105,12 @@
             {% if trip %}Edit trip{% else %}Add a trip{% endif %}
         </h1>
 
+        {% if current_user.home_mountain and not trip %}
+        <button id="useHomeMountain" type="button" class="primary-button" style="margin-bottom: 1rem; background: var(--bl-color-primary);">
+            🏠 Use My Home Mountain ({{ current_user.home_mountain }})
+        </button>
+        {% endif %}
+
         {% if current_user.is_authenticated %}
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -211,13 +217,13 @@
             mountainSelect.appendChild(placeholder);
 
             // Add mountains
-            mountains.forEach(mountain => {
+            mountains.forEach(m => {
                 const option = document.createElement('option');
-                option.value = mountain;
-                option.text = mountain;
+                option.value = m;
+                option.text = (m === userHomeMountain) ? m + " (Home Mountain)" : m;
 
                 // Preserve selected mountain when editing a trip
-                if (selectedMountain && selectedMountain === mountain) {
+                if (selectedMountain && selectedMountain === m) {
                     option.selected = true;
                     placeholder.selected = false;
                 }
@@ -225,6 +231,22 @@
                 mountainSelect.appendChild(option);
             });
         }
+
+        const userHomeMountain = "{{ current_user.home_mountain or '' }}";
+
+        document.getElementById("useHomeMountain")?.addEventListener("click", () => {
+            if (!userHomeMountain) return;
+
+            // Find correct state based on mountain dictionary
+            for (const [state, mountains] of Object.entries(MOUNTAINS)) {
+                if (mountains.includes(userHomeMountain)) {
+                    document.getElementById("state").value = state;
+                    loadMountains();
+                    document.getElementById("mountain").value = userHomeMountain;
+                    break;
+                }
+            }
+        });
 
         // Load mountains on page load if state is already selected
         document.addEventListener('DOMContentLoaded', () => {

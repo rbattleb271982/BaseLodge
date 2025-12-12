@@ -6,6 +6,25 @@
 </head>
 
 <body>
+
+{% set MOUNTAINS = {
+    'AK': ['Alyeska'],
+    'CA': ['Mammoth', 'Northstar', 'Palisades Tahoe', 'June Mountain', 'Sierra at Tahoe', 'China Peak', 'Boreal'],
+    'CO': ['Aspen', 'Beaver Creek', 'Breckenridge', 'Copper', 'Loveland', 'Keystone', 'Winter Park', 'Eldora', 'Powderhorn', 'Monarch', 'Sunlight', 'Telluride'],
+    'ID': ['Bogus Basin', 'Schweitzer', 'Sun Valley'],
+    'ME': ['Sugarloaf', 'Sunday River'],
+    'MI': ['Boyne Highlands', 'Nubs Nob'],
+    'MT': ['Big Sky', 'Whitefish'],
+    'NH': ['Cannon', 'Loon', 'Wildcat', 'Mount Sunapee', 'Waterville Valley'],
+    'NM': ['Taos', 'Santa Fe'],
+    'NY': ['Whiteface', 'Gore', 'Belleayre'],
+    'OR': ['Mount Hood', 'Timberline', 'Hoodoo'],
+    'UT': ['Alta', 'Brighton', 'The Canyons', 'Powder Mountain', 'Park City', 'Snowbasin', 'Nordic Valley', 'Sundance'],
+    'VT': ['Stowe', 'Smugglers Notch', 'Jay Peak', 'Killington', 'Sugarbush'],
+    'WA': ['Crystal', 'Mission Ridge', 'The Summit at Snoqualmie', 'White Pass'],
+    'WY': ['Jackson Hole', 'Grand Targhee']
+} %}
+
 <div class="page-container">
 
     <h2 class="page-title">Edit Profile</h2>
@@ -33,6 +52,19 @@
                 {{ current_user.pass_type if current_user.pass_type else "No pass selected" }}
             </div>
             <a href="{{ url_for('select_pass') }}" class="small-link">Change pass →</a>
+        </div>
+
+        <!-- Home Mountain -->
+        <div class="form-section">
+            <label class="form-label">Home Mountain</label>
+            <select name="home_mountain" id="home_mountain" class="bl-select">
+                <option value="">Select your home mountain</option>
+                {% for state, mtns in MOUNTAINS.items() %}
+                    {% for m in mtns %}
+                        <option value="{{ m }}" {% if current_user.home_mountain == m %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                {% endfor %}
+            </select>
         </div>
 
         <!-- Gender -->
@@ -94,6 +126,7 @@
             <input type="hidden" name="gender" id="gender" value="{{ current_user.gender or '' }}">
             <input type="hidden" name="birth_year" id="birth_year" value="{{ current_user.birth_year or '' }}">
             <input type="hidden" name="home_state" id="home_state" value="{{ current_user.home_state or '' }}">
+            <input type="hidden" name="home_mountain" id="home_mountain_hidden" value="{{ current_user.home_mountain or '' }}">
         </form>
 
         <button type="submit" form="editProfileForm" class="bl-button-primary" style="margin-top: var(--bl-space-4);">
@@ -125,7 +158,13 @@ document.querySelectorAll(".chip-group .chip").forEach(chip => {
 
 document.querySelectorAll(".bl-select").forEach(select => {
     select.addEventListener("change", () => {
-        document.querySelector("input[name='" + select.name + "']").value = select.value;
+        const hiddenInputId = select.id === "home_mountain" ? "home_mountain_hidden" : "input[name='" + select.name + "']";
+        const hiddenInput = select.id === "home_mountain" 
+            ? document.getElementById(hiddenInputId)
+            : document.querySelector("input[name='" + select.name + "']");
+        if (hiddenInput) {
+            hiddenInput.value = select.value;
+        }
     });
 });
 </script>

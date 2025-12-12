@@ -278,6 +278,7 @@ def edit_profile():
         user.home_state = request.form.get("home_state") or None
         user.skill_level = request.form.get("skill_level") or None
         user.gear = request.form.get("gear") or None
+        user.home_mountain = request.form.get("home_mountain") or None
         
         db.session.commit()
         return redirect(url_for("profile"))

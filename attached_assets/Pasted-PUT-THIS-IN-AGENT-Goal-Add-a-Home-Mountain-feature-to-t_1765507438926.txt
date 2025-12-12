@@ -1,0 +1,125 @@
+PUT THIS IN AGENT
+
+Goal: Add a “Home Mountain” feature to the BaseLodge app.
+
+This requires:
+1. Adding a new column to the User model
+2. Creating a migration with Flask-Migrate
+3. Updating Edit Profile UI to include a Home Mountain dropdown
+4. Updating Add Trip UI to offer a “Use My Home Mountain” quick button and prioritize the home mountain in the dropdown list
+
+----------------------------------------
+STEP 1 — UPDATE USER MODEL
+----------------------------------------
+File: models.py (where User model is defined)
+
+Add this field inside the User model class:
+
+    home_mountain = db.Column(db.String(100), nullable=True)
+
+Do not modify other fields.
+
+----------------------------------------
+STEP 2 — CREATE MIGRATION
+----------------------------------------
+Run:
+
+flask db migrate -m "Add home_mountain field to User"
+flask db upgrade
+
+----------------------------------------
+STEP 3 — UPDATE EDIT PROFILE UI
+----------------------------------------
+File: templates/edit_profile.html
+
+Below the existing Pass Type selection, insert a new block:
+
+    <label for="home_mountain">Home Mountain</label>
+    <select name="home_mountain" id="home_mountain">
+        <option value="">Select your home mountain</option>
+        {% for state, mtns in MOUNTAINS.items() %}
+            {% for m in mtns %}
+                <option value="{{ m }}" {% if user.home_mountain == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+        {% endfor %}
+    </select>
+
+Also update the POST handler in routes (edit_profile route) to save:
+
+    user.home_mountain = request.form.get("home_mountain")
+
+----------------------------------------
+STEP 4 — IMPORT THE MOUNTAINS DICTIONARY
+----------------------------------------
+At the top of edit_profile.html add:
+
+    {% set MOUNTAINS = {
+        'AK': ['Alyeska'],
+        'CA': ['Mammoth', 'Northstar', 'Palisades Tahoe', 'June Mountain', 'Sierra at Tahoe', 'China Peak', 'Boreal'],
+        'CO': ['Aspen', 'Beaver Creek', 'Breckenridge', 'Copper', 'Loveland', 'Keystone', 'Winter Park', 'Eldora', 'Powderhorn', 'Monarch', 'Sunlight', 'Telluride'],
+        'ID': ['Bogus Basin', 'Schweitzer', 'Sun Valley'],
+        'ME': ['Sugarloaf', 'Sunday River'],
+        'MI': ['Boyne Highlands', 'Nubs Nob'],
+        'MT': ['Big Sky', 'Whitefish'],
+        'NH': ['Cannon', 'Loon', 'Wildcat', 'Mount Sunapee', 'Waterville Valley'],
+        'NM': ['Taos', 'Santa Fe'],
+        'NY': ['Whiteface', 'Gore', 'Belleayre'],
+        'OR': ['Mount Hood', 'Timberline', 'Hoodoo'],
+        'UT': ['Alta', 'Brighton', 'The Canyons', 'Powder Mountain', 'Park City', 'Snowbasin', 'Nordic Valley', 'Sundance'],
+        'VT': ['Stowe', 'Smugglers Notch', 'Jay Peak', 'Killington', 'Sugarbush'],
+        'WA': ['Crystal', 'Mission Ridge', 'The Summit at Snoqualmie', 'White Pass'],
+        'WY': ['Jackson Hole', 'Grand Targhee']
+    } %}
+
+----------------------------------------
+STEP 5 — UPDATE ADD TRIP PAGE
+----------------------------------------
+File: templates/add_trip.html
+
+(1) Below the <h1>Add a trip</h1> insert:
+
+{% if current_user.home_mountain %}
+<button id="useHomeMountain" class="btn-primary" style="margin-bottom: 1rem;">
+    🏠 Use My Home Mountain ({{ current_user.home_mountain }})
+</button>
+{% endif %}
+
+(2) Add JS at the bottom of the file before </script>:
+
+const userHomeMountain = "{{ current_user.home_mountain or '' }}";
+
+document.getElementById("useHomeMountain")?.addEventListener("click", () => {
+    if (!userHomeMountain) return;
+
+    // Find correct state based on mountain dictionary
+    for (const [state, mountains] of Object.entries(MOUNTAINS)) {
+        if (mountains.includes(userHomeMountain)) {
+            document.getElementById("state").value = state;
+            loadMountains();
+            document.getElementById("mountain").value = userHomeMountain;
+            break;
+        }
+    }
+});
+
+(3) Modify loadMountains() so that when mountains populate, if the user's home mountain is in the list, place it first:
+
+Within mountains.forEach(), replace with:
+
+mountains.forEach(m => {
+    const option = document.createElement("option");
+    option.value = m;
+    option.text = (m === userHomeMountain) ? m + " (Home Mountain)" : m;
+    mountainSelect.appendChild(option);
+});
+
+----------------------------------------
+AFTER CHANGES
+----------------------------------------
+1. User can select a Home Mountain in profile.
+2. Add Trip shows a “Use My Home Mountain” button.
+3. Dropdown prioritizes home mountain visually.
+4. No design changes outside the updated components.
+
+Do not modify unrelated routes or templates.
+Use checkpoints sparingly.

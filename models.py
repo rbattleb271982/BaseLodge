@@ -19,6 +19,7 @@ class User(UserMixin, db.Model):
     home_state = db.Column(db.String(50))
     skill_level = db.Column(db.String(50))
     gear = db.Column(db.String(200))
+    home_mountain = db.Column(db.String(100), nullable=True)
     mountains_visited = db.Column(db.JSON, default=list)
     
     trips = db.relationship('SkiTrip', backref='user', lazy=True)
