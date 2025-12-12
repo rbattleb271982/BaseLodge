@@ -153,6 +153,24 @@ Fixed critical authentication redirect loop in Replit iframe environment:
 
 **Login now works:** richardbattlebaxter@gmail.com / 12345678
 
+### Profile Consolidation & Trip Duration Hardening (Dec 12, 2025) - COMPLETE
+Structural hardening to prevent regressions and add trip duration display:
+1. **Defensive /profile redirect** - Added guard route that redirects /profile to /more (prevents TemplateNotFound errors)
+2. **Standardized all profile saves** - All POST handlers that modify profile data now redirect to /more:
+   - edit_profile (rider_type, pass_type, skill_level, home_state, etc.)
+   - mountains_visited
+3. **Trip duration display** - Added trip duration (days) to all trip cards:
+   - Inline with existing trip text: "Feb 10–Feb 13 — Resort Name • 4 days"
+   - Calculated as: (end_date - start_date).days + 1
+   - Applied to trip_row.html component (used across home.html, my_trips.html, friend profiles)
+4. **Documentation guard** - Added prominent comment at top of app.py:
+   - "PROFILE CONSOLIDATION NOTE: Do NOT reintroduce profile routes or templates"
+5. **Regression tests** - Created tests/test_profile_consolidation.py with:
+   - /profile always redirects test
+   - Profile save redirects to /more test
+   - No profile.html template reference test
+   - Trip duration calculation test
+
 ## External Dependencies
 - **Flask:** Python web framework.
 - **Flask-Login:** User session management.

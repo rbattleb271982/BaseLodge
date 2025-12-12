@@ -11,6 +11,13 @@ from io import BytesIO
 import segno
 import random
 
+# ============================================================================
+# PROFILE CONSOLIDATION NOTE:
+# The app no longer uses /profile or profile.html.
+# All profile-related UI lives under /more.
+# Do NOT reintroduce profile routes or templates.
+# ============================================================================
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
@@ -339,36 +346,10 @@ def setup_profile():
 
     return render_template("setup_profile.html")
 
-@app.route("/profile", methods=["GET", "POST"])
-@login_required
-def profile():
-    user = current_user
-    
-    if request.method == "POST":
-        user.pass_type = request.form.get("pass_type") or user.pass_type
-        user.skill_level = request.form.get("skill_level") or user.skill_level
-        user.rider_type = request.form.get("rider_type") or user.rider_type
-        user.gender = request.form.get("gender") or user.gender
-        db.session.commit()
-        return redirect(url_for("profile"))
-    
-    mountains_visited = user.mountains_visited or []
-    mountains_visited_count = len(mountains_visited)
-    today = date.today()
-    upcoming_trips_count = SkiTrip.query.filter(
-        SkiTrip.user_id == user.id,
-        SkiTrip.end_date >= today
-    ).count()
-    friends_count = Friend.query.filter_by(user_id=user.id).count()
-    
-    return render_template(
-        "profile.html", 
-        user=user,
-        mountains_visited=mountains_visited,
-        mountains_visited_count=mountains_visited_count,
-        trips_count=upcoming_trips_count,
-        friends_count=friends_count
-    )
+@app.route("/profile")
+def deprecated_profile():
+    """Defensive redirect: /profile no longer exists, redirect to /more."""
+    return redirect(url_for("more"))
 
 @app.route("/edit_profile", methods=["GET", "POST"])
 @login_required
@@ -387,7 +368,7 @@ def edit_profile():
         user.home_mountain = request.form.get("home_mountain") or None
         
         db.session.commit()
-        return redirect(url_for("profile"))
+        return redirect(url_for("more"))
     
     friends_count = Friend.query.filter_by(user_id=user.id).count()
     
@@ -724,7 +705,7 @@ def friend_profile_legacy(user_id):
     
     # Check if viewing own profile
     if user_id == current_user.id:
-        return redirect(url_for("profile"))
+        return redirect(url_for("more"))
     
     friend_user = User.query.get_or_404(user_id)
     
@@ -1180,7 +1161,7 @@ def mountains_visited():
         selected_mountains = request.form.getlist("mountains")
         user.mountains_visited = selected_mountains
         db.session.commit()
-        return redirect(url_for("profile"))
+        return redirect(url_for("more"))
     
     selected_mountains = user.mountains_visited or []
     mountains_visited_count = len(selected_mountains)
