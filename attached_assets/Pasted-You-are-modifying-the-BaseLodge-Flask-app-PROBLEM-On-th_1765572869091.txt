@@ -1,0 +1,86 @@
+You are modifying the BaseLodge Flask app.
+
+PROBLEM:
+On the "Add a trip" page, when a user selects a future Start Date
+(e.g., January 2026), opening the End Date picker resets to the
+current month instead of continuing from the selected Start Date.
+
+GOAL:
+When the End Date picker opens, it should:
+- Default to the selected Start Date month/year (if one exists)
+- Fall back to today's date ONLY if no Start Date has been selected
+
+IMPORTANT CONSTRAINTS:
+- Do NOT change routes or backend logic
+- Do NOT replace the date picker library
+- Fix this via frontend JavaScript only
+- Keep existing styling and layout unchanged
+
+--------------------------------------------------
+STEP 1: IDENTIFY DATE INPUTS
+--------------------------------------------------
+
+Locate the Start Date and End Date inputs on the Add/Edit Trip page.
+
+Assumptions (verify and adapt if names differ):
+- Start date input has id or name like: start_date
+- End date input has id or name like: end_date
+- Both use <input type="date">
+
+--------------------------------------------------
+STEP 2: ADD FRONTEND LOGIC
+--------------------------------------------------
+
+When the End Date input is focused or clicked:
+- Check if Start Date has a value
+- If so:
+  - Set the End Date input's value (or min attribute) to the Start Date
+  - Ensure the date picker opens at the same month/year
+- If not:
+  - Leave default behavior unchanged
+
+This should work for:
+- New trips
+- Editing existing trips
+
+--------------------------------------------------
+STEP 3: IMPLEMENTATION DETAILS
+--------------------------------------------------
+
+Use vanilla JavaScript only.
+
+Example logic (adjust selectors as needed):
+
+- Listen for focus or click on end_date
+- Read value from start_date
+- If present:
+  - Set end_date.min = start_date.value
+  - If end_date.value is empty:
+      set end_date.value = start_date.value
+
+This ensures:
+- Picker opens at the correct month
+- End date cannot be before start date
+- No scrolling back from current month required
+
+--------------------------------------------------
+STEP 4: SAFETY CHECKS
+--------------------------------------------------
+
+- Do NOT override an existing end date if one is already set
+- Do NOT break form validation
+- Do NOT interfere with server-side validation
+- Ensure behavior works on mobile Safari and Chrome
+
+--------------------------------------------------
+STEP 5: TESTING
+--------------------------------------------------
+
+Manually verify:
+1. Select a future Start Date (e.g., Jan 2026)
+2. Tap End Date
+   → Picker opens at Jan 2026 (not today)
+3. Clear Start Date
+   → End Date picker defaults to current month
+
+STOP when complete.
