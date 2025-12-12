@@ -1,0 +1,70 @@
+🔒 NON-NEGOTIABLE REQUIREMENT
+All dummy users MUST be connected to my real account:
+Email: richardbattlebaxter@gmail.com
+If this user does not exist, create it first, then proceed.
+STEP 0 — VERIFY OR CREATE MY USER (REQUIRED)
+Query:
+SELECT id, email FROM "user" WHERE email = 'richardbattlebaxter@gmail.com';
+If no row exists:
+Create the user with:
+First name: Richard
+Last name: Battle-Baxter
+Email: richardbattlebaxter@gmail.com
+Password: 12345678 (hashed properly)
+Commit and re-query to confirm persistence
+Do not proceed until this user exists and has a stable user_id.
+STEP 1 — CREATE TRIPS FOR MY ACCOUNT (FOR OVERLAP)
+Create 2–3 trips for my user with:
+Real resorts
+Valid states
+Overlapping date ranges (used by dummy users)
+Example (you may choose different resorts, but overlaps are required):
+Trip 1: Utah — Jan 10–15
+Trip 2: Colorado — Feb 5–9
+Confirm with:
+SELECT * FROM ski_trip WHERE user_id = <my_user_id>;
+STEP 2 — CREATE 50 DUMMY USERS
+Create 50 dummy users with:
+Realistic first + last names
+Unique emails
+Passwords set and hashed
+Valid rider_type + pass_type
+Confirm count:
+SELECT COUNT(*) FROM "user";
+STEP 3 — CREATE OVERLAPPING TRIPS FOR DUMMY USERS
+For each dummy user:
+Assign 1–3 trips
+At least one trip MUST overlap with one of my trips
+Same resort + overlapping dates
+This is REQUIRED so:
+Friends’ Trips
+Overlaps tab
+Home feed
+actually show data.
+STEP 4 — CONNECT ALL DUMMY USERS TO ME
+Create friend/connection records so that:
+Every dummy user is connected to my user
+Connections are bidirectional if required by schema
+Verify with:
+SELECT * FROM <friend_table>
+WHERE user_id = <my_user_id>
+   OR friend_id = <my_user_id>;
+Expected result:
+~50 rows involving my user
+STEP 5 — UI VERIFICATION
+After creation:
+Logging in as richardbattlebaxter@gmail.com must show:
+Friends list populated
+Friends’ trips visible
+Overlaps populated
+If UI does not reflect data:
+Identify whether the issue is query logic or template rendering
+REQUIRED OUTPUT (NO EXCEPTIONS)
+Reply with:
+My user_id
+Number of total users
+Number of dummy users
+Number of friend connections involving my user
+Number of trips created for my user
+Number of overlapping trips with dummy users
+If any number is zero, explain why and fix it.
