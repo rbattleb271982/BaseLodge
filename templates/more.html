@@ -10,9 +10,47 @@
     <div class="page-container">
         <h1 class="page-title">More</h1>
         
+        <!-- Section 1: Profile -->
         <section class="settings-section">
+            <div class="settings-section-title">Profile</div>
             
-            <!-- Mountains Visited -->
+            <div class="settings-row">
+                <div class="settings-main">
+                    <div class="settings-label">Rider type</div>
+                    <div class="settings-value">{{ current_user.rider_type or "Not set" }}</div>
+                </div>
+                <a href="{{ url_for('edit_profile') }}" class="settings-action">Change</a>
+            </div>
+            
+            <div class="settings-row">
+                <div class="settings-main">
+                    <div class="settings-label">Pass type</div>
+                    <div class="settings-value">{{ current_user.pass_type or "Not set" }}</div>
+                </div>
+                <a href="{{ url_for('edit_profile') }}" class="settings-action">Change</a>
+            </div>
+            
+            <div class="settings-row">
+                <div class="settings-main">
+                    <div class="settings-label">Skill level</div>
+                    <div class="settings-value">{{ current_user.skill_level or "Not set" }}</div>
+                </div>
+                <a href="{{ url_for('edit_profile') }}" class="settings-action">Change</a>
+            </div>
+            
+            <div class="settings-row">
+                <div class="settings-main">
+                    <div class="settings-label">Home state</div>
+                    <div class="settings-value">{{ current_user.home_state or "Not set" }}</div>
+                </div>
+                <a href="{{ url_for('edit_profile') }}" class="settings-action">Change</a>
+            </div>
+        </section>
+        
+        <!-- Section 2: Activity & History -->
+        <section class="settings-section">
+            <div class="settings-section-title">Activity & History</div>
+            
             <div class="settings-row">
                 <div class="settings-main">
                     <div class="settings-label">Mountains visited</div>
@@ -20,38 +58,25 @@
                         {% if mountains_visited_count %}
                             {{ mountains_visited_count }} selected
                         {% else %}
-                            None selected yet
+                            None selected
                         {% endif %}
                     </div>
                 </div>
                 <a href="{{ url_for('mountains_visited') }}" class="settings-action">Change</a>
             </div>
             
-            <!-- More Info -->
             <div class="settings-row">
                 <div class="settings-main">
-                    <div class="settings-label">More info</div>
+                    <div class="settings-label">Gear</div>
+                    <div class="settings-value" style="color: var(--bl-color-text-muted);">Coming soon</div>
                 </div>
-                <a href="{{ url_for('more_info') }}" class="settings-action">Change</a>
             </div>
+        </section>
+        
+        <!-- Section 3: Account -->
+        <section class="settings-section">
+            <div class="settings-section-title">Account</div>
             
-            <!-- Friends -->
-            <div class="settings-row">
-                <div class="settings-main">
-                    <div class="settings-label">Friends</div>
-                </div>
-                <a href="{{ url_for('friends') }}" class="settings-action">Open</a>
-            </div>
-            
-            <!-- Invite Friends -->
-            <div class="settings-row">
-                <div class="settings-main">
-                    <div class="settings-label">Invite friends</div>
-                </div>
-                <a href="{{ url_for('invite') }}" class="settings-action">Open</a>
-            </div>
-            
-            <!-- Logout -->
             <div class="settings-row">
                 <div class="settings-main">
                     <div class="settings-label">Log out</div>
@@ -59,6 +84,12 @@
                 <a href="{{ url_for('logout') }}" class="settings-action">Log out</a>
             </div>
             
+            <div class="settings-row" style="border-bottom: none;">
+                <div class="settings-main">
+                    <div class="settings-label">Delete account</div>
+                </div>
+                <a href="{{ url_for('delete_account_data') }}" class="settings-action">Delete</a>
+            </div>
         </section>
     </div>
     

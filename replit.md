@@ -127,6 +127,17 @@ Aligned invite landing page with personalized share copy:
 5. **Design** - Maintains Base Lodge design language, mobile-first layout
 6. **Functionality** - Preserves invite token and connection logic
 
+### Profile Consolidation into More Screen - COMPLETE
+Merged standalone Profile page into More as the single account & profile hub:
+1. **Section 1: Profile** - Rider type, Pass type, Skill level, Home state (each with "Change" to existing edit_profile flow)
+2. **Section 2: Activity & History** - Mountains visited (with "Change" to mountains_visited), Gear ("Coming soon", non-interactive)
+3. **Section 3: Account** - Log out, Delete account (using delete_account_data route)
+4. **Removed pages** - Deleted standalone profile.html and more_info.html files entirely
+5. **Navigation fixed** - Updated home.html skill level link to point to More instead of Profile
+6. **Navigation removed** - Friends and Invite remain in bottom navigation only (not in More)
+7. **Styling** - Added .settings-section-title CSS class for uppercase section headers
+8. **Preserved** - All existing edit flows, data models, styling, and mobile-first layout
+
 ## External Dependencies
 - **Flask:** Python web framework.
 - **Flask-Login:** User session management.
