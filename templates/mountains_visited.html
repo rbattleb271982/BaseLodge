@@ -69,6 +69,13 @@
         <h1 class="page-title">Mountains Visited</h1>
         
         <form method="POST">
+            <select id="state-filter" class="mountain-search" style="cursor: pointer;" onchange="filterByState()">
+                <option value="all">All states</option>
+                {% for state in states %}
+                <option value="{{ state }}">{{ state }}</option>
+                {% endfor %}
+            </select>
+            
             <input type="text" class="mountain-search" id="mountain-search" placeholder="Search mountains..." oninput="filterMountains()">
             
             <div class="selected-counter">
@@ -85,7 +92,7 @@
             
             <div class="mountain-list" id="mountain-list">
                 {% for mountain in all_mountains %}
-                <label class="mountain-row" data-mountain="{{ mountain.lower() }}">
+                <label class="mountain-row" data-mountain="{{ mountain.lower() }}" data-state="{{ mountains_with_state.get(mountain, '') }}">
                     <input type="checkbox" name="mountains" value="{{ mountain }}"
                            {% if mountain in selected_mountains %}checked{% endif %} onchange="updatePills()">
                     {{ mountain }}
@@ -101,6 +108,12 @@
     
     <script>
         const selectedMountains = {{ selected_mountains | tojson }};
+        let currentStateFilter = 'all';
+        
+        function filterByState() {
+            currentStateFilter = document.getElementById('state-filter').value;
+            filterMountains();
+        }
         
         function filterMountains() {
             const searchTerm = document.getElementById('mountain-search').value.toLowerCase();
@@ -108,7 +121,11 @@
             
             rows.forEach(row => {
                 const mountain = row.getAttribute('data-mountain');
-                if (mountain.includes(searchTerm)) {
+                const state = row.getAttribute('data-state');
+                const matchesSearch = mountain.includes(searchTerm);
+                const matchesState = currentStateFilter === 'all' || state === currentStateFilter;
+                
+                if (matchesSearch && matchesState) {
                     row.classList.remove('hidden');
                 } else {
                     row.classList.add('hidden');

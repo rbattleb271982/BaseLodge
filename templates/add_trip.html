@@ -173,6 +173,12 @@
 
             <button type="submit" class="primary-button">{% if trip %}Save changes{% else %}Save trip{% endif %}</button>
         </form>
+        
+        {% if trip %}
+        <form method="POST" action="{{ url_for('delete_trip_form', trip_id=trip.id) }}" style="margin-top: var(--bl-space-6);">
+            <a href="#" onclick="if(confirm('Are you sure you want to delete this trip?')) { this.closest('form').submit(); } return false;" style="color: var(--bl-color-primary); text-decoration: none; font-size: 14px; font-weight: 500;">Delete trip</a>
+        </form>
+        {% endif %}
     </div>
 
     {% include 'components/bottom_nav.html' %}
@@ -213,6 +219,13 @@
                 }
             }
         }
+
+        // Set end date picker to start date month when focused
+        endDateInput.addEventListener('focus', function() {
+            if (startDateInput.value && !endDateInput.value) {
+                endDateInput.value = startDateInput.value;
+            }
+        });
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {

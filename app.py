@@ -415,8 +415,9 @@ def edit_profile():
         return redirect(url_for("more"))
     
     friends_count = Friend.query.filter_by(user_id=user.id).count()
+    states = sorted(MOUNTAINS_BY_STATE.keys())
     
-    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS, rider_types=RIDER_TYPES)
+    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS, rider_types=RIDER_TYPES, states=states)
 
 @app.route("/my-trips")
 @login_required
@@ -1350,8 +1351,11 @@ def mountains_visited():
     user = current_user
     
     all_mountains = []
-    for state_mountains in MOUNTAINS_BY_STATE.values():
-        all_mountains.extend(state_mountains)
+    mountains_with_state = {}
+    for state, state_mountains in MOUNTAINS_BY_STATE.items():
+        for mtn in state_mountains:
+            all_mountains.append(mtn)
+            mountains_with_state[mtn] = state
     all_mountains = sorted(list(set(all_mountains)))
     
     if request.method == "POST":
@@ -1362,12 +1366,15 @@ def mountains_visited():
     
     selected_mountains = user.mountains_visited or []
     mountains_visited_count = len(selected_mountains)
+    states = sorted(MOUNTAINS_BY_STATE.keys())
     
     return render_template(
         "mountains_visited.html",
         all_mountains=all_mountains,
         selected_mountains=selected_mountains,
         mountains_visited_count=mountains_visited_count,
+        mountains_with_state=mountains_with_state,
+        states=states,
     )
 
 @app.route("/logout")
