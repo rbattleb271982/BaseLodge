@@ -109,6 +109,7 @@
     
     <script>
         const inviteUrl = "{{ invite_url }}";
+        const firstName = "{{ user.first_name }}";
 
         document.getElementById("copyInvite").onclick = () => {
             navigator.clipboard.writeText(inviteUrl).then(() => {
@@ -121,8 +122,8 @@
         document.getElementById("shareInvite").onclick = async () => {
             if (navigator.share) {
                 await navigator.share({
-                    title: "Join me on BaseLodge!",
-                    text: "Use this link to connect with me on BaseLodge:",
+                    title: `You've been invited by ${firstName}`,
+                    text: `${firstName} invited you to Base Lodge to see when you can hit the slopes together — join now!`,
                     url: inviteUrl,
                 });
             } else {
