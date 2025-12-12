@@ -167,40 +167,6 @@
                 <div class="empty-state">You don't have any upcoming trips yet.</div>
             {% endif %}
         </section>
-
-        <section class="trips-section">
-            <h2 class="section-title">Past trips</h2>
-            {% if past_trips %}
-                <ul class="trip-list">
-                    {% for trip in past_trips %}
-                    <li class="trip-card">
-                        <div class="trip-main">
-                            <div class="trip-mountain">{{ trip.mountain }}</div>
-                            <div class="trip-location">{{ trip.state }}</div>
-                            <div class="trip-dates">
-                                {% if trip.start_date == trip.end_date %}
-                                    {{ trip.start_date.strftime("%b %d, %Y") }}
-                                {% else %}
-                                    {{ trip.start_date.strftime("%b %d") }} – {{ trip.end_date.strftime("%b %d, %Y") }}
-                                {% endif %}
-                            </div>
-                            <div class="trip-visibility">
-                                {% if trip.is_public %}👥 Visible to friends{% else %}🔒 Private{% endif %}
-                            </div>
-                        </div>
-                        <div class="trip-actions">
-                            <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="trip-action-link">Change</a>
-                            <form method="POST" action="{{ url_for('delete_trip_form', trip_id=trip.id) }}" onsubmit="return confirm('Delete this trip?');" style="margin: 0;">
-                                <button type="submit" class="trip-delete-button">Delete</button>
-                            </form>
-                        </div>
-                    </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <div class="empty-state">You don't have any past trips yet.</div>
-            {% endif %}
-        </section>
     </div>
 
     {% include 'components/bottom_nav.html' %}
