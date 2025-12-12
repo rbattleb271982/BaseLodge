@@ -79,6 +79,16 @@ Restored mobile-first bottom navigation design:
 4. **Styling restored** - Fixed positioning, proper spacing, color transitions
 5. **Touch-friendly** - 56px height, 4-column flex layout, proper tap targets
 
+### Onboarding Pass Type Selection - COMPLETE
+High-level pass family selector for fast onboarding:
+1. **5 pass options only** - Epic, Ikon, Indy, Other, None (no search bar)
+2. **"None" is first-class** - Valid option for users without a pass
+3. **Segmented control UI** - Pill buttons with wrap layout for mobile
+4. **Continue button gated** - Disabled until both rider_type AND pass_type selected
+5. **Calm, reassuring copy** - "Tell us a bit about yourself to get started" + "You can change these later in your profile"
+6. **Saves as pass family** - Stored in user.pass_type field without schema changes
+7. **Future-proof** - Ready for detailed pass selector (25+ variants) in Profile editing later
+
 ## External Dependencies
 - **Flask:** Python web framework.
 - **Flask-Login:** User session management.
