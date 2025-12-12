@@ -18,7 +18,11 @@
                 <span>•</span>
                 <span>{{ user.pass_type or 'No pass selected' }}</span>
                 <span>•</span>
-                <span>{{ user.skill_level or 'Skill level TBD' }}</span>
+                {% if user.skill_level %}
+                    <span>{{ user.skill_level }}</span>
+                {% else %}
+                    <a href="{{ url_for('profile') }}" style="text-decoration: none; color: var(--bl-color-text-muted); cursor: pointer; border-bottom: 1px dotted var(--bl-color-text-muted); transition: color 0.2s ease;" onmouseover="this.style.color='var(--bl-color-primary)'" onmouseout="this.style.color='var(--bl-color-text-muted)'">Skill level TBD →</a>
+                {% endif %}
             </div>
             <p style="font-size:0.9rem;font-weight:500;">
                 {{ upcoming_trips|length }} upcoming trip{% if upcoming_trips|length != 1 %}s{% endif %}

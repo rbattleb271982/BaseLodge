@@ -89,6 +89,14 @@ High-level pass family selector for fast onboarding:
 6. **Saves as pass family** - Stored in user.pass_type field without schema changes
 7. **Future-proof** - Ready for detailed pass selector (25+ variants) in Profile editing later
 
+### Home Screen Progressive Profile Completion - COMPLETE
+Supporting progressive profile enhancement via subtle links:
+1. **Skill level link** - When missing, displays "Skill level TBD →" as a tappable link to Profile
+2. **Conditional display** - Shows static text when skill_level exists, link when null/empty
+3. **Subtle styling** - Dotted underline, text-muted color with hover transition to primary color
+4. **Non-blocking** - Does not restrict any app actions based on missing skill level
+5. **Navigation** - Links to /profile for users to complete their profile progressively
+
 ## External Dependencies
 - **Flask:** Python web framework.
 - **Flask-Login:** User session management.
