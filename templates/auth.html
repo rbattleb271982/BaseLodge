@@ -285,6 +285,18 @@
                 }
             });
         });
+
+        // Prevent multiple form submissions
+        let isSubmitting = false;
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', (e) => {
+                if (isSubmitting) {
+                    e.preventDefault();
+                    return false;
+                }
+                isSubmitting = true;
+            });
+        });
     </script>
 </body>
 </html>
