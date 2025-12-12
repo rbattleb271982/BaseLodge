@@ -207,25 +207,38 @@ def auth():
             email = request.form.get("email", "").lower().strip()
             password = request.form.get("password")
             
+            app.logger.info(f"🔐 LOGIN ATTEMPT: email={email}, password_provided={bool(password)}")
+            
             user = User.query.filter_by(email=email).first()
-            if user and user.check_password(password):
-                login_user(user)
+            if user:
+                pwd_ok = user.check_password(password)
+                app.logger.info(f"🔐 USER FOUND: {user.email}, password_check={pwd_ok}")
                 
-                # Connect with inviter if pending_inviter_id exists in session
-                _connect_pending_inviter(user)
-                
-                next_url = request.args.get("next")
-                if user.rider_type and user.pass_type:
-                    if next_url:
-                        return redirect(next_url)
-                    return redirect(url_for("home"))
+                if pwd_ok:
+                    login_user(user)
+                    app.logger.info(f"✅ LOGGED IN: user_id={user.id}, authenticated={user.is_authenticated}")
+                    
+                    # Connect with inviter if pending_inviter_id exists in session
+                    _connect_pending_inviter(user)
+                    
+                    next_url = request.args.get("next")
+                    if user.rider_type and user.pass_type:
+                        app.logger.info(f"✅ REDIRECTING TO HOME: rider_type={user.rider_type}, pass_type={user.pass_type}")
+                        if next_url:
+                            return redirect(next_url)
+                        return redirect(url_for("home"))
+                    else:
+                        app.logger.warning(f"⚠️ INCOMPLETE PROFILE: rider_type={user.rider_type}, pass_type={user.pass_type}")
+                        if next_url:
+                            session["next_after_setup"] = next_url
+                        return redirect(url_for("setup_profile"))
                 else:
-                    if next_url:
-                        session["next_after_setup"] = next_url
-                    return redirect(url_for("setup_profile"))
+                    app.logger.warning(f"❌ WRONG PASSWORD for {email}")
             else:
-                flash("Invalid email or password.", "error")
-                return render_template("auth.html")
+                app.logger.warning(f"❌ USER NOT FOUND: {email}")
+            
+            flash("Invalid email or password.", "error")
+            return render_template("auth.html")
     
     return render_template("auth.html")
 
