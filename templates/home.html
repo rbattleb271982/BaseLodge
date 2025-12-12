@@ -5,165 +5,125 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Base Lodge - Home</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
-        .header-card {
-            background: linear-gradient(135deg, #F8F3EE 0%, white 100%);
-            border-radius: var(--bl-radius-lg);
-            padding: var(--bl-space-8);
-            margin-bottom: var(--bl-space-8);
-            border: 1px solid var(--bl-color-border-soft);
-        }
-        
-        .header-welcome {
-            font-size: 22px;
-            font-weight: 700;
-            color: var(--bl-color-text);
-            margin-bottom: var(--bl-space-4);
-        }
-        
-        .header-meta {
-            font-size: 14px;
-            color: var(--bl-color-text-muted);
-            margin-bottom: var(--bl-space-6);
-            line-height: 1.6;
-        }
-        
-        .stats-line {
-            font-size: 1.05rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-        
-        .header-info {
-            display: flex;
-            flex-direction: column;
-            gap: var(--bl-space-4);
-            font-size: 14px;
-            color: var(--bl-color-text);
-        }
-    </style>
 </head>
 <body>
-    <div class="page-container">
-        <div class="home-intro-card bl-card">
-            <h2 style="font-size: 20px; font-weight: 700; margin-bottom: var(--bl-space-4);">Welcome back, {{ user.first_name }} 👋</h2>
-            
-            <div class="home-intro-details" style="font-size: 14px; color: var(--bl-color-text-muted); margin-bottom: var(--bl-space-4);">
-                {{ user.rider_type or "Rider" }} •
-                {{ user.pass_type or "No pass selected" }} •
-                {{ user.skill_level or "Skill not set" }}
+    <div class="page-container" style="padding: 16px 16px 88px;">
+        
+        <div class="bl-card" style="margin-bottom: 16px;">
+            <h1 class="bl-card-section-title">
+                Welcome back, {{ user.first_name }} 👋
+            </h1>
+            <div style="display:flex;flex-wrap:wrap;gap:6px 10px;font-size:0.85rem;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bl-color-border-soft);color:var(--bl-color-text-muted);">
+                <span>{{ user.rider_type or 'Rider' }}</span>
+                <span>•</span>
+                <span>{{ user.pass_type or 'No pass selected' }}</span>
+                <span>•</span>
+                <span>{{ user.skill_level or 'Skill level TBD' }}</span>
             </div>
-            
-            <div class="home-intro-sub" style="font-size: 13px; color: var(--bl-color-text-muted); font-weight: 500;">
+            <p style="font-size:0.9rem;font-weight:500;">
                 {{ upcoming_trips|length }} upcoming trip{% if upcoming_trips|length != 1 %}s{% endif %}
-            </div>
+            </p>
         </div>
         
-        {% if (current_user.pass_type is none or current_user.pass_type == "") and not session.get('pass_prompt_skipped') %}
-        <div style="
-            background: white;
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        ">
-            <h3 style="margin-top: 0; font-size: 16px; color: var(--bl-color-text);">🎟️ Choose your pass to get better matches</h3>
-            <p style="color: var(--bl-color-text-muted); margin-bottom: 16px; font-size: 14px;">
-                Most BaseLodge features work better when we know your pass.
-            </p>
-            
-            <a href="{{ url_for('select_pass') }}" 
-               style="display: inline-block; padding: 10px 16px; background: var(--bl-color-primary); color: white; border-radius: 6px; text-decoration: none; margin-right: 10px; font-weight: 600; font-size: 14px;">
-                Select Pass
-            </a>
-            
-            <a href="{{ url_for('skip_pass_prompt') }}"
-               style="color: var(--bl-color-text-muted); text-decoration: underline; font-size: 14px;">
-                Skip for now
-            </a>
+        {% if (user.pass_type is none or user.pass_type == "") and not session.get('pass_prompt_skipped') %}
+        <div class="bl-onboarding-card">
+            <div class="bl-onboarding-header">
+                <div class="bl-onboarding-icon">
+                    <span>🎟️</span>
+                </div>
+                <div>
+                    <h3 class="bl-card-section-title" style="font-size:1rem;margin-bottom:4px;">Choose your pass to get better matches</h3>
+                    <p class="bl-text-muted">Most BaseLodge features work better when we know your pass.</p>
+                </div>
+            </div>
+            <div class="bl-onboarding-actions">
+                <a href="{{ url_for('select_pass') }}" class="bl-btn-primary" style="flex:1;text-decoration:none;text-align:center;">Select Pass</a>
+                <a href="{{ url_for('skip_pass_prompt') }}" class="bl-btn-text">Skip for now</a>
+            </div>
         </div>
         {% endif %}
         
         {% set active_tab = request.args.get('tab', 'my') %}
-        {% include 'components/segmented_trips_tabs.html' %}
+        <div style="margin-top:16px;margin-bottom:12px;">
+            <div class="bl-tabs-wrapper">
+                <button class="bl-tab-button {% if active_tab == 'my' %}active{% endif %}" data-tab="my">My Trips</button>
+                <button class="bl-tab-button {% if active_tab == 'friends' %}active{% endif %}" data-tab="friends">Friends' Trips</button>
+                <button class="bl-tab-button {% if active_tab == 'overlaps' %}active{% endif %}" data-tab="overlaps">Overlaps</button>
+            </div>
+        </div>
         
-        <div style="margin-top: var(--bl-space-6);">
-            <!-- My Trips -->
-            <div id="tab-my" class="bl-trip-row-group" {% if active_tab != 'my' %}style="display: none;"{% endif %}>
-                {% if my_trips %}
-                    {% for trip in my_trips %}
-                    <div class="bl-trip-row" style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} — 
-                            {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }} {{ trip.state }}{% endif %}
-                        </div>
-                        <a href="{{ url_for('edit_trip', trip_id=trip.id) }}" style="text-decoration: none; color: var(--bl-color-primary); font-size: 14px; font-weight: 600;">Edit</a>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <p class="bl-caption">You don't have any upcoming trips yet.</p>
-                {% endif %}
-            </div>
-            
-            <!-- Friends' Trips -->
-            <div id="tab-friends" class="bl-trip-row-group" {% if active_tab != 'friends' %}style="display: none;"{% endif %}>
-                {% if friend_trips %}
-                    {% for trip in friend_trips %}
-                    <a class="friend-trip-row" href="{{ url_for('friend_trip_details', trip_id=trip.id) }}">
-                        <div class="friend-trip-date">
-                            {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} — {{ trip.user.first_name }}
-                        </div>
-                        <div class="friend-trip-location">
-                            {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}
-                        </div>
-                    </a>
-                    {% endfor %}
-                {% else %}
-                    <p class="bl-caption">Your friends don't have any upcoming trips yet.</p>
-                {% endif %}
-            </div>
-            
-            <!-- Overlaps -->
-            <div id="tab-overlaps" class="bl-trip-row-group" {% if active_tab != 'overlaps' %}style="display: none;"{% endif %}>
-                {% if overlaps and overlaps|length > 0 %}
-                    {% for o in overlaps %}
-                    <div class="bl-trip-row">
+        <div id="tab-my" class="bl-trip-list" {% if active_tab != 'my' %}style="display: none;"{% endif %}>
+            {% if my_trips %}
+                {% for trip in my_trips %}
+                <div class="bl-trip-card">
+                    <p class="bl-trip-card-text">
+                        {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} — 
+                        {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }} {{ trip.state }}{% endif %}
+                    </p>
+                    <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="bl-trip-edit">Edit</a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="bl-text-muted">No trips yet.</p>
+            {% endif %}
+        </div>
+        
+        <div id="tab-friends" class="bl-trip-list" {% if active_tab != 'friends' %}style="display: none;"{% endif %}>
+            {% if friend_trips %}
+                {% for trip in friend_trips %}
+                <a class="bl-trip-card-link" href="{{ url_for('friend_trip_details', trip_id=trip.id) }}">
+                    <p class="bl-trip-card-text">
+                        {{ trip.user.first_name }} – {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} — 
+                        {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }} {{ trip.state }}{% endif %}
+                    </p>
+                </a>
+                {% endfor %}
+            {% else %}
+                <p class="bl-text-muted">Your friends don't have any upcoming trips yet.</p>
+            {% endif %}
+        </div>
+        
+        <div id="tab-overlaps" class="bl-trip-list" {% if active_tab != 'overlaps' %}style="display: none;"{% endif %}>
+            {% if overlaps and overlaps|length > 0 %}
+                {% for o in overlaps %}
+                <div class="bl-trip-card">
+                    <p class="bl-trip-card-text">
                         {{ o.start_date.strftime('%b %d') }}–{{ o.end_date.strftime('%b %d') }} — 
                         <a href="{{ url_for('friend_profile', friend_id=o.friend_id) }}" style="text-decoration: none; color: inherit;">{{ o.friend_name }}</a>
-                        @ {{ o.mountain }} {{ o.state }}{% if o.brand %}, {{ o.brand }}{% endif %}
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <p class="bl-caption">You don't overlap with any friends on trips.</p>
-                {% endif %}
-            </div>
+                        @ {{ o.mountain }} {{ o.state }}, {{ o.brand or 'No Pass' }}
+                    </p>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="bl-text-muted">You don't overlap with any friends on trips.</p>
+            {% endif %}
         </div>
         
-        <div style="margin-top: var(--bl-space-8);">
-            <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none;">Add a trip</a>
-        </div>
+        <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none; margin-top: 18px;">
+            + Add a trip
+        </a>
     </div>
     
     {% include 'components/bottom_nav.html' %}
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const segments = document.querySelectorAll('.bl-segment');
-            const panels = document.querySelectorAll('.bl-trip-row-group');
+            const tabs = document.querySelectorAll('.bl-tab-button');
+            const panels = document.querySelectorAll('.bl-trip-list');
             
-            segments.forEach(segment => {
-                segment.addEventListener('click', function() {
-                    const tab = this.getAttribute('data-tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabName = this.getAttribute('data-tab');
                     
-                    segments.forEach(s => s.classList.remove('active'));
+                    tabs.forEach(t => t.classList.remove('active'));
                     this.classList.add('active');
                     
                     panels.forEach(panel => {
                         panel.style.display = 'none';
                     });
-                    document.getElementById('tab-' + tab).style.display = 'block';
+                    document.getElementById('tab-' + tabName).style.display = 'flex';
                     
-                    window.history.replaceState({}, '', '{{ url_for("home") }}?tab=' + tab);
+                    window.history.replaceState({}, '', '{{ url_for("home") }}?tab=' + tabName);
                 });
             });
         });
