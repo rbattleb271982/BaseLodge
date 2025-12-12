@@ -1,0 +1,104 @@
+PUT THIS IN AGENT
+
+Goal: Generate 30 fully functional dummy BaseLodge users for testing, all connected as friends to the main account: richardbattlebaxter@gmail.com.
+
+Each dummy user must:
+- Have unique name + email
+- Random rider_type, skill_level, pass_type
+- 1–3 upcoming trips with realistic dates
+- 2–8 mountains visited
+- Completed profile except gear
+- Two-way friend connections to richardbattlebaxter@gmail.com
+
+Steps (minimal checkpoints):
+
+------------------------------------------------------------
+1. ADD/UPDATE SEEDING ROUTE IN app.py
+------------------------------------------------------------
+
+from datetime import datetime, timedelta
+import random
+
+@app.route("/generate-dummy-users")
+def generate_dummy_users():
+    # 1. Get main user
+    main_user = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+    if not main_user:
+        return "Main user not found", 400
+
+    rider_types = ["Skier", "Snowboarder", "Cross-country", "Telemark", "Adaptive", "Other"]
+    skill_levels = ["Beginner", "Intermediate", "Advanced", "Expert"]
+    pass_types = ["Epic", "Ikon", "Indy", "Mountain Collective", "Other", "None"]
+    mountains_pool = [
+        "Vail", "Breckenridge", "Keystone", "Park City", "Heavenly",
+        "Copper Mountain", "Winter Park", "Aspen", "Alta", "Snowbird",
+        "Jackson Hole", "Brighton", "Big Sky", "Palisades Tahoe",
+        "Loveland", "Arapahoe Basin"
+    ]
+
+    created_users = []
+
+    for i in range(30):
+        # Generate simple names
+        first = "User"
+        last = f"Test{i+1}"
+        email = f"dummy{i+1}@example.com"
+
+        # Create user
+        u = User(
+            first_name=first,
+            last_name=last,
+            email=email,
+            rider_type=random.choice(rider_types),
+            skill_level=random.choice(skill_levels),
+            pass_type=random.choice(pass_types),
+        )
+        u.set_password("password123")
+        db.session.add(u)
+        db.session.commit()
+
+        # Connect dummy user → main user (two-way)
+        f1 = Friend(user_id=main_user.id, friend_id=u.id)
+        f2 = Friend(user_id=u.id, friend_id=main_user.id)
+        db.session.add(f1)
+        db.session.add(f2)
+
+        # Mountains visited (2–8)
+        chosen_mountains = random.sample(mountains_pool, random.randint(2, 8))
+        if hasattr(u, "mountains_visited"):
+            u.mountains_visited = chosen_mountains
+        db.session.commit()
+
+        # 1–3 upcoming trips
+        for _ in range(random.randint(1, 3)):
+            start = datetime.utcnow() + timedelta(days=random.randint(5, 60))
+            end = start + timedelta(days=2)
+            mountain_choice = random.choice(mountains_pool)
+
+            trip = SkiTrip(
+                user_id=u.id,
+                state="Colorado",
+                mountain=mountain_choice,
+                start_date=start,
+                end_date=end
+            )
+            db.session.add(trip)
+
+        db.session.commit()
+        created_users.append(email)
+
+    return {"status": "success", "created_users": created_users}
+
+------------------------------------------------------------
+2. RUN THE ROUTE TO GENERATE USERS
+------------------------------------------------------------
+
+Visit in browser:
+
+/generate-dummy-users
+
+Example:
+https://base-lodge-app--rbattleb.replit.app/generate-dummy-users
+
+------------------------------------------------------------
+END

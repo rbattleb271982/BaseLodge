@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file
 from flask_login import LoginManager, login_required, current_user, login_user
 from functools import wraps
@@ -8,6 +8,7 @@ from models import db, User, SkiTrip, Friend, Invitation, InviteToken
 from debug_routes import debug_bp
 from io import BytesIO
 import segno
+import random
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
@@ -1154,6 +1155,71 @@ def select_pass():
         regional=regional_passes,
         other=other_passes
     )
+
+@app.route("/generate-dummy-users")
+def generate_dummy_users():
+    main_user = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+    if not main_user:
+        return {"status": "error", "message": "Main user not found. Create account first."}, 400
+
+    rider_types = ["Skier", "Snowboarder", "Cross-country", "Telemark", "Adaptive", "Other"]
+    skill_levels = ["Beginner", "Intermediate", "Advanced", "Expert"]
+    pass_types = ["Epic", "Ikon", "Indy", "Mountain Collective", "Other", "None"]
+    mountains_pool = [
+        "Vail", "Breckenridge", "Keystone", "Park City", "Heavenly",
+        "Copper Mountain", "Winter Park", "Aspen", "Alta", "Snowbird",
+        "Jackson Hole", "Brighton", "Big Sky", "Palisades Tahoe",
+        "Loveland", "Arapahoe Basin"
+    ]
+
+    created_users = []
+
+    for i in range(30):
+        first = "User"
+        last = f"Test{i+1}"
+        email = f"dummy{i+1}@example.com"
+
+        u = User(
+            first_name=first,
+            last_name=last,
+            email=email,
+            rider_type=random.choice(rider_types),
+            skill_level=random.choice(skill_levels),
+            pass_type=random.choice(pass_types),
+            profile_setup_complete=True
+        )
+        u.set_password("password123")
+        db.session.add(u)
+        db.session.commit()
+
+        f1 = Friend(user_id=main_user.id, friend_id=u.id)
+        f2 = Friend(user_id=u.id, friend_id=main_user.id)
+        db.session.add(f1)
+        db.session.add(f2)
+
+        chosen_mountains = random.sample(mountains_pool, random.randint(2, 8))
+        u.mountains_visited = chosen_mountains
+        db.session.commit()
+
+        for _ in range(random.randint(1, 3)):
+            start = datetime.utcnow() + timedelta(days=random.randint(5, 60))
+            end = start + timedelta(days=2)
+            mountain_choice = random.choice(mountains_pool)
+
+            trip = SkiTrip(
+                user_id=u.id,
+                state="Colorado",
+                mountain=mountain_choice,
+                start_date=start,
+                end_date=end,
+                is_public=True
+            )
+            db.session.add(trip)
+
+        db.session.commit()
+        created_users.append(email)
+
+    return {"status": "success", "created_count": len(created_users), "created_users": created_users}
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
