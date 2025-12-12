@@ -111,6 +111,22 @@ Enhanced "Add a trip" with date validation, resort filtering, and home mountain 
    - Non-blocking feature that enhances profile progressively
 4. **Home screen display** - Subtly shows home mountain in welcome summary when set
 
+### Invite Share Copy Personalization - COMPLETE
+Updated Web Share API with inviter-led language:
+1. **Share title** - "You've been invited by {FirstName}"
+2. **Share text** - "{FirstName} invited you to Base Lodge to see when you can hit the slopes together — join now!"
+3. **Share URL** - Unique invite token (unchanged)
+4. **Mechanism** - navigator.share() with personalized payload
+
+### Invite Landing Page Personalization - COMPLETE
+Aligned invite landing page with personalized share copy:
+1. **Headline** - "You've been invited by {FirstName}" (derived from invite token inviter)
+2. **Subtext** - "See when you can hit the slopes together and share ski trips."
+3. **Primary CTA** - "Create your account" (styled in primary red)
+4. **Secondary CTA** - "Already have an account? Log in" (styled as outline button)
+5. **Design** - Maintains Base Lodge design language, mobile-first layout
+6. **Functionality** - Preserves invite token and connection logic
+
 ## External Dependencies
 - **Flask:** Python web framework.
 - **Flask-Login:** User session management.
