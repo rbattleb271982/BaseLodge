@@ -22,6 +22,16 @@ login_manager.login_view = "auth"
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+@app.before_request
+def require_profile_setup():
+    excluded_endpoints = {'auth', 'setup_profile', 'logout', 'static', 'invite_token_landing'}
+    if request.endpoint in excluded_endpoints:
+        return None
+    if current_user.is_authenticated:
+        if not current_user.rider_type or not current_user.pass_type:
+            return redirect(url_for('setup_profile'))
+    return None
+
 def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -243,49 +253,30 @@ def invite_token_landing(token):
 
 
 @app.route("/setup-profile", methods=["GET", "POST"])
+@login_required
 def setup_profile():
-    if "user_id" not in session:
-        return redirect(url_for("auth"))
-    
-    user = User.query.get(session["user_id"])
-    if not user:
-        session.pop("user_id", None)
-        return redirect(url_for("auth"))
+    user = current_user
     
     if request.method == "POST":
         rider_type = request.form.get("rider_type")
-        skill_level = request.form.get("skill_level")
+        pass_type = request.form.get("pass_type")
 
-        # Validate required fields
-        if not rider_type or not skill_level:
+        if not rider_type or not pass_type:
             flash("Please select one option for each field.", "error")
             return redirect(url_for("setup_profile"))
 
-        # Save fields to user
         user.rider_type = rider_type
-        user.skill_level = skill_level
-        user.profile_setup_complete = True
+        user.pass_type = pass_type
         db.session.commit()
 
-        next_url = session.pop("next_after_setup", None)
-        if next_url:
-            return redirect(next_url)
         return redirect(url_for("home"))
 
     return render_template("setup_profile.html")
 
 @app.route("/profile", methods=["GET", "POST"])
+@login_required
 def profile():
-    if "user_id" not in session:
-        return redirect(url_for("auth"))
-    
-    user = User.query.get(session["user_id"])
-    if not user:
-        session.pop("user_id", None)
-        return redirect(url_for("auth"))
-    
-    if not user.profile_setup_complete:
-        return redirect(url_for("setup_profile"))
+    user = current_user
     
     if request.method == "POST":
         user.pass_type = request.form.get("pass_type") or user.pass_type
@@ -314,17 +305,9 @@ def profile():
     )
 
 @app.route("/edit_profile", methods=["GET", "POST"])
+@login_required
 def edit_profile():
-    if "user_id" not in session:
-        return redirect(url_for("auth"))
-    
-    user = User.query.get(session["user_id"])
-    if not user:
-        session.pop("user_id", None)
-        return redirect(url_for("auth"))
-    
-    if not user.profile_setup_complete:
-        return redirect(url_for("setup_profile"))
+    user = current_user
     
     if request.method == "POST":
         user.gender = request.form.get("gender") or None
