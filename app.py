@@ -2048,7 +2048,6 @@ def create_jonathan_and_connect():
     JONATHAN_EMAIL = "Jonathanmschmitz@gmail.com"
     JONATHAN_PASSWORD = "12345678"
     
-    # Step 1: Check if Jonathan exists
     jonathan = User.query.filter_by(email=JONATHAN_EMAIL).first()
     
     if jonathan:
@@ -2064,16 +2063,13 @@ def create_jonathan_and_connect():
         db.session.commit()
         print(f"✓ Created Jonathan (ID: {jonathan.id})")
     
-    # Step 2: Get all OTHER users (exclude Jonathan)
     other_users = User.query.filter(User.id != jonathan.id).all()
     print(f"✓ Found {len(other_users)} existing users to connect")
     
-    # Step 3: Create bidirectional friendships
     connections_created = 0
     connections_skipped = 0
     
     for other_user in other_users:
-        # Create friendship: jonathan -> other_user
         friendship_1 = Friend.query.filter_by(user_id=jonathan.id, friend_id=other_user.id).first()
         if not friendship_1:
             friendship_1 = Friend(user_id=jonathan.id, friend_id=other_user.id)
@@ -2082,7 +2078,6 @@ def create_jonathan_and_connect():
         else:
             connections_skipped += 1
         
-        # Create friendship: other_user -> jonathan
         friendship_2 = Friend.query.filter_by(user_id=other_user.id, friend_id=jonathan.id).first()
         if not friendship_2:
             friendship_2 = Friend(user_id=other_user.id, friend_id=jonathan.id)
@@ -2093,12 +2088,185 @@ def create_jonathan_and_connect():
     
     db.session.commit()
     
-    # Step 4: Summary
     print(f"\n✓ Friendship connections created: {connections_created}")
     print(f"✓ Friendship connections skipped (already exist): {connections_skipped}")
-    print(f"\n✓ Jonathan can now login with:")
-    print(f"  Email: {JONATHAN_EMAIL}")
-    print(f"  Password: {JONATHAN_PASSWORD}")
+
+@app.cli.command()
+def seed_database():
+    """Comprehensive database seeding: main users, 50 dummy users, friendships, and trips."""
+    
+    # Realistic names for dummy users
+    dummy_names = [
+        ("Alex", "Johnson"), ("Blake", "Mitchell"), ("Casey", "Brown"), ("Dana", "Wilson"),
+        ("Emma", "Taylor"), ("Fiona", "Garcia"), ("Grace", "Rodriguez"), ("Harper", "Martinez"),
+        ("Isabella", "Lee"), ("Jackson", "Hernandez"), ("Jasmine", "Perez"), ("Jordan", "Davis"),
+        ("Kai", "Lopez"), ("Kendall", "Gonzalez"), ("Kyle", "Thompson"), ("Leah", "Anderson"),
+        ("Logan", "Thomas"), ("Madison", "Moore"), ("Morgan", "Jackson"), ("Natalie", "Martin"),
+        ("Noah", "Clark"), ("Olivia", "Sanchez"), ("Owen", "Morris"), ("Piper", "Rogers"),
+        ("Quinn", "Peterson"), ("Rachel", "Cooper"), ("Ryan", "Porter"), ("Samantha", "Hunter"),
+        ("Samuel", "Hicks"), ("Sophie", "Crawford"), ("Stephen", "Henry"), ("Sydney", "Howell"),
+        ("Taylor", "Crawley"), ("Thomas", "Dalton"), ("Uma", "Denton"), ("Unai", "Durant"),
+        ("Victoria", "Dupree"), ("Vincent", "Emerson"), ("Violet", "Emory"), ("Vivian", "Fanning"),
+        ("Wade", "Farley"), ("Waylon", "Farnsworth"), ("Whitney", "Farrer"), ("Willow", "Farrow"),
+        ("Xander", "Faulkner"), ("Xavier", "Fawcett"), ("Ximena", "Fay"), ("Yolanda", "Feild"),
+    ]
+    
+    ski_states = ["CO", "UT", "CA", "WA", "MT", "VT", "NY", "WY"]
+    rider_types = ["Skier", "Snowboarder"]
+    pass_types = ["Epic", "Ikon"]
+    skill_levels = ["Beginner", "Intermediate", "Advanced"]
+    
+    # Get or create main users
+    richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+    if not richard:
+        richard = User(first_name="Richard", last_name="Battle-Baxter", email="richardbattlebaxter@gmail.com")
+        richard.set_password("12345678")
+        richard.rider_type = "Skier"
+        richard.pass_type = "Epic"
+        richard.profile_setup_complete = True
+        richard.home_state = "CO"
+        richard.skill_level = "Advanced"
+        richard.birth_year = 1985
+        db.session.add(richard)
+        print("✓ Created Richard")
+    else:
+        print("✓ Richard already exists")
+    
+    jonathan = User.query.filter_by(email="jonathanmschmitz@gmail.com").first()
+    if not jonathan:
+        jonathan = User(first_name="Jonathan", last_name="Schmitz", email="jonathanmschmitz@gmail.com")
+        jonathan.set_password("12345678")
+        jonathan.rider_type = "Skier"
+        jonathan.pass_type = "Epic"
+        jonathan.profile_setup_complete = True
+        jonathan.home_state = "UT"
+        jonathan.skill_level = "Advanced"
+        jonathan.birth_year = 1987
+        db.session.add(jonathan)
+        print("✓ Created Jonathan")
+    else:
+        print("✓ Jonathan already exists")
+    
+    db.session.commit()
+    
+    # Create 50 dummy users
+    created_dummy = 0
+    for i, (first, last) in enumerate(dummy_names, 1):
+        email = f"{first.lower()}.{last.lower()}+ski{i:02d}@gmail.com"
+        existing = User.query.filter_by(email=email).first()
+        if not existing:
+            user = User(
+                first_name=first,
+                last_name=last,
+                email=email
+            )
+            user.set_password("skitest123")
+            user.rider_type = random.choice(rider_types)
+            user.pass_type = random.choice(pass_types)
+            user.skill_level = random.choice(skill_levels)
+            user.home_state = random.choice(ski_states)
+            user.profile_setup_complete = True
+            user.birth_year = random.randint(1980, 2000)
+            db.session.add(user)
+            created_dummy += 1
+    
+    db.session.commit()
+    print(f"✓ Created {created_dummy} dummy users (50 expected)")
+    
+    # Get all dummy users
+    dummy_users = User.query.filter(
+        ~User.email.in_(["richardbattlebaxter@gmail.com", "jonathanmschmitz@gmail.com"])
+    ).all()
+    
+    # Create bidirectional friendships: dummy ↔ richard, dummy ↔ jonathan
+    friendship_count = 0
+    for dummy in dummy_users:
+        for main_user in [richard, jonathan]:
+            fwd = Friend.query.filter_by(user_id=dummy.id, friend_id=main_user.id).first()
+            if not fwd:
+                db.session.add(Friend(user_id=dummy.id, friend_id=main_user.id))
+                friendship_count += 1
+            
+            bwd = Friend.query.filter_by(user_id=main_user.id, friend_id=dummy.id).first()
+            if not bwd:
+                db.session.add(Friend(user_id=main_user.id, friend_id=dummy.id))
+                friendship_count += 1
+    
+    db.session.commit()
+    print(f"✓ Created {friendship_count} bidirectional friendships")
+    
+    # Get resorts
+    resorts = Resort.query.filter_by(is_active=True).all()
+    base_date = date.today() + timedelta(days=30)
+    
+    # Create trips for dummy users (with overlaps)
+    trip_count = 0
+    overlap_users = set()
+    
+    # First, create trips for ~30% of users to overlap with richard/jonathan
+    for i, dummy in enumerate(dummy_users[:max(15, len(dummy_users)//3)]):
+        for _ in range(2):  # 2 trips per user
+            resort = random.choice(resorts)
+            start = base_date + timedelta(days=random.randint(0, 90))
+            end = start + timedelta(days=random.randint(2, 5))
+            trip = SkiTrip(
+                user_id=dummy.id,
+                resort_id=resort.id,
+                state=resort.state,
+                mountain=resort.name,
+                start_date=start,
+                end_date=end,
+                is_public=True
+            )
+            db.session.add(trip)
+            overlap_users.add(dummy.id)
+            trip_count += 1
+    
+    # Create remaining trips for other dummy users
+    for dummy in dummy_users[max(15, len(dummy_users)//3):]:
+        for _ in range(2):  # 2 trips per user
+            resort = random.choice(resorts)
+            start = base_date + timedelta(days=random.randint(0, 90))
+            end = start + timedelta(days=random.randint(2, 5))
+            trip = SkiTrip(
+                user_id=dummy.id,
+                resort_id=resort.id,
+                state=resort.state,
+                mountain=resort.name,
+                start_date=start,
+                end_date=end,
+                is_public=True
+            )
+            db.session.add(trip)
+            trip_count += 1
+    
+    # Create trips for richard and jonathan (overlapping with dummies)
+    overlap_resort = random.choice(resorts)
+    overlap_start = base_date + timedelta(days=30)
+    overlap_end = overlap_start + timedelta(days=3)
+    
+    for main_user in [richard, jonathan]:
+        trip = SkiTrip(
+            user_id=main_user.id,
+            resort_id=overlap_resort.id,
+            state=overlap_resort.state,
+            mountain=overlap_resort.name,
+            start_date=overlap_start,
+            end_date=overlap_end,
+            is_public=True
+        )
+        db.session.add(trip)
+        trip_count += 2
+    
+    db.session.commit()
+    print(f"✓ Created {trip_count} trips")
+    print(f"✓ {len(overlap_users)} users have overlapping dates with Richard & Jonathan")
+    
+    print(f"\n✅ Database seeding complete!")
+    print(f"   Main users: Richard & Jonathan")
+    print(f"   Dummy users: {len(dummy_users)}")
+    print(f"   Friendships: {friendship_count}")
+    print(f"   Trips: {trip_count}")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
