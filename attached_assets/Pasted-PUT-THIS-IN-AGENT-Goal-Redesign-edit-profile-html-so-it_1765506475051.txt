@@ -1,3 +1,21 @@
+PUT THIS IN AGENT
+
+Goal: Redesign edit_profile.html so it matches the rest of the BaseLodge app.  
+It must:
+- Use .page-container like home.html and my_trips.html
+- Remove .profile-page and .profile-container wrappers
+- Use BaseLodge spacing variables, radius vars, and text styles from styles.css
+- Present Rider Type chips, Pass Type readonly text, Skill Level chips, and dropdowns with consistent UI
+- Use the new tappable chip UI from onboarding
+- Include the bottom navigation
+- Match the clean card-based design used on Home/My Trips
+
+Make the following changes:
+
+------------------------------------------------------------
+1. REPLACE templates/edit_profile.html WITH THIS NEW VERSION
+------------------------------------------------------------
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -88,14 +106,6 @@
         </div>
 
         <!-- Save -->
-        <form method="POST" action="{{ url_for('edit_profile') }}" id="editProfileForm">
-            <input type="hidden" name="rider_type" id="rider_type" value="{{ current_user.rider_type or '' }}">
-            <input type="hidden" name="skill_level" id="skill_level" value="{{ current_user.skill_level or '' }}">
-            <input type="hidden" name="gender" id="gender" value="{{ current_user.gender or '' }}">
-            <input type="hidden" name="birth_year" id="birth_year" value="{{ current_user.birth_year or '' }}">
-            <input type="hidden" name="home_state" id="home_state" value="{{ current_user.home_state or '' }}">
-        </form>
-
         <button type="submit" form="editProfileForm" class="bl-button-primary" style="margin-top: var(--bl-space-4);">
             Save Changes
         </button>
@@ -122,13 +132,62 @@ document.querySelectorAll(".chip-group .chip").forEach(chip => {
         document.querySelector("input[name='" + fieldName + "']").value = chip.dataset.value;
     });
 });
-
-document.querySelectorAll(".bl-select").forEach(select => {
-    select.addEventListener("change", () => {
-        document.querySelector("input[name='" + select.name + "']").value = select.value;
-    });
-});
 </script>
 
 </body>
 </html>
+
+------------------------------------------------------------
+2. ENSURE THESE CSS CLASSES EXIST IN static/styles.css
+------------------------------------------------------------
+
+.bl-card {
+    background: #fff;
+    border-radius: var(--bl-radius-3);
+    padding: var(--bl-space-4);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    margin-bottom: var(--bl-space-4);
+}
+
+.form-section { margin-bottom: var(--bl-space-4); }
+.form-label { font-weight: 600; margin-bottom: 6px; display:block; }
+
+.chip-group {
+    display:flex; 
+    flex-wrap:wrap;
+    gap: var(--bl-space-2);
+}
+
+.chip {
+    padding: 8px 14px;
+    border-radius: var(--bl-radius-pill);
+    background:#eee;
+    cursor:pointer;
+}
+
+.chip.selected {
+    background: var(--bl-color-primary);
+    color:white;
+}
+
+.bl-select {
+    width:100%;
+    padding:10px;
+    border-radius: var(--bl-radius-2);
+    border:1px solid #ccc;
+}
+
+.readonly-field {
+    padding:10px; 
+    background:#f5f5f5; 
+    border-radius: var(--bl-radius-2);
+}
+
+.small-link {
+    font-size:14px;
+    color: var(--bl-color-primary);
+    text-decoration:none;
+}
+
+------------------------------------------------------------
+END
