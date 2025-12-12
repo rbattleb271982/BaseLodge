@@ -212,9 +212,9 @@ def auth():
         
         elif form_type == "login":
             email = request.form.get("email", "").lower().strip()
-            password = request.form.get("password")
+            password = request.form.get("password", "").strip()  # ← STRIP PASSWORD TOO
             
-            app.logger.info(f"🔐 LOGIN ATTEMPT: email={email}, password_provided={bool(password)}")
+            app.logger.info(f"🔐 LOGIN ATTEMPT: email='{email}' (len={len(email)}), password_len={len(password)}")
             
             user = User.query.filter_by(email=email).first()
             if user:
@@ -241,8 +241,12 @@ def auth():
                         return redirect(url_for("setup_profile"))
                 else:
                     app.logger.warning(f"❌ WRONG PASSWORD for {email}")
+                    app.logger.warning(f"   Password attempt length: {len(password)}, Hash check failed")
             else:
                 app.logger.warning(f"❌ USER NOT FOUND: {email}")
+                # Debug: check what users exist
+                all_users = User.query.all()
+                app.logger.warning(f"   Available users: {[u.email for u in all_users]}")
             
             flash("Invalid email or password.", "error")
             return render_template("auth.html")
