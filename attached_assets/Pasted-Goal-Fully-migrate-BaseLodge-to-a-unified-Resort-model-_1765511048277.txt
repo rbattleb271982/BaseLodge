@@ -1,0 +1,147 @@
+Goal:
+Fully migrate BaseLodge to a unified Resort model and link all SkiTrips using resort_id, removing all duplicate mountain lists and ensuring all trip pages render consistently:
+Dec 18–Dec 21 — Vail CO, Epic
+Use checkpoints sparingly.
+--------------------------------------------
+STEP 1 — CREATE / UPDATE THE RESORT MODEL
+--------------------------------------------
+File: models.py
+Create or update the Resort model:
+class Resort(db.Model):
+    __tablename__ = "resorts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    state = db.Column(db.String(50), nullable=False)
+    state_abbrev = db.Column(db.String(2), nullable=False)
+    pass_type = db.Column(db.String(50), nullable=True)
+
+    # Relationship to SkiTrip
+    trips = db.relationship("SkiTrip", backref="resort", lazy=True)
+----------------------------------------------------
+STEP 2 — UPDATE SKITRIP TO USE resort_id
+----------------------------------------------------
+Still in models.py, modify SkiTrip:
+resort_id = db.Column(db.Integer, db.ForeignKey("resorts.id"), nullable=True)
+(This remains nullable during migration; we will backfill.)
+--------------------------------------------------------------------
+STEP 3 — SEED THE RESORT TABLE WITH A CANONICAL RESORT LIST
+--------------------------------------------------------------------
+Create or update a debug route:
+File: app.py
+@app.route("/debug/seed-resorts")
+@admin_required
+def seed_resorts():
+    resorts = [
+        ("Aspen", "Colorado", "CO", "Ikon"),
+        ("Snowmass", "Colorado", "CO", "Ikon"),
+        ("Beaver Creek", "Colorado", "CO", "Epic"),
+        ("Vail", "Colorado", "CO", "Epic"),
+        ("Breckenridge", "Colorado", "CO", "Epic"),
+        ("Keystone", "Colorado", "CO", "Epic"),
+        ("Winter Park", "Colorado", "CO", "Ikon"),
+        ("Copper", "Colorado", "CO", "Ikon"),
+        ("Eldora", "Colorado", "CO", "Ikon"),
+        ("Palisades Tahoe", "California", "CA", "Ikon"),
+        ("Heavenly", "California", "CA", "Epic"),
+        ("Kirkwood", "California", "CA", "Epic"),
+        ("Northstar", "California", "CA", "Epic"),
+        ("Jackson Hole", "Wyoming", "WY", "Ikon"),
+        ("Big Sky", "Montana", "MT", "Ikon"),
+        # Add others as needed
+    ]
+
+    for name, state, abbrev, pass_type in resorts:
+        exists = Resort.query.filter_by(name=name, state=state).first()
+        if not exists:
+            db.session.add(Resort(
+                name=name, state=state, state_abbrev=abbrev, pass_type=pass_type
+            ))
+
+    db.session.commit()
+    return "Resorts seeded."
+-------------------------------------------------------------------
+STEP 4 — MIGRATION ROUTE: BACKFILL RESORT_ID FOR ALL EXISTING TRIPS
+-------------------------------------------------------------------
+Add another debug route:
+@app.route("/debug/migrate-trips-to-resorts")
+@admin_required
+def migrate_trips_to_resorts():
+    trips = SkiTrip.query.all()
+
+    for trip in trips:
+        if trip.resort_id:
+            continue
+
+        # Best-effort lookup
+        resort = Resort.query.filter(
+            db.func.lower(Resort.name) == trip.mountain.lower()
+        ).first()
+
+        if resort:
+            trip.resort_id = resort.id
+        else:
+            print(f"No matching resort for {trip.mountain}")
+
+    db.session.commit()
+    return "Trip migration complete."
+---------------------------------------------------------------
+STEP 5 — UPDATE TRIP CREATION & EDIT FORMS TO USE RESORTS
+---------------------------------------------------------------
+File: templates/add_trip.html and edit_trip.html
+Replace the mountain & state dropdowns with:
+<select name="resort_id" id="resort_id" required>
+    <option value="">Select a resort</option>
+    {% for r in resorts %}
+        <option value="{{ r.id }}" {% if trip and trip.resort_id == r.id %}selected{% endif %}>
+            {{ r.name }} ({{ r.state_abbrev }})
+        </option>
+    {% endfor %}
+</select>
+---------------------------------------------------------
+STEP 6 — UPDATE ROUTES TO PASS RESORT LISTS
+---------------------------------------------------------
+File: app.py
+In add/edit trip routes:
+resorts = Resort.query.order_by(Resort.name.asc()).all()
+return render_template("add_trip.html", resorts=resorts)
+Same for edit.
+---------------------------------------------------------
+STEP 7 — CLEAN TEMPLATE DISPLAY (INLINE EVERYWHERE)
+---------------------------------------------------------
+My Trips (templates/home.html or my_trips.html)
+Replace the existing formatting with:
+{{ trip.start_date|date }}–{{ trip.end_date|date }} —
+{{ trip.resort.name }} {{ trip.resort.state_abbrev }},
+{{ trip.resort.pass_type or "No Pass" }}
+Friends' Trips (templates/home.html under that tab)
+Same formatting.
+Overlaps page
+Also same formatting.
+-----------------------------------------------------------------------
+STEP 8 — REMOVE ALL OLD MOUNTAIN-LISTS AND HARD-CODED STATE LOGIC
+-----------------------------------------------------------------------
+Delete:
+MOUNTAINS = {...} JavaScript dictionaries
+Any hard-coded <option> lists
+Any state → mountain mappings
+Everything will now come from the database.
+---------------------------------------------------------
+STEP 9 — RUN THE MIGRATION
+---------------------------------------------------------
+In your browser:
+/debug/seed-resorts
+/debug/migrate-trips-to-resorts
+Then refresh the UI.
+---------------------------------------------------------
+STEP 10 — CONFIRM
+---------------------------------------------------------
+You should now see:
+My Trips
+Dec 20–Dec 22 — Beaver Creek CO, Epic
+Friends’ Trips
+Inline, identical format (no multiline blocks).
+Overlaps
+Inline, identical format.
+Add Trip / Edit Trip
+Alphabetical dropdown of resorts.
