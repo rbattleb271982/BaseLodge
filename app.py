@@ -1178,7 +1178,9 @@ def add_open_dates():
 @app.route("/add_trip", methods=["GET", "POST"])
 @login_required
 def add_trip():
-    resorts = Resort.query.filter_by(is_active=True).order_by(Resort.state, Resort.name).all()
+    resorts_objs = Resort.query.filter_by(is_active=True).order_by(Resort.state, Resort.name).all()
+    # Convert to dicts for JSON serialization
+    resorts = [{"id": r.id, "name": r.name, "state": r.state, "brand": r.brand} for r in resorts_objs]
     
     if request.method == "POST":
         resort_id = request.form.get("resort_id")
@@ -1259,7 +1261,9 @@ def edit_trip_form(trip_id):
     if trip.user_id != current_user.id:
         abort(403)
     
-    resorts = Resort.query.filter_by(is_active=True).order_by(Resort.state, Resort.name).all()
+    resorts_objs = Resort.query.filter_by(is_active=True).order_by(Resort.state, Resort.name).all()
+    # Convert to dicts for JSON serialization
+    resorts = [{"id": r.id, "name": r.name, "state": r.state, "brand": r.brand} for r in resorts_objs]
 
     if request.method == "POST":
         resort_id = request.form.get("resort_id")
