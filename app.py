@@ -2033,6 +2033,72 @@ def force_reset_passwords():
 
     return {"status": "success", "results": results}
 
+@app.route("/admin/init-db", methods=["GET", "POST"])
+def init_db_http():
+    """
+    HTTP endpoint for database initialization (backup method for deployment).
+    Accessible only to admin. Can be called after deployment if CLI command fails.
+    
+    Usage after deployment:
+    GET https://yourapp.replit.dev/admin/init-db
+    
+    This will:
+    - Create all database tables
+    - Create/verify primary user (Richard)
+    - Be idempotent (safe to call multiple times)
+    """
+    # Allow in development OR if admin is authenticated
+    if os.environ.get("FLASK_ENV") == "production":
+        if not current_user.is_authenticated or current_user.email != "richardbattlebaxter@gmail.com":
+            return "Unauthorized: Admin access required", 403
+    
+    try:
+        with app.app_context():
+            # Create all tables
+            db.create_all()
+            
+            # Ensure primary user exists and is valid
+            primary_user = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+            if not primary_user:
+                primary_user = User(
+                    first_name="Richard",
+                    last_name="Battle-Baxter",
+                    email="richardbattlebaxter@gmail.com",
+                    rider_type="Skier",
+                    pass_type="Epic",
+                    skill_level="Advanced",
+                    home_state="Colorado",
+                    birth_year=1985
+                )
+                primary_user.set_password("12345678")
+                db.session.add(primary_user)
+                db.session.commit()
+                return jsonify({
+                    "status": "success",
+                    "message": "✅ Database initialized. Primary user created.",
+                    "email": "richardbattlebaxter@gmail.com",
+                    "password": "12345678"
+                }), 200
+            else:
+                # Verify/repair password
+                if not primary_user.check_password("12345678"):
+                    primary_user.set_password("12345678")
+                    db.session.commit()
+                    return jsonify({
+                        "status": "success",
+                        "message": "✅ Database already initialized. Primary user password repaired."
+                    }), 200
+                else:
+                    return jsonify({
+                        "status": "success",
+                        "message": "✅ Database already initialized. Primary user verified."
+                    }), 200
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to initialize database: {str(e)}"
+        }), 500
+
 @app.route("/open-data-debug")
 @login_required
 def open_data_debug():

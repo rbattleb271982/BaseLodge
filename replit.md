@@ -68,31 +68,41 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 ## Deployment & Database Initialization
 
 ### Critical: Module-level Database Code Removed
-As of the latest update, all database initialization code has been moved OUT of module level to enable clean deployment to production servers. The app now imports without executing database operations.
+All database initialization code has been moved OUT of module level to enable clean deployment to production servers. The app now imports without executing database operations.
 
-### Initialization Process
-**After deploying to production, run this CLI command:**
+### Two Methods to Initialize Database
+
+#### Method 1: Flask CLI Command (Recommended)
 ```bash
 flask init-db
 ```
-
-This command:
-- Creates all database tables (db.create_all())
-- Ensures primary user (Richard Battle-Baxter) exists and password is correct
+- Creates all database tables
+- Ensures primary user (Richard Battle-Baxter) exists
 - Logs initialization status
+- Idempotent (safe to run multiple times)
+
+#### Method 2: HTTP Endpoint (Backup)
+If CLI command is not available in your deployment environment:
+```
+GET /admin/init-db
+```
+- Same functionality as CLI command
+- Returns JSON response
+- Works in development and production
 
 ### Development Workflow (Local)
-In development, the app still works normally—just run the init-db command once after setup:
 ```bash
-python app.py  # Start dev server normally
+python app.py  # Start dev server
 # In another terminal:
 flask init-db  # Initialize database
 ```
 
-### Production Deployment
-1. Deploy the application to Replit/production
-2. Server starts without database operations (clean startup)
-3. Run: `flask init-db` as part of deployment script
+### Production Deployment Steps
+1. Deploy the application to production
+2. Server starts cleanly (no database operations during import)
+3. Run: `flask init-db` OR access `/admin/init-db`
 4. Application is ready to use
 
 **Why this change:** Production servers (gunicorn) require apps to import cleanly without side effects. Module-level database access causes initialization failures.
+
+See `DEPLOYMENT.md` for complete deployment guide.
