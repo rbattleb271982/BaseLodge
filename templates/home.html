@@ -110,11 +110,15 @@
             <div id="tab-friends" class="bl-trip-row-group" {% if active_tab != 'friends' %}style="display: none;"{% endif %}>
                 {% if friend_trips %}
                     {% for trip in friend_trips %}
-                    <div class="bl-trip-row">
-                        <span class="trip-date">{{ trip.start_date.strftime('%b %d') }}</span> —
-                        <span class="trip-name">{{ trip.user.first_name }} {{ trip.user.last_name }}</span>
-                        <span class="trip-info">@ {{ trip.mountain }}, {{ trip.state }}</span>
-                    </div>
+                    <a class="friend-trip-row" href="{{ url_for('friend_trip_details', trip_id=trip.id) }}">
+                        <div class="friend-trip-date">
+                            {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d') }}
+                            — {{ trip.user.first_name }} {{ trip.user.last_name }}
+                        </div>
+                        <div class="friend-trip-location">
+                            @ {{ trip.mountain }}, {{ trip.state }}
+                        </div>
+                    </a>
                     {% endfor %}
                 {% else %}
                     <p class="bl-caption">Your friends don't have any upcoming trips yet.</p>

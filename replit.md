@@ -39,6 +39,14 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 
 ## Recent Changes (Dec 12, 2025)
 
+### Friend Trip Details Page - COMPLETE ✅
+Enhanced Friends' Trips with clickable rows and a details page:
+1. **Updated Friends' Trips list** - Shows full date range (Dec 20–25) + friend name + location
+2. **Clickable trip rows** - Each trip links to `/friend-trip/<trip_id>`
+3. **New `/friend-trip/<trip_id>` route** - Shows trip details with friend authorization check
+4. **New `friend_trip_details.html` template** - Displays mountain, state, dates, pass type, visibility
+5. **CSS styles** - `.friend-trip-row`, `.friend-trip-date`, `.friend-trip-location`, `.trip-detail-card`, `.back-link`
+
 ### Friends List Redesign - COMPLETE ✅
 Redesigned Friends page with cleaner layout and pass-type filtering:
 1. **New 2-column inline layout** - Friend name on left, meta info (rider type, skill, pass) on right

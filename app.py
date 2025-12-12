@@ -924,6 +924,29 @@ def home():
         state_abbr=STATE_ABBR
     )
 
+@app.route("/friend-trip/<int:trip_id>")
+@login_required
+def friend_trip_details(trip_id):
+    """View details of a friend's trip."""
+    trip = SkiTrip.query.get_or_404(trip_id)
+    friend = User.query.get(trip.user_id)
+
+    # Prevent users from viewing trips of non-friends (unless it's their own)
+    if trip.user_id != current_user.id:
+        is_friend = Friend.query.filter_by(
+            user_id=current_user.id,
+            friend_id=friend.id
+        ).first()
+
+        if not is_friend:
+            return "Unauthorized", 403
+
+    return render_template(
+        "friend_trip_details.html",
+        trip=trip,
+        friend=friend
+    )
+
 @app.route("/more")
 @login_required
 def more():

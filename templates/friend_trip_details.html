@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base Lodge - Trip Details</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="page-container">
+        <a href="{{ url_for('home', tab='friends') }}" class="back-link">← Back</a>
+        
+        <h1 class="page-title">{{ friend.first_name }}'s Trip</h1>
+        
+        <div class="trip-detail-card">
+            <div class="trip-detail-row">
+                <span class="trip-detail-label">Mountain</span>
+                <span class="trip-detail-value">{{ trip.mountain }}</span>
+            </div>
+            
+            <div class="trip-detail-row">
+                <span class="trip-detail-label">State</span>
+                <span class="trip-detail-value">{{ trip.state }}</span>
+            </div>
+            
+            <div class="trip-detail-row">
+                <span class="trip-detail-label">Dates</span>
+                <span class="trip-detail-value">
+                    {{ trip.start_date.strftime('%b %d, %Y') }} – {{ trip.end_date.strftime('%b %d, %Y') }}
+                </span>
+            </div>
+            
+            <div class="trip-detail-row">
+                <span class="trip-detail-label">Pass Type</span>
+                <span class="trip-detail-value">{{ trip.pass_type or 'Not specified' }}</span>
+            </div>
+            
+            <div class="trip-detail-row">
+                <span class="trip-detail-label">Visibility</span>
+                <span class="trip-detail-value">
+                    {% if trip.is_public %}Friends Only{% else %}Private{% endif %}
+                </span>
+            </div>
+        </div>
+        
+        <div style="margin-top: var(--bl-space-8);">
+            <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="bl-btn-secondary" style="display: block; text-align: center; text-decoration: none;">
+                View {{ friend.first_name }}'s Profile
+            </a>
+        </div>
+    </div>
+    
+    {% include 'components/bottom_nav.html' %}
+</body>
+</html>
