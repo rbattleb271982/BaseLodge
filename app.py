@@ -977,6 +977,7 @@ def add_trip():
         start_date_str = request.form.get("start_date")
         end_date_str = request.form.get("end_date")
         is_public = request.form.get("is_public") == "on"
+        set_home_mountain = request.form.get("set_home_mountain") == "on"
 
         errors = []
 
@@ -1011,6 +1012,7 @@ def add_trip():
                 "add_trip.html",
                 trip=None,
                 resorts=resorts,
+                user=current_user,
                 form_action=url_for("add_trip"),
             )
 
@@ -1025,6 +1027,11 @@ def add_trip():
         )
         db.session.add(trip)
         db.session.commit()
+
+        if set_home_mountain and resort:
+            current_user.home_mountain = resort.name
+            db.session.commit()
+
         flash("Trip added.", "trip")
         return redirect(url_for("my_trips"))
 
@@ -1033,6 +1040,7 @@ def add_trip():
         "add_trip.html",
         trip=None,
         resorts=resorts,
+        user=current_user,
         form_action=url_for("add_trip"),
     )
 
@@ -1050,6 +1058,7 @@ def edit_trip_form(trip_id):
         start_date_str = request.form.get("start_date")
         end_date_str = request.form.get("end_date")
         is_public = request.form.get("is_public") == "on"
+        set_home_mountain = request.form.get("set_home_mountain") == "on"
 
         errors = []
 
@@ -1084,6 +1093,7 @@ def edit_trip_form(trip_id):
                 "add_trip.html",
                 trip=trip,
                 resorts=resorts,
+                user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
             )
 
@@ -1094,6 +1104,9 @@ def edit_trip_form(trip_id):
         trip.end_date = end_date
         trip.is_public = is_public
 
+        if set_home_mountain and resort:
+            current_user.home_mountain = resort.name
+        
         db.session.commit()
         flash("Trip updated.", "trip")
         return redirect(url_for("my_trips"))
@@ -1103,6 +1116,7 @@ def edit_trip_form(trip_id):
         "add_trip.html",
         trip=trip,
         resorts=resorts,
+        user=current_user,
         form_action=url_for("edit_trip_form", trip_id=trip.id),
     )
 

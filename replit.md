@@ -96,6 +96,20 @@ Supporting progressive profile enhancement via subtle links:
 3. **Subtle styling** - Dotted underline, text-muted color with hover transition to primary color
 4. **Non-blocking** - Does not restrict any app actions based on missing skill level
 5. **Navigation** - Links to /profile for users to complete their profile progressively
+6. **Home mountain display** - Shows home_mountain in summary if set (e.g., "Skier · Indy · Aspen")
+
+### Add Trip Flow Improvements - COMPLETE
+Enhanced "Add a trip" with date validation, resort filtering, and home mountain setting:
+1. **Date validation** - End date cannot be before start date (frontend + backend)
+   - Frontend: End date min attribute synced with start date
+   - Backend: Rejects invalid date ranges with error message
+2. **State-based resort filtering** - State dropdown required before resort selection
+   - Resorts dynamically filtered by selected state via JavaScript
+   - Preserves existing resort data and relationships
+3. **Home mountain option** - Optional checkbox to set home mountain
+   - Only shows if user doesn't have one OR different from current
+   - Non-blocking feature that enhances profile progressively
+4. **Home screen display** - Subtly shows home mountain in welcome summary when set
 
 ## External Dependencies
 - **Flask:** Python web framework.

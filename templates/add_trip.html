@@ -115,13 +115,28 @@
 
         <form method="POST" action="{{ form_action }}" class="form-card">
             <div class="form-group">
+                <label for="state">State</label>
+                <select id="state" name="state" required onchange="updateResorts()">
+                    <option value="">Choose a state...</option>
+                    <option value="CO" {% if trip and trip.resort and trip.resort.state == 'CO' %}selected{% endif %}>Colorado</option>
+                    <option value="UT" {% if trip and trip.resort and trip.resort.state == 'UT' %}selected{% endif %}>Utah</option>
+                    <option value="CA" {% if trip and trip.resort and trip.resort.state == 'CA' %}selected{% endif %}>California</option>
+                    <option value="WY" {% if trip and trip.resort and trip.resort.state == 'WY' %}selected{% endif %}>Wyoming</option>
+                    <option value="MT" {% if trip and trip.resort and trip.resort.state == 'MT' %}selected{% endif %}>Montana</option>
+                    <option value="ID" {% if trip and trip.resort and trip.resort.state == 'ID' %}selected{% endif %}>Idaho</option>
+                    <option value="NV" {% if trip and trip.resort and trip.resort.state == 'NV' %}selected{% endif %}>Nevada</option>
+                    <option value="OR" {% if trip and trip.resort and trip.resort.state == 'OR' %}selected{% endif %}>Oregon</option>
+                </select>
+            </div>
+
+            <div class="form-group">
                 <label for="resort_id">Resort</label>
                 <select id="resort_id" name="resort_id" required>
                     <option value="">Choose a resort...</option>
                     {% for r in resorts %}
-                        <option value="{{ r.id }}"
+                        <option value="{{ r.id }}" data-state="{{ r.state }}"
                             {% if trip and trip.resort_id == r.id %}selected{% endif %}>
-                            {{ r.name }} ({{ r.state }}) {% if r.brand and r.brand != 'Other' %}— {{ r.brand }}{% endif %}
+                            {{ r.name }} {% if r.brand and r.brand != 'Other' %}— {{ r.brand }}{% endif %}
                         </option>
                     {% endfor %}
                 </select>
@@ -129,7 +144,7 @@
 
             <div class="form-group">
                 <label for="start_date">Start date</label>
-                <input type="date" id="start_date" name="start_date" required value="{% if trip and trip.start_date %}{{ trip.start_date.isoformat() }}{% endif %}">
+                <input type="date" id="start_date" name="start_date" required value="{% if trip and trip.start_date %}{{ trip.start_date.isoformat() }}{% endif %}" onchange="updateEndDateMin()">
             </div>
 
             <div class="form-group">
@@ -146,10 +161,66 @@
                 <p class="helper-text">Only friends can see this trip.</p>
             </div>
 
+            {% if not user.home_mountain or (trip and trip.resort and trip.resort.name != user.home_mountain) %}
+            <div class="form-group toggle-group">
+                <label class="toggle-label">
+                    <input type="checkbox" name="set_home_mountain" id="set_home_mountain">
+                    <span>Set this as my home mountain</span>
+                </label>
+                <p class="helper-text">Your go-to mountain for quick getaways.</p>
+            </div>
+            {% endif %}
+
             <button type="submit" class="primary-button">{% if trip %}Save changes{% else %}Save trip{% endif %}</button>
         </form>
     </div>
 
     {% include 'components/bottom_nav.html' %}
+
+    <script>
+        const resorts = {{ resorts|tojson }};
+        const stateSelect = document.getElementById('state');
+        const resortSelect = document.getElementById('resort_id');
+        const startDateInput = document.getElementById('start_date');
+        const endDateInput = document.getElementById('end_date');
+
+        function updateResorts() {
+            const selectedState = stateSelect.value;
+            const currentValue = resortSelect.value;
+            
+            resortSelect.innerHTML = '<option value="">Choose a resort...</option>';
+            
+            if (selectedState) {
+                resorts.forEach(r => {
+                    if (r.state === selectedState) {
+                        const option = document.createElement('option');
+                        option.value = r.id;
+                        option.textContent = r.name + (r.brand && r.brand !== 'Other' ? ' — ' + r.brand : '');
+                        if (r.id.toString() === currentValue) {
+                            option.selected = true;
+                        }
+                        resortSelect.appendChild(option);
+                    }
+                });
+            }
+        }
+
+        function updateEndDateMin() {
+            if (startDateInput.value) {
+                endDateInput.min = startDateInput.value;
+                if (endDateInput.value && endDateInput.value < startDateInput.value) {
+                    endDateInput.value = startDateInput.value;
+                }
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (stateSelect.value) {
+                updateResorts();
+            }
+            updateEndDateMin();
+        });
+    </script>
 </body>
 </html>
