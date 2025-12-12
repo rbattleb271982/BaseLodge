@@ -56,10 +56,12 @@
             {% if my_trips %}
                 {% for trip in my_trips %}
                 <div class="bl-trip-card">
-                    <p class="bl-trip-card-text">
-                        {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} — 
-                        {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }} {{ trip.state }}, No Pass{% endif %}
-                    </p>
+                    <div style="flex: 1;">
+                        <p style="font-size: 0.9rem; font-weight: 500; margin: 0;">
+                            <strong>{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }}</strong> — 
+                            {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }} {{ trip.state }}, No Pass{% endif %}
+                        </p>
+                    </div>
                     <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="bl-trip-edit">Edit</a>
                 </div>
                 {% endfor %}
@@ -71,11 +73,15 @@
         <div id="tab-friends" class="bl-trip-list" {% if active_tab != 'friends' %}style="display: none;"{% endif %}>
             {% if friend_trips %}
                 {% for trip in friend_trips %}
-                <a class="bl-trip-card-link" href="{{ url_for('friend_trip_details', trip_id=trip.id) }}">
-                    <p class="bl-trip-card-text">
-                        {{ trip.user.first_name }} – {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} — 
-                        {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }} {{ trip.state }}, No Pass{% endif %}
-                    </p>
+                <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                    <div class="bl-trip-card" style="cursor: pointer;">
+                        <div style="flex: 1;">
+                            <p style="font-size: 0.9rem; font-weight: 500; margin: 0;">
+                                <strong>{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }}</strong> — 
+                                {{ trip.user.first_name }} @ {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }} {{ trip.state }}, No Pass{% endif %}
+                            </p>
+                        </div>
+                    </div>
                 </a>
                 {% endfor %}
             {% else %}
@@ -87,11 +93,13 @@
             {% if overlaps and overlaps|length > 0 %}
                 {% for o in overlaps %}
                 <div class="bl-trip-card">
-                    <p class="bl-trip-card-text">
-                        {{ o.start_date.strftime('%b %d') }}–{{ o.end_date.strftime('%b %d') }} — 
-                        <a href="{{ url_for('friend_profile', friend_id=o.friend_id) }}" style="text-decoration: none; color: inherit;">{{ o.friend_name }}</a>
-                        @ {{ o.mountain }} {{ o.state }}, {{ o.brand or 'No Pass' }}
-                    </p>
+                    <div style="flex: 1;">
+                        <p style="font-size: 0.9rem; font-weight: 500; margin: 0;">
+                            <strong>{{ o.start_date.strftime('%b %d') }}–{{ o.end_date.strftime('%b %d') }}</strong> — 
+                            <a href="{{ url_for('friend_profile', friend_id=o.friend_id) }}" style="text-decoration: none; color: inherit;">{{ o.friend_name }}</a>
+                            @ {{ o.mountain }} {{ o.state }}, {{ o.brand or 'No Pass' }}
+                        </p>
+                    </div>
                 </div>
                 {% endfor %}
             {% else %}

@@ -173,9 +173,9 @@ def auth():
                 _connect_pending_inviter(user)
                 
                 next_url = request.args.get("next")
-                if next_url and user.profile_setup_complete:
-                    return redirect(next_url)
-                elif user.profile_setup_complete:
+                if user.rider_type and user.pass_type:
+                    if next_url:
+                        return redirect(next_url)
                     return redirect(url_for("home"))
                 else:
                     if next_url:
@@ -617,9 +617,6 @@ def pass_category(pass_type):
 def friends():
     user = current_user
     
-    if not user.profile_setup_complete:
-        return redirect(url_for("setup_profile"))
-    
     filter_type = request.args.get("filter", "All")
     
     # Load friend relationships
@@ -739,13 +736,9 @@ def update_profile():
     return jsonify({"success": True, "message": "Profile updated"}), 200
 
 @app.route("/create-trip")
+@login_required
 def create_trip_page():
-    if "user_id" not in session:
-        return redirect(url_for("auth"))
-    
-    user = User.query.get(session["user_id"])
-    if not user or not user.profile_setup_complete:
-        return redirect(url_for("auth"))
+    user = current_user
     
     states = sorted(MOUNTAINS_BY_STATE.keys())
     return render_template("create_trip.html", user=user, states=states, mountains_by_state=MOUNTAINS_BY_STATE, pass_options=PASS_OPTIONS)
@@ -835,17 +828,9 @@ def date_ranges_overlap(start1, end1, start2, end2):
     return start1 <= end2 and start2 <= end1
 
 @app.route("/home")
+@login_required
 def home():
-    if "user_id" not in session:
-        return redirect(url_for("auth"))
-    
-    user = User.query.get(session["user_id"])
-    if not user:
-        session.pop("user_id", None)
-        return redirect(url_for("auth"))
-    
-    if not user.profile_setup_complete:
-        return redirect(url_for("setup_profile"))
+    user = current_user
     
     today = date.today()
     
@@ -1208,7 +1193,6 @@ def seed_dummy_data():
             skill_level=random.choice(skill_levels),
             home_state=random.choice(states),
             birth_year=random.randint(1980, 2002),
-            profile_setup_complete=True,
             mountains_visited=[]
         )
         user.set_password("password123")

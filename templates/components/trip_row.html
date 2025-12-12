@@ -1,5 +1,13 @@
-<div class="bl-trip-row">
-  <span class="trip-date">{{ trip_date }}</span> — 
-  <span class="trip-name">{{ user_name }}</span> 
-  <span class="trip-info">@ {{ mountain }}, {{ state }} {{ pass_type }}</span>
+<div class="bl-trip-card">
+    <div style="flex: 1;">
+        <p style="font-size: 0.9rem; font-weight: 500; margin: 0;">
+            <strong>{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }}</strong> — 
+            {% if trip.resort %}
+                {{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}
+            {% else %}
+                {{ trip.mountain }} {{ trip.state }}, No Pass
+            {% endif %}
+        </p>
+    </div>
+    <slot></slot>
 </div>
