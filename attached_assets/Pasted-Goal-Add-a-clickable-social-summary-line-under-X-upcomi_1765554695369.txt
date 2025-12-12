@@ -1,0 +1,66 @@
+Goal:
+Add a clickable social summary line under “X upcoming trips” on the Home screen that shows how many friends are open to ski on the same dates as the current user. Tapping this line should navigate to the Open tab.
+
+Scope:
+Home screen UI + backend count logic only. Do NOT change Open tab behavior itself.
+
+Requirements:
+
+1) Home Card UI
+- Under the existing “X upcoming trips” line, add a secondary line:
+  “{N} friends are open to ski on your dates →”
+- Use dynamic N.
+- Match existing secondary text styling (same size/weight as upcoming trips or slightly smaller).
+- Entire line should be tappable (not just the arrow).
+- Arrow can be a simple right chevron or “→”.
+
+2) Click Behavior
+- On tap, navigate to the Home page with the Open toggle active.
+- Do NOT add conditional routing logic on Home.
+- Always route to Open; Open handles empty vs populated states.
+
+3) Count Logic (Backend)
+- N = count of UNIQUE friends who share at least one open date with the current user.
+- A friend counts once even if multiple overlapping days exist.
+- If the user has no open dates:
+  - Do not error.
+  - Set N = 0.
+  - Still render the line as:
+    “Set your open dates to see who can ski with you →”
+
+4) Zero / Edge States
+- If user has open dates but no overlaps:
+  Show:
+  “No friends are open on your dates yet”
+- This line should still be tappable and route to Open.
+
+5) Data Rules
+- Use existing Friend relationship model.
+- Use existing Open Dates model/table.
+- Do NOT introduce new tables.
+- Query should:
+  - Get current_user open dates
+  - Get friends’ open dates
+  - Compute intersection
+  - Return DISTINCT friend count only
+
+6) Performance
+- Do this in ONE backend query or a small, well-contained helper.
+- Do NOT loop in templates.
+- Pass the final integer (and a boolean for “has_open_dates”) into the template.
+
+7) Styling / UX
+- Keep this visually lightweight.
+- It should feel like a “hint”, not a CTA button.
+- No icons beyond arrow.
+- Mobile-first spacing.
+
+8) Safety
+- If anything fails, default N to 0 and render the line safely.
+- Do not break Home rendering.
+
+Acceptance Criteria:
+- Home shows the line correctly.
+- Count is accurate.
+- Clicking always opens the Open tab.
+- No regressions to trips, friends, or invite flows.

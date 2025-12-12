@@ -116,6 +116,47 @@ def get_or_create_invite_token(user):
     db.session.commit()
     return invite
 
+def count_friends_open_on_same_dates(user):
+    """Count UNIQUE friends who have open dates overlapping with the current user.
+    
+    Returns:
+        tuple: (friend_count, user_has_open_dates)
+    """
+    try:
+        today = date.today()
+        today_str = today.strftime('%Y-%m-%d')
+        
+        # Get user's future open dates
+        user_open_dates = set(user.open_dates or [])
+        user_open_dates = {d for d in user_open_dates if d >= today_str}
+        
+        # If no open dates, return 0 count but indicate user has no dates
+        if not user_open_dates:
+            return 0, False
+        
+        # Get user's friends
+        friend_links = Friend.query.filter_by(user_id=user.id).all()
+        friend_ids = [f.friend_id for f in friend_links]
+        
+        if not friend_ids:
+            return 0, True
+        
+        # Get friends' data
+        friends = User.query.filter(User.id.in_(friend_ids)).all()
+        
+        # Count unique friends with overlapping open dates
+        matching_friends = set()
+        for friend in friends:
+            friend_dates = set(friend.open_dates or [])
+            # Check if there's any intersection
+            if user_open_dates & friend_dates:
+                matching_friends.add(friend.id)
+        
+        return len(matching_friends), True
+    except Exception as e:
+        app.logger.warning(f"Error counting open date friends: {e}")
+        return 0, False
+
 STATE_ABBR = {
     "Alaska": "AK",
     "California": "CA",
@@ -1004,6 +1045,9 @@ def home():
     user_mountains = user.mountains_visited or []
     user_mountains_sorted = sorted([m.name if hasattr(m, 'name') else m for m in user_mountains])
     
+    # Count friends with open date overlaps
+    open_friends_count, user_has_open_dates = count_friends_open_on_same_dates(user)
+    
     # Combined list for All Trips (upcoming only)
     all_trips = (my_trips or []) + (friend_trips or [])
     try:
@@ -1023,6 +1067,8 @@ def home():
         user_open_dates=sorted(my_open_dates) if my_open_dates else [],
         user_open_dates_display=user_open_dates_display,
         user_mountains=user_mountains_sorted,
+        open_friends_count=open_friends_count,
+        user_has_open_dates=user_has_open_dates,
         state_abbr=STATE_ABBR
     )
 

@@ -40,6 +40,19 @@
                 {% endif %}
             </div>
             
+            <!-- Social summary line -->
+            <a href="{{ url_for('home') }}?tab=open" style="display: block; text-decoration: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft); color: var(--bl-color-text-muted); font-size: 0.85rem; font-weight: 400;">
+                {% if user_has_open_dates %}
+                    {% if open_friends_count > 0 %}
+                        {{ open_friends_count }} friend{% if open_friends_count != 1 %}s{% endif %} are open to ski on your dates →
+                    {% else %}
+                        No friends are open on your dates yet →
+                    {% endif %}
+                {% else %}
+                    Set your open dates to see who can ski with you →
+                {% endif %}
+            </a>
+            
             <!-- Mountains list (hidden by default) -->
             {% if user_mountains and user_mountains|length > 0 %}
             <div id="mountainsList" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft);">
