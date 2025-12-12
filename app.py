@@ -1128,5 +1128,32 @@ def seed_dummy_data():
 
     return f"Created {created} dummy users and {trips_created} trips."
 
+@app.route("/skip-pass-prompt")
+@login_required
+def skip_pass_prompt():
+    session["pass_prompt_skipped"] = True
+    return redirect(url_for("home"))
+
+@app.route("/select-pass", methods=["GET", "POST"])
+@login_required
+def select_pass():
+    major_passes = ["Epic", "Ikon", "Indy", "Mountain Collective"]
+    regional_passes = ["Power Pass", "Boyne Pass", "A-Basin Pass", "Loveland Pass"]
+    other_passes = ["Other", "None"]
+
+    if request.method == "POST":
+        chosen = request.form.get("pass_type")
+        current_user.pass_type = chosen
+        db.session.commit()
+        session["pass_prompt_skipped"] = False
+        return redirect(url_for("home"))
+
+    return render_template(
+        "select_pass.html",
+        major=major_passes,
+        regional=regional_passes,
+        other=other_passes
+    )
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

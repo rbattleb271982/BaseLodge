@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Pass</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        body {
+            font-family: var(--bl-font-family);
+            background-color: var(--bl-color-bg);
+        }
+        
+        .page-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: var(--bl-space-6);
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: var(--bl-space-6);
+            color: var(--bl-color-text-muted);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .back-link:hover {
+            color: var(--bl-color-text);
+        }
+        
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: var(--bl-space-6);
+            color: var(--bl-color-text);
+        }
+        
+        .search-bar {
+            width: 100%;
+            padding: var(--bl-space-4);
+            border-radius: var(--bl-radius-md);
+            border: 1px solid var(--bl-color-border);
+            margin-bottom: var(--bl-space-6);
+            font-size: 14px;
+            font-family: inherit;
+        }
+        
+        .pass-section-title {
+            margin-top: var(--bl-space-6);
+            margin-bottom: var(--bl-space-3);
+            font-weight: 600;
+            color: var(--bl-color-text);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .pass-item {
+            padding: var(--bl-space-4);
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.15s;
+            background-color: white;
+        }
+        
+        .pass-item:hover {
+            background-color: var(--bl-color-surface-hover);
+        }
+        
+        .pass-item.selected {
+            background-color: #F0F5EB;
+        }
+        
+        .pass-item .check {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--bl-color-border);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        
+        .pass-item.selected .check {
+            background-color: var(--bl-color-primary);
+            border-color: var(--bl-color-primary);
+            color: white;
+        }
+        
+        .save-btn {
+            margin-top: var(--bl-space-8);
+            width: 100%;
+            padding: var(--bl-space-5);
+            font-size: 16px;
+            font-weight: 600;
+            background-color: var(--bl-color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--bl-radius-md);
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+        
+        .save-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .save-btn:not(:disabled):hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <a href="{{ url_for('home') }}" class="back-link">← Back</a>
+        <h1>Select Your Pass</h1>
+        
+        <input type="text" id="search" class="search-bar" placeholder="Search for your pass...">
+        
+        <form method="POST" id="passForm">
+            <input type="hidden" name="pass_type" id="pass_type">
+            
+            <div class="pass-section-title">Major Passes</div>
+            {% for p in major %}
+                <div class="pass-item" data-value="{{ p }}">
+                    <span>{{ p }}</span>
+                    <span class="check"></span>
+                </div>
+            {% endfor %}
+            
+            <div class="pass-section-title">Regional Passes</div>
+            {% for p in regional %}
+                <div class="pass-item" data-value="{{ p }}">
+                    <span>{{ p }}</span>
+                    <span class="check"></span>
+                </div>
+            {% endfor %}
+            
+            <div class="pass-section-title">Other</div>
+            {% for p in other %}
+                <div class="pass-item" data-value="{{ p }}">
+                    <span>{{ p }}</span>
+                    <span class="check"></span>
+                </div>
+            {% endfor %}
+            
+            <button type="submit" class="save-btn" id="saveBtn" disabled>Save Pass</button>
+        </form>
+    </div>
+    
+    <script>
+        const items = document.querySelectorAll(".pass-item");
+        const hiddenInput = document.getElementById("pass_type");
+        const saveBtn = document.getElementById("saveBtn");
+        const searchInput = document.getElementById("search");
+        
+        items.forEach(item => {
+            item.addEventListener("click", () => {
+                items.forEach(i => i.classList.remove("selected"));
+                item.classList.add("selected");
+                hiddenInput.value = item.dataset.value;
+                saveBtn.disabled = false;
+            });
+        });
+        
+        // Search filter
+        searchInput.addEventListener("input", function() {
+            const text = this.value.toLowerCase();
+            items.forEach(item => {
+                const passName = item.textContent.toLowerCase();
+                item.style.display = passName.includes(text) ? "flex" : "none";
+            });
+        });
+    </script>
+</body>
+</html>

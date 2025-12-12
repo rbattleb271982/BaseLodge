@@ -59,6 +59,31 @@
             </div>
         </div>
         
+        {% if (current_user.pass_type is none or current_user.pass_type == "") and not session.get('pass_prompt_skipped') %}
+        <div style="
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        ">
+            <h3 style="margin-top: 0; font-size: 16px; color: var(--bl-color-text);">🎟️ Choose your pass to get better matches</h3>
+            <p style="color: var(--bl-color-text-muted); margin-bottom: 16px; font-size: 14px;">
+                Most BaseLodge features work better when we know your pass.
+            </p>
+            
+            <a href="{{ url_for('select_pass') }}" 
+               style="display: inline-block; padding: 10px 16px; background: var(--bl-color-primary); color: white; border-radius: 6px; text-decoration: none; margin-right: 10px; font-weight: 600; font-size: 14px;">
+                Select Pass
+            </a>
+            
+            <a href="{{ url_for('skip_pass_prompt') }}"
+               style="color: var(--bl-color-text-muted); text-decoration: underline; font-size: 14px;">
+                Skip for now
+            </a>
+        </div>
+        {% endif %}
+        
         {% set active_tab = request.args.get('tab', 'my') %}
         {% include 'components/segmented_trips_tabs.html' %}
         
