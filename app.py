@@ -146,9 +146,10 @@ def auth():
             )
             user.set_password(password)
             db.session.add(user)
-            db.session.commit()
+            db.session.flush()
             
             login_user(user)
+            db.session.commit()
             session["user_id"] = user.id
             
             # Connect with inviter if pending_inviter_id exists in session
