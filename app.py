@@ -941,10 +941,38 @@ def friend_trip_details(trip_id):
         if not is_friend:
             return "Unauthorized", 403
 
+    # Calculate overlapping days with current user's trips
+    your_trips = SkiTrip.query.filter_by(user_id=current_user.id).all()
+
+    def overlapping_days(a_start, a_end, b_start, b_end):
+        latest_start = max(a_start, b_start)
+        earliest_end = min(a_end, b_end)
+        delta = (earliest_end - latest_start).days + 1
+        return max(0, delta)
+
+    your_overlap_days = 0
+    your_overlap_ranges = []
+
+    for yt in your_trips:
+        days = overlapping_days(
+            trip.start_date,
+            trip.end_date,
+            yt.start_date,
+            yt.end_date
+        )
+        if days > 0:
+            your_overlap_days += days
+            your_overlap_ranges.append(yt)
+
+    has_overlap = your_overlap_days > 0
+
     return render_template(
         "friend_trip_details.html",
         trip=trip,
-        friend=friend
+        friend=friend,
+        has_overlap=has_overlap,
+        overlap_days=your_overlap_days,
+        your_overlap_ranges=your_overlap_ranges
     )
 
 @app.route("/more")
@@ -1373,6 +1401,127 @@ def connect_jonathan_to_dummies():
         "status": "success",
         "dummy_users_linked_to_richard_and_jonathan": linked,
         "count": len(linked)
+    }
+
+@app.route("/create-extra-dummy-users")
+@login_required
+@admin_required
+def create_extra_dummy_users():
+    """Create 10 additional dummy users (Test31-40) with overlapping trips."""
+    main_email = "richardbattlebaxter@gmail.com"
+    jon_email = "jonathanmschmitz@gmail.com"
+
+    main_user = User.query.filter_by(email=main_email).first()
+    jon_user = User.query.filter_by(email=jon_email).first()
+
+    if not main_user or not jon_user:
+        return {"error": f"Anchor users not found. main={bool(main_user)}, jon={bool(jon_user)}"}, 400
+
+    # Load anchor trips separately for each user to ensure coverage
+    main_trips = SkiTrip.query.filter_by(user_id=main_user.id).all()
+    jon_trips = SkiTrip.query.filter_by(user_id=jon_user.id).all()
+
+    if not main_trips and not jon_trips:
+        return {"error": "No anchor trips found to create overlaps."}, 400
+
+    rider_types = ["Skier", "Snowboarder", "Telemark", "Adaptive", "Other"]
+    pass_types = ["Epic", "Epic Local", "Ikon", "Ikon Base", "Indy", "Other", "None"]
+    skill_levels = ["Beginner", "Intermediate", "Advanced", "Expert"]
+
+    created_users = []
+    for idx in range(31, 41):
+        email = f"usertest{idx}@example.com"
+        existing = User.query.filter_by(email=email).first()
+        if existing:
+            continue
+
+        u = User(
+            first_name="User",
+            last_name=f"Test{idx}",
+            email=email,
+            rider_type=random.choice(rider_types),
+            pass_type=random.choice(pass_types),
+            skill_level=random.choice(skill_levels),
+        )
+        u.set_password("skitest123")
+        db.session.add(u)
+        created_users.append(u)
+
+    db.session.commit()
+
+    if not created_users:
+        return {"status": "success", "message": "All dummy users Test31-Test40 already exist.", "created": 0}
+
+    # Create overlapping trips ensuring coverage for both anchor users
+    for u in created_users:
+        # Ensure at least one trip overlaps with main_user
+        if main_trips:
+            template_trip = random.choice(main_trips)
+            overlap_trip = SkiTrip(
+                user_id=u.id,
+                state=template_trip.state,
+                mountain=template_trip.mountain,
+                start_date=template_trip.start_date,
+                end_date=template_trip.end_date,
+                is_public=True,
+            )
+            if template_trip.resort_id:
+                overlap_trip.resort_id = template_trip.resort_id
+            db.session.add(overlap_trip)
+
+        # Ensure at least one trip overlaps with jon_user
+        if jon_trips:
+            template_trip = random.choice(jon_trips)
+            overlap_trip = SkiTrip(
+                user_id=u.id,
+                state=template_trip.state,
+                mountain=template_trip.mountain,
+                start_date=template_trip.start_date,
+                end_date=template_trip.end_date,
+                is_public=True,
+            )
+            if template_trip.resort_id:
+                overlap_trip.resort_id = template_trip.resort_id
+            db.session.add(overlap_trip)
+
+        # Add 0-1 additional random trips from either account
+        all_anchor_trips = main_trips + jon_trips
+        if all_anchor_trips and random.random() > 0.5:
+            template_trip = random.choice(all_anchor_trips)
+            overlap_trip = SkiTrip(
+                user_id=u.id,
+                state=template_trip.state,
+                mountain=template_trip.mountain,
+                start_date=template_trip.start_date,
+                end_date=template_trip.end_date,
+                is_public=True,
+            )
+            if template_trip.resort_id:
+                overlap_trip.resort_id = template_trip.resort_id
+            db.session.add(overlap_trip)
+
+    db.session.commit()
+
+    # Add bidirectional friendships to both main accounts
+    def ensure_friendship(a, b):
+        existing = Friend.query.filter_by(user_id=a.id, friend_id=b.id).first()
+        if not existing:
+            db.session.add(Friend(user_id=a.id, friend_id=b.id))
+
+        existing_rev = Friend.query.filter_by(user_id=b.id, friend_id=a.id).first()
+        if not existing_rev:
+            db.session.add(Friend(user_id=b.id, friend_id=a.id))
+
+    for u in created_users:
+        ensure_friendship(main_user, u)
+        ensure_friendship(jon_user, u)
+
+    db.session.commit()
+
+    return {
+        "status": "success",
+        "message": f"Created {len(created_users)} extra dummy users with overlapping trips and friendships.",
+        "created_users": [u.email for u in created_users]
     }
 
 @app.route("/delete-account-data")

@@ -39,6 +39,25 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 
 ## Recent Changes (Dec 12, 2025)
 
+### Extra Dummy Users with Overlapping Trips - COMPLETE ✅
+Added admin route to create 10 additional test users (Test31-40) with overlapping trips:
+1. **`/create-extra-dummy-users` route** - Admin-protected route that:
+   - Creates 10 users (usertest31@example.com through usertest40@example.com)
+   - Each user has random rider_type, pass_type, skill_level
+   - Each user gets 1-3 trips that exactly overlap with anchor users' trips
+   - Copies resort_id when available for proper Resort linking
+   - Creates bidirectional friendships with both main accounts
+2. **Password** - All new dummy users have password: `skitest123`
+
+### Friend Trip Overlap Message - COMPLETE ✅
+Enhanced Friend Trip Details page to show smart overlap messaging:
+1. **Updated `/friend-trip/<trip_id>` route** - Now calculates overlapping days between friend's trip and current user's trips
+2. **Added overlap calculation logic** - Uses `overlapping_days()` helper function
+3. **Updated `friend_trip_details.html`** - Shows blue info box with message:
+   - "You'll be there 1 of the same day." (singular)
+   - "You'll be there X days during this time." (plural)
+4. **CSS styling** - `.overlap-box` with light blue background (#F5F9FF)
+
 ### Resort Model & Trip Form Update - COMPLETE ✅
 Created unified Resort model replacing state+mountain dropdowns:
 1. **Resort model** - New model with fields: name, state, brand (Epic/Ikon/Other), slug, is_active
