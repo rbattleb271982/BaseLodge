@@ -141,7 +141,7 @@
 
             <div class="form-group">
                 <label for="mountain">Mountain</label>
-                <select id="mountain" name="mountain" required>
+                <select id="mountain" name="mountain" required data-existing="{{ trip.mountain if trip else '' }}">
                     {% if trip and trip.mountain %}<option value="{{ trip.mountain }}" selected>{{ trip.mountain }}</option>{% else %}<option value="">Select a state first</option>{% endif %}
                 </select>
             </div>
@@ -190,26 +190,38 @@
             'WY': ['Jackson Hole', 'Grand Targhee']
         };
 
-        function loadMountains() {
+        function loadMountains(selectedMountain = null) {
             const state = document.getElementById('state').value;
             const mountainSelect = document.getElementById('mountain');
             mountainSelect.innerHTML = '';
-            
+
             if (!state) {
                 mountainSelect.innerHTML = '<option value="">Select a state first</option>';
                 return;
             }
-            
+
             const mountains = MOUNTAINS[state] || [];
-            if (mountains.length === 0) {
-                mountainSelect.innerHTML = '<option value="">No mountains available</option>';
-                return;
-            }
-            
+
+            // Insert placeholder
+            const placeholder = document.createElement('option');
+            placeholder.value = "";
+            placeholder.text = "Choose one...";
+            placeholder.disabled = true;
+            placeholder.selected = true;
+            mountainSelect.appendChild(placeholder);
+
+            // Add mountains
             mountains.forEach(mountain => {
                 const option = document.createElement('option');
                 option.value = mountain;
                 option.text = mountain;
+
+                // Preserve selected mountain when editing a trip
+                if (selectedMountain && selectedMountain === mountain) {
+                    option.selected = true;
+                    placeholder.selected = false;
+                }
+
                 mountainSelect.appendChild(option);
             });
         }
@@ -217,8 +229,9 @@
         // Load mountains on page load if state is already selected
         document.addEventListener('DOMContentLoaded', () => {
             const state = document.getElementById('state').value;
+            const existingMountain = document.getElementById('mountain').getAttribute('data-existing');
             if (state) {
-                loadMountains();
+                loadMountains(existingMountain);
             }
         });
     </script>

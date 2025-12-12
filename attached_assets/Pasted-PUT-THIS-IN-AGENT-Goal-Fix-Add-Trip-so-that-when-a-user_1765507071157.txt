@@ -1,0 +1,87 @@
+PUT THIS IN AGENT
+
+Goal: Fix Add Trip so that when a user selects a state, the mountain dropdown defaults to “Choose one…” instead of auto-selecting the first mountain in the list.
+
+Modify templates/add_trip.html:
+
+------------------------------------------------------------
+1. UPDATE loadMountains() FUNCTION
+------------------------------------------------------------
+
+Replace the existing loadMountains() with:
+
+function loadMountains(selectedMountain = null) {
+    const state = document.getElementById('state').value;
+    const mountainSelect = document.getElementById('mountain');
+    mountainSelect.innerHTML = '';
+
+    if (!state) {
+        mountainSelect.innerHTML = '<option value="">Select a state first</option>';
+        return;
+    }
+
+    const mountains = MOUNTAINS[state] || [];
+
+    // Insert placeholder
+    const placeholder = document.createElement('option');
+    placeholder.value = "";
+    placeholder.text = "Choose one...";
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    mountainSelect.appendChild(placeholder);
+
+    // Add mountains
+    mountains.forEach(mountain => {
+        const option = document.createElement('option');
+        option.value = mountain;
+        option.text = mountain;
+
+        // Preserve selected mountain when editing a trip
+        if (selectedMountain && selectedMountain === mountain) {
+            option.selected = true;
+            placeholder.selected = false;
+        }
+
+        mountainSelect.appendChild(option);
+    });
+}
+
+------------------------------------------------------------
+2. UPDATE DOMContentLoaded TO PASS EXISTING MOUNTAIN
+------------------------------------------------------------
+
+Replace:
+
+document.addEventListener('DOMContentLoaded', () => {
+    const state = document.getElementById('state').value;
+    if (state) {
+        loadMountains();
+    }
+});
+
+WITH:
+
+document.addEventListener('DOMContentLoaded', () => {
+    const state = document.getElementById('state').value;
+    const existingMountain = document.getElementById('mountain').getAttribute('data-existing');
+    if (state) {
+        loadMountains(existingMountain);
+    }
+});
+
+------------------------------------------------------------
+3. MODIFY MOUNTAIN SELECT ELEMENT TO STORE EXISTING VALUE
+------------------------------------------------------------
+
+In the mountain <select> tag, add:
+
+data-existing="{{ mountain if editing else '' }}"
+
+Example:
+
+<select id="mountain" name="mountain" data-existing="{{ mountain }}">
+
+(Make sure your template already passes the correct variable.)
+
+------------------------------------------------------------
+END
