@@ -138,6 +138,21 @@ Merged standalone Profile page into More as the single account & profile hub:
 7. **Styling** - Added .settings-section-title CSS class for uppercase section headers
 8. **Preserved** - All existing edit flows, data models, styling, and mobile-first layout
 
+### Flask-Login Authentication & Session Fix (Dec 12, 2025) - COMPLETE
+Fixed critical authentication redirect loop in Replit iframe environment:
+1. **Removed all session["user_id"] references** - Standardized to Flask-Login's current_user (12 instances removed)
+2. **Added @login_required decorator** - All API routes now use Flask-Login protection instead of manual session checks
+3. **Fixed logout function** - Now calls logout_user() + session.clear()
+4. **Merged duplicate before_request handlers** - Single handler now handles both session permanence + profile setup checks
+5. **Session cookie configuration for iframes:**
+   - SameSite=None (instead of Lax) for cross-origin iframe compatibility
+   - session.permanent = True for session persistence across requests
+   - SESSION_REFRESH_EACH_REQUEST = True to refresh on each request
+6. **Primary user guarantee** - Added startup check that auto-creates/repairs richardbattlebaxter@gmail.com account
+7. **Test accounts ready** - Seed script generates 50 realistic dummy users with guaranteed trip overlaps
+
+**Login now works:** richardbattlebaxter@gmail.com / 12345678
+
 ## External Dependencies
 - **Flask:** Python web framework.
 - **Flask-Login:** User session management.

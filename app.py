@@ -15,10 +15,13 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
 # Session configuration for development
+# In Replit's iframe environment, we need relaxed cookie settings
 app.config['SESSION_COOKIE_SECURE'] = False  # Allow HTTP in development
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # More permissive for iframes
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Allow in iframes (requires sending with every request)
+app.config['SESSION_COOKIE_DOMAIN'] = None  # Let the browser handle domain
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['SESSION_REFRESH_EACH_REQUEST'] = True  # Refresh session on each request
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -29,8 +32,12 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 @app.before_request
-def require_profile_setup():
-    excluded_endpoints = {'auth', 'setup_profile', 'logout', 'static', 'invite_token_landing'}
+def before_request_handlers():
+    # Make sessions permanent for Replit iframe compatibility
+    session.permanent = True
+    
+    # Require profile setup for authenticated users
+    excluded_endpoints = {'auth', 'setup_profile', 'logout', 'static', 'invite_token_landing', 'test_login_direct'}
     if request.endpoint in excluded_endpoints:
         return None
     if current_user.is_authenticated:
