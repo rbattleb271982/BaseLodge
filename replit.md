@@ -39,6 +39,14 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 
 ## Recent Changes (Dec 12, 2025)
 
+### Friends List Redesign - COMPLETE ✅
+Redesigned Friends page with cleaner layout and pass-type filtering:
+1. **New 2-column inline layout** - Friend name on left, meta info (rider type, skill, pass) on right
+2. **Working pass-type filters** - All / Epic / Ikon / Other with URL-based filtering
+3. **Friend counts per category** - Each filter button shows count (e.g., "Epic (5)")
+4. **pass_category() helper** - Categorizes passes into Epic, Ikon, or Other groups
+5. **Clean CSS styles** - `.filter-row`, `.filter-btn`, `.friend-row`, `.friend-name`, `.friend-meta`
+
 ### Token-Based Invite System - COMPLETE ✅
 Replaced the old invite logic with a reusable token-based system:
 1. **Updated InviteToken model** - New fields: `inviter_id`, `used_at`, `max_uses` (0 = unlimited)

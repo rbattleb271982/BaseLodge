@@ -10,39 +10,54 @@
     <div class="page-container">
         <h1 class="page-title">Friends</h1>
         
-        {% if friends %}
-        <div class="chip-row">
-            <span class="bl-chip bl-chip-active" onclick="filterFriends('all')">All</span>
-            <span class="bl-chip" onclick="filterFriends('Epic')">Epic</span>
-            <span class="bl-chip" onclick="filterFriends('Ikon')">Ikon</span>
-            <span class="bl-chip" onclick="filterFriends('Other')">Other</span>
+        {% if count_all > 0 %}
+        <div class="filter-row">
+            <a href="{{ url_for('friends', filter='All') }}"
+               class="filter-btn {% if filter_type == 'All' %}active{% endif %}">
+               All ({{ count_all }})
+            </a>
+            <a href="{{ url_for('friends', filter='Epic') }}"
+               class="filter-btn {% if filter_type == 'Epic' %}active{% endif %}">
+               Epic ({{ count_epic }})
+            </a>
+            <a href="{{ url_for('friends', filter='Ikon') }}"
+               class="filter-btn {% if filter_type == 'Ikon' %}active{% endif %}">
+               Ikon ({{ count_ikon }})
+            </a>
+            <a href="{{ url_for('friends', filter='Other') }}"
+               class="filter-btn {% if filter_type == 'Other' %}active{% endif %}">
+               Other ({{ count_other }})
+            </a>
         </div>
         
         <div class="bl-card">
-            {% for friend_rel in friends %}
-            {% set friend = friend_rel.friend %}
-            <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; display: block;" class="friend-row-link" data-pass="{{ friend.pass_type or 'No Pass' }}">
-                <div class="friend-row" style="padding: var(--bl-space-4) 0; border-bottom: 1px solid var(--bl-color-border); font-size: 14px;">
-                    <div style="font-weight: 600; margin-bottom: 2px;">{{ friend.first_name }} {{ friend.last_name }}</div>
-                    <div style="font-size: 13px; color: var(--bl-color-text-muted);">{{ friend.rider_type or 'Skier' }} • {{ friend.pass_type or 'No Pass' }}</div>
+            {% for friend in friends %}
+            <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="friend-row-link">
+                <div class="friend-row">
+                    <div class="friend-name">{{ friend.first_name }} {{ friend.last_name }}</div>
+                    <div class="friend-meta">
+                        {{ friend.rider_type or '—' }} • {{ friend.skill_level or '—' }} • {{ friend.pass_type or 'No Pass' }}
+                    </div>
                 </div>
             </a>
             {% endfor %}
+            
+            {% if friends|length == 0 %}
+            <div style="padding: var(--bl-space-6); text-align: center; color: var(--bl-color-text-muted);">
+                No friends with this pass type
+            </div>
+            {% endif %}
         </div>
         
         {% else %}
         <div class="bl-card" style="text-align: center; padding: var(--bl-space-8);">
             <p class="bl-heading-m" style="margin-bottom: var(--bl-space-5);">No friends yet</p>
             <p class="bl-body" style="margin-bottom: var(--bl-space-6); color: var(--bl-color-text-muted);">Invite someone to get started planning together!</p>
-            <button class="bl-btn-primary" onclick="copyInviteLink()">Invite a Friend</button>
+            <a href="{{ url_for('invite') }}" class="bl-btn-primary" style="display: inline-block; text-decoration: none;">Invite a Friend</a>
         </div>
         {% endif %}
     </div>
     
     {% include 'components/bottom_nav.html' %}
-    
-    <script>
-        const currentUserId = {{ user.id }};
-    </script>
 </body>
 </html>

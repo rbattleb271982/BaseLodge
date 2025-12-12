@@ -621,6 +621,14 @@ def remove_friend(friend_id):
     
     return jsonify({"success": True, "message": "Friend removed"}), 200
 
+def pass_category(pass_type):
+    """Categorize pass type into Epic, Ikon, or Other."""
+    if pass_type in ["Epic", "Epic Local", "Epic Pass", "Epic 4-day"]:
+        return "Epic"
+    if pass_type in ["Ikon", "Ikon Base", "Ikon Plus", "Ikon Session"]:
+        return "Ikon"
+    return "Other"
+
 @app.route("/friends")
 @login_required
 def friends():
@@ -629,24 +637,38 @@ def friends():
     if not user.profile_setup_complete:
         return redirect(url_for("setup_profile"))
     
-    friends_list = Friend.query.filter_by(user_id=user.id).all()
-    friend_ids = [f.friend_id for f in friends_list]
+    filter_type = request.args.get("filter", "All")
     
-    friend_trips = {}
-    if friend_ids:
-        today = date.today()
-        trips = SkiTrip.query.filter(
-            SkiTrip.user_id.in_(friend_ids),
-            SkiTrip.start_date >= today,
-            SkiTrip.is_public == True
-        ).order_by(SkiTrip.start_date.asc()).all()
-        
-        for trip in trips:
-            if trip.user_id not in friend_trips:
-                friend_trips[trip.user_id] = []
-            friend_trips[trip.user_id].append(trip)
+    # Load friend relationships
+    friend_links = Friend.query.filter_by(user_id=user.id).all()
+    friend_ids = [f.friend_id for f in friend_links]
+    all_friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
     
-    return render_template("friends.html", user=user, friends=friends_list, friend_trips=friend_trips, state_abbr=STATE_ABBR)
+    # Categorize friends by pass type
+    epic_friends = [f for f in all_friends if pass_category(f.pass_type) == "Epic"]
+    ikon_friends = [f for f in all_friends if pass_category(f.pass_type) == "Ikon"]
+    other_friends = [f for f in all_friends if pass_category(f.pass_type) == "Other"]
+    
+    # Apply filter
+    if filter_type == "Epic":
+        friends_list = epic_friends
+    elif filter_type == "Ikon":
+        friends_list = ikon_friends
+    elif filter_type == "Other":
+        friends_list = other_friends
+    else:
+        friends_list = all_friends
+    
+    return render_template(
+        "friends.html",
+        user=user,
+        friends=friends_list,
+        count_all=len(all_friends),
+        count_epic=len(epic_friends),
+        count_ikon=len(ikon_friends),
+        count_other=len(other_friends),
+        filter_type=filter_type
+    )
 
 @app.route("/friends/<int:friend_id>")
 @login_required
