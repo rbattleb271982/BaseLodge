@@ -5,103 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Base Lodge - Invite Friends</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
-        .invite-container {
-            padding: var(--bl-space-8);
-            max-width: 500px;
-            margin: 0 auto;
-        }
-        
-        .invite-header {
-            text-align: center;
-            margin-bottom: var(--bl-space-8);
-        }
-        
-        .invite-title {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--bl-color-text);
-            margin-bottom: var(--bl-space-3);
-        }
-        
-        .invite-description {
-            font-size: 15px;
-            color: var(--bl-color-text-muted);
-            line-height: 1.6;
-            margin-bottom: var(--bl-space-8);
-        }
-        
-        .invite-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: var(--bl-space-5);
-            margin-bottom: var(--bl-space-8);
-        }
-        
-        .invite-btn {
-            padding: var(--bl-space-6) var(--bl-space-5);
-            border-radius: var(--bl-radius-lg);
-            border: none;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-align: center;
-            text-decoration: none;
-            display: block;
-        }
-        
-        .invite-btn-primary {
-            background: var(--bl-color-primary);
-            color: white;
-            box-shadow: var(--bl-shadow-soft);
-        }
-        
-        .invite-btn-primary:hover {
-            background: #720115;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        }
-        
-        .invite-btn-secondary {
-            background: white;
-            color: var(--bl-color-text);
-            border: 1px solid var(--bl-color-border);
-        }
-        
-        .invite-btn-secondary:hover {
-            background: var(--bl-color-bg);
-            border-color: var(--bl-color-text-muted);
-        }
-        
-        .qr-placeholder {
-            background: var(--bl-color-bg);
-            border: 2px dashed var(--bl-color-border);
-            border-radius: var(--bl-radius-md);
-            padding: var(--bl-space-8);
-            text-align: center;
-            color: var(--bl-color-text-muted);
-            font-size: 14px;
-            margin-top: var(--bl-space-6);
-        }
-    </style>
 </head>
 <body>
-    <div class="page-container">
-        <div class="invite-container">
-            <div class="invite-header">
-                <h1 class="invite-title">Invite a Friend</h1>
-            </div>
-            
-            <div class="invite-buttons">
-                <button id="copyInvite" class="invite-btn invite-btn-primary">Copy Invite Link</button>
-                <button id="shareInvite" class="invite-btn invite-btn-secondary">Share</button>
-            </div>
-            
-            <div class="invite-qr-section bl-card" style="background: white; padding: var(--bl-space-6); border-radius: var(--bl-radius-lg); border: 1px solid var(--bl-color-border); text-align: center;">
-                <h2 style="font-size: 16px; font-weight: 600; margin-bottom: var(--bl-space-5); color: var(--bl-color-text);">Invite via QR Code</h2>
-                <img src="{{ url_for('my_qr') }}" alt="Your QR Code" style="width: 260px; height: 260px; display: block; margin: 0 auto;">
-                <p style="font-size: 13px; color: var(--bl-color-text-muted); margin-top: var(--bl-space-4);">Scan with any camera or QR reader</p>
-            </div>
+    <div class="page-container" style="padding: 16px 16px 88px;">
+        <!-- Marker -->
+        <div style="background: #f0f0f0; padding: 8px 12px; border-radius: 6px; margin-bottom: 16px; font-size: 0.75rem; font-weight: 600; text-align: center; color: #666;">
+            INVITE TEMPLATE — UPDATED
+        </div>
+        
+        <!-- Page title -->
+        <h1 class="page-title" style="margin-bottom: 12px;">Invite a Friend</h1>
+        
+        <!-- Explanatory copy -->
+        <div style="background: var(--bl-color-surface); border-radius: 10px; padding: 14px; margin-bottom: 20px;">
+            <p style="font-size: 0.9rem; color: var(--bl-color-text-muted); line-height: 1.6; margin: 0;">
+                Invite friends to connect on Base Lodge. See when you're both free to ski, share trips, and track overlapping days together.
+            </p>
+        </div>
+        
+        <!-- Single primary CTA -->
+        <button id="copyInvite" style="width: 100%; padding: 14px 16px; background: var(--bl-color-primary); color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s ease; margin-bottom: 20px;">
+            Copy Invite Link
+        </button>
+        
+        <!-- Secondary QR section (smaller) -->
+        <div style="background: var(--bl-color-surface); border-radius: 10px; padding: 14px; text-align: center;">
+            <p style="font-size: 0.85rem; font-weight: 600; color: var(--bl-color-text); margin: 0 0 12px 0;">
+                Or share with QR code
+            </p>
+            <img src="{{ url_for('my_qr') }}" alt="Your QR Code" style="width: 140px; height: 140px; display: block; margin: 0 auto 8px;">
+            <p style="font-size: 0.75rem; color: var(--bl-color-text-muted); margin: 0;">
+                Scan with any camera
+            </p>
         </div>
     </div>
     
@@ -113,22 +48,15 @@
 
         document.getElementById("copyInvite").onclick = () => {
             navigator.clipboard.writeText(inviteUrl).then(() => {
-                alert("Invite link copied!");
+                const btn = document.getElementById("copyInvite");
+                const originalText = btn.textContent;
+                btn.textContent = "Copied!";
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
             }).catch(() => {
                 alert("Failed to copy link");
             });
-        };
-
-        document.getElementById("shareInvite").onclick = async () => {
-            if (navigator.share) {
-                await navigator.share({
-                    title: `You've been invited by ${firstName}`,
-                    text: `${firstName} invited you to Base Lodge to see when you can hit the slopes together — join now!`,
-                    url: inviteUrl,
-                });
-            } else {
-                alert("Sharing not supported on this device.");
-            }
         };
     </script>
 </body>
