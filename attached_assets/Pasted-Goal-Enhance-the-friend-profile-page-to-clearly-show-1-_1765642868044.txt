@@ -1,0 +1,76 @@
+Goal: Enhance the friend profile page to clearly show (1) trip overlaps and (2) shared open availability, using clean inline UI and exact date-overlap logic (Option 1.5). Availability matching is allowed anywhere (not location-restricted).
+PART 1 — Trip overlap highlighting (existing trips)
+On the friend profile page, identify the list of the friend’s upcoming trips.
+For each friend trip, determine whether it overlaps with any of the current user’s trips using this logic:
+Same resort
+Date overlap where:
+friend_trip.start_date <= my_trip.end_date
+AND
+friend_trip.end_date >= my_trip.start_date
+Dates are inclusive.
+If a trip overlap exists:
+Mark that trip row as has_trip_overlap = true
+Visually highlight the trip row (subtle background or border)
+Add a small inline line under the trip title that reads:
+Both attending
+If no overlap exists, render the trip normally.
+Do NOT mix availability logic into trip rows.
+PART 2 — Availability overlap computation (Option 1.5)
+Retrieve open availability date ranges for:
+The current user
+The friend
+Each availability entry has:
+start_date
+end_date
+Compute exact availability overlaps anywhere, using this algorithm:
+For each current-user open range
+For each friend open range
+overlap_start = max(my.start_date, friend.start_date)
+overlap_end   = min(my.end_date, friend.end_date)
+
+if overlap_start <= overlap_end:
+    add overlap range
+Dates are inclusive.
+No location matching is applied.
+PART 3 — Merge & normalize availability overlaps
+Sort all overlap ranges by start_date.
+Merge overlapping or adjacent ranges:
+If a range starts on or before the previous range’s end_date + 1 day, merge them into a single continuous range.
+The result should be a clean list of non-overlapping availability ranges.
+PART 4 — Apply Option 1.5 display rules
+From the merged availability ranges:
+Keep up to 2 ranges for display.
+If more than 2 exist, compute:
+remaining_count = total_ranges - 2
+Expose the following to the template:
+has_availability_overlap (boolean)
+availability_ranges_to_display (list, max 2)
+availability_remaining_count (integer)
+PART 5 — Friend profile UI rendering
+On the friend profile page, below the “Upcoming trips” section, conditionally render a new inline section only if has_availability_overlap is true.
+Render exactly in this format:
+When you’re both open
+Feb 15–Feb 18 · Mar 08–Mar 12 (+1 more)
+Rules:
+Use exact date ranges.
+Separate multiple ranges with a middle dot (·).
+Only show (+X more) if availability_remaining_count > 0.
+Keep text inline, muted, and calm.
+Do NOT render calendars, modals, badges, or icons.
+PART 6 — Constraints (important)
+Do NOT:
+Modify the database schema
+Add new tables or columns
+Change how trips or availability are stored
+Restrict availability by location
+Add new UI components beyond inline text
+Ensure:
+All database access occurs inside request context
+No logic runs at import time
+Code is production-safe for deployment
+EXPECTED RESULT
+Trip overlaps are clearly highlighted inline with Both attending
+Shared availability is shown as exact, grouped date ranges
+Trips and availability are semantically distinct
+UI remains clean, inline, and scannable
+Logic is deterministic and future-proof
