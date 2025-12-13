@@ -23,10 +23,10 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
 # Session configuration for development
-# In Replit's iframe environment, we need relaxed cookie settings
+# In Replit's iframe environment, use 'Lax' for SAMESITE to allow cookies in iframe while maintaining security
 app.config['SESSION_COOKIE_SECURE'] = False  # Allow HTTP in development
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Allow in iframes (requires sending with every request)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Works with HTTP and allows iframe context
 app.config['SESSION_COOKIE_DOMAIN'] = None  # Let the browser handle domain
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config['SESSION_REFRESH_EACH_REQUEST'] = True  # Refresh session on each request
@@ -37,7 +37,7 @@ login_manager.login_view = "auth"
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 @app.before_request
 def before_request_handlers():
