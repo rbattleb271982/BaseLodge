@@ -152,22 +152,36 @@ def normalize_rider_type(rider_type):
         return "Skier"
     return rider_type
 
-# Make normalize_rider_type available to Jinja2 templates
-app.jinja_env.globals['normalize_rider_type'] = normalize_rider_type
-
-PASS_OPTIONS = [
-    "Epic",
-    "Epic & Ikon",
-    "Epic 4-day",
-    "Epic Local",
-    "Ikon",
-    "Ikon Base",
-    "Ikon Plus",
-    "Ikon Session",
-    "Loveland",
-    "No Pass",
-    "Other"
+CANONICAL_PASSES = [
+    "Epic Pass",
+    "Ikon Pass",
+    "Mountain Collective",
+    "Indy Pass",
+    "Powder Alliance",
+    "Freedom Pass",
+    "Ski California Pass",
+    "Mountain Passport",
+    "White Mountain Superpass",
+    "Rocky Mountain Super Pass",
+    "New York Ski Pass",
+    "Other",
+    "None"
 ]
+
+def get_sorted_passes():
+    """Return passes sorted: Epic, Ikon, others (alphabetical), Other, None"""
+    epic = [p for p in CANONICAL_PASSES if p == "Epic Pass"]
+    ikon = [p for p in CANONICAL_PASSES if p == "Ikon Pass"]
+    middle = sorted([p for p in CANONICAL_PASSES if p not in ["Epic Pass", "Ikon Pass", "Other", "None"]])
+    other = [p for p in CANONICAL_PASSES if p == "Other"]
+    none = [p for p in CANONICAL_PASSES if p == "None"]
+    return epic + ikon + middle + other + none
+
+PASS_OPTIONS = get_sorted_passes()
+
+# Make functions available to Jinja2 templates
+app.jinja_env.globals['normalize_rider_type'] = normalize_rider_type
+app.jinja_env.globals['get_sorted_passes'] = get_sorted_passes
 
 MOUNTAINS_BY_STATE = {
     "CO": sorted(["Vail", "Breckenridge", "Keystone", "Copper Mountain", "Arapahoe Basin", "Loveland", "Winter Park", "Steamboat", "Aspen Snowmass", "Telluride", "Crested Butte", "Eldora"]),
