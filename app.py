@@ -74,16 +74,25 @@ migrate = Migrate(app, db)
 app.register_blueprint(debug_bp)
 
 def get_or_create_invite_token(user):
-    """Get existing invite token for user or create a new one."""
+    """Get existing valid invite token for user or create a new one."""
+    # Look for existing non-expired, non-fully-used token
     existing = InviteToken.query.filter_by(inviter_id=user.id).first()
-    if existing:
+    if existing and not existing.is_expired() and not existing.is_fully_used():
         return existing
     
+    # Create new token with 7-day expiration
     token = secrets.token_urlsafe(16)
-    invite = InviteToken(token=token, inviter_id=user.id)
+    expires_at = datetime.utcnow() + timedelta(days=7)
+    invite = InviteToken(token=token, inviter_id=user.id, expires_at=expires_at, max_uses=5, uses_count=0)
     db.session.add(invite)
     db.session.commit()
     return invite
+
+def can_sender_accept_more_invites(user):
+    """Check if sender can accept more invites (hasn't reached limit)."""
+    total = getattr(user, 'total_invite_accepts', 0) or 0
+    max_accepts = getattr(user, 'max_invite_accepts', 10) or 10
+    return total < max_accepts
 
 def count_friends_open_on_same_dates(user):
     """Count UNIQUE friends who have open dates overlapping with the current user.
@@ -300,9 +309,26 @@ def auth():
 def _connect_pending_inviter(user):
     """Helper to connect user with pending inviter from session."""
     inviter_id = session.get("pending_inviter_id")
+    invite_token_id = session.get("pending_invite_token_id")
+    
     if inviter_id and inviter_id != user.id:
         inviter = User.query.get(inviter_id)
+        invite_token = InviteToken.query.get(invite_token_id) if invite_token_id else None
+        
         if inviter:
+            # Check sender limits
+            if not can_sender_accept_more_invites(inviter):
+                session.pop("pending_inviter_id", None)
+                session.pop("pending_invite_token_id", None)
+                return
+            
+            # Check token limits if token exists
+            if invite_token:
+                if invite_token.is_expired() or invite_token.is_fully_used():
+                    session.pop("pending_inviter_id", None)
+                    session.pop("pending_invite_token_id", None)
+                    return
+            
             # Check if already friends
             existing = Friend.query.filter(
                 db.or_(
@@ -311,17 +337,23 @@ def _connect_pending_inviter(user):
                 )
             ).first()
             if not existing:
+                # Create bidirectional connection
                 f1 = Friend(user_id=user.id, friend_id=inviter.id)
                 f2 = Friend(user_id=inviter.id, friend_id=user.id)
                 db.session.add_all([f1, f2])
                 
-                # Update invite token used_at timestamp
-                invite_token = InviteToken.query.filter_by(inviter_id=inviter.id).first()
+                # Update invite token usage counts
                 if invite_token:
+                    invite_token.uses_count = (invite_token.uses_count or 0) + 1
                     invite_token.used_at = datetime.utcnow()
                 
+                # Increment sender's total accepts
+                inviter.total_invite_accepts = (inviter.total_invite_accepts or 0) + 1
+                
                 db.session.commit()
+        
         session.pop("pending_inviter_id", None)
+        session.pop("pending_invite_token_id", None)
 
 
 @app.route("/r/<token>")
@@ -329,32 +361,57 @@ def invite_token_landing(token):
     """Landing page for invite token links."""
     invite = InviteToken.query.filter_by(token=token).first()
 
+    # Token doesn't exist
     if not invite:
-        return render_template("invite_invalid.html")
+        return render_template("invite_invalid.html", message="This invite is no longer valid.")
+
+    # Token expired
+    if invite.is_expired():
+        return render_template("invite_invalid.html", message="This invite is no longer valid.")
+
+    # Token fully used (5 accepts)
+    if invite.is_fully_used():
+        return render_template("invite_invalid.html", message="This invite has already been fully used. Ask your friend to send you a new one.")
 
     inviter = invite.inviter
     if not inviter:
-        return render_template("invite_invalid.html")
+        return render_template("invite_invalid.html", message="This invite is no longer valid.")
 
-    # Store inviter in session so auth flow can use it
+    # Sender has reached max invite accepts (10 total)
+    if not can_sender_accept_more_invites(inviter):
+        return render_template("invite_invalid.html", message="This user has reached their invite limit for now.")
+
+    # Store inviter and token in session so auth flow can use it
     session["pending_inviter_id"] = inviter.id
+    session["pending_invite_token_id"] = invite.id
 
     # If user is already logged in, connect immediately
     if current_user.is_authenticated and current_user.id != inviter.id:
+        # Check if already friends
         existing = Friend.query.filter(
             db.or_(
                 db.and_(Friend.user_id == current_user.id, Friend.friend_id == inviter.id),
                 db.and_(Friend.user_id == inviter.id, Friend.friend_id == current_user.id),
             )
         ).first()
-        if not existing:
-            f1 = Friend(user_id=current_user.id, friend_id=inviter.id)
-            f2 = Friend(user_id=inviter.id, friend_id=current_user.id)
-            db.session.add_all([f1, f2])
-            # Update invite token used_at timestamp
-            invite.used_at = datetime.utcnow()
-            db.session.commit()
+        if existing:
+            session.pop("pending_inviter_id", None)
+            session.pop("pending_invite_token_id", None)
+            return render_template("already_friends.html", friend=inviter)
+        
+        # Create bidirectional connection
+        f1 = Friend(user_id=current_user.id, friend_id=inviter.id)
+        f2 = Friend(user_id=inviter.id, friend_id=current_user.id)
+        db.session.add_all([f1, f2])
+        
+        # Increment usage counts
+        invite.uses_count = (invite.uses_count or 0) + 1
+        invite.used_at = datetime.utcnow()
+        inviter.total_invite_accepts = (inviter.total_invite_accepts or 0) + 1
+        
+        db.session.commit()
         session.pop("pending_inviter_id", None)
+        session.pop("pending_invite_token_id", None)
         return redirect(url_for("friends"))
 
     # Otherwise render the landing page for signup / login
@@ -838,9 +895,19 @@ def create_trip_page():
 @app.route("/invite")
 @login_required
 def invite():
+    # Check if user has reached their invite accept limit
+    if not can_sender_accept_more_invites(current_user):
+        return render_template("invite_limit_reached.html", user=current_user)
+    
     invite_token = get_or_create_invite_token(current_user)
     invite_url = url_for("invite_token_landing", token=invite_token.token, _external=True)
-    return render_template("invite.html", user=current_user, invite_url=invite_url)
+    
+    # Calculate remaining invites
+    total_accepts = getattr(current_user, 'total_invite_accepts', 0) or 0
+    max_accepts = getattr(current_user, 'max_invite_accepts', 10) or 10
+    remaining_invites = max(0, max_accepts - total_accepts)
+    
+    return render_template("invite.html", user=current_user, invite_url=invite_url, remaining_invites=remaining_invites)
 
 @app.route("/my-qr")
 @login_required

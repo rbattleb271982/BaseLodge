@@ -22,6 +22,8 @@ class User(UserMixin, db.Model):
     home_mountain = db.Column(db.String(100), nullable=True)
     mountains_visited = db.Column(db.JSON, default=list)
     open_dates = db.Column(db.JSON, default=list)  # List of YYYY-MM-DD strings
+    total_invite_accepts = db.Column(db.Integer, default=0)  # Count of accepted invites
+    max_invite_accepts = db.Column(db.Integer, default=10)  # Early phase limit
     
     trips = db.relationship('SkiTrip', backref='user', lazy=True)
     friend_requests_sent = db.relationship('Invitation', foreign_keys='Invitation.sender_id', backref='sender', lazy=True)
@@ -102,9 +104,21 @@ class InviteToken(db.Model):
     inviter_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     used_at = db.Column(db.DateTime, nullable=True)
-    max_uses = db.Column(db.Integer, default=0)  # 0 = unlimited uses
+    max_uses = db.Column(db.Integer, default=5)  # Max 5 accepts per token
+    uses_count = db.Column(db.Integer, default=0)  # Current usage count
+    expires_at = db.Column(db.DateTime, nullable=True)  # Token expiration
 
     inviter = db.relationship("User", backref="invite_tokens")
+
+    def is_expired(self):
+        """Check if token has expired."""
+        if self.expires_at is None:
+            return False
+        return datetime.utcnow() > self.expires_at
+
+    def is_fully_used(self):
+        """Check if token has reached max uses."""
+        return self.uses_count >= self.max_uses
 
     def __repr__(self):
         return f'<InviteToken {self.token[:8]}... by user {self.inviter_id}>'
