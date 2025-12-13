@@ -98,6 +98,66 @@
             color: var(--bl-color-text);
         }
         
+        .pass-pills {
+            display: flex;
+            gap: 12px;
+            margin-bottom: var(--bl-space-4);
+        }
+        
+        .pass-pill {
+            flex: 1;
+            background: #F7F4EF;
+            border: 2px solid transparent;
+            padding: 14px 16px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--bl-color-text);
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        
+        .pass-pill.active {
+            background: var(--bl-color-primary);
+            color: #FFFFFF;
+            border-color: var(--bl-color-primary);
+        }
+        
+        .pass-pill:not(.active):hover {
+            border-color: var(--bl-color-primary);
+        }
+        
+        .pass-dropdown-section {
+            margin-top: var(--bl-space-4);
+        }
+        
+        .pass-dropdown-label {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin-bottom: var(--bl-space-2);
+        }
+        
+        .pass-dropdown {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 15px;
+            border: 1px solid var(--bl-color-border);
+            border-radius: 10px;
+            background: var(--bl-color-surface);
+            color: var(--bl-color-text);
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+        }
+        
+        .pass-dropdown:focus {
+            outline: none;
+            border-color: var(--bl-color-primary);
+        }
+        
         .form-submit {
             width: 100%;
             margin-top: var(--bl-space-6);
@@ -137,11 +197,27 @@
                 </div>
                 
                 <div class="setup-section">
-                    <label class="setup-label">My pass type</label>
-                    <div class="segmented-control wrap" id="pass-control">
-                        {% for pass_option in get_sorted_passes() %}
-                        <button type="button" class="segment-btn" data-value="{{ pass_option }}">{{ pass_option }}</button>
-                        {% endfor %}
+                    <label class="setup-label">Which pass do you ski on?</label>
+                    <div class="pass-pills" id="pass-pills">
+                        <button type="button" class="pass-pill" data-value="Epic Pass">Epic Pass</button>
+                        <button type="button" class="pass-pill" data-value="Ikon Pass">Ikon Pass</button>
+                    </div>
+                    <div class="pass-dropdown-section">
+                        <p class="pass-dropdown-label">Or choose another pass</p>
+                        <select class="pass-dropdown" id="pass-dropdown">
+                            <option value="">Select your pass</option>
+                            <option value="Freedom Pass">Freedom Pass</option>
+                            <option value="Indy Pass">Indy Pass</option>
+                            <option value="Mountain Collective">Mountain Collective</option>
+                            <option value="Mountain Passport">Mountain Passport</option>
+                            <option value="New York Ski Pass">New York Ski Pass</option>
+                            <option value="Powder Alliance">Powder Alliance</option>
+                            <option value="Rocky Mountain Super Pass">Rocky Mountain Super Pass</option>
+                            <option value="Ski California Pass">Ski California Pass</option>
+                            <option value="White Mountain Superpass">White Mountain Superpass</option>
+                            <option value="Other">Other</option>
+                            <option value="None">None</option>
+                        </select>
                     </div>
                     <input type="hidden" name="pass_type" id="pass_type" value="">
                 </div>
@@ -155,7 +231,8 @@
     
     <script>
         const riderControl = document.getElementById('rider-control');
-        const passControl = document.getElementById('pass-control');
+        const passPills = document.getElementById('pass-pills');
+        const passDropdown = document.getElementById('pass-dropdown');
         const riderInput = document.getElementById('rider_type');
         const passInput = document.getElementById('pass_type');
         const continueBtn = document.getElementById('continue-btn');
@@ -168,6 +245,14 @@
             }
         }
         
+        function clearPillSelection() {
+            passPills.querySelectorAll('.pass-pill').forEach(p => p.classList.remove('active'));
+        }
+        
+        function clearDropdownSelection() {
+            passDropdown.value = '';
+        }
+        
         riderControl.querySelectorAll('.segment-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 riderControl.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
@@ -177,13 +262,24 @@
             });
         });
         
-        passControl.querySelectorAll('.segment-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                passControl.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                passInput.value = btn.dataset.value;
+        passPills.querySelectorAll('.pass-pill').forEach(pill => {
+            pill.addEventListener('click', () => {
+                clearPillSelection();
+                clearDropdownSelection();
+                pill.classList.add('active');
+                passInput.value = pill.dataset.value;
                 updateContinueButton();
             });
+        });
+        
+        passDropdown.addEventListener('change', () => {
+            if (passDropdown.value) {
+                clearPillSelection();
+                passInput.value = passDropdown.value;
+            } else {
+                passInput.value = '';
+            }
+            updateContinueButton();
         });
     </script>
 </body>
