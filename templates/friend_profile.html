@@ -85,9 +85,14 @@
         {% if trips %}
             <div class="bl-card">
                 {% for trip in trips %}
-                <div class="bl-trip-row">
-                    {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} — 
-                    {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }} {{ trip.state }}{% endif %}
+                <div class="bl-trip-row" {% if trip.has_trip_overlap %}style="background-color: rgba(143, 1, 27, 0.05); border-left: 3px solid #8F011B;"{% endif %}>
+                    <div>
+                        {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} — 
+                        {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }} {{ trip.state }}{% endif %}
+                    </div>
+                    {% if trip.has_trip_overlap %}
+                    <div style="font-size: 0.85rem; color: #8F011B; margin-top: 4px; font-weight: 500;">Both attending</div>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
@@ -95,6 +100,15 @@
             <div class="bl-card" style="text-align: center; padding: var(--bl-space-8);">
                 <p class="bl-body">No upcoming public trips.</p>
             </div>
+        {% endif %}
+        
+        {% if has_availability_overlap %}
+        <h2 class="page-title" style="margin-top: var(--bl-space-8); margin-bottom: var(--bl-space-4);">When you're both open</h2>
+        <div class="bl-card" style="padding: 12px;">
+            <p style="font-size: 0.9rem; color: var(--bl-color-text-muted); margin: 0;">
+                {{ availability_display }}{% if availability_remaining > 0 %} (+{{ availability_remaining }} more){% endif %}
+            </p>
+        </div>
         {% endif %}
     </div>
     

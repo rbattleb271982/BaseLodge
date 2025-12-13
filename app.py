@@ -693,12 +693,16 @@ def friends():
 @login_required
 def friend_profile(friend_id):
     friend = User.query.get_or_404(friend_id)
+    user = current_user
     
     mountains = friend.mountains_visited or []
     friend_mountains_count = len(mountains)
     friend_mountains_sorted = sorted([m.name if hasattr(m, 'name') else m for m in mountains])
     
     today = date.today()
+    today_str = today.strftime('%Y-%m-%d')
+    
+    # Get friend's trips
     trips = (
         SkiTrip.query
         .filter_by(user_id=friend.id, is_public=True)
@@ -707,11 +711,34 @@ def friend_profile(friend_id):
         .all()
     )
     
+    # Get current user's trips (for overlap detection)
+    user_trips = (
+        SkiTrip.query
+        .filter_by(user_id=user.id)
+        .filter(SkiTrip.end_date >= today)
+        .all()
+    )
+    
+    # Mark trip overlaps (same mountain + date overlap)
+    for trip in trips:
+        trip.has_trip_overlap = False
+        for user_trip in user_trips:
+            if trip.mountain == user_trip.mountain:
+                if date_ranges_overlap(trip.start_date, trip.end_date, user_trip.start_date, user_trip.end_date):
+                    trip.has_trip_overlap = True
+                    break
+    
     # Get friend's open dates from JSON field (filter to future dates only)
-    today_str = today.strftime('%Y-%m-%d')
     friend_open_dates_raw = friend.open_dates or []
     friend_open_dates = sorted([d for d in friend_open_dates_raw if d >= today_str])
     friend_open_dates_display = format_open_dates_summary(friend_open_dates) if friend_open_dates else None
+    
+    # Compute availability overlaps
+    user_open_dates_raw = user.open_dates or []
+    user_open_dates = sorted([d for d in user_open_dates_raw if d >= today_str])
+    
+    availability_overlaps = compute_availability_overlaps(user_open_dates, friend_open_dates)
+    availability_display, availability_remaining = format_availability_ranges(availability_overlaps)
     
     return render_template(
         "friend_profile.html",
@@ -720,7 +747,10 @@ def friend_profile(friend_id):
         friend_mountains=friend_mountains_sorted,
         trips=trips,
         friend_open_dates=friend_open_dates,
-        friend_open_dates_display=friend_open_dates_display
+        friend_open_dates_display=friend_open_dates_display,
+        has_availability_overlap=len(availability_overlaps) > 0,
+        availability_display=availability_display,
+        availability_remaining=availability_remaining
     )
 
 @app.route("/profile/<int:user_id>")
@@ -907,6 +937,100 @@ def format_open_dates_summary(date_strings):
                 formatted.append(f"{start}–{end_full}")
     
     return ', '.join(formatted)
+
+def dates_to_ranges(date_strings):
+    """Convert a list of YYYY-MM-DD strings to a list of {start_date, end_date} dicts.
+    Groups consecutive dates into ranges.
+    E.g., ['2024-12-14', '2024-12-15', '2024-12-16'] -> [{start_date: date(2024-12-14), end_date: date(2024-12-16)}]
+    """
+    if not date_strings:
+        return []
+    
+    from datetime import datetime as dt
+    
+    # Parse and sort dates
+    dates = sorted([dt.strptime(d, '%Y-%m-%d').date() for d in date_strings])
+    
+    # Group consecutive dates
+    ranges = []
+    current_start = dates[0]
+    current_end = dates[0]
+    
+    for i in range(1, len(dates)):
+        if (dates[i] - current_end).days == 1:
+            current_end = dates[i]
+        else:
+            ranges.append({"start_date": current_start, "end_date": current_end})
+            current_start = dates[i]
+            current_end = dates[i]
+    
+    ranges.append({"start_date": current_start, "end_date": current_end})
+    return ranges
+
+def compute_availability_overlaps(user_open_dates, friend_open_dates):
+    """Compute overlapping date ranges between user and friend's open dates.
+    Returns list of {start_date, end_date} dicts representing overlap ranges.
+    Uses exact overlap logic: overlap_start = max(...), overlap_end = min(...).
+    Then merges overlapping/adjacent ranges.
+    """
+    if not user_open_dates or not friend_open_dates:
+        return []
+    
+    # Convert individual dates to ranges
+    user_ranges = dates_to_ranges(user_open_dates)
+    friend_ranges = dates_to_ranges(friend_open_dates)
+    
+    # Find all overlaps
+    overlaps = []
+    for user_r in user_ranges:
+        for friend_r in friend_ranges:
+            overlap_start = max(user_r["start_date"], friend_r["start_date"])
+            overlap_end = min(user_r["end_date"], friend_r["end_date"])
+            
+            if overlap_start <= overlap_end:
+                overlaps.append({"start_date": overlap_start, "end_date": overlap_end})
+    
+    if not overlaps:
+        return []
+    
+    # Sort by start_date
+    overlaps = sorted(overlaps, key=lambda x: x["start_date"])
+    
+    # Merge overlapping/adjacent ranges
+    merged = [overlaps[0]]
+    for current in overlaps[1:]:
+        last = merged[-1]
+        # Check if current overlaps or is adjacent to last (within 1 day)
+        if current["start_date"] <= last["end_date"] + timedelta(days=1):
+            # Merge
+            last["end_date"] = max(last["end_date"], current["end_date"])
+        else:
+            # No overlap, add as new range
+            merged.append(current)
+    
+    return merged
+
+def format_availability_ranges(ranges):
+    """Format a list of {start_date, end_date} dicts for display.
+    E.g., [{start: date(2024-12-14), end: date(2024-12-19)}] -> 'Dec 14–19'
+    """
+    if not ranges:
+        return None, 0
+    
+    formatted = []
+    for r in ranges[:2]:  # Only display first 2
+        start_str = r["start_date"].strftime('%b %d').replace(' 0', ' ')
+        end_str = r["end_date"].strftime('%d').lstrip('0')
+        
+        # If same month, just show "Dec 14–19"
+        if r["start_date"].month == r["end_date"].month:
+            formatted.append(f"{start_str}–{end_str}")
+        else:
+            end_full = r["end_date"].strftime('%b %d').replace(' 0', ' ')
+            formatted.append(f"{start_str}–{end_full}")
+    
+    remaining_count = max(0, len(ranges) - 2)
+    return ' · '.join(formatted), remaining_count
 
 @app.route("/home")
 @login_required
