@@ -144,7 +144,16 @@ STATE_ABBR = {
     "Wyoming": "WY"
 }
 
-RIDER_TYPES = ["Skier", "Snowboarder", "Both", "Other"]
+RIDER_TYPES = ["Skier", "Snowboarder", "Telemarking", "Snowshoeing", "Adaptive", "Other"]
+
+def normalize_rider_type(rider_type):
+    """Map 'Both' to 'Skier' for display. All other values pass through."""
+    if rider_type == "Both":
+        return "Skier"
+    return rider_type
+
+# Make normalize_rider_type available to Jinja2 templates
+app.jinja_env.globals['normalize_rider_type'] = normalize_rider_type
 
 PASS_OPTIONS = [
     "Epic",
