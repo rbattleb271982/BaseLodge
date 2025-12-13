@@ -74,11 +74,19 @@ migrate = Migrate(app, db)
 app.register_blueprint(debug_bp)
 
 def get_or_create_invite_token(user):
-    """Get existing valid invite token for user or create a new one."""
-    # Look for existing non-expired, non-fully-used token
-    existing = InviteToken.query.filter_by(inviter_id=user.id).first()
-    if existing and not existing.is_expired() and not existing.is_fully_used():
-        return existing
+    """Get existing valid invite token for user or create a new one.
+    
+    Returns None if user has reached their max invite accepts limit.
+    """
+    # Check if user can still accept more invites
+    if not can_sender_accept_more_invites(user):
+        return None
+    
+    # Look for existing valid token (most recent first)
+    existing = InviteToken.query.filter_by(inviter_id=user.id).order_by(InviteToken.created_at.desc()).all()
+    for token_obj in existing:
+        if not token_obj.is_expired() and not token_obj.is_fully_used():
+            return token_obj
     
     # Create new token with 7-day expiration
     token = secrets.token_urlsafe(16)
@@ -913,6 +921,8 @@ def invite():
 @login_required
 def my_qr():
     invite_token = get_or_create_invite_token(current_user)
+    if not invite_token:
+        return render_template("invite_limit_reached.html", user=current_user)
     qr_url = url_for("invite_token_landing", token=invite_token.token, _external=True)
     qr = segno.make(qr_url)
     buf = BytesIO()
