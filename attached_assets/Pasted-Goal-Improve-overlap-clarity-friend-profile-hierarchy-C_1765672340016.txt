@@ -1,0 +1,87 @@
+Goal: Improve overlap clarity, friend profile hierarchy, CTAs, grouping language, and guardrails across the app — without adding new features or data models.
+PART 1 — Overlap grouping language (global rule)
+Introduce simple grouping language that summarizes overlap, but only when overlap actually exists.
+Use grouping language in all relevant locations:
+Friend profile
+Open Availability tab
+Trip detail pages
+Home screen
+Never show grouping language if there is no overlap.
+Language examples (use these patterns):
+You and Alex overlap Feb 10–13
+3 friends open this weekend
+You overlap with 2 friends on these dates
+Tone should be friendly but direct (not conversational, not robotic).
+PART 2 — Friend profile visual hierarchy (critical)
+On a friend’s profile, apply the following hierarchy:
+If overlap exists:
+Render a visually distinct overlap banner at the very top of the profile.
+The banner must include:
+Overlap summary text (dates)
+A primary CTA button:
+Create a trip
+Example structure:
+[Overlap Banner]
+You and Alex overlap Feb 10–13
+[ Create a trip ]
+This overlap banner should interrupt the normal profile flow (highlighted container, icon, or visual separation).
+Below the overlap banner, render the rest of the profile normally:
+Upcoming trips
+Availability
+Equipment
+Other info
+If no overlap exists:
+Do NOT show any banner.
+Do NOT show placeholder or “no overlap” messaging.
+Profile renders normally with no emphasis.
+PART 3 — CTAs (decisive behavior)
+Whenever overlap exists (on any screen), always show a CTA:
+Create a trip
+Do NOT:
+Hide the CTA because a trip already exists
+Use alternative language (“Plan a trip”, “Add trip”)
+Add secondary CTAs
+PART 4 — Open Availability tab
+At the top of the Open Availability tab, when applicable, show grouping language such as:
+3 friends open this weekend
+Below this summary, list the individual friends normally.
+If no friends overlap:
+Do nothing
+Do not show empty-state encouragement
+Do not add guidance copy
+PART 5 — Trip detail pages
+On trip detail pages, if overlap exists with friends:
+Show grouping language near the trip header
+Include the same primary CTA:
+Create a trip
+If no overlap exists:
+Do not display grouping language
+Do not display CTAs
+PART 6 — Home screen summary
+On the Home screen, if any overlap exists across the user’s network:
+Show a lightweight summary such as:
+You have overlapping dates with 4 friends this month
+Do NOT show this summary if overlap does not exist.
+PART 7 — Equipment guardrail (edge case handling)
+If a user changes their rider/activity type after having selected an Equipment brand:
+Show a soft inline prompt:
+Your equipment may need updating
+Allow the user to update it
+Do NOT auto-clear without informing the user
+PART 8 — Explicit non-goals (do NOT implement)
+Do NOT:
+Add new data models or tables
+Add notifications or push messages
+Add reminders for stale availability
+Add profile completeness meters
+Add new screens
+Add new filters
+Add rental language
+Add additional CTAs
+Add empty-state nudges where none exist
+EXPECTED RESULT
+Overlap becomes the primary organizing signal across the app
+Friend profiles immediately surface “actionable togetherness”
+CTAs feel decisive, not timid
+UI stays quiet when nothing is relevant
+No scope creep, no new logic, no data migrations
