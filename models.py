@@ -22,8 +22,6 @@ class User(UserMixin, db.Model):
     home_mountain = db.Column(db.String(100), nullable=True)
     mountains_visited = db.Column(db.JSON, default=list)
     open_dates = db.Column(db.JSON, default=list)  # List of YYYY-MM-DD strings
-    total_invite_accepts = db.Column(db.Integer, default=0)  # Count of accepted invites
-    max_invite_accepts = db.Column(db.Integer, default=10)  # Early phase limit
     
     trips = db.relationship('SkiTrip', backref='user', lazy=True)
     friend_requests_sent = db.relationship('Invitation', foreign_keys='Invitation.sender_id', backref='sender', lazy=True)

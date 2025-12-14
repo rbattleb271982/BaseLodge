@@ -97,10 +97,8 @@ def get_or_create_invite_token(user):
     return invite
 
 def can_sender_accept_more_invites(user):
-    """Check if sender can accept more invites (hasn't reached limit)."""
-    total = getattr(user, 'total_invite_accepts', 0) or 0
-    max_accepts = getattr(user, 'max_invite_accepts', 10) or 10
-    return total < max_accepts
+    """Check if sender can accept more invites. Always returns True since invite limits are removed."""
+    return True
 
 def count_friends_open_on_same_dates(user):
     """Count UNIQUE friends who have open dates overlapping with the current user.
@@ -355,9 +353,6 @@ def _connect_pending_inviter(user):
                     invite_token.uses_count = (invite_token.uses_count or 0) + 1
                     invite_token.used_at = datetime.utcnow()
                 
-                # Increment sender's total accepts
-                inviter.total_invite_accepts = (inviter.total_invite_accepts or 0) + 1
-                
                 db.session.commit()
         
         session.pop("pending_inviter_id", None)
@@ -415,7 +410,6 @@ def invite_token_landing(token):
         # Increment usage counts
         invite.uses_count = (invite.uses_count or 0) + 1
         invite.used_at = datetime.utcnow()
-        inviter.total_invite_accepts = (inviter.total_invite_accepts or 0) + 1
         
         db.session.commit()
         session.pop("pending_inviter_id", None)
@@ -910,12 +904,7 @@ def invite():
     invite_token = get_or_create_invite_token(current_user)
     invite_url = url_for("invite_token_landing", token=invite_token.token, _external=True)
     
-    # Calculate remaining invites
-    total_accepts = getattr(current_user, 'total_invite_accepts', 0) or 0
-    max_accepts = getattr(current_user, 'max_invite_accepts', 10) or 10
-    remaining_invites = max(0, max_accepts - total_accepts)
-    
-    return render_template("invite.html", user=current_user, invite_url=invite_url, remaining_invites=remaining_invites)
+    return render_template("invite.html", user=current_user, invite_url=invite_url, remaining_invites=None)
 
 @app.route("/my-qr")
 @login_required
