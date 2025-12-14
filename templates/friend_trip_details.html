@@ -72,6 +72,25 @@
         </div>
         {% endif %}
         
+        {% if friends_open_on_trip and friends_open_on_trip|length > 0 %}
+        <div style="margin-top: 16px; background: linear-gradient(135deg, rgba(143, 1, 27, 0.08), rgba(143, 1, 27, 0.04)); border: 1px solid rgba(143, 1, 27, 0.2); border-radius: 12px; padding: 16px;">
+            <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 8px 0; color: #8F011B;">
+                {{ friends_open_on_trip|length }} friend{% if friends_open_on_trip|length != 1 %}s{% endif %} open during this trip
+            </p>
+            <div style="margin-bottom: 12px;">
+                {% for f in friends_open_on_trip[:5] %}
+                <a href="{{ url_for('friend_profile', friend_id=f.id) }}" style="font-size: 0.85rem; color: var(--bl-color-text); text-decoration: none; display: block; padding: 4px 0;">
+                    {{ f.name }}{% if f.pass_type %} · {{ f.pass_type }}{% endif %}
+                </a>
+                {% endfor %}
+                {% if friends_open_on_trip|length > 5 %}
+                <p style="font-size: 0.8rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">+{{ friends_open_on_trip|length - 5 }} more</p>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="display: inline-block; text-decoration: none; padding: 10px 20px; font-size: 0.9rem;">Create a trip</a>
+        </div>
+        {% endif %}
+        
         <div style="margin-top: var(--bl-space-8);">
             <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="bl-btn-secondary" style="display: block; text-align: center; text-decoration: none;">
                 View {{ friend.first_name }}'s Profile

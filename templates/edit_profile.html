@@ -71,6 +71,21 @@
         .equipment-section.visible {
             display: block;
         }
+        
+        .equipment-warning {
+            display: none;
+            font-size: 13px;
+            color: #B8860B;
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: #FFF8DC;
+            border-radius: 8px;
+            border: 1px solid #F0E68C;
+        }
+        
+        .equipment-warning.visible {
+            display: block;
+        }
     </style>
 </head>
 
@@ -142,6 +157,9 @@
             <select name="gear" id="equipment-dropdown" class="bl-select">
                 <option value="">Select your equipment brand</option>
             </select>
+            <div id="equipment-warning" class="equipment-warning">
+                Your equipment may need updating for your new rider type.
+            </div>
         </div>
 
         <div class="form-section">
@@ -228,6 +246,7 @@ const adaptiveBrands = ['Atomic', 'Black Crows', 'Blizzard', 'Burton', 'Capita',
 
 const equipmentSection = document.getElementById('equipment-section');
 const equipmentDropdown = document.getElementById('equipment-dropdown');
+const equipmentWarning = document.getElementById('equipment-warning');
 const gearHidden = document.getElementById('gear_hidden');
 const riderTypeInput = document.getElementById('rider_type');
 const currentGear = "{{ current_user.gear or '' }}";
@@ -243,13 +262,13 @@ function getBrandsForRiderType(riderType) {
     return null;
 }
 
-function updateEquipmentDropdown(riderType, preserveValue) {
+function updateEquipmentDropdown(riderType, preserveValue, showWarningIfMismatch = false) {
     const brands = getBrandsForRiderType(riderType);
     
     if (!brands) {
         equipmentSection.classList.remove('visible');
         equipmentDropdown.innerHTML = '<option value="">Select your equipment brand</option>';
-        gearHidden.value = '';
+        equipmentWarning.classList.remove('visible');
         return;
     }
     
@@ -264,8 +283,14 @@ function updateEquipmentDropdown(riderType, preserveValue) {
     
     if (preserveValue && brands.includes(preserveValue)) {
         gearHidden.value = preserveValue;
+        equipmentWarning.classList.remove('visible');
     } else if (preserveValue && !brands.includes(preserveValue)) {
-        gearHidden.value = '';
+        gearHidden.value = preserveValue;
+        if (showWarningIfMismatch) {
+            equipmentWarning.classList.add('visible');
+        }
+    } else {
+        equipmentWarning.classList.remove('visible');
     }
 }
 
@@ -273,6 +298,7 @@ updateEquipmentDropdown(riderTypeInput.value, currentGear);
 
 equipmentDropdown.addEventListener('change', () => {
     gearHidden.value = equipmentDropdown.value;
+    equipmentWarning.classList.remove('visible');
 });
 
 document.querySelectorAll("#rider-type-group .chip").forEach(chip => {
@@ -282,13 +308,8 @@ document.querySelectorAll("#rider-type-group .chip").forEach(chip => {
         const newRiderType = chip.dataset.value;
         riderTypeInput.value = newRiderType;
         
-        const brands = getBrandsForRiderType(newRiderType);
         const currentValue = gearHidden.value;
-        if (brands && brands.includes(currentValue)) {
-            updateEquipmentDropdown(newRiderType, currentValue);
-        } else {
-            updateEquipmentDropdown(newRiderType, '');
-        }
+        updateEquipmentDropdown(newRiderType, currentValue, true);
     });
 });
 

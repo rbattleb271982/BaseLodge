@@ -162,6 +162,25 @@
         </div>
         
         <div id="tab-open" class="bl-trip-list" {% if active_tab != 'open' %}style="display: none;"{% endif %}>
+            {% if open_date_matches and open_date_matches|length > 0 %}
+            <div style="background: linear-gradient(135deg, rgba(143, 1, 27, 0.08), rgba(143, 1, 27, 0.04)); border: 1px solid rgba(143, 1, 27, 0.2); border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+                {% set total_friends = [] %}
+                {% for match in open_date_matches %}
+                    {% for f in match.friends %}
+                        {% if f.id not in total_friends %}
+                            {% set _ = total_friends.append(f.id) %}
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+                <p style="font-size: 0.95rem; font-weight: 600; margin: 0; color: #8F011B;">
+                    {{ total_friends|length }} friend{% if total_friends|length != 1 %}s{% endif %} open on your dates
+                </p>
+                <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">
+                    Tap a day below to see who's available
+                </p>
+            </div>
+            {% endif %}
+            
             <!-- User's open dates summary -->
             {% if user_open_dates and user_open_dates|length > 0 %}
             <a href="{{ url_for('add_open_dates') }}" style="text-decoration: none; color: inherit; display: block; margin-bottom: 16px; padding: 12px; background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; cursor: pointer; transition: background-color 0.2s ease, box-shadow 0.2s ease;" onmouseover="this.style.backgroundColor='var(--bl-color-border-soft)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.04)';" onmouseout="this.style.backgroundColor='var(--bl-color-surface)'; this.style.boxShadow='none';">

@@ -10,6 +10,16 @@
     <div class="page-container">
         <h1 class="page-title">{{ friend.first_name }} {{ friend.last_name }}</h1>
         
+        {% if has_availability_overlap %}
+        <div style="background: linear-gradient(135deg, rgba(143, 1, 27, 0.08), rgba(143, 1, 27, 0.04)); border: 1px solid rgba(143, 1, 27, 0.2); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+            <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 6px 0; color: #8F011B;">You're both open!</p>
+            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0 0 12px 0;">
+                {{ availability_display }}{% if availability_remaining > 0 %} (+{{ availability_remaining }} more){% endif %}
+            </p>
+            <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="display: inline-block; text-decoration: none; padding: 10px 20px; font-size: 0.9rem;">Create a trip</a>
+        </div>
+        {% endif %}
+        
         <section class="settings-section">
             
             <div class="settings-row">
