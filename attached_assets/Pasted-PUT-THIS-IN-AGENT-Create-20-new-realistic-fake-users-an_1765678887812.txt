@@ -1,0 +1,75 @@
+PUT THIS IN AGENT
+Create 20 new realistic fake users and connect each of them as friends with ALL THREE of the following existing users:
+richardbattlebaxter@gmail.com
+jonathanmschmitz@gmail.com
+samstookes@gmail.com
+Each new user should appear as a fully completed, realistic profile in the app.
+Requirements
+1) Users to create
+Create 20 new users with:
+first_name, last_name (simple, realistic names)
+email (unique, realistic fake emails)
+password_hash (use the same hashing method used elsewhere in the app)
+profile_setup_complete = True
+⚠️ Do not overwrite or modify existing users.
+2) Fully populate all profile fields
+For every new user, fill in all currently supported profile fields with realistic variation:
+rider_type
+One of: Skier, Snowboarder, Telemarking, Snowshoeing, Adaptive, Other
+pass_type
+One of:
+Epic, Ikon, Indy Pass, Mountain Collective, Powder Alliance, Freedom Pass, Ski California Pass, Other, None
+skill_level
+Beginner, Intermediate, Advanced, or Expert
+home_state
+Valid 2-letter US state codes, distributed across multiple states
+home_mountain
+A realistic resort name OR a valid existing Resort row (match how the app currently stores this field)
+gender
+Use only values currently supported by the app UI
+birth_year
+Reasonable range (e.g., 1970–2004)
+open_dates
+Populate 3–8 future dates per user, spread over the next ~90 days
+Store using the app’s existing JSON array-of-date-strings format
+mountains_visited
+Populate realistically
+Match the app’s existing storage method (JSON field or relationship table)
+equipment_brand
+Populate for most users (e.g., Volkl, Rossignol, Salomon, Burton, K2, Atomic)
+Leave a few users unset/null to test the “Add Equipment” empty state
+3) Create friend connections (bidirectional)
+For each new user, create friendships with:
+Richard
+Jonathan
+Sam
+Ensure:
+Friendships are bidirectional if required by the data model
+No duplicate Friend rows are created
+Existing connections are detected and skipped safely
+4) Script structure
+Create a new script file:
+scripts/seed_more_users.py
+The script must:
+Run inside the Flask app context
+Be idempotent (safe to run multiple times)
+Use email uniqueness to prevent duplicates
+5) Output / logging
+At the end of the script, print a clear summary:
+Created users: X
+Existing users skipped: Y
+Friend connections added: Z
+6) How it should be run
+The script should be executable via:
+python scripts/seed_more_users.py
+No routes should be added.
+No database schema changes should be made.
+7) Final QA checklist
+After running the script, verify:
+Richard, Jonathan, and Sam each have +20 new friends
+Each new user:
+Appears in friend lists
+Has a complete profile (rider type, pass type, skill level, home state)
+Shows equipment where applicable
+Has open availability dates visible in the Open Availability tab
+Only use checkpoints if I explicitly ask for them.
