@@ -29,6 +29,17 @@
                     <a href="{{ url_for('more') }}" style="text-decoration: none; color: var(--bl-color-text-muted); cursor: pointer; border-bottom: 1px dotted var(--bl-color-text-muted); transition: color 0.2s ease;" onmouseover="this.style.color='var(--bl-color-primary)'" onmouseout="this.style.color='var(--bl-color-text-muted)'">Skill level TBD →</a>
                 {% endif %}
             </div>
+            {% if user.gear and user.gear != 'None' %}
+            <div style="font-size:0.9rem;margin-bottom:10px;color:var(--bl-color-text);">
+                <span>Equipment</span>
+                <span>•</span>
+                <span>{{ user.gear }}</span>
+            </div>
+            {% elif user.rider_type %}
+            <div style="margin-bottom:10px;">
+                <a href="{{ url_for('edit_profile') }}" style="font-size:0.9rem;text-decoration:none;color:var(--bl-color-primary);font-weight:500;">Add Equipment</a>
+            </div>
+            {% endif %}
             <div style="display: flex; gap: 16px; flex-wrap: wrap;">
                 <p style="font-size:0.9rem;font-weight:500;margin:0;">
                     {{ upcoming_trips|length }} upcoming trip{% if upcoming_trips|length != 1 %}s{% endif %}
