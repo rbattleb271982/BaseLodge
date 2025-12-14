@@ -63,6 +63,14 @@
             outline: none;
             border-color: var(--bl-color-primary);
         }
+        
+        .equipment-section {
+            display: none;
+        }
+        
+        .equipment-section.visible {
+            display: block;
+        }
     </style>
 </head>
 
@@ -94,7 +102,7 @@
 
         <div class="form-section">
             <label class="form-label">Rider Type</label>
-            <div class="chip-group">
+            <div class="chip-group" id="rider-type-group">
                 {% for rt in rider_types %}
                 <div class="chip {% if normalize_rider_type(current_user.rider_type) == rt %}selected{% endif %}"
                      data-value="{{ rt }}">
@@ -127,6 +135,13 @@
                     <option value="None" {% if current_user.pass_type == 'None' %}selected{% endif %}>None</option>
                 </select>
             </div>
+        </div>
+
+        <div class="form-section equipment-section" id="equipment-section">
+            <label class="form-label">Equipment</label>
+            <select name="gear" id="equipment-dropdown" class="bl-select">
+                <option value="">Select your equipment brand</option>
+            </select>
         </div>
 
         <div class="form-section">
@@ -183,11 +198,6 @@
             </div>
         </div>
 
-        <div class="form-section">
-            <label class="form-label">Gear</label>
-            <div class="readonly-field muted">Coming soon</div>
-        </div>
-
         <form method="POST" action="{{ url_for('edit_profile') }}" id="editProfileForm">
             <input type="hidden" name="rider_type" id="rider_type" value="{{ current_user.rider_type or '' }}">
             <input type="hidden" name="pass_type" id="pass_type" value="{{ current_user.pass_type or '' }}">
@@ -196,6 +206,7 @@
             <input type="hidden" name="birth_year" id="birth_year" value="{{ current_user.birth_year or '' }}">
             <input type="hidden" name="home_state" id="home_state" value="{{ current_user.home_state or '' }}">
             <input type="hidden" name="home_mountain" id="home_mountain_hidden" value="{{ current_user.home_mountain or '' }}">
+            <input type="hidden" name="gear" id="gear_hidden" value="{{ current_user.gear or '' }}">
         </form>
 
         <button type="submit" form="editProfileForm" class="bl-button-primary" style="margin-top: var(--bl-space-4);">
@@ -211,27 +222,95 @@
 {% include 'components/bottom_nav.html' %}
 
 <script>
-document.querySelectorAll(".chip-group .chip").forEach(chip => {
+const skiBrands = ['Atomic', 'Black Crows', 'Blizzard', 'Dynafit', 'Elan', 'Fischer', 'Head', 'K2', 'Line', 'Nordica', 'Rossignol', 'Salomon', 'Volkl', 'Other'];
+const snowboardBrands = ['Burton', 'Capita', 'GNU', 'Jones', 'K2', 'Lib Tech', 'Never Summer', 'Ride', 'Salomon', 'Yes.', 'Other'];
+const adaptiveBrands = ['Atomic', 'Black Crows', 'Blizzard', 'Burton', 'Capita', 'Dynafit', 'Elan', 'Fischer', 'GNU', 'Head', 'Jones', 'K2', 'Lib Tech', 'Line', 'Never Summer', 'Nordica', 'Ride', 'Rossignol', 'Salomon', 'Volkl', 'Yes.', 'Other'];
+
+const equipmentSection = document.getElementById('equipment-section');
+const equipmentDropdown = document.getElementById('equipment-dropdown');
+const gearHidden = document.getElementById('gear_hidden');
+const riderTypeInput = document.getElementById('rider_type');
+const currentGear = "{{ current_user.gear or '' }}";
+
+function getBrandsForRiderType(riderType) {
+    if (riderType === 'Skier' || riderType === 'Telemarking') {
+        return skiBrands;
+    } else if (riderType === 'Snowboarder') {
+        return snowboardBrands;
+    } else if (riderType === 'Adaptive') {
+        return adaptiveBrands;
+    }
+    return null;
+}
+
+function updateEquipmentDropdown(riderType, preserveValue) {
+    const brands = getBrandsForRiderType(riderType);
+    
+    if (!brands) {
+        equipmentSection.classList.remove('visible');
+        equipmentDropdown.innerHTML = '<option value="">Select your equipment brand</option>';
+        gearHidden.value = '';
+        return;
+    }
+    
+    equipmentSection.classList.add('visible');
+    
+    let html = '<option value="">Select your equipment brand</option>';
+    brands.forEach(brand => {
+        const selected = (preserveValue === brand) ? ' selected' : '';
+        html += `<option value="${brand}"${selected}>${brand}</option>`;
+    });
+    equipmentDropdown.innerHTML = html;
+    
+    if (preserveValue && brands.includes(preserveValue)) {
+        gearHidden.value = preserveValue;
+    } else if (preserveValue && !brands.includes(preserveValue)) {
+        gearHidden.value = '';
+    }
+}
+
+updateEquipmentDropdown(riderTypeInput.value, currentGear);
+
+equipmentDropdown.addEventListener('change', () => {
+    gearHidden.value = equipmentDropdown.value;
+});
+
+document.querySelectorAll("#rider-type-group .chip").forEach(chip => {
     chip.addEventListener("click", () => {
         chip.parentElement.querySelectorAll(".chip").forEach(c => c.classList.remove("selected"));
         chip.classList.add("selected");
+        const newRiderType = chip.dataset.value;
+        riderTypeInput.value = newRiderType;
+        
+        const brands = getBrandsForRiderType(newRiderType);
+        const currentValue = gearHidden.value;
+        if (brands && brands.includes(currentValue)) {
+            updateEquipmentDropdown(newRiderType, currentValue);
+        } else {
+            updateEquipmentDropdown(newRiderType, '');
+        }
+    });
+});
 
-        let fieldName = chip.parentElement.previousElementSibling.innerText.includes("Rider")
-                        ? "rider_type"
-                        : "skill_level";
-
-        document.querySelector("input[name='" + fieldName + "']").value = chip.dataset.value;
+document.querySelectorAll(".chip-group:not(#rider-type-group) .chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+        chip.parentElement.querySelectorAll(".chip").forEach(c => c.classList.remove("selected"));
+        chip.classList.add("selected");
+        document.getElementById('skill_level').value = chip.dataset.value;
     });
 });
 
 document.querySelectorAll(".bl-select").forEach(select => {
     select.addEventListener("change", () => {
-        const hiddenInputId = select.id === "home_mountain" ? "home_mountain_hidden" : "input[name='" + select.name + "']";
-        const hiddenInput = select.id === "home_mountain" 
-            ? document.getElementById(hiddenInputId)
-            : document.querySelector("input[name='" + select.name + "']");
-        if (hiddenInput) {
-            hiddenInput.value = select.value;
+        if (select.id === "home_mountain") {
+            document.getElementById('home_mountain_hidden').value = select.value;
+        } else if (select.id === "equipment-dropdown") {
+            return;
+        } else if (select.name) {
+            const hiddenInput = document.querySelector("input[name='" + select.name + "']");
+            if (hiddenInput) {
+                hiddenInput.value = select.value;
+            }
         }
     });
 });
