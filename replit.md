@@ -28,7 +28,7 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **User Profile:** Comprehensive profiles storing rider type, pass type, skill level, home state, birth year, gender, gear, and mountains visited. The profile is consolidated into the "More" screen.
 - **Trip Management:** Users can create ski trips with state-to-mountain linking, date selection, and `is_public` toggles. Trips are displayed in a 3-tab interface (My Trips, Friends' Trips, Overlaps) with trip duration displayed on cards.
 - **Friends System:** Invitation-based, bidirectional friendships with dedicated friend profile pages showing public trip information. Secure token-based invites via `/invite/<token>` and QR codes are supported, with personalized invite messages.
-- **Pass Selection:** A dedicated screen (`/select-pass`) with search, grouped pass lists (Major, Regional, Other), and a dismissible "Choose your pass" card on the Home screen, including a simplified onboarding pass selection.
+- **Pass Selection:** Epic and Ikon as quick-select buttons storing values "Epic" and "Ikon", with an "Other passes" dropdown containing: Freedom Pass, Indy Pass, Mountain Collective, Powder Alliance, Ski California Pass, Other, None. Pass selection is required during onboarding.
 - **Navigation:** A consistent 4-tab bottom navigation (Home, Friends, Invite, More) provides access to core features.
 - **Open Dates:** A "Phase 1" feature allowing users to mark available ski dates using a calendar-based selection, stored as a JSON array on the User model. This is separate from trips and enables matching with friends' availability. Backend service: `services/open_dates.py` with `get_open_date_matches(current_user)` function. Debug endpoint: `/open-data-debug`.
 
