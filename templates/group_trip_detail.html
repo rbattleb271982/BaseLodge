@@ -14,15 +14,53 @@
             <div style="font-size: 0.95rem; margin-bottom: 12px;">
                 <strong>{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d, %Y') }}</strong>
             </div>
-            {% if trip.accommodation_status %}
-            <div style="font-size: 0.9rem; margin-bottom: 6px; color: var(--bl-color-text-muted);">
-                Accommodation: {{ trip.accommodation_status.value }}
-            </div>
-            {% endif %}
-            {% if trip.transportation_status %}
-            <div style="font-size: 0.9rem; color: var(--bl-color-text-muted);">
-                Transportation: {{ trip.transportation_status.value }}
-            </div>
+            
+            {% if is_host %}
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 0.85rem; color: var(--bl-color-text-muted); display: block; margin-bottom: 4px;">Accommodation</label>
+                    <select id="accommodation-select" class="bl-select" style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border-soft); border-radius: 8px;">
+                        <option value="">Not set</option>
+                        <option value="booked" {% if trip.accommodation_status and trip.accommodation_status.value == 'booked' %}selected{% endif %}>🏨 Booked</option>
+                        <option value="not_yet" {% if trip.accommodation_status and trip.accommodation_status.value == 'not_yet' %}selected{% endif %}>🕒 Not yet</option>
+                        <option value="staying_with_friends" {% if trip.accommodation_status and trip.accommodation_status.value == 'staying_with_friends' %}selected{% endif %}>🏠 Staying with friends</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 0.85rem; color: var(--bl-color-text-muted); display: block; margin-bottom: 4px;">Transportation</label>
+                    <select id="transportation-select" class="bl-select" style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border-soft); border-radius: 8px;">
+                        <option value="">Not set</option>
+                        <option value="have_transport" {% if trip.transportation_status and trip.transportation_status.value == 'have_transport' %}selected{% endif %}>🚗 Have transportation</option>
+                        <option value="need_transport" {% if trip.transportation_status and trip.transportation_status.value == 'need_transport' %}selected{% endif %}>🙋 Need transportation</option>
+                        <option value="not_sure" {% if trip.transportation_status and trip.transportation_status.value == 'not_sure' %}selected{% endif %}>❓ Not sure yet</option>
+                    </select>
+                </div>
+            {% else %}
+                <div style="margin-bottom: 12px;">
+                    <div style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin-bottom: 4px;">Accommodation</div>
+                    <div style="font-size: 0.95rem;">
+                        {% if trip.accommodation_status %}
+                            {% if trip.accommodation_status.value == 'booked' %}🏨 Booked
+                            {% elif trip.accommodation_status.value == 'not_yet' %}🕒 Not yet
+                            {% elif trip.accommodation_status.value == 'staying_with_friends' %}🏠 Staying with friends
+                            {% endif %}
+                        {% else %}
+                            Not set
+                        {% endif %}
+                    </div>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <div style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin-bottom: 4px;">Transportation</div>
+                    <div style="font-size: 0.95rem;">
+                        {% if trip.transportation_status %}
+                            {% if trip.transportation_status.value == 'have_transport' %}🚗 Have transportation
+                            {% elif trip.transportation_status.value == 'need_transport' %}🙋 Need transportation
+                            {% elif trip.transportation_status.value == 'not_sure' %}❓ Not sure yet
+                            {% endif %}
+                        {% else %}
+                            Not set
+                        {% endif %}
+                    </div>
+                </div>
             {% endif %}
         </div>
         
@@ -71,5 +109,38 @@
     </div>
     
     {% include 'components/bottom_nav.html' %}
+    
+    {% if is_host %}
+    <script>
+        const accommodationSelect = document.getElementById('accommodation-select');
+        const transportationSelect = document.getElementById('transportation-select');
+        
+        accommodationSelect.addEventListener('change', () => {
+            fetch('{{ url_for("update_group_trip_accommodation", trip_id=trip.id) }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accommodation_status: accommodationSelect.value })
+            }).then(r => r.json()).then(data => {
+                if (!data.success) {
+                    alert('Error: ' + data.error);
+                    location.reload();
+                }
+            });
+        });
+        
+        transportationSelect.addEventListener('change', () => {
+            fetch('{{ url_for("update_group_trip_transportation", trip_id=trip.id) }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transportation_status: transportationSelect.value })
+            }).then(r => r.json()).then(data => {
+                if (!data.success) {
+                    alert('Error: ' + data.error);
+                    location.reload();
+                }
+            });
+        });
+    </script>
+    {% endif %}
 </body>
 </html>

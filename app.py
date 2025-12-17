@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps
 from flask_migrate import Migrate
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus
 from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
 from io import BytesIO
@@ -465,10 +465,12 @@ def edit_profile():
         db.session.commit()
         return redirect(url_for("more"))
     
+    primary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.PRIMARY).first()
+    secondary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.SECONDARY).first()
     friends_count = Friend.query.filter_by(user_id=user.id).count()
     states = sorted(MOUNTAINS_BY_STATE.keys())
     
-    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS, rider_types=RIDER_TYPES, states=states)
+    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS, rider_types=RIDER_TYPES, states=states, primary_equipment=primary_equipment, secondary_equipment=secondary_equipment)
 
 @app.route("/my-trips")
 @login_required
@@ -2494,6 +2496,101 @@ def connect_from_trip(user_id):
     
     flash(f"Connected with {user_to_connect.first_name}!", "success")
     return redirect(url_for("friend_profile", friend_id=user_id))
+
+
+# ============================================================================
+# Equipment & GroupTrip Status Management
+# ============================================================================
+
+@app.route("/profile/equipment", methods=["POST"])
+@login_required
+def save_equipment():
+    """Save or update equipment setup (Primary/Secondary)."""
+    data = request.get_json()
+    
+    slot_name = data.get("slot", "").upper()  # "PRIMARY" or "SECONDARY"
+    discipline_name = data.get("discipline", "").upper()  # "SKIER" or "SNOWBOARDER"
+    brand = data.get("brand", "").strip()
+    length_cm = data.get("length_cm")
+    width_mm = data.get("width_mm")
+    
+    # Validate
+    if not brand or slot_name not in ["PRIMARY", "SECONDARY"] or discipline_name not in ["SKIER", "SNOWBOARDER"]:
+        return jsonify({"success": False, "error": "Invalid input"}), 400
+    
+    # Convert to enums
+    try:
+        slot = EquipmentSlot[slot_name]
+        discipline = EquipmentDiscipline[discipline_name]
+    except KeyError:
+        return jsonify({"success": False, "error": "Invalid slot or discipline"}), 400
+    
+    # Find or create equipment
+    equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=slot).first()
+    if not equipment:
+        equipment = EquipmentSetup(user_id=current_user.id, slot=slot)
+    
+    equipment.discipline = discipline
+    equipment.brand = brand
+    equipment.length_cm = int(length_cm) if length_cm else None
+    equipment.width_mm = int(width_mm) if width_mm else None
+    
+    db.session.add(equipment)
+    db.session.commit()
+    
+    return jsonify({"success": True, "message": f"{slot.value} equipment saved"})
+
+
+@app.route("/group-trip/<int:trip_id>/accommodation", methods=["POST"])
+@login_required
+def update_group_trip_accommodation(trip_id):
+    """Update accommodation status (host-only)."""
+    trip = GroupTrip.query.get_or_404(trip_id)
+    
+    if trip.host_id != current_user.id:
+        return jsonify({"success": False, "error": "Only host can update"}), 403
+    
+    data = request.get_json()
+    status_name = data.get("accommodation_status", "").upper()
+    
+    if status_name == "":
+        trip.accommodation_status = None
+    elif status_name in ["BOOKED", "NOT_YET", "STAYING_WITH_FRIENDS"]:
+        try:
+            trip.accommodation_status = AccommodationStatus[status_name]
+        except KeyError:
+            return jsonify({"success": False, "error": "Invalid status"}), 400
+    else:
+        return jsonify({"success": False, "error": "Invalid status"}), 400
+    
+    db.session.commit()
+    return jsonify({"success": True})
+
+
+@app.route("/group-trip/<int:trip_id>/transportation", methods=["POST"])
+@login_required
+def update_group_trip_transportation(trip_id):
+    """Update transportation status (host-only)."""
+    trip = GroupTrip.query.get_or_404(trip_id)
+    
+    if trip.host_id != current_user.id:
+        return jsonify({"success": False, "error": "Only host can update"}), 403
+    
+    data = request.get_json()
+    status_name = data.get("transportation_status", "").upper()
+    
+    if status_name == "":
+        trip.transportation_status = None
+    elif status_name in ["HAVE_TRANSPORT", "NEED_TRANSPORT", "NOT_SURE"]:
+        try:
+            trip.transportation_status = TransportationStatus[status_name]
+        except KeyError:
+            return jsonify({"success": False, "error": "Invalid status"}), 400
+    else:
+        return jsonify({"success": False, "error": "Invalid status"}), 400
+    
+    db.session.commit()
+    return jsonify({"success": True})
 
 
 if __name__ == "__main__":

@@ -51,6 +51,22 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
   - Shared-trip Connect button: Shows on friend profile when users share accepted upcoming GroupTrip and aren't already friends
   - Permissions: All host actions (invite, remove guest) return 403 if non-host attempts them
   - Routes: `/group-trip/<id>` (view), `/group-trip/<id>/invite` (POST), `/group-trip/<id>/accept` (POST), `/group-trip/<id>/leave` (POST), `/group-trip/<id>/remove-guest/<guest_id>` (POST), `/connect-from-trip/<user_id>` (POST)
+
+- **Equipment, Accommodation & Transportation UI (Step 3 - Dec 2025):**
+  - **Equipment**: Profile edit page allows add/edit Primary and Secondary setups (Discipline, Brand, Length, Width)
+    - Route: POST `/profile/equipment` - Save or update equipment (user-only permission)
+    - Displays on edit_profile.html with separate sections for Primary and Secondary
+    - Validates length and width as positive integers
+    - Max one primary + one secondary per user
+  - **Accommodation Status**: GroupTrip detail page shows editable selector for host (read-only badges for guests)
+    - Route: POST `/group-trip/<id>/accommodation` - Update status (host-only, returns 403 for non-hosts)
+    - Values: Booked, Not yet, Staying with friends
+    - Icons: 🏨 🕒 🏠
+  - **Transportation Status**: GroupTrip detail page shows editable selector for host (read-only badges for guests)
+    - Route: POST `/group-trip/<id>/transportation` - Update status (host-only, returns 403 for non-hosts)
+    - Values: Have transportation, Need transportation, Not sure yet
+    - Icons: 🚗 🙋 ❓
+  - Permissions: Profile owner edits equipment; host-only edits accommodation/transportation
 - **Authentication:** Flask-Login is fully integrated for session management, replacing manual session handling, and configured for cross-origin iframe compatibility.
 
 ## Test Users (Main)
