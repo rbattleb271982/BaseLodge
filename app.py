@@ -628,12 +628,18 @@ def delete_trip(trip_id):
 @app.route("/api/friends/invite", methods=["POST"])
 @login_required
 def invite_friend():
-    data = request.get_json()
+    # Authentication guard (already protected by @login_required)
+    if not current_user.is_authenticated:
+        abort(401)
+    
+    # Safe form data handling
+    data = request.get_json() or {}
     friend_email = data.get("friend_email")
     
     if not friend_email:
         return jsonify({"success": False, "error": "Friend email is required"}), 400
     
+    # Validate target user exists
     friend = User.query.filter_by(email=friend_email).first()
     if not friend:
         return jsonify({"success": False, "error": "User not found"}), 404
@@ -641,17 +647,25 @@ def invite_friend():
     if friend.id == current_user.id:
         return jsonify({"success": False, "error": "Cannot add yourself as a friend"}), 400
     
+    # Prevent duplicate friendships
     existing_friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=friend.id).first()
     if existing_friendship:
         return jsonify({"success": False, "error": "Already friends"}), 409
     
+    # Prevent duplicate invites
     existing_invitation = Invitation.query.filter_by(sender_id=current_user.id, receiver_id=friend.id, status='pending').first()
     if existing_invitation:
         return jsonify({"success": False, "error": "Invitation already sent"}), 409
     
-    invitation = Invitation(sender_id=current_user.id, receiver_id=friend.id, status='pending')
-    db.session.add(invitation)
-    db.session.commit()
+    # Database write safety
+    try:
+        invitation = Invitation(sender_id=current_user.id, receiver_id=friend.id, status='pending')
+        db.session.add(invitation)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("Invite failed")
+        return jsonify({"success": False, "error": "Invite failed"}), 500
     
     return jsonify({"success": True, "message": "Invitation sent"}), 201
 
@@ -2417,34 +2431,51 @@ def view_group_trip(trip_id):
 @login_required
 def invite_to_group_trip(trip_id):
     """Host invites a friend to GroupTrip."""
+    # Authentication guard (already protected by @login_required)
+    if not current_user.is_authenticated:
+        abort(401)
+    
+    # Validate trip exists
     trip = GroupTrip.query.get_or_404(trip_id)
     
-    # Only host can invite
+    # Permission check: only host can invite
     if trip.host_id != current_user.id:
-        return abort(403)
+        abort(403)
     
+    # Safe form data handling
     friend_id = request.form.get("friend_id", type=int)
     if not friend_id:
         flash("No friend selected.", "error")
         return redirect(url_for("view_group_trip", trip_id=trip_id))
     
-    # Check if friend exists and is a friend
-    friend = User.query.get_or_404(friend_id)
+    # Validate target user exists
+    friend = User.query.get(friend_id)
+    if not friend:
+        flash("User not found.", "error")
+        return redirect(url_for("view_group_trip", trip_id=trip_id))
+    
+    # Check if user is actually a friend
     is_friend = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
     if not is_friend:
         flash("User is not in your friends list.", "error")
         return redirect(url_for("view_group_trip", trip_id=trip_id))
     
-    # Check if already invited/joined
+    # Prevent duplicate invites
     existing = TripGuest.query.filter_by(trip_id=trip_id, user_id=friend_id).first()
     if existing:
         flash(f"{friend.first_name} is already invited.", "error")
         return redirect(url_for("view_group_trip", trip_id=trip_id))
     
-    # Create invite
-    guest = TripGuest(trip_id=trip_id, user_id=friend_id, status=GuestStatus.INVITED)
-    db.session.add(guest)
-    db.session.commit()
+    # Database write safety
+    try:
+        guest = TripGuest(trip_id=trip_id, user_id=friend_id, status=GuestStatus.INVITED)
+        db.session.add(guest)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("Invite to group trip failed")
+        flash("An error occurred while inviting. Please try again.", "error")
+        return redirect(url_for("view_group_trip", trip_id=trip_id))
     
     flash(f"Invited {friend.first_name} to the trip!", "success")
     return redirect(url_for("view_group_trip", trip_id=trip_id))
@@ -2454,30 +2485,44 @@ def invite_to_group_trip(trip_id):
 @login_required
 def accept_group_trip_invite(trip_id):
     """Accept GroupTrip invite and create global friend connection."""
+    # Authentication guard (already protected by @login_required)
+    if not current_user.is_authenticated:
+        abort(401)
+    
+    # Validate trip exists
     trip = GroupTrip.query.get_or_404(trip_id)
+    
+    # Validate guest exists
     guest = TripGuest.query.filter_by(trip_id=trip_id, user_id=current_user.id).first_or_404()
     
-    # Only allow if invited
+    # Only allow if invited (not already accepted)
     if guest.status != GuestStatus.INVITED:
         flash("You've already accepted or this invite is invalid.", "error")
         return redirect(url_for("home"))
     
-    # Accept the invite
-    guest.status = GuestStatus.ACCEPTED
-    db.session.commit()
-    
-    # Create bidirectional friend connection with trip host if not already friends
-    host = trip.host
-    existing = Friend.query.filter_by(user_id=current_user.id, friend_id=host.id).first()
-    if not existing:
-        f1 = Friend(user_id=current_user.id, friend_id=host.id)
-        f2 = Friend(user_id=host.id, friend_id=current_user.id)
-        db.session.add(f1)
-        db.session.add(f2)
+    # Database write safety
+    try:
+        # Accept the invite
+        guest.status = GuestStatus.ACCEPTED
         db.session.commit()
-        flash(f"Trip accepted! You're now connected with {host.first_name}.", "success")
-    else:
-        flash("Trip accepted!", "success")
+        
+        # Create bidirectional friend connection with trip host if not already friends
+        host = trip.host
+        existing = Friend.query.filter_by(user_id=current_user.id, friend_id=host.id).first()
+        if not existing:
+            f1 = Friend(user_id=current_user.id, friend_id=host.id)
+            f2 = Friend(user_id=host.id, friend_id=current_user.id)
+            db.session.add(f1)
+            db.session.add(f2)
+            db.session.commit()
+            flash(f"Trip accepted! You're now connected with {host.first_name}.", "success")
+        else:
+            flash("Trip accepted!", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("Accept group trip invite failed")
+        flash("An error occurred while accepting the invite. Please try again.", "error")
+        return redirect(url_for("home"))
     
     return redirect(url_for("home"))
 
