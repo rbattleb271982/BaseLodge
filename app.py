@@ -75,6 +75,96 @@ db.init_app(app)
 migrate = Migrate(app, db)
 app.register_blueprint(debug_bp)
 
+# ============================================================================
+# PRODUCTION DIAGNOSTICS - Print on startup
+# ============================================================================
+def log_startup_diagnostics():
+    """Log database and user counts on startup for debugging."""
+    try:
+        with app.app_context():
+            db_url = os.environ.get("DATABASE_URL", "NOT SET")
+            
+            # Mask credentials
+            if db_url and db_url != "NOT SET" and "@" in db_url:
+                safe_db = db_url.split("@")[-1]
+            else:
+                safe_db = "SQLite (baselodge.db)"
+            
+            print("=" * 70)
+            print("🔧 BASELODGE STARTUP DIAGNOSTICS")
+            print("=" * 70)
+            print(f"DATABASE: {safe_db}")
+            print(f"PRODUCTION MODE: {is_production}")
+            
+            # Count records
+            user_count = User.query.count()
+            friend_count = Friend.query.count()
+            trip_count = SkiTrip.query.count()
+            
+            print(f"USER COUNT: {user_count}")
+            print(f"FRIEND COUNT: {friend_count}")
+            print(f"TRIP COUNT: {trip_count}")
+            
+            # Check specific users
+            richard = User.query.filter(db.func.lower(User.email) == "richardbattlebaxter@gmail.com").first()
+            jonathan = User.query.filter(db.func.lower(User.email) == "jonathanmschmitz@gmail.com").first()
+            
+            if richard:
+                richard_friends = Friend.query.filter_by(user_id=richard.id).count()
+                print(f"RICHARD (id={richard.id}): {richard_friends} friends")
+            else:
+                print("RICHARD: NOT FOUND")
+            
+            if jonathan:
+                jonathan_friends = Friend.query.filter_by(user_id=jonathan.id).count()
+                print(f"JONATHAN (id={jonathan.id}): {jonathan_friends} friends")
+            else:
+                print("JONATHAN: NOT FOUND")
+            
+            print("=" * 70)
+    except Exception as e:
+        print(f"⚠️ STARTUP DIAGNOSTICS FAILED: {e}")
+
+# Run diagnostics on import (will show in server logs)
+import atexit
+@app.before_request
+def run_startup_diagnostics_once():
+    """Run startup diagnostics once on first request."""
+    if not hasattr(app, '_diagnostics_run'):
+        app._diagnostics_run = True
+        log_startup_diagnostics()
+
+# ============================================================================
+# ERROR HANDLER - Full stack trace for debugging
+# ============================================================================
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle internal server errors with full traceback logging."""
+    import traceback
+    print("=" * 70)
+    print("🚨 INTERNAL SERVER ERROR (500)")
+    print("=" * 70)
+    print(f"Error: {error}")
+    print("Full traceback:")
+    traceback.print_exc()
+    print("=" * 70)
+    db.session.rollback()
+    return "An internal error occurred. Please check logs.", 500
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handle all exceptions with full traceback logging."""
+    import traceback
+    print("=" * 70)
+    print(f"🚨 UNHANDLED EXCEPTION: {type(e).__name__}")
+    print("=" * 70)
+    print(f"Message: {str(e)}")
+    print("Full traceback:")
+    traceback.print_exc()
+    print("=" * 70)
+    db.session.rollback()
+    return f"Error: {str(e)}", 500
+
 def get_or_create_invite_token(user):
     """Get existing valid invite token for user or create a new one.
     
