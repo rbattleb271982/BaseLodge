@@ -2809,5 +2809,264 @@ def backfill_pass_brands(force):
         print("=" * 70)
 
 
+# ============================================================================
+# DEMO DATA SEEDING (FULL WORLD)
+# ============================================================================
+
+SKIER_BRANDS = ['Atomic', 'Black Crows', 'Blizzard', 'Dynastar', 'Elan', 'Faction', 'Fischer', 'Head', 'K2', 'Line', 'Nordica', 'Rossignol', 'Salomon', 'Scott', 'Volkl']
+SNOWBOARDER_BRANDS = ['Arbor', 'Bataleon', 'Burton', 'Capita', 'DC', 'GNU', 'Jones', 'K2', 'Lib Tech', 'Nitro', 'Ride', 'Rome', 'Salomon', 'Yes']
+PASS_OPTIONS_SEEDING = ["Epic", "Ikon", "MountainCollective", "Indy", "PowderAlliance", "Freedom", "SkiCalifornia", "Other", "None"]
+
+FIRST_NAMES = ["Alex", "Jordan", "Sam", "Casey", "Riley", "Morgan", "Jamie", "Taylor", "Jesse", "Charlie", "Skylar", "Quinn", "Dakota", "Avery", "Blake", "Parker", "Rowan", "Drew", "Phoenix", "River", "Jade", "Connor", "Reese", "Emerson", "Sage", "Justice", "Scout", "Lex", "Hayden", "Aspen", "Storm", "Finley", "Devyn", "Canyon", "Sierra", "Teton", "Range", "Peak", "Boulder", "Summit", "Ridge", "Trail", "Alpine", "Powder", "Mogul", "Gnar", "Shred", "Carve", "Slate", "Blake", "Bailey", "Cameron"]
+
+LAST_NAMES = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson"]
+
+TRIP_TITLES = ["powder day mission", "spring corn runs", "lake tahoe adventure", "utah powder week", "colorado peaks", "backcountry tour", "resort lap day", "mogul practice", "tree skiing", "alpine exploration"]
+
+
+@app.cli.command("seed-full-demo-world")
+def seed_full_demo_world():
+    """Seed comprehensive demo data for end-to-end testing."""
+    print("🌍 SEEDING FULL DEMO WORLD...")
+    print("=" * 70)
+    
+    with app.app_context():
+        # ====== FIXED USERS ======
+        richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+        if not richard:
+            richard = User(
+                first_name="Richard", last_name="Battle-Baxter",
+                email="richardbattlebaxter@gmail.com",
+                rider_type="Skier", pass_type="Epic", skill_level="Advanced",
+                home_state="Colorado", birth_year=1985, profile_setup_complete=True
+            )
+            richard.set_password("12345678")
+            db.session.add(richard)
+            print("✨ Created: Richard Battle-Baxter")
+        else:
+            print("⊘ Skipped: Richard (already exists)")
+        
+        jonathan = User.query.filter_by(email="jonathanmschmitz@gmail.com").first()
+        if not jonathan:
+            jonathan = User(
+                first_name="Jonathan", last_name="Schmitz",
+                email="jonathanmschmitz@gmail.com",
+                rider_type="Skier", pass_type="Ikon,MountainCollective", skill_level="Advanced",
+                home_state="Utah", birth_year=1990, profile_setup_complete=True
+            )
+            jonathan.set_password("12345678")
+            db.session.add(jonathan)
+            print("✨ Created: Jonathan Schmitz")
+        else:
+            print("⊘ Skipped: Jonathan (already exists)")
+        
+        db.session.commit()
+        
+        # ====== DUMMY USERS (50) ======
+        dummy_users = []
+        for i in range(50):
+            email = f"user{i+1}@baselodge.local"
+            if User.query.filter_by(email=email).first():
+                print(f"⊘ Skipped: {email} (already exists)")
+                dummy_users.append(User.query.filter_by(email=email).first())
+                continue
+            
+            user = User(
+                first_name=random.choice(FIRST_NAMES),
+                last_name=random.choice(LAST_NAMES),
+                email=email,
+                rider_type=random.choice(["Skier", "Snowboarder"]),
+                skill_level=random.choice(["Beginner", "Intermediate", "Advanced", "Expert"]),
+                home_state=random.choice(["Colorado", "Utah", "California", "Wyoming", "Montana", "Idaho", "Washington"]),
+                birth_year=random.randint(1970, 2005),
+                profile_setup_complete=True
+            )
+            
+            # 70% single pass, 30% multi-pass
+            if random.random() < 0.7:
+                user.pass_type = random.choice(["Epic", "Ikon", "Indy", "Other"])
+            else:
+                user.pass_type = ",".join(sorted(set(random.sample(PASS_OPTIONS_SEEDING[:-2], 2))))
+            
+            user.set_password("12345678")
+            db.session.add(user)
+            dummy_users.append(user)
+        
+        db.session.commit()
+        print(f"✨ Created: {len(dummy_users)} dummy users")
+        
+        # ====== EQUIPMENT ======
+        all_users = [richard, jonathan] + dummy_users
+        equipment_count = 0
+        for user in all_users:
+            if EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.PRIMARY).first():
+                continue
+            
+            discipline = EquipmentDiscipline.SKIER if user.rider_type == "Skier" else EquipmentDiscipline.SNOWBOARDER
+            brands = SKIER_BRANDS if user.rider_type == "Skier" else SNOWBOARDER_BRANDS
+            
+            primary = EquipmentSetup(
+                user_id=user.id,
+                slot=EquipmentSlot.PRIMARY,
+                discipline=discipline,
+                brand=random.choice(brands),
+                length_cm=random.randint(160, 190) if user.rider_type == "Skier" else random.randint(150, 165),
+                width_mm=random.randint(80, 105) if user.rider_type == "Skier" else None
+            )
+            db.session.add(primary)
+            equipment_count += 1
+            
+            if random.random() < 0.5:
+                secondary = EquipmentSetup(
+                    user_id=user.id,
+                    slot=EquipmentSlot.SECONDARY,
+                    discipline=discipline,
+                    brand=random.choice(brands),
+                    length_cm=random.randint(160, 190) if user.rider_type == "Skier" else random.randint(150, 165),
+                    width_mm=random.randint(80, 105) if user.rider_type == "Skier" else None
+                )
+                db.session.add(secondary)
+                equipment_count += 1
+        
+        db.session.commit()
+        print(f"✨ Created: {equipment_count} equipment setups")
+        
+        # ====== SKI TRIPS ======
+        resorts = Resort.query.all()
+        trip_count = 0
+        today = date.today()
+        for user in all_users:
+            existing_trips = SkiTrip.query.filter_by(user_id=user.id).count()
+            if existing_trips >= 4:
+                continue
+            
+            for _ in range(4 - existing_trips):
+                start = today + timedelta(days=random.randint(5, 120))
+                end = start + timedelta(days=random.randint(1, 5))
+                
+                trip = SkiTrip(
+                    user_id=user.id,
+                    resort_id=random.choice(resorts).id,
+                    start_date=start,
+                    end_date=end,
+                    pass_type=random.choice(user.pass_type.split(",")),
+                    is_public=True
+                )
+                db.session.add(trip)
+                trip_count += 1
+        
+        db.session.commit()
+        print(f"✨ Created: {trip_count} ski trips")
+        
+        # ====== FRIEND CONNECTIONS ======
+        friend_count = 0
+        for user in dummy_users:
+            if Friend.query.filter_by(user_id=user.id, friend_id=richard.id).first():
+                continue
+            
+            f1 = Friend(user_id=user.id, friend_id=richard.id)
+            f2 = Friend(user_id=richard.id, friend_id=user.id)
+            db.session.add_all([f1, f2])
+            friend_count += 2
+            
+            if not Friend.query.filter_by(user_id=user.id, friend_id=jonathan.id).first():
+                f3 = Friend(user_id=user.id, friend_id=jonathan.id)
+                f4 = Friend(user_id=jonathan.id, friend_id=user.id)
+                db.session.add_all([f3, f4])
+                friend_count += 2
+        
+        db.session.commit()
+        print(f"✨ Created: {friend_count} friend connections")
+        
+        # ====== GROUP TRIPS ======
+        grouptrip_count = 0
+        tripguest_count = 0
+        for i in range(5):
+            host = richard if i % 2 == 0 else jonathan
+            title = f"{random.choice(['March', 'April', 'May'])} {random.choice(TRIP_TITLES)}"
+            start = today + timedelta(days=random.randint(10, 60))
+            end = start + timedelta(days=random.randint(2, 5))
+            
+            trip = GroupTrip(
+                host_id=host.id,
+                title=title,
+                start_date=start,
+                end_date=end
+            )
+            db.session.add(trip)
+            db.session.flush()
+            
+            # Add host as accepted guest
+            host_guest = TripGuest(trip_id=trip.id, user_id=host.id, status=GuestStatus.ACCEPTED)
+            db.session.add(host_guest)
+            tripguest_count += 1
+            
+            # Add jonathan/richard
+            other_host = jonathan if host == richard else richard
+            other_guest = TripGuest(trip_id=trip.id, user_id=other_host.id, status=GuestStatus.ACCEPTED)
+            db.session.add(other_guest)
+            tripguest_count += 1
+            
+            # Add 5-10 random dummy users
+            selected_guests = random.sample(dummy_users, min(random.randint(5, 10), len(dummy_users)))
+            for guest_user in selected_guests:
+                guest = TripGuest(trip_id=trip.id, user_id=guest_user.id, status=GuestStatus.ACCEPTED)
+                db.session.add(guest)
+                tripguest_count += 1
+            
+            grouptrip_count += 1
+        
+        db.session.commit()
+        print(f"✨ Created: {grouptrip_count} group trips, {tripguest_count} trip guests")
+        
+        # ====== OPEN DATES ======
+        open_dates_count = 0
+        for user in all_users:
+            if user.open_dates:
+                continue
+            
+            num_ranges = random.randint(6, 10) if user in [richard, jonathan] else random.randint(3, 6)
+            open_dates = []
+            for _ in range(num_ranges):
+                start = today + timedelta(days=random.randint(5, 180))
+                for j in range(random.randint(1, 4)):
+                    date_str = (start + timedelta(days=j)).strftime("%Y-%m-%d")
+                    if date_str not in open_dates:
+                        open_dates.append(date_str)
+            
+            user.open_dates = sorted(open_dates)
+            open_dates_count += len(open_dates)
+        
+        db.session.commit()
+        print(f"✨ Created: {open_dates_count} open dates")
+        
+        # ====== VERIFICATION ======
+        print("\n" + "=" * 70)
+        print("VERIFICATION REPORT")
+        print("=" * 70)
+        print(f"Total users: {User.query.count()}")
+        print(f"  - Fixed: 2 (Richard, Jonathan)")
+        print(f"  - Dummy: {len(dummy_users)}")
+        print(f"Total SkiTrips: {SkiTrip.query.count()}")
+        print(f"Total GroupTrips: {GroupTrip.query.count()}")
+        print(f"Total TripGuests: {TripGuest.query.count()}")
+        print(f"Total EquipmentSetup: {EquipmentSetup.query.count()}")
+        print(f"Total Friend connections: {Friend.query.count()}")
+        
+        # Sample data
+        print(f"\nSample Users:")
+        for user in random.sample(all_users, min(5, len(all_users))):
+            trips = SkiTrip.query.filter_by(user_id=user.id).count()
+            equipment = EquipmentSetup.query.filter_by(user_id=user.id).count()
+            open_dates = len(user.open_dates) if user.open_dates else 0
+            friends_richard = 1 if Friend.query.filter_by(user_id=user.id, friend_id=richard.id).first() else 0
+            friends_jonathan = 1 if Friend.query.filter_by(user_id=user.id, friend_id=jonathan.id).first() else 0
+            
+            print(f"  {user.email}: passes={user.pass_type}, trips={trips}, equipment={equipment}, open_dates={open_dates}, connected_to_richard={friends_richard}, connected_to_jonathan={friends_jonathan}")
+        
+        print("\n✅ SEEDING COMPLETE!")
+        print("=" * 70)
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
