@@ -121,6 +121,8 @@
                         <p style="font-size: 0.9rem; font-weight: 500; margin: 0;">
                             <strong>{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }}</strong> — 
                             {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }} {{ trip.state }}, No Pass{% endif %}
+                            {% if trip.ride_intent == 'can_offer' %}<span style="margin-left: 6px;">🚗</span>{% endif %}
+                            {% if trip.ride_intent == 'need_ride' %}<span style="margin-left: 6px;">🙋</span>{% endif %}
                         </p>
                     </div>
                     <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="bl-trip-edit">Edit</a>
@@ -144,6 +146,8 @@
                             <p style="font-size: 0.9rem; font-weight: 500; margin: 0;">
                                 <strong>{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }}</strong> — 
                                 {{ trip.user.first_name }} @ {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }} {{ trip.state }}, No Pass{% endif %}
+                                {% if trip.ride_intent == 'can_offer' %}<span style="margin-left: 6px;">🚗</span>{% endif %}
+                                {% if trip.ride_intent == 'need_ride' %}<span style="margin-left: 6px;">🙋</span>{% endif %}
                             </p>
                         </div>
                     </div>

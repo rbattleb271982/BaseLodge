@@ -1547,6 +1547,7 @@ def add_trip():
         end_date_str = request.form.get("end_date")
         is_public = request.form.get("is_public") == "on"
         set_home_mountain = request.form.get("set_home_mountain") == "on"
+        ride_intent = request.form.get("ride_intent") or None
 
         errors = []
 
@@ -1594,6 +1595,7 @@ def add_trip():
             start_date=start_date,
             end_date=end_date,
             is_public=is_public,
+            ride_intent=ride_intent,
         )
         db.session.add(trip)
         db.session.commit()
@@ -1632,6 +1634,7 @@ def edit_trip_form(trip_id):
         end_date_str = request.form.get("end_date")
         is_public = request.form.get("is_public") == "on"
         set_home_mountain = request.form.get("set_home_mountain") == "on"
+        ride_intent = request.form.get("ride_intent") or None
 
         errors = []
 
@@ -1677,6 +1680,7 @@ def edit_trip_form(trip_id):
         trip.start_date = start_date
         trip.end_date = end_date
         trip.is_public = is_public
+        trip.ride_intent = ride_intent
 
         if set_home_mountain and resort:
             current_user.home_mountain = resort.name
@@ -1745,6 +1749,33 @@ def logout():
     logout_user()
     session.clear()
     return redirect(url_for("auth"))
+
+@app.route("/change-password", methods=["GET", "POST"])
+@login_required
+def change_password():
+    if request.method == "POST":
+        current_password = request.form.get("current_password", "")
+        new_password = request.form.get("new_password", "")
+        confirm_password = request.form.get("confirm_password", "")
+        
+        if not current_user.check_password(current_password):
+            flash("Current password is incorrect.", "error")
+            return redirect(url_for("change_password"))
+        
+        if len(new_password) < 8:
+            flash("New password must be at least 8 characters.", "error")
+            return redirect(url_for("change_password"))
+        
+        if new_password != confirm_password:
+            flash("New passwords do not match.", "error")
+            return redirect(url_for("change_password"))
+        
+        current_user.set_password(new_password)
+        db.session.commit()
+        flash("Password updated successfully.", "success")
+        return redirect(url_for("change_password"))
+    
+    return render_template("change_password.html")
 
 @app.route("/seed_dummy_data")
 def seed_dummy_data():

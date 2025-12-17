@@ -93,6 +93,7 @@ class SkiTrip(db.Model):
     end_date = db.Column(db.Date)
     pass_type = db.Column(db.String(50), default="No Pass")
     is_public = db.Column(db.Boolean, default=True)
+    ride_intent = db.Column(db.String(20), nullable=True)  # 'can_offer', 'need_ride', or None
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):

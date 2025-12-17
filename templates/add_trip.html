@@ -171,6 +171,15 @@
                 <p class="helper-text">Only friends can see this trip.</p>
             </div>
 
+            <div class="form-group">
+                <label for="ride_intent">Ride status</label>
+                <select id="ride_intent" name="ride_intent">
+                    <option value="">No ride info</option>
+                    <option value="can_offer" {% if trip and trip.ride_intent == 'can_offer' %}selected{% endif %}>🚗 Can offer a ride</option>
+                    <option value="need_ride" {% if trip and trip.ride_intent == 'need_ride' %}selected{% endif %}>🙋 I need a ride</option>
+                </select>
+            </div>
+
             {% if not user.home_mountain or (trip and trip.resort and trip.resort.name != user.home_mountain) %}
             <div class="form-group toggle-group">
                 <label class="toggle-label">
