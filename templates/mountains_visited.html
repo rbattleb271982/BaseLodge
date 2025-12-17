@@ -29,12 +29,39 @@
         }
         
         .mountain-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
             background: var(--bl-color-primary);
             color: white;
             padding: 6px 12px;
             border-radius: 20px;
             font-size: 13px;
             font-weight: 600;
+        }
+        
+        .mountain-pill .remove-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+            padding: 0;
+        }
+        
+        .mountain-pill .remove-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        .selected-mountains:empty {
+            display: none;
         }
         
         .mountain-list {
@@ -82,13 +109,14 @@
                 <span id="count-display">{{ mountains_visited_count }} selected</span>
             </div>
             
-            {% if selected_mountains %}
             <div class="selected-mountains" id="selected-pills">
                 {% for m in selected_mountains %}
-                <span class="mountain-pill">{{ m }}</span>
+                <span class="mountain-pill" data-mountain="{{ m }}">
+                    {{ m }}
+                    <button type="button" class="remove-btn" onclick="removeMountain('{{ m }}')" aria-label="Remove {{ m }}">✕</button>
+                </span>
                 {% endfor %}
             </div>
-            {% endif %}
             
             <div class="mountain-list" id="mountain-list">
                 {% for mountain in all_mountains %}
@@ -133,6 +161,18 @@
             });
         }
         
+        function removeMountain(mountainName) {
+            // Find and uncheck the checkbox
+            const checkboxes = document.querySelectorAll('input[name="mountains"]');
+            checkboxes.forEach(cb => {
+                if (cb.value === mountainName) {
+                    cb.checked = false;
+                }
+            });
+            // Refresh pills
+            updatePills();
+        }
+        
         function updatePills() {
             const checks = document.querySelectorAll('input[name="mountains"]:checked');
             const pillsContainer = document.getElementById('selected-pills');
@@ -145,7 +185,19 @@
             selected.forEach(m => {
                 const pill = document.createElement('span');
                 pill.className = 'mountain-pill';
-                pill.textContent = m;
+                pill.setAttribute('data-mountain', m);
+                
+                const text = document.createTextNode(m + ' ');
+                pill.appendChild(text);
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'remove-btn';
+                removeBtn.setAttribute('aria-label', 'Remove ' + m);
+                removeBtn.textContent = '✕';
+                removeBtn.onclick = function() { removeMountain(m); };
+                pill.appendChild(removeBtn);
+                
                 pillsContainer.appendChild(pill);
             });
         }

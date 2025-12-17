@@ -132,21 +132,13 @@ class InviteToken(db.Model):
     inviter_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     used_at = db.Column(db.DateTime, nullable=True)
-    max_uses = db.Column(db.Integer, default=5)  # Max 5 accepts per token
-    uses_count = db.Column(db.Integer, default=0)  # Current usage count
-    expires_at = db.Column(db.DateTime, nullable=True)  # Token expiration
+    max_uses = db.Column(db.Integer, default=1)
 
     inviter = db.relationship("User", backref="invite_tokens")
 
-    def is_expired(self):
-        """Check if token has expired."""
-        if self.expires_at is None:
-            return False
-        return datetime.utcnow() > self.expires_at
-
-    def is_fully_used(self):
-        """Check if token has reached max uses."""
-        return self.uses_count >= self.max_uses
+    def is_used(self):
+        """Check if token has been used (single-use enforcement via used_at)."""
+        return self.used_at is not None
 
     def __repr__(self):
         return f'<InviteToken {self.token[:8]}... by user {self.inviter_id}>'

@@ -97,6 +97,17 @@
             color: #C00;
             font-size: 14px;
         }
+        
+        .inline-error {
+            color: #C00;
+            font-size: 13px;
+            margin-top: 4px;
+            display: none;
+        }
+        
+        .inline-error.visible {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -168,6 +179,7 @@
                     <span>Set this as my home mountain</span>
                 </label>
                 <p class="helper-text">Your go-to mountain for quick getaways.</p>
+                <p class="inline-error" id="home-mountain-error">Please choose a resort before setting it as your home mountain.</p>
             </div>
             {% endif %}
 
@@ -189,6 +201,9 @@
         const resortSelect = document.getElementById('resort_id');
         const startDateInput = document.getElementById('start_date');
         const endDateInput = document.getElementById('end_date');
+        const homeMountainCheckbox = document.getElementById('set_home_mountain');
+        const homeMountainError = document.getElementById('home-mountain-error');
+        const form = document.querySelector('form.form-card');
 
         function updateResorts() {
             const selectedState = stateSelect.value;
@@ -209,6 +224,11 @@
                     }
                 });
             }
+            
+            // Clear home mountain error when state changes and resort is reset
+            if (homeMountainError) {
+                homeMountainError.classList.remove('visible');
+            }
         }
 
         function updateEndDateMin() {
@@ -226,6 +246,34 @@
                 endDateInput.value = startDateInput.value;
             }
         });
+        
+        // Home mountain validation
+        if (form && homeMountainCheckbox) {
+            form.addEventListener('submit', function(e) {
+                if (homeMountainCheckbox.checked && !resortSelect.value) {
+                    e.preventDefault();
+                    if (homeMountainError) {
+                        homeMountainError.classList.add('visible');
+                    }
+                    resortSelect.focus();
+                    return false;
+                }
+            });
+            
+            // Clear error when resort is selected
+            resortSelect.addEventListener('change', function() {
+                if (homeMountainError && resortSelect.value) {
+                    homeMountainError.classList.remove('visible');
+                }
+            });
+            
+            // Clear error when checkbox is unchecked
+            homeMountainCheckbox.addEventListener('change', function() {
+                if (homeMountainError && !homeMountainCheckbox.checked) {
+                    homeMountainError.classList.remove('visible');
+                }
+            });
+        }
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {

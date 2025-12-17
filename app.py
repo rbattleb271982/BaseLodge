@@ -175,21 +175,21 @@ def get_or_create_invite_token(user):
     """Get existing valid invite token for user or create a new one.
     
     Returns None if user has reached their max invite accepts limit.
+    Single-use tokens: each token can only be used once (used_at is set on use).
     """
     # Check if user can still accept more invites
     if not can_sender_accept_more_invites(user):
         return None
     
-    # Look for existing valid token (most recent first)
+    # Look for existing unused token (most recent first)
     existing = InviteToken.query.filter_by(inviter_id=user.id).order_by(InviteToken.created_at.desc()).all()
     for token_obj in existing:
-        if not token_obj.is_expired() and not token_obj.is_fully_used():
+        if not token_obj.is_used():
             return token_obj
     
-    # Create new token with 7-day expiration
+    # Create new single-use token
     token = secrets.token_urlsafe(16)
-    expires_at = datetime.utcnow() + timedelta(days=7)
-    invite = InviteToken(token=token, inviter_id=user.id, expires_at=expires_at, max_uses=5, uses_count=0)
+    invite = InviteToken(token=token, inviter_id=user.id)
     db.session.add(invite)
     db.session.commit()
     return invite
@@ -422,9 +422,9 @@ def _connect_pending_inviter(user):
                 session.pop("pending_invite_token_id", None)
                 return
             
-            # Check token limits if token exists
+            # Check token is not already used (single-use enforcement)
             if invite_token:
-                if invite_token.is_expired() or invite_token.is_fully_used():
+                if invite_token.is_used():
                     session.pop("pending_inviter_id", None)
                     session.pop("pending_invite_token_id", None)
                     return
@@ -442,9 +442,8 @@ def _connect_pending_inviter(user):
                 f2 = Friend(user_id=inviter.id, friend_id=user.id)
                 db.session.add_all([f1, f2])
                 
-                # Update invite token usage counts
+                # Mark token as used (single-use enforcement)
                 if invite_token:
-                    invite_token.uses_count = (invite_token.uses_count or 0) + 1
                     invite_token.used_at = datetime.utcnow()
                 
                 db.session.commit()
@@ -462,13 +461,9 @@ def invite_token_landing(token):
     if not invite:
         return render_template("invite_invalid.html", message="This invite is no longer valid.")
 
-    # Token expired
-    if invite.is_expired():
-        return render_template("invite_invalid.html", message="This invite is no longer valid.")
-
-    # Token fully used (5 accepts)
-    if invite.is_fully_used():
-        return render_template("invite_invalid.html", message="This invite has already been fully used. Ask your friend to send you a new one.")
+    # Token already used (single-use enforcement)
+    if invite.is_used():
+        return render_template("invite_invalid.html", message="This invite link has already been used.")
 
     inviter = invite.inviter
     if not inviter:
@@ -501,8 +496,7 @@ def invite_token_landing(token):
         f2 = Friend(user_id=inviter.id, friend_id=current_user.id)
         db.session.add_all([f1, f2])
         
-        # Increment usage counts
-        invite.uses_count = (invite.uses_count or 0) + 1
+        # Mark token as used (single-use enforcement)
         invite.used_at = datetime.utcnow()
         
         db.session.commit()

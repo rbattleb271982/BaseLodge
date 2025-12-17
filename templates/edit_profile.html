@@ -3,88 +3,200 @@
 <head>
     <title>Edit Profile</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <style>
-        .pass-pills {
-            display: flex;
-            gap: 12px;
-            margin-bottom: var(--bl-space-4);
+        .edit-profile-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 16px 16px 120px;
         }
         
-        .pass-pill {
-            flex: 1;
-            background: #F7F4EF;
-            border: 2px solid transparent;
-            padding: 14px 16px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            color: var(--bl-color-text);
+        .section-card {
+            background: var(--bl-color-surface);
             border-radius: 12px;
-            transition: all 0.2s ease;
-            text-align: center;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid var(--bl-color-border-soft);
         }
         
-        .pass-pill.active {
-            background: var(--bl-color-primary);
-            color: #FFFFFF;
-            border-color: var(--bl-color-primary);
-        }
-        
-        .pass-pill:not(.active):hover {
-            border-color: var(--bl-color-primary);
-        }
-        
-        .pass-dropdown-section {
-            margin-top: var(--bl-space-3);
-        }
-        
-        .pass-dropdown-label {
-            font-size: 13px;
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
             color: var(--bl-color-text-muted);
-            margin-bottom: var(--bl-space-2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 12px 0;
         }
         
-        .pass-dropdown {
+        .form-row {
+            margin-bottom: 16px;
+        }
+        
+        .form-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .form-row label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            margin-bottom: 6px;
+        }
+        
+        .form-row select,
+        .form-row input[type="number"] {
             width: 100%;
-            padding: 12px 16px;
-            font-size: 15px;
+            padding: 12px;
+            font-size: 16px;
             border: 1px solid var(--bl-color-border);
-            border-radius: 10px;
+            border-radius: 8px;
             background: var(--bl-color-surface);
             color: var(--bl-color-text);
-            cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 16px center;
         }
         
-        .pass-dropdown:focus {
+        .form-row select:focus,
+        .form-row input:focus {
             outline: none;
             border-color: var(--bl-color-primary);
         }
         
-        .equipment-section {
-            display: none;
+        .chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
         }
         
-        .equipment-section.visible {
-            display: block;
+        .profile-chip {
+            padding: 10px 16px;
+            background: #F7F4EF;
+            border: 2px solid transparent;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--bl-color-text);
         }
         
-        .equipment-warning {
-            display: none;
-            font-size: 13px;
-            color: #B8860B;
-            margin-top: 8px;
-            padding: 8px 12px;
-            background: #FFF8DC;
+        .profile-chip.selected {
+            background: var(--bl-color-primary);
+            color: white;
+            border-color: var(--bl-color-primary);
+        }
+        
+        .profile-chip:not(.selected):hover {
+            border-color: var(--bl-color-primary);
+        }
+        
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+        }
+        
+        .checkbox-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--bl-color-primary);
+            cursor: pointer;
+        }
+        
+        .checkbox-row label {
+            font-size: 14px;
+            cursor: pointer;
+            margin: 0;
+        }
+        
+        .equipment-grid {
+            display: grid;
+            gap: 8px;
+        }
+        
+        .equipment-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .equipment-btn-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .btn-save-equipment {
+            flex: 1;
+            padding: 10px;
+            background: var(--bl-color-primary);
+            color: white;
+            border: none;
             border-radius: 8px;
-            border: 1px solid #F0E68C;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
         }
         
-        .equipment-warning.visible {
-            display: block;
+        .btn-delete-equipment {
+            flex: 1;
+            padding: 10px;
+            background: #EF4444;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .floating-save {
+            position: fixed;
+            bottom: 70px;
+            left: 0;
+            right: 0;
+            padding: 12px 16px;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid var(--bl-color-border-soft);
+            z-index: 100;
+        }
+        
+        .floating-save-inner {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .floating-save button {
+            width: 100%;
+            padding: 14px;
+            background: var(--bl-color-primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .floating-save button:active {
+            background: #6B000F;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 16px;
+            color: var(--bl-color-text-muted);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .page-header {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--bl-color-text);
+            margin: 0 0 20px 0;
         }
     </style>
 </head>
@@ -109,45 +221,57 @@
     'WY': ['Jackson Hole', 'Grand Targhee']
 } %}
 
-<div class="page-container">
+<div class="edit-profile-container">
+    <a href="{{ url_for('more') }}" class="back-link">← Back</a>
+    <h1 class="page-header">Edit Profile</h1>
 
-    <h2 class="page-title">Edit Profile</h2>
-
-    <div class="bl-card" style="padding: var(--bl-space-4); margin-bottom: var(--bl-space-4);">
-
-        <div class="form-section">
-            <label class="form-label">Rider Type</label>
-            <div class="chip-group" id="rider-type-group">
+    <div class="section-card">
+        <h3 class="section-title">Rider Info</h3>
+        
+        <div class="form-row">
+            <label>Rider Type</label>
+            <div class="chip-row" id="rider-type-group">
                 {% for rt in rider_types %}
-                <div class="chip {% if normalize_rider_type(current_user.rider_type) == rt %}selected{% endif %}"
+                <div class="profile-chip {% if normalize_rider_type(current_user.rider_type) == rt %}selected{% endif %}"
                      data-value="{{ rt }}">
                     {{ rt }}
                 </div>
                 {% endfor %}
             </div>
         </div>
-
-        <div class="form-section">
-            <label class="form-label">Which passes do you have?</label>
-            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0 0 12px 0;">Select all that apply.</p>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                {% set user_passes = current_user.pass_type.split(',') if current_user.pass_type else [] %}
-                {% for pass in pass_options %}
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" name="pass_type" value="{{ pass }}" id="pass_{{ pass }}" 
-                           {% if pass in user_passes %}checked{% endif %}
-                           style="cursor: pointer; accent-color: var(--bl-color-primary); width: 18px; height: 18px;">
-                    <label for="pass_{{ pass }}" style="cursor: pointer; font-size: 14px; margin: 0;">
-                        {{ pass.replace('Mountain', 'Mountain ').replace('Collective', 'Collective').replace('PowderAlliance', 'Powder Alliance').replace('SkiCalifornia', 'Ski California') }}
-                    </label>
+        
+        <div class="form-row">
+            <label>Skill Level</label>
+            <div class="chip-row" id="skill-level-group">
+                {% for lvl in ["Beginner", "Intermediate", "Advanced", "Expert"] %}
+                <div class="profile-chip {% if current_user.skill_level == lvl %}selected{% endif %}"
+                     data-value="{{ lvl }}">
+                    {{ lvl }}
                 </div>
                 {% endfor %}
             </div>
         </div>
+    </div>
 
-        <div class="form-section">
-            <label class="form-label">Home Mountain</label>
-            <select name="home_mountain" id="home_mountain" class="bl-select">
+    <div class="section-card">
+        <h3 class="section-title">Passes</h3>
+        <p style="font-size: 13px; color: var(--bl-color-text-muted); margin: 0 0 12px 0;">Select all that apply</p>
+        {% set user_passes = current_user.pass_type.split(',') if current_user.pass_type else [] %}
+        {% for pass in pass_options %}
+        <div class="checkbox-row">
+            <input type="checkbox" name="pass_type" value="{{ pass }}" id="pass_{{ pass }}" 
+                   {% if pass in user_passes %}checked{% endif %}>
+            <label for="pass_{{ pass }}">
+                {{ pass.replace('Mountain', 'Mountain ').replace('Collective', 'Collective').replace('PowderAlliance', 'Powder Alliance').replace('SkiCalifornia', 'Ski California') }}
+            </label>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="section-card">
+        <h3 class="section-title">Home Mountain</h3>
+        <div class="form-row">
+            <select name="home_mountain" id="home_mountain">
                 <option value="">Select your home mountain</option>
                 {% for state, mtns in MOUNTAINS.items() %}
                     {% for m in mtns %}
@@ -156,110 +280,106 @@
                 {% endfor %}
             </select>
         </div>
+    </div>
 
-        <div class="form-section">
-            <label class="form-label">Gender</label>
-            <select name="gender" class="bl-select">
+    <div class="section-card">
+        <h3 class="section-title">About You</h3>
+        
+        <div class="form-row">
+            <label>Gender</label>
+            <select name="gender" id="gender-select">
                 <option value="">Select</option>
                 {% for g in ["Male", "Female", "Non-binary", "Prefer not to say"] %}
                 <option value="{{ g }}" {% if current_user.gender == g %}selected{% endif %}>{{ g }}</option>
                 {% endfor %}
             </select>
         </div>
-
-        <div class="form-section">
-            <label class="form-label">Birth Year</label>
-            <select name="birth_year" class="bl-select">
-                <option value="">Select your birth year</option>
+        
+        <div class="form-row">
+            <label>Birth Year</label>
+            <select name="birth_year" id="birth-year-select">
+                <option value="">Select</option>
                 {% for year in range(1950, 2025) %}
                 <option value="{{ year }}" {% if current_user.birth_year == year %}selected{% endif %}>{{ year }}</option>
                 {% endfor %}
             </select>
         </div>
-
-        <div class="form-section">
-            <label class="form-label">Home State</label>
-            <select name="home_state" class="bl-select">
-                <option value="">Select your state</option>
+        
+        <div class="form-row">
+            <label>Home State</label>
+            <select name="home_state" id="home-state-select">
+                <option value="">Select</option>
                 {% for st in states %}
                 <option value="{{ st }}" {% if current_user.home_state == st %}selected{% endif %}>{{ st }}</option>
                 {% endfor %}
             </select>
         </div>
+    </div>
 
-        <div class="form-section">
-            <label class="form-label">Skill Level</label>
-            <div class="chip-group">
-                {% for lvl in ["Beginner", "Intermediate", "Advanced", "Expert"] %}
-                <div class="chip {% if current_user.skill_level == lvl %}selected{% endif %}"
-                     data-value="{{ lvl }}">
-                    {{ lvl }}
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <h3 style="font-size: 1.1rem; font-weight: 600; margin: 24px 0 12px 0; color: var(--bl-color-text);">Equipment</h3>
+    <div class="section-card">
+        <h3 class="section-title">Equipment</h3>
         
-        <div class="form-section">
-            <label class="form-label">Primary Equipment</label>
-            <div style="margin-bottom: 12px;">
-                <select id="primary-discipline" class="bl-select" style="margin-bottom: 8px;">
-                    <option value="">Select discipline</option>
+        <div class="form-row">
+            <label>Primary Setup</label>
+            <div class="equipment-grid">
+                <select id="primary-discipline">
+                    <option value="">Discipline</option>
                     <option value="Skier" {% if primary_equipment and primary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
                     <option value="Snowboarder" {% if primary_equipment and primary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
                 </select>
-                <select id="primary-brand" class="bl-select" style="margin-bottom: 8px;">
-                    <option value="">Select brand</option>
+                <select id="primary-brand">
+                    <option value="">Brand</option>
                 </select>
-                <input type="number" id="primary-length" placeholder="Length (cm)" class="bl-select" style="margin-bottom: 8px;" value="{% if primary_equipment %}{{ primary_equipment.length_cm or '' }}{% endif %}" />
-                <input type="number" id="primary-width" placeholder="Width (mm) - Skiers only" class="bl-select" value="{% if primary_equipment %}{{ primary_equipment.width_mm or '' }}{% endif %}" />
+                <div class="equipment-row">
+                    <input type="number" id="primary-length" placeholder="Length (cm)" value="{% if primary_equipment %}{{ primary_equipment.length_cm or '' }}{% endif %}" />
+                    <input type="number" id="primary-width" placeholder="Width (mm)" value="{% if primary_equipment %}{{ primary_equipment.width_mm or '' }}{% endif %}" />
+                </div>
             </div>
-            <div style="display: flex; gap: 8px;">
-                <button type="button" id="save-primary-btn" class="bl-button-primary" style="flex: 1;">Save Primary</button>
-                {% if primary_equipment %}<button type="button" id="delete-primary-btn" class="bl-button-primary" style="flex: 1; background: #EF4444;">Delete Primary</button>{% endif %}
+            <div class="equipment-btn-row">
+                <button type="button" id="save-primary-btn" class="btn-save-equipment">Save Primary</button>
+                {% if primary_equipment %}<button type="button" id="delete-primary-btn" class="btn-delete-equipment">Delete</button>{% endif %}
             </div>
         </div>
         
-        <div class="form-section">
-            <label class="form-label">Secondary Equipment</label>
-            <div style="margin-bottom: 12px;">
-                <select id="secondary-discipline" class="bl-select" style="margin-bottom: 8px;">
-                    <option value="">Select discipline</option>
+        <div class="form-row" style="margin-top: 20px;">
+            <label>Secondary Setup</label>
+            <div class="equipment-grid">
+                <select id="secondary-discipline">
+                    <option value="">Discipline</option>
                     <option value="Skier" {% if secondary_equipment and secondary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
                     <option value="Snowboarder" {% if secondary_equipment and secondary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
                 </select>
-                <select id="secondary-brand" class="bl-select" style="margin-bottom: 8px;">
-                    <option value="">Select brand</option>
+                <select id="secondary-brand">
+                    <option value="">Brand</option>
                 </select>
-                <input type="number" id="secondary-length" placeholder="Length (cm)" class="bl-select" style="margin-bottom: 8px;" value="{% if secondary_equipment %}{{ secondary_equipment.length_cm or '' }}{% endif %}" />
-                <input type="number" id="secondary-width" placeholder="Width (mm) - Skiers only" class="bl-select" value="{% if secondary_equipment %}{{ secondary_equipment.width_mm or '' }}{% endif %}" />
+                <div class="equipment-row">
+                    <input type="number" id="secondary-length" placeholder="Length (cm)" value="{% if secondary_equipment %}{{ secondary_equipment.length_cm or '' }}{% endif %}" />
+                    <input type="number" id="secondary-width" placeholder="Width (mm)" value="{% if secondary_equipment %}{{ secondary_equipment.width_mm or '' }}{% endif %}" />
+                </div>
             </div>
-            <div style="display: flex; gap: 8px;">
-                <button type="button" id="save-secondary-btn" class="bl-button-primary" style="flex: 1;">Save Secondary</button>
-                {% if secondary_equipment %}<button type="button" id="delete-secondary-btn" class="bl-button-primary" style="flex: 1; background: #EF4444;">Delete Secondary</button>{% endif %}
+            <div class="equipment-btn-row">
+                <button type="button" id="save-secondary-btn" class="btn-save-equipment">Save Secondary</button>
+                {% if secondary_equipment %}<button type="button" id="delete-secondary-btn" class="btn-delete-equipment">Delete</button>{% endif %}
             </div>
         </div>
-
-        <form method="POST" action="{{ url_for('edit_profile') }}" id="editProfileForm">
-            <input type="hidden" name="rider_type" id="rider_type" value="{{ current_user.rider_type or '' }}">
-            <input type="hidden" name="pass_type" id="pass_type" value="{{ current_user.pass_type or '' }}">
-            <input type="hidden" name="skill_level" id="skill_level" value="{{ current_user.skill_level or '' }}">
-            <input type="hidden" name="gender" id="gender" value="{{ current_user.gender or '' }}">
-            <input type="hidden" name="birth_year" id="birth_year" value="{{ current_user.birth_year or '' }}">
-            <input type="hidden" name="home_state" id="home_state" value="{{ current_user.home_state or '' }}">
-            <input type="hidden" name="home_mountain" id="home_mountain_hidden" value="{{ current_user.home_mountain or '' }}">
-            <input type="hidden" name="gear" id="gear_hidden" value="{{ current_user.gear or '' }}">
-        </form>
-
-        <button type="submit" form="editProfileForm" class="bl-button-primary" style="margin-top: var(--bl-space-4);">
-            Save Changes
-        </button>
-
     </div>
+</div>
 
-    <a href="{{ url_for('more') }}" class="small-link">← Back to Profile</a>
+<form method="POST" action="{{ url_for('edit_profile') }}" id="editProfileForm">
+    <input type="hidden" name="rider_type" id="rider_type" value="{{ current_user.rider_type or '' }}">
+    <input type="hidden" name="pass_type" id="pass_type_hidden" value="{{ current_user.pass_type or '' }}">
+    <input type="hidden" name="skill_level" id="skill_level" value="{{ current_user.skill_level or '' }}">
+    <input type="hidden" name="gender" id="gender" value="{{ current_user.gender or '' }}">
+    <input type="hidden" name="birth_year" id="birth_year" value="{{ current_user.birth_year or '' }}">
+    <input type="hidden" name="home_state" id="home_state" value="{{ current_user.home_state or '' }}">
+    <input type="hidden" name="home_mountain" id="home_mountain_hidden" value="{{ current_user.home_mountain or '' }}">
+    <input type="hidden" name="gear" id="gear_hidden" value="{{ current_user.gear or '' }}">
+</form>
 
+<div class="floating-save">
+    <div class="floating-save-inner">
+        <button type="submit" form="editProfileForm">Save Profile</button>
+    </div>
 </div>
 
 {% include 'components/bottom_nav.html' %}
@@ -269,6 +389,7 @@ const skiEquipmentBrands = ['Atomic', 'Black Crows', 'Blizzard', 'Dynastar', 'El
 const snowboardEquipmentBrands = ['Arbor', 'Bataleon', 'Burton', 'Capita', 'DC', 'GNU', 'Jones', 'K2', 'Lib Tech', 'Nitro', 'Ride', 'Rome', 'Salomon', 'Yes'];
 
 const riderTypeInput = document.getElementById('rider_type');
+const skillLevelInput = document.getElementById('skill_level');
 const primaryDisciplineSelect = document.getElementById('primary-discipline');
 const primaryBrandSelect = document.getElementById('primary-brand');
 const secondaryDisciplineSelect = document.getElementById('secondary-discipline');
@@ -280,7 +401,7 @@ const secondaryEquipmentBrand = "{% if secondary_equipment %}{{ secondary_equipm
 function updateBrandDropdown(selectElement, discipline, existingValue) {
     const brands = discipline === 'Skier' ? skiEquipmentBrands : (discipline === 'Snowboarder' ? snowboardEquipmentBrands : []);
     
-    let html = '<option value="">Select brand</option>';
+    let html = '<option value="">Brand</option>';
     brands.forEach(brand => {
         const selected = (existingValue === brand) ? ' selected' : '';
         html += `<option value="${brand}"${selected}>${brand}</option>`;
@@ -288,87 +409,61 @@ function updateBrandDropdown(selectElement, discipline, existingValue) {
     selectElement.innerHTML = html;
 }
 
-// Initialize Primary equipment dropdown
 if (primaryDisciplineSelect.value) {
     updateBrandDropdown(primaryBrandSelect, primaryDisciplineSelect.value, primaryEquipmentBrand);
 }
 
-// Initialize Secondary equipment dropdown
 if (secondaryDisciplineSelect.value) {
     updateBrandDropdown(secondaryBrandSelect, secondaryDisciplineSelect.value, secondaryEquipmentBrand);
 }
 
-// Listen to discipline changes for Primary equipment
 primaryDisciplineSelect.addEventListener('change', () => {
     updateBrandDropdown(primaryBrandSelect, primaryDisciplineSelect.value, '');
 });
 
-// Listen to discipline changes for Secondary equipment
 secondaryDisciplineSelect.addEventListener('change', () => {
     updateBrandDropdown(secondaryBrandSelect, secondaryDisciplineSelect.value, '');
 });
 
-document.querySelectorAll("#rider-type-group .chip").forEach(chip => {
+document.querySelectorAll("#rider-type-group .profile-chip").forEach(chip => {
     chip.addEventListener("click", () => {
-        chip.parentElement.querySelectorAll(".chip").forEach(c => c.classList.remove("selected"));
+        document.querySelectorAll("#rider-type-group .profile-chip").forEach(c => c.classList.remove("selected"));
         chip.classList.add("selected");
-        const newRiderType = chip.dataset.value;
-        riderTypeInput.value = newRiderType;
+        riderTypeInput.value = chip.dataset.value;
     });
 });
 
-document.querySelectorAll(".chip-group:not(#rider-type-group) .chip").forEach(chip => {
+document.querySelectorAll("#skill-level-group .profile-chip").forEach(chip => {
     chip.addEventListener("click", () => {
-        chip.parentElement.querySelectorAll(".chip").forEach(c => c.classList.remove("selected"));
+        document.querySelectorAll("#skill-level-group .profile-chip").forEach(c => c.classList.remove("selected"));
         chip.classList.add("selected");
-        document.getElementById('skill_level').value = chip.dataset.value;
+        skillLevelInput.value = chip.dataset.value;
     });
 });
 
-document.querySelectorAll(".bl-select").forEach(select => {
-    select.addEventListener("change", () => {
-        if (select.id === "home_mountain") {
-            document.getElementById('home_mountain_hidden').value = select.value;
-        } else if (select.id === "equipment-dropdown") {
-            return;
-        } else if (select.name) {
-            const hiddenInput = document.querySelector("input[name='" + select.name + "']");
-            if (hiddenInput) {
-                hiddenInput.value = select.value;
-            }
-        }
+document.getElementById('home_mountain').addEventListener('change', function() {
+    document.getElementById('home_mountain_hidden').value = this.value;
+});
+
+document.getElementById('gender-select').addEventListener('change', function() {
+    document.getElementById('gender').value = this.value;
+});
+
+document.getElementById('birth-year-select').addEventListener('change', function() {
+    document.getElementById('birth_year').value = this.value;
+});
+
+document.getElementById('home-state-select').addEventListener('change', function() {
+    document.getElementById('home_state').value = this.value;
+});
+
+document.querySelectorAll('input[name="pass_type"]').forEach(cb => {
+    cb.addEventListener('change', function() {
+        const checked = Array.from(document.querySelectorAll('input[name="pass_type"]:checked')).map(c => c.value);
+        document.getElementById('pass_type_hidden').value = checked.join(',');
     });
 });
 
-const passPills = document.getElementById('pass-pills');
-const passDropdown = document.getElementById('pass-dropdown');
-const passInput = document.getElementById('pass_type');
-
-function clearPillSelection() {
-    passPills.querySelectorAll('.pass-pill').forEach(p => p.classList.remove('active'));
-}
-
-function clearDropdownSelection() {
-    passDropdown.value = '';
-}
-
-passPills.querySelectorAll('.pass-pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-        clearPillSelection();
-        clearDropdownSelection();
-        pill.classList.add('active');
-        passInput.value = pill.dataset.value;
-    });
-});
-
-passDropdown.addEventListener('change', () => {
-    if (passDropdown.value) {
-        clearPillSelection();
-        passInput.value = passDropdown.value;
-    }
-});
-
-// Equipment management
 document.getElementById('save-primary-btn').addEventListener('click', () => {
     const discipline = document.getElementById('primary-discipline').value;
     const brand = document.getElementById('primary-brand').value;
@@ -429,18 +524,16 @@ document.getElementById('save-secondary-btn').addEventListener('click', () => {
     });
 });
 
-// Delete equipment handlers
 const deletePrimaryBtn = document.getElementById('delete-primary-btn');
 if (deletePrimaryBtn) {
     deletePrimaryBtn.addEventListener('click', () => {
-        if (confirm('Are you sure you want to delete your primary equipment?')) {
+        if (confirm('Delete primary equipment?')) {
             fetch('{{ url_for("delete_equipment") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ slot: 'primary' })
             }).then(r => r.json()).then(data => {
                 if (data.success) {
-                    alert('Primary equipment deleted!');
                     location.reload();
                 } else {
                     alert('Error: ' + data.error);
@@ -453,14 +546,13 @@ if (deletePrimaryBtn) {
 const deleteSecondaryBtn = document.getElementById('delete-secondary-btn');
 if (deleteSecondaryBtn) {
     deleteSecondaryBtn.addEventListener('click', () => {
-        if (confirm('Are you sure you want to delete your secondary equipment?')) {
+        if (confirm('Delete secondary equipment?')) {
             fetch('{{ url_for("delete_equipment") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ slot: 'secondary' })
             }).then(r => r.json()).then(data => {
                 if (data.success) {
-                    alert('Secondary equipment deleted!');
                     location.reload();
                 } else {
                     alert('Error: ' + data.error);

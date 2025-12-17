@@ -1,0 +1,49 @@
+Issue 1 (Invite Crash)
+Where is the crash happening?
+➡️ On the Invite tab in the bottom navigation, when the user taps Invite.
+This is not about clicking an invite link to accept it
+The crash occurs when the app attempts to load or query invite tokens for the current user
+Specifically, the crash happens because the query references invite_token.uses_count, which does not exist in the database
+👉 You should trace the code path that runs when:
+User taps Invite in the bottom nav
+Invite tokens are queried for display or generation
+Issue 3 (Mountains Visited)
+Is this the multi-select on the Edit Profile page?
+➡️ Yes — correct.
+This is the Mountains Visited multi-select on the Edit Profile page
+It is the same page involved in Issue 4
+The problem is purely UX:
+Users can select multiple mountains
+There is no visible summary of what they’ve selected
+👉 The fix should live on the Edit Profile page, alongside the other mobile layout improvements.
+Issue 4 (Floating Save Button)
+Should the floating save be always visible or only when changes are made?
+➡️ Always visible (fixed position).
+Do NOT implement dirty-state detection
+Do NOT hide/show based on changes
+Keep it simple and predictable
+Rationale:
+Mobile-first
+Reduces cognitive load
+Avoids edge cases and extra JS complexity
+Consistent with “profile polishing” behavior
+The button can still be disabled if no changes are detected, but:
+Visibility should be constant
+Position should be fixed at the bottom with safe-area padding
+General (InviteToken validity: expires_at vs used_at)
+Does the table have expires_at, and should it be checked?
+➡️ Primary enforcement is used_at.
+The system is single-use by design
+used_at is the authoritative field
+If expires_at already exists, it can be checked as an additional guard
+If it does not exist, do NOT add it
+👉 In other words:
+Do not add schema
+Do not migrate
+Enforce single-use via used_at
+Optionally respect expires_at only if already present
+✅ TL;DR FOR REPLIT
+Issue 1: Crash is on Invite tab load, not invite acceptance
+Issue 3: Mountains Visited multi-select is on Edit Profile (same page as Issue 4)
+Issue 4: Floating Save is always visible (no dirty-state logic)
+Invites: Enforce single-use via used_at; only check expires_at if it already exists
