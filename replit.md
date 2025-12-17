@@ -37,6 +37,12 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **File Structure:** Organized separation of application logic, models, templates, and static assets.
 - **API Endpoints:** Dedicated routes for trip management (create, edit, delete) and friend management (invite, list, accept, remove).
 - **Models:** Core models include `User`, `SkiTrip`, `Resort`, `Friend`, `Invitation`, `InviteToken`, `GroupTrip`, `TripGuest`, and `EquipmentSetup`, with defined relationships.
+- **Multi-Pass Support (Dec 17, 2025):**
+  - `Resort.pass_brands`: New VARCHAR(150) column stores comma-separated pass affiliations (e.g., "Ikon,MountainCollective")
+  - Backward compatible: `Resort.brand` remains as primary category
+  - Canonical pass lists: Epic (26), Indy (25), Mountain Collective (7 Ikon overlap)
+  - Backfill via: `flask backfill-pass-brands` (idempotent, safe to re-run)
+  - Current state: All 118 resorts populated (16 Epic, 71 Ikon, 4 Indy, 11 MountainCollective)
 - **Social Trip Models (Step 1 - Dec 2025):**
   - `GroupTrip`: Multi-user trip with host_id, title, start/end dates, accommodation_status, transportation_status enums
   - `TripGuest`: Join table linking users to group trips with status (invited/accepted) and unique constraint

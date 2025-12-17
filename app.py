@@ -11,6 +11,7 @@ from services.open_dates import get_open_date_matches
 from io import BytesIO
 import segno
 import random
+import click
 
 # ============================================================================
 # PROFILE CONSOLIDATION NOTE:
@@ -2676,6 +2677,139 @@ def update_group_trip_transportation(trip_id):
     
     db.session.commit()
     return jsonify({"success": True})
+
+
+# ============================================================================
+# CANONICAL PASS BRAND MAPPINGS (for backfill)
+# ============================================================================
+
+EPIC_RESORT_NAMES = {
+    "Heavenly Mountain Resort", "Kirkwood Mountain Resort", "Northstar California Resort",
+    "Vail Mountain", "Beaver Creek", "Breckenridge Ski Resort", "Keystone Resort",
+    "Crested Butte Mountain Resort", "Mt. Brighton", "Afton Alps", "Hidden Valley Ski Resort",
+    "Attitash Mountain Resort", "Wildcat Mountain", "Hunter Mountain", "Boston Mills",
+    "Brandywine", "Mad River Mountain", "Jack Frost Big Boulder", "Roundtop Mountain Resort",
+    "Whitetail Resort", "Liberty Mountain Resort", "Park City Mountain", "Mount Snow",
+    "Okemo Mountain Resort", "Stowe Mountain Resort", "Stevens Pass", "Wilmot Mountain"
+}
+
+INDY_RESORT_NAMES = {
+    "Bear Valley", "China Peak", "Dodge Ridge", "Sunlight Mountain Resort",
+    "Powderhorn Mountain Resort", "Ski Cooper", "Brundage Mountain", "Tamarack Resort",
+    "Lookout Pass", "Saddleback Mountain", "Marquette Mountain", "Blacktail Mountain",
+    "Lost Trail Powder Mountain", "Red Lodge Mountain", "Cannon Mountain", "Ski Santa Fe",
+    "Titus Mountain", "Willamette Pass", "Blue Knob All Seasons Resort", "Beaver Mountain",
+    "Eagle Point Resort", "Bolton Valley", "Magic Mountain", "White Pass", "Snow King Mountain"
+}
+
+MOUNTAIN_COLLECTIVE_RESORT_NAMES = {
+    "Aspen Snowmass", "Alta Ski Area", "Snowbird", "Jackson Hole Mountain Resort",
+    "Sun Valley", "Sugarbush Resort", "Taos Ski Valley"
+}
+
+
+@app.cli.command("backfill-pass-brands")
+@click.option("--force", is_flag=True, help="Force re-run even if already populated")
+def backfill_pass_brands(force):
+    """Backfill pass_brands column for all resorts. Idempotent by default."""
+    created = 0
+    updated = 0
+    skipped = 0
+    null_count = 0
+
+    with app.app_context():
+        resorts = Resort.query.all()
+
+        for resort in resorts:
+            # Skip if already populated and not forcing
+            if resort.pass_brands and not force:
+                skipped += 1
+                continue
+
+            original_pass_brands = resort.pass_brands
+            new_pass_brands = None
+
+            # Priority 1: Mountain Collective (Ikon overlap)
+            if resort.name in MOUNTAIN_COLLECTIVE_RESORT_NAMES:
+                new_pass_brands = "Ikon,MountainCollective"
+                resort.brand = "Ikon"
+
+            # Priority 2: Epic
+            elif resort.name in EPIC_RESORT_NAMES:
+                new_pass_brands = "Epic"
+                resort.brand = "Epic"
+
+            # Priority 3: Indy
+            elif resort.name in INDY_RESORT_NAMES:
+                new_pass_brands = "Indy"
+                resort.brand = "Other"
+
+            # Priority 4: Existing Ikon (default)
+            elif resort.brand == "Ikon":
+                new_pass_brands = "Ikon"
+
+            # Fallback: Use existing brand
+            else:
+                new_pass_brands = resort.brand or "Other"
+
+            # Update if changed
+            if new_pass_brands != original_pass_brands:
+                resort.pass_brands = new_pass_brands
+                db.session.commit()
+                if original_pass_brands is None:
+                    created += 1
+                    print(f"  ✨ CREATED: {resort.name} ({resort.state}) → {new_pass_brands}")
+                else:
+                    updated += 1
+                    print(f"  ✏️  UPDATED: {resort.name} ({resort.state}) → {new_pass_brands} (was: {original_pass_brands})")
+            else:
+                skipped += 1
+
+        # Verify no nulls
+        null_check = Resort.query.filter(Resort.pass_brands.is_(None)).count()
+
+        print("\n" + "=" * 70)
+        print("BACKFILL SUMMARY")
+        print("=" * 70)
+        print(f"Total resorts: {len(resorts)}")
+        print(f"Pass brands created: {created}")
+        print(f"Pass brands updated: {updated}")
+        print(f"Pass brands skipped: {skipped}")
+        print(f"Resorts with NULL pass_brands: {null_check}")
+        print()
+
+        # Distribution by pass
+        epic_count = Resort.query.filter(Resort.pass_brands.contains("Epic")).count()
+        ikon_count = Resort.query.filter(Resort.pass_brands.contains("Ikon")).count()
+        indy_count = Resort.query.filter(Resort.pass_brands.contains("Indy")).count()
+        mountain_collective_count = Resort.query.filter(Resort.pass_brands.contains("MountainCollective")).count()
+
+        print("Distribution:")
+        print(f"  - Epic: {epic_count}")
+        print(f"  - Ikon: {ikon_count}")
+        print(f"  - Indy: {indy_count}")
+        print(f"  - MountainCollective: {mountain_collective_count}")
+        print()
+
+        # Sample resorts
+        print("Sample Results (before/after):")
+        samples = [
+            ("Park City Mountain", "Epic"),
+            ("Bolton Valley", "Indy"),
+            ("Aspen Snowmass", "Ikon,MountainCollective"),
+            ("Jackson Hole Mountain Resort", "Ikon,MountainCollective"),
+        ]
+        for name, expected_brands in samples:
+            resort = Resort.query.filter_by(name=name).first()
+            if resort:
+                status = "✓" if resort.pass_brands == expected_brands else "✗"
+                print(f"  {status} {name}: {resort.pass_brands} (expected: {expected_brands})")
+            else:
+                print(f"  ✗ {name}: NOT FOUND")
+
+        print()
+        print("✅ Backfill complete!")
+        print("=" * 70)
 
 
 if __name__ == "__main__":
