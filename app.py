@@ -3068,5 +3068,120 @@ def seed_full_demo_world():
         print("=" * 70)
 
 
+# ============================================================================
+# REPAIR DEMO DATA
+# ============================================================================
+
+@app.cli.command("repair-demo-data")
+def repair_demo_data():
+    """Repair seeded demo data: fix passwords and friend connections."""
+    print("🔧 REPAIRING DEMO DATA...")
+    print("=" * 70)
+    
+    with app.app_context():
+        # ====== FIX PASSWORDS ======
+        password_fixes = 0
+        
+        richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+        if richard:
+            richard.set_password("12345678")
+            db.session.add(richard)
+            password_fixes += 1
+            print("✨ Reset password: Richard Battle-Baxter")
+        
+        jonathan = User.query.filter_by(email="jonathanmschmitz@gmail.com").first()
+        if jonathan:
+            jonathan.set_password("12345678")
+            db.session.add(jonathan)
+            password_fixes += 1
+            print("✨ Reset password: Jonathan Schmitz")
+        
+        db.session.commit()
+        
+        # ====== FIX FRIEND CONNECTIONS ======
+        friend_fixes = 0
+        
+        # Get all dummy users
+        dummy_users = User.query.filter(
+            User.email.like("user%@baselodge.local")
+        ).all()
+        
+        print(f"\nProcessing {len(dummy_users)} dummy users...")
+        
+        for user in dummy_users:
+            # Connect to Richard
+            if richard:
+                existing_1 = Friend.query.filter_by(user_id=user.id, friend_id=richard.id).first()
+                existing_2 = Friend.query.filter_by(user_id=richard.id, friend_id=user.id).first()
+                
+                if not existing_1:
+                    f1 = Friend(user_id=user.id, friend_id=richard.id)
+                    db.session.add(f1)
+                    friend_fixes += 1
+                
+                if not existing_2:
+                    f2 = Friend(user_id=richard.id, friend_id=user.id)
+                    db.session.add(f2)
+                    friend_fixes += 1
+            
+            # Connect to Jonathan
+            if jonathan:
+                existing_3 = Friend.query.filter_by(user_id=user.id, friend_id=jonathan.id).first()
+                existing_4 = Friend.query.filter_by(user_id=jonathan.id, friend_id=user.id).first()
+                
+                if not existing_3:
+                    f3 = Friend(user_id=user.id, friend_id=jonathan.id)
+                    db.session.add(f3)
+                    friend_fixes += 1
+                
+                if not existing_4:
+                    f4 = Friend(user_id=jonathan.id, friend_id=user.id)
+                    db.session.add(f4)
+                    friend_fixes += 1
+        
+        db.session.commit()
+        print(f"✨ Added/verified: {friend_fixes} friend connections")
+        
+        # ====== VERIFICATION ======
+        print("\n" + "=" * 70)
+        print("VERIFICATION REPORT")
+        print("=" * 70)
+        
+        # Check passwords
+        test_richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+        test_jonathan = User.query.filter_by(email="jonathanmschmitz@gmail.com").first()
+        
+        print(f"\nPassword Status:")
+        if test_richard and test_richard.check_password("12345678"):
+            print(f"  ✓ Richard can log in with 12345678")
+        else:
+            print(f"  ✗ Richard password FAILED")
+        
+        if test_jonathan and test_jonathan.check_password("12345678"):
+            print(f"  ✓ Jonathan can log in with 12345678")
+        else:
+            print(f"  ✗ Jonathan password FAILED")
+        
+        # Check friend connections
+        print(f"\nFriend Connection Status:")
+        total_dummy = len(dummy_users)
+        richard_connections = Friend.query.filter_by(friend_id=richard.id).count() if richard else 0
+        jonathan_connections = Friend.query.filter_by(friend_id=jonathan.id).count() if jonathan else 0
+        
+        print(f"  Dummy users connected to Richard: {richard_connections}/{total_dummy}")
+        print(f"  Dummy users connected to Jonathan: {jonathan_connections}/{total_dummy}")
+        
+        # Sample verification
+        print(f"\nSample User Connections:")
+        for user in random.sample(dummy_users, min(3, len(dummy_users))):
+            friends_richard = 1 if Friend.query.filter_by(user_id=user.id, friend_id=richard.id).first() else 0
+            friends_jonathan = 1 if Friend.query.filter_by(user_id=user.id, friend_id=jonathan.id).first() else 0
+            
+            print(f"  {user.email}: richard_friend={friends_richard}, jonathan_friend={friends_jonathan}")
+        
+        print("\n✅ REPAIR COMPLETE!")
+        print("=" * 70)
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
