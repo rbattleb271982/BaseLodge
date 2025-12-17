@@ -183,15 +183,6 @@
                 </div>
             </div>
 
-            <div class="form-group toggle-group">
-                {% set public_checked = (trip.is_public if trip is not none else True) %}
-                <label class="toggle-label">
-                    <input type="checkbox" name="is_public" id="is_public" {% if public_checked %}checked{% endif %}>
-                    <span>Make this trip visible to friends</span>
-                </label>
-                <p class="helper-text">Only friends can see this trip.</p>
-            </div>
-
             <div class="form-group">
                 <label for="ride_intent">Ride status</label>
                 <select id="ride_intent" name="ride_intent">
@@ -211,6 +202,15 @@
                 <p class="inline-error" id="home-mountain-error">Please choose a resort before setting it as your home mountain.</p>
             </div>
             {% endif %}
+
+            <div class="form-group toggle-group">
+                {% set public_checked = (trip.is_public if trip is not none else True) %}
+                <label class="toggle-label">
+                    <input type="checkbox" name="is_public" id="is_public" {% if public_checked %}checked{% endif %}>
+                    <span>Make this trip visible to friends</span>
+                </label>
+                <p class="helper-text">Only friends can see this trip.</p>
+            </div>
 
             <button type="submit" class="primary-button">{% if trip %}Save changes{% else %}Save trip{% endif %}</button>
         </form>
