@@ -1,0 +1,112 @@
+Safely upsert all Ikon Pass resorts into the existing resort table using the current schema and rules.
+⚠️ Do NOT modify database schema
+⚠️ Do NOT remove existing resorts
+⚠️ Do NOT change pass logic
+⚠️ This must be safe to re-run
+✅ IMPLEMENTATION REQUIREMENTS
+1️⃣ Resort List (SOURCE OF TRUTH)
+Use the following hardcoded list of resorts.
+All resorts should be stored with:
+brand = "Ikon"
+is_active = True
+IKON_RESORTS = [
+    # Alaska
+    ("Alyeska Resort", "AK"),
+
+    # California
+    ("Palisades Tahoe", "CA"),
+    ("Sierra-at-Tahoe", "CA"),
+    ("Mammoth Mountain", "CA"),
+    ("June Mountain", "CA"),
+    ("Big Bear Mountain Resort", "CA"),
+    ("Snow Valley", "CA"),
+
+    # Colorado
+    ("Aspen Snowmass", "CO"),
+    ("Winter Park Resort", "CO"),
+    ("Copper Mountain Resort", "CO"),
+    ("Arapahoe Basin Ski Area", "CO"),
+    ("Eldora Mountain Resort", "CO"),
+
+    # Idaho
+    ("Sun Valley", "ID"),
+    ("Schweitzer", "ID"),
+
+    # Maine
+    ("Sugarloaf", "ME"),
+    ("Sunday River", "ME"),
+
+    # Michigan
+    ("Boyne Mountain", "MI"),
+    ("The Highlands", "MI"),
+
+    # Montana
+    ("Big Sky Resort", "MT"),
+
+    # New Hampshire
+    ("Loon Mountain", "NH"),
+
+    # New Mexico
+    ("Taos Ski Valley", "NM"),
+
+    # Oregon
+    ("Mt. Bachelor", "OR"),
+
+    # Pennsylvania
+    ("Camelback Resort", "PA"),
+    ("Blue Mountain Resort", "PA"),
+
+    # Utah
+    ("Deer Valley Resort", "UT"),
+    ("Solitude Mountain Resort", "UT"),
+    ("Alta Ski Area", "UT"),
+    ("Snowbird", "UT"),
+    ("Brighton Resort", "UT"),
+    ("Snowbasin Resort", "UT"),
+
+    # Vermont
+    ("Stratton Resort", "VT"),
+    ("Sugarbush Resort", "VT"),
+    ("Killington-Pico", "VT"),
+
+    # Washington
+    ("Crystal Mountain", "WA"),
+    ("The Summit at Snoqualmie", "WA"),
+
+    # West Virginia
+    ("Snowshoe Mountain", "WV"),
+
+    # Wyoming
+    ("Jackson Hole Mountain Resort", "WY"),
+]
+2️⃣ Slug Rules
+Generate slug as:
+<name>-<state>
+→ lowercase
+→ spaces to hyphens
+→ remove parentheses
+Example:
+Aspen Snowmass, CO → aspen-snowmass-co
+3️⃣ Upsert Logic
+For each resort:
+If a resort with the same slug exists:
+Ensure brand = "Ikon"
+Ensure is_active = True
+Update only if values differ
+If it does NOT exist:
+Create new Resort row
+4️⃣ Safety & Reporting
+At the end, print a summary:
+Total processed
+Resorts created
+Resorts updated
+Resorts skipped (already correct)
+🛑 STOP CONDITION
+STOP after:
+All resorts are processed
+No schema changes made
+No duplicates created
+📋 FINAL REPORT BACK
+Return:
+Counts (created / updated / skipped)
+Confirmation script is idempotent
