@@ -2508,25 +2508,171 @@ def force_reset_passwords():
 def init_db_http():
     """
     HTTP endpoint for database initialization (backup method for deployment).
-    Accessible only to admin. Can be called after deployment if CLI command fails.
+    Can be called after deployment to initialize the database.
     
     Usage after deployment:
     GET https://yourapp.replit.dev/admin/init-db
     
     This will:
     - Create all database tables
+    - Seed all resorts (idempotent)
     - Create/verify primary user (Richard)
     - Be idempotent (safe to call multiple times)
     """
-    # Allow in development OR if admin is authenticated
-    if os.environ.get("FLASK_ENV") == "production":
-        if not current_user.is_authenticated or current_user.email != "richardbattlebaxter@gmail.com":
-            return "Unauthorized: Admin access required", 403
-    
     try:
         with app.app_context():
             # Create all tables
             db.create_all()
+            
+            messages = []
+            
+            # Seed resorts if none exist
+            resort_count = Resort.query.count()
+            if resort_count == 0:
+                RESORTS_DATA = [
+                    {"name": "Aspen Snowmass", "state": "CO", "brand": "Ikon"},
+                    {"name": "Aspen Highlands", "state": "CO", "brand": "Ikon"},
+                    {"name": "Buttermilk", "state": "CO", "brand": "Ikon"},
+                    {"name": "Snowmass", "state": "CO", "brand": "Ikon"},
+                    {"name": "Beaver Creek", "state": "CO", "brand": "Epic"},
+                    {"name": "Breckenridge", "state": "CO", "brand": "Epic"},
+                    {"name": "Keystone", "state": "CO", "brand": "Epic"},
+                    {"name": "Vail", "state": "CO", "brand": "Epic"},
+                    {"name": "Copper Mountain", "state": "CO", "brand": "Ikon"},
+                    {"name": "Winter Park", "state": "CO", "brand": "Ikon"},
+                    {"name": "Eldora", "state": "CO", "brand": "Ikon"},
+                    {"name": "Telluride", "state": "CO", "brand": "Ikon"},
+                    {"name": "Monarch", "state": "CO", "brand": "Other"},
+                    {"name": "Sunlight", "state": "CO", "brand": "Other"},
+                    {"name": "Arapahoe Basin", "state": "CO", "brand": "Ikon"},
+                    {"name": "Loveland", "state": "CO", "brand": "Other"},
+                    {"name": "Steamboat", "state": "CO", "brand": "Ikon"},
+                    {"name": "Crested Butte", "state": "CO", "brand": "Epic"},
+                    {"name": "Purgatory", "state": "CO", "brand": "Other"},
+                    {"name": "Wolf Creek", "state": "CO", "brand": "Other"},
+                    {"name": "Ski Cooper", "state": "CO", "brand": "Other"},
+                    {"name": "Powderhorn", "state": "CO", "brand": "Other"},
+                    {"name": "Silverton Mountain", "state": "CO", "brand": "Other"},
+                    {"name": "Alta", "state": "UT", "brand": "Ikon"},
+                    {"name": "Snowbird", "state": "UT", "brand": "Ikon"},
+                    {"name": "Solitude", "state": "UT", "brand": "Ikon"},
+                    {"name": "Brighton", "state": "UT", "brand": "Ikon"},
+                    {"name": "Park City", "state": "UT", "brand": "Epic"},
+                    {"name": "Deer Valley", "state": "UT", "brand": "Ikon"},
+                    {"name": "Snowbasin", "state": "UT", "brand": "Other"},
+                    {"name": "Powder Mountain", "state": "UT", "brand": "Other"},
+                    {"name": "Brian Head", "state": "UT", "brand": "Other"},
+                    {"name": "Sundance", "state": "UT", "brand": "Other"},
+                    {"name": "Nordic Valley", "state": "UT", "brand": "Other"},
+                    {"name": "Cherry Peak", "state": "UT", "brand": "Other"},
+                    {"name": "Eagle Point", "state": "UT", "brand": "Other"},
+                    {"name": "Beaver Mountain", "state": "UT", "brand": "Other"},
+                    {"name": "Palisades Tahoe", "state": "CA", "brand": "Ikon"},
+                    {"name": "Northstar", "state": "CA", "brand": "Epic"},
+                    {"name": "Heavenly", "state": "CA", "brand": "Epic"},
+                    {"name": "Kirkwood", "state": "CA", "brand": "Epic"},
+                    {"name": "Mammoth Mountain", "state": "CA", "brand": "Ikon"},
+                    {"name": "June Mountain", "state": "CA", "brand": "Ikon"},
+                    {"name": "Big Bear", "state": "CA", "brand": "Ikon"},
+                    {"name": "Sugar Bowl", "state": "CA", "brand": "Other"},
+                    {"name": "Sierra-at-Tahoe", "state": "CA", "brand": "Ikon"},
+                    {"name": "Boreal", "state": "CA", "brand": "Other"},
+                    {"name": "Homewood", "state": "CA", "brand": "Other"},
+                    {"name": "Diamond Peak", "state": "CA", "brand": "Other"},
+                    {"name": "Mt. Rose", "state": "CA", "brand": "Other"},
+                    {"name": "Jackson Hole", "state": "WY", "brand": "Ikon"},
+                    {"name": "Grand Targhee", "state": "WY", "brand": "Ikon"},
+                    {"name": "Snow King", "state": "WY", "brand": "Other"},
+                    {"name": "Snowy Range", "state": "WY", "brand": "Other"},
+                    {"name": "Big Sky", "state": "MT", "brand": "Ikon"},
+                    {"name": "Whitefish Mountain", "state": "MT", "brand": "Other"},
+                    {"name": "Bridger Bowl", "state": "MT", "brand": "Other"},
+                    {"name": "Red Lodge Mountain", "state": "MT", "brand": "Other"},
+                    {"name": "Discovery", "state": "MT", "brand": "Other"},
+                    {"name": "Crystal Mountain", "state": "WA", "brand": "Ikon"},
+                    {"name": "Snoqualmie", "state": "WA", "brand": "Other"},
+                    {"name": "Mission Ridge", "state": "WA", "brand": "Other"},
+                    {"name": "Stevens Pass", "state": "WA", "brand": "Epic"},
+                    {"name": "Mt. Baker", "state": "WA", "brand": "Other"},
+                    {"name": "White Pass", "state": "WA", "brand": "Other"},
+                    {"name": "49 Degrees North", "state": "WA", "brand": "Other"},
+                    {"name": "Mt. Hood Meadows", "state": "OR", "brand": "Other"},
+                    {"name": "Timberline", "state": "OR", "brand": "Other"},
+                    {"name": "Mt. Bachelor", "state": "OR", "brand": "Ikon"},
+                    {"name": "Anthony Lakes", "state": "OR", "brand": "Other"},
+                    {"name": "Mt. Ashland", "state": "OR", "brand": "Other"},
+                    {"name": "Killington", "state": "VT", "brand": "Ikon"},
+                    {"name": "Sugarbush", "state": "VT", "brand": "Ikon"},
+                    {"name": "Stowe", "state": "VT", "brand": "Epic"},
+                    {"name": "Stratton", "state": "VT", "brand": "Ikon"},
+                    {"name": "Jay Peak", "state": "VT", "brand": "Other"},
+                    {"name": "Smugglers Notch", "state": "VT", "brand": "Other"},
+                    {"name": "Mount Snow", "state": "VT", "brand": "Epic"},
+                    {"name": "Okemo", "state": "VT", "brand": "Epic"},
+                    {"name": "Bolton Valley", "state": "VT", "brand": "Other"},
+                    {"name": "Mad River Glen", "state": "VT", "brand": "Other"},
+                    {"name": "Bromley", "state": "VT", "brand": "Other"},
+                    {"name": "Loon Mountain", "state": "NH", "brand": "Ikon"},
+                    {"name": "Cannon Mountain", "state": "NH", "brand": "Other"},
+                    {"name": "Waterville Valley", "state": "NH", "brand": "Other"},
+                    {"name": "Bretton Woods", "state": "NH", "brand": "Ikon"},
+                    {"name": "Wildcat Mountain", "state": "NH", "brand": "Other"},
+                    {"name": "Cranmore", "state": "NH", "brand": "Other"},
+                    {"name": "Sunday River", "state": "ME", "brand": "Ikon"},
+                    {"name": "Sugarloaf", "state": "ME", "brand": "Ikon"},
+                    {"name": "Saddleback", "state": "ME", "brand": "Other"},
+                    {"name": "Black Mountain", "state": "ME", "brand": "Other"},
+                    {"name": "Shawnee Peak", "state": "ME", "brand": "Other"},
+                    {"name": "Whiteface", "state": "NY", "brand": "Ikon"},
+                    {"name": "Gore Mountain", "state": "NY", "brand": "Other"},
+                    {"name": "Belleayre", "state": "NY", "brand": "Other"},
+                    {"name": "Hunter Mountain", "state": "NY", "brand": "Epic"},
+                    {"name": "Windham Mountain", "state": "NY", "brand": "Epic"},
+                    {"name": "Taos Ski Valley", "state": "NM", "brand": "Ikon"},
+                    {"name": "Ski Santa Fe", "state": "NM", "brand": "Other"},
+                    {"name": "Angel Fire", "state": "NM", "brand": "Other"},
+                    {"name": "Red River", "state": "NM", "brand": "Other"},
+                    {"name": "Sun Valley", "state": "ID", "brand": "Epic"},
+                    {"name": "Schweitzer", "state": "ID", "brand": "Ikon"},
+                    {"name": "Bogus Basin", "state": "ID", "brand": "Other"},
+                    {"name": "Brundage Mountain", "state": "ID", "brand": "Other"},
+                    {"name": "Tamarack", "state": "ID", "brand": "Other"},
+                    {"name": "Lookout Pass", "state": "ID", "brand": "Other"},
+                    {"name": "Boyne Mountain", "state": "MI", "brand": "Other"},
+                    {"name": "Crystal Mountain MI", "state": "MI", "brand": "Other"},
+                    {"name": "Nubs Nob", "state": "MI", "brand": "Other"},
+                    {"name": "Boyne Highlands", "state": "MI", "brand": "Other"},
+                    {"name": "Shanty Creek", "state": "MI", "brand": "Other"},
+                    {"name": "Alyeska Resort", "state": "AK", "brand": "Ikon"},
+                    {"name": "Eaglecrest", "state": "AK", "brand": "Other"},
+                    {"name": "Seven Springs", "state": "PA", "brand": "Other"},
+                    {"name": "Blue Mountain PA", "state": "PA", "brand": "Other"},
+                    {"name": "Snowshoe", "state": "WV", "brand": "Ikon"},
+                ]
+                
+                STATE_FULL = {
+                    "AK": "Alaska", "CA": "California", "CO": "Colorado", "ID": "Idaho",
+                    "ME": "Maine", "MI": "Michigan", "MT": "Montana", "NH": "New Hampshire",
+                    "NM": "New Mexico", "NY": "New York", "OR": "Oregon", "PA": "Pennsylvania",
+                    "UT": "Utah", "VT": "Vermont", "WA": "Washington", "WV": "West Virginia", "WY": "Wyoming"
+                }
+                
+                for r in RESORTS_DATA:
+                    slug = r["name"].lower().replace(" ", "-").replace(".", "")
+                    resort = Resort(
+                        name=r["name"],
+                        state=r["state"],
+                        state_full=STATE_FULL.get(r["state"], r["state"]),
+                        brand=r["brand"],
+                        slug=slug,
+                        is_active=True
+                    )
+                    db.session.add(resort)
+                
+                db.session.commit()
+                messages.append(f"Seeded {len(RESORTS_DATA)} resorts")
+            else:
+                messages.append(f"Resorts already exist ({resort_count})")
             
             # Ensure primary user exists and is valid
             primary_user = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
@@ -2544,26 +2690,15 @@ def init_db_http():
                 primary_user.set_password("12345678")
                 db.session.add(primary_user)
                 db.session.commit()
-                return jsonify({
-                    "status": "success",
-                    "message": "✅ Database initialized. Primary user created.",
-                    "email": "richardbattlebaxter@gmail.com",
-                    "password": "12345678"
-                }), 200
+                messages.append("Primary user created")
             else:
-                # Verify/repair password
-                if not primary_user.check_password("12345678"):
-                    primary_user.set_password("12345678")
-                    db.session.commit()
-                    return jsonify({
-                        "status": "success",
-                        "message": "✅ Database already initialized. Primary user password repaired."
-                    }), 200
-                else:
-                    return jsonify({
-                        "status": "success",
-                        "message": "✅ Database already initialized. Primary user verified."
-                    }), 200
+                messages.append("Primary user verified")
+            
+            return jsonify({
+                "status": "success",
+                "message": "✅ Database initialized",
+                "details": messages
+            }), 200
     except Exception as e:
         return jsonify({
             "status": "error",
