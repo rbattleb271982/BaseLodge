@@ -75,6 +75,18 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
   - Permissions: Profile owner edits equipment; host-only edits accommodation/transportation
 - **Authentication:** Flask-Login is fully integrated for session management, replacing manual session handling, and configured for cross-origin iframe compatibility.
 
+- **Invite Token System (Dec 17, 2025):**
+  - `InviteToken` model: Schema is (id, token, inviter_id, created_at, used_at, max_uses)
+  - Single-use enforcement via `used_at` timestamp (not uses_count)
+  - `is_used()` method checks if token has been used
+  - Friendly error page shown when visiting already-used invite link
+
+- **UI/UX Updates (Dec 17, 2025):**
+  - **Edit Profile**: Mobile-first layout with card sections, floating Save button at bottom
+  - **Mountains Visited**: Removable pill/chip UI with × buttons for selected mountains
+  - **Add Trip**: Client-side validation requires resort selection before home mountain checkbox can be checked
+  - Max width 500px on profile forms for better mobile experience
+
 ## Test Users (Main)
 - **Richard Battle-Baxter:** richardbattlebaxter@gmail.com / 12345678
   - Epic pass, Advanced skier, Colorado
