@@ -230,11 +230,58 @@
 } %}
 
 <div class="edit-profile-container">
+    <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
     <a href="{{ url_for('more') }}" class="back-link">← Back</a>
     <h1 class="page-header">Edit Profile</h1>
 
     <div class="section-card">
-        <h3 class="section-title">Rider Info</h3>
+        <h3 class="section-title">About You</h3>
+        
+        <div class="form-row">
+            <label>Home State</label>
+            <select name="home_state" id="home-state-select">
+                <option value="">Select</option>
+                {% for st in states %}
+                <option value="{{ st }}" {% if current_user.home_state == st %}selected{% endif %}>{{ st }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-row">
+            <label>Home Mountain</label>
+            <select name="home_mountain" id="home_mountain" {% if not current_user.home_state %}disabled{% endif %}>
+                <option value="">{% if not current_user.home_state %}Select state first{% else %}Select your home mountain{% endif %}</option>
+                {% if current_user.home_state and current_user.home_state in MOUNTAINS %}
+                    {% for m in MOUNTAINS[current_user.home_state]|sort %}
+                        <option value="{{ m }}" {% if current_user.home_mountain == m %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                {% endif %}
+            </select>
+        </div>
+        
+        <div class="form-row">
+            <label>Birth Year</label>
+            <select name="birth_year" id="birth-year-select">
+                <option value="">Select</option>
+                {% for year in range(1950, 2025) %}
+                <option value="{{ year }}" {% if current_user.birth_year == year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-row">
+            <label>Gender</label>
+            <select name="gender" id="gender-select">
+                <option value="">Select</option>
+                {% for g in ["Male", "Female", "Non-binary", "Prefer not to say"] %}
+                <option value="{{ g }}" {% if current_user.gender == g %}selected{% endif %}>{{ g }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <h3 class="section-title">Riding Details</h3>
         
         <div class="form-row">
             <label>Rider Type</label>
@@ -267,61 +314,18 @@
         {% set user_passes = current_user.pass_type.split(',') if current_user.pass_type else [] %}
         {% for pass in pass_options %}
         <div class="checkbox-row">
-            <input type="checkbox" name="pass_type" value="{{ pass }}" id="pass_{{ pass }}" 
-                   {% if pass in user_passes %}checked{% endif %}>
-            <label for="pass_{{ pass }}">
-                {{ pass.replace('Mountain', 'Mountain ').replace('Collective', 'Collective').replace('PowderAlliance', 'Powder Alliance').replace('SkiCalifornia', 'Ski California') }}
+            <input type="checkbox" name="pass_type" value="{{ pass }}" id="pass_{{ loop.index }}" 
+                   {% if pass in user_passes %}checked{% endif %}
+                   data-pass-value="{{ pass }}">
+            <label for="pass_{{ loop.index }}">
+                {% if pass == "I don't have a pass" %}
+                    I don't have a pass
+                {% else %}
+                    {{ pass.replace('Mountain', 'Mountain ').replace('Collective', 'Collective').replace('PowderAlliance', 'Powder Alliance').replace('SkiCalifornia', 'Ski California') }}
+                {% endif %}
             </label>
         </div>
         {% endfor %}
-    </div>
-
-    <div class="section-card">
-        <h3 class="section-title">Home Mountain</h3>
-        <div class="form-row">
-            <select name="home_mountain" id="home_mountain">
-                <option value="">Select your home mountain</option>
-                {% for state, mtns in MOUNTAINS.items() %}
-                    {% for m in mtns %}
-                        <option value="{{ m }}" {% if current_user.home_mountain == m %}selected{% endif %}>{{ m }}</option>
-                    {% endfor %}
-                {% endfor %}
-            </select>
-        </div>
-    </div>
-
-    <div class="section-card">
-        <h3 class="section-title">About You</h3>
-        
-        <div class="form-row">
-            <label>Gender</label>
-            <select name="gender" id="gender-select">
-                <option value="">Select</option>
-                {% for g in ["Male", "Female", "Non-binary", "Prefer not to say"] %}
-                <option value="{{ g }}" {% if current_user.gender == g %}selected{% endif %}>{{ g }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        
-        <div class="form-row">
-            <label>Birth Year</label>
-            <select name="birth_year" id="birth-year-select">
-                <option value="">Select</option>
-                {% for year in range(1950, 2025) %}
-                <option value="{{ year }}" {% if current_user.birth_year == year %}selected{% endif %}>{{ year }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        
-        <div class="form-row">
-            <label>Home State</label>
-            <select name="home_state" id="home-state-select">
-                <option value="">Select</option>
-                {% for st in states %}
-                <option value="{{ st }}" {% if current_user.home_state == st %}selected{% endif %}>{{ st }}</option>
-                {% endfor %}
-            </select>
-        </div>
     </div>
 
     <div class="section-card">
@@ -461,13 +465,80 @@ document.getElementById('birth-year-select').addEventListener('change', function
     document.getElementById('birth_year').value = this.value;
 });
 
+// Mountains by state mapping for filtering
+const mountainsByState = {
+    'AK': ['Alyeska'],
+    'CA': ['Mammoth', 'Northstar', 'Palisades Tahoe', 'June Mountain', 'Sierra at Tahoe', 'China Peak', 'Boreal'],
+    'CO': ['Aspen', 'Beaver Creek', 'Breckenridge', 'Copper', 'Loveland', 'Keystone', 'Winter Park', 'Eldora', 'Powderhorn', 'Monarch', 'Sunlight', 'Telluride'],
+    'ID': ['Bogus Basin', 'Schweitzer', 'Sun Valley'],
+    'ME': ['Sugarloaf', 'Sunday River'],
+    'MI': ['Boyne Highlands', 'Nubs Nob'],
+    'MT': ['Big Sky', 'Whitefish'],
+    'NH': ['Cannon', 'Loon', 'Wildcat', 'Mount Sunapee', 'Waterville Valley'],
+    'NM': ['Taos', 'Santa Fe'],
+    'NY': ['Whiteface', 'Gore', 'Belleayre'],
+    'OR': ['Mount Hood', 'Timberline', 'Hoodoo'],
+    'UT': ['Alta', 'Brighton', 'The Canyons', 'Powder Mountain', 'Park City', 'Snowbasin', 'Nordic Valley', 'Sundance'],
+    'VT': ['Stowe', 'Smugglers Notch', 'Jay Peak', 'Killington', 'Sugarbush'],
+    'WA': ['Crystal', 'Mission Ridge', 'The Summit at Snoqualmie', 'White Pass'],
+    'WY': ['Jackson Hole', 'Grand Targhee']
+};
+
+function updateMountainOptions(stateAbbr, currentMountain) {
+    const homeMountainSelect = document.getElementById('home_mountain');
+    const mountains = mountainsByState[stateAbbr] || [];
+    
+    let html = '<option value="">Select your home mountain</option>';
+    mountains.sort().forEach(mountain => {
+        const selected = (currentMountain === mountain) ? ' selected' : '';
+        html += `<option value="${mountain}"${selected}>${mountain}</option>`;
+    });
+    homeMountainSelect.innerHTML = html;
+}
+
 document.getElementById('home-state-select').addEventListener('change', function() {
     document.getElementById('home_state').value = this.value;
+    const homeMountainSelect = document.getElementById('home_mountain');
+    if (this.value) {
+        homeMountainSelect.disabled = false;
+        updateMountainOptions(this.value, '');
+        document.getElementById('home_mountain_hidden').value = '';
+    } else {
+        homeMountainSelect.disabled = true;
+        homeMountainSelect.innerHTML = '<option value="">Select state first</option>';
+        document.getElementById('home_mountain_hidden').value = '';
+    }
 });
+
+// Initialize pass_type_hidden with existing checked values on page load
+(function() {
+    const allPassCheckboxes = document.querySelectorAll('input[name="pass_type"]');
+    const checked = Array.from(allPassCheckboxes).filter(c => c.checked).map(c => c.value);
+    document.getElementById('pass_type_hidden').value = checked.join(',');
+})();
 
 document.querySelectorAll('input[name="pass_type"]').forEach(cb => {
     cb.addEventListener('change', function() {
-        const checked = Array.from(document.querySelectorAll('input[name="pass_type"]:checked')).map(c => c.value);
+        const noPassValue = "I don't have a pass";
+        const allPassCheckboxes = document.querySelectorAll('input[name="pass_type"]');
+        
+        // If "I don't have a pass" is checked, uncheck all others
+        if (this.value === noPassValue && this.checked) {
+            allPassCheckboxes.forEach(otherCb => {
+                if (otherCb.value !== noPassValue) {
+                    otherCb.checked = false;
+                }
+            });
+        }
+        // If any other pass is checked, uncheck "I don't have a pass"
+        if (this.value !== noPassValue && this.checked) {
+            allPassCheckboxes.forEach(otherCb => {
+                if (otherCb.value === noPassValue) {
+                    otherCb.checked = false;
+                }
+            });
+        }
+        const checked = Array.from(allPassCheckboxes).filter(c => c.checked).map(c => c.value);
         document.getElementById('pass_type_hidden').value = checked.join(',');
     });
 });

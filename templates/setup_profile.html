@@ -214,7 +214,22 @@
         });
         
         checkboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', updateContinueButton);
+            checkbox.addEventListener('change', function() {
+                // If "I don't have a pass" is checked, uncheck all others
+                if (this.value === "I don't have a pass" && this.checked) {
+                    checkboxes.forEach(cb => {
+                        if (cb.value !== "I don't have a pass") {
+                            cb.checked = false;
+                        }
+                    });
+                }
+                // If any other pass is checked, uncheck "I don't have a pass"
+                if (this.value !== "I don't have a pass" && this.checked) {
+                    const noPassCheckbox = document.getElementById("pass_I don't have a pass");
+                    if (noPassCheckbox) noPassCheckbox.checked = false;
+                }
+                updateContinueButton();
+            });
         });
         
         document.getElementById('setup-form').addEventListener('submit', (e) => {

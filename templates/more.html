@@ -8,6 +8,7 @@
 </head>
 <body>
     <div class="page-container">
+        <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
         <h1 class="page-title">More</h1>
         
         <!-- Section 1: Profile -->
@@ -67,9 +68,16 @@
             
             <div class="settings-row">
                 <div class="settings-main">
-                    <div class="settings-label">Gear</div>
-                    <div class="settings-value" style="color: var(--bl-color-text-muted);">Coming soon</div>
+                    <div class="settings-label">Equipment</div>
+                    <div class="settings-value">
+                        {% if current_user.gear and current_user.gear != 'None' %}
+                            {{ current_user.gear }}
+                        {% else %}
+                            Not set
+                        {% endif %}
+                    </div>
                 </div>
+                <a href="{{ url_for('edit_profile') }}" class="settings-action">{% if current_user.gear and current_user.gear != 'None' %}Edit{% else %}Add{% endif %}</a>
             </div>
         </section>
         

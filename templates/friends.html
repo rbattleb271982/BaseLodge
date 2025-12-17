@@ -8,6 +8,7 @@
 </head>
 <body>
     <div class="page-container">
+        <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
         <h1 class="page-title">Friends</h1>
         
         {% if count_all > 0 %}
@@ -30,20 +31,21 @@
             </a>
         </div>
         
-        <div class="bl-card">
+        <div class="bl-card" style="padding: 0;">
             {% for friend in friends %}
-            <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="friend-row-link">
-                <div class="friend-row">
-                    <div class="friend-name">{{ friend.first_name }} {{ friend.last_name }}</div>
-                    <div class="friend-meta">
-                        {{ friend.rider_type or '—' }} • {{ friend.skill_level or '—' }} • {{ friend.pass_type or 'No Pass' }}
+            <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="friend-row-link" style="text-decoration: none; color: inherit;">
+                <div class="friend-row" style="padding: 16px; border-bottom: 1px solid var(--bl-color-border-soft); {% if loop.last %}border-bottom: none;{% endif %}">
+                    <div class="friend-name" style="font-size: 17px; font-weight: 600; color: var(--bl-color-text); margin-bottom: 4px;">{{ friend.first_name }} {{ friend.last_name }}</div>
+                    <div class="friend-meta" style="font-size: 14px; color: var(--bl-color-text-muted);">
+                        {% set primary_pass = friend.pass_type.split(',')[0] if friend.pass_type else 'No Pass' %}
+                        {{ friend.rider_type or '—' }} · {{ friend.skill_level or '—' }} · {{ primary_pass }}
                     </div>
                 </div>
             </a>
             {% endfor %}
             
             {% if friends|length == 0 %}
-            <div style="padding: var(--bl-space-6); text-align: center; color: var(--bl-color-text-muted);">
+            <div style="padding: 24px; text-align: center; color: var(--bl-color-text-muted);">
                 No friends with this pass type
             </div>
             {% endif %}
