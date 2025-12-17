@@ -1,0 +1,121 @@
+1️⃣ Open Dates — current state
+Answer:
+The /open-dates-debug endpoint exists, but Open Dates is NOT complete end-to-end.
+Current state:
+Backend logic exists in parts
+Debug endpoint exists
+User-facing UI is incomplete
+Matching + display is not fully wired
+Instruction:
+Treat Open Dates as requiring full implementation:
+Build/finish the UI for selecting dates
+Persist dates to DB
+Compute overlapping friends
+Display overlapping friends list
+Do not rely on debug-only routes.
+2️⃣ GroupTrip creation — current state
+Answer:
+No usable GroupTrip creation route/UI exists
+GroupTrip viewing and guest management logic exists
+Creation must be built from scratch
+Instruction:
+Implement:
+GroupTrip creation route
+Minimal creation UI (title, start_date, end_date, optional resort_id)
+Without this, GroupTrips are unusable.
+3️⃣ Feed model — current state
+Answer:
+Assume NO usable Feed model exists unless you explicitly find one.
+If one exists:
+Reuse it
+If not:
+Create a minimal Feed model
+Required schema (simple):
+id
+user_id (actor)
+verb / event_type
+target_id (nullable)
+created_at
+Log ONLY these events in v1:
+SkiTrip created
+Friend connection created
+GroupTrip created
+GroupTrip invite accepted
+Do NOT log:
+pass changes
+Open Dates
+equipment edits
+accommodation/transport changes
+4️⃣ Email infrastructure — current state
+Answer:
+Email infrastructure may or may not be partially configured
+Assume:
+No complete templates exist
+No advanced preference system exists
+Instruction:
+Implement basic email sending only:
+Friend connection notification
+GroupTrip invite accepted
+Plain text or very simple HTML is fine.
+No preferences, no batching, no push.
+If SMTP is not configured:
+Stub safely or use existing app email helper if present.
+5️⃣ Resort compatibility display — placement
+Answer:
+Both, but minimal.
+Required:
+Inline in resort browsing / selection
+Inline in trip creation flow
+Not required:
+Separate page
+Dedicated component library
+Tooltips or modals
+Text-only is sufficient:
+“Works with: Ikon + MountainCollective”
+6️⃣ Equipment section — current state
+Answer:
+Yes, there is currently a profile summary section near “Home Mountain” that shows equipment.
+This needs to be removed.
+Instruction:
+Remove equipment summary from the top profile section.
+Equipment should live only in its dedicated section / edit area.
+7️⃣ Permission checks — current state
+Answer:
+Some routes rely on implicit safety via current_user
+This is not sufficient for v1
+Routes that need explicit hardening:
+Profile edit
+Equipment edit
+GroupTrip view
+GroupTrip mutation routes (invite, remove, update logistics)
+Instruction:
+Add explicit server-side ownership / access checks.
+Do not rely solely on template conditionals.
+8️⃣ Test workflow — what to use
+Answer:
+Use both, but keep it simple.
+Required:
+Manual smoke testing using existing seeded users:
+Richard
+Jonathan
+Sam
+Also required:
+One lightweight verification script / CLI output for:
+Resort.pass_brands populated
+No NULLs
+Counts per pass
+Do NOT:
+Build a pytest suite
+Add CI
+🧭 WHAT TO DO FIRST (REPEAT FOR CLARITY)
+Give Replit this order:
+Multi-pass onboarding + profile (checkboxes)
+Open Dates end-to-end
+GroupTrip creation
+Resort compatibility display
+Permission hardening
+Minimal feed
+Email notifications
+Smoke testing + verification
+📌 ONE-LINE SUMMARY YOU CAN ADD
+“Assume anything not explicitly confirmed above is missing and should be implemented minimally, safely, and without overengineering.”
