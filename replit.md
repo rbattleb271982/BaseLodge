@@ -43,6 +43,10 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **API Endpoints:** Dedicated routes for authentication, trip management (create, edit, delete), friend management (invite, list, accept, remove), and profile/equipment updates.
 - **Models:** Core models include `User`, `SkiTrip`, `Resort`, `Friend`, `Invitation`, `InviteToken`, `GroupTrip`, `TripGuest`, and `EquipmentSetup`, with defined relationships.
 - **Database Initialization:** Database initialization logic is decoupled from module-level imports, using `flask init-db` CLI command or `/admin/init-db` HTTP endpoint for idempotent setup.
+- **Test Data Seeding:** Visit `/admin/seed-test-users` to create demo data including:
+  - Primary user: richard@richard.com / 12345678
+  - 20 friends with complete profiles, trips, equipment
+  - Bidirectional friendships and date overlaps for testing feeds
 
 ## External Dependencies
 - **Flask:** Python web framework.
