@@ -1,0 +1,94 @@
+You are working inside the existing BaseLodge Flask + SQLAlchemy app.
+🎯 PROJECT GOAL (AUTHORITATIVE)
+Prepare BaseLodge v1 for real users planning ski trips together, prioritizing:
+Data correctness
+Clear pass/resort compatibility
+Stable social planning flows
+Minor UI rough edges are acceptable.
+Do NOT add unnecessary complexity.
+🧩 PRODUCT RULES (LOCKED)
+These rules must be followed exactly:
+Users may select multiple passes
+Resorts may belong to multiple passes
+Users are never blocked based on pass compatibility
+All resorts are always visible
+Compatibility is informational only
+Changing a user’s pass affects future browsing only
+GroupTrips may optionally reference a resort
+GroupTrip guests do NOT select passes in v1
+Open Dates must allow users to see overlapping friends
+Feed exists
+Notifications are email-first
+Optimize for data correctness over speed or UX polish
+✅ REQUIRED IMPLEMENTATION WORK
+1️⃣ Resort Multi-Pass Support (MANDATORY)
+A. Data model
+Add pass_brands column to Resort:
+pass_brands = db.Column(db.String(150), nullable=True)
+Keep Resort.brand unchanged (primary category only)
+B. Canonical pass lists
+Use explicit lists and explicit name mapping (no fuzzy matching).
+Epic Pass resorts
+Indy Pass resorts
+Mountain Collective resorts (overlapping with Ikon)
+Mountain Collective resorts must result in:
+pass_brands = "Ikon,MountainCollective"
+brand = "Ikon"
+C. Backfill logic (via Flask CLI)
+Create:
+flask backfill-pass-brands [--force]
+Rules:
+If pass_brands already populated → skip unless --force
+Default: pass_brands = brand
+Apply explicit overrides for Epic / Indy / Mountain Collective
+Ensure:
+comma-separated
+no spaces
+canonical casing
+no duplicates
+D. Verification output
+After backfill, print:
+Count of resorts per pass_brands
+Any NULLs (error)
+Sample before/after rows
+2️⃣ Resort Compatibility Display (READ-ONLY)
+Without changing filters:
+Display text on resort detail / selection views:
+“Works with: Epic”
+“Works with: Ikon + Mountain Collective”
+Do NOT hide or block resorts
+Do NOT enforce logic
+3️⃣ GroupTrip (LIGHT TOUCH)
+Allow GroupTrip to optionally reference a resort
+Do NOT require a resort
+Do NOT ask guests to select a pass
+Keep GroupTrip focused on dates + people + logistics
+4️⃣ Open Dates (CORE)
+Ensure users can:
+Select open dates
+See friends with overlapping dates
+This must be wired end-to-end (no debug-only paths).
+5️⃣ Feed & Notifications
+Feed exists (basic activity timeline)
+Notifications are email-first
+Do NOT build push or advanced preference systems
+🚫 EXPLICITLY OUT OF SCOPE
+Do NOT:
+Introduce join tables for passes
+Add per-pass day limits
+Add blackout rules
+Block user actions based on pass
+Refactor existing filters
+Add heavy UI polish
+Add automated tests beyond smoke checks
+🛑 STOP CONDITIONS
+Stop when:
+Multi-pass data is correct and verified
+App boots cleanly
+Core flows work on mobile devices
+No regressions introduced
+📋 FINAL REPORT BACK
+Return:
+Summary of changes
+Confirmation of product rules followed
+Any known risks or deferred items
