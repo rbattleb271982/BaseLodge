@@ -1,0 +1,97 @@
+Stabilize and clean up the core user flows in BaseLodge in the correct dependency order:
+Trips must work
+Profile data must be correct
+Navigation between More → Edit Profile must be consistent
+Editing UX must be clean and final
+Do NOT move on to lower-priority steps until higher-priority steps are fully working and verified.
+🔴 PRIORITY 1 — FIX ADD A TRIP (BLOCKER)
+Problem
+When adding a trip, selecting a State does not populate the Resort dropdown. This breaks trip creation, which blocks social features.
+Tasks
+1. Backend — Resorts by State API
+Verify or create a single API endpoint that returns resorts filtered by state.
+Requirements
+Accept 2-letter state code (CO)
+Return JSON only
+Return resorts alphabetically by name
+Only return id and name
+Expected format
+[
+  { "id": 12, "name": "Vail" },
+  { "id": 18, "name": "Breckenridge" }
+]
+If an endpoint already exists, fix it instead of duplicating.
+2. Frontend — Cascading Dropdown Logic
+On the Add Trip page:
+Resort <select> is disabled by default
+When state changes:
+Fetch resorts from API
+Clear existing resort options
+Enable resort dropdown
+Insert placeholder: Select a resort
+Populate with returned resorts
+Changing the state resets the resort dropdown
+No page reloads. No form submits.
+3. Testing (MANDATORY)
+Do not proceed until all pass:
+Open Add Trip
+Resort dropdown disabled
+Select state → dropdown enables
+Correct resorts appear
+Change state → resorts reset
+Trip saves successfully
+🟠 PRIORITY 2 — FIX HOME STATE DROPDOWN (DATA INTEGRITY)
+Problem
+Home State dropdown does not include all U.S. states.
+Tasks
+Replace Home State options with all 50 U.S. states
+Alphabetical by full name
+Store value as 2-letter abbreviation
+Apply anywhere Home State is editable (Edit Profile)
+Do not hardcode partial lists.
+🟡 PRIORITY 3 — NORMALIZE INPUT TYPES (UX CONSISTENCY)
+Riding Details
+Rider Type → Radio buttons (mutually exclusive)
+Skill Level → Radio buttons (Beginner → Expert)
+Pass Type → Dropdown (scales as list grows)
+Remove any mixed or inconsistent input styles.
+🟢 PRIORITY 4 — FIX EQUIPMENT SAVE STATE (UX BUG)
+Problem
+After saving equipment, UI still shows “Save Primary” and “Delete”.
+Correct Behavior
+After a successful save:
+Replace buttons with:
+Edit
+Change (or Replace)
+Remove “Save Primary”
+Hide “Delete” from primary view (only accessible during edit)
+Apply this logic to:
+Primary equipment
+Secondary equipment
+Ensure the saved state persists after page refresh.
+🔵 PRIORITY 5 — MORE PAGE NAVIGATION CLEANUP
+Tasks
+Reorder More page:
+Equipment (first)
+Mountains Visited
+Profile / Account items
+Clicking Equipment on More:
+Deep-link to Edit Profile equipment section
+Use URL fragment (/edit-profile#equipment)
+Auto-scroll on page load
+Do NOT duplicate equipment editing UI in More.
+🟣 PRIORITY 6 — ARCHITECTURE ENFORCEMENT
+Rule (Do Not Violate)
+Edit Profile is the only place where profile data is mutated
+More is navigation only
+No duplicated forms
+No divergent save logic
+Remove or refactor anything that violates this rule.
+✅ FINAL VERIFICATION (REQUIRED)
+Before marking complete:
+Add Trip works end-to-end
+State → Resort selection is reliable
+Profile fields save and persist
+Equipment UI reflects saved state correctly
+More page links land in correct Edit Profile sections
+Do not finish until manually tested.
