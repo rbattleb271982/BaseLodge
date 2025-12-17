@@ -251,11 +251,37 @@ STATE_ABBR = {
     "New Mexico": "NM",
     "New York": "NY",
     "Oregon": "OR",
+    "Pennsylvania": "PA",
     "Utah": "UT",
     "Vermont": "VT",
     "Washington": "WA",
+    "West Virginia": "WV",
     "Wyoming": "WY"
 }
+
+STATE_NAMES = {v: k for k, v in STATE_ABBR.items()}
+
+ALL_US_STATES = [
+    ("AL", "Alabama"), ("AK", "Alaska"), ("AZ", "Arizona"), ("AR", "Arkansas"),
+    ("CA", "California"), ("CO", "Colorado"), ("CT", "Connecticut"), ("DE", "Delaware"),
+    ("FL", "Florida"), ("GA", "Georgia"), ("HI", "Hawaii"), ("ID", "Idaho"),
+    ("IL", "Illinois"), ("IN", "Indiana"), ("IA", "Iowa"), ("KS", "Kansas"),
+    ("KY", "Kentucky"), ("LA", "Louisiana"), ("ME", "Maine"), ("MD", "Maryland"),
+    ("MA", "Massachusetts"), ("MI", "Michigan"), ("MN", "Minnesota"), ("MS", "Mississippi"),
+    ("MO", "Missouri"), ("MT", "Montana"), ("NE", "Nebraska"), ("NV", "Nevada"),
+    ("NH", "New Hampshire"), ("NJ", "New Jersey"), ("NM", "New Mexico"), ("NY", "New York"),
+    ("NC", "North Carolina"), ("ND", "North Dakota"), ("OH", "Ohio"), ("OK", "Oklahoma"),
+    ("OR", "Oregon"), ("PA", "Pennsylvania"), ("RI", "Rhode Island"), ("SC", "South Carolina"),
+    ("SD", "South Dakota"), ("TN", "Tennessee"), ("TX", "Texas"), ("UT", "Utah"),
+    ("VT", "Vermont"), ("VA", "Virginia"), ("WA", "Washington"), ("WV", "West Virginia"),
+    ("WI", "Wisconsin"), ("WY", "Wyoming")
+]
+
+def get_states_with_resorts():
+    """Get list of (state_abbr, state_name) tuples for states that have resorts, sorted by name."""
+    states = db.session.query(Resort.state).filter(Resort.is_active == True).distinct().all()
+    state_codes = sorted([s[0] for s in states if s[0]])
+    return [(code, STATE_NAMES.get(code, code)) for code in state_codes]
 
 RIDER_TYPES = ["Skier", "Snowboarder", "Telemarking", "Snowshoeing", "Adaptive", "Other"]
 
@@ -560,9 +586,8 @@ def edit_profile():
     primary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.PRIMARY).first()
     secondary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.SECONDARY).first()
     friends_count = Friend.query.filter_by(user_id=user.id).count()
-    states = sorted(MOUNTAINS_BY_STATE.keys())
     
-    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=CANONICAL_PASSES, rider_types=RIDER_TYPES, states=states, primary_equipment=primary_equipment, secondary_equipment=secondary_equipment)
+    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=CANONICAL_PASSES, rider_types=RIDER_TYPES, all_states=ALL_US_STATES, primary_equipment=primary_equipment, secondary_equipment=secondary_equipment)
 
 @app.route("/my-trips")
 @login_required
@@ -1448,7 +1473,22 @@ def more():
     mountains = current_user.mountains_visited or []
     mountains_visited_count = len(mountains)
     
-    return render_template("more.html", mountains_visited_count=mountains_visited_count)
+    primary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=EquipmentSlot.PRIMARY).first()
+    secondary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=EquipmentSlot.SECONDARY).first()
+    
+    has_equipment = primary_equipment is not None or secondary_equipment is not None
+    equipment_summary = ""
+    if primary_equipment:
+        equipment_summary = f"{primary_equipment.brand or 'Primary'}"
+        if secondary_equipment:
+            equipment_summary += f" + {secondary_equipment.brand or 'Secondary'}"
+    elif secondary_equipment:
+        equipment_summary = f"{secondary_equipment.brand or 'Secondary'}"
+    
+    return render_template("more.html", 
+                           mountains_visited_count=mountains_visited_count,
+                           has_equipment=has_equipment,
+                           equipment_summary=equipment_summary)
 
 @app.route("/more_info")
 @login_required
@@ -1541,6 +1581,7 @@ def add_trip():
                 "add_trip.html",
                 trip=None,
                 resorts=resorts,
+                states_with_resorts=get_states_with_resorts(),
                 user=current_user,
                 form_action=url_for("add_trip"),
             )
@@ -1569,6 +1610,7 @@ def add_trip():
         "add_trip.html",
         trip=None,
         resorts=resorts,
+        states_with_resorts=get_states_with_resorts(),
         user=current_user,
         form_action=url_for("add_trip"),
     )
@@ -1624,6 +1666,7 @@ def edit_trip_form(trip_id):
                 "add_trip.html",
                 trip=trip,
                 resorts=resorts,
+                states_with_resorts=get_states_with_resorts(),
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
             )
@@ -1647,6 +1690,7 @@ def edit_trip_form(trip_id):
         "add_trip.html",
         trip=trip,
         resorts=resorts,
+        states_with_resorts=get_states_with_resorts(),
         user=current_user,
         form_action=url_for("edit_trip_form", trip_id=trip.id),
     )

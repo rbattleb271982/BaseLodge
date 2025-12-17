@@ -93,6 +93,34 @@
             border-color: var(--bl-color-primary);
         }
         
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            min-height: 48px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .radio-label input[type="radio"] {
+            width: 22px;
+            height: 22px;
+            accent-color: var(--bl-color-primary);
+            cursor: pointer;
+            margin: 0;
+        }
+        
+        .radio-label span {
+            font-size: 16px;
+        }
+        
         .checkbox-row {
             display: flex;
             align-items: center;
@@ -241,8 +269,8 @@
             <label>Home State</label>
             <select name="home_state" id="home-state-select">
                 <option value="">Select</option>
-                {% for st in states %}
-                <option value="{{ st }}" {% if current_user.home_state == st %}selected{% endif %}>{{ st }}</option>
+                {% for abbr, name in all_states %}
+                <option value="{{ abbr }}" {% if current_user.home_state == abbr %}selected{% endif %}>{{ name }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -285,24 +313,26 @@
         
         <div class="form-row">
             <label>Rider Type</label>
-            <div class="chip-row" id="rider-type-group">
-                {% for rt in rider_types %}
-                <div class="profile-chip {% if normalize_rider_type(current_user.rider_type) == rt %}selected{% endif %}"
-                     data-value="{{ rt }}">
-                    {{ rt }}
-                </div>
+            <div class="radio-group" id="rider-type-group">
+                {% for rt in ["Skier", "Snowboarder"] %}
+                <label class="radio-label">
+                    <input type="radio" name="rider_type_radio" value="{{ rt }}" 
+                           {% if normalize_rider_type(current_user.rider_type) == rt %}checked{% endif %}>
+                    <span>{{ rt }}</span>
+                </label>
                 {% endfor %}
             </div>
         </div>
         
         <div class="form-row">
             <label>Skill Level</label>
-            <div class="chip-row" id="skill-level-group">
+            <div class="radio-group" id="skill-level-group">
                 {% for lvl in ["Beginner", "Intermediate", "Advanced", "Expert"] %}
-                <div class="profile-chip {% if current_user.skill_level == lvl %}selected{% endif %}"
-                     data-value="{{ lvl }}">
-                    {{ lvl }}
-                </div>
+                <label class="radio-label">
+                    <input type="radio" name="skill_level_radio" value="{{ lvl }}"
+                           {% if current_user.skill_level == lvl %}checked{% endif %}>
+                    <span>{{ lvl }}</span>
+                </label>
                 {% endfor %}
             </div>
         </div>
@@ -328,7 +358,7 @@
         {% endfor %}
     </div>
 
-    <div class="section-card">
+    <div class="section-card" id="equipment">
         <h3 class="section-title">Equipment</h3>
         
         <div class="form-row">
@@ -437,21 +467,25 @@ secondaryDisciplineSelect.addEventListener('change', () => {
     updateBrandDropdown(secondaryBrandSelect, secondaryDisciplineSelect.value, '');
 });
 
-document.querySelectorAll("#rider-type-group .profile-chip").forEach(chip => {
-    chip.addEventListener("click", () => {
-        document.querySelectorAll("#rider-type-group .profile-chip").forEach(c => c.classList.remove("selected"));
-        chip.classList.add("selected");
-        riderTypeInput.value = chip.dataset.value;
+document.querySelectorAll('input[name="rider_type_radio"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        riderTypeInput.value = this.value;
     });
 });
 
-document.querySelectorAll("#skill-level-group .profile-chip").forEach(chip => {
-    chip.addEventListener("click", () => {
-        document.querySelectorAll("#skill-level-group .profile-chip").forEach(c => c.classList.remove("selected"));
-        chip.classList.add("selected");
-        skillLevelInput.value = chip.dataset.value;
+document.querySelectorAll('input[name="skill_level_radio"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        skillLevelInput.value = this.value;
     });
 });
+
+// Initialize hidden inputs from radio buttons on page load
+(function() {
+    const selectedRiderType = document.querySelector('input[name="rider_type_radio"]:checked');
+    const selectedSkillLevel = document.querySelector('input[name="skill_level_radio"]:checked');
+    if (selectedRiderType) riderTypeInput.value = selectedRiderType.value;
+    if (selectedSkillLevel) skillLevelInput.value = selectedSkillLevel.value;
+})();
 
 document.getElementById('home_mountain').addEventListener('change', function() {
     document.getElementById('home_mountain_hidden').value = this.value;
@@ -640,6 +674,18 @@ if (deleteSecondaryBtn) {
         }
     });
 }
+
+// Scroll to anchor on page load (for deep-links like #equipment)
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.location.hash) {
+        const target = document.querySelector(window.location.hash);
+        if (target) {
+            setTimeout(() => {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+    }
+});
 </script>
 
 </body>

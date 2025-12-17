@@ -11,7 +11,40 @@
         <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
         <h1 class="page-title">More</h1>
         
-        <!-- Section 1: Profile -->
+        <!-- Section 1: Equipment & Activity -->
+        <section class="settings-section">
+            <div class="settings-section-title">Equipment & Activity</div>
+            
+            <div class="settings-row">
+                <div class="settings-main">
+                    <div class="settings-label">Equipment</div>
+                    <div class="settings-value">
+                        {% if has_equipment %}
+                            {{ equipment_summary }}
+                        {% else %}
+                            Not set
+                        {% endif %}
+                    </div>
+                </div>
+                <a href="{{ url_for('edit_profile') }}#equipment" class="settings-action">{% if has_equipment %}Edit{% else %}Add{% endif %}</a>
+            </div>
+            
+            <div class="settings-row">
+                <div class="settings-main">
+                    <div class="settings-label">Mountains visited</div>
+                    <div class="settings-value">
+                        {% if mountains_visited_count %}
+                            {{ mountains_visited_count }} selected
+                        {% else %}
+                            None
+                        {% endif %}
+                    </div>
+                </div>
+                <a href="{{ url_for('mountains_visited') }}" class="settings-action">Change</a>
+            </div>
+        </section>
+        
+        <!-- Section 2: Profile -->
         <section class="settings-section">
             <div class="settings-section-title">Profile</div>
             
@@ -26,7 +59,7 @@
             <div class="settings-row">
                 <div class="settings-main">
                     <div class="settings-label">Pass type</div>
-                    <div class="settings-value">{{ current_user.pass_type or "Not set" }}</div>
+                    <div class="settings-value">{{ current_user.pass_type.split(',')[0] if current_user.pass_type else "Not set" }}</div>
                 </div>
                 <a href="{{ url_for('edit_profile') }}" class="settings-action">Change</a>
             </div>
@@ -45,39 +78,6 @@
                     <div class="settings-value">{{ current_user.home_state or "Not set" }}</div>
                 </div>
                 <a href="{{ url_for('edit_profile') }}" class="settings-action">Change</a>
-            </div>
-        </section>
-        
-        <!-- Section 2: Activity & History -->
-        <section class="settings-section">
-            <div class="settings-section-title">Activity & History</div>
-            
-            <div class="settings-row">
-                <div class="settings-main">
-                    <div class="settings-label">Mountains visited</div>
-                    <div class="settings-value">
-                        {% if mountains_visited_count %}
-                            {{ mountains_visited_count }} selected
-                        {% else %}
-                            None
-                        {% endif %}
-                    </div>
-                </div>
-                <a href="{{ url_for('mountains_visited') }}" class="settings-action">Change</a>
-            </div>
-            
-            <div class="settings-row">
-                <div class="settings-main">
-                    <div class="settings-label">Equipment</div>
-                    <div class="settings-value">
-                        {% if current_user.gear and current_user.gear != 'None' %}
-                            {{ current_user.gear }}
-                        {% else %}
-                            Not set
-                        {% endif %}
-                    </div>
-                </div>
-                <a href="{{ url_for('edit_profile') }}" class="settings-action">{% if current_user.gear and current_user.gear != 'None' %}Edit{% else %}Add{% endif %}</a>
             </div>
         </section>
         
