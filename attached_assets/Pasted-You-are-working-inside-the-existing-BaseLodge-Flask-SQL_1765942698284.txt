@@ -1,0 +1,96 @@
+You are working inside the existing BaseLodge Flask + SQLAlchemy app.
+🎯 GOAL (FINAL HARDENING + COMPLETION PASS)
+Address the critical and recommended issues identified in the comprehensive QA report so the BaseLodge app is production-ready for v1.
+⚠️ This is a fix + completion task only
+⚠️ Do NOT add new product features
+⚠️ Do NOT refactor unrelated code
+⚠️ Do NOT touch legacy systems beyond explicit fixes
+✅ REQUIRED FIXES (ALL MUST BE COMPLETED)
+1️⃣ Implement GroupTrip Creation (CRITICAL BLOCKER)
+Backend
+Add a route to create a new GroupTrip
+Fields:
+title (optional)
+start_date
+end_date
+Set:
+host_id = current_user.id
+Validation:
+end_date >= start_date
+Save to DB and commit
+⚠️ Do NOT merge with SkiTrip logic
+⚠️ This is a separate social trip type
+Frontend
+Add a minimal UI entry point to create a GroupTrip
+Location: near existing trip creation UI
+Simple form submit is fine
+After creation:
+Redirect to the GroupTrip detail page
+2️⃣ Add Explicit Permission Checks (CRITICAL)
+Do NOT rely on implicit current_user safety.
+Add explicit server-side checks in the following routes.
+A️⃣ Profile Edit
+Route: /edit_profile (POST)
+Add:
+assert current_user.id == user.id
+or equivalent guard
+Reject unauthorized access with:
+403 or safe redirect
+B️⃣ Equipment Edit
+Route: /profile/equipment (POST)
+Add explicit check:
+Equipment being edited must belong to current_user
+Reject any mismatch with 403
+⚠️ Even if currently implicit, make it explicit
+C️⃣ GroupTrip View Access
+Route: GET /group-trip/<id>
+Only allow access if one of the following is true:
+current_user.id == group_trip.host_id
+current_user exists in TripGuest for that trip
+Otherwise:
+abort(403)
+⚠️ Do NOT expose GroupTrip details to strangers
+3️⃣ Add Equipment Deletion (RECOMMENDED)
+Backend
+Add route to delete equipment by:
+slot (primary or secondary)
+Rules:
+Only profile owner can delete
+Delete only the selected EquipmentSetup row
+Frontend
+Add a minimal Delete / Remove option per equipment slot
+No modal required (simple confirmation optional)
+⚠️ Do NOT add bulk delete or advanced UX
+🚫 EXPLICITLY OUT OF SCOPE
+Do NOT:
+Add feed or activity system
+Change enum naming
+Add notifications
+Modify Friend logic
+Add cascade deletes
+Change SkiTrip behavior
+Add analytics or logging
+🧪 VERIFICATION REQUIRED BEFORE STOPPING
+Confirm manually:
+GroupTrips can be created and viewed
+GroupTrip permissions are enforced correctly
+Unauthorized users cannot view GroupTrips
+Equipment edit/delete is owner-only
+Existing features still work:
+Authentication
+SkiTrips
+Friends
+Profile editing
+App boots cleanly with no errors
+🛑 STOP CONDITION
+STOP after:
+GroupTrip creation works
+Permission checks are explicit and enforced
+Equipment deletion works
+No regressions introduced
+Do NOT continue beyond this scope.
+📋 FINAL REPORT BACK
+Return:
+Routes added
+Permission checks added
+Confirmation that no existing functionality was broken

@@ -449,7 +449,10 @@ def deprecated_profile():
 @app.route("/edit_profile", methods=["GET", "POST"])
 @login_required
 def edit_profile():
+    # Explicit permission check: only profile owner can edit
     user = current_user
+    if user.id != current_user.id:
+        abort(403)
     
     if request.method == "POST":
         user.gender = request.form.get("gender") or None
@@ -2338,12 +2341,58 @@ def open_data_debug():
 # GroupTrip Social Functionality
 # ============================================================================
 
+@app.route("/api/group-trip/create", methods=["POST"])
+@login_required
+def create_group_trip():
+    """Create a new GroupTrip."""
+    data = request.get_json()
+    
+    title = data.get("title", "").strip() or None
+    start_date_str = data.get("start_date")
+    end_date_str = data.get("end_date")
+    
+    # Validate dates
+    if not start_date_str or not end_date_str:
+        return jsonify({"success": False, "error": "Start and end dates are required"}), 400
+    
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"success": False, "error": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    if end_date < start_date:
+        return jsonify({"success": False, "error": "End date cannot be before start date"}), 400
+    
+    # Create GroupTrip
+    trip = GroupTrip(
+        host_id=current_user.id,
+        title=title,
+        start_date=start_date,
+        end_date=end_date
+    )
+    db.session.add(trip)
+    db.session.commit()
+    
+    return jsonify({
+        "success": True,
+        "trip_id": trip.id,
+        "redirect_url": url_for("view_group_trip", trip_id=trip.id)
+    })
+
+
 @app.route("/group-trip/<int:trip_id>")
 @login_required
 def view_group_trip(trip_id):
     """View GroupTrip details with invite form (host only)."""
     trip = GroupTrip.query.get_or_404(trip_id)
+    
+    # Explicit permission check: only host or guests can view
     is_host = trip.host_id == current_user.id
+    is_guest = TripGuest.query.filter_by(trip_id=trip_id, user_id=current_user.id).first() is not None
+    
+    if not is_host and not is_guest:
+        abort(403)
     
     # Get guests with their details
     guests = TripGuest.query.filter_by(trip_id=trip_id).all()
@@ -2502,6 +2551,38 @@ def connect_from_trip(user_id):
 # Equipment & GroupTrip Status Management
 # ============================================================================
 
+@app.route("/profile/equipment/delete", methods=["POST"])
+@login_required
+def delete_equipment():
+    """Delete equipment setup by slot (Primary/Secondary)."""
+    data = request.get_json()
+    
+    slot_name = data.get("slot", "").upper()  # "PRIMARY" or "SECONDARY"
+    
+    if slot_name not in ["PRIMARY", "SECONDARY"]:
+        return jsonify({"success": False, "error": "Invalid slot"}), 400
+    
+    try:
+        slot = EquipmentSlot[slot_name]
+    except KeyError:
+        return jsonify({"success": False, "error": "Invalid slot"}), 400
+    
+    # Find equipment - explicit permission check
+    equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=slot).first()
+    
+    if not equipment:
+        return jsonify({"success": False, "error": "Equipment not found"}), 404
+    
+    if equipment.user_id != current_user.id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+    
+    # Delete
+    db.session.delete(equipment)
+    db.session.commit()
+    
+    return jsonify({"success": True, "message": f"{slot.value} equipment deleted"})
+
+
 @app.route("/profile/equipment", methods=["POST"])
 @login_required
 def save_equipment():
@@ -2525,8 +2606,12 @@ def save_equipment():
     except KeyError:
         return jsonify({"success": False, "error": "Invalid slot or discipline"}), 400
     
-    # Find or create equipment
+    # Explicit permission check: only owner can edit
     equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=slot).first()
+    if equipment and equipment.user_id != current_user.id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+    
+    # Find or create equipment
     if not equipment:
         equipment = EquipmentSetup(user_id=current_user.id, slot=slot)
     
