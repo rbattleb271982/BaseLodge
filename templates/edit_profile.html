@@ -128,24 +128,20 @@
         </div>
 
         <div class="form-section">
-            <label class="form-label">Pass</label>
-            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0 0 12px 0;">Select the primary pass you use.</p>
-            <div class="pass-pills" id="pass-pills">
-                <button type="button" class="pass-pill {% if current_user.pass_type == 'Epic' %}active{% endif %}" data-value="Epic">Epic Pass</button>
-                <button type="button" class="pass-pill {% if current_user.pass_type == 'Ikon' %}active{% endif %}" data-value="Ikon">Ikon Pass</button>
-            </div>
-            <div class="pass-dropdown-section">
-                <p class="pass-dropdown-label">Other passes</p>
-                <select class="pass-dropdown" id="pass-dropdown">
-                    <option value="">Select your pass</option>
-                    <option value="Freedom Pass" {% if current_user.pass_type == 'Freedom Pass' %}selected{% endif %}>Freedom Pass</option>
-                    <option value="Indy Pass" {% if current_user.pass_type == 'Indy Pass' %}selected{% endif %}>Indy Pass</option>
-                    <option value="Mountain Collective" {% if current_user.pass_type == 'Mountain Collective' %}selected{% endif %}>Mountain Collective</option>
-                    <option value="Powder Alliance" {% if current_user.pass_type == 'Powder Alliance' %}selected{% endif %}>Powder Alliance</option>
-                    <option value="Ski California Pass" {% if current_user.pass_type == 'Ski California Pass' %}selected{% endif %}>Ski California Pass</option>
-                    <option value="Other" {% if current_user.pass_type == 'Other' %}selected{% endif %}>Other</option>
-                    <option value="None" {% if current_user.pass_type == 'None' %}selected{% endif %}>None</option>
-                </select>
+            <label class="form-label">Which passes do you have?</label>
+            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0 0 12px 0;">Select all that apply.</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                {% set user_passes = current_user.pass_type.split(',') if current_user.pass_type else [] %}
+                {% for pass in pass_options %}
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="pass_type" value="{{ pass }}" id="pass_{{ pass }}" 
+                           {% if pass in user_passes %}checked{% endif %}
+                           style="cursor: pointer; accent-color: var(--bl-color-primary); width: 18px; height: 18px;">
+                    <label for="pass_{{ pass }}" style="cursor: pointer; font-size: 14px; margin: 0;">
+                        {{ pass.replace('Mountain', 'Mountain ').replace('Collective', 'Collective').replace('PowderAlliance', 'Powder Alliance').replace('SkiCalifornia', 'Ski California') }}
+                    </label>
+                </div>
+                {% endfor %}
             </div>
         </div>
 

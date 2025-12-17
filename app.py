@@ -169,17 +169,13 @@ def normalize_rider_type(rider_type):
     return rider_type
 
 CANONICAL_PASSES = [
-    "Epic Pass",
-    "Ikon Pass",
-    "Mountain Collective",
-    "Indy Pass",
-    "Powder Alliance",
-    "Freedom Pass",
-    "Ski California Pass",
-    "Mountain Passport",
-    "White Mountain Superpass",
-    "Rocky Mountain Super Pass",
-    "New York Ski Pass",
+    "Epic",
+    "Ikon",
+    "MountainCollective",
+    "Indy",
+    "PowderAlliance",
+    "Freedom",
+    "SkiCalifornia",
     "Other",
     "None"
 ]
@@ -428,19 +424,19 @@ def setup_profile():
     
     if request.method == "POST":
         rider_type = request.form.get("rider_type")
-        pass_type = request.form.get("pass_type")
+        passes = request.form.getlist("pass_type")
 
-        if not rider_type or not pass_type:
-            flash("Please select one option for each field.", "error")
+        if not rider_type:
+            flash("Please select a rider type.", "error")
             return redirect(url_for("setup_profile"))
 
         user.rider_type = rider_type
-        user.pass_type = pass_type
+        user.pass_type = ",".join(sorted(set(passes))) if passes else "None"
         db.session.commit()
 
         return redirect(url_for("home"))
 
-    return render_template("setup_profile.html", rider_types=RIDER_TYPES)
+    return render_template("setup_profile.html", rider_types=RIDER_TYPES, pass_options=CANONICAL_PASSES)
 
 @app.route("/profile")
 def deprecated_profile():
@@ -460,7 +456,8 @@ def edit_profile():
         birth_year_raw = request.form.get("birth_year")
         user.birth_year = int(birth_year_raw) if birth_year_raw else None
         user.rider_type = request.form.get("rider_type") or None
-        user.pass_type = request.form.get("pass_type") or None
+        passes = request.form.getlist("pass_type")
+        user.pass_type = ",".join(sorted(set(passes))) if passes else "None"
         user.home_state = request.form.get("home_state") or None
         user.skill_level = request.form.get("skill_level") or None
         user.gear = request.form.get("gear") or None
@@ -474,7 +471,7 @@ def edit_profile():
     friends_count = Friend.query.filter_by(user_id=user.id).count()
     states = sorted(MOUNTAINS_BY_STATE.keys())
     
-    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=PASS_OPTIONS, rider_types=RIDER_TYPES, states=states, primary_equipment=primary_equipment, secondary_equipment=secondary_equipment)
+    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=CANONICAL_PASSES, rider_types=RIDER_TYPES, states=states, primary_equipment=primary_equipment, secondary_equipment=secondary_equipment)
 
 @app.route("/my-trips")
 @login_required
