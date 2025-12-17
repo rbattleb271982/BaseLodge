@@ -1,0 +1,172 @@
+You are working inside the existing BaseLodge Flask + SQLAlchemy app.
+🎯 GOAL
+Allow a resort to belong to multiple ski passes (Epic, Ikon, Indy, Mountain Collective) while preserving all existing functionality.
+This must be:
+Backward compatible
+Idempotent
+Minimal (one new column only)
+⚠️ Do NOT refactor existing filters
+⚠️ Do NOT introduce join tables
+⚠️ Do NOT change UI
+⚠️ Do NOT remove or rename Resort.brand
+✅ REQUIRED CHANGES
+1️⃣ Add pass_brands Column to Resort
+Modify the Resort model:
+pass_brands = db.Column(db.String(150), nullable=True)
+Rules:
+Keep Resort.brand unchanged
+pass_brands is truthful, brand remains primary category
+2️⃣ Define Canonical Pass Lists (SOURCE OF TRUTH)
+🟩 Epic Pass Resorts
+EPIC_RESORTS = [
+    # California
+    "Heavenly Mountain Resort",
+    "Kirkwood Mountain Resort",
+    "Northstar California Resort",
+
+    # Colorado
+    "Vail Mountain",
+    "Beaver Creek",
+    "Breckenridge Ski Resort",
+    "Keystone Resort",
+    "Crested Butte Mountain Resort",
+
+    # Michigan
+    "Mt. Brighton",
+
+    # Minnesota
+    "Afton Alps",
+
+    # Missouri
+    "Hidden Valley Ski Resort",
+
+    # New Hampshire
+    "Attitash Mountain Resort",
+    "Wildcat Mountain",
+
+    # New York
+    "Hunter Mountain",
+
+    # Ohio
+    "Boston Mills",
+    "Brandywine",
+    "Mad River Mountain",
+
+    # Pennsylvania
+    "Jack Frost Big Boulder",
+    "Roundtop Mountain Resort",
+    "Whitetail Resort",
+    "Liberty Mountain Resort",
+
+    # Utah
+    "Park City Mountain",
+
+    # Vermont
+    "Mount Snow",
+    "Okemo Mountain Resort",
+    "Stowe Mountain Resort",
+
+    # Washington
+    "Stevens Pass",
+
+    # Wisconsin
+    "Wilmot Mountain",
+]
+🟨 Indy Pass Resorts
+INDY_RESORTS = [
+    "Bear Valley",
+    "China Peak",
+    "Dodge Ridge",
+    "Sunlight Mountain Resort",
+    "Powderhorn Mountain Resort",
+    "Ski Cooper",
+    "Brundage Mountain",
+    "Tamarack Resort",
+    "Lookout Pass",
+    "Saddleback Mountain",
+    "Marquette Mountain",
+    "Blacktail Mountain",
+    "Lost Trail Powder Mountain",
+    "Red Lodge Mountain",
+    "Cannon Mountain",
+    "Ski Santa Fe",
+    "Titus Mountain",
+    "Willamette Pass",
+    "Blue Knob All Seasons Resort",
+    "Beaver Mountain",
+    "Eagle Point Resort",
+    "Bolton Valley",
+    "Magic Mountain",
+    "White Pass",
+    "Snow King Mountain",
+]
+🟦 Mountain Collective Resorts
+(These all overlap with Ikon)
+MOUNTAIN_COLLECTIVE_RESORTS = [
+    "Aspen Snowmass",
+    "Alta Ski Area",
+    "Snowbird",
+    "Jackson Hole Mountain Resort",
+    "Sun Valley",
+    "Sugarbush Resort",
+    "Taos Ski Valley",
+]
+3️⃣ Backfill Logic (MANDATORY)
+Implement a backfill routine that runs once.
+A️⃣ Initialize Defaults
+For every resort where pass_brands IS NULL:
+resort.pass_brands = resort.brand
+B️⃣ Apply Epic
+If resort.name in EPIC_RESORTS:
+pass_brands = "Epic"
+brand = "Epic"   # ensure consistency
+C️⃣ Apply Indy
+If resort.name in INDY_RESORTS:
+pass_brands = "Indy"
+brand = "Other"
+D️⃣ Apply Mountain Collective (Ikon overlap)
+If resort.name in MOUNTAIN_COLLECTIVE_RESORTS:
+pass_brands = "Ikon,MountainCollective"
+brand = "Ikon"
+E️⃣ Ikon-only Resorts
+If:
+brand == "Ikon" AND pass_brands IS NULL
+Set:
+pass_brands = "Ikon"
+4️⃣ Data Rules (STRICT)
+Values must be:
+Comma-separated
+No spaces
+Canonical casing
+Do NOT overwrite existing pass_brands unless correcting
+Do NOT delete any data
+Do NOT introduce duplicates
+5️⃣ Verification
+After backfill:
+All resorts must have pass_brands
+Sample expected results:
+Aspen Snowmass → Ikon,MountainCollective
+Park City Mountain → Epic
+Bolton Valley → Indy
+App boots cleanly
+No regressions in trips, filters, profiles
+🚫 EXPLICITLY OUT OF SCOPE
+Do NOT:
+Modify pass_category()
+Add new filters
+Add UI badges
+Introduce a Pass model
+Change GroupTrip logic
+Add enums or join tables
+🛑 STOP CONDITION
+STOP when:
+Column added
+Backfill complete
+No regressions
+No behavior changes
+📋 FINAL REPORT BACK
+Return:
+Confirmation column added
+Count of resorts updated per pass
+5 example resorts showing correct pass_brands
+Confirmation all existing logic still works
