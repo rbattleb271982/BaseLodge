@@ -307,7 +307,7 @@
 
 <div class="edit-profile-container">
     <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
-    <a href="{{ url_for('more') }}" class="back-link">← Back</a>
+    <a href="{{ url_for('settings') }}" class="back-link">← Back</a>
     <h1 class="page-header">Edit Profile</h1>
 
     <div class="section-card">
@@ -406,89 +406,6 @@
         {% endfor %}
     </div>
 
-    <div class="section-card" id="equipment">
-        <h3 class="section-title">Equipment</h3>
-        
-        <div class="form-row">
-            <label>Primary Setup</label>
-            {% if primary_equipment %}
-            <div id="primary-view" class="equipment-display">
-                <div class="equipment-info">
-                    <span class="equipment-brand">{{ primary_equipment.brand }}</span>
-                    <span class="equipment-details">{{ primary_equipment.discipline.value|capitalize }} · {% if primary_equipment.length_cm %}{{ primary_equipment.length_cm }}cm{% endif %}{% if primary_equipment.width_mm %} · {{ primary_equipment.width_mm }}mm{% endif %}</span>
-                </div>
-                <div class="equipment-btn-row">
-                    <button type="button" id="edit-primary-btn" class="btn-edit-equipment">Edit</button>
-                </div>
-            </div>
-            <div id="primary-edit" class="equipment-edit-form" style="display: none;">
-            {% else %}
-            <div id="primary-edit" class="equipment-edit-form">
-            {% endif %}
-                <div class="equipment-grid">
-                    <select id="primary-discipline">
-                        <option value="">Discipline</option>
-                        <option value="Skier" {% if primary_equipment and primary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
-                        <option value="Snowboarder" {% if primary_equipment and primary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
-                    </select>
-                    <select id="primary-brand">
-                        <option value="">Brand</option>
-                    </select>
-                    <div class="equipment-row">
-                        <input type="number" id="primary-length" placeholder="Length (cm)" value="{% if primary_equipment %}{{ primary_equipment.length_cm or '' }}{% endif %}" />
-                        <input type="number" id="primary-width" placeholder="Width (mm)" value="{% if primary_equipment %}{{ primary_equipment.width_mm or '' }}{% endif %}" />
-                    </div>
-                </div>
-                <div class="equipment-btn-row">
-                    <button type="button" id="save-primary-btn" class="btn-save-equipment">{% if primary_equipment %}Save{% else %}Add Primary{% endif %}</button>
-                    {% if primary_equipment %}
-                    <button type="button" id="cancel-primary-btn" class="btn-cancel-equipment">Cancel</button>
-                    <button type="button" id="delete-primary-btn" class="btn-delete-equipment">Delete</button>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        
-        <div class="form-row" style="margin-top: 20px;">
-            <label>Secondary Setup</label>
-            {% if secondary_equipment %}
-            <div id="secondary-view" class="equipment-display">
-                <div class="equipment-info">
-                    <span class="equipment-brand">{{ secondary_equipment.brand }}</span>
-                    <span class="equipment-details">{{ secondary_equipment.discipline.value|capitalize }} · {% if secondary_equipment.length_cm %}{{ secondary_equipment.length_cm }}cm{% endif %}{% if secondary_equipment.width_mm %} · {{ secondary_equipment.width_mm }}mm{% endif %}</span>
-                </div>
-                <div class="equipment-btn-row">
-                    <button type="button" id="edit-secondary-btn" class="btn-edit-equipment">Edit</button>
-                </div>
-            </div>
-            <div id="secondary-edit" class="equipment-edit-form" style="display: none;">
-            {% else %}
-            <div id="secondary-edit" class="equipment-edit-form">
-            {% endif %}
-                <div class="equipment-grid">
-                    <select id="secondary-discipline">
-                        <option value="">Discipline</option>
-                        <option value="Skier" {% if secondary_equipment and secondary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
-                        <option value="Snowboarder" {% if secondary_equipment and secondary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
-                    </select>
-                    <select id="secondary-brand">
-                        <option value="">Brand</option>
-                    </select>
-                    <div class="equipment-row">
-                        <input type="number" id="secondary-length" placeholder="Length (cm)" value="{% if secondary_equipment %}{{ secondary_equipment.length_cm or '' }}{% endif %}" />
-                        <input type="number" id="secondary-width" placeholder="Width (mm)" value="{% if secondary_equipment %}{{ secondary_equipment.width_mm or '' }}{% endif %}" />
-                    </div>
-                </div>
-                <div class="equipment-btn-row">
-                    <button type="button" id="save-secondary-btn" class="btn-save-equipment">{% if secondary_equipment %}Save{% else %}Add Secondary{% endif %}</button>
-                    {% if secondary_equipment %}
-                    <button type="button" id="cancel-secondary-btn" class="btn-cancel-equipment">Cancel</button>
-                    <button type="button" id="delete-secondary-btn" class="btn-delete-equipment">Delete</button>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <form method="POST" action="{{ url_for('edit_profile') }}" id="editProfileForm">
@@ -511,45 +428,8 @@
 {% include 'components/bottom_nav.html' %}
 
 <script>
-const skiEquipmentBrands = ['Atomic', 'Black Crows', 'Blizzard', 'Dynastar', 'Elan', 'Faction', 'Fischer', 'Head', 'K2', 'Line', 'Nordica', 'Rossignol', 'Salomon', 'Scott', 'Volkl'];
-const snowboardEquipmentBrands = ['Arbor', 'Bataleon', 'Burton', 'Capita', 'DC', 'GNU', 'Jones', 'K2', 'Lib Tech', 'Nitro', 'Ride', 'Rome', 'Salomon', 'Yes'];
-
 const riderTypeInput = document.getElementById('rider_type');
 const skillLevelInput = document.getElementById('skill_level');
-const primaryDisciplineSelect = document.getElementById('primary-discipline');
-const primaryBrandSelect = document.getElementById('primary-brand');
-const secondaryDisciplineSelect = document.getElementById('secondary-discipline');
-const secondaryBrandSelect = document.getElementById('secondary-brand');
-
-const primaryEquipmentBrand = "{% if primary_equipment %}{{ primary_equipment.brand or '' }}{% endif %}";
-const secondaryEquipmentBrand = "{% if secondary_equipment %}{{ secondary_equipment.brand or '' }}{% endif %}";
-
-function updateBrandDropdown(selectElement, discipline, existingValue) {
-    const brands = discipline === 'Skier' ? skiEquipmentBrands : (discipline === 'Snowboarder' ? snowboardEquipmentBrands : []);
-    
-    let html = '<option value="">Brand</option>';
-    brands.forEach(brand => {
-        const selected = (existingValue === brand) ? ' selected' : '';
-        html += `<option value="${brand}"${selected}>${brand}</option>`;
-    });
-    selectElement.innerHTML = html;
-}
-
-if (primaryDisciplineSelect.value) {
-    updateBrandDropdown(primaryBrandSelect, primaryDisciplineSelect.value, primaryEquipmentBrand);
-}
-
-if (secondaryDisciplineSelect.value) {
-    updateBrandDropdown(secondaryBrandSelect, secondaryDisciplineSelect.value, secondaryEquipmentBrand);
-}
-
-primaryDisciplineSelect.addEventListener('change', () => {
-    updateBrandDropdown(primaryBrandSelect, primaryDisciplineSelect.value, '');
-});
-
-secondaryDisciplineSelect.addEventListener('change', () => {
-    updateBrandDropdown(secondaryBrandSelect, secondaryDisciplineSelect.value, '');
-});
 
 document.querySelectorAll('input[name="rider_type_radio"]').forEach(radio => {
     radio.addEventListener('change', function() {
@@ -661,154 +541,6 @@ document.querySelectorAll('input[name="pass_type"]').forEach(cb => {
     });
 });
 
-// Equipment Edit/Cancel toggle handlers
-const editPrimaryBtn = document.getElementById('edit-primary-btn');
-const cancelPrimaryBtn = document.getElementById('cancel-primary-btn');
-const primaryView = document.getElementById('primary-view');
-const primaryEdit = document.getElementById('primary-edit');
-
-if (editPrimaryBtn) {
-    editPrimaryBtn.addEventListener('click', () => {
-        primaryView.style.display = 'none';
-        primaryEdit.style.display = 'block';
-    });
-}
-
-if (cancelPrimaryBtn) {
-    cancelPrimaryBtn.addEventListener('click', () => {
-        primaryEdit.style.display = 'none';
-        primaryView.style.display = 'block';
-    });
-}
-
-const editSecondaryBtn = document.getElementById('edit-secondary-btn');
-const cancelSecondaryBtn = document.getElementById('cancel-secondary-btn');
-const secondaryView = document.getElementById('secondary-view');
-const secondaryEdit = document.getElementById('secondary-edit');
-
-if (editSecondaryBtn) {
-    editSecondaryBtn.addEventListener('click', () => {
-        secondaryView.style.display = 'none';
-        secondaryEdit.style.display = 'block';
-    });
-}
-
-if (cancelSecondaryBtn) {
-    cancelSecondaryBtn.addEventListener('click', () => {
-        secondaryEdit.style.display = 'none';
-        secondaryView.style.display = 'block';
-    });
-}
-
-document.getElementById('save-primary-btn').addEventListener('click', () => {
-    const discipline = document.getElementById('primary-discipline').value;
-    const brand = document.getElementById('primary-brand').value;
-    const length_cm = document.getElementById('primary-length').value;
-    const width_mm = document.getElementById('primary-width').value;
-    
-    if (!discipline || !brand) {
-        alert('Please fill in discipline and brand');
-        return;
-    }
-    
-    fetch('{{ url_for("save_equipment") }}', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            slot: 'primary',
-            discipline: discipline,
-            brand: brand,
-            length_cm: length_cm ? parseInt(length_cm) : null,
-            width_mm: width_mm ? parseInt(width_mm) : null
-        })
-    }).then(r => r.json()).then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Error: ' + data.error);
-        }
-    });
-});
-
-document.getElementById('save-secondary-btn').addEventListener('click', () => {
-    const discipline = document.getElementById('secondary-discipline').value;
-    const brand = document.getElementById('secondary-brand').value;
-    const length_cm = document.getElementById('secondary-length').value;
-    const width_mm = document.getElementById('secondary-width').value;
-    
-    if (!discipline || !brand) {
-        alert('Please fill in discipline and brand');
-        return;
-    }
-    
-    fetch('{{ url_for("save_equipment") }}', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            slot: 'secondary',
-            discipline: discipline,
-            brand: brand,
-            length_cm: length_cm ? parseInt(length_cm) : null,
-            width_mm: width_mm ? parseInt(width_mm) : null
-        })
-    }).then(r => r.json()).then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Error: ' + data.error);
-        }
-    });
-});
-
-const deletePrimaryBtn = document.getElementById('delete-primary-btn');
-if (deletePrimaryBtn) {
-    deletePrimaryBtn.addEventListener('click', () => {
-        if (confirm('Delete primary equipment?')) {
-            fetch('{{ url_for("delete_equipment") }}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ slot: 'primary' })
-            }).then(r => r.json()).then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            });
-        }
-    });
-}
-
-const deleteSecondaryBtn = document.getElementById('delete-secondary-btn');
-if (deleteSecondaryBtn) {
-    deleteSecondaryBtn.addEventListener('click', () => {
-        if (confirm('Delete secondary equipment?')) {
-            fetch('{{ url_for("delete_equipment") }}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ slot: 'secondary' })
-            }).then(r => r.json()).then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            });
-        }
-    });
-}
-
-// Scroll to anchor on page load (for deep-links like #equipment)
-document.addEventListener('DOMContentLoaded', function() {
-    if (window.location.hash) {
-        const target = document.querySelector(window.location.hash);
-        if (target) {
-            setTimeout(() => {
-                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 100);
-        }
-    }
-});
 </script>
 
 </body>

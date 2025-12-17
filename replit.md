@@ -113,6 +113,24 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
     - Display-only on Home page (My Trips, Friends' Trips), My Trips page, and friend trip detail page
     - Route: POST `/edit-trip/<id>` includes ride_intent field
 
+- **Settings Refactor (Dec 17, 2025):**
+  - **Navigation**: "More" renamed to "Settings" with stroked SVG gear icon in bottom nav
+  - **Settings Page**: Navigation hub only with section order: Profile → Equipment & Activity → Account
+  - **Dedicated Settings Pages**:
+    - `/settings/profile` → redirects to Edit Profile page
+    - `/settings/equipment` → Equipment management (dedicated page)
+    - `/settings/mountains-visited` → redirects to Mountains Visited page
+    - `/settings/password` → redirects to Change Password page
+  - **Equipment Model Extensions**:
+    - `binding_type` (string, nullable): Skier bindings (Alpine, Touring, Hybrid, Telemark, Other) or Snowboarder (Standard, Step-On, Splitboard, Other)
+    - `boot_brand` (string, nullable): Salomon, Tecnica, Lange, Atomic, Dalbello, Nordica, K2, Fischer, Burton, ThirtyTwo, Ride, Vans, DC, Other
+    - `boot_flex` (integer, nullable): Any positive number (expected range 80-140)
+  - **Equipment UI**: 
+    - Read-only display shows new fields only when values exist
+    - Separate Edit buttons for Primary/Secondary setups
+    - Auto-clears binding_type when discipline changes
+  - **Removed**: Equipment section from Edit Profile (now only at /settings/equipment)
+
 ## Test Users (Main)
 - **Richard Battle-Baxter:** richardbattlebaxter@gmail.com / 12345678
   - Epic pass, Advanced skier, Colorado

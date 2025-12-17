@@ -5,25 +5,120 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Base Lodge - Settings</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .settings-nav-section {
+            margin-bottom: 24px;
+        }
+        
+        .settings-nav-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--bl-color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0 16px;
+            margin-bottom: 8px;
+        }
+        
+        .settings-nav-card {
+            background: var(--bl-color-surface);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .settings-nav-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            text-decoration: none;
+            color: inherit;
+            min-height: 52px;
+        }
+        
+        .settings-nav-row:last-child {
+            border-bottom: none;
+        }
+        
+        .settings-nav-row:active {
+            background: var(--bl-color-bg);
+        }
+        
+        .settings-nav-label {
+            font-size: 17px;
+            color: var(--bl-color-text);
+        }
+        
+        .settings-nav-value {
+            font-size: 15px;
+            color: var(--bl-color-text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .settings-nav-chevron {
+            color: var(--bl-color-text-muted);
+            font-size: 18px;
+        }
+    </style>
 </head>
 <body>
     <div class="page-container">
+        <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
         <h1 class="page-title">Settings</h1>
         
-        <div class="settings-menu">
-            <div class="settings-row">
-                <span class="settings-label">Notifications</span>
-                <span class="settings-value">Coming soon</span>
+        <!-- Section 1: Profile -->
+        <div class="settings-nav-section">
+            <div class="settings-nav-title">Profile</div>
+            <div class="settings-nav-card">
+                <a href="{{ url_for('settings_profile') }}" class="settings-nav-row">
+                    <span class="settings-nav-label">Profile Details</span>
+                    <span class="settings-nav-value">
+                        <span class="settings-nav-chevron">›</span>
+                    </span>
+                </a>
             </div>
-            
-            <div class="settings-row">
-                <span class="settings-label">Location Sharing</span>
-                <span class="settings-value">Coming soon</span>
+        </div>
+        
+        <!-- Section 2: Equipment & Activity -->
+        <div class="settings-nav-section">
+            <div class="settings-nav-title">Equipment & Activity</div>
+            <div class="settings-nav-card">
+                <a href="{{ url_for('settings_equipment') }}" class="settings-nav-row">
+                    <span class="settings-nav-label">Equipment</span>
+                    <span class="settings-nav-value">
+                        {% if has_equipment %}{{ equipment_summary }}{% endif %}
+                        <span class="settings-nav-chevron">›</span>
+                    </span>
+                </a>
+                <a href="{{ url_for('settings_mountains') }}" class="settings-nav-row">
+                    <span class="settings-nav-label">Mountains Visited</span>
+                    <span class="settings-nav-value">
+                        {% if mountains_visited_count %}{{ mountains_visited_count }} selected{% endif %}
+                        <span class="settings-nav-chevron">›</span>
+                    </span>
+                </a>
             </div>
-            
-            <div class="settings-row">
-                <span class="settings-label">Units (Imperial / Metric)</span>
-                <span class="settings-value">Coming soon</span>
+        </div>
+        
+        <!-- Section 3: Account -->
+        <div class="settings-nav-section">
+            <div class="settings-nav-title">Account</div>
+            <div class="settings-nav-card">
+                <a href="{{ url_for('settings_password') }}" class="settings-nav-row">
+                    <span class="settings-nav-label">Change Password</span>
+                    <span class="settings-nav-value">
+                        <span class="settings-nav-chevron">›</span>
+                    </span>
+                </a>
+                <a href="{{ url_for('logout') }}" class="settings-nav-row">
+                    <span class="settings-nav-label">Log Out</span>
+                    <span class="settings-nav-value">
+                        <span class="settings-nav-chevron">›</span>
+                    </span>
+                </a>
             </div>
         </div>
     </div>

@@ -1,0 +1,116 @@
+Priority 1 — Navigation
+1. Gear / Settings icon style
+Decision:
+Use the same style as the existing nav icons.
+Spec:
+Stroked SVG
+Same stroke weight, size, and visual treatment as other bottom-nav icons
+No custom or filled icon
+Answer to Replit:
+Use a stroked SVG gear icon that matches the existing bottom navigation icon style exactly.
+Priority 2 — Settings Structure
+2. “Profile Details” behavior
+Decision:
+Go directly to an editable page, not a read-only view.
+Rationale:
+Settings pages are task-focused
+Extra read-only layer adds friction
+Consistent with iOS/Instagram patterns
+Spec:
+Settings → Profile Details → editable fields
+Save → return to Settings
+Answer to Replit:
+Profile Details should open directly into an editable page (no read-only intermediary).
+Priority 3 — Section Pages
+3. Mountains Visited
+Decision:
+Yes — dedicated page.
+Spec:
+Route: /settings/mountains-visited
+Focused page, like Equipment
+Back button returns to Settings
+Answer to Replit:
+Mountains Visited should be its own dedicated Settings page, not embedded in profile editing.
+4. Logout behavior
+Decision:
+Logout remains a direct action, not a page.
+Spec:
+Tapping Logout logs the user out immediately
+No confirmation page required (current behavior is fine)
+Answer to Replit:
+Logout should remain a direct action, not a separate page.
+Priority 4 — Equipment Data
+5. binding_type storage
+Decision:
+Store as a simple string value (the label text).
+Rationale:
+No need for enums yet
+Easier iteration
+Human-readable for analytics
+Can be normalized later if needed
+Answer to Replit:
+Store binding_type as a simple string (e.g. “Alpine”, “Step-On”), not an enum/code.
+6. Boot Flex validation
+Decision:
+Allow any positive number, with soft guidance only.
+Spec:
+No hard min/max enforcement
+No blocking validation errors
+Optionally clamp negatives or zero
+Rationale:
+Power skiers may enter uncommon values
+Avoid being prescriptive
+Answer to Replit:
+Allow any positive number for boot flex. Do not enforce strict min/max limits.
+Priority 5 — Equipment UI
+7. Rider Type change → binding type conflict
+Decision:
+Clear the binding type automatically.
+Spec:
+If Rider Type changes and the existing binding type is invalid:
+Clear binding_type
+Do NOT show warnings
+Do NOT keep invalid value
+Rationale:
+Silent correctness > noisy warnings
+Keeps data clean
+Answer to Replit:
+If Rider Type changes and the selected binding type is no longer valid, clear the binding type automatically with no warning.
+Priority 7 — Edit / Save
+8. Primary vs Secondary Edit buttons
+Decision:
+Keep them as separate edit actions.
+Spec:
+Primary Setup → Edit
+Secondary Setup → Edit
+Editing one does not force editing the other
+Rationale:
+Matches current mental model
+Lower cognitive load
+Less accidental edits
+Answer to Replit:
+Keep separate Edit buttons for Primary and Secondary equipment setups.
+General
+9. Existing Equipment section in Edit Profile
+Decision:
+Yes — remove it entirely.
+Spec:
+Equipment editing lives only in:
+Settings → Equipment
+No duplicate entry points
+Edit Profile should no longer contain Equipment
+Rationale:
+Single source of truth
+Avoids confusion and drift
+Answer to Replit:
+Remove the Equipment section from Edit Profile entirely. Equipment should only be editable via Settings → Equipment.
+TL;DR — Final Answers Summary
+Gear icon → match existing nav icon style
+Profile Details → editable page directly
+Mountains Visited → dedicated settings page
+Logout → direct action
+binding_type → store as string
+boot_flex → allow any positive number
+Rider Type change → clear invalid binding type
+Primary/Secondary → separate Edit buttons
+Remove Equipment from Edit Profile → yes

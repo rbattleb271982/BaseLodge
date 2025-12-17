@@ -1470,6 +1470,19 @@ def friend_trip_details(trip_id):
 @app.route("/more")
 @login_required
 def more():
+    return redirect(url_for('settings'))
+
+@app.route("/more_info")
+@login_required
+def more_info():
+    mountains = current_user.mountains_visited or []
+    mountains_visited_count = len(mountains)
+    
+    return render_template("more_info.html", mountains_visited_count=mountains_visited_count)
+
+@app.route("/settings")
+@login_required
+def settings():
     mountains = current_user.mountains_visited or []
     mountains_visited_count = len(mountains)
     
@@ -1485,23 +1498,93 @@ def more():
     elif secondary_equipment:
         equipment_summary = f"{secondary_equipment.brand or 'Secondary'}"
     
-    return render_template("more.html", 
+    return render_template("settings.html", 
                            mountains_visited_count=mountains_visited_count,
                            has_equipment=has_equipment,
                            equipment_summary=equipment_summary)
 
-@app.route("/more_info")
+@app.route("/settings/profile", methods=["GET", "POST"])
 @login_required
-def more_info():
-    mountains = current_user.mountains_visited or []
-    mountains_visited_count = len(mountains)
-    
-    return render_template("more_info.html", mountains_visited_count=mountains_visited_count)
+def settings_profile():
+    return redirect(url_for('edit_profile'))
 
-@app.route("/settings")
+
+@app.route("/settings/equipment")
 @login_required
-def settings():
-    return render_template("settings.html")
+def settings_equipment():
+    primary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=EquipmentSlot.PRIMARY).first()
+    secondary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=EquipmentSlot.SECONDARY).first()
+    
+    return render_template("settings_equipment.html",
+                           primary_equipment=primary_equipment,
+                           secondary_equipment=secondary_equipment)
+
+
+@app.route("/settings/equipment/save", methods=["POST"])
+@login_required
+def settings_equipment_save():
+    slot_str = request.form.get("slot", "primary")
+    discipline_str = request.form.get("discipline", "")
+    brand = request.form.get("brand", "")
+    length_cm = request.form.get("length_cm", "")
+    width_mm = request.form.get("width_mm", "")
+    binding_type = request.form.get("binding_type", "")
+    boot_brand = request.form.get("boot_brand", "")
+    boot_flex = request.form.get("boot_flex", "")
+    
+    if not discipline_str:
+        return jsonify({"error": "Discipline required"}), 400
+    
+    slot = EquipmentSlot.PRIMARY if slot_str == "primary" else EquipmentSlot.SECONDARY
+    discipline = EquipmentDiscipline.SKIER if discipline_str == "Skier" else EquipmentDiscipline.SNOWBOARDER
+    
+    equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=slot).first()
+    
+    if not equipment:
+        equipment = EquipmentSetup(user_id=current_user.id, slot=slot, discipline=discipline)
+        db.session.add(equipment)
+    else:
+        old_discipline = equipment.discipline
+        equipment.discipline = discipline
+        if old_discipline != discipline:
+            equipment.binding_type = None
+    
+    equipment.brand = brand if brand else None
+    equipment.length_cm = int(length_cm) if length_cm else None
+    equipment.width_mm = int(width_mm) if width_mm else None
+    equipment.binding_type = binding_type if binding_type else None
+    equipment.boot_brand = boot_brand if boot_brand else None
+    equipment.boot_flex = int(boot_flex) if boot_flex and int(boot_flex) > 0 else None
+    
+    db.session.commit()
+    return jsonify({"success": True})
+
+
+@app.route("/settings/equipment/delete", methods=["POST"])
+@login_required
+def settings_equipment_delete():
+    slot_str = request.form.get("slot", "primary")
+    slot = EquipmentSlot.PRIMARY if slot_str == "primary" else EquipmentSlot.SECONDARY
+    
+    equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=slot).first()
+    if equipment:
+        db.session.delete(equipment)
+        db.session.commit()
+    
+    return jsonify({"success": True})
+
+
+@app.route("/settings/mountains-visited")
+@login_required
+def settings_mountains():
+    return redirect(url_for('mountains_visited'))
+
+
+@app.route("/settings/password")
+@login_required
+def settings_password():
+    return redirect(url_for('change_password'))
+
 
 @app.route("/add-open-dates", methods=["GET", "POST"])
 @login_required
@@ -1728,7 +1811,7 @@ def mountains_visited():
         selected_mountains = request.form.getlist("mountains")
         user.mountains_visited = selected_mountains
         db.session.commit()
-        return redirect(url_for("more"))
+        return redirect(url_for("settings"))
     
     selected_mountains = user.mountains_visited or []
     mountains_visited_count = len(selected_mountains)
