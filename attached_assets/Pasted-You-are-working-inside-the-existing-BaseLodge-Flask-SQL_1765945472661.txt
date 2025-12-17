@@ -1,0 +1,155 @@
+You are working inside the existing BaseLodge Flask + SQLAlchemy application.
+Your task is to complete BaseLodge v1 according to the locked product rules below.
+Do not ask strategic or product questions. All decisions are finalized.
+🎯 BASELODGE V1 GOAL (LOCKED)
+Deliver a working, data-correct, mobile-first v1 that allows real users to:
+Select multiple ski passes
+Browse all resorts with clear compatibility labels
+Plan trips with friends
+See who is free when (Open Dates)
+Coordinate group trips
+See basic social activity
+Prioritize:
+Data correctness
+Permission safety
+Core flows working on mobile
+Minor UI rough edges are acceptable.
+🔒 NON-NEGOTIABLE PRODUCT RULES
+Users can select multiple passes (checkboxes)
+Store user passes as comma-separated string on User.pass_type
+Resorts can belong to multiple passes via Resort.pass_brands
+Never block users based on pass compatibility
+Always show all resorts
+Pass compatibility is informational only
+Changing passes affects future browsing only
+GroupTrips:
+optional resort
+no guest pass selection
+Open Dates must work end-to-end
+Feed exists (minimal)
+Notifications are email-first
+No schema refactors beyond what’s listed
+No join tables
+No advanced filtering logic
+✅ REQUIRED WORK (DO ALL SECTIONS)
+1️⃣ MULTI-PASS ONBOARDING + PROFILE (REQUIRED)
+UI
+Replace single-select pass dropdown with checkbox list
+Label:
+Which passes do you have?
+Select all that apply.
+Backend
+Read passes using:
+passes = request.form.getlist("pass_type")
+Persist:
+user.pass_type = ",".join(sorted(set(passes))) if passes else "None"
+Compatibility
+Existing users with single pass must continue to work
+Do not migrate existing rows unless user edits profile
+2️⃣ OPEN DATES — FULL END-TO-END (CORE)
+Ensure Open Dates is fully wired:
+UI: users can select open dates
+Persistence: dates saved to DB
+Matching: overlapping friends computed
+Display: list of friends with overlapping dates
+Remove reliance on debug-only endpoints.
+Do NOT add:
+notifications
+suggestions
+advanced logic
+3️⃣ RESORT MULTI-PASS COMPATIBILITY DISPLAY
+Using existing Resort.pass_brands:
+Display compatibility text:
+“Works with: Epic”
+“Works with: Ikon + MountainCollective”
+Show this text in:
+Resort browsing / selection views
+Trip creation flow
+Do NOT:
+hide resorts
+block selection
+enforce logic
+4️⃣ GROUPTRIP — COMPLETE & SAFE
+A. Creation (REQUIRED)
+Implement a GroupTrip creation route + UI:
+title
+start_date
+end_date
+optional resort_id
+Without this, GroupTrips are unusable.
+B. Optional Resort
+Add nullable resort_id FK to GroupTrip
+Do NOT require it
+UI selection optional (backend support required)
+C. Permissions (CRITICAL)
+Add explicit access checks:
+Only host or accepted guests may view GroupTrip
+Only host may:
+invite guests
+remove guests
+update accommodation / transportation
+5️⃣ FEED / ACTIVITY (MINIMAL)
+If a Feed model exists, use it.
+Otherwise create a simple append-only Feed model.
+Log ONLY:
+SkiTrip created
+Friend connection created
+GroupTrip created
+GroupTrip invite accepted
+Do NOT log:
+pass changes
+Open Dates
+accommodation / transportation updates
+6️⃣ EMAIL NOTIFICATIONS (LIGHT)
+Implement basic email notifications for:
+Friend connection
+GroupTrip invite accepted
+No preferences, no batching, no push notifications.
+7️⃣ PERMISSION HARDENING (MANDATORY)
+Add explicit server-side ownership checks for:
+Profile edit
+Equipment edit
+GroupTrip view
+GroupTrip mutation endpoints
+Do not rely solely on implicit current_user safety.
+8️⃣ EQUIPMENT UX CLEANUP
+Remove equipment summary from the top profile section (near home mountain)
+Equipment brand selection:
+Alphabetical dropdown
+Separate lists for skis vs snowboards
+Optional (nice-to-have): delete equipment action
+9️⃣ VERIFICATION & SMOKE CHECKS
+Manual verification (required)
+Signup → onboarding (multi-pass)
+Profile edit
+Trip creation
+Friend connection
+Open Dates overlap
+GroupTrip creation + invite
+Script / CLI verification
+Output:
+Count of resorts per pass_brands
+Any NULL pass_brands (error)
+Sample rows
+No pytest suite required.
+🚫 EXPLICITLY OUT OF SCOPE
+Do NOT:
+Add join tables
+Enforce pass rules
+Add advanced filtering
+Add push notifications
+Clean up LSP diagnostics
+Remove legacy SkiTrip fields
+Build admin UIs
+Optimize performance unless app is visibly slow
+🛑 STOP CONDITIONS
+Stop when:
+App boots cleanly
+All above flows work on mobile
+No regressions introduced
+Data is correct and permissions are enforced
+📋 FINAL REPORT BACK
+Return:
+List of files modified
+Confirmation all rules were followed
+Known limitations deferred to v2
