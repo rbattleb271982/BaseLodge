@@ -1,0 +1,84 @@
+Fix the following issues across the Add Trip flow, Riding Details layout, and Home profile card. Treat this as a single cohesive batch. Do not redesign UI, add animations, or refactor unrelated code. Focus only on correctness, layout density, and routing.
+
+Use checkpoints sparingly. Fully test all affected flows before finishing.
+
+⸻
+
+BATCH 1 — ADD TRIP FORM (FUNCTIONAL + ORDERING FIXES)
+
+1. State dropdown (critical blocker)
+	•	Ensure the State <select> is populated server-side on initial render.
+	•	Do not rely on JavaScript to inject state options after page load.
+	•	Confirm the template receives a states list and renders valid <option> elements.
+	•	User must be able to immediately select a state.
+
+2. Resort dropdown behavior
+	•	Resort dropdown remains disabled until a state is selected.
+	•	Once a state is selected:
+	•	Load resorts for that state.
+	•	Enforce server-side ordering:
+	•	“Base Lodge” always appears first (if present)
+	•	All remaining resorts sorted alphabetically (A–Z)
+	•	Confirm selecting a resort works and unblocks form submission.
+
+3. Visibility toggle placement
+	•	Move the following block to the very bottom of the form, directly above the “Save trip” button:
+	•	Checkbox: “Make this trip visible to friends”
+	•	Helper text: “Only friends can see this trip.”
+	•	No logic changes — layout order only.
+
+4. Validation
+	•	Confirm:
+	•	State → Resort dependency works
+	•	Base Lodge appears at top
+	•	Form can be successfully saved
+
+⸻
+
+BATCH 2 — RIDING DETAILS LAYOUT DENSITY
+
+Goal
+
+Reduce excessive vertical whitespace in the Riding Details section.
+
+Requirements
+	•	Reduce vertical spacing between:
+	•	Rider Type options
+	•	Skill Level options
+	•	Keep radio buttons readable and easily tappable.
+	•	Rider Type + Skill Level should feel like one compact section, not two long scroll blocks.
+	•	Do not:
+	•	Change labels
+	•	Change options
+	•	Change order
+	•	Add animations or transitions
+
+This is a CSS/layout spacing fix only.
+
+⸻
+
+BATCH 3 — “+ ADD EQUIPMENT” ROUTING FIX (HOME SCREEN)
+
+Current issue
+	•	Tapping “+ Add Equipment” on the Home / Profile summary card routes to a legacy or incorrect page.
+
+Required behavior
+	•	Clicking “+ Add Equipment” must always redirect to the Equipment page in Settings.
+	•	This should be the single source of truth for editing equipment.
+	•	No modals.
+	•	No inline editing.
+	•	No duplicate or legacy pages.
+
+Implementation notes
+	•	Remove or replace any legacy route bindings or JS click handlers.
+	•	Ensure this link matches the same destination used when navigating via Settings.
+
+⸻
+
+FINAL CHECKS (MANDATORY)
+	•	Add Trip flow is fully usable end-to-end
+	•	Riding Details screen scroll length is noticeably reduced
+	•	“+ Add Equipment” consistently routes to Settings → Equipment
+	•	No regressions in onboarding, profile edit, or settings navigation
+
+Do not finish until all three batches are verified working.
