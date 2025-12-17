@@ -3228,5 +3228,102 @@ def repair_demo_data():
         print("=" * 70)
 
 
+@app.cli.command("fix-seeded-users")
+def fix_seeded_users():
+    """Fix seeded users: reset passwords and ensure friend connections."""
+    from werkzeug.security import generate_password_hash
+    
+    print("🔐 FIXING SEEDED USERS...")
+    print("=" * 70)
+    
+    TARGET_USERS = [
+        {
+            "email": "richardbattlebaxter@gmail.com",
+            "first_name": "Richard",
+            "last_name": "Battle-Baxter",
+            "password": "12345678"
+        },
+        {
+            "email": "jonathanmschmitz@gmail.com",
+            "first_name": "Jonathan",
+            "last_name": "Schmitz",
+            "password": "12345678"
+        }
+    ]
+
+    users = {}
+
+    # Step 1: Create or update target users with correct passwords
+    print("\n📝 STEP 1: Creating/Updating Target Users")
+    for u in TARGET_USERS:
+        user = User.query.filter(
+            db.func.lower(User.email) == u["email"].lower()
+        ).first()
+
+        if not user:
+            user = User(
+                email=u["email"],
+                first_name=u["first_name"],
+                last_name=u["last_name"],
+                password_hash=generate_password_hash(u["password"])
+            )
+            db.session.add(user)
+            print(f"  ✨ CREATED user {u['email']}")
+        else:
+            user.password_hash = generate_password_hash(u["password"])
+            print(f"  ✏️  RESET password for {u['email']}")
+
+        users[u["email"]] = user
+
+    db.session.commit()
+
+    # Step 2: Fix friend connections
+    print("\n🤝 STEP 2: Fixing Friend Connections")
+    richard = users["richardbattlebaxter@gmail.com"]
+    jonathan = users["jonathanmschmitz@gmail.com"]
+
+    all_users = User.query.all()
+    connections_added = 0
+
+    for user in all_users:
+        if user.id in (richard.id, jonathan.id):
+            continue
+
+        for core in (richard, jonathan):
+            exists = Friend.query.filter_by(
+                user_id=core.id,
+                friend_id=user.id
+            ).first()
+
+            if not exists:
+                db.session.add(Friend(user_id=core.id, friend_id=user.id))
+                db.session.add(Friend(user_id=user.id, friend_id=core.id))
+                connections_added += 2
+
+    db.session.commit()
+    print(f"  ✨ Added {connections_added} friend connections")
+
+    # Step 3: Verification
+    print("\n" + "=" * 70)
+    print("✅ VERIFICATION")
+    print("=" * 70)
+    
+    richard_friends = Friend.query.filter_by(user_id=richard.id).count()
+    jonathan_friends = Friend.query.filter_by(user_id=jonathan.id).count()
+    
+    print(f"Richard friends: {richard_friends}")
+    print(f"Jonathan friends: {jonathan_friends}")
+    
+    # Test password
+    richard_pwd_ok = richard.check_password("12345678")
+    jonathan_pwd_ok = jonathan.check_password("12345678")
+    
+    print(f"Richard password check: {richard_pwd_ok}")
+    print(f"Jonathan password check: {jonathan_pwd_ok}")
+    
+    print("\n✅ FIX COMPLETE!")
+    print("=" * 70)
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
