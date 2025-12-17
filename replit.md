@@ -103,6 +103,16 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
   - **Friends List**: Shows only primary/first pass from comma-separated pass_type field
   - **Terminology**: "Gear" renamed to "Equipment" across all templates
 
+- **Final Product Spec v1 Alignment (Dec 17, 2025):**
+  - **More Page**: Reordered sections to Profile → Equipment & Activity → Account
+  - **Change Password**: Separate screen at `/change-password` with current password validation; no auto-logout on success
+  - **Friends Cards**: Two-line format with "First Last, State" on line 1 and "Rider Type – Skill Level – Pass" on line 2 using en-dash separators with fallbacks (— for missing, "No Pass" for none)
+  - **Onboarding**: Tightened spacing (reduced padding, margins, font sizes) to prevent scrolling on mobile
+  - **Ride Intent**: New `ride_intent` column on SkiTrip model (values: "Need a ride", "Have room in car", null)
+    - Selectable during Add Trip (dropdown, default=none) and Edit Trip
+    - Display-only on Home page (My Trips, Friends' Trips), My Trips page, and friend trip detail page
+    - Route: POST `/edit-trip/<id>` includes ride_intent field
+
 ## Test Users (Main)
 - **Richard Battle-Baxter:** richardbattlebaxter@gmail.com / 12345678
   - Epic pass, Advanced skier, Colorado
