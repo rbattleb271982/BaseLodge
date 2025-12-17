@@ -1,0 +1,119 @@
+You are working inside the existing BaseLodge Flask + SQLAlchemy app.
+GOAL
+Implement Step 1 only: data models and relationships.
+⚠️ Do not touch UI, routes, templates, or frontend logic.
+⚠️ Do not add feed triggers or notifications.
+⚠️ Do not refactor existing Trip or User logic unless explicitly stated.
+SCOPE (STRICT)
+You must:
+Add new database models
+Add enums where specified
+Add relationships + constraints
+Run migrations safely
+Verify models load correctly
+You must NOT:
+Modify existing routes
+Modify templates
+Add seed data
+Add business logic beyond helpers
+MODELS TO ADD
+1️⃣ SkiTrip (new table)
+Create a new SkiTrip model with the following fields:
+id (PK)
+host_id (FK → User.id, required)
+title (nullable string)
+start_date (date, required)
+end_date (date, required)
+accommodation_status
+ENUM: booked, not_yet, staying_with_friends
+transportation_status
+ENUM: have_transport, need_transport, not_sure
+created_at
+updated_at
+Rules:
+Only one accommodation + transportation status per trip
+Host is the only editor (enforced later — do not add permission logic now)
+Add relationship:
+host = relationship("User", backref="hosted_trips")
+2️⃣ TripGuest (new table)
+Create TripGuest as a join table between users and trips.
+Fields:
+id (PK)
+trip_id (FK → SkiTrip.id, required)
+user_id (FK → User.id, required)
+status
+ENUM: invited, accepted
+joined_at
+Constraints:
+Unique constraint on (trip_id, user_id)
+Guests are view-only (enforced later)
+Relationships:
+trip = relationship("SkiTrip", backref="guests")
+user = relationship("User", backref="trip_memberships")
+3️⃣ FriendConnection (new table)
+Create FriendConnection for global, bidirectional friendships.
+Fields:
+id (PK)
+user_id (FK → User.id)
+friend_id (FK → User.id)
+created_at
+Rules:
+Always stored as two rows (A→B and B→A)
+No approval state
+No feed events
+Constraints:
+Unique constraint on (user_id, friend_id)
+Prevent self-connections
+Relationships:
+Use foreign_keys correctly to avoid ambiguity
+4️⃣ EquipmentSetup (new table)
+Create EquipmentSetup for profile-level gear.
+Fields:
+id (PK)
+user_id (FK → User.id)
+slot
+ENUM: primary, secondary
+discipline
+ENUM: skier, snowboarder
+brand (string, nullable)
+length_cm (integer, nullable)
+width_mm (integer, nullable)
+Rules:
+Max 2 rows per user
+One primary + one secondary
+Always visible on profile (UI later)
+Constraint:
+Unique constraint on (user_id, slot)
+Relationship:
+user = relationship("User", backref="equipment_setups")
+5️⃣ Helper Query (NO ROUTES)
+Add a model-level helper function (static or classmethod) that can answer:
+Do two users share at least one accepted, upcoming trip?
+This function should:
+Accept user_a_id, user_b_id
+Return boolean
+Check overlapping TripGuest(status="accepted")
+Check trip dates ≥ today
+Do NOT expose this via routes yet.
+MIGRATION & VERIFICATION
+You must:
+Generate and apply migrations
+Ensure all enums are created correctly
+Confirm no existing tables are modified
+Confirm app boots without errors
+Confirm SQLAlchemy relationships resolve
+DONE CRITERIA
+Stop when:
+Tables exist
+Relationships load
+No UI or route changes were made
+No seed data added
+Do NOT continue to Step 2.
+If Replit asks clarifying questions:
+Default to creating new tables
+Default to nullable fields unless explicitly required
+Do NOT merge with existing models
+When you finish, report:
+List of new tables created
+Any assumptions you had to make
+Confirmation that no UI/routes were touched
