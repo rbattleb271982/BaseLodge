@@ -2705,6 +2705,40 @@ def init_db_http():
             "message": f"Failed to initialize database: {str(e)}"
         }), 500
 
+
+@app.route("/admin/seed-test-users", methods=["GET", "POST"])
+def seed_test_users_endpoint():
+    """
+    HTTP endpoint to seed test users for demo/testing.
+    Creates Richard + 20 friends with complete profiles, trips, and friendships.
+    
+    Usage: GET https://yourapp.replit.dev/admin/seed-test-users
+    
+    This is idempotent - safe to call multiple times.
+    """
+    try:
+        from seed_test_users import seed_test_data
+        from models import EquipmentSetup, EquipmentSlot, EquipmentDiscipline
+        
+        results = seed_test_data(
+            app, db, User, Friend, SkiTrip, Resort,
+            EquipmentSetup, EquipmentSlot, EquipmentDiscipline
+        )
+        
+        return jsonify({
+            "status": "success",
+            "message": "Test users seeded successfully",
+            "details": results
+        }), 200
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to seed test users: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 @app.route("/open-data-debug")
 @login_required
 def open_data_debug():
