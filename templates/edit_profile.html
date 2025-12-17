@@ -149,17 +149,6 @@
             </div>
         </div>
 
-        <div class="form-section equipment-section" id="equipment-section">
-            <label class="form-label">Equipment</label>
-            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0 0 12px 0;">Pick what brand of equipment you use.</p>
-            <select name="gear" id="equipment-dropdown" class="bl-select">
-                <option value="">Select your equipment brand</option>
-            </select>
-            <div id="equipment-warning" class="equipment-warning">
-                Your equipment may need updating for your new rider type.
-            </div>
-        </div>
-
         <div class="form-section">
             <label class="form-label">Home Mountain</label>
             <select name="home_mountain" id="home_mountain" class="bl-select">
@@ -224,7 +213,9 @@
                     <option value="Skier" {% if primary_equipment and primary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
                     <option value="Snowboarder" {% if primary_equipment and primary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
                 </select>
-                <input type="text" id="primary-brand" placeholder="Brand" class="bl-select" style="margin-bottom: 8px;" value="{% if primary_equipment %}{{ primary_equipment.brand or '' }}{% endif %}" />
+                <select id="primary-brand" class="bl-select" style="margin-bottom: 8px;">
+                    <option value="">Select brand</option>
+                </select>
                 <input type="number" id="primary-length" placeholder="Length (cm)" class="bl-select" style="margin-bottom: 8px;" value="{% if primary_equipment %}{{ primary_equipment.length_cm or '' }}{% endif %}" />
                 <input type="number" id="primary-width" placeholder="Width (mm) - Skiers only" class="bl-select" value="{% if primary_equipment %}{{ primary_equipment.width_mm or '' }}{% endif %}" />
             </div>
@@ -242,7 +233,9 @@
                     <option value="Skier" {% if secondary_equipment and secondary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
                     <option value="Snowboarder" {% if secondary_equipment and secondary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
                 </select>
-                <input type="text" id="secondary-brand" placeholder="Brand" class="bl-select" style="margin-bottom: 8px;" value="{% if secondary_equipment %}{{ secondary_equipment.brand or '' }}{% endif %}" />
+                <select id="secondary-brand" class="bl-select" style="margin-bottom: 8px;">
+                    <option value="">Select brand</option>
+                </select>
                 <input type="number" id="secondary-length" placeholder="Length (cm)" class="bl-select" style="margin-bottom: 8px;" value="{% if secondary_equipment %}{{ secondary_equipment.length_cm or '' }}{% endif %}" />
                 <input type="number" id="secondary-width" placeholder="Width (mm) - Skiers only" class="bl-select" value="{% if secondary_equipment %}{{ secondary_equipment.width_mm or '' }}{% endif %}" />
             </div>
@@ -276,65 +269,47 @@
 {% include 'components/bottom_nav.html' %}
 
 <script>
-const skiBrands = ['Atomic', 'Black Crows', 'Blizzard', 'Dynafit', 'Elan', 'Fischer', 'Head', 'K2', 'Line', 'Nordica', 'Rossignol', 'Salomon', 'Volkl', 'Other'];
-const snowboardBrands = ['Burton', 'Capita', 'GNU', 'Jones', 'K2', 'Lib Tech', 'Never Summer', 'Ride', 'Salomon', 'Yes.', 'Other'];
-const adaptiveBrands = ['Atomic', 'Black Crows', 'Blizzard', 'Burton', 'Capita', 'Dynafit', 'Elan', 'Fischer', 'GNU', 'Head', 'Jones', 'K2', 'Lib Tech', 'Line', 'Never Summer', 'Nordica', 'Ride', 'Rossignol', 'Salomon', 'Volkl', 'Yes.', 'Other'];
+const skiEquipmentBrands = ['Atomic', 'Black Crows', 'Blizzard', 'Dynastar', 'Elan', 'Faction', 'Fischer', 'Head', 'K2', 'Line', 'Nordica', 'Rossignol', 'Salomon', 'Scott', 'Volkl'];
+const snowboardEquipmentBrands = ['Arbor', 'Bataleon', 'Burton', 'Capita', 'DC', 'GNU', 'Jones', 'K2', 'Lib Tech', 'Nitro', 'Ride', 'Rome', 'Salomon', 'Yes'];
 
-const equipmentSection = document.getElementById('equipment-section');
-const equipmentDropdown = document.getElementById('equipment-dropdown');
-const equipmentWarning = document.getElementById('equipment-warning');
-const gearHidden = document.getElementById('gear_hidden');
 const riderTypeInput = document.getElementById('rider_type');
-const currentGear = "{{ current_user.gear or '' }}";
+const primaryDisciplineSelect = document.getElementById('primary-discipline');
+const primaryBrandSelect = document.getElementById('primary-brand');
+const secondaryDisciplineSelect = document.getElementById('secondary-discipline');
+const secondaryBrandSelect = document.getElementById('secondary-brand');
 
-function getBrandsForRiderType(riderType) {
-    if (riderType === 'Skier' || riderType === 'Telemarking') {
-        return skiBrands;
-    } else if (riderType === 'Snowboarder') {
-        return snowboardBrands;
-    } else if (riderType === 'Adaptive') {
-        return adaptiveBrands;
-    }
-    return null;
-}
+const primaryEquipmentBrand = "{% if primary_equipment %}{{ primary_equipment.brand or '' }}{% endif %}";
+const secondaryEquipmentBrand = "{% if secondary_equipment %}{{ secondary_equipment.brand or '' }}{% endif %}";
 
-function updateEquipmentDropdown(riderType, preserveValue, showWarningIfMismatch = false) {
-    const brands = getBrandsForRiderType(riderType);
+function updateBrandDropdown(selectElement, discipline, existingValue) {
+    const brands = discipline === 'Skier' ? skiEquipmentBrands : (discipline === 'Snowboarder' ? snowboardEquipmentBrands : []);
     
-    if (!brands) {
-        equipmentSection.classList.remove('visible');
-        equipmentDropdown.innerHTML = '<option value="">Select your equipment brand</option>';
-        equipmentWarning.classList.remove('visible');
-        return;
-    }
-    
-    equipmentSection.classList.add('visible');
-    
-    let html = '<option value="">Select your equipment brand</option>';
+    let html = '<option value="">Select brand</option>';
     brands.forEach(brand => {
-        const selected = (preserveValue === brand) ? ' selected' : '';
+        const selected = (existingValue === brand) ? ' selected' : '';
         html += `<option value="${brand}"${selected}>${brand}</option>`;
     });
-    equipmentDropdown.innerHTML = html;
-    
-    if (preserveValue && brands.includes(preserveValue)) {
-        gearHidden.value = preserveValue;
-        equipmentWarning.classList.remove('visible');
-    } else if (preserveValue && !brands.includes(preserveValue)) {
-        gearHidden.value = preserveValue;
-        if (showWarningIfMismatch) {
-            equipmentWarning.classList.add('visible');
-        }
-    } else {
-        equipmentWarning.classList.remove('visible');
-    }
+    selectElement.innerHTML = html;
 }
 
-updateEquipmentDropdown(riderTypeInput.value, currentGear);
+// Initialize Primary equipment dropdown
+if (primaryDisciplineSelect.value) {
+    updateBrandDropdown(primaryBrandSelect, primaryDisciplineSelect.value, primaryEquipmentBrand);
+}
 
-equipmentDropdown.addEventListener('change', () => {
-    gearHidden.value = equipmentDropdown.value;
-    equipmentWarning.classList.remove('visible');
+// Initialize Secondary equipment dropdown
+if (secondaryDisciplineSelect.value) {
+    updateBrandDropdown(secondaryBrandSelect, secondaryDisciplineSelect.value, secondaryEquipmentBrand);
+}
+
+// Listen to discipline changes for Primary equipment
+primaryDisciplineSelect.addEventListener('change', () => {
+    updateBrandDropdown(primaryBrandSelect, primaryDisciplineSelect.value, '');
+});
+
+// Listen to discipline changes for Secondary equipment
+secondaryDisciplineSelect.addEventListener('change', () => {
+    updateBrandDropdown(secondaryBrandSelect, secondaryDisciplineSelect.value, '');
 });
 
 document.querySelectorAll("#rider-type-group .chip").forEach(chip => {
@@ -343,9 +318,6 @@ document.querySelectorAll("#rider-type-group .chip").forEach(chip => {
         chip.classList.add("selected");
         const newRiderType = chip.dataset.value;
         riderTypeInput.value = newRiderType;
-        
-        const currentValue = gearHidden.value;
-        updateEquipmentDropdown(newRiderType, currentValue, true);
     });
 });
 
