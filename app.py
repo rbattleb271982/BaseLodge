@@ -23,11 +23,12 @@ import click
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
-# Session configuration for development
-# In Replit's iframe environment, use 'Lax' for SAMESITE to allow cookies in iframe while maintaining security
-app.config['SESSION_COOKIE_SECURE'] = False  # Allow HTTP in development
+# Session configuration for Replit iframe environment
+# In production, Replit proxies through HTTPS even if backend is HTTP
+is_production = os.environ.get("DATABASE_URL") is not None and "postgresql" in os.environ.get("DATABASE_URL", "")
+app.config['SESSION_COOKIE_SECURE'] = is_production  # HTTPS in production, HTTP in dev
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Works with HTTP and allows iframe context
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Works with HTTP/HTTPS and allows iframe context
 app.config['SESSION_COOKIE_DOMAIN'] = None  # Let the browser handle domain
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config['SESSION_REFRESH_EACH_REQUEST'] = True  # Refresh session on each request

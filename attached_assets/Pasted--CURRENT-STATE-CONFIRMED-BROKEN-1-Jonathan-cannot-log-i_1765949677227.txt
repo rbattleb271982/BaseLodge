@@ -1,0 +1,83 @@
+🔴 CURRENT STATE (CONFIRMED BROKEN)
+1️⃣ Jonathan cannot log in
+Email: jonathanmschmitz@gmail.com
+Receives invalid email or password
+Credentials are known and correct
+This is not a UI issue — it is backend/auth-related
+2️⃣ Richard can log in BUT data is missing
+Email: richardbattlebaxter@gmail.com
+Login succeeds
+50 seeded friend connections are missing
+This means seed data is not attached to the logged-in user record
+This is a data / environment mismatch, not a frontend issue
+🛑 ASSUME NOTHING — VERIFY EVERYTHING
+STEP 1 — DATABASE REALITY CHECK (MANDATORY)
+Print and inspect directly from the active production database:
+List all users with:
+email
+id
+created_at
+password_hash (exists / not null)
+Specifically verify:
+jonathanmschmitz@gmail.com
+richardbattlebaxter@gmail.com
+⚠️ If Jonathan exists but has:
+a null password_hash
+a plaintext password
+a hash generated with a different SECRET_KEY
+→ that is the bug. Fix it properly.
+STEP 2 — ENVIRONMENT CONSISTENCY CHECK (MANDATORY)
+Verify published app is using:
+SAME DATABASE_URL as seed scripts
+SAME SECRET_KEY as when users were created
+SAME auth logic as dev
+Explicitly log:
+Current DATABASE_URL
+Current SECRET_KEY (hash/length only, not full value)
+⚠️ If publish created a new empty database, you must:
+Re-run seeds against the correct DB
+OR migrate users correctly
+Explain exactly which DB is live
+STEP 3 — PASSWORD VERIFICATION FAILURE (JONATHAN)
+For Jonathan:
+Manually run password check:
+check_password_hash(user.password_hash, "12345678")
+If it returns false:
+Identify why (bad hash, different key, bad seed)
+Fix by regenerating hash correctly
+Do NOT silently reset without explanation
+Jonathan must be able to log in after this step.
+STEP 4 — FRIEND CONNECTION INTEGRITY (RICHARD)
+For Richard:
+Query:
+Friend table
+Connection table
+Join table (whatever defines friendships)
+Verify:
+50 connections exist in DB
+They reference Richard’s actual user_id
+They are bidirectional if required
+⚠️ Common failure:
+Seeds ran using me@example.com
+Seeds ran before Richard existed
+Seeds ran against a different database
+Fix by:
+Reattaching the 50 users to Richard’s real user_id
+Or re-running the seed correctly against prod
+STEP 5 — HARD VERIFICATION (NON-NEGOTIABLE)
+Before stopping, you must prove:
+✅ Jonathan can log in
+✅ Richard can log in
+✅ Richard sees all 50 connected users
+✅ Connections persist after logout/login
+✅ This works in the published app, not just dev
+🚫 RULES
+Do NOT guess
+Do NOT partially fix
+Do NOT create new users unless explicitly required
+Do NOT stop until all checks pass
+📝 REQUIRED OUTPUT
+At the end, provide:
+Root cause(s) (clear + specific)
+What was fixed
+How to prevent this again (1–2 bullets)
