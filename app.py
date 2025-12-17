@@ -153,7 +153,13 @@ def internal_error(error):
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    """Handle all exceptions with full traceback logging."""
+    """Handle all exceptions with full traceback logging (except HTTP errors)."""
+    from werkzeug.exceptions import HTTPException
+    
+    # Don't catch HTTP errors like 404 - let them return normally
+    if isinstance(e, HTTPException):
+        return e
+    
     import traceback
     print("=" * 70)
     print(f"🚨 UNHANDLED EXCEPTION: {type(e).__name__}")
