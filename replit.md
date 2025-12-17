@@ -36,7 +36,12 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **Database:** SQLite for development, PostgreSQL for production, managed via SQLAlchemy.
 - **File Structure:** Organized separation of application logic, models, templates, and static assets.
 - **API Endpoints:** Dedicated routes for trip management (create, edit, delete) and friend management (invite, list, accept, remove).
-- **Models:** Core models include `User`, `SkiTrip`, `Resort`, `Friend`, `Invitation`, and `InviteToken`, with defined relationships.
+- **Models:** Core models include `User`, `SkiTrip`, `Resort`, `Friend`, `Invitation`, `InviteToken`, `GroupTrip`, `TripGuest`, and `EquipmentSetup`, with defined relationships.
+- **Social Trip Models (Step 1 - Dec 2025):**
+  - `GroupTrip`: Multi-user trip with host_id, title, start/end dates, accommodation_status, transportation_status enums
+  - `TripGuest`: Join table linking users to group trips with status (invited/accepted) and unique constraint
+  - `EquipmentSetup`: User equipment profiles with slot (primary/secondary), discipline (skier/snowboarder), brand/dimensions
+  - Helper: `check_shared_upcoming_trip(user_a_id, user_b_id)` returns True if users share an accepted upcoming trip
 - **Authentication:** Flask-Login is fully integrated for session management, replacing manual session handling, and configured for cross-origin iframe compatibility.
 
 ## Test Users (Main)
