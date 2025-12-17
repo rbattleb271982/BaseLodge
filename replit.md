@@ -84,8 +84,12 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 
 - **UI/UX Updates (Dec 17, 2025):**
   - **Edit Profile**: Mobile-first layout with card sections, floating Save button at bottom
+    - Reorganized sections: "About You" (Home State, Home Mountain, Birth Year, Gender) → "Riding Details" (Rider Type, Skill Level) → "Passes" → "Equipment"
+    - Home Mountain dropdown filters dynamically based on selected Home State
+    - Pass hidden input initialized on page load to preserve existing selections
     - Scaled up: labels 16px, inputs 17px with min-height 48px, chips 12px 20px padding
     - All tap targets meet iOS-friendly 48px minimum height
+  - **Passes**: "I don't have a pass" replaces "None" at top of list with mutual exclusion logic (auto-clears other passes when selected, and vice versa)
   - **Mountains Visited**: Removable pill/chip UI with × buttons for selected mountains
   - **Add Trip**: Client-side validation requires resort selection before home mountain checkbox can be checked
   - Max width 500px on profile forms for better mobile experience
@@ -93,7 +97,10 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
     - Selected dates now maroon (#8F011B)
     - "No dates selected" text removed
     - Save button disabled until at least one date selected
-    - Dates grouped by month: "Dec 14,18,19 | Jan 3,4" format (year-aware grouping)
+    - Dates grouped by month on separate lines (newline separator instead of pipe)
+  - **Navigation**: iOS-style stroked SVG icons replace emojis, integrated "Base Lodge" header across all main pages
+  - **Friends List**: Shows only primary/first pass from comma-separated pass_type field
+  - **Terminology**: "Gear" renamed to "Equipment" across all templates
 
 ## Test Users (Main)
 - **Richard Battle-Baxter:** richardbattlebaxter@gmail.com / 12345678
