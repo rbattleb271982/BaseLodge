@@ -42,6 +42,15 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
   - `TripGuest`: Join table linking users to group trips with status (invited/accepted) and unique constraint
   - `EquipmentSetup`: User equipment profiles with slot (primary/secondary), discipline (skier/snowboarder), brand/dimensions
   - Helper: `check_shared_upcoming_trip(user_a_id, user_b_id)` returns True if users share an accepted upcoming trip
+
+- **GroupTrip Social Features (Step 2 - Dec 2025):**
+  - Host invitations: Only GroupTrip host can invite their existing friends to trips (from friends list only)
+  - Accept invite: Changes status to "accepted" and auto-creates bidirectional Friend connection with host
+  - Leave trip: Guest can silently remove themselves (deletes TripGuest row)
+  - Remove guest: Host can remove any guest from trip (no feed event)
+  - Shared-trip Connect button: Shows on friend profile when users share accepted upcoming GroupTrip and aren't already friends
+  - Permissions: All host actions (invite, remove guest) return 403 if non-host attempts them
+  - Routes: `/group-trip/<id>` (view), `/group-trip/<id>/invite` (POST), `/group-trip/<id>/accept` (POST), `/group-trip/<id>/leave` (POST), `/group-trip/<id>/remove-guest/<guest_id>` (POST), `/connect-from-trip/<user_id>` (POST)
 - **Authentication:** Flask-Login is fully integrated for session management, replacing manual session handling, and configured for cross-origin iframe compatibility.
 
 ## Test Users (Main)
