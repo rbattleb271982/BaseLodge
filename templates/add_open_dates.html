@@ -64,7 +64,7 @@
             background: var(--bl-color-bg);
         }
         .calendar-day.selected {
-            background: var(--bl-color-primary);
+            background: #8F011B;
             color: white;
         }
         .calendar-day.past, .calendar-day.disabled {
@@ -103,9 +103,9 @@
                 <div class="calendar-grid" id="calendarGrid"></div>
             </div>
             
-            <div class="selected-count" id="selectedCount">No dates selected</div>
+            <div class="selected-count" id="selectedCount"></div>
             
-            <button type="submit" class="bl-btn-primary" style="width: 100%; padding: 12px;">Save open dates</button>
+            <button type="submit" class="bl-btn-primary" id="saveBtn" style="width: 100%; padding: 12px;" disabled>Save open dates</button>
         </form>
         
         <a href="{{ url_for('home') }}?tab=open" style="display: block; text-align: center; text-decoration: none; color: var(--bl-color-text-muted); margin-top: 16px;">
@@ -203,12 +203,17 @@
         function updateCount() {
             const count = selectedDates.size;
             const countEl = document.getElementById('selectedCount');
+            const saveBtn = document.getElementById('saveBtn');
+            
             if (count === 0) {
-                countEl.innerHTML = 'No dates selected';
+                countEl.innerHTML = '';
+                saveBtn.disabled = true;
             } else if (count === 1) {
                 countEl.innerHTML = '<strong>1</strong> date selected';
+                saveBtn.disabled = false;
             } else {
                 countEl.innerHTML = `<strong>${count}</strong> dates selected`;
+                saveBtn.disabled = false;
             }
         }
         

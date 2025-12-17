@@ -127,12 +127,12 @@ class Invitation(db.Model):
 
 
 class InviteToken(db.Model):
+    """Single-use invite token. Validity determined by used_at only."""
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(64), unique=True, nullable=False, index=True)
     inviter_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     used_at = db.Column(db.DateTime, nullable=True)
-    max_uses = db.Column(db.Integer, default=1)
 
     inviter = db.relationship("User", backref="invite_tokens")
 

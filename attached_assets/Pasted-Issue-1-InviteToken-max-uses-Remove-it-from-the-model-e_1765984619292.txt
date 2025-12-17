@@ -1,0 +1,40 @@
+Issue 1 — InviteToken max_uses
+Remove it from the model entirely.
+We are not supporting multi-use invites.
+If max_uses exists only in the SQLAlchemy model (and is causing queries / selects to include it), it must be removed.
+Do not add DB columns. Do not migrate.
+The goal is: the InviteToken model should match the actual DB table, and invite validity should be enforced by used_at only.
+So: remove max_uses from the model and remove any logic referencing it.
+If the actual DB table truly has max_uses as a column, it still should not be used — but based on the crash, the DB is missing at least uses_count, so we need model/schema alignment and to stop selecting extra columns.
+Issue 2 — Edit Profile sizing
+Use the “More” page as the reference. No hardcoded pixel spec required.
+Yes: compare against the More page’s:
+body text size
+input/select height
+button height
+segment/pill sizing
+The goal is visually consistent scale across the app on mobile, not an arbitrary px target.
+If you want a simple guideline (optional, not mandatory):
+Tap targets should feel ~44–48px tall (iOS friendly)
+Body text should feel comparable to More page (don’t make it tiny)
+But the directive is: match More page sizing.
+Issue 3–6 — Open Availability calendar location & implementation
+Route/location:
+It’s the screen reached when the user taps “Open Avail.” in the home screen segmented area and then taps “Edit open dates.”
+If there is a dedicated route, it’s whatever route that button navigates to (commonly something like /open-dates, /open_dates, or similar).
+➡️ Use the app’s existing nav/button link as the source of truth (don’t invent a new route).
+Calendar implementation:
+Do not replace the calendar implementation.
+Work within whatever is already there (custom or library).
+We only need:
+selected dates to render maroon
+remove “No dates selected” text
+disable Save button until ≥1 date selected
+group dates by month in the summary view(s)
+So:
+Identify whether it’s custom vs library by looking at the template/JS already used on that page.
+Then apply styling/state changes without swapping libraries.
+✅ TL;DR
+max_uses: remove from model entirely (single-use only)
+Edit Profile sizing: match More page visually (no exact px spec required)
+Open Avail: use existing route from “Edit open dates” button; don’t rebuild calendar, just style + UI logic tweaks

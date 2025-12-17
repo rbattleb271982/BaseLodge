@@ -1100,46 +1100,37 @@ def date_ranges_overlap(start1, end1, start2, end2):
     return start1 <= end2 and start2 <= end1
 
 def format_open_dates_summary(date_strings):
-    """Format a list of YYYY-MM-DD strings into human-readable summary.
+    """Format a list of YYYY-MM-DD strings into human-readable summary grouped by month.
     E.g., ['2024-12-14', '2024-12-18', '2024-12-19', '2025-01-03', '2025-01-04'] 
-    -> 'Dec 14, Dec 18–19, Jan 3–4'
+    -> 'Dec 14,18,19 | Jan 3,4'
+    
+    Preserves year separation: dates from different years with same month are kept separate.
     """
     if not date_strings:
         return None
     
     from datetime import datetime as dt
+    from collections import OrderedDict
     
     # Parse and sort dates
     dates = sorted([dt.strptime(d, '%Y-%m-%d').date() for d in date_strings])
     
-    # Group consecutive dates
-    groups = []
-    current_group = [dates[0]]
+    # Group dates by (year, month) to preserve year separation
+    months = OrderedDict()
+    for d in dates:
+        month_key = (d.year, d.month, d.strftime('%b'))  # (2024, 12, 'Dec')
+        if month_key not in months:
+            months[month_key] = []
+        months[month_key].append(d.day)
     
-    for i in range(1, len(dates)):
-        if (dates[i] - dates[i-1]).days == 1:
-            current_group.append(dates[i])
-        else:
-            groups.append(current_group)
-            current_group = [dates[i]]
-    groups.append(current_group)
-    
-    # Format each group
+    # Format each month group: "Jan 1,2,3,4"
+    # Year is omitted from display but used for correct grouping
     formatted = []
-    for group in groups:
-        if len(group) == 1:
-            formatted.append(group[0].strftime('%b %d').replace(' 0', ' '))
-        else:
-            start = group[0].strftime('%b %d').replace(' 0', ' ')
-            end = group[-1].strftime('%d').lstrip('0')
-            # If same month, just show "Dec 14–19"
-            if group[0].month == group[-1].month:
-                formatted.append(f"{start}–{end}")
-            else:
-                end_full = group[-1].strftime('%b %d').replace(' 0', ' ')
-                formatted.append(f"{start}–{end_full}")
+    for (year, month, month_name), days in months.items():
+        days_str = ','.join(str(d) for d in days)
+        formatted.append(f"{month_name} {days_str}")
     
-    return ', '.join(formatted)
+    return ' | '.join(formatted)
 
 def dates_to_ranges(date_strings):
     """Convert a list of YYYY-MM-DD strings to a list of {start_date, end_date} dicts.
