@@ -173,16 +173,64 @@
         }
         
         .btn-delete-equipment {
-            flex: 1;
             padding: 14px;
             background: #EF4444;
             color: white;
             border: none;
             border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            min-height: 48px;
+        }
+        
+        .btn-edit-equipment {
+            flex: 1;
+            padding: 14px;
+            background: var(--bl-color-surface);
+            color: var(--bl-color-primary);
+            border: 2px solid var(--bl-color-primary);
+            border-radius: 10px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             min-height: 48px;
+        }
+        
+        .btn-cancel-equipment {
+            padding: 14px;
+            background: var(--bl-color-surface);
+            color: var(--bl-color-text-muted);
+            border: 1px solid var(--bl-color-border);
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            min-height: 48px;
+        }
+        
+        .equipment-display {
+            background: var(--bl-color-bg);
+            border-radius: 10px;
+            padding: 16px;
+        }
+        
+        .equipment-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 12px;
+        }
+        
+        .equipment-brand {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+        }
+        
+        .equipment-details {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
         }
         
         .floating-save {
@@ -363,45 +411,81 @@
         
         <div class="form-row">
             <label>Primary Setup</label>
-            <div class="equipment-grid">
-                <select id="primary-discipline">
-                    <option value="">Discipline</option>
-                    <option value="Skier" {% if primary_equipment and primary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
-                    <option value="Snowboarder" {% if primary_equipment and primary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
-                </select>
-                <select id="primary-brand">
-                    <option value="">Brand</option>
-                </select>
-                <div class="equipment-row">
-                    <input type="number" id="primary-length" placeholder="Length (cm)" value="{% if primary_equipment %}{{ primary_equipment.length_cm or '' }}{% endif %}" />
-                    <input type="number" id="primary-width" placeholder="Width (mm)" value="{% if primary_equipment %}{{ primary_equipment.width_mm or '' }}{% endif %}" />
+            {% if primary_equipment %}
+            <div id="primary-view" class="equipment-display">
+                <div class="equipment-info">
+                    <span class="equipment-brand">{{ primary_equipment.brand }}</span>
+                    <span class="equipment-details">{{ primary_equipment.discipline.value|capitalize }} · {% if primary_equipment.length_cm %}{{ primary_equipment.length_cm }}cm{% endif %}{% if primary_equipment.width_mm %} · {{ primary_equipment.width_mm }}mm{% endif %}</span>
+                </div>
+                <div class="equipment-btn-row">
+                    <button type="button" id="edit-primary-btn" class="btn-edit-equipment">Edit</button>
                 </div>
             </div>
-            <div class="equipment-btn-row">
-                <button type="button" id="save-primary-btn" class="btn-save-equipment">Save Primary</button>
-                {% if primary_equipment %}<button type="button" id="delete-primary-btn" class="btn-delete-equipment">Delete</button>{% endif %}
+            <div id="primary-edit" class="equipment-edit-form" style="display: none;">
+            {% else %}
+            <div id="primary-edit" class="equipment-edit-form">
+            {% endif %}
+                <div class="equipment-grid">
+                    <select id="primary-discipline">
+                        <option value="">Discipline</option>
+                        <option value="Skier" {% if primary_equipment and primary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
+                        <option value="Snowboarder" {% if primary_equipment and primary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
+                    </select>
+                    <select id="primary-brand">
+                        <option value="">Brand</option>
+                    </select>
+                    <div class="equipment-row">
+                        <input type="number" id="primary-length" placeholder="Length (cm)" value="{% if primary_equipment %}{{ primary_equipment.length_cm or '' }}{% endif %}" />
+                        <input type="number" id="primary-width" placeholder="Width (mm)" value="{% if primary_equipment %}{{ primary_equipment.width_mm or '' }}{% endif %}" />
+                    </div>
+                </div>
+                <div class="equipment-btn-row">
+                    <button type="button" id="save-primary-btn" class="btn-save-equipment">{% if primary_equipment %}Save{% else %}Add Primary{% endif %}</button>
+                    {% if primary_equipment %}
+                    <button type="button" id="cancel-primary-btn" class="btn-cancel-equipment">Cancel</button>
+                    <button type="button" id="delete-primary-btn" class="btn-delete-equipment">Delete</button>
+                    {% endif %}
+                </div>
             </div>
         </div>
         
         <div class="form-row" style="margin-top: 20px;">
             <label>Secondary Setup</label>
-            <div class="equipment-grid">
-                <select id="secondary-discipline">
-                    <option value="">Discipline</option>
-                    <option value="Skier" {% if secondary_equipment and secondary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
-                    <option value="Snowboarder" {% if secondary_equipment and secondary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
-                </select>
-                <select id="secondary-brand">
-                    <option value="">Brand</option>
-                </select>
-                <div class="equipment-row">
-                    <input type="number" id="secondary-length" placeholder="Length (cm)" value="{% if secondary_equipment %}{{ secondary_equipment.length_cm or '' }}{% endif %}" />
-                    <input type="number" id="secondary-width" placeholder="Width (mm)" value="{% if secondary_equipment %}{{ secondary_equipment.width_mm or '' }}{% endif %}" />
+            {% if secondary_equipment %}
+            <div id="secondary-view" class="equipment-display">
+                <div class="equipment-info">
+                    <span class="equipment-brand">{{ secondary_equipment.brand }}</span>
+                    <span class="equipment-details">{{ secondary_equipment.discipline.value|capitalize }} · {% if secondary_equipment.length_cm %}{{ secondary_equipment.length_cm }}cm{% endif %}{% if secondary_equipment.width_mm %} · {{ secondary_equipment.width_mm }}mm{% endif %}</span>
+                </div>
+                <div class="equipment-btn-row">
+                    <button type="button" id="edit-secondary-btn" class="btn-edit-equipment">Edit</button>
                 </div>
             </div>
-            <div class="equipment-btn-row">
-                <button type="button" id="save-secondary-btn" class="btn-save-equipment">Save Secondary</button>
-                {% if secondary_equipment %}<button type="button" id="delete-secondary-btn" class="btn-delete-equipment">Delete</button>{% endif %}
+            <div id="secondary-edit" class="equipment-edit-form" style="display: none;">
+            {% else %}
+            <div id="secondary-edit" class="equipment-edit-form">
+            {% endif %}
+                <div class="equipment-grid">
+                    <select id="secondary-discipline">
+                        <option value="">Discipline</option>
+                        <option value="Skier" {% if secondary_equipment and secondary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
+                        <option value="Snowboarder" {% if secondary_equipment and secondary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
+                    </select>
+                    <select id="secondary-brand">
+                        <option value="">Brand</option>
+                    </select>
+                    <div class="equipment-row">
+                        <input type="number" id="secondary-length" placeholder="Length (cm)" value="{% if secondary_equipment %}{{ secondary_equipment.length_cm or '' }}{% endif %}" />
+                        <input type="number" id="secondary-width" placeholder="Width (mm)" value="{% if secondary_equipment %}{{ secondary_equipment.width_mm or '' }}{% endif %}" />
+                    </div>
+                </div>
+                <div class="equipment-btn-row">
+                    <button type="button" id="save-secondary-btn" class="btn-save-equipment">{% if secondary_equipment %}Save{% else %}Add Secondary{% endif %}</button>
+                    {% if secondary_equipment %}
+                    <button type="button" id="cancel-secondary-btn" class="btn-cancel-equipment">Cancel</button>
+                    <button type="button" id="delete-secondary-btn" class="btn-delete-equipment">Delete</button>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -577,6 +661,45 @@ document.querySelectorAll('input[name="pass_type"]').forEach(cb => {
     });
 });
 
+// Equipment Edit/Cancel toggle handlers
+const editPrimaryBtn = document.getElementById('edit-primary-btn');
+const cancelPrimaryBtn = document.getElementById('cancel-primary-btn');
+const primaryView = document.getElementById('primary-view');
+const primaryEdit = document.getElementById('primary-edit');
+
+if (editPrimaryBtn) {
+    editPrimaryBtn.addEventListener('click', () => {
+        primaryView.style.display = 'none';
+        primaryEdit.style.display = 'block';
+    });
+}
+
+if (cancelPrimaryBtn) {
+    cancelPrimaryBtn.addEventListener('click', () => {
+        primaryEdit.style.display = 'none';
+        primaryView.style.display = 'block';
+    });
+}
+
+const editSecondaryBtn = document.getElementById('edit-secondary-btn');
+const cancelSecondaryBtn = document.getElementById('cancel-secondary-btn');
+const secondaryView = document.getElementById('secondary-view');
+const secondaryEdit = document.getElementById('secondary-edit');
+
+if (editSecondaryBtn) {
+    editSecondaryBtn.addEventListener('click', () => {
+        secondaryView.style.display = 'none';
+        secondaryEdit.style.display = 'block';
+    });
+}
+
+if (cancelSecondaryBtn) {
+    cancelSecondaryBtn.addEventListener('click', () => {
+        secondaryEdit.style.display = 'none';
+        secondaryView.style.display = 'block';
+    });
+}
+
 document.getElementById('save-primary-btn').addEventListener('click', () => {
     const discipline = document.getElementById('primary-discipline').value;
     const brand = document.getElementById('primary-brand').value;
@@ -600,7 +723,7 @@ document.getElementById('save-primary-btn').addEventListener('click', () => {
         })
     }).then(r => r.json()).then(data => {
         if (data.success) {
-            alert('Primary equipment saved!');
+            location.reload();
         } else {
             alert('Error: ' + data.error);
         }
@@ -630,7 +753,7 @@ document.getElementById('save-secondary-btn').addEventListener('click', () => {
         })
     }).then(r => r.json()).then(data => {
         if (data.success) {
-            alert('Secondary equipment saved!');
+            location.reload();
         } else {
             alert('Error: ' + data.error);
         }
