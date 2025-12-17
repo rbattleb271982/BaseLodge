@@ -1,0 +1,103 @@
+Fix the Internal Server Error that occurs when clicking the Invite button by hardening the invite route against:
+missing or malformed POST data
+incorrect assumptions about current_user
+duplicate invites or friendships
+unhandled database exceptions
+This is a bug fix only.
+Do not change product behavior or UI flows.
+🔍 SCOPE
+This applies to the route that handles the Invite button, likely one of:
+/invite
+/friends/invite
+/api/friends/invite
+/group-trip/<id>/invite
+Find the actual route and apply the fixes below.
+✅ REQUIRED FIXES
+1️⃣ AUTHENTICATION GUARD (MANDATORY)
+At the top of the invite route, add:
+from flask_login import current_user
+from flask import abort
+if not current_user.is_authenticated:
+    abort(401)
+2️⃣ SAFE FORM DATA HANDLING (MANDATORY)
+Replace any direct access like:
+friend_id = request.form["friend_id"]
+with:
+friend_id = request.form.get("friend_id")
+
+if not friend_id:
+    return jsonify({"error": "Missing friend_id"}), 400
+If the invite is GroupTrip-related, also validate:
+trip_id = request.form.get("trip_id")
+
+if not trip_id:
+    return jsonify({"error": "Missing trip_id"}), 400
+3️⃣ VALIDATE TARGET USER EXISTS
+friend = User.query.get(friend_id)
+
+if not friend:
+    return jsonify({"error": "User not found"}), 404
+4️⃣ PREVENT DUPLICATE INVITES & FRIENDSHIPS
+Before creating any records, add both checks.
+A. Already friends check
+already_friends = Friend.query.filter_by(
+    user_id=current_user.id,
+    friend_id=friend.id
+).first()
+
+if already_friends:
+    return jsonify({"message": "Already friends"}), 200
+B. Existing invite check (if Invitation model exists)
+existing_invite = Invitation.query.filter_by(
+    inviter_id=current_user.id,
+    invitee_id=friend.id
+).first()
+
+if existing_invite:
+    return jsonify({"message": "Invite already sent"}), 200
+5️⃣ DATABASE WRITE SAFETY (CRITICAL)
+Wrap all database writes in a try/except:
+from flask import current_app
+
+try:
+    db.session.add(invite)  # or whatever object is created
+    db.session.commit()
+except Exception as e:
+    db.session.rollback()
+    current_app.logger.exception("Invite failed")
+    return jsonify({"error": "Invite failed"}), 500
+This prevents uncaught exceptions from causing a 500 page.
+6️⃣ TEMPLATE VALIDATION (REQUIRED)
+Verify the Invite button submits valid data.
+The form must include:
+<input type="hidden" name="friend_id" value="{{ friend.id }}">
+If GroupTrip invite:
+<input type="hidden" name="trip_id" value="{{ trip.id }}">
+Ensure:
+friend.id exists
+trip.id exists when applicable
+7️⃣ VERIFICATION STEPS
+After implementing:
+Log in as Richard
+Click Invite on a friend
+Confirm:
+No Internal Server Error
+Either:
+Invite succeeds
+“Invite already sent”
+“Already friends”
+Check logs:
+No uncaught exceptions
+No stack traces on invite click
+🚫 OUT OF SCOPE
+Do NOT:
+Change UI layout
+Add new features
+Modify seed scripts
+Change GroupTrip logic
+Silence errors without logging
+📋 FINAL REPORT BACK
+Return:
+The route(s) modified
+Confirmation Invite no longer throws 500
+Any assumptions you had to make
