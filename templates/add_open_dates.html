@@ -57,15 +57,35 @@
             border-radius: 8px;
             font-size: 0.9rem;
             cursor: pointer;
-            transition: all 0.15s ease;
             border: 2px solid transparent;
         }
-        .calendar-day:hover:not(.disabled):not(.past) {
+        .calendar-day:hover:not(.disabled):not(.past):not(.selected) {
             background: var(--bl-color-bg);
         }
         .calendar-day.selected {
             background: #8F011B;
             color: white;
+        }
+        .dates-summary {
+            background: var(--bl-color-bg);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+        }
+        .dates-summary-month {
+            cursor: pointer;
+            color: var(--bl-color-primary);
+            font-weight: 600;
+        }
+        .dates-summary-month:hover {
+            text-decoration: underline;
+        }
+        .dates-summary-line {
+            margin-bottom: 6px;
+        }
+        .dates-summary-line:last-child {
+            margin-bottom: 0;
         }
         .calendar-day.past, .calendar-day.disabled {
             color: var(--bl-color-text-muted);
@@ -103,7 +123,7 @@
                 <div class="calendar-grid" id="calendarGrid"></div>
             </div>
             
-            <div class="selected-count" id="selectedCount"></div>
+            <div id="datesSummary" class="dates-summary" style="display: none;"></div>
             
             <button type="submit" class="bl-btn-primary" id="saveBtn" style="width: 100%; padding: 12px;" disabled>Save open dates</button>
         </form>
@@ -200,21 +220,61 @@
             updateCount();
         }
         
+        const shortMonthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
         function updateCount() {
             const count = selectedDates.size;
-            const countEl = document.getElementById('selectedCount');
             const saveBtn = document.getElementById('saveBtn');
+            const summaryEl = document.getElementById('datesSummary');
             
             if (count === 0) {
-                countEl.innerHTML = '';
+                summaryEl.style.display = 'none';
                 saveBtn.disabled = true;
-            } else if (count === 1) {
-                countEl.innerHTML = '<strong>1</strong> date selected';
-                saveBtn.disabled = false;
             } else {
-                countEl.innerHTML = `<strong>${count}</strong> dates selected`;
                 saveBtn.disabled = false;
+                renderDatesSummary();
             }
+        }
+        
+        function renderDatesSummary() {
+            const summaryEl = document.getElementById('datesSummary');
+            const datesArray = Array.from(selectedDates).sort();
+            
+            if (datesArray.length === 0) {
+                summaryEl.style.display = 'none';
+                return;
+            }
+            
+            const grouped = {};
+            datesArray.forEach(dateStr => {
+                const d = new Date(dateStr + 'T00:00:00');
+                const monthKey = d.getMonth();
+                const year = d.getFullYear();
+                const key = `${year}-${String(monthKey).padStart(2, '0')}`;
+                if (!grouped[key]) {
+                    grouped[key] = { year, month: monthKey, days: [] };
+                }
+                grouped[key].days.push(d.getDate());
+            });
+            
+            const sortedKeys = Object.keys(grouped).sort();
+            let html = '';
+            
+            sortedKeys.forEach(key => {
+                const g = grouped[key];
+                const sortedDays = g.days.sort((a, b) => a - b).join(', ');
+                html += `<div class="dates-summary-line"><span class="dates-summary-month" onclick="jumpToMonth(${g.month}, ${g.year})">${shortMonthNames[g.month]}:</span> ${sortedDays}</div>`;
+            });
+            
+            summaryEl.innerHTML = html;
+            summaryEl.style.display = 'block';
+        }
+        
+        function jumpToMonth(month, year) {
+            currentMonth = month;
+            currentYear = year;
+            renderCalendar();
+            updateNavButtons();
         }
         
         function canGoPrev() {

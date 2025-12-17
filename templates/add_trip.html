@@ -39,6 +39,20 @@
             min-height: 48px;
         }
         
+        .date-wrapper {
+            position: relative;
+        }
+        
+        .date-placeholder {
+            position: absolute;
+            left: var(--bl-space-4);
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--bl-color-text-muted);
+            font-size: 16px;
+            pointer-events: none;
+        }
+        
         .form-group input:focus,
         .form-group select:focus {
             outline: none;
@@ -155,12 +169,18 @@
 
             <div class="form-group">
                 <label for="start_date">Start date</label>
-                <input type="date" id="start_date" name="start_date" required value="{% if trip and trip.start_date %}{{ trip.start_date.isoformat() }}{% endif %}" onchange="updateEndDateMin()">
+                <div class="date-wrapper">
+                    <input type="date" id="start_date" name="start_date" required value="{% if trip and trip.start_date %}{{ trip.start_date.isoformat() }}{% endif %}" onchange="updateEndDateMin(); updatePlaceholders();">
+                    <span class="date-placeholder" id="start_date_placeholder" {% if trip and trip.start_date %}style="display:none"{% endif %}>mm/dd/yy</span>
+                </div>
             </div>
 
             <div class="form-group">
                 <label for="end_date">End date</label>
-                <input type="date" id="end_date" name="end_date" required value="{% if trip and trip.end_date %}{{ trip.end_date.isoformat() }}{% endif %}">
+                <div class="date-wrapper">
+                    <input type="date" id="end_date" name="end_date" required value="{% if trip and trip.end_date %}{{ trip.end_date.isoformat() }}{% endif %}" onchange="updatePlaceholders();">
+                    <span class="date-placeholder" id="end_date_placeholder" {% if trip and trip.end_date %}style="display:none"{% endif %}>mm/dd/yy</span>
+                </div>
             </div>
 
             <div class="form-group toggle-group">
@@ -289,12 +309,46 @@
             });
         }
 
+        function updatePlaceholders() {
+            const startPlaceholder = document.getElementById('start_date_placeholder');
+            const endPlaceholder = document.getElementById('end_date_placeholder');
+            
+            if (startDateInput.value) {
+                startPlaceholder.style.display = 'none';
+            } else {
+                startPlaceholder.style.display = 'block';
+            }
+            
+            if (endDateInput.value) {
+                endPlaceholder.style.display = 'none';
+            } else {
+                endPlaceholder.style.display = 'block';
+            }
+        }
+        
+        startDateInput.addEventListener('focus', function() {
+            document.getElementById('start_date_placeholder').style.display = 'none';
+        });
+        
+        startDateInput.addEventListener('blur', function() {
+            updatePlaceholders();
+        });
+        
+        endDateInput.addEventListener('focus', function() {
+            document.getElementById('end_date_placeholder').style.display = 'none';
+        });
+        
+        endDateInput.addEventListener('blur', function() {
+            updatePlaceholders();
+        });
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             if (stateSelect.value) {
                 updateResorts();
             }
             updateEndDateMin();
+            updatePlaceholders();
         });
     </script>
 </body>

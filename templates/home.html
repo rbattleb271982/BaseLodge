@@ -48,6 +48,8 @@
                 <button onclick="toggleMountainsList()" style="background: none; border: none; font-size:0.9rem;font-weight:500;color:var(--bl-color-primary);cursor:pointer;padding:0;text-decoration:underline;text-decoration-style:dotted;">
                     {{ user_mountains|length }} mountain{% if user_mountains|length != 1 %}s{% endif %} visited
                 </button>
+                {% else %}
+                <a href="{{ url_for('mountains_visited') }}" style="font-size:0.9rem;font-weight:500;color:var(--bl-color-primary);text-decoration:none;">+ Mountains Visited</a>
                 {% endif %}
             </div>
             
@@ -76,11 +78,10 @@
             <!-- Mountains list (hidden by default) -->
             {% if user_mountains and user_mountains|length > 0 %}
             <div id="mountainsList" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft);">
-                <ul style="margin: 0; padding: 0 0 0 20px; font-size: 0.9rem;">
-                    {% for mountain in user_mountains %}
-                    <li style="margin-bottom: 6px;">{{ mountain }}</li>
-                    {% endfor %}
-                </ul>
+                <div style="font-size: 0.9rem; line-height: 1.6;">
+                    {% for mountain in user_mountains|sort %}{{ mountain }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+                </div>
+                <a href="{{ url_for('mountains_visited') }}" style="display: block; margin-top: 10px; font-size: 0.85rem; color: var(--bl-color-primary); text-decoration: none;">Edit mountains →</a>
             </div>
             {% endif %}
         </div>
