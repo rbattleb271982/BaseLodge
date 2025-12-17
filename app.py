@@ -266,6 +266,7 @@ def normalize_rider_type(rider_type):
     return rider_type
 
 CANONICAL_PASSES = [
+    "I don't have a pass",
     "Epic",
     "Ikon",
     "MountainCollective",
@@ -273,8 +274,7 @@ CANONICAL_PASSES = [
     "PowderAlliance",
     "Freedom",
     "SkiCalifornia",
-    "Other",
-    "None"
+    "Other"
 ]
 
 def get_sorted_passes():
@@ -1130,7 +1130,7 @@ def format_open_dates_summary(date_strings):
         days_str = ','.join(str(d) for d in days)
         formatted.append(f"{month_name} {days_str}")
     
-    return ' | '.join(formatted)
+    return '\n'.join(formatted)
 
 def dates_to_ranges(date_strings):
     """Convert a list of YYYY-MM-DD strings to a list of {start_date, end_date} dicts.

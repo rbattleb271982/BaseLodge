@@ -1,0 +1,121 @@
+🔴 1. INVITE FLOW — ANSWERS
+Q: Does uses_count exist in production, or was it from an older version?
+➡️ uses_count does NOT exist in production.
+It was referenced from an older/abandoned multi-use design and should be treated as fully deprecated.
+Production schema is confirmed as:
+(id, token, inviter_id, created_at, used_at)
+No code should reference uses_count or max_uses anywhere.
+Enforcement is single-use via used_at only.
+Q: Should the Invite tab show anything after generating a token?
+➡️ Yes, but minimal.
+The Invite tab should:
+Allow generating an invite
+Show the shareable link and/or QR code
+Allow copying or sharing
+It should NOT:
+Show invite history
+Show usage counts
+Show past invites list
+Keep it lightweight and functional.
+🔵 2. EDIT PROFILE — ANSWERS
+Q: Match exact font sizes from More page, or go larger?
+➡️ Match the More page exactly. Do not go larger.
+Use the same scale you already implemented:
+~16–17px text
+~48px tap targets
+The goal is consistency, not escalation.
+Q: Where do Rider Type, Skill Level, Pass Type belong?
+➡️ They do NOT belong in “About You”.
+Final section breakdown:
+About You (LOCKED)
+Home State
+Home Mountain (dependent on state)
+Birth Year
+Gender
+Riding Details (or equivalent section)
+Rider Type (Skier / Snowboarder)
+Skill Level
+Pass Type(s)
+Do not intermix these with About You.
+🟤 5. EQUIPMENT (Gear → Equipment) — ANSWERS
+Q: Inline edit — accordion or replace text?
+➡️ Replace display text with inputs in-place.
+No accordion animation needed
+No modal
+Simple inline swap:
+Display mode → Edit mode
+Edit link → Save button
+Save → back to display mode
+Q: Units — fixed or selectable?
+➡️ Fixed units only. No user selection.
+Length = centimeters (cm)
+Width = millimeters (mm)
+Do not add unit toggles
+Do not store units separately
+Q: What are the Equipment fields?
+➡️ Fields are:
+For each (Primary / Secondary):
+Discipline (Skier / Snowboarder) – if already captured elsewhere, reuse
+Brand
+Model (if present today)
+Length (cm)
+Width (mm)
+Display only fields that are present.
+⚫ 7. BRAND & NAVIGATION — ANSWERS
+Q: Icon set reference?
+➡️ Use iOS-style rounded outline icons.
+Guidance:
+SF Symbols–style look
+Simple, clean, outline
+Consistent stroke weight
+Exact library choice is flexible (Heroicons / similar), but style consistency matters more than source.
+Q: Bottom nav order — does it stay the same?
+➡️ Yes. Order stays exactly the same:
+Home
+Friends
+Invite
+More
+Q: Base Lodge header — separate bar or integrated?
+➡️ Integrated into each page’s existing header area.
+Do NOT add a second header bar
+Base Lodge sits subtly above or alongside the page title
+Tapping Base Lodge → Home
+🟠 8. ONBOARDING — PASS SELECTION — ANSWERS
+Q: Should “I don’t have a pass” be visually distinct?
+➡️ No. Same styling as other options.
+No special color
+No divider
+Position at top is sufficient
+Q: Does it replace “None” or is it additive?
+➡️ It replaces the existing “None” option.
+There should be only one:
+“I don’t have a pass”
+Q: Selection behavior?
+➡️ Selecting “I don’t have a pass” should:
+Auto-clear any previously selected passes
+Prevent conflicting state implicitly
+No error messaging needed.
+🟡 6. FRIENDS CARDS — ANSWER
+Q: Multiple passes — how to display?
+➡️ Show only the primary / first pass.
+Do NOT comma-separate
+Keep cards compact
+Full detail belongs on profile, not list
+Example:
+Skier · Advanced · Ikon
+🟣 4. OPEN AVAILABILITY — ANSWER
+Q: Month separator — | or newlines?
+➡️ Use newlines. Do not use |.
+Final format:
+Dec 14,18,19
+Jan 3,4
+This is more scannable and aligns with mobile readability.
+🔧 GENERAL — PRIORITY & TESTING
+Q: Ship blockers vs nice-to-haves?
+🚨 SHIP BLOCKERS
+Invite crash fully resolved
+Edit Profile scale + Save behavior
+Equipment display/edit correctness
+Open Availability color + grouping
+Friends cards readability
+Brand/nav consistency
