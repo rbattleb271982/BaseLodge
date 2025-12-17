@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps
 from flask_migrate import Migrate
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip
 from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
 from io import BytesIO
@@ -822,6 +822,11 @@ def friend_profile(friend_id):
     availability_overlaps = compute_availability_overlaps(user_open_dates, friend_open_dates)
     availability_display, availability_remaining = format_availability_ranges(availability_overlaps)
     
+    # Check for shared GroupTrips and existing friendship
+    shared_trip_exists = check_shared_upcoming_trip(user.id, friend.id)
+    already_friends = Friend.query.filter_by(user_id=user.id, friend_id=friend.id).first() is not None
+    show_connect_button = shared_trip_exists and not already_friends
+    
     return render_template(
         "friend_profile.html",
         friend=friend,
@@ -832,7 +837,8 @@ def friend_profile(friend_id):
         friend_open_dates_display=friend_open_dates_display,
         has_availability_overlap=len(availability_overlaps) > 0,
         availability_display=availability_display,
-        availability_remaining=availability_remaining
+        availability_remaining=availability_remaining,
+        show_connect_button=show_connect_button
     )
 
 @app.route("/profile/<int:user_id>")
@@ -2324,6 +2330,170 @@ def open_data_debug():
         "matches_count": len(matches),
         "matches": matches
     })
+
+
+# ============================================================================
+# GroupTrip Social Functionality
+# ============================================================================
+
+@app.route("/group-trip/<int:trip_id>")
+@login_required
+def view_group_trip(trip_id):
+    """View GroupTrip details with invite form (host only)."""
+    trip = GroupTrip.query.get_or_404(trip_id)
+    is_host = trip.host_id == current_user.id
+    
+    # Get guests with their details
+    guests = TripGuest.query.filter_by(trip_id=trip_id).all()
+    
+    # Get user's friends for invite form (host only)
+    user_friends = Friend.query.filter_by(user_id=current_user.id).all()
+    friend_ids = [f.friend_id for f in user_friends]
+    friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
+    
+    # Filter out already invited/joined friends
+    invited_ids = {g.user_id for g in guests}
+    available_friends = [f for f in friends if f.id not in invited_ids]
+    
+    return render_template(
+        "group_trip_detail.html",
+        trip=trip,
+        is_host=is_host,
+        guests=guests,
+        available_friends=available_friends
+    )
+
+
+@app.route("/group-trip/<int:trip_id>/invite", methods=["POST"])
+@login_required
+def invite_to_group_trip(trip_id):
+    """Host invites a friend to GroupTrip."""
+    trip = GroupTrip.query.get_or_404(trip_id)
+    
+    # Only host can invite
+    if trip.host_id != current_user.id:
+        return abort(403)
+    
+    friend_id = request.form.get("friend_id", type=int)
+    if not friend_id:
+        flash("No friend selected.", "error")
+        return redirect(url_for("view_group_trip", trip_id=trip_id))
+    
+    # Check if friend exists and is a friend
+    friend = User.query.get_or_404(friend_id)
+    is_friend = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
+    if not is_friend:
+        flash("User is not in your friends list.", "error")
+        return redirect(url_for("view_group_trip", trip_id=trip_id))
+    
+    # Check if already invited/joined
+    existing = TripGuest.query.filter_by(trip_id=trip_id, user_id=friend_id).first()
+    if existing:
+        flash(f"{friend.first_name} is already invited.", "error")
+        return redirect(url_for("view_group_trip", trip_id=trip_id))
+    
+    # Create invite
+    guest = TripGuest(trip_id=trip_id, user_id=friend_id, status=GuestStatus.INVITED)
+    db.session.add(guest)
+    db.session.commit()
+    
+    flash(f"Invited {friend.first_name} to the trip!", "success")
+    return redirect(url_for("view_group_trip", trip_id=trip_id))
+
+
+@app.route("/group-trip/<int:trip_id>/accept", methods=["POST"])
+@login_required
+def accept_group_trip_invite(trip_id):
+    """Accept GroupTrip invite and create global friend connection."""
+    trip = GroupTrip.query.get_or_404(trip_id)
+    guest = TripGuest.query.filter_by(trip_id=trip_id, user_id=current_user.id).first_or_404()
+    
+    # Only allow if invited
+    if guest.status != GuestStatus.INVITED:
+        flash("You've already accepted or this invite is invalid.", "error")
+        return redirect(url_for("home"))
+    
+    # Accept the invite
+    guest.status = GuestStatus.ACCEPTED
+    db.session.commit()
+    
+    # Create bidirectional friend connection with trip host if not already friends
+    host = trip.host
+    existing = Friend.query.filter_by(user_id=current_user.id, friend_id=host.id).first()
+    if not existing:
+        f1 = Friend(user_id=current_user.id, friend_id=host.id)
+        f2 = Friend(user_id=host.id, friend_id=current_user.id)
+        db.session.add(f1)
+        db.session.add(f2)
+        db.session.commit()
+        flash(f"Trip accepted! You're now connected with {host.first_name}.", "success")
+    else:
+        flash("Trip accepted!", "success")
+    
+    return redirect(url_for("home"))
+
+
+@app.route("/group-trip/<int:trip_id>/leave", methods=["POST"])
+@login_required
+def leave_group_trip(trip_id):
+    """Guest leaves GroupTrip (deletes TripGuest row)."""
+    trip = GroupTrip.query.get_or_404(trip_id)
+    guest = TripGuest.query.filter_by(trip_id=trip_id, user_id=current_user.id).first_or_404()
+    
+    # Delete the guest record
+    db.session.delete(guest)
+    db.session.commit()
+    
+    flash("You've left the trip.", "success")
+    return redirect(url_for("home"))
+
+
+@app.route("/group-trip/<int:trip_id>/remove-guest/<int:guest_id>", methods=["POST"])
+@login_required
+def remove_trip_guest(trip_id, guest_id):
+    """Host removes a guest from GroupTrip."""
+    trip = GroupTrip.query.get_or_404(trip_id)
+    
+    # Only host can remove
+    if trip.host_id != current_user.id:
+        return abort(403)
+    
+    guest = TripGuest.query.filter_by(id=guest_id, trip_id=trip_id).first_or_404()
+    guest_user = guest.user
+    
+    db.session.delete(guest)
+    db.session.commit()
+    
+    flash(f"Removed {guest_user.first_name} from the trip.", "success")
+    return redirect(url_for("view_group_trip", trip_id=trip_id))
+
+
+@app.route("/connect-from-trip/<int:user_id>", methods=["POST"])
+@login_required
+def connect_from_trip(user_id):
+    """Connect with a user via shared GroupTrip (create global friendship)."""
+    user_to_connect = User.query.get_or_404(user_id)
+    
+    # Check eligibility
+    if not check_shared_upcoming_trip(current_user.id, user_to_connect.id):
+        flash("You don't share an upcoming trip with this user.", "error")
+        return redirect(url_for("friend_profile", friend_id=user_id))
+    
+    # Check if already friends
+    existing = Friend.query.filter_by(user_id=current_user.id, friend_id=user_id).first()
+    if existing:
+        flash("You're already connected with this user.", "info")
+        return redirect(url_for("friend_profile", friend_id=user_id))
+    
+    # Create bidirectional friend connection
+    f1 = Friend(user_id=current_user.id, friend_id=user_to_connect.id)
+    f2 = Friend(user_id=user_to_connect.id, friend_id=current_user.id)
+    db.session.add(f1)
+    db.session.add(f2)
+    db.session.commit()
+    
+    flash(f"Connected with {user_to_connect.first_name}!", "success")
+    return redirect(url_for("friend_profile", friend_id=user_id))
 
 
 if __name__ == "__main__":

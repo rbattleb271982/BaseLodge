@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trip Details - Base Lodge</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="page-container" style="padding: 16px 16px 88px;">
+        <h1 class="page-title">{{ trip.title or 'Untitled Trip' }}</h1>
+        
+        <div class="bl-card" style="margin-bottom: 16px;">
+            <div style="font-size: 0.95rem; margin-bottom: 12px;">
+                <strong>{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d, %Y') }}</strong>
+            </div>
+            {% if trip.accommodation_status %}
+            <div style="font-size: 0.9rem; margin-bottom: 6px; color: var(--bl-color-text-muted);">
+                Accommodation: {{ trip.accommodation_status.value }}
+            </div>
+            {% endif %}
+            {% if trip.transportation_status %}
+            <div style="font-size: 0.9rem; color: var(--bl-color-text-muted);">
+                Transportation: {{ trip.transportation_status.value }}
+            </div>
+            {% endif %}
+        </div>
+        
+        <h2 style="font-size: 1.1rem; font-weight: 600; margin: 20px 0 12px; color: var(--bl-color-text);">Guests</h2>
+        <div class="bl-card">
+            {% for guest in guests %}
+            <div style="padding: 12px; border-bottom: 1px solid var(--bl-color-border-soft); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-weight: 500;">{{ guest.user.first_name }} {{ guest.user.last_name }}</div>
+                    <div style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin-top: 4px;">
+                        {% if guest.status.value == 'invited' %}
+                            <span style="color: #F59E0B;">Invited</span>
+                        {% else %}
+                            <span style="color: #10B981;">Accepted</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if is_host and guest.user_id != trip.host_id %}
+                <form method="POST" action="{{ url_for('remove_trip_guest', trip_id=trip.id, guest_id=guest.id) }}" style="margin: 0;">
+                    <button type="submit" style="background: none; border: none; color: #EF4444; cursor: pointer; font-size: 0.85rem; text-decoration: underline;">Remove</button>
+                </form>
+                {% endif %}
+            </div>
+            {% if loop.last %}
+            <div style="padding: 0;"></div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        
+        {% if is_host and available_friends %}
+        <h2 style="font-size: 1.1rem; font-weight: 600; margin: 20px 0 12px; color: var(--bl-color-text);">Invite Friends</h2>
+        <div class="bl-card">
+            <form method="POST" action="{{ url_for('invite_to_group_trip', trip_id=trip.id) }}">
+                <div style="margin-bottom: 12px;">
+                    <select name="friend_id" required style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border-soft); border-radius: 8px; font-size: 1rem;">
+                        <option value="">Select a friend...</option>
+                        {% for friend in available_friends %}
+                        <option value="{{ friend.id }}">{{ friend.first_name }} {{ friend.last_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="bl-btn-primary" style="width: 100%; padding: 10px;">Invite</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+    
+    {% include 'components/bottom_nav.html' %}
+</body>
+</html>
