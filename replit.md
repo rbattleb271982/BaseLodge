@@ -61,7 +61,8 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **Equipment, Accommodation & Transportation UI (Step 3 - Dec 2025):**
   - **Equipment**: Profile edit page allows add/edit Primary and Secondary setups (Discipline, Brand, Length, Width)
     - Route: POST `/profile/equipment` - Save or update equipment (user-only permission)
-    - Displays on edit_profile.html with separate sections for Primary and Secondary
+    - **View/Edit Toggle UI**: When equipment exists, shows read-only card with Edit button; clicking Edit reveals form with Save/Cancel/Delete buttons
+    - Save action reloads page to show fresh state; Cancel returns to view mode without saving
     - Validates length and width as positive integers
     - Max one primary + one secondary per user
   - **Accommodation Status**: GroupTrip detail page shows editable selector for host (read-only badges for guests)
