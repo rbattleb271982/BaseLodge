@@ -1,0 +1,182 @@
+You are implementing a final consolidated set of product, UX, and data-integrity updates for the Base Lodge mobile-first web app.
+This prompt supersedes all prior partial prompts.
+Do not skip items. Do not reinterpret intent.
+🔴 1. INVITE FLOW — CRASH FIX + DATA INTEGRITY
+Current problem
+Invite tab crashes every time due to schema drift:
+(psycopg2.errors.UndefinedColumn)
+column invite_token.uses_count does not exist
+Required behavior
+Invite flow must work end-to-end
+Users can generate and share an invite
+Accepting an invite creates bidirectional friendships
+We do not need to display invite history or counts
+Required fixes (NON-NEGOTIABLE)
+Stop querying invite tokens on Invite tab load
+Do not SELECT tokens just to render the screen
+Remove all multi-use logic
+Remove every reference to:
+uses_count
+max_uses
+This includes:
+SQLAlchemy models
+Queries
+Validation logic
+Templates
+Single-use enforcement
+Invite validity is determined by used_at IS NULL
+On accept:
+Set used_at = now()
+Create bidirectional friendships
+Reuse must fail gracefully (no crash)
+Model/schema alignment
+InviteToken model must exactly match DB table
+Do NOT add columns
+If expires_at exists, it may be checked optionally
+Primary enforcement is used_at
+🔵 2. EDIT PROFILE — MOBILE SCALE & STRUCTURE
+Problem
+Edit Profile UI feels cramped and smaller than the rest of the app
+Required change
+Scale up UI elements, not container width.
+Specifically:
+Increase font sizes
+Increase input/select heights
+Increase button heights
+Match visual scale of the More page
+Do NOT:
+Change backend logic
+Add/remove fields
+Redesign layout
+Profile Section Hierarchy (LOCKED)
+About You (order is exact)
+Home State
+Home Mountain (dependent on state)
+Birth Year
+Gender
+Rules:
+Home Mountain disabled until Home State selected
+Changing Home State clears Home Mountain
+Save Behavior
+Floating bottom Save bar
+Always visible
+Disabled until changes exist
+Does not block inputs
+Safe-area padding included
+🟢 3. MOUNTAINS VISITED — MULTI-SELECT UX
+Problems
+No visual summary of selected mountains
+No easy way to save without scrolling
+Required solution
+Selected mountains shown as pills
+Display above the list
+Each pill has remove (✕)
+Hidden entirely when empty
+Sticky bottom Save bar
+Button label: Save
+Disabled until changes
+Save → auto-navigate back to Profile
+🟣 4. OPEN AVAILABILITY — CALENDAR UX
+Required behavior
+Selected dates = maroon
+Deselected dates = default (no beige anywhere)
+“No dates selected” text removed entirely
+Save disabled until ≥1 date selected
+Save → auto-navigate back to Profile
+Date grouping (summary views)
+Group by month only, formatted as:
+Jan 1,2,3,4
+Feb 14,15,16
+Rules:
+Group even if non-consecutive
+Still show month if only one date
+Do NOT replace the calendar implementation — modify existing code only.
+🟤 5. EQUIPMENT (RENAMED FROM “GEAR”)
+Naming
+Rename “Gear” → “Equipment” everywhere
+Editing behavior
+After save:
+Display values with units:
+Length → 110cm
+Width → 86mm
+Show units only when values are present
+Save button becomes a simple Edit link
+Edit re-opens inputs inline (no modal)
+Visibility rules
+Equipment shows only when present
+Primary + Secondary equipment supported
+Equipment must appear on:
+User profile
+Friend profile
+More page (correctly — fix current bug)
+🟡 6. FRIENDS — PROFILE & LIST UI
+Friend Profile
+Show friend’s Equipment (when present)
+Same display style as own profile
+All Friends screen
+Card layout:
+Line 1: Name
+Line 2: Rider · Skill · Pass
+No home info on cards
+Reduce “smushed” stacking
+Improve vertical rhythm and readability
+⚫ 7. BRAND & NAVIGATION CONSISTENCY
+Header
+“Base Lodge” persists at top of every screen
+Centered, subtle
+Tapping Base Lodge → Home
+Bottom Navigation
+Keep bottom nav (no hamburger replacement)
+Replace emojis with:
+Rounded outline icons
+Active = maroon
+Inactive = neutral gray
+Icons + text labels
+No nav behavior changes — visual polish only.
+🟠 8. ONBOARDING — PASS SELECTION
+Required changes
+“None” becomes:
+“I don’t have a pass”
+This option appears at the top
+Selecting it:
+Auto-clears any other selected passes
+🧪 ACCEPTANCE CRITERIA (ALL MUST PASS)
+Invites
+Invite tab does not crash
+Single-use enforced
+Accepting invite creates connections
+Profile
+Edit Profile feels larger and comfortable
+Correct hierarchy and dependencies
+Floating Save works
+Mountains Visited
+Pills visible
+Save without scrolling
+Redirect after save
+Open Availability
+Maroon selection only
+Grouped month display
+Save disabled until valid
+Equipment
+Units display correctly
+Edit behavior works
+Appears everywhere it should
+Friends
+Cards readable
+Friend profiles show Equipment
+Brand
+Base Lodge header persists
+Bottom nav icons unified and branded
+🚫 SCOPE LIMITS
+No schema migrations
+No new features
+No redesigns
+No hidden breaking changes
+Fix root causes — do not suppress errors
+📝 REQUIRED OUTPUT
+After completion, report:
+Files changed (by section)
+How invite crash was prevented
+Where UI scale was adjusted
+How Equipment display/edit works
+How brand/nav consistency was implemented
