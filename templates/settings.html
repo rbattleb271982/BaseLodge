@@ -6,41 +6,43 @@
     <title>Base Lodge - Settings</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .settings-section {
-            margin-bottom: 32px;
+        .settings-card {
+            background: var(--bl-color-surface);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            overflow: hidden;
         }
         .settings-section-header {
-            font-size: 13px;
-            font-weight: 700;
+            font-size: 12px;
+            font-weight: 600;
             color: var(--bl-color-text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin: 0 0 12px 0;
+            letter-spacing: 0.4px;
+            margin: 0 0 8px 4px;
         }
         .settings-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            min-height: 48px;
-            padding: 12px 0;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            min-height: 44px;
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
             text-decoration: none;
             color: inherit;
+            background: var(--bl-color-surface);
         }
         .settings-row:last-child {
             border-bottom: none;
         }
         .settings-row:active {
             background: rgba(0, 0, 0, 0.02);
-            margin: 0 -16px;
-            padding: 12px 16px;
         }
         .settings-row-label {
             font-size: 16px;
             color: var(--bl-color-text);
         }
         .settings-row-value {
-            font-size: 15px;
+            font-size: 14px;
             color: var(--bl-color-text-muted);
             display: flex;
             align-items: center;
@@ -49,7 +51,10 @@
         .settings-row-chevron {
             color: var(--bl-color-text-muted);
             font-size: 16px;
-            opacity: 0.5;
+            opacity: 0.4;
+        }
+        .settings-group {
+            margin-bottom: 24px;
         }
     </style>
 </head>
@@ -58,66 +63,61 @@
         <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
         <h1 class="page-title">Settings</h1>
         
-        <div class="settings-section">
+        <div class="settings-group">
             <h2 class="settings-section-header">Profile</h2>
-            <a href="{{ url_for('settings_profile') }}" class="settings-row">
-                <span class="settings-row-label">Profile Details</span>
-                <span class="settings-row-value">
-                    <span class="settings-row-chevron">›</span>
-                </span>
-            </a>
+            <div class="settings-card">
+                <a href="{{ url_for('settings_profile') }}" class="settings-row">
+                    <span class="settings-row-label">Profile Details</span>
+                    <span class="settings-row-value">
+                        <span class="settings-row-chevron">›</span>
+                    </span>
+                </a>
+            </div>
         </div>
         
-        <div class="settings-section">
+        <div class="settings-group">
             <h2 class="settings-section-header">Equipment & Activity</h2>
-            <a href="{{ url_for('settings_equipment') }}" class="settings-row">
-                <span class="settings-row-label">Equipment</span>
-                <span class="settings-row-value">
-                    {% if has_equipment %}{{ equipment_summary }}{% endif %}
-                    <span class="settings-row-chevron">›</span>
-                </span>
-            </a>
-            <a href="{{ url_for('settings_mountains') }}" class="settings-row">
-                <span class="settings-row-label">Mountains Visited</span>
-                <span class="settings-row-value">
-                    {% if mountains_visited_count %}{{ mountains_visited_count }} selected{% endif %}
-                    <span class="settings-row-chevron">›</span>
-                </span>
-            </a>
-            <a href="{{ url_for('settings_wish_list') }}" class="settings-row">
-                <span class="settings-row-label">Wish List Destinations</span>
-                <span class="settings-row-value">
-                    {% if wish_list_count %}{{ wish_list_count }} resort{% if wish_list_count != 1 %}s{% endif %}{% endif %}
-                    <span class="settings-row-chevron">›</span>
-                </span>
-            </a>
+            <div class="settings-card">
+                <a href="{{ url_for('settings_equipment') }}" class="settings-row">
+                    <span class="settings-row-label">Equipment</span>
+                    <span class="settings-row-value">
+                        {% if has_equipment %}{{ equipment_summary }}{% endif %}
+                        <span class="settings-row-chevron">›</span>
+                    </span>
+                </a>
+                <a href="{{ url_for('settings_mountains') }}" class="settings-row">
+                    <span class="settings-row-label">Mountains Visited</span>
+                    <span class="settings-row-value">
+                        {% if mountains_visited_count %}{{ mountains_visited_count }} selected{% endif %}
+                        <span class="settings-row-chevron">›</span>
+                    </span>
+                </a>
+                <a href="{{ url_for('settings_wish_list') }}" class="settings-row">
+                    <span class="settings-row-label">Wish List Destinations</span>
+                    <span class="settings-row-value">
+                        {% if wish_list_count %}{{ wish_list_count }} resort{% if wish_list_count != 1 %}s{% endif %}{% endif %}
+                        <span class="settings-row-chevron">›</span>
+                    </span>
+                </a>
+            </div>
         </div>
         
-        {% if wish_list_resorts and wish_list_resorts|length > 0 %}
-        <div class="settings-section">
-            <h2 class="settings-section-header">Wish List</h2>
-            <ul style="list-style: none; padding: 0; margin: 0;">
-                {% for resort in wish_list_resorts %}
-                <li style="font-size: 15px; color: var(--bl-color-text-muted); padding: 6px 0;">{{ resort.name }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
-        
-        <div class="settings-section">
+        <div class="settings-group">
             <h2 class="settings-section-header">Account</h2>
-            <a href="{{ url_for('settings_password') }}" class="settings-row">
-                <span class="settings-row-label">Change Password</span>
-                <span class="settings-row-value">
-                    <span class="settings-row-chevron">›</span>
-                </span>
-            </a>
-            <a href="{{ url_for('logout') }}" class="settings-row">
-                <span class="settings-row-label">Log Out</span>
-                <span class="settings-row-value">
-                    <span class="settings-row-chevron">›</span>
-                </span>
-            </a>
+            <div class="settings-card">
+                <a href="{{ url_for('settings_password') }}" class="settings-row">
+                    <span class="settings-row-label">Change Password</span>
+                    <span class="settings-row-value">
+                        <span class="settings-row-chevron">›</span>
+                    </span>
+                </a>
+                <a href="{{ url_for('logout') }}" class="settings-row">
+                    <span class="settings-row-label">Log Out</span>
+                    <span class="settings-row-value">
+                        <span class="settings-row-chevron">›</span>
+                    </span>
+                </a>
+            </div>
         </div>
     </div>
     

@@ -19,27 +19,30 @@
             font-size: 16px;
         }
         .page-header {
-            font-size: 26px;
+            font-size: 24px;
             font-weight: 700;
             color: var(--bl-color-text);
-            margin: 0 0 28px 0;
+            margin: 0 0 24px 0;
         }
-        .equipment-section {
-            margin-bottom: 32px;
+        .equipment-card {
+            background: var(--bl-color-surface);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
         }
         .section-header {
-            font-size: 13px;
-            font-weight: 700;
+            font-size: 12px;
+            font-weight: 600;
             color: var(--bl-color-text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin: 0 0 16px 0;
+            letter-spacing: 0.4px;
+            margin: 0 0 12px 0;
         }
         .equipment-display {
-            padding: 4px 0 16px;
+            padding: 0;
         }
         .equipment-brand {
-            font-size: 17px;
+            font-size: 16px;
             font-weight: 600;
             color: var(--bl-color-text);
             margin: 0 0 4px 0;
@@ -48,36 +51,37 @@
             font-size: 14px;
             color: var(--bl-color-text-muted);
             margin: 0 0 2px 0;
+            line-height: 1.4;
         }
         .equipment-edit-form {
-            padding-top: 8px;
+            padding-top: 0;
         }
         .equipment-grid {
             display: grid;
-            gap: 16px;
+            gap: 12px;
         }
         .equipment-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            gap: 10px;
         }
         .form-label {
             display: block;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 500;
             color: var(--bl-color-text-muted);
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
         .equipment-grid select,
         .equipment-grid input {
             width: 100%;
-            padding: 14px 12px;
-            font-size: 16px;
-            border: 1px solid rgba(0, 0, 0, 0.12);
-            border-radius: 10px;
-            background: var(--bl-color-surface);
+            padding: 12px 10px;
+            font-size: 15px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            background: var(--bl-color-bg);
             color: var(--bl-color-text);
-            min-height: 48px;
+            min-height: 44px;
             box-sizing: border-box;
         }
         .equipment-grid select:focus,
@@ -87,59 +91,55 @@
         }
         .equipment-btn-row {
             display: flex;
-            gap: 10px;
-            margin-top: 20px;
+            gap: 8px;
+            margin-top: 16px;
         }
         .btn-save {
             flex: 1;
-            padding: 14px;
+            padding: 12px;
             background: var(--bl-color-primary);
             color: white;
             border: none;
-            border-radius: 10px;
-            font-size: 16px;
+            border-radius: 8px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            min-height: 48px;
+            min-height: 44px;
         }
         .btn-edit {
             flex: 1;
-            padding: 14px;
+            padding: 12px;
             background: transparent;
             color: var(--bl-color-primary);
-            border: 2px solid var(--bl-color-primary);
-            border-radius: 10px;
-            font-size: 16px;
+            border: 1px solid var(--bl-color-primary);
+            border-radius: 8px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            min-height: 48px;
+            min-height: 44px;
+            margin-top: 12px;
         }
         .btn-cancel {
-            padding: 14px;
+            padding: 12px;
             background: transparent;
             color: var(--bl-color-text-muted);
-            border: 1px solid rgba(0, 0, 0, 0.12);
-            border-radius: 10px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
             font-size: 14px;
             font-weight: 500;
             cursor: pointer;
-            min-height: 48px;
+            min-height: 44px;
         }
         .btn-delete {
-            padding: 14px;
+            padding: 12px;
             background: #EF4444;
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            min-height: 48px;
-        }
-        .section-divider {
-            height: 1px;
-            background: rgba(0, 0, 0, 0.06);
-            margin: 0 0 32px 0;
+            min-height: 44px;
         }
     </style>
 </head>
@@ -149,9 +149,8 @@
         <a href="{{ url_for('settings') }}" class="back-link">← Back</a>
         <h1 class="page-header">Equipment</h1>
         
-        <div class="equipment-section">
-            <h2 class="section-header">Primary Setup</h2>
-            
+        <h2 class="section-header">Primary Setup</h2>
+        <div class="equipment-card">
             {% if primary_equipment %}
             <div id="primary-view">
                 <div class="equipment-display">
@@ -239,10 +238,8 @@
             {% if primary_equipment %}</div>{% endif %}
         </div>
         
-        <div class="section-divider"></div>
-        
-        <div class="equipment-section">
-            <h2 class="section-header">Secondary Setup</h2>
+        <h2 class="section-header">Secondary Setup</h2>
+        <div class="equipment-card">
             
             {% if secondary_equipment %}
             <div id="secondary-view">
