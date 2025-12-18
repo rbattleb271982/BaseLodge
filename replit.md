@@ -38,6 +38,14 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **Invite Token System:** Single-use invite tokens (`InviteToken` model) enforce one-time usage for friend invitations.
 - **Wish List Destinations:** Users can save up to 3 aspirational resorts via Settings. Displayed on own profile and friend profiles. Friend profiles show "Wish List Overlap" when both users share destination resorts.
 - **Friend Profile Features:** Full-page friend profiles at `/friends/<id>` with header card, equipment display, upcoming trips, pass compatibility badges ("Can ski your upcoming trips"), trip overlaps, availability overlaps, and wish list sections.
+- **Personalization Features (Dec 2025):**
+  - *Terrain Preferences:* Users can select up to 2 terrain types (Groomers, Trees, Park, Backcountry), displayed on friend profiles with secondary text
+  - *Smart Resort Defaults:* Trip creation pre-selects user's home state and sorts resorts by pass compatibility
+  - *Countdown to Next Trip:* Home page shows "Your next trip starts in X days" banner for upcoming trips
+  - *Availability Match Nudge:* Dismissible notification on Home showing friend availability overlaps (with DismissedNudge tracking)
+  - *Friend Ordering by Relevance:* Friends list sorted by trip overlap, pass compatibility, and shared availability (score hidden)
+  - *Rider-Aware Copy:* Jinja helpers (get_gear_term, get_ride_term) for context-aware terminology
+  - *Seasonal Awareness:* Empty states adjust based on season (preseason, midseason, spring, offseason)
 
 ### System Design Choices
 - **Database:** SQLite for development, PostgreSQL for production, managed via SQLAlchemy.
