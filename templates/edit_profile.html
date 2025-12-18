@@ -384,6 +384,19 @@
                 {% endfor %}
             </div>
         </div>
+        
+        <div class="form-row">
+            <label>Favorite Terrain</label>
+            <p style="font-size: 13px; color: var(--bl-color-text-muted); margin: 0 0 12px 0;">Select up to 2</p>
+            {% set user_terrain = current_user.terrain_preferences or [] %}
+            {% for terrain in ["Groomers", "Trees", "Park", "Backcountry"] %}
+            <div class="checkbox-row">
+                <input type="checkbox" name="terrain_pref" value="{{ terrain }}" id="terrain_{{ loop.index }}" 
+                       {% if terrain in user_terrain %}checked{% endif %}>
+                <label for="terrain_{{ loop.index }}">{{ terrain }}</label>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 
     <div class="section-card">
@@ -417,6 +430,7 @@
     <input type="hidden" name="home_state" id="home_state" value="{{ current_user.home_state or '' }}">
     <input type="hidden" name="home_mountain" id="home_mountain_hidden" value="{{ current_user.home_mountain or '' }}">
     <input type="hidden" name="gear" id="gear_hidden" value="{{ current_user.gear or '' }}">
+    <input type="hidden" name="terrain_preferences" id="terrain_preferences_hidden" value="{{ (current_user.terrain_preferences or [])|join(',') }}">
 </form>
 
 <div class="floating-save">
@@ -540,6 +554,29 @@ document.querySelectorAll('input[name="pass_type"]').forEach(cb => {
         document.getElementById('pass_type_hidden').value = checked.join(',');
     });
 });
+
+// Terrain preferences - max 2 selections
+(function() {
+    const terrainCheckboxes = document.querySelectorAll('input[name="terrain_pref"]');
+    const terrainHidden = document.getElementById('terrain_preferences_hidden');
+    
+    function updateTerrainHidden() {
+        const checked = Array.from(terrainCheckboxes).filter(c => c.checked).map(c => c.value);
+        terrainHidden.value = checked.join(',');
+    }
+    
+    terrainCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            const checked = Array.from(terrainCheckboxes).filter(c => c.checked);
+            if (checked.length > 2) {
+                this.checked = false;
+            }
+            updateTerrainHidden();
+        });
+    });
+    
+    updateTerrainHidden();
+})();
 
 </script>
 

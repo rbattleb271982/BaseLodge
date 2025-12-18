@@ -52,6 +52,7 @@ class User(UserMixin, db.Model):
     mountains_visited = db.Column(db.JSON, default=list)
     open_dates = db.Column(db.JSON, default=list)  # List of YYYY-MM-DD strings
     wish_list_resorts = db.Column(db.JSON, default=list)  # List of resort IDs (max 3)
+    terrain_preferences = db.Column(db.JSON, default=list)  # List of terrain types (max 2): Groomers, Trees, Park, Backcountry
     
     trips = db.relationship('SkiTrip', backref='user', lazy=True)
     friend_requests_sent = db.relationship('Invitation', foreign_keys='Invitation.sender_id', backref='sender', lazy=True)
@@ -227,6 +228,26 @@ class EquipmentSetup(db.Model):
     
     def __repr__(self):
         return f'<EquipmentSetup user={self.user_id} slot={self.slot.value} discipline={self.discipline.value}>'
+
+
+class DismissedNudge(db.Model):
+    """Tracks dismissed availability nudges so they don't resurface for the same date range."""
+    __tablename__ = 'dismissed_nudge'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    date_range_start = db.Column(db.Date, nullable=False)
+    date_range_end = db.Column(db.Date, nullable=False)
+    dismissed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='dismissed_nudges')
+    
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'date_range_start', 'date_range_end', name='unique_dismissed_nudge'),
+    )
+    
+    def __repr__(self):
+        return f'<DismissedNudge user={self.user_id} {self.date_range_start} to {self.date_range_end}>'
 
 
 def check_shared_upcoming_trip(user_a_id: int, user_b_id: int) -> bool:

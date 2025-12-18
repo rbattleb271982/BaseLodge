@@ -145,15 +145,15 @@
                 <select id="state" name="state" required onchange="updateResorts()">
                     <option value="">Choose a state...</option>
                     {% for state_code, state_name in states_with_resorts %}
-                        <option value="{{ state_code }}" {% if trip and trip.resort and trip.resort.state == state_code %}selected{% endif %}>{{ state_name }}</option>
+                        <option value="{{ state_code }}" {% if trip and trip.resort and trip.resort.state == state_code %}selected{% elif not trip and default_state == state_code %}selected{% endif %}>{{ state_name }}</option>
                     {% endfor %}
                 </select>
             </div>
 
             <div class="form-group">
                 <label for="resort_id">Resort</label>
-                <select id="resort_id" name="resort_id" required {% if not (trip and trip.resort) %}disabled{% endif %}>
-                    <option value="">{% if trip and trip.resort %}Choose a resort...{% else %}Select a state first{% endif %}</option>
+                <select id="resort_id" name="resort_id" required {% if not (trip and trip.resort) and not default_state %}disabled{% endif %}>
+                    <option value="">{% if trip and trip.resort %}Choose a resort...{% elif default_state %}Select a resort{% else %}Select a state first{% endif %}</option>
                     {% if trip and trip.resort %}
                         {% for r in resorts %}
                             {% if r.state == trip.resort.state %}
@@ -226,6 +226,7 @@
 
     <script>
         const resorts = {{ resorts|tojson }};
+        const userPasses = {{ (user_passes or [])|tojson }};
         const stateSelect = document.getElementById('state');
         const resortSelect = document.getElementById('resort_id');
         const startDateInput = document.getElementById('start_date');
@@ -233,6 +234,12 @@
         const homeMountainCheckbox = document.getElementById('set_home_mountain');
         const homeMountainError = document.getElementById('home-mountain-error');
         const form = document.querySelector('form.form-card');
+
+        function isPassCompatible(resort) {
+            if (!userPasses || userPasses.length === 0) return false;
+            const resortBrands = (resort.pass_brands || resort.brand || '').split(',').map(b => b.trim().toLowerCase());
+            return userPasses.some(p => resortBrands.includes(p.toLowerCase()));
+        }
 
         function updateResorts() {
             const selectedState = stateSelect.value;
@@ -242,18 +249,24 @@
                 resortSelect.disabled = false;
                 resortSelect.innerHTML = '<option value="">Select a resort</option>';
                 
-                resorts
-                    .filter(r => r.state === selectedState)
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .forEach(r => {
-                        const option = document.createElement('option');
-                        option.value = r.id;
-                        option.textContent = r.name + (r.brand && r.brand !== 'Other' ? ' — ' + r.brand : '');
-                        if (r.id.toString() === currentValue) {
-                            option.selected = true;
-                        }
-                        resortSelect.appendChild(option);
-                    });
+                const stateResorts = resorts.filter(r => r.state === selectedState);
+                
+                stateResorts.sort((a, b) => {
+                    const aCompat = isPassCompatible(a) ? 0 : 1;
+                    const bCompat = isPassCompatible(b) ? 0 : 1;
+                    if (aCompat !== bCompat) return aCompat - bCompat;
+                    return a.name.localeCompare(b.name);
+                });
+                
+                stateResorts.forEach(r => {
+                    const option = document.createElement('option');
+                    option.value = r.id;
+                    option.textContent = r.name + (r.brand && r.brand !== 'Other' ? ' — ' + r.brand : '');
+                    if (r.id.toString() === currentValue) {
+                        option.selected = true;
+                    }
+                    resortSelect.appendChild(option);
+                });
             } else {
                 resortSelect.disabled = true;
                 resortSelect.innerHTML = '<option value="">Select a state first</option>';

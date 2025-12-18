@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps
 from flask_migrate import Migrate
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge
 from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
 from io import BytesIO
@@ -314,9 +314,63 @@ def get_sorted_passes():
 
 PASS_OPTIONS = get_sorted_passes()
 
+# Rider-aware copy helpers
+def get_gear_term(rider_type):
+    """Return rider-aware gear terminology."""
+    if rider_type and rider_type.lower() in ['snowboarder', 'snowboarding']:
+        return 'board'
+    elif rider_type and rider_type.lower() in ['skier', 'skiing', 'both']:
+        return 'skis'
+    return 'gear'
+
+def get_ride_term(rider_type):
+    """Return rider-aware action terminology."""
+    if rider_type and rider_type.lower() in ['snowboarder', 'snowboarding']:
+        return 'ride'
+    elif rider_type and rider_type.lower() in ['skier', 'skiing', 'both']:
+        return 'ski'
+    return 'ride'
+
+# Seasonal awareness helper
+def get_season_context():
+    """Return seasonal copy context based on current date."""
+    today = date.today()
+    month, day = today.month, today.day
+    
+    # Pre-season: October 1 – November 30
+    if (month == 10) or (month == 11):
+        return 'preseason'
+    # Mid-season: December 1 – March 15
+    elif (month == 12) or (month in [1, 2]) or (month == 3 and day <= 15):
+        return 'midseason'
+    # Spring: March 16 – April 30
+    elif (month == 3 and day > 15) or (month == 4):
+        return 'spring'
+    # Off-season
+    return 'offseason'
+
+def get_seasonal_empty_state(context_type='trip'):
+    """Return seasonally appropriate empty state copy."""
+    season = get_season_context()
+    
+    if context_type == 'trip':
+        if season == 'preseason':
+            return "Plan your first trip of the season"
+        elif season == 'midseason':
+            return "Who's heading out this week?"
+        elif season == 'spring':
+            return "Any final turns planned?"
+        return "Add a trip to get started"
+    
+    return ""
+
 # Make functions available to Jinja2 templates
 app.jinja_env.globals['normalize_rider_type'] = normalize_rider_type
 app.jinja_env.globals['get_sorted_passes'] = get_sorted_passes
+app.jinja_env.globals['get_gear_term'] = get_gear_term
+app.jinja_env.globals['get_ride_term'] = get_ride_term
+app.jinja_env.globals['get_season_context'] = get_season_context
+app.jinja_env.globals['get_seasonal_empty_state'] = get_seasonal_empty_state
 
 MOUNTAINS_BY_STATE = {
     "CO": sorted(["Vail", "Breckenridge", "Keystone", "Copper Mountain", "Arapahoe Basin", "Loveland", "Winter Park", "Steamboat", "Aspen Snowmass", "Telluride", "Crested Butte", "Eldora"]),
@@ -579,6 +633,10 @@ def edit_profile():
         user.skill_level = request.form.get("skill_level") or None
         user.gear = request.form.get("gear") or None
         user.home_mountain = request.form.get("home_mountain") or None
+        
+        terrain_raw = request.form.get("terrain_preferences", "")
+        terrain_list = [t.strip() for t in terrain_raw.split(",") if t.strip()][:2]
+        user.terrain_preferences = terrain_list if terrain_list else []
         
         db.session.commit()
         return redirect(url_for("more"))
@@ -870,6 +928,7 @@ def pass_category(pass_type):
 @login_required
 def friends():
     user = current_user
+    today = date.today()
     
     filter_type = request.args.get("filter", "All")
     
@@ -877,6 +936,47 @@ def friends():
     friend_links = Friend.query.filter_by(user_id=user.id).all()
     friend_ids = [f.friend_id for f in friend_links]
     all_friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
+    
+    # Get user's upcoming trips for overlap detection
+    user_trips = SkiTrip.query.filter(
+        SkiTrip.user_id == user.id,
+        SkiTrip.end_date >= today
+    ).all()
+    today_str = today.strftime('%Y-%m-%d')
+    user_open_dates = set(d for d in (user.open_dates or []) if d >= today_str)
+    user_passes = set(p.strip() for p in (user.pass_type or "").split(",") if p.strip())
+    
+    # Calculate relevance score for each friend
+    def calculate_relevance(friend):
+        score = 0
+        
+        # 1. Trip overlap (highest priority) - only count future trips
+        friend_trips = SkiTrip.query.filter(
+            SkiTrip.user_id == friend.id,
+            SkiTrip.is_public == True,
+            SkiTrip.end_date >= today
+        ).all()
+        for ut in user_trips:
+            for ft in friend_trips:
+                if ut.mountain == ft.mountain and date_ranges_overlap(ut.start_date, ut.end_date, ft.start_date, ft.end_date):
+                    score += 100
+        
+        # 2. Pass compatibility
+        friend_passes = set(p.strip() for p in (friend.pass_type or "").split(",") if p.strip())
+        if user_passes & friend_passes:
+            score += 50
+        
+        # 3. Shared availability - only count future dates
+        friend_open_dates = set(d for d in (friend.open_dates or []) if d >= today_str)
+        shared_dates = user_open_dates & friend_open_dates
+        score += len(shared_dates) * 10
+        
+        return score
+    
+    # Sort all friends by relevance (descending), then by name
+    for friend in all_friends:
+        friend._relevance_score = calculate_relevance(friend)
+    all_friends.sort(key=lambda f: (-f._relevance_score, f.first_name.lower()))
     
     # Categorize friends by pass type
     epic_friends = [f for f in all_friends if pass_category(f.pass_type) == "Epic"]
@@ -1434,6 +1534,72 @@ def home():
     overlaps_sorted = sorted(overlaps, key=lambda x: x['start_date']) if overlaps else []
     first_overlap = overlaps_sorted[0] if overlaps_sorted else None
     
+    # Countdown to next trip (host or guest)
+    next_trip_countdown = None
+    all_user_trips = []
+    
+    # Add user's own trips
+    for trip in my_trips:
+        all_user_trips.append(trip.start_date)
+    
+    # Add group trips where user is host
+    hosted_trips = GroupTrip.query.filter(
+        GroupTrip.host_id == user.id,
+        GroupTrip.start_date >= today
+    ).all()
+    for trip in hosted_trips:
+        all_user_trips.append(trip.start_date)
+    
+    # Add group trips where user is guest (accepted)
+    guest_memberships = TripGuest.query.filter(
+        TripGuest.user_id == user.id,
+        TripGuest.status == GuestStatus.ACCEPTED
+    ).all()
+    for membership in guest_memberships:
+        if membership.trip and membership.trip.start_date >= today:
+            all_user_trips.append(membership.trip.start_date)
+    
+    if all_user_trips:
+        next_trip_date = min(all_user_trips)
+        days_until = (next_trip_date - today).days
+        if days_until == 0:
+            next_trip_countdown = "Starts today"
+        elif days_until == 1:
+            next_trip_countdown = "Your next trip starts in 1 day"
+        else:
+            next_trip_countdown = f"Your next trip starts in {days_until} days"
+    
+    # Availability match nudge
+    availability_nudge = None
+    if my_open_dates and open_date_matches:
+        # Find the best date range with most friends
+        best_match = max(open_date_matches, key=lambda m: len(m['friends']))
+        if best_match['friends']:
+            nudge_date = best_match['date_obj']
+            
+            # Check if this date range was already dismissed
+            dismissed = DismissedNudge.query.filter(
+                DismissedNudge.user_id == user.id,
+                DismissedNudge.date_range_start <= nudge_date,
+                DismissedNudge.date_range_end >= nudge_date
+            ).first()
+            
+            if not dismissed:
+                friend_count = len(best_match['friends'])
+                top_friend = best_match['friends'][0]
+                display_date = best_match['display_date']
+                
+                if friend_count == 1:
+                    nudge_text = f"You and {top_friend['name']} are free {display_date}"
+                else:
+                    nudge_text = f"You and {friend_count} friends are free {display_date}"
+                
+                availability_nudge = {
+                    'text': nudge_text,
+                    'date': nudge_date.isoformat(),
+                    'friend_id': top_friend['id']
+                }
+    
     return render_template(
         'home.html',
         user=user,
@@ -1451,8 +1617,37 @@ def home():
         user_has_open_dates=user_has_open_dates,
         state_abbr=STATE_ABBR,
         primary_equipment=primary_equipment,
-        secondary_equipment=secondary_equipment
+        secondary_equipment=secondary_equipment,
+        next_trip_countdown=next_trip_countdown,
+        availability_nudge=availability_nudge
     )
+
+@app.route("/dismiss-nudge", methods=["POST"])
+@login_required
+def dismiss_nudge():
+    """Dismiss an availability nudge so it doesn't resurface."""
+    date_str = request.form.get("date")
+    if date_str:
+        try:
+            nudge_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            # Store dismissal for this specific date
+            existing = DismissedNudge.query.filter_by(
+                user_id=current_user.id,
+                date_range_start=nudge_date,
+                date_range_end=nudge_date
+            ).first()
+            if not existing:
+                dismissal = DismissedNudge(
+                    user_id=current_user.id,
+                    date_range_start=nudge_date,
+                    date_range_end=nudge_date
+                )
+                db.session.add(dismissal)
+                db.session.commit()
+        except ValueError:
+            pass
+    return redirect(url_for("home"))
+
 
 @app.route("/friend-trip/<int:trip_id>")
 @login_required
@@ -1743,8 +1938,8 @@ def add_open_dates():
 @login_required
 def add_trip():
     resorts_objs = Resort.query.filter_by(is_active=True).order_by(Resort.state, Resort.name).all()
-    # Convert to dicts for JSON serialization
-    resorts = [{"id": r.id, "name": r.name, "state": r.state, "brand": r.brand} for r in resorts_objs]
+    # Convert to dicts for JSON serialization (include pass_brands for smart sorting)
+    resorts = [{"id": r.id, "name": r.name, "state": r.state, "brand": r.brand, "pass_brands": r.pass_brands or r.brand or ""} for r in resorts_objs]
     
     if request.method == "POST":
         resort_id = request.form.get("resort_id")
@@ -1812,7 +2007,10 @@ def add_trip():
         flash("Trip added.", "trip")
         return redirect(url_for("my_trips"))
 
-    # GET
+    # GET - Smart defaults for new trips
+    user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
+    default_state = current_user.home_state if current_user.home_state else None
+    
     return render_template(
         "add_trip.html",
         trip=None,
@@ -1820,6 +2018,8 @@ def add_trip():
         states_with_resorts=get_states_with_resorts(),
         user=current_user,
         form_action=url_for("add_trip"),
+        default_state=default_state,
+        user_passes=user_passes,
     )
 
 @app.route("/trips/<int:trip_id>/edit", methods=["GET", "POST"])
