@@ -46,6 +46,12 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
   - *Friend Ordering by Relevance:* Friends list sorted by trip overlap, pass compatibility, and shared availability (score hidden)
   - *Rider-Aware Copy:* Jinja helpers (get_gear_term, get_ride_term) for context-aware terminology
   - *Seasonal Awareness:* Empty states adjust based on season (preseason, midseason, spring, offseason)
+- **UI/UX Polish Pass (Dec 2025):**
+  - *Settings screen:* Card-based layout with 24px group spacing, reduced header weight (12px, 600 weight)
+  - *Wish List Destinations:* Redesigned to match Mountains Visited pattern (pills with × buttons, state filter, typeahead search)
+  - *Equipment page:* Card layout with 12px gaps, removed section dividers
+  - *Invite screen:* Hierarchy reordered (text invite primary → QR code at 200px → copy link as underlined text)
+  - *Flash messages:* "Trip added" scoped to create route only, edit trips save silently
 
 ### System Design Choices
 - **Database:** SQLite for development, PostgreSQL for production, managed via SQLAlchemy.
