@@ -1,0 +1,126 @@
+Goal
+Refactor the Home screen layout, navigation behavior, tap ergonomics, empty states, and visual consistency to improve clarity and usability without changing any data models or business logic.
+1. Move “Next Trip” into the Profile Card
+Current behavior
+“Your next trip starts in X days” appears above the profile card.
+New behavior
+Move this information inside the profile card, directly under the user’s name.
+Requirements
+Compute next trip as the trip with the earliest start_date >= today
+Display:
+Countdown text (e.g. “Next trip in 13 days”)
+Trip location (city + state)
+The entire line must be tappable
+Tapping navigates to the Edit Trip screen for that specific trip
+Do not
+Create new routes
+Change trip models or schemas
+2. Availability Callout → Dedicated Card Below Profile
+Current behavior
+Availability appears as a banner near the top.
+New behavior
+Convert this into a full-width card displayed directly below the profile card
+Visibility rules
+Show this card only when at least one friend overlap exists
+If there are zero overlaps, do not render the card
+Card content
+You and X friends are free Jan Y
+See availability →
+Tap behavior
+Entire card is tappable
+Tapping navigates to the Open Availability tab
+The Open Availability toggle must already be enabled on arrival
+Do not
+Navigate to Trip Overlaps
+Add dismiss / close controls
+Add animations
+3. Unified Tap Ergonomics Across All Tabs
+Apply consistent tap behavior for all list-based items in the following tabs:
+Tabs affected
+My Trips
+Friends’ Trips
+Trip Overlaps
+Open Availability
+Rules
+Entire card / row is tappable
+No small or isolated tap targets
+Tapping behavior:
+Trips (any tab) → Edit Trip
+Friends’ trips → View/Edit that trip
+Overlapping trips → Edit the selected trip
+Open Availability entries → Edit the associated trip
+Notes
+Keep existing labels (e.g., “Edit”) for now as visual affordances
+Do not introduce secondary tap actions
+Do not change routing logic — reuse existing edit/view routes
+4. Align Friends’ Trips Visually with My Trips (Important)
+Ensure Friends’ Trips cards use the same visual structure, spacing, and hierarchy as My Trips.
+Requirements
+Same card container style (padding, border radius, background)
+Same typography scale and weight
+Same date placement and formatting
+Same tap affordance (entire card clickable)
+Differences allowed (minimal)
+Add a small friend identifier at the top or bottom of the card:
+Example: Alex Peak or Alex Peak · Snowboarder
+Do not add avatars or images
+Do not introduce new colors or visual treatments
+Goal
+Friends’ Trips should feel like:
+“Trips that aren’t mine — but are displayed the same way.”
+No visual re-learning required.
+5. Tune Empty States (Important)
+Add calm, informative empty states for each tab.
+My Trips (no trips)
+You don’t have any trips yet.
+Add a trip to start planning with friends.
+CTA: Add a trip
+Friends’ Trips (no visible trips)
+Your friends don’t have any upcoming trips yet.
+Invite friends or check back soon.
+Optional CTA: Invite friends
+Trip Overlaps (no overlaps)
+No overlapping trips yet.
+When you and friends plan trips on the same dates, they’ll show up here.
+Open Availability (not enabled)
+You haven’t opened your availability yet.
+Turn it on to let friends know when you’re free to ski.
+CTA: Open availability (enables existing toggle)
+Empty state rules
+No illustrations
+No animations
+Mobile-first spacing
+One primary CTA max
+6. Layout Order (Authoritative)
+Ensure Home screen renders in this order:
+Profile Card
+Welcome
+Next trip line (tappable)
+Identity summary
+Equipment summary
+Stats
+Availability Card (conditional)
+Tab Selector
+My Trips (default)
+Friends’ Trips
+Trip Overlaps
+Open Avail.
+Tab Content
+Cards or empty states
+7. Scope Guardrails
+❌ Do not modify database models
+❌ Do not add new routes
+❌ Do not introduce animations
+❌ Do not add new UI components
+✅ Reuse existing data and routes
+✅ Mobile-first tap targets everywhere
+8. Completion Checklist (must verify)
+Before marking complete, verify:
+Next trip appears inside the profile card and opens Edit Trip
+Availability card only appears when overlaps exist
+Availability card routes to Open Availability with toggle ON
+Entire cards are tappable in all tabs
+Friends’ Trips visually match My Trips
+Empty states render correctly
+No mobile layout regressions
+Do not finish until all items above are tested and verified.
