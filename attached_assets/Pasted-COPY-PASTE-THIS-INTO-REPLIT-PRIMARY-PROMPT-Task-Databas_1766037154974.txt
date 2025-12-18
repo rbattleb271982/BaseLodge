@@ -1,0 +1,130 @@
+COPY-PASTE THIS INTO REPLIT (PRIMARY PROMPT)
+
+Task: Database and event hygiene audit for email personalization
+
+Goal: I need to confirm what already exists in the database and codebase to support personalized emails (welcome, onboarding, connections, feed, trip reminders), and safely add what is missing without breaking anything.
+
+Please do the following in order:
+
+Step 1 — Schema inventory
+Inspect the current database schema and list all tables and columns with:
+	•	table name
+	•	column name
+	•	data type
+	•	nullable or not
+	•	default value
+	•	indexes or constraints
+	•	brief note on current usage
+
+Focus especially on:
+	•	users
+	•	connections or friends
+	•	trips
+	•	feed or activity
+	•	any email, notification, or event-related tables
+
+Do not assume fields exist — verify them from the actual schema.
+
+Step 2 — Capability gap check
+Compare the existing schema against the following required capabilities and explicitly mark each item as:
+	•	exists
+	•	partially exists
+	•	missing
+
+A) User lifecycle and identity
+	•	canonical user_id
+	•	email (unique and normalized)
+	•	first_name
+	•	created_at
+	•	last_active_at
+	•	lifecycle_stage
+	•	onboarding_completed_at
+	•	profile_completed_at
+	•	first_connection_at
+	•	first_trip_created_at
+
+B) Email preferences and consent
+	•	email_opt_in
+	•	email_transactional_enabled
+	•	email_social_enabled
+	•	email_digest_enabled
+	•	timezone
+
+C) Connections
+	•	bidirectional connection records
+	•	created_at timestamp on connections
+	•	connection_count (stored or safely derivable)
+	•	is_seeded or test flag
+
+D) Events for email triggers
+	•	ability to emit events such as:
+account_created
+onboarding_completed
+connection_created
+trip_created
+feed_activity_created
+	•	event name
+	•	event payload (JSON or equivalent)
+	•	created_at timestamp
+	•	environment (dev or prod)
+
+E) Email hygiene and suppression
+	•	email_log table or equivalent
+	•	email_type
+	•	last_sent_at
+	•	send_count
+	•	source_event_id
+	•	environment
+
+Step 3 — Proposal
+For every missing or insufficient item:
+	•	propose the minimal schema change required
+	•	indicate whether it is additive only (safe) or requires a backfill
+	•	do not rename or remove existing fields
+
+Step 4 — Implementation
+Implement only:
+	•	additive schema changes
+	•	new tables if required
+	•	safe defaults
+
+Do not:
+	•	drop columns
+	•	rename columns
+	•	change existing logic without approval
+	•	send any emails
+
+Step 5 — Verification
+After implementation, provide:
+	•	an updated schema summary
+	•	example queries or ORM access showing:
+lifecycle_stage can be read
+connection_count can be calculated or stored
+email suppression logic can be evaluated
+
+Deliverable:
+A short written audit summary plus implemented safe schema upgrades.
+
+⸻
+
+OPTIONAL SECOND COPY-PASTE (IF THEY ASK “WHY?”)
+
+This work is required to support:
+	•	welcome emails
+	•	onboarding reminders
+	•	connection notifications
+	•	feed digests
+	•	trip reminders
+
+using SendGrid or Mailchimp without brittle logic, duplicate sends, or unsafe joins.
+
+⸻
+
+QUICK CHECK (IMPORTANT)
+
+If Replit responds with:
+	•	assumptions instead of schema output
+	•	“this should exist” language
+	•	no explicit exists/missing list
+
+Ask them to redo Step 1 with actual schema inspection.
