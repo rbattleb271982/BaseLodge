@@ -1,0 +1,128 @@
+We are approving the revised schema + lifecycle direction and authorizing Step 4 implementation.
+This is foundational infrastructure work only (no UI, no emails, no admin panel).
+Everything below is final and locked.
+🔒 PART 1 — FINAL STRUCTURAL DECISIONS (APPROVAL)
+1️⃣ Lifecycle model (SIMPLIFIED)
+Use only three lifecycle stages:
+new
+onboarding
+active
+Rules:
+lifecycle_stage is derived by logic, not user-controlled
+Transitions:
+new → onboarding: user starts profile setup
+onboarding → active: user performs ANY meaningful activation action:
+creates a trip
+joins a trip
+creates a connection
+sets open dates
+Do not store dormant or churned as lifecycle stages
+Dormancy is derived from time since last activity
+Churn = account deleted
+2️⃣ Activity definition (last_active_at)
+Update last_active_at ONLY on login.
+Do NOT update it on:
+trip creation
+trip joining
+connections
+open dates
+profile edits
+This field measures presence, not actions.
+3️⃣ Open dates meaning
+Setting open dates counts as activation-lite
+A user may become active without:
+creating a trip
+creating a connection
+4️⃣ Trip roles
+Distinguish between:
+trip_created
+trip_joined
+These are different engagement signals
+Treat them as separate events
+5️⃣ Seeded users
+Add is_seeded flag
+Seeded users must be:
+Excluded from lifecycle logic
+Excluded from events
+Excluded from email logic
+🧱 PART 2 — STEP 4: IMPLEMENTATION SCOPE (AUTHORIZE)
+Proceed with Step 4 implementation exactly as follows.
+🔴 A. Database changes (additive only)
+User table — add columns
+created_at              TIMESTAMP DEFAULT NOW()
+last_active_at          TIMESTAMP NULL
+lifecycle_stage         VARCHAR(20) DEFAULT 'new'
+onboarding_completed_at TIMESTAMP NULL
+profile_completed_at    TIMESTAMP NULL
+first_connection_at     TIMESTAMP NULL
+first_trip_created_at   TIMESTAMP NULL
+is_seeded               BOOLEAN DEFAULT FALSE
+
+email_opt_in            BOOLEAN DEFAULT TRUE
+email_transactional     BOOLEAN DEFAULT TRUE
+email_social            BOOLEAN DEFAULT FALSE
+email_digest            BOOLEAN DEFAULT FALSE
+timezone                VARCHAR(50) NULL
+Friend table — add
+is_seeded BOOLEAN DEFAULT FALSE
+🔴 B. Backfill logic (LOCKED)
+For existing users:
+Set created_at to:
+earliest ski_trip.created_at IF exists
+else earliest friend.created_at
+else NOW()
+Leave other new fields NULL unless derivable
+🔴 C. Event system (FOUNDATION ONLY)
+Create event table:
+id           SERIAL PRIMARY KEY
+event_name   VARCHAR(100) NOT NULL
+user_id      INTEGER FK -> user.id
+payload      JSON
+created_at   TIMESTAMP DEFAULT NOW()
+environment  VARCHAR(10) DEFAULT 'dev'
+Emit events ONLY for high-signal user actions:
+account_created
+onboarding_completed
+profile_completed
+trip_created
+trip_joined
+connection_created
+open_dates_set
+Do NOT emit:
+page views
+UI interactions
+low-level events
+Seeded users must not emit events.
+🔴 D. Email logging (PREP ONLY — NO SENDING)
+Create email_log table:
+id              SERIAL PRIMARY KEY
+user_id         INTEGER FK -> user.id
+email_type      VARCHAR(100) NOT NULL
+source_event_id INTEGER FK -> event.id (nullable)
+sent_at         TIMESTAMP DEFAULT NOW()
+send_count      INTEGER DEFAULT 1
+environment     VARCHAR(10) DEFAULT 'dev'
+No email sending logic is required or allowed in this step.
+🚫 E. Explicit non-goals for Step 4
+Do NOT:
+Send emails
+Add UI
+Add admin dashboard
+Add cron jobs
+Add lifecycle automation
+Add analytics dashboards
+This step is schema + wiring only.
+✅ PART 3 — COMPLETION CHECKLIST
+Before marking Step 4 complete, verify:
+New columns exist and do not break existing users
+created_at backfill works as specified
+last_active_at updates only on login
+Lifecycle transitions follow the simplified model
+Seeded users are excluded everywhere
+Events are emitted only for approved actions
+No emails are sent
+📌 CONFIRMATION
+Once complete, reply with:
+Schema diff summary
+Confirmation that Step 4 is complete
+Any deviations or concerns (if none, say “no deviations”)

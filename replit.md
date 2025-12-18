@@ -58,6 +58,40 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
   - 20 friends with complete profiles, trips, equipment
   - Bidirectional friendships and date overlaps for testing feeds
 
+## Email & Notification Infrastructure (Dec 2025)
+
+### User Lifecycle & Identity
+- **created_at:** Timestamp of user registration (backfilled from earliest trip/friend activity)
+- **last_active_at:** Updated only on login; measures presence
+- **lifecycle_stage:** Simplified model with three stages: `new`, `onboarding`, `active` (derived by logic, not user-controlled)
+- **is_seeded:** Flag to exclude test users from lifecycle logic, events, and email
+
+### Email Preferences (Channel-Agnostic)
+- **email_opt_in:** Master consent (default TRUE)
+- **email_transactional:** For account events (default TRUE)
+- **email_social:** For connection/trip invites (default FALSE)
+- **email_digest:** For weekly/digest emails (default FALSE)
+- **timezone:** User's timezone for send scheduling (nullable)
+
+### Event System (Foundation)
+**Event table:** Captures high-signal user actions for email/push notifications
+- account_created
+- onboarding_completed
+- profile_completed
+- trip_created
+- trip_joined
+- connection_created
+- open_dates_set
+
+Seeded users are excluded from event emission.
+
+### Email Logging & Suppression
+**EmailLog table:** Tracks all email sends for deduplication & suppression
+- Prevents duplicate sends for same event
+- Tracks send count & last_sent_at per email_type
+- Links to source event for audit trail
+- Environment tagged (dev/prod) for safe local testing
+
 ## External Dependencies
 - **Flask:** Python web framework.
 - **Flask-Login:** User session management.
@@ -66,3 +100,4 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **Jinja2:** Templating engine.
 - **SQLite:** Default development database.
 - **PostgreSQL:** Production-ready database.
+- **Alembic:** Database migration tool (via Flask-Migrate).

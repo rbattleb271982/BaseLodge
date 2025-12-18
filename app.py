@@ -457,6 +457,10 @@ def auth():
                     login_user(user)
                     app.logger.info(f"✅ LOGGED IN: user_id={user.id}, authenticated={user.is_authenticated}")
                     
+                    # Update last_active_at on login (activity hygiene)
+                    user.last_active_at = datetime.utcnow()
+                    db.session.commit()
+                    
                     # Connect with inviter if pending_inviter_id exists in session
                     _connect_pending_inviter(user)
                     

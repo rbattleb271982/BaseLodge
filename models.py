@@ -54,10 +54,29 @@ class User(UserMixin, db.Model):
     wish_list_resorts = db.Column(db.JSON, default=list)  # List of resort IDs (max 3)
     terrain_preferences = db.Column(db.JSON, default=list)  # List of terrain types (max 2): Groomers, Trees, Park, Backcountry
     
+    # Email & lifecycle hygiene (Dec 2025)
+    created_at = db.Column(db.DateTime, nullable=True)  # Set to earliest trip/friend or NOW
+    last_active_at = db.Column(db.DateTime, nullable=True)  # Updated only on login
+    lifecycle_stage = db.Column(db.String(20), default='new')  # new, onboarding, active
+    onboarding_completed_at = db.Column(db.DateTime, nullable=True)
+    profile_completed_at = db.Column(db.DateTime, nullable=True)
+    first_connection_at = db.Column(db.DateTime, nullable=True)
+    first_trip_created_at = db.Column(db.DateTime, nullable=True)
+    is_seeded = db.Column(db.Boolean, default=False)
+    
+    # Notification preferences
+    email_opt_in = db.Column(db.Boolean, default=True)
+    email_transactional = db.Column(db.Boolean, default=True)
+    email_social = db.Column(db.Boolean, default=False)
+    email_digest = db.Column(db.Boolean, default=False)
+    timezone = db.Column(db.String(50), nullable=True)
+    
     trips = db.relationship('SkiTrip', backref='user', lazy=True)
     friend_requests_sent = db.relationship('Invitation', foreign_keys='Invitation.sender_id', backref='sender', lazy=True)
     friend_requests_received = db.relationship('Invitation', foreign_keys='Invitation.receiver_id', backref='receiver', lazy=True)
     friends = db.relationship('Friend', foreign_keys='Friend.user_id', backref='user_obj', lazy=True)
+    events = db.relationship('Event', backref='user', lazy=True)
+    email_logs = db.relationship('EmailLog', backref='user', lazy=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -107,6 +126,7 @@ class Friend(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     friend_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_seeded = db.Column(db.Boolean, default=False)
     
     friend = db.relationship('User', foreign_keys=[friend_id], backref='friended_by')
     
@@ -248,6 +268,39 @@ class DismissedNudge(db.Model):
     
     def __repr__(self):
         return f'<DismissedNudge user={self.user_id} {self.date_range_start} to {self.date_range_end}>'
+
+
+class Event(db.Model):
+    """High-signal user events for email & notification triggers."""
+    __tablename__ = 'event'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    event_name = db.Column(db.String(100), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    payload = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    environment = db.Column(db.String(10), default='dev')
+    
+    def __repr__(self):
+        return f'<Event {self.event_name} user={self.user_id} at {self.created_at}>'
+
+
+class EmailLog(db.Model):
+    """Email send tracking for deduplication & suppression."""
+    __tablename__ = 'email_log'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    email_type = db.Column(db.String(100), nullable=False)
+    source_event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=True)
+    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
+    send_count = db.Column(db.Integer, default=1)
+    environment = db.Column(db.String(10), default='dev')
+    
+    source_event = db.relationship('Event', backref='email_logs')
+    
+    def __repr__(self):
+        return f'<EmailLog {self.email_type} to user={self.user_id}>'
 
 
 def check_shared_upcoming_trip(user_a_id: int, user_b_id: int) -> bool:
