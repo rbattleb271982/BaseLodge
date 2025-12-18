@@ -987,6 +987,15 @@ def friend_profile(friend_id):
     already_friends = Friend.query.filter_by(user_id=user.id, friend_id=friend.id).first() is not None
     show_connect_button = shared_trip_exists and not already_friends
     
+    # Get friend's wish list resorts
+    friend_wish_list_ids = friend.wish_list_resorts or []
+    friend_wish_list = Resort.query.filter(Resort.id.in_(friend_wish_list_ids)).all() if friend_wish_list_ids else []
+    
+    # Calculate wish list overlap with current user
+    user_wish_list_ids = set(user.wish_list_resorts or [])
+    wish_list_overlap_ids = [rid for rid in friend_wish_list_ids if rid in user_wish_list_ids]
+    wish_list_overlap = Resort.query.filter(Resort.id.in_(wish_list_overlap_ids)).all() if wish_list_overlap_ids else []
+    
     return render_template(
         "friend_profile.html",
         friend=friend,
@@ -1002,7 +1011,9 @@ def friend_profile(friend_id):
         show_connect_button=show_connect_button,
         friend_primary_equipment=friend_primary_equipment,
         friend_secondary_equipment=friend_secondary_equipment,
-        can_ski_user_trips=can_ski_user_trips
+        can_ski_user_trips=can_ski_user_trips,
+        friend_wish_list=friend_wish_list,
+        wish_list_overlap=wish_list_overlap
     )
 
 @app.route("/profile/<int:user_id>")
@@ -1556,10 +1567,17 @@ def settings():
     elif secondary_equipment:
         equipment_summary = f"{secondary_equipment.brand or 'Secondary'}"
     
+    # Wish list data
+    wish_list_ids = current_user.wish_list_resorts or []
+    wish_list_count = len(wish_list_ids)
+    wish_list_resorts = Resort.query.filter(Resort.id.in_(wish_list_ids)).all() if wish_list_ids else []
+    
     return render_template("settings.html", 
                            mountains_visited_count=mountains_visited_count,
                            has_equipment=has_equipment,
-                           equipment_summary=equipment_summary)
+                           equipment_summary=equipment_summary,
+                           wish_list_count=wish_list_count,
+                           wish_list_resorts=wish_list_resorts)
 
 @app.route("/settings/profile", methods=["GET", "POST"])
 @login_required
@@ -1589,6 +1607,7 @@ def settings_equipment_save():
     binding_type = request.form.get("binding_type", "")
     boot_brand = request.form.get("boot_brand", "")
     boot_flex = request.form.get("boot_flex", "")
+    purchase_year = request.form.get("purchase_year", "")
     
     if not discipline_str:
         return jsonify({"error": "Discipline required"}), 400
@@ -1613,6 +1632,10 @@ def settings_equipment_save():
     equipment.binding_type = binding_type if binding_type else None
     equipment.boot_brand = boot_brand if boot_brand else None
     equipment.boot_flex = int(boot_flex) if boot_flex and int(boot_flex) > 0 else None
+    
+    # Purchase year only for primary equipment
+    if slot == EquipmentSlot.PRIMARY:
+        equipment.purchase_year = int(purchase_year) if purchase_year and purchase_year.isdigit() else None
     
     db.session.commit()
     return jsonify({"success": True})
@@ -1642,6 +1665,47 @@ def settings_mountains():
 @login_required
 def settings_password():
     return redirect(url_for('change_password'))
+
+
+@app.route("/settings/wish-list")
+@login_required
+def settings_wish_list():
+    # Get all resorts for selection
+    resorts = Resort.query.filter_by(is_active=True).order_by(Resort.state, Resort.name).all()
+    
+    # Get current wish list resort IDs
+    wish_list_ids = current_user.wish_list_resorts or []
+    
+    # Get full resort objects for display
+    wish_list_resorts = Resort.query.filter(Resort.id.in_(wish_list_ids)).all() if wish_list_ids else []
+    
+    return render_template("settings_wish_list.html",
+                           resorts=resorts,
+                           wish_list_resorts=wish_list_resorts,
+                           wish_list_ids=wish_list_ids)
+
+
+@app.route("/settings/wish-list/save", methods=["POST"])
+@login_required
+def settings_wish_list_save():
+    data = request.get_json()
+    resort_ids = data.get("resort_ids", [])
+    
+    # Enforce max of 3
+    if len(resort_ids) > 3:
+        return jsonify({"error": "Maximum 3 resorts allowed"}), 400
+    
+    # Validate resort IDs exist
+    valid_ids = []
+    for rid in resort_ids:
+        resort = Resort.query.get(rid)
+        if resort:
+            valid_ids.append(rid)
+    
+    current_user.wish_list_resorts = valid_ids
+    db.session.commit()
+    
+    return jsonify({"success": True, "count": len(valid_ids)})
 
 
 @app.route("/add-open-dates", methods=["GET", "POST"])

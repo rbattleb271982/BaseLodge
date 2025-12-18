@@ -167,6 +167,9 @@
                         {% if primary_equipment.boot_brand %}{{ primary_equipment.boot_brand }} boots{% endif %}{% if primary_equipment.boot_brand and primary_equipment.boot_flex %} · {% endif %}{% if primary_equipment.boot_flex %}{{ primary_equipment.boot_flex }} flex{% endif %}
                     </p>
                     {% endif %}
+                    {% if primary_equipment.purchase_year %}
+                    <p class="equipment-details">Bought: {{ primary_equipment.purchase_year }}</p>
+                    {% endif %}
                 </div>
                 <div class="equipment-btn-row">
                     <button type="button" id="edit-primary-btn" class="btn-edit">Edit</button>
@@ -219,6 +222,10 @@
                     <div>
                         <label class="form-label">Boot Flex</label>
                         <input type="number" id="primary-boot-flex" placeholder="e.g. 120" value="{% if primary_equipment %}{{ primary_equipment.boot_flex or '' }}{% endif %}" />
+                    </div>
+                    <div>
+                        <label class="form-label">Purchase Year</label>
+                        <input type="number" id="primary-purchase-year" placeholder="e.g. 2022" min="1980" max="2030" value="{% if primary_equipment %}{{ primary_equipment.purchase_year or '' }}{% endif %}" />
                     </div>
                 </div>
                 <div class="equipment-btn-row">
@@ -425,6 +432,7 @@
         const bindingType = document.getElementById('primary-binding').value;
         const bootBrand = document.getElementById('primary-boot-brand').value;
         const bootFlex = document.getElementById('primary-boot-flex').value;
+        const purchaseYear = document.getElementById('primary-purchase-year').value;
         
         if (!discipline) {
             alert('Please select a discipline');
@@ -440,6 +448,7 @@
         formData.append('binding_type', bindingType);
         formData.append('boot_brand', bootBrand);
         formData.append('boot_flex', bootFlex);
+        formData.append('purchase_year', purchaseYear);
         
         const response = await fetch('/settings/equipment/save', {
             method: 'POST',

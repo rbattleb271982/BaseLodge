@@ -196,6 +196,28 @@
         </div>
         {% endif %}
         
+        {% if wish_list_overlap and wish_list_overlap|length > 0 %}
+        <div style="margin-bottom: 24px;">
+            <h2 class="section-header">Wish List Overlap</h2>
+            <ul style="list-style: none; padding: 0; margin: 0;">
+                {% for resort in wish_list_overlap %}
+                <li style="font-size: 15px; color: var(--bl-color-text-muted); padding: 4px 0;">{{ resort.name }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% if friend_wish_list and friend_wish_list|length > 0 %}
+        <div style="margin-bottom: 24px;">
+            <h2 class="section-header">Wish List</h2>
+            <ul style="list-style: none; padding: 0; margin: 0;">
+                {% for resort in friend_wish_list %}
+                <li style="font-size: 15px; color: var(--bl-color-text-muted); padding: 4px 0;">{{ resort.name }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
         {% if show_connect_button %}
         <div style="margin-top: 20px;">
             <form method="POST" action="{{ url_for('connect_from_trip', user_id=friend.id) }}" style="margin: 0;">

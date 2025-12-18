@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base Lodge - Wish List</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .back-link {
+            display: inline-block;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+        .selected-resorts {
+            margin-bottom: 24px;
+        }
+        .selected-resort {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        }
+        .selected-resort:last-child {
+            border-bottom: none;
+        }
+        .selected-resort-name {
+            font-size: 16px;
+            color: var(--bl-color-text);
+        }
+        .selected-resort-state {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin-left: 8px;
+        }
+        .remove-btn {
+            background: none;
+            border: none;
+            color: var(--bl-color-text-muted);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            min-width: 44px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .remove-btn:hover {
+            color: var(--bl-color-primary);
+        }
+        .search-container {
+            margin-bottom: 16px;
+        }
+        .search-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            font-size: 16px;
+            background: var(--bl-color-surface);
+        }
+        .search-input:focus {
+            outline: none;
+            border-color: var(--bl-color-primary);
+        }
+        .resort-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            border-radius: 10px;
+            background: var(--bl-color-surface);
+        }
+        .resort-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            cursor: pointer;
+            min-height: 48px;
+        }
+        .resort-item:last-child {
+            border-bottom: none;
+        }
+        .resort-item:hover {
+            background: rgba(0, 0, 0, 0.02);
+        }
+        .resort-item.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .resort-item.selected {
+            background: rgba(143, 1, 27, 0.06);
+        }
+        .resort-info {
+            flex: 1;
+        }
+        .resort-name {
+            font-size: 16px;
+            color: var(--bl-color-text);
+        }
+        .resort-state {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+        }
+        .limit-message {
+            text-align: center;
+            padding: 12px;
+            color: var(--bl-color-text-muted);
+            font-size: 14px;
+            background: rgba(143, 1, 27, 0.04);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 32px 16px;
+            color: var(--bl-color-text-muted);
+        }
+        .section-header {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--bl-color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 24px 0 12px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
+        <a href="javascript:history.back()" class="back-link">← Back</a>
+        <h1 class="page-title">Wish List Destinations</h1>
+        
+        <div id="selected-container" class="selected-resorts">
+            {% if wish_list_resorts %}
+            {% for resort in wish_list_resorts %}
+            <div class="selected-resort" data-id="{{ resort.id }}">
+                <div>
+                    <span class="selected-resort-name">{{ resort.name }}</span>
+                    <span class="selected-resort-state">{{ resort.state }}</span>
+                </div>
+                <button class="remove-btn" onclick="removeResort({{ resort.id }})" aria-label="Remove">×</button>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <p>Add up to 3 resorts you'd love to ski someday</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div id="limit-message" class="limit-message" style="display: {% if wish_list_ids|length >= 3 %}block{% else %}none{% endif %};">
+            Maximum 3 resorts reached
+        </div>
+        
+        <h2 class="section-header">Add Resort</h2>
+        
+        <div class="search-container">
+            <input type="text" id="search-input" class="search-input" placeholder="Search resorts..." oninput="filterResorts()">
+        </div>
+        
+        <div class="resort-list" id="resort-list">
+            {% for resort in resorts %}
+            <div class="resort-item {% if resort.id in wish_list_ids %}selected{% endif %}" 
+                 data-id="{{ resort.id }}" 
+                 data-name="{{ resort.name|lower }}"
+                 data-state="{{ resort.state|lower }}"
+                 onclick="toggleResort({{ resort.id }}, '{{ resort.name }}', '{{ resort.state }}')">
+                <div class="resort-info">
+                    <div class="resort-name">{{ resort.name }}</div>
+                    <div class="resort-state">{{ resort.state }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    {% include 'components/bottom_nav.html' %}
+    
+    <script>
+        let selectedIds = {{ wish_list_ids | tojson }};
+        const maxResorts = 3;
+        
+        function filterResorts() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const items = document.querySelectorAll('.resort-item');
+            
+            items.forEach(item => {
+                const name = item.dataset.name;
+                const state = item.dataset.state;
+                if (name.includes(query) || state.includes(query)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+        
+        function toggleResort(id, name, state) {
+            const index = selectedIds.indexOf(id);
+            
+            if (index > -1) {
+                selectedIds.splice(index, 1);
+            } else {
+                if (selectedIds.length >= maxResorts) {
+                    return;
+                }
+                selectedIds.push(id);
+            }
+            
+            saveAndUpdate(name, state, id);
+        }
+        
+        function removeResort(id) {
+            const index = selectedIds.indexOf(id);
+            if (index > -1) {
+                selectedIds.splice(index, 1);
+                saveAndUpdate();
+            }
+        }
+        
+        function saveAndUpdate(addedName, addedState, addedId) {
+            fetch('{{ url_for("settings_wish_list_save") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ resort_ids: selectedIds })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateUI();
+                }
+            });
+        }
+        
+        function updateUI() {
+            // Update selected items styling in list
+            document.querySelectorAll('.resort-item').forEach(item => {
+                const id = parseInt(item.dataset.id);
+                if (selectedIds.includes(id)) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+            
+            // Update limit message
+            const limitMsg = document.getElementById('limit-message');
+            if (selectedIds.length >= maxResorts) {
+                limitMsg.style.display = 'block';
+            } else {
+                limitMsg.style.display = 'none';
+            }
+            
+            // Rebuild selected container
+            const container = document.getElementById('selected-container');
+            if (selectedIds.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>Add up to 3 resorts you\'d love to ski someday</p></div>';
+            } else {
+                // Get selected resorts from list items
+                let html = '';
+                selectedIds.forEach(id => {
+                    const item = document.querySelector(`.resort-item[data-id="${id}"]`);
+                    if (item) {
+                        const name = item.querySelector('.resort-name').textContent;
+                        const state = item.querySelector('.resort-state').textContent;
+                        html += `
+                            <div class="selected-resort" data-id="${id}">
+                                <div>
+                                    <span class="selected-resort-name">${name}</span>
+                                    <span class="selected-resort-state">${state}</span>
+                                </div>
+                                <button class="remove-btn" onclick="removeResort(${id})" aria-label="Remove">×</button>
+                            </div>
+                        `;
+                    }
+                });
+                container.innerHTML = html;
+            }
+        }
+    </script>
+</body>
+</html>

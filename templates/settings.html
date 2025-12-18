@@ -84,7 +84,25 @@
                     <span class="settings-row-chevron">›</span>
                 </span>
             </a>
+            <a href="{{ url_for('settings_wish_list') }}" class="settings-row">
+                <span class="settings-row-label">Wish List Destinations</span>
+                <span class="settings-row-value">
+                    {% if wish_list_count %}{{ wish_list_count }} resort{% if wish_list_count != 1 %}s{% endif %}{% endif %}
+                    <span class="settings-row-chevron">›</span>
+                </span>
+            </a>
         </div>
+        
+        {% if wish_list_resorts and wish_list_resorts|length > 0 %}
+        <div class="settings-section">
+            <h2 class="settings-section-header">Wish List</h2>
+            <ul style="list-style: none; padding: 0; margin: 0;">
+                {% for resort in wish_list_resorts %}
+                <li style="font-size: 15px; color: var(--bl-color-text-muted); padding: 6px 0;">{{ resort.name }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
         
         <div class="settings-section">
             <h2 class="settings-section-header">Account</h2>
