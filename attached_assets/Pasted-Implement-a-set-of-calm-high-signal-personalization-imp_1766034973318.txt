@@ -1,0 +1,226 @@
+Implement a set of calm, high-signal personalization improvements across Profile, Trips, Home, and Friends.
+All work must follow dependency order, prioritize clarity over features, and maintain an Apple/Airbnb-style UX.
+
+This is an implementation request with sequencing required.
+
+⸻
+
+Implementation Instructions (Important)
+
+Before coding:
+	1.	Identify feature dependencies
+	2.	Confirm the execution order below
+	3.	Implement one phase at a time, validating each before moving forward
+
+Do not parallelize dependent work.
+
+⸻
+
+REQUIRED IMPLEMENTATION ORDER
+	1.	Terrain Preferences (profile data)
+	2.	Smart Resort Defaults (trip creation)
+	3.	Countdown to Next Trip (home)
+	4.	Availability Match Nudge (home)
+	5.	Friend Ordering by Relevance (friends list)
+	6.	Rider-Aware Copy (global copy)
+	7.	Seasonal Awareness (copy only)
+
+Do not reorder without explanation.
+
+⸻
+
+1) Terrain Preferences (Profile-Level, Foundational)
+
+Purpose
+
+Provide a quiet compatibility signal that helps friends understand how someone likes to ski.
+
+Data & Rules
+	•	Optional
+	•	Max 2 selections
+	•	Options:
+	•	Groomers
+	•	Trees
+	•	Park
+	•	Backcountry
+
+Editing Location
+	•	Add to the existing Profile section in Settings
+	•	Do NOT create a new standalone “Terrain” section
+
+Display
+	•	Show on:
+	•	User’s own profile
+	•	Friend profile pages
+
+Display rules:
+	•	Secondary text only
+	•	No icons, badges, or emphasis
+	•	Hide entirely if empty
+
+⸻
+
+2) Smart Resort Defaults (Trip Creation Only)
+
+Purpose
+
+Reduce friction during trip creation using invisible personalization.
+
+Behavior (New Trips Only)
+
+When creating a new trip:
+	•	Default state selector to user.home_state
+	•	Pre-sort (do NOT filter) resorts in this order:
+	1.	Resorts compatible with the user’s pass(es)
+	2.	Other resorts in the selected state
+	3.	All remaining resorts
+
+Rules:
+	•	Never hide resorts
+	•	User can always override defaults
+	•	Do NOT apply when editing existing trips
+	•	Do NOT explain this behavior in UI
+
+⸻
+
+3) Countdown to Next Trip (Home)
+
+Purpose
+
+Create anticipation without noise.
+
+Behavior
+
+If the user has any upcoming trip (host or guest):
+	•	Show one line at the top of Home:
+	•	“Your next trip starts in X days”
+
+If the trip starts today:
+	•	Use copy: “Starts today”
+
+Rules:
+	•	Hide entirely if no upcoming trips
+	•	No urgency language
+	•	No CTA required
+
+⸻
+
+4) Availability Match Nudge (Home)
+
+Purpose
+
+Surface alignment opportunities without prompting conversation.
+
+Trigger
+
+If:
+	•	User has open availability
+	•	AND a friend has overlapping availability or a trip
+
+Display
+
+Show one lightweight nudge on Home.
+
+Example:
+“You and 2 friends are free Jan 15–17”
+
+Rules:
+	•	Show only one nudge at a time
+	•	Nudge must be dismissible
+	•	Once dismissed, do not resurface for the same date range
+	•	No notifications
+	•	No urgency language
+
+Tap Behavior
+	•	Route directly to the most relevant friend’s profile
+	•	Do NOT route to a filtered list or generic screen
+
+⸻
+
+5) Friend Ordering by Relevance (Invisible)
+
+Purpose
+
+Make the Friends list feel naturally useful without explanation.
+
+Sorting Signals (Internal Only)
+	•	Upcoming trip overlap
+	•	Pass compatibility
+	•	Shared availability
+	•	(Optional) terrain overlap
+
+Rules:
+	•	No visible scores
+	•	No “sorted by relevance” labels
+	•	No UI indicators
+	•	This should feel natural, not explicit
+
+⸻
+
+6) Rider-Aware Copy (Global)
+
+Purpose
+
+Increase personalization through precise language.
+
+Behavior
+
+Adjust microcopy based on rider type:
+	•	“Your skis” vs “Your board”
+	•	“Add ski day” vs “Add ride day”
+
+Rules:
+	•	If rider type is not set, default to neutral copy
+	•	Example: “Your gear”
+	•	No slang
+	•	No tone changes beyond specificity
+
+⸻
+
+7) Seasonal Awareness (Copy-Only)
+
+Purpose
+
+Make the app feel aware of the time of year through subtle copy changes.
+
+Defined Seasons
+	•	Pre-season: October 1 – November 30
+	•	Mid-season: December 1 – March 15
+	•	Spring: March 16 – April 30
+
+Outside these ranges, use neutral copy.
+
+Scope
+	•	Empty states
+	•	Helper text
+	•	Small prompts
+
+Rules:
+	•	Copy only — no layout or feature changes
+	•	No banners
+	•	No notifications
+	•	No urgency language
+
+Example shifts:
+	•	Pre-season: “Plan your first trip of the season”
+	•	Mid-season: “Who’s heading out this week?”
+	•	Spring: “Any final turns planned?”
+
+⸻
+
+Global Guardrails
+	•	No feeds
+	•	No comments
+	•	No likes or reactions
+	•	No new navigation
+	•	No gamification
+	•	All personalization must be calm, optional, and reversible
+
+⸻
+
+Acceptance Criteria
+	•	Personalization reduces friction without adding UI
+	•	Home feels alive but calm
+	•	Friends list feels naturally relevant
+	•	Defaults feel tasteful, not automated
+	•	App remains scannable and mobile-first
