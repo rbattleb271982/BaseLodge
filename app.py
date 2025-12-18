@@ -1368,6 +1368,10 @@ def home():
     except Exception:
         pass
     
+    # Get equipment for profile card
+    primary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.PRIMARY).first()
+    secondary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.SECONDARY).first()
+    
     return render_template(
         'home.html',
         user=user,
@@ -1382,7 +1386,9 @@ def home():
         user_mountains=user_mountains_sorted,
         open_friends_count=open_friends_count,
         user_has_open_dates=user_has_open_dates,
-        state_abbr=STATE_ABBR
+        state_abbr=STATE_ABBR,
+        primary_equipment=primary_equipment,
+        secondary_equipment=secondary_equipment
     )
 
 @app.route("/friend-trip/<int:trip_id>")

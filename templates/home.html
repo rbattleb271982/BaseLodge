@@ -75,17 +75,18 @@
                     {{ normalize_rider_type(user.rider_type) or 'Rider' }} · {% set passes = user.pass_type.split(',') if user.pass_type else [] %}{% if passes|length == 2 %}{{ passes[0] }} & {{ passes[1] }}{% elif passes|length > 2 %}{{ passes|join(', ') }}{% elif passes|length == 1 %}{{ passes[0] }}{% else %}No pass selected{% endif %}{% if user.skill_level %} · {{ user.skill_level }}{% endif %}
                 </p>
                 
-                <!-- Equipment (collapsible) -->
-                {% if user.gear and user.gear != 'None' %}
-                {% set gear_parts = user.gear.split(', ') if user.gear else [] %}
+                <!-- Equipment (collapsible, sport-aware) -->
+                {% set eq = primary_equipment if (primary_equipment and (primary_equipment.brand or primary_equipment.boot_brand)) else (secondary_equipment if (secondary_equipment and (secondary_equipment.brand or secondary_equipment.boot_brand)) else none) %}
+                {% if eq and (eq.brand or eq.boot_brand) %}
+                {% set discipline_val = eq.discipline.value if eq.discipline else 'skier' %}
+                {% set is_skier = discipline_val == 'skier' %}
+                {% set sport_label = 'Skis' if is_skier else 'Board' %}
                 <div class="equipment-row" onclick="toggleEquipment()">
-                    <span style="color: var(--bl-color-text-muted);">Equipment:</span>
-                    <span id="equipment-collapsed">{% for part in gear_parts %}{{ part.split(' ')[0] }}{% if not loop.last %} · {% endif %}{% endfor %}</span>
-                    <span id="equipment-expanded" style="display: none;">{{ user.gear }}</span>
+                    <span id="equipment-collapsed">{% if eq.brand %}{{ sport_label }}: {{ eq.brand }}{% endif %}{% if eq.boot_brand %}{% if eq.brand %} · {% endif %}Boots: {{ eq.boot_brand }}{% endif %}</span>
+                    <span id="equipment-expanded" style="display: none;">{% if eq.brand %}{{ sport_label }}: {{ eq.brand }}{% if eq.length_cm %} {{ eq.length_cm }}cm{% endif %}{% endif %}{% if eq.boot_brand %}<br>Boots: {{ eq.boot_brand }}{% if eq.boot_flex %} {{ eq.boot_flex }}{% endif %}{% endif %}</span>
                 </div>
                 {% elif user.rider_type %}
                 <div class="equipment-row">
-                    <span style="color: var(--bl-color-text-muted);">Equipment:</span>
                     <a href="{{ url_for('settings_equipment') }}" style="color: var(--bl-color-primary); text-decoration: none;">Add equipment →</a>
                 </div>
                 {% endif %}
