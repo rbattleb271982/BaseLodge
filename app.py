@@ -2151,7 +2151,6 @@ def edit_trip_form(trip_id):
             current_user.home_mountain = resort.name
         
         db.session.commit()
-        flash("Trip updated.", "trip")
         return redirect(url_for("my_trips"))
 
     # GET
