@@ -1486,6 +1486,7 @@ def home():
                         # Get resort info from my trip (or friend's trip if mine doesn't have it)
                         resort = my.resort or friend_trip.resort
                         overlaps.append({
+                            "my_trip_id": my.id,
                             "friend_name": friend_trip.user.first_name + " " + friend_trip.user.last_name,
                             "friend_first_name": friend_trip.user.first_name,
                             "friend_id": friend_trip.user_id,
@@ -1586,13 +1587,16 @@ def home():
     overlaps_sorted = sorted(overlaps, key=lambda x: x['start_date']) if overlaps else []
     first_overlap = overlaps_sorted[0] if overlaps_sorted else None
     
-    # Countdown to next trip (host or guest)
+    # Countdown to next trip (host or guest) + get next trip object
     next_trip_countdown = None
+    next_trip = None
     all_user_trips = []
+    trip_objects = {}
     
     # Add user's own trips
     for trip in my_trips:
         all_user_trips.append(trip.start_date)
+        trip_objects[trip.start_date] = trip
     
     # Add group trips where user is host
     hosted_trips = GroupTrip.query.filter(
@@ -1601,6 +1605,7 @@ def home():
     ).all()
     for trip in hosted_trips:
         all_user_trips.append(trip.start_date)
+        trip_objects[trip.start_date] = trip
     
     # Add group trips where user is guest (accepted)
     guest_memberships = TripGuest.query.filter(
@@ -1610,6 +1615,7 @@ def home():
     for membership in guest_memberships:
         if membership.trip and membership.trip.start_date >= today:
             all_user_trips.append(membership.trip.start_date)
+            trip_objects[membership.trip.start_date] = membership.trip
     
     if all_user_trips:
         next_trip_date = min(all_user_trips)
@@ -1620,6 +1626,7 @@ def home():
             next_trip_countdown = "Your next trip starts in 1 day"
         else:
             next_trip_countdown = f"Your next trip starts in {days_until} days"
+        next_trip = trip_objects.get(next_trip_date)
     
     # Availability match nudge
     availability_nudge = None
@@ -1671,6 +1678,7 @@ def home():
         primary_equipment=primary_equipment,
         secondary_equipment=secondary_equipment,
         next_trip_countdown=next_trip_countdown,
+        next_trip=next_trip,
         availability_nudge=availability_nudge
     )
 

@@ -11,6 +11,20 @@
             background: var(--bl-color-border-soft);
             margin: 12px 16px;
         }
+        .next-trip-line {
+            font-size: 0.9rem;
+            color: var(--bl-color-text-muted);
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        .next-trip-line-primary {
+            font-weight: 600;
+            color: var(--bl-color-text);
+        }
+        .next-trip-line-secondary {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+        }
         .identity-line {
             font-size: 0.9rem;
             color: var(--bl-color-text-muted);
@@ -46,6 +60,28 @@
         .friends-callout:hover {
             color: var(--bl-color-primary);
         }
+        .availability-card {
+            background: rgba(143, 1, 27, 0.06);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .availability-card:hover {
+            background: rgba(143, 1, 27, 0.1);
+        }
+        .availability-card-text {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            margin: 0 0 4px 0;
+        }
+        .availability-card-cta {
+            font-size: 0.85rem;
+            color: var(--bl-color-primary);
+            margin: 0;
+        }
         .trip-card-line1 {
             font-size: 0.9rem;
             font-weight: 600;
@@ -57,25 +93,29 @@
             color: var(--bl-color-text-muted);
             margin: 0;
         }
+        .trip-card-full {
+            cursor: pointer;
+        }
+        .empty-state-container {
+            text-align: center;
+            padding: 24px 16px;
+        }
+        .empty-state-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            margin: 0 0 8px 0;
+        }
+        .empty-state-desc {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 16px 0;
+        }
     </style>
 </head>
 <body>
     <div class="page-container" style="padding: 16px 16px 88px;">
         <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
-        
-        {% if next_trip_countdown %}
-        <p style="font-size: 15px; color: var(--bl-color-text-muted); margin: 0 0 16px 0;">{{ next_trip_countdown }}</p>
-        {% endif %}
-        
-        {% if availability_nudge %}
-        <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(143, 1, 27, 0.06); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;">
-            <a href="{{ url_for('friend_profile', friend_id=availability_nudge.friend_id) }}" style="font-size: 14px; color: var(--bl-color-text); text-decoration: none; flex: 1;">{{ availability_nudge.text }}</a>
-            <form method="POST" action="{{ url_for('dismiss_nudge') }}" style="margin: 0;">
-                <input type="hidden" name="date" value="{{ availability_nudge.date }}">
-                <button type="submit" style="background: none; border: none; color: var(--bl-color-text-muted); font-size: 18px; cursor: pointer; padding: 4px 8px;">×</button>
-            </form>
-        </div>
-        {% endif %}
         
         <div class="bl-card" style="margin-bottom: 16px; padding: 0;">
             <!-- Identity section -->
@@ -83,6 +123,22 @@
                 <h1 class="bl-card-section-title" style="margin-bottom: 8px;">
                     Welcome, {{ user.first_name }}
                 </h1>
+                
+                <!-- Next trip inside profile card (2 lines, tappable) -->
+                {% if next_trip_countdown and next_trip %}
+                <a href="{{ url_for('edit_trip_form', trip_id=next_trip.id) }}" style="text-decoration: none; color: inherit;">
+                    <div class="next-trip-line">
+                        <div class="next-trip-line-primary">{{ next_trip_countdown }}</div>
+                        <div class="next-trip-line-secondary">
+                            {% if next_trip.resort %}
+                                {{ next_trip.resort.name }}, {{ next_trip.resort.state }}
+                            {% else %}
+                                {{ next_trip.mountain }}, {{ next_trip.state }}
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% endif %}
                 
                 <!-- Compressed identity line -->
                 <p class="identity-line">
@@ -138,6 +194,18 @@
             </div>
         </div>
         
+        <!-- Availability Card (only show if overlaps exist) -->
+        {% if overlaps and overlaps|length > 0 %}
+        <a href="{{ url_for('home') }}?tab=open" style="text-decoration: none; color: inherit;">
+            <div class="availability-card">
+                <p class="availability-card-text">
+                    You and {{ overlaps|length }} friend{% if overlaps|length != 1 %}s{% endif %} are free {{ overlaps[0].start_date.strftime('%b %d') }}
+                </p>
+                <p class="availability-card-cta">See availability →</p>
+            </div>
+        </a>
+        {% endif %}
+        
         {% if (user.pass_type is none or user.pass_type == "") and not session.get('pass_prompt_skipped') %}
         <div class="bl-onboarding-card">
             <div class="bl-onboarding-header">
@@ -156,12 +224,6 @@
         </div>
         {% endif %}
         
-        {% if first_overlap %}
-        <a href="{{ url_for('home') }}?tab=overlaps" class="overlap-highlight" style="display: block; background: rgba(143, 1, 27, 0.06); border-radius: 10px; padding: 14px 16px; margin-top: 16px; text-decoration: none; color: var(--bl-color-text);">
-            <p style="font-size: 14px; margin: 0;">You and {{ first_overlap.friend_first_name }} at {{ first_overlap.mountain }} · {{ first_overlap.start_date.strftime('%b %d') }}{% if first_overlap.start_date != first_overlap.end_date %}–{{ first_overlap.end_date.strftime('%b %d') }}{% endif %}{% if overlaps|length > 1 %} <span style="color: var(--bl-color-text-muted);">(+{{ overlaps|length - 1 }} more)</span>{% endif %}</p>
-        </a>
-        {% endif %}
-        
         {% set active_tab = request.args.get('tab', 'my') %}
         <div style="margin-top:16px;margin-bottom:12px;">
             <div class="bl-tabs-wrapper">
@@ -172,23 +234,29 @@
             </div>
         </div>
         
+        <!-- My Trips Tab -->
         <div id="tab-my" class="bl-trip-list" {% if active_tab != 'my' %}style="display: none;"{% endif %}>
             {% if my_trips %}
                 {% for trip in my_trips %}
-                <div class="bl-trip-card" style="flex-direction: row; align-items: center;">
-                    <div style="flex: 1;">
-                        <p class="trip-card-line1">
-                            {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d') }} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}
-                        </p>
-                        <p class="trip-card-line2">
-                            Pass: {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer a ride{% elif trip.ride_intent == 'need_ride' %} · Needs a ride{% endif %}{% if trip.friends_can_ski and trip.friends_can_ski > 0 %} · {{ trip.friends_can_ski }} friend{% if trip.friends_can_ski != 1 %}s{% endif %} can ski here{% endif %}
-                        </p>
+                <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                    <div class="bl-trip-card trip-card-full" style="flex-direction: row; align-items: center;">
+                        <div style="flex: 1;">
+                            <p class="trip-card-line1">
+                                {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d') }} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}
+                            </p>
+                            <p class="trip-card-line2">
+                                Pass: {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer a ride{% elif trip.ride_intent == 'need_ride' %} · Needs a ride{% endif %}{% if trip.friends_can_ski and trip.friends_can_ski > 0 %} · {{ trip.friends_can_ski }} friend{% if trip.friends_can_ski != 1 %}s{% endif %} can ski here{% endif %}
+                            </p>
+                        </div>
+                        <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="bl-trip-edit">Edit</a>
                     </div>
-                    <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="bl-trip-edit">Edit</a>
-                </div>
+                </a>
                 {% endfor %}
             {% else %}
-                <p class="bl-text-muted">{{ get_seasonal_empty_state('trip') }}</p>
+                <div class="empty-state-container">
+                    <p class="empty-state-title">You don't have any trips yet.</p>
+                    <p class="empty-state-desc">Add a trip to start planning with friends.</p>
+                </div>
             {% endif %}
             
             <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none; margin-top: 16px;">
@@ -196,46 +264,57 @@
             </a>
         </div>
         
+        <!-- Friends' Trips Tab -->
         <div id="tab-friends" class="bl-trip-list" {% if active_tab != 'friends' %}style="display: none;"{% endif %}>
             {% if friend_trips %}
                 {% for trip in friend_trips %}
-                <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                    <div class="bl-trip-card" style="cursor: pointer; flex-direction: row; align-items: center;">
+                <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                    <div class="bl-trip-card trip-card-full" style="flex-direction: row; align-items: center;">
                         <div style="flex: 1;">
                             <p class="trip-card-line1">
-                                {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d') }} · {{ trip.user.first_name }} @ {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}
+                                {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d') }} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}
                             </p>
                             <p class="trip-card-line2">
-                                Pass: {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer a ride{% elif trip.ride_intent == 'need_ride' %} · Needs a ride{% endif %}
+                                {{ trip.user.first_name }} · {{ normalize_rider_type(trip.user.rider_type) or 'Rider' }} · Pass: {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer a ride{% elif trip.ride_intent == 'need_ride' %} · Needs a ride{% endif %}
                             </p>
                         </div>
                     </div>
                 </a>
                 {% endfor %}
             {% else %}
-                <p class="bl-text-muted">Your friends don't have any upcoming trips yet.</p>
+                <div class="empty-state-container">
+                    <p class="empty-state-title">Your friends don't have any upcoming trips yet.</p>
+                    <p class="empty-state-desc">Invite friends or check back soon.</p>
+                </div>
             {% endif %}
         </div>
         
+        <!-- Trip Overlaps Tab -->
         <div id="tab-overlaps" class="bl-trip-list" {% if active_tab != 'overlaps' %}style="display: none;"{% endif %}>
             {% if overlaps and overlaps|length > 0 %}
                 {% for o in overlaps %}
-                <div class="bl-trip-card" style="flex-direction: row; align-items: center;">
-                    <div style="flex: 1;">
-                        <p class="trip-card-line1">
-                            {{ o.start_date.strftime('%b %d') }} – {{ o.end_date.strftime('%b %d') }} · <a href="{{ url_for('friend_profile', friend_id=o.friend_id) }}" style="text-decoration: none; color: inherit;">{{ o.friend_name }}</a> @ {{ o.mountain }}, {{ o.state }}
-                        </p>
-                        <p class="trip-card-line2">
-                            Pass: {{ o.brand or 'Other' }}
-                        </p>
+                <a href="{{ url_for('edit_trip_form', trip_id=o.my_trip_id) }}" style="text-decoration: none; color: inherit;">
+                    <div class="bl-trip-card trip-card-full" style="flex-direction: row; align-items: center;">
+                        <div style="flex: 1;">
+                            <p class="trip-card-line1">
+                                {{ o.start_date.strftime('%b %d') }} – {{ o.end_date.strftime('%b %d') }} · {{ o.mountain }}, {{ o.state }}
+                            </p>
+                            <p class="trip-card-line2">
+                                {{ o.friend_first_name }} · Pass: {{ o.brand or 'Other' }}
+                            </p>
+                        </div>
                     </div>
-                </div>
+                </a>
                 {% endfor %}
             {% else %}
-                <p class="bl-text-muted">You don't overlap with any friends on trips.</p>
+                <div class="empty-state-container">
+                    <p class="empty-state-title">No overlapping trips yet.</p>
+                    <p class="empty-state-desc">When you and friends plan trips on the same dates, they'll show up here.</p>
+                </div>
             {% endif %}
         </div>
         
+        <!-- Open Availability Tab -->
         <div id="tab-open" class="bl-trip-list" {% if active_tab != 'open' %}style="display: none;"{% endif %}>
             {% if open_date_matches and open_date_matches|length > 0 %}
             <div style="background: linear-gradient(135deg, rgba(143, 1, 27, 0.08), rgba(143, 1, 27, 0.04)); border: 1px solid rgba(143, 1, 27, 0.2); border-radius: 12px; padding: 14px; margin-bottom: 16px;">
@@ -319,21 +398,16 @@
                     <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">You'll be able to suggest a trip here soon.</p>
                 </div>
             {% elif user_open_dates and user_open_dates|length > 0 %}
-                <div class="bl-card" style="padding: 14px; text-align: center;">
-                    <p style="font-size: 0.9rem; font-weight: 500; margin: 0 0 12px 0;">No friends are open on these dates yet.</p>
-                    <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0 0 16px 0;">Try adding more dates or inviting friends.</p>
-                    <div style="display: flex; gap: 10px; flex-direction: column;">
-                        <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="text-decoration: none; text-align: center; padding: 10px;">Edit open dates</a>
-                        <a href="{{ url_for('invite') }}" class="bl-btn-text" style="text-decoration: none; text-align: center; padding: 10px;">Invite friends</a>
-                    </div>
+                <div class="empty-state-container">
+                    <p class="empty-state-title">No friends are open on these dates yet.</p>
+                    <p class="empty-state-desc">Try adding more dates or inviting friends.</p>
+                    <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="text-decoration: none; text-align: center; display: inline-block; margin: 8px 0;">Edit open dates</a>
                 </div>
             {% else %}
-                <div class="bl-card" style="padding: 14px; text-align: center;">
-                    <p style="font-size: 0.9rem; font-weight: 500; margin: 0 0 12px 0;">Add open dates to see when friends are available to ski.</p>
-                    <div style="display: flex; gap: 10px; flex-direction: column;">
-                        <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="text-decoration: none; text-align: center; padding: 10px;">Edit open dates</a>
-                        <a href="{{ url_for('invite') }}" class="bl-btn-text" style="text-decoration: none; text-align: center; padding: 10px;">Invite friends</a>
-                    </div>
+                <div class="empty-state-container">
+                    <p class="empty-state-title">You haven't opened your availability yet.</p>
+                    <p class="empty-state-desc">Turn it on to let friends know when you're free to ski.</p>
+                    <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="text-decoration: none; text-align: center; display: inline-block; margin: 8px 0;">Open availability</a>
                 </div>
             {% endif %}
         </div>
