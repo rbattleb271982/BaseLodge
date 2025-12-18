@@ -1659,6 +1659,46 @@ def home():
                     'friend_id': top_friend['id']
                 }
     
+    # Shared Interest calculation
+    shared_interests = []
+    user_wish_list = user.wish_list_resorts or []
+    
+    if user_wish_list:
+        # Get all users who have any of the same resorts on their wishlist
+        all_users = User.query.filter(User.id != user.id).all()
+        
+        # Count how many users have each resort on their wishlist
+        resort_counts = {}
+        for resort_id in user_wish_list:
+            count = 0
+            for other_user in all_users:
+                other_wish_list = other_user.wish_list_resorts or []
+                if resort_id in other_wish_list:
+                    count += 1
+            if count > 0:  # At least 1 other user has this resort
+                resort_counts[resort_id] = count
+        
+        # Get resort details and sort by count (desc), then by user's add order (desc)
+        if resort_counts:
+            for resort_id in user_wish_list:
+                if resort_id in resort_counts:
+                    resort = Resort.query.get(resort_id)
+                    if resort:
+                        # Get country display name
+                        country_names = {'US': 'USA', 'CA': 'Canada', 'JP': 'Japan', 
+                                        'FR': 'France', 'CH': 'Switzerland', 'AT': 'Austria', 'IT': 'Italy'}
+                        country_display = country_names.get(resort.country, resort.country)
+                        
+                        shared_interests.append({
+                            'resort_id': resort_id,
+                            'name': resort.name,
+                            'country': country_display,
+                            'count': resort_counts[resort_id]
+                        })
+            
+            # Sort by count (desc) - user's add order is preserved as secondary
+            shared_interests.sort(key=lambda x: -x['count'])
+    
     return render_template(
         'home.html',
         user=user,
@@ -1679,7 +1719,8 @@ def home():
         secondary_equipment=secondary_equipment,
         next_trip_countdown=next_trip_countdown,
         next_trip=next_trip,
-        availability_nudge=availability_nudge
+        availability_nudge=availability_nudge,
+        shared_interests=shared_interests
     )
 
 @app.route("/dismiss-nudge", methods=["POST"])

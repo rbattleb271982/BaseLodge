@@ -32,7 +32,8 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **Navigation:** A consistent 4-tab bottom navigation (Home, Friends, Invite, Settings) using iOS-style stroked SVG icons.
 - **Open Dates:** Users can mark available ski dates using a calendar for matching with friends' availability.
 - **Multi-Pass Support:** `Resort` model includes `pass_brands` for multiple affiliations.
-- **International Resort Support (Dec 2025):** Resort model includes `country` column (ISO-2 codes: US, CA, FR, etc.). All 118 existing resorts backfilled with 'US'. Ready for Canadian resort imports.
+- **International Resort Support (Dec 2025):** Resort model includes `country` column (ISO-2 codes). 147 resorts total: 103 US, 21 Canada, 6 Japan, 17 Europe (FR/CH/AT/IT). State column expanded to VARCHAR(50) for international region names.
+- **Shared Interest Discovery (Dec 2025):** Home screen shows "Shared Interest" card when user and others have the same resorts on their wishlist. Collapsible card shows top destination with count, expands to show up to 5 shared destinations sorted by overlap count.
 - **Social Trip Models (`GroupTrip`):** Supports multi-user trips with host invitations, guest acceptance/leaving, and host-managed guest removal. Integrates `TripGuest` and `EquipmentSetup` models.
 - **Equipment Management:** Users can add/edit Primary and Secondary equipment setups (Discipline, Brand, Length, Width, Binding Type, Boot Brand, Boot Flex) via a dedicated settings page. Primary equipment supports optional `purchase_year` field displayed as "Bought: YYYY" on own profile only.
 - **Accommodation & Transportation Status:** Hosts can update accommodation and transportation statuses for group trips.

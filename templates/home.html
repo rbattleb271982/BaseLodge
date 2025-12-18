@@ -111,6 +111,52 @@
             color: var(--bl-color-text-muted);
             margin: 0 0 16px 0;
         }
+        .shared-interest-card {
+            background: var(--bl-color-surface);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            border: 1px solid var(--bl-color-border-soft);
+            transition: background-color 0.2s ease;
+        }
+        .shared-interest-card:hover {
+            background: var(--bl-color-background);
+        }
+        .shared-interest-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--bl-color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 6px 0;
+        }
+        .shared-interest-text {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            margin: 0 0 4px 0;
+        }
+        .shared-interest-more {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+        }
+        .shared-interest-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .shared-interest-list li {
+            font-size: 0.9rem;
+            color: var(--bl-color-text);
+            padding: 8px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+        .shared-interest-list li:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
     </style>
 </head>
 <body>
@@ -204,6 +250,27 @@
                 <p class="availability-card-cta">See availability →</p>
             </div>
         </a>
+        {% endif %}
+        
+        <!-- Shared Interest Card (only show if user has shared interests) -->
+        {% if shared_interests and shared_interests|length > 0 %}
+        <div class="shared-interest-card" id="shared-interest-card" onclick="toggleSharedInterests()">
+            <div class="shared-interest-collapsed" id="shared-interest-collapsed">
+                <p class="shared-interest-label">Shared Interest</p>
+                <p class="shared-interest-text">You and {{ shared_interests[0].count }} other{% if shared_interests[0].count != 1 %}s{% endif %} are interested in {{ shared_interests[0].name }}</p>
+                {% if shared_interests|length > 1 %}
+                <p class="shared-interest-more">+ {{ shared_interests|length - 1 }} more destination{% if shared_interests|length - 1 != 1 %}s{% endif %}</p>
+                {% endif %}
+            </div>
+            <div class="shared-interest-expanded" id="shared-interest-expanded" style="display: none;">
+                <p class="shared-interest-label">Shared Interests</p>
+                <ul class="shared-interest-list">
+                    {% for interest in shared_interests[:5] %}
+                    <li>{{ interest.name }} · {{ interest.count }} other{% if interest.count != 1 %}s{% endif %}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
         {% endif %}
         
         {% if (user.pass_type is none or user.pass_type == "") and not session.get('pass_prompt_skipped') %}
@@ -418,6 +485,15 @@
     <script>
         let expandedDayIndex = null;
         let equipmentExpanded = false;
+        let sharedInterestsExpanded = false;
+        
+        function toggleSharedInterests() {
+            const collapsed = document.getElementById('shared-interest-collapsed');
+            const expanded = document.getElementById('shared-interest-expanded');
+            sharedInterestsExpanded = !sharedInterestsExpanded;
+            collapsed.style.display = sharedInterestsExpanded ? 'none' : 'block';
+            expanded.style.display = sharedInterestsExpanded ? 'block' : 'none';
+        }
         
         function toggleEquipment() {
             const collapsed = document.getElementById('equipment-collapsed');
