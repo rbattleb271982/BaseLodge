@@ -33,9 +33,11 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **Open Dates:** Users can mark available ski dates using a calendar for matching with friends' availability.
 - **Multi-Pass Support:** `Resort` model includes `pass_brands` for multiple affiliations.
 - **Social Trip Models (`GroupTrip`):** Supports multi-user trips with host invitations, guest acceptance/leaving, and host-managed guest removal. Integrates `TripGuest` and `EquipmentSetup` models.
-- **Equipment Management:** Users can add/edit Primary and Secondary equipment setups (Discipline, Brand, Length, Width, Binding Type, Boot Brand, Boot Flex) via a dedicated settings page.
+- **Equipment Management:** Users can add/edit Primary and Secondary equipment setups (Discipline, Brand, Length, Width, Binding Type, Boot Brand, Boot Flex) via a dedicated settings page. Primary equipment supports optional `purchase_year` field displayed as "Bought: YYYY" on own profile only.
 - **Accommodation & Transportation Status:** Hosts can update accommodation and transportation statuses for group trips.
 - **Invite Token System:** Single-use invite tokens (`InviteToken` model) enforce one-time usage for friend invitations.
+- **Wish List Destinations:** Users can save up to 3 aspirational resorts via Settings. Displayed on own profile and friend profiles. Friend profiles show "Wish List Overlap" when both users share destination resorts.
+- **Friend Profile Features:** Full-page friend profiles at `/friends/<id>` with header card, equipment display, upcoming trips, pass compatibility badges ("Can ski your upcoming trips"), trip overlaps, availability overlaps, and wish list sections.
 
 ### System Design Choices
 - **Database:** SQLite for development, PostgreSQL for production, managed via SQLAlchemy.
