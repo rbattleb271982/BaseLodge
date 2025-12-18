@@ -917,6 +917,10 @@ def friend_profile(friend_id):
     today = date.today()
     today_str = today.strftime('%Y-%m-%d')
     
+    # Get friend's equipment
+    friend_primary_equipment = EquipmentSetup.query.filter_by(user_id=friend.id, slot=EquipmentSlot.PRIMARY).first()
+    friend_secondary_equipment = EquipmentSetup.query.filter_by(user_id=friend.id, slot=EquipmentSlot.SECONDARY).first()
+    
     # Get friend's trips
     trips = (
         SkiTrip.query
@@ -926,7 +930,7 @@ def friend_profile(friend_id):
         .all()
     )
     
-    # Get current user's trips (for overlap detection)
+    # Get current user's trips (for overlap detection and pass compatibility)
     user_trips = (
         SkiTrip.query
         .filter_by(user_id=user.id)
@@ -934,13 +938,36 @@ def friend_profile(friend_id):
         .all()
     )
     
-    # Mark trip overlaps (same mountain + date overlap)
+    # Build trip overlaps list for display
+    trip_overlaps = []
     for trip in trips:
         trip.has_trip_overlap = False
         for user_trip in user_trips:
             if trip.mountain == user_trip.mountain:
                 if date_ranges_overlap(trip.start_date, trip.end_date, user_trip.start_date, user_trip.end_date):
                     trip.has_trip_overlap = True
+                    overlap_start = max(trip.start_date, user_trip.start_date)
+                    overlap_end = min(trip.end_date, user_trip.end_date)
+                    resort = trip.resort or user_trip.resort
+                    trip_overlaps.append({
+                        "mountain": resort.name if resort else trip.mountain,
+                        "state": resort.state if resort else trip.state,
+                        "start_date": overlap_start,
+                        "end_date": overlap_end
+                    })
+                    break
+    
+    # Check pass compatibility - can friend ski at user's upcoming trips?
+    friend_passes = set(p.strip() for p in friend.pass_type.split(',')) if friend.pass_type else set()
+    can_ski_user_trips = False
+    for user_trip in user_trips:
+        if user_trip.resort:
+            # Use pass_brands if available, fallback to brand
+            resort_pass_str = user_trip.resort.pass_brands or user_trip.resort.brand
+            if resort_pass_str:
+                resort_passes = set(p.strip() for p in resort_pass_str.split(','))
+                if friend_passes & resort_passes:
+                    can_ski_user_trips = True
                     break
     
     # Get friend's open dates from JSON field (filter to future dates only)
@@ -966,12 +993,16 @@ def friend_profile(friend_id):
         friend_mountains_count=friend_mountains_count,
         friend_mountains=friend_mountains_sorted,
         trips=trips,
+        trip_overlaps=trip_overlaps,
         friend_open_dates=friend_open_dates,
         friend_open_dates_display=friend_open_dates_display,
         has_availability_overlap=len(availability_overlaps) > 0,
         availability_display=availability_display,
         availability_remaining=availability_remaining,
-        show_connect_button=show_connect_button
+        show_connect_button=show_connect_button,
+        friend_primary_equipment=friend_primary_equipment,
+        friend_secondary_equipment=friend_secondary_equipment,
+        can_ski_user_trips=can_ski_user_trips
     )
 
 @app.route("/profile/<int:user_id>")
@@ -1293,6 +1324,7 @@ def home():
                         resort = my.resort or friend_trip.resort
                         overlaps.append({
                             "friend_name": friend_trip.user.first_name + " " + friend_trip.user.last_name,
+                            "friend_first_name": friend_trip.user.first_name,
                             "friend_id": friend_trip.user_id,
                             "mountain": resort.name if resort else my.mountain,
                             "state": resort.state if resort else my.state,
@@ -1300,6 +1332,21 @@ def home():
                             "start_date": max(my.start_date, friend_trip.start_date),
                             "end_date": min(my.end_date, friend_trip.end_date)
                         })
+    
+    # Calculate friends who can ski at each of user's trips (pass compatibility)
+    friends_data = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
+    for trip in my_trips:
+        trip.friends_can_ski = 0
+        if trip.resort:
+            # Use pass_brands if available, fallback to brand
+            resort_pass_str = trip.resort.pass_brands or trip.resort.brand
+            if resort_pass_str:
+                resort_passes = set(p.strip() for p in resort_pass_str.split(','))
+                for friend in friends_data:
+                    if friend.pass_type:
+                        friend_passes = set(p.strip() for p in friend.pass_type.split(','))
+                        if friend_passes & resort_passes:
+                            trip.friends_can_ski += 1
     
     # Open dates from JSON field (list of YYYY-MM-DD strings)
     my_open_dates = set(user.open_dates or [])
@@ -1372,6 +1419,10 @@ def home():
     primary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.PRIMARY).first()
     secondary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.SECONDARY).first()
     
+    # Sort overlaps by start date and get first for highlight
+    overlaps_sorted = sorted(overlaps, key=lambda x: x['start_date']) if overlaps else []
+    first_overlap = overlaps_sorted[0] if overlaps_sorted else None
+    
     return render_template(
         'home.html',
         user=user,
@@ -1379,7 +1430,8 @@ def home():
         my_trips=my_trips,
         friend_trips=friend_trips,
         all_trips=all_trips,
-        overlaps=overlaps,
+        overlaps=overlaps_sorted,
+        first_overlap=first_overlap,
         open_date_matches=open_date_matches,
         user_open_dates=sorted(my_open_dates) if my_open_dates else [],
         user_open_dates_display=user_open_dates_display,

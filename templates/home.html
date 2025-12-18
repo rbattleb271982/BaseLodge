@@ -142,6 +142,12 @@
         </div>
         {% endif %}
         
+        {% if first_overlap %}
+        <a href="{{ url_for('home') }}?tab=overlaps" class="overlap-highlight" style="display: block; background: rgba(143, 1, 27, 0.06); border-radius: 10px; padding: 14px 16px; margin-top: 16px; text-decoration: none; color: var(--bl-color-text);">
+            <p style="font-size: 14px; margin: 0;">You and {{ first_overlap.friend_first_name }} at {{ first_overlap.mountain }} · {{ first_overlap.start_date.strftime('%b %d') }}{% if first_overlap.start_date != first_overlap.end_date %}–{{ first_overlap.end_date.strftime('%b %d') }}{% endif %}{% if overlaps|length > 1 %} <span style="color: var(--bl-color-text-muted);">(+{{ overlaps|length - 1 }} more)</span>{% endif %}</p>
+        </a>
+        {% endif %}
+        
         {% set active_tab = request.args.get('tab', 'my') %}
         <div style="margin-top:16px;margin-bottom:12px;">
             <div class="bl-tabs-wrapper">
@@ -161,7 +167,7 @@
                             {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d') }} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}
                         </p>
                         <p class="trip-card-line2">
-                            Pass: {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer a ride{% elif trip.ride_intent == 'need_ride' %} · Needs a ride{% endif %}
+                            Pass: {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer a ride{% elif trip.ride_intent == 'need_ride' %} · Needs a ride{% endif %}{% if trip.friends_can_ski and trip.friends_can_ski > 0 %} · {{ trip.friends_can_ski }} friend{% if trip.friends_can_ski != 1 %}s{% endif %} can ski here{% endif %}
                         </p>
                     </div>
                     <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="bl-trip-edit">Edit</a>
