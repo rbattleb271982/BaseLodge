@@ -41,50 +41,17 @@
             margin-bottom: var(--bl-space-4);
         }
 
-        .trip-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .trip-card {
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: var(--bl-radius-lg);
-            padding: var(--bl-space-5);
-            margin-bottom: var(--bl-space-4);
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: var(--bl-space-4);
-        }
-
-        .trip-main {
-            flex: 1;
-        }
-
-        .trip-mountain {
-            font-size: 16px;
+        .trip-card-line1 {
+            font-size: 0.9rem;
             font-weight: 600;
             color: var(--bl-color-text);
-            margin-bottom: var(--bl-space-2);
+            margin: 0 0 4px 0;
         }
 
-        .trip-location {
-            font-size: 14px;
+        .trip-card-line2 {
+            font-size: 0.85rem;
             color: var(--bl-color-text-muted);
-            margin-bottom: var(--bl-space-2);
-        }
-
-        .trip-dates {
-            font-size: 14px;
-            color: var(--bl-color-text);
-            margin-bottom: var(--bl-space-2);
-        }
-
-        .trip-visibility {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
+            margin: 0;
         }
 
         .trip-actions {
@@ -102,20 +69,6 @@
         }
 
         .trip-action-link:active {
-            opacity: 0.7;
-        }
-
-        .trip-delete-button {
-            font-size: 14px;
-            color: #D00;
-            background: none;
-            border: none;
-            padding: var(--bl-space-2) var(--bl-space-3);
-            cursor: pointer;
-            font-weight: 500;
-        }
-
-        .trip-delete-button:active {
             opacity: 0.7;
         }
 
@@ -139,17 +92,13 @@
             {% if upcoming_trips %}
                 <div style="display: flex; flex-direction: column; gap: 10px;">
                     {% for trip in upcoming_trips %}
-                    <div class="bl-trip-card">
+                    <div class="bl-trip-card" style="flex-direction: row; align-items: center;">
                         <div style="flex: 1;">
-                            <p style="font-size: 0.9rem; font-weight: 500; margin: 0;">
-                                <strong>{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }}</strong> — 
-                                {% if trip.resort %}
-                                    {{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}
-                                {% else %}
-                                    {{ trip.mountain }} {{ trip.state }}, No Pass
-                                {% endif %}
-                                {% if trip.ride_intent == 'can_offer' %}<span style="margin-left: 8px;">🚗</span>{% endif %}
-                                {% if trip.ride_intent == 'need_ride' %}<span style="margin-left: 8px;">🙋</span>{% endif %}
+                            <p class="trip-card-line1">
+                                {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d') }} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}
+                            </p>
+                            <p class="trip-card-line2">
+                                Pass: {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer a ride{% elif trip.ride_intent == 'need_ride' %} · Needs a ride{% endif %}
                             </p>
                         </div>
                         <div class="trip-actions">

@@ -5,64 +5,110 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Base Lodge - Home</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .profile-divider {
+            height: 1px;
+            background: var(--bl-color-border-soft);
+            margin: 12px 16px;
+        }
+        .identity-line {
+            font-size: 0.9rem;
+            color: var(--bl-color-text-muted);
+            margin-bottom: 8px;
+        }
+        .equipment-row {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            cursor: pointer;
+            margin-bottom: 0;
+        }
+        .equipment-row:hover {
+            color: var(--bl-color-text);
+        }
+        .stats-row {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            text-decoration: none;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .stats-row:hover {
+            color: var(--bl-color-primary);
+        }
+        .friends-callout {
+            font-size: 0.8rem;
+            color: var(--bl-color-text-muted);
+            text-decoration: none;
+            display: block;
+            margin-top: 8px;
+        }
+        .friends-callout:hover {
+            color: var(--bl-color-primary);
+        }
+        .trip-card-line1 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 4px 0;
+        }
+        .trip-card-line2 {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+        }
+    </style>
 </head>
 <body>
     <div class="page-container" style="padding: 16px 16px 88px;">
         <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
         
-        <div class="bl-card" style="margin-bottom: 16px;">
-            <h1 class="bl-card-section-title">
-                Welcome, {{ user.first_name }} 👋
-            </h1>
-            <div style="display:flex;flex-wrap:wrap;gap:6px 10px;font-size:0.95rem;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bl-color-border-soft);color:var(--bl-color-text);">
-                <span>{{ normalize_rider_type(user.rider_type) or 'Rider' }}</span>
-                <span>•</span>
-                <span>{{ user.pass_type or 'No pass selected' }}</span>
-                {% if user.skill_level or user.home_mountain %}
-                    <span>•</span>
-                {% endif %}
-                {% if user.skill_level %}
-                    <span>{{ user.skill_level }}</span>
-                {% elif user.home_mountain %}
-                    <span>{{ user.home_mountain }}</span>
-                {% else %}
-                    <span>•</span>
-                    <a href="{{ url_for('more') }}" style="text-decoration: none; color: var(--bl-color-text-muted); cursor: pointer; border-bottom: 1px dotted var(--bl-color-text-muted); transition: color 0.2s ease;" onmouseover="this.style.color='var(--bl-color-primary)'" onmouseout="this.style.color='var(--bl-color-text-muted)'">Skill level TBD →</a>
-                {% endif %}
-            </div>
-            {% if user.gear and user.gear != 'None' %}
-            <div style="font-size:0.9rem;margin-bottom:10px;color:var(--bl-color-text);">
-                <span style="color:var(--bl-color-text-muted);">Equipment:</span>
-                <span>{{ user.gear }}</span>
-            </div>
-            {% elif user.rider_type %}
-            <div style="margin-bottom:10px;">
-                <a href="{{ url_for('settings_equipment') }}" style="font-size:0.9rem;text-decoration:none;color:var(--bl-color-primary);font-weight:500;">+ Add Equipment</a>
-            </div>
-            {% endif %}
-            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-                <p style="font-size:0.9rem;font-weight:500;margin:0;">
-                    {{ upcoming_trips|length }} upcoming trip{% if upcoming_trips|length != 1 %}s{% endif %}
+        <div class="bl-card" style="margin-bottom: 16px; padding: 0;">
+            <!-- Identity section -->
+            <div style="padding: 16px 16px 0;">
+                <h1 class="bl-card-section-title" style="margin-bottom: 8px;">
+                    Welcome, {{ user.first_name }}
+                </h1>
+                
+                <!-- Compressed identity line -->
+                <p class="identity-line">
+                    {{ normalize_rider_type(user.rider_type) or 'Rider' }} · {% set passes = user.pass_type.split(',') if user.pass_type else [] %}{% if passes|length == 2 %}{{ passes[0] }} & {{ passes[1] }}{% elif passes|length > 2 %}{{ passes|join(', ') }}{% elif passes|length == 1 %}{{ passes[0] }}{% else %}No pass selected{% endif %}{% if user.skill_level %} · {{ user.skill_level }}{% endif %}
                 </p>
-                {% if user_mountains and user_mountains|length > 0 %}
-                <button onclick="toggleMountainsList()" style="background: none; border: none; font-size:0.9rem;font-weight:500;color:var(--bl-color-primary);cursor:pointer;padding:0;text-decoration:underline;text-decoration-style:dotted;">
-                    {{ user_mountains|length }} mountain{% if user_mountains|length != 1 %}s{% endif %} visited
-                </button>
-                {% else %}
-                <a href="{{ url_for('mountains_visited') }}" style="font-size:0.9rem;font-weight:500;color:var(--bl-color-primary);text-decoration:none;">+ Mountains Visited</a>
+                
+                <!-- Equipment (collapsible) -->
+                {% if user.gear and user.gear != 'None' %}
+                {% set gear_parts = user.gear.split(', ') if user.gear else [] %}
+                <div class="equipment-row" onclick="toggleEquipment()">
+                    <span style="color: var(--bl-color-text-muted);">Equipment:</span>
+                    <span id="equipment-collapsed">{% for part in gear_parts %}{{ part.split(' ')[0] }}{% if not loop.last %} · {% endif %}{% endfor %}</span>
+                    <span id="equipment-expanded" style="display: none;">{{ user.gear }}</span>
+                </div>
+                {% elif user.rider_type %}
+                <div class="equipment-row">
+                    <span style="color: var(--bl-color-text-muted);">Equipment:</span>
+                    <a href="{{ url_for('settings_equipment') }}" style="color: var(--bl-color-primary); text-decoration: none;">Add equipment →</a>
+                </div>
                 {% endif %}
             </div>
             
-            <!-- Social summary line (context-aware) -->
-            {% set active_tab = request.args.get('tab', 'my') %}
-            {% if active_tab == 'open' %}
-                <!-- On Open Availability tab: show non-clickable helper text -->
-                <div style="display: block; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft); color: var(--bl-color-text-muted); font-size: 0.85rem; font-weight: 400;">
+            <!-- Divider -->
+            <div class="profile-divider"></div>
+            
+            <!-- Context section -->
+            <div style="padding: 0 16px 16px;">
+                <!-- Unified stats row -->
+                <a href="{{ url_for('mountains_visited') }}" class="stats-row">
+                    {{ upcoming_trips|length }} trip{% if upcoming_trips|length != 1 %}s{% endif %} · {{ user_mountains|length if user_mountains else 0 }} mountain{% if (user_mountains|length if user_mountains else 0) != 1 %}s{% endif %}
+                </a>
+                
+                <!-- Friends-open callout -->
+                {% set active_tab = request.args.get('tab', 'my') %}
+                {% if active_tab == 'open' %}
+                <div class="friends-callout" style="cursor: default;">
                     Plan a trip with your friends below
                 </div>
-            {% else %}
-                <!-- Not on Open Availability tab: show as clickable link -->
-                <a href="{{ url_for('home') }}?tab=open" style="display: block; text-decoration: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft); color: var(--bl-color-text-muted); font-size: 0.85rem; font-weight: 400; transition: color 0.2s ease;" onmouseover="this.style.color='var(--bl-color-primary)'" onmouseout="this.style.color='var(--bl-color-text-muted)'">
+                {% else %}
+                <a href="{{ url_for('home') }}?tab=open" class="friends-callout">
                     {% if user_has_open_dates %}
                         {% if open_friends_count > 0 %}
                             {{ open_friends_count }} friend{% if open_friends_count != 1 %}s{% endif %} are open to ski on your dates →
@@ -73,17 +119,8 @@
                         Set your open dates to see who can ski with you →
                     {% endif %}
                 </a>
-            {% endif %}
-            
-            <!-- Mountains list (hidden by default) -->
-            {% if user_mountains and user_mountains|length > 0 %}
-            <div id="mountainsList" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft);">
-                <div style="font-size: 0.9rem; line-height: 1.6;">
-                    {% for mountain in user_mountains|sort %}{{ mountain }}{% if not loop.last %}<br>{% endif %}{% endfor %}
-                </div>
-                <a href="{{ url_for('mountains_visited') }}" style="display: block; margin-top: 10px; font-size: 0.85rem; color: var(--bl-color-primary); text-decoration: none;">Edit mountains →</a>
+                {% endif %}
             </div>
-            {% endif %}
         </div>
         
         {% if (user.pass_type is none or user.pass_type == "") and not session.get('pass_prompt_skipped') %}
@@ -117,13 +154,13 @@
         <div id="tab-my" class="bl-trip-list" {% if active_tab != 'my' %}style="display: none;"{% endif %}>
             {% if my_trips %}
                 {% for trip in my_trips %}
-                <div class="bl-trip-card">
+                <div class="bl-trip-card" style="flex-direction: row; align-items: center;">
                     <div style="flex: 1;">
-                        <p style="font-size: 0.9rem; font-weight: 500; margin: 0;">
-                            <strong>{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }}</strong> — 
-                            {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }} {{ trip.state }}, No Pass{% endif %}
-                            {% if trip.ride_intent == 'can_offer' %}<span style="margin-left: 6px;">🚗</span>{% endif %}
-                            {% if trip.ride_intent == 'need_ride' %}<span style="margin-left: 6px;">🙋</span>{% endif %}
+                        <p class="trip-card-line1">
+                            {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d') }} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}
+                        </p>
+                        <p class="trip-card-line2">
+                            Pass: {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer a ride{% elif trip.ride_intent == 'need_ride' %} · Needs a ride{% endif %}
                         </p>
                     </div>
                     <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="bl-trip-edit">Edit</a>
@@ -142,13 +179,13 @@
             {% if friend_trips %}
                 {% for trip in friend_trips %}
                 <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                    <div class="bl-trip-card" style="cursor: pointer;">
+                    <div class="bl-trip-card" style="cursor: pointer; flex-direction: row; align-items: center;">
                         <div style="flex: 1;">
-                            <p style="font-size: 0.9rem; font-weight: 500; margin: 0;">
-                                <strong>{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }}</strong> — 
-                                {{ trip.user.first_name }} @ {% if trip.resort %}{{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.mountain }} {{ trip.state }}, No Pass{% endif %}
-                                {% if trip.ride_intent == 'can_offer' %}<span style="margin-left: 6px;">🚗</span>{% endif %}
-                                {% if trip.ride_intent == 'need_ride' %}<span style="margin-left: 6px;">🙋</span>{% endif %}
+                            <p class="trip-card-line1">
+                                {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d') }} · {{ trip.user.first_name }} @ {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}
+                            </p>
+                            <p class="trip-card-line2">
+                                Pass: {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer a ride{% elif trip.ride_intent == 'need_ride' %} · Needs a ride{% endif %}
                             </p>
                         </div>
                     </div>
@@ -162,12 +199,13 @@
         <div id="tab-overlaps" class="bl-trip-list" {% if active_tab != 'overlaps' %}style="display: none;"{% endif %}>
             {% if overlaps and overlaps|length > 0 %}
                 {% for o in overlaps %}
-                <div class="bl-trip-card">
+                <div class="bl-trip-card" style="flex-direction: row; align-items: center;">
                     <div style="flex: 1;">
-                        <p style="font-size: 0.9rem; font-weight: 500; margin: 0;">
-                            <strong>{{ o.start_date.strftime('%b %d') }}–{{ o.end_date.strftime('%b %d') }}</strong> — 
-                            <a href="{{ url_for('friend_profile', friend_id=o.friend_id) }}" style="text-decoration: none; color: inherit;">{{ o.friend_name }}</a>
-                            @ {{ o.mountain }} {{ o.state }}, {{ o.brand or 'No Pass' }}
+                        <p class="trip-card-line1">
+                            {{ o.start_date.strftime('%b %d') }} – {{ o.end_date.strftime('%b %d') }} · <a href="{{ url_for('friend_profile', friend_id=o.friend_id) }}" style="text-decoration: none; color: inherit;">{{ o.friend_name }}</a> @ {{ o.mountain }}, {{ o.state }}
+                        </p>
+                        <p class="trip-card-line2">
+                            Pass: {{ o.brand or 'Other' }}
                         </p>
                     </div>
                 </div>
@@ -197,7 +235,6 @@
             </div>
             {% endif %}
             
-            <!-- User's open dates summary -->
             {% if user_open_dates and user_open_dates|length > 0 %}
             <a href="{{ url_for('add_open_dates') }}" style="text-decoration: none; color: inherit; display: block; margin-bottom: 16px; padding: 12px; background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; cursor: pointer; transition: background-color 0.2s ease, box-shadow 0.2s ease;" onmouseover="this.style.backgroundColor='var(--bl-color-border-soft)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.04)';" onmouseout="this.style.backgroundColor='var(--bl-color-surface)'; this.style.boxShadow='none';">
                 <p style="font-size: 0.9rem; margin: 0;">
@@ -209,13 +246,11 @@
             </a>
             {% endif %}
             
-            <!-- Day cards with collapsible friend lists -->
             {% if open_date_matches and open_date_matches|length > 0 %}
                 {% for match in open_date_matches %}
                     {% set same_pass_count = match.friends | selectattr('pass_type', 'equalto', user.pass_type) | list | length %}
                     {% set diff_pass_count = match.friends | length - same_pass_count %}
                     <div class="bl-trip-card open-day-card" style="flex-direction: column; align-items: flex-start; padding: 14px; cursor: pointer;" data-day-index="{{ loop.index0 }}" onclick="toggleDay(event, {{ loop.index0 }})">
-                        <!-- Collapsed header (always visible) -->
                         <div class="open-day-header" style="width: 100%; display: flex; justify-content: space-between; align-items: flex-start;">
                             <div style="flex: 1;">
                                 <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 6px 0;">
@@ -233,14 +268,11 @@
                             </div>
                         </div>
                         
-                        <!-- Expanded friend list (hidden by default) -->
                         <div class="open-day-friends" style="display: none; width: 100%; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft);">
                             {% set sorted_friends = match.friends | sort(attribute='name') | list %}
                             {% set same_pass_friends = sorted_friends | selectattr('pass_type', 'equalto', user.pass_type) | list %}
                             {% set diff_pass_friends = sorted_friends | rejectattr('pass_type', 'equalto', user.pass_type) | list %}
                             
-                            <!-- Same pass friends (sorted by skill level desc, then name asc) -->
-                            {% set skill_order = {'Expert': 0, 'Advanced': 1, 'Intermediate': 2} %}
                             {% for friend in same_pass_friends | sort(attribute='name') | sort(attribute='skill_level', reverse=False) %}
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 8px 0;">
                                     <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; font-weight: 500; flex: 1;">{{ friend.name }}</a>
@@ -248,7 +280,6 @@
                                 </div>
                             {% endfor %}
                             
-                            <!-- Different pass friends -->
                             {% for friend in diff_pass_friends | sort(attribute='name') %}
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 8px 0;">
                                     <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; font-weight: 500; flex: 1;">{{ friend.name }}</a>
@@ -256,7 +287,6 @@
                                 </div>
                             {% endfor %}
                             
-                            <!-- Hide button -->
                             <div style="display: flex; justify-content: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft);">
                                 <button onclick="toggleDay(event, {{ loop.index0 }})" style="background: none; border: none; color: var(--bl-color-primary); font-size: 0.85rem; font-weight: 500; cursor: pointer;">Hide</button>
                             </div>
@@ -264,14 +294,10 @@
                     </div>
                 {% endfor %}
                 
-                <!-- TODO: Suggest a trip (future feature)
-                     Will eventually: be inline text (not a button), appear only when matching friends exist,
-                     pre-fill both overlapping dates and matching friends, interaction model to be defined later -->
                 <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--bl-color-border-soft);">
                     <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">You'll be able to suggest a trip here soon.</p>
                 </div>
             {% elif user_open_dates and user_open_dates|length > 0 %}
-                <!-- Empty State B: User has open dates, but no friends match -->
                 <div class="bl-card" style="padding: 14px; text-align: center;">
                     <p style="font-size: 0.9rem; font-weight: 500; margin: 0 0 12px 0;">No friends are open on these dates yet.</p>
                     <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0 0 16px 0;">Try adding more dates or inviting friends.</p>
@@ -281,7 +307,6 @@
                     </div>
                 </div>
             {% else %}
-                <!-- Empty State A: User has no open dates -->
                 <div class="bl-card" style="padding: 14px; text-align: center;">
                     <p style="font-size: 0.9rem; font-weight: 500; margin: 0 0 12px 0;">Add open dates to see when friends are available to ski.</p>
                     <div style="display: flex; gap: 10px; flex-direction: column;">
@@ -290,10 +315,6 @@
                     </div>
                 </div>
             {% endif %}
-            
-            <!-- TODO: Copy refinement (future)
-                 Current terminology is acceptable ("open dates", "friends who are open")
-                 Revisit phrasing once Suggest a Trip becomes functional -->
         </div>
     </div>
     
@@ -301,12 +322,14 @@
     
     <script>
         let expandedDayIndex = null;
-        let mountainsListOpen = false;
+        let equipmentExpanded = false;
         
-        function toggleMountainsList() {
-            const list = document.getElementById('mountainsList');
-            mountainsListOpen = !mountainsListOpen;
-            list.style.display = mountainsListOpen ? 'block' : 'none';
+        function toggleEquipment() {
+            const collapsed = document.getElementById('equipment-collapsed');
+            const expanded = document.getElementById('equipment-expanded');
+            equipmentExpanded = !equipmentExpanded;
+            collapsed.style.display = equipmentExpanded ? 'none' : 'inline';
+            expanded.style.display = equipmentExpanded ? 'inline' : 'none';
         }
         
         function toggleDay(event, dayIndex) {
@@ -315,13 +338,11 @@
             const friendsList = card.querySelector('.open-day-friends');
             const header = card.querySelector('.open-day-header');
             
-            // If already expanded, collapse it
             if (expandedDayIndex === dayIndex) {
                 friendsList.style.display = 'none';
                 header.querySelector('p:last-child').textContent = 'View who\'s open →';
                 expandedDayIndex = null;
             } else {
-                // Collapse any previously expanded day
                 if (expandedDayIndex !== null) {
                     const prevCard = document.querySelector(`[data-day-index="${expandedDayIndex}"]`);
                     const prevFriendsList = prevCard.querySelector('.open-day-friends');
@@ -330,7 +351,6 @@
                     prevHeader.querySelector('p:last-child').textContent = 'View who\'s open →';
                 }
                 
-                // Expand the clicked day
                 friendsList.style.display = 'block';
                 header.querySelector('p:last-child').textContent = 'Hide';
                 expandedDayIndex = dayIndex;
