@@ -100,14 +100,46 @@ Seeded users are excluded from event emission.
 - ✅ profile_completed - When user edits full profile (edit_profile)
 - ✅ trip_created - When user creates a ski trip (create_trip)
 - ✅ connection_created - When user accepts friend invite (_connect_pending_inviter)
-- ⏳ trip_joined - Pending: Need to identify/wire group trip join route
-- ⏳ open_dates_set - Pending: Need to identify/wire open dates route
+- ⏳ trip_joined - Route identified: `/group-trip/<trip_id>/accept` (accept_group_trip_invite)
+- ⏳ open_dates_set - Route identified: `/add-open-dates` POST (add_open_dates)
 
 **Event Emission Implementation:**
 - Helper function `emit_event(event_name, user, payload)` added to app.py
 - Respects is_seeded flag: test users excluded from event emission
 - Stores event_name, user_id, payload, created_at, environment in Event table
 - Ready for Step 7 backfill & Step 8 SendGrid integration
+
+## Step 7 Lifecycle Backfill (Dec 18, 2025)
+
+**Simplified lifecycle model implemented:**
+- **new**: User created, no onboarding milestones
+- **onboarding**: onboarding_completed_at set, but no profile/trip/connection yet
+- **active**: profile_completed_at OR first_trip_created_at OR first_connection_at set
+
+**Backfill Results (non-seeded users):**
+- 75 users backfilled, all remain 'new' (expected: seeded users have no milestones)
+- Real users going forward will populate milestones as they take actions
+- Lifecycle stage auto-updates on event emission via milestone timestamps
+
+**Lifecycle Derivation Logic:**
+- Derived from milestone timestamps (not user-controlled)
+- Excludes seeded users (is_seeded=FALSE filter)
+- Profile completion OR trip creation OR first connection → 'active'
+- Onboarding completion without profile/trip/connection → 'onboarding'
+
+## Remaining Event Routes (Not Yet Wired - Ready for Step 8+)
+
+**trip_joined:**
+- Route: POST `/group-trip/<trip_id>/accept`
+- Handler: `accept_group_trip_invite(trip_id)` at line 3267
+- Trigger: When guest accepts GroupTrip invitation (TripGuest.status = GuestStatus.ACCEPTED)
+- Payload: trip_id, accepted_by_user_id
+
+**open_dates_set:**
+- Route: POST `/add-open-dates`
+- Handler: `add_open_dates()` at line 1960
+- Trigger: When user updates open_dates calendar (User.open_dates updated)
+- Payload: date_count, dates (array of YYYY-MM-DD strings)
 
 ## External Dependencies
 - **Flask:** Python web framework.
