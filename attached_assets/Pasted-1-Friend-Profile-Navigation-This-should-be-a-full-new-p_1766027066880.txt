@@ -1,0 +1,73 @@
+1) Friend Profile Navigation
+This should be a full new page, not a modal or overlay.
+
+Pattern:
+– Push-style navigation to a dedicated route (e.g. /friends/<id> or equivalent)
+– Behaves like a standard detail view
+
+Rationale:
+– Friend profiles are “person moments,” not lightweight previews
+– Modals feel temporary and constrained; this should feel intentional and browsable
+– Supports deep linking and future expansion cleanly
+
+⸻
+
+2) Trip Overlaps location on Home
+Use both, but with clear roles.
+
+– The existing Overlaps tab stays as the full list view
+– Add a single, lightweight highlight callout ABOVE the tabs if overlaps exist
+
+Rules:
+– Highlight shows only the most relevant / next upcoming overlap
+– Example:
+“You’ll both be at Breckenridge · Dec 21–23”
+– Tapping the highlight routes into the existing Overlaps tab
+
+Rationale:
+– The highlight creates awareness (“something social is happening”)
+– The tab remains the place to explore all overlaps
+– This mirrors Airbnb’s “You’re traveling with…” patterns
+
+⸻
+
+3) Pass Compatibility Logic
+Yes — match friend passes to the resort’s associated pass brands.
+
+Logic:
+– Each resort has one or more supported pass brands (Epic, Ikon, etc.)
+– A friend is compatible if any of their passes matches any of the resort’s passes
+
+Example:
+– Resort supports: Epic + Ikon
+– Friend has: Ikon
+→ Compatible
+
+Rules:
+– Simple boolean match (no weighting, no tiers)
+– No partial or inferred compatibility
+– If no match, omit the indicator entirely
+
+⸻
+
+4) Friend Profile – Back Navigation
+Use context-aware back navigation.
+
+Rules:
+– If user came from Friends list → back returns to Friends list
+– If user came from Home (overlap card) → back returns to Home
+– Use standard browser / navigation stack behavior
+
+Rationale:
+– This matches native iOS and Airbnb behavior
+– Prevents disorientation
+– No custom “Back to Friends” logic unless technically required
+
+⸻
+
+Summary (for confidence)
+
+– Friend profiles = full pages
+– Overlaps = highlight + tab (not one or the other)
+– Pass compatibility = simple pass-brand matching
+– Back behavior = context-aware, default navigation
