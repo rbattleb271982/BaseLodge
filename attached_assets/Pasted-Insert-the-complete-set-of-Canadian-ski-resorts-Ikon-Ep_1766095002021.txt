@@ -1,0 +1,103 @@
+Insert the complete set of Canadian ski resorts (Ikon, Epic, and major independent resorts) into the resorts table in a safe, non-duplicating way, without impacting existing U.S. resorts, dropdowns, or user data.
+This is a data insertion pass only.
+1. Canonical Rules (Must Follow)
+Treat a resort as unique by:
+(name, state, country)
+Use ISO-2 country codes (CA)
+Use only these values for pass_brands:
+Ikon
+Epic
+Other
+Set is_active = true for all inserted resorts
+Do not modify or delete existing resorts
+2. Canadian Resorts to Insert
+Ikon Resorts (Canada)
+Banff Sunshine Village (AB)
+Lake Louise Ski Resort (AB)
+Revelstoke Mountain Resort (BC)
+Blue Mountain Resort (ON)
+Tremblant (QC)
+Sun Peaks Resort (BC)
+Red Mountain Resort (BC)
+Panorama Mountain Resort (BC)
+Cypress Mountain (BC)
+Marmot Basin (AB)
+Mt. Norquay (AB)
+Epic Resorts (Canada)
+Whistler Blackcomb (BC)
+Fernie Alpine Resort (BC)
+Kicking Horse Mountain Resort (BC)
+Nakiska Ski Area (AB)
+Independent / Other Resorts (Canada)
+Big White Ski Resort (BC)
+SilverStar Mountain Resort (BC)
+Whitewater Ski Resort (BC)
+Mont-Sainte-Anne (QC)
+Le Massif de Charlevoix (QC)
+Stoneham Mountain Resort (QC)
+3. Insert Logic (Safe / Idempotent)
+Implement insertion using insert-if-not-exists logic for each resort.
+Example pattern (apply to all listed resorts):
+from app import db
+from models import Resort
+
+def insert_resort(name, state, state_full, country, pass_brands, slug):
+    exists = Resort.query.filter_by(
+        name=name,
+        state=state,
+        country=country
+    ).first()
+
+    if not exists:
+        db.session.add(
+            Resort(
+                name=name,
+                state=state,
+                state_full=state_full,
+                country=country,
+                pass_brands=pass_brands,
+                slug=slug,
+                is_active=True
+            )
+        )
+
+# IKON
+insert_resort("Banff Sunshine Village", "AB", "Alberta", "CA", "Ikon", "banff-sunshine-village")
+insert_resort("Lake Louise Ski Resort", "AB", "Alberta", "CA", "Ikon", "lake-louise")
+insert_resort("Revelstoke Mountain Resort", "BC", "British Columbia", "CA", "Ikon", "revelstoke")
+insert_resort("Blue Mountain Resort", "ON", "Ontario", "CA", "Ikon", "blue-mountain-on")
+insert_resort("Tremblant", "QC", "Quebec", "CA", "Ikon", "tremblant")
+insert_resort("Sun Peaks Resort", "BC", "British Columbia", "CA", "Ikon", "sun-peaks")
+insert_resort("Red Mountain Resort", "BC", "British Columbia", "CA", "Ikon", "red-mountain-bc")
+insert_resort("Panorama Mountain Resort", "BC", "British Columbia", "CA", "Ikon", "panorama")
+insert_resort("Cypress Mountain", "BC", "British Columbia", "CA", "Ikon", "cypress-mountain")
+insert_resort("Marmot Basin", "AB", "Alberta", "CA", "Ikon", "marmot-basin")
+insert_resort("Mt. Norquay", "AB", "Alberta", "CA", "Ikon", "mt-norquay")
+
+# EPIC
+insert_resort("Whistler Blackcomb", "BC", "British Columbia", "CA", "Epic", "whistler-blackcomb")
+insert_resort("Fernie Alpine Resort", "BC", "British Columbia", "CA", "Epic", "fernie")
+insert_resort("Kicking Horse Mountain Resort", "BC", "British Columbia", "CA", "Epic", "kicking-horse")
+insert_resort("Nakiska Ski Area", "AB", "Alberta", "CA", "Epic", "nakiska")
+
+# OTHER
+insert_resort("Big White Ski Resort", "BC", "British Columbia", "CA", "Other", "big-white")
+insert_resort("SilverStar Mountain Resort", "BC", "British Columbia", "CA", "Other", "silverstar")
+insert_resort("Whitewater Ski Resort", "BC", "British Columbia", "CA", "Other", "whitewater-bc")
+insert_resort("Mont-Sainte-Anne", "QC", "Quebec", "CA", "Other", "mont-sainte-anne")
+insert_resort("Le Massif de Charlevoix", "QC", "Quebec", "CA", "Other", "le-massif-de-charlevoix")
+insert_resort("Stoneham Mountain Resort", "QC", "Quebec", "CA", "Other", "stoneham")
+
+db.session.commit()
+4. Validation Checklist (Must Verify)
+Before marking complete, confirm:
+All Canadian resorts appear once
+No duplicate (name, state, country) rows
+Existing U.S. resorts unchanged
+Search, dropdowns, wishlist, and pills work normally
+No errors on app startup
+5. Explicit Non-Goals
+❌ Do not change schemas
+❌ Do not modify existing resorts
+❌ Do not introduce pass tiers
+❌ Do not change UI labels
