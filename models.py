@@ -93,6 +93,7 @@ class Resort(db.Model):
     name = db.Column(db.String(100), nullable=False)
     state = db.Column(db.String(2), nullable=False)  # Abbreviation: CO, CA, etc.
     state_full = db.Column(db.String(50), nullable=True)  # Full name: Colorado, California, etc.
+    country = db.Column(db.String(2), nullable=True)  # ISO-2 country code: US, CA, FR, etc.
     brand = db.Column(db.String(20), nullable=True)  # 'Epic', 'Ikon', 'Indy', 'Other'
     pass_brands = db.Column(db.String(150), nullable=True)  # Comma-separated: 'Epic', 'Ikon,MountainCollective', etc.
     slug = db.Column(db.String(120), unique=True, nullable=False)
