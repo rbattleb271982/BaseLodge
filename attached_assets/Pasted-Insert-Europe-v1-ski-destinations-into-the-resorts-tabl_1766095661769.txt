@@ -1,0 +1,103 @@
+Insert Europe v1 ski destinations into the resorts table using safe insert-if-not-exists logic, without impacting existing U.S., Canada, or Japan data.
+This step only adds European resorts.
+No UI changes. No wishlist logic yet.
+1. Canonical Rules (Must Follow)
+A resort is uniquely defined by:
+(name, state, country)
+Use ISO-2 country codes:
+France → FR
+Switzerland → CH
+Austria → AT
+Italy → IT
+Use region names for both:
+state
+state_full
+Allowed pass_brands values:
+Ikon
+Epic
+None
+Set is_active = true
+Do not modify or delete existing resorts
+Do not add grouping metadata
+2. Europe v1 Resorts to Insert
+🇫🇷 France
+Name	pass_brands	state
+Chamonix	Ikon	Auvergne-Rhône-Alpes
+Les Deux Alpes	Ikon	Auvergne-Rhône-Alpes
+Megève	None	Auvergne-Rhône-Alpes
+Val d’Isère	None	Auvergne-Rhône-Alpes
+Courchevel	Epic	Auvergne-Rhône-Alpes
+Méribel	Epic	Auvergne-Rhône-Alpes
+Val Thorens	Epic	Auvergne-Rhône-Alpes
+Les Arcs	Epic	Auvergne-Rhône-Alpes
+La Plagne	Epic	Auvergne-Rhône-Alpes
+🇨🇭 Switzerland
+Name	pass_brands	state
+Zermatt	Ikon	Valais
+St. Moritz	Ikon	Graubünden
+Verbier	None	Valais
+Gstaad	None	Bern
+🇦🇹 Austria
+Name	pass_brands	state
+St. Anton am Arlberg	Ikon	Tyrol
+Ischgl	None	Tyrol
+Kitzbühel	None	Tyrol
+🇮🇹 Italy
+Name	pass_brands	state
+Dolomiti Superski	Ikon	Trentino-Alto Adige
+3. Insert Logic (Idempotent / Safe)
+from app import db
+from models import Resort
+
+def insert_resort(name, state, country, pass_brands, slug):
+    exists = Resort.query.filter_by(
+        name=name,
+        state=state,
+        country=country
+    ).first()
+
+    if not exists:
+        db.session.add(
+            Resort(
+                name=name,
+                state=state,
+                state_full=state,
+                country=country,
+                pass_brands=pass_brands,
+                slug=slug,
+                is_active=True
+            )
+        )
+
+# FRANCE
+insert_resort("Chamonix", "Auvergne-Rhône-Alpes", "FR", "Ikon", "chamonix")
+insert_resort("Les Deux Alpes", "Auvergne-Rhône-Alpes", "FR", "Ikon", "les-deux-alpes")
+insert_resort("Megève", "Auvergne-Rhône-Alpes", "FR", "None", "megeve")
+insert_resort("Val d’Isère", "Auvergne-Rhône-Alpes", "FR", "None", "val-disere")
+insert_resort("Courchevel", "Auvergne-Rhône-Alpes", "FR", "Epic", "courchevel")
+insert_resort("Méribel", "Auvergne-Rhône-Alpes", "FR", "Epic", "meribel")
+insert_resort("Val Thorens", "Auvergne-Rhône-Alpes", "FR", "Epic", "val-thorens")
+insert_resort("Les Arcs", "Auvergne-Rhône-Alpes", "FR", "Epic", "les-arcs")
+insert_resort("La Plagne", "Auvergne-Rhône-Alpes", "FR", "Epic", "la-plagne")
+
+# SWITZERLAND
+insert_resort("Zermatt", "Valais", "CH", "Ikon", "zermatt")
+insert_resort("St. Moritz", "Graubünden", "CH", "Ikon", "st-moritz")
+insert_resort("Verbier", "Valais", "CH", "None", "verbier")
+insert_resort("Gstaad", "Bern", "CH", "None", "gstaad")
+
+# AUSTRIA
+insert_resort("St. Anton am Arlberg", "Tyrol", "AT", "Ikon", "st-anton-am-arlberg")
+insert_resort("Ischgl", "Tyrol", "AT", "None", "ischgl")
+insert_resort("Kitzbühel", "Tyrol", "AT", "None", "kitzbuhel")
+
+# ITALY
+insert_resort("Dolomiti Superski", "Trentino-Alto Adige", "IT", "Ikon", "dolomiti-superski")
+
+db.session.commit()
+4. Validation Checklist (Must Confirm)
+All Europe resorts appear exactly once
+No duplicate (name, state, country) rows
+Existing US / Canada / Japan resorts unchanged
+Dropdowns and search still function normally
+App starts with no errors
