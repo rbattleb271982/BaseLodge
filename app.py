@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps
 from flask_migrate import Migrate
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, Event
 from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
 from io import BytesIO
@@ -63,6 +63,20 @@ def admin_required(f):
             return "Admin privileges required.", 403
         return f(*args, **kwargs)
     return wrapper
+
+def emit_event(event_name, user, payload=None):
+    """Emit high-signal event, skip if user is seeded (test data)."""
+    if user.is_seeded:
+        return
+    event = Event(
+        event_name=event_name,
+        user_id=user.id,
+        payload=payload or {},
+        created_at=datetime.utcnow(),
+        environment='prod' if is_production else 'dev'
+    )
+    db.session.add(event)
+    db.session.commit()
 
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///baselodge.db")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
@@ -431,6 +445,9 @@ def auth():
             db.session.add(user)
             db.session.commit()
             
+            # Emit account_created event
+            emit_event('account_created', user)
+            
             login_user(user)
             
             # Connect with inviter if pending_inviter_id exists in session
@@ -526,11 +543,21 @@ def _connect_pending_inviter(user):
                 f2 = Friend(user_id=inviter.id, friend_id=user.id)
                 db.session.add_all([f1, f2])
                 
+                # Track first connection if not already set
+                if not user.first_connection_at:
+                    user.first_connection_at = datetime.utcnow()
+                if not inviter.first_connection_at:
+                    inviter.first_connection_at = datetime.utcnow()
+                
                 # Mark token as used (single-use enforcement)
                 if invite_token:
                     invite_token.used_at = datetime.utcnow()
                 
                 db.session.commit()
+                
+                # Emit connection_created events for both users
+                emit_event('connection_created', user, {'friend_id': inviter.id})
+                emit_event('connection_created', inviter, {'friend_id': user.id})
         
         session.pop("pending_inviter_id", None)
         session.pop("pending_invite_token_id", None)
@@ -607,7 +634,11 @@ def setup_profile():
 
         user.rider_type = rider_type
         user.pass_type = ",".join(sorted(set(passes))) if passes else "None"
+        user.onboarding_completed_at = datetime.utcnow()
         db.session.commit()
+        
+        # Emit onboarding_completed event
+        emit_event('onboarding_completed', user)
 
         return redirect(url_for("home"))
 
@@ -641,8 +672,13 @@ def edit_profile():
         terrain_raw = request.form.get("terrain_preferences", "")
         terrain_list = [t.strip() for t in terrain_raw.split(",") if t.strip()][:2]
         user.terrain_preferences = terrain_list if terrain_list else []
+        user.profile_completed_at = datetime.utcnow()
         
         db.session.commit()
+        
+        # Emit profile_completed event
+        emit_event('profile_completed', user)
+        
         return redirect(url_for("more"))
     
     primary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.PRIMARY).first()
@@ -725,7 +761,19 @@ def create_trip():
         is_public=is_public
     )
     db.session.add(trip)
+    
+    # Track first trip created if not already set
+    if not user.first_trip_created_at:
+        user.first_trip_created_at = datetime.utcnow()
+    
     db.session.commit()
+    
+    # Emit trip_created event
+    emit_event('trip_created', user, {
+        'trip_id': trip.id,
+        'mountain': mountain,
+        'state': state
+    })
     
     return jsonify({
         "success": True,

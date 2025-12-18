@@ -92,6 +92,23 @@ Seeded users are excluded from event emission.
 - Links to source event for audit trail
 - Environment tagged (dev/prod) for safe local testing
 
+## Step 6 Event Emission Wiring (Dec 18, 2025)
+
+**5 of 7 approved events now emit on user actions:**
+- ✅ account_created - When user signs up (auth route)
+- ✅ onboarding_completed - When user completes setup_profile
+- ✅ profile_completed - When user edits full profile (edit_profile)
+- ✅ trip_created - When user creates a ski trip (create_trip)
+- ✅ connection_created - When user accepts friend invite (_connect_pending_inviter)
+- ⏳ trip_joined - Pending: Need to identify/wire group trip join route
+- ⏳ open_dates_set - Pending: Need to identify/wire open dates route
+
+**Event Emission Implementation:**
+- Helper function `emit_event(event_name, user, payload)` added to app.py
+- Respects is_seeded flag: test users excluded from event emission
+- Stores event_name, user_id, payload, created_at, environment in Event table
+- Ready for Step 7 backfill & Step 8 SendGrid integration
+
 ## External Dependencies
 - **Flask:** Python web framework.
 - **Flask-Login:** User session management.
