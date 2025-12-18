@@ -6,16 +6,75 @@
     <title>Base Lodge - Friends</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .friend-card-line1 {
-            font-size: 0.95rem;
+        .filter-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .filter-pill {
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.15s ease;
+        }
+        .filter-pill.active {
+            background: var(--bl-color-primary);
+            color: white;
+        }
+        .filter-pill:not(.active) {
+            background: rgba(0, 0, 0, 0.04);
+            color: var(--bl-color-text-muted);
+        }
+        .flat-list {
+            display: flex;
+            flex-direction: column;
+        }
+        .flat-row {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 56px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            text-decoration: none;
+            color: inherit;
+        }
+        .flat-row:last-child {
+            border-bottom: none;
+        }
+        .flat-row:active {
+            background: rgba(0, 0, 0, 0.02);
+        }
+        .flat-row-line1 {
+            font-size: 16px;
             font-weight: 600;
             color: var(--bl-color-text);
-            margin: 0 0 4px 0;
+            margin: 0 0 2px 0;
         }
-        .friend-card-line2 {
-            font-size: 0.85rem;
+        .flat-row-line2 {
+            font-size: 14px;
             color: var(--bl-color-text-muted);
             margin: 0;
+        }
+        .empty-card {
+            background: var(--bl-color-surface);
+            border-radius: 12px;
+            text-align: center;
+            padding: 32px 24px;
+        }
+        .empty-card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 8px 0;
+        }
+        .empty-card p {
+            font-size: 15px;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 20px 0;
         }
     </style>
 </head>
@@ -27,44 +86,43 @@
         {% if count_all > 0 %}
         <div class="filter-row">
             <a href="{{ url_for('friends', filter='All') }}"
-               class="filter-btn {% if filter_type == 'All' %}active{% endif %}">
+               class="filter-pill {% if filter_type == 'All' %}active{% endif %}">
                All ({{ count_all }})
             </a>
             <a href="{{ url_for('friends', filter='Epic') }}"
-               class="filter-btn {% if filter_type == 'Epic' %}active{% endif %}">
+               class="filter-pill {% if filter_type == 'Epic' %}active{% endif %}">
                Epic ({{ count_epic }})
             </a>
             <a href="{{ url_for('friends', filter='Ikon') }}"
-               class="filter-btn {% if filter_type == 'Ikon' %}active{% endif %}">
+               class="filter-pill {% if filter_type == 'Ikon' %}active{% endif %}">
                Ikon ({{ count_ikon }})
             </a>
             <a href="{{ url_for('friends', filter='Other') }}"
-               class="filter-btn {% if filter_type == 'Other' %}active{% endif %}">
+               class="filter-pill {% if filter_type == 'Other' %}active{% endif %}">
                Other ({{ count_other }})
             </a>
         </div>
         
-        <div class="bl-card" style="padding: 0;">
+        <div class="flat-list">
             {% for friend in friends %}
-            <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="friend-row-link" style="text-decoration: none; color: inherit;">
-                <div class="friend-row" style="padding: 14px 16px; border-bottom: 1px solid var(--bl-color-border-soft); {% if loop.last %}border-bottom: none;{% endif %}">
-                    <p class="friend-card-line1">{{ friend.first_name }} {{ friend.last_name }}{% if friend.home_state %} · {{ friend.home_state }}{% endif %}</p>
-                    <p class="friend-card-line2">{% set parts = [] %}{% if friend.rider_type %}{% set _ = parts.append(friend.rider_type) %}{% endif %}{% if friend.skill_level %}{% set _ = parts.append(friend.skill_level) %}{% endif %}{% if friend.pass_type %}{% set passes = friend.pass_type.split(',') %}{% if passes|length == 2 %}{% set _ = parts.append(passes[0] ~ ' & ' ~ passes[1]) %}{% elif passes|length > 2 %}{% set _ = parts.append(passes|join(', ')) %}{% else %}{% set _ = parts.append(passes[0]) %}{% endif %}{% endif %}{{ parts|join(' · ') if parts else '' }}</p>
-                </div>
+            <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="flat-row">
+                <p class="flat-row-line1">{{ friend.first_name }} {{ friend.last_name }}</p>
+                <p class="flat-row-line2">{% set parts = [] %}{% if friend.home_state %}{% set _ = parts.append(friend.home_state) %}{% endif %}{% if friend.rider_type %}{% set _ = parts.append(friend.rider_type) %}{% endif %}{% if friend.skill_level %}{% set _ = parts.append(friend.skill_level) %}{% endif %}{% if friend.pass_type %}{% set passes = friend.pass_type.split(',') %}{% if passes|length == 2 %}{% set _ = parts.append(passes[0] ~ ' & ' ~ passes[1]) %}{% elif passes|length > 2 %}{% set _ = parts.append(passes|join(', ')) %}{% else %}{% set _ = parts.append(passes[0]) %}{% endif %}{% endif %}{{ parts|join(' · ') if parts else '' }}</p>
             </a>
             {% endfor %}
             
             {% if friends|length == 0 %}
-            <div style="padding: 24px; text-align: center; color: var(--bl-color-text-muted);">
-                No friends with this pass type
+            <div class="empty-card" style="margin-top: 20px;">
+                <h3>No friends with this pass type</h3>
+                <p>Try a different filter or invite more friends.</p>
             </div>
             {% endif %}
         </div>
         
         {% else %}
-        <div class="bl-card" style="text-align: center; padding: var(--bl-space-8);">
-            <p class="bl-heading-m" style="margin-bottom: var(--bl-space-5);">No friends yet</p>
-            <p class="bl-body" style="margin-bottom: var(--bl-space-6); color: var(--bl-color-text-muted);">Invite someone to get started planning together!</p>
+        <div class="empty-card">
+            <h3>No friends yet</h3>
+            <p>Invite someone to get started planning together!</p>
             <a href="{{ url_for('invite') }}" class="bl-btn-primary" style="display: inline-block; text-decoration: none;">Invite a Friend</a>
         </div>
         {% endif %}

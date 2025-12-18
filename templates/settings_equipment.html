@@ -11,7 +11,6 @@
             margin: 0 auto;
             padding: 16px 16px 100px;
         }
-        
         .back-link {
             display: inline-block;
             margin-bottom: 16px;
@@ -19,96 +18,79 @@
             text-decoration: none;
             font-size: 16px;
         }
-        
         .page-header {
             font-size: 26px;
             font-weight: 700;
             color: var(--bl-color-text);
-            margin: 0 0 24px 0;
+            margin: 0 0 28px 0;
         }
-        
-        .section-card {
-            background: var(--bl-color-surface);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 1px solid var(--bl-color-border-soft);
+        .equipment-section {
+            margin-bottom: 32px;
         }
-        
-        .section-title {
-            font-size: 15px;
-            font-weight: 600;
+        .section-header {
+            font-size: 13px;
+            font-weight: 700;
             color: var(--bl-color-text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin: 0 0 16px 0;
         }
-        
         .equipment-display {
-            background: var(--bl-color-bg);
-            border-radius: 10px;
-            padding: 16px;
-            margin-bottom: 12px;
+            padding: 4px 0 16px;
         }
-        
-        .equipment-info {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        
         .equipment-brand {
             font-size: 17px;
             font-weight: 600;
             color: var(--bl-color-text);
+            margin: 0 0 4px 0;
         }
-        
         .equipment-details {
             font-size: 14px;
             color: var(--bl-color-text-muted);
+            margin: 0 0 2px 0;
         }
-        
         .equipment-edit-form {
-            margin-top: 16px;
+            padding-top: 8px;
         }
-        
         .equipment-grid {
             display: grid;
-            gap: 12px;
+            gap: 16px;
         }
-        
         .equipment-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            gap: 12px;
         }
-        
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--bl-color-text-muted);
+            margin-bottom: 6px;
+        }
         .equipment-grid select,
         .equipment-grid input {
             width: 100%;
             padding: 14px 12px;
             font-size: 16px;
-            border: 1px solid var(--bl-color-border);
+            border: 1px solid rgba(0, 0, 0, 0.12);
             border-radius: 10px;
             background: var(--bl-color-surface);
             color: var(--bl-color-text);
             min-height: 48px;
             box-sizing: border-box;
         }
-        
         .equipment-grid select:focus,
         .equipment-grid input:focus {
             outline: none;
             border-color: var(--bl-color-primary);
         }
-        
         .equipment-btn-row {
             display: flex;
             gap: 10px;
-            margin-top: 16px;
+            margin-top: 20px;
         }
-        
-        .btn-save-equipment {
+        .btn-save {
             flex: 1;
             padding: 14px;
             background: var(--bl-color-primary);
@@ -120,11 +102,10 @@
             cursor: pointer;
             min-height: 48px;
         }
-        
-        .btn-edit-equipment {
+        .btn-edit {
             flex: 1;
             padding: 14px;
-            background: var(--bl-color-surface);
+            background: transparent;
             color: var(--bl-color-primary);
             border: 2px solid var(--bl-color-primary);
             border-radius: 10px;
@@ -133,20 +114,18 @@
             cursor: pointer;
             min-height: 48px;
         }
-        
-        .btn-cancel-equipment {
+        .btn-cancel {
             padding: 14px;
-            background: var(--bl-color-surface);
+            background: transparent;
             color: var(--bl-color-text-muted);
-            border: 1px solid var(--bl-color-border);
+            border: 1px solid rgba(0, 0, 0, 0.12);
             border-radius: 10px;
             font-size: 14px;
             font-weight: 500;
             cursor: pointer;
             min-height: 48px;
         }
-        
-        .btn-delete-equipment {
+        .btn-delete {
             padding: 14px;
             background: #EF4444;
             color: white;
@@ -157,25 +136,10 @@
             cursor: pointer;
             min-height: 48px;
         }
-        
-        .empty-state {
-            text-align: center;
-            padding: 24px;
-            color: var(--bl-color-text-muted);
-            font-size: 15px;
-        }
-        
-        .form-label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--bl-color-text-muted);
-            margin-bottom: 6px;
-            margin-top: 12px;
-        }
-        
-        .form-label:first-child {
-            margin-top: 0;
+        .section-divider {
+            height: 1px;
+            background: rgba(0, 0, 0, 0.06);
+            margin: 0 0 32px 0;
         }
     </style>
 </head>
@@ -185,34 +149,27 @@
         <a href="{{ url_for('settings') }}" class="back-link">← Back</a>
         <h1 class="page-header">Equipment</h1>
         
-        <!-- Primary Setup -->
-        <div class="section-card">
-            <h3 class="section-title">Primary Setup</h3>
+        <div class="equipment-section">
+            <h2 class="section-header">Primary Setup</h2>
             
             {% if primary_equipment %}
             <div id="primary-view">
                 <div class="equipment-display">
-                    <div class="equipment-info">
-                        <span class="equipment-brand">{{ primary_equipment.brand or 'Primary Setup' }}</span>
-                        <span class="equipment-details">
-                            {{ primary_equipment.discipline.value|capitalize }}
-                            {% if primary_equipment.length_cm %} · {{ primary_equipment.length_cm }}cm{% endif %}
-                            {% if primary_equipment.width_mm %} · {{ primary_equipment.width_mm }}mm{% endif %}
-                        </span>
-                        {% if primary_equipment.binding_type %}
-                        <span class="equipment-details">{{ primary_equipment.binding_type }}</span>
-                        {% endif %}
-                        {% if primary_equipment.boot_brand or primary_equipment.boot_flex %}
-                        <span class="equipment-details">
-                            {% if primary_equipment.boot_brand %}{{ primary_equipment.boot_brand }} boots{% endif %}
-                            {% if primary_equipment.boot_brand and primary_equipment.boot_flex %} · {% endif %}
-                            {% if primary_equipment.boot_flex %}{{ primary_equipment.boot_flex }} flex{% endif %}
-                        </span>
-                        {% endif %}
-                    </div>
+                    <p class="equipment-brand">{{ primary_equipment.brand or 'Primary Setup' }}</p>
+                    <p class="equipment-details">
+                        {{ primary_equipment.discipline.value|capitalize }}{% if primary_equipment.length_cm %} · {{ primary_equipment.length_cm }}cm{% endif %}{% if primary_equipment.width_mm %} · {{ primary_equipment.width_mm }}mm{% endif %}
+                    </p>
+                    {% if primary_equipment.binding_type %}
+                    <p class="equipment-details">{{ primary_equipment.binding_type }}</p>
+                    {% endif %}
+                    {% if primary_equipment.boot_brand or primary_equipment.boot_flex %}
+                    <p class="equipment-details">
+                        {% if primary_equipment.boot_brand %}{{ primary_equipment.boot_brand }} boots{% endif %}{% if primary_equipment.boot_brand and primary_equipment.boot_flex %} · {% endif %}{% if primary_equipment.boot_flex %}{{ primary_equipment.boot_flex }} flex{% endif %}
+                    </p>
+                    {% endif %}
                 </div>
                 <div class="equipment-btn-row">
-                    <button type="button" id="edit-primary-btn" class="btn-edit-equipment">Edit</button>
+                    <button type="button" id="edit-primary-btn" class="btn-edit">Edit</button>
                 </div>
             </div>
             <div id="primary-edit" class="equipment-edit-form" style="display: none;">
@@ -265,44 +222,39 @@
                     </div>
                 </div>
                 <div class="equipment-btn-row">
-                    <button type="button" id="save-primary-btn" class="btn-save-equipment">Save</button>
+                    <button type="button" id="save-primary-btn" class="btn-save">Save</button>
                     {% if primary_equipment %}
-                    <button type="button" id="cancel-primary-btn" class="btn-cancel-equipment">Cancel</button>
-                    <button type="button" id="delete-primary-btn" class="btn-delete-equipment">Delete</button>
+                    <button type="button" id="cancel-primary-btn" class="btn-cancel">Cancel</button>
+                    <button type="button" id="delete-primary-btn" class="btn-delete">Delete</button>
                     {% endif %}
                 </div>
             </div>
             {% if primary_equipment %}</div>{% endif %}
         </div>
         
-        <!-- Secondary Setup -->
-        <div class="section-card">
-            <h3 class="section-title">Secondary Setup</h3>
+        <div class="section-divider"></div>
+        
+        <div class="equipment-section">
+            <h2 class="section-header">Secondary Setup</h2>
             
             {% if secondary_equipment %}
             <div id="secondary-view">
                 <div class="equipment-display">
-                    <div class="equipment-info">
-                        <span class="equipment-brand">{{ secondary_equipment.brand or 'Secondary Setup' }}</span>
-                        <span class="equipment-details">
-                            {{ secondary_equipment.discipline.value|capitalize }}
-                            {% if secondary_equipment.length_cm %} · {{ secondary_equipment.length_cm }}cm{% endif %}
-                            {% if secondary_equipment.width_mm %} · {{ secondary_equipment.width_mm }}mm{% endif %}
-                        </span>
-                        {% if secondary_equipment.binding_type %}
-                        <span class="equipment-details">{{ secondary_equipment.binding_type }}</span>
-                        {% endif %}
-                        {% if secondary_equipment.boot_brand or secondary_equipment.boot_flex %}
-                        <span class="equipment-details">
-                            {% if secondary_equipment.boot_brand %}{{ secondary_equipment.boot_brand }} boots{% endif %}
-                            {% if secondary_equipment.boot_brand and secondary_equipment.boot_flex %} · {% endif %}
-                            {% if secondary_equipment.boot_flex %}{{ secondary_equipment.boot_flex }} flex{% endif %}
-                        </span>
-                        {% endif %}
-                    </div>
+                    <p class="equipment-brand">{{ secondary_equipment.brand or 'Secondary Setup' }}</p>
+                    <p class="equipment-details">
+                        {{ secondary_equipment.discipline.value|capitalize }}{% if secondary_equipment.length_cm %} · {{ secondary_equipment.length_cm }}cm{% endif %}{% if secondary_equipment.width_mm %} · {{ secondary_equipment.width_mm }}mm{% endif %}
+                    </p>
+                    {% if secondary_equipment.binding_type %}
+                    <p class="equipment-details">{{ secondary_equipment.binding_type }}</p>
+                    {% endif %}
+                    {% if secondary_equipment.boot_brand or secondary_equipment.boot_flex %}
+                    <p class="equipment-details">
+                        {% if secondary_equipment.boot_brand %}{{ secondary_equipment.boot_brand }} boots{% endif %}{% if secondary_equipment.boot_brand and secondary_equipment.boot_flex %} · {% endif %}{% if secondary_equipment.boot_flex %}{{ secondary_equipment.boot_flex }} flex{% endif %}
+                    </p>
+                    {% endif %}
                 </div>
                 <div class="equipment-btn-row">
-                    <button type="button" id="edit-secondary-btn" class="btn-edit-equipment">Edit</button>
+                    <button type="button" id="edit-secondary-btn" class="btn-edit">Edit</button>
                 </div>
             </div>
             <div id="secondary-edit" class="equipment-edit-form" style="display: none;">
@@ -355,10 +307,10 @@
                     </div>
                 </div>
                 <div class="equipment-btn-row">
-                    <button type="button" id="save-secondary-btn" class="btn-save-equipment">Save</button>
+                    <button type="button" id="save-secondary-btn" class="btn-save">Save</button>
                     {% if secondary_equipment %}
-                    <button type="button" id="cancel-secondary-btn" class="btn-cancel-equipment">Cancel</button>
-                    <button type="button" id="delete-secondary-btn" class="btn-delete-equipment">Delete</button>
+                    <button type="button" id="cancel-secondary-btn" class="btn-cancel">Cancel</button>
+                    <button type="button" id="delete-secondary-btn" class="btn-delete">Delete</button>
                     {% endif %}
                 </div>
             </div>
@@ -427,7 +379,6 @@
         updateBindingDropdown(secondaryBindingSelect, secondaryDisciplineSelect.value, '');
     });
     
-    // Edit/Cancel toggle for Primary
     const editPrimaryBtn = document.getElementById('edit-primary-btn');
     const cancelPrimaryBtn = document.getElementById('cancel-primary-btn');
     const primaryView = document.getElementById('primary-view');
@@ -447,7 +398,6 @@
         });
     }
     
-    // Edit/Cancel toggle for Secondary
     const editSecondaryBtn = document.getElementById('edit-secondary-btn');
     const cancelSecondaryBtn = document.getElementById('cancel-secondary-btn');
     const secondaryView = document.getElementById('secondary-view');
@@ -467,7 +417,6 @@
         });
     }
     
-    // Save Primary
     document.getElementById('save-primary-btn').addEventListener('click', async () => {
         const discipline = document.getElementById('primary-discipline').value;
         const brand = document.getElementById('primary-brand').value;
@@ -504,7 +453,6 @@
         }
     });
     
-    // Save Secondary
     document.getElementById('save-secondary-btn').addEventListener('click', async () => {
         const discipline = document.getElementById('secondary-discipline').value;
         const brand = document.getElementById('secondary-brand').value;
@@ -541,7 +489,6 @@
         }
     });
     
-    // Delete Primary
     const deletePrimaryBtn = document.getElementById('delete-primary-btn');
     if (deletePrimaryBtn) {
         deletePrimaryBtn.addEventListener('click', async () => {
@@ -557,11 +504,12 @@
             
             if (response.ok) {
                 window.location.reload();
+            } else {
+                alert('Failed to delete equipment');
             }
         });
     }
     
-    // Delete Secondary
     const deleteSecondaryBtn = document.getElementById('delete-secondary-btn');
     if (deleteSecondaryBtn) {
         deleteSecondaryBtn.addEventListener('click', async () => {
@@ -577,6 +525,8 @@
             
             if (response.ok) {
                 window.location.reload();
+            } else {
+                alert('Failed to delete equipment');
             }
         });
     }

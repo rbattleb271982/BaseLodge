@@ -6,61 +6,50 @@
     <title>Base Lodge - Settings</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .settings-nav-section {
-            margin-bottom: 24px;
+        .settings-section {
+            margin-bottom: 32px;
         }
-        
-        .settings-nav-title {
+        .settings-section-header {
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 700;
             color: var(--bl-color-text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            padding: 0 16px;
-            margin-bottom: 8px;
+            margin: 0 0 12px 0;
         }
-        
-        .settings-nav-card {
-            background: var(--bl-color-surface);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        
-        .settings-nav-row {
+        .settings-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 16px;
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            min-height: 48px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
             text-decoration: none;
             color: inherit;
-            min-height: 52px;
         }
-        
-        .settings-nav-row:last-child {
+        .settings-row:last-child {
             border-bottom: none;
         }
-        
-        .settings-nav-row:active {
-            background: var(--bl-color-bg);
+        .settings-row:active {
+            background: rgba(0, 0, 0, 0.02);
+            margin: 0 -16px;
+            padding: 12px 16px;
         }
-        
-        .settings-nav-label {
-            font-size: 17px;
+        .settings-row-label {
+            font-size: 16px;
             color: var(--bl-color-text);
         }
-        
-        .settings-nav-value {
+        .settings-row-value {
             font-size: 15px;
             color: var(--bl-color-text-muted);
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
-        
-        .settings-nav-chevron {
+        .settings-row-chevron {
             color: var(--bl-color-text-muted);
-            font-size: 18px;
+            font-size: 16px;
+            opacity: 0.5;
         }
     </style>
 </head>
@@ -69,57 +58,48 @@
         <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
         <h1 class="page-title">Settings</h1>
         
-        <!-- Section 1: Profile -->
-        <div class="settings-nav-section">
-            <div class="settings-nav-title">Profile</div>
-            <div class="settings-nav-card">
-                <a href="{{ url_for('settings_profile') }}" class="settings-nav-row">
-                    <span class="settings-nav-label">Profile Details</span>
-                    <span class="settings-nav-value">
-                        <span class="settings-nav-chevron">›</span>
-                    </span>
-                </a>
-            </div>
+        <div class="settings-section">
+            <h2 class="settings-section-header">Profile</h2>
+            <a href="{{ url_for('settings_profile') }}" class="settings-row">
+                <span class="settings-row-label">Profile Details</span>
+                <span class="settings-row-value">
+                    <span class="settings-row-chevron">›</span>
+                </span>
+            </a>
         </div>
         
-        <!-- Section 2: Equipment & Activity -->
-        <div class="settings-nav-section">
-            <div class="settings-nav-title">Equipment & Activity</div>
-            <div class="settings-nav-card">
-                <a href="{{ url_for('settings_equipment') }}" class="settings-nav-row">
-                    <span class="settings-nav-label">Equipment</span>
-                    <span class="settings-nav-value">
-                        {% if has_equipment %}{{ equipment_summary }}{% endif %}
-                        <span class="settings-nav-chevron">›</span>
-                    </span>
-                </a>
-                <a href="{{ url_for('settings_mountains') }}" class="settings-nav-row">
-                    <span class="settings-nav-label">Mountains Visited</span>
-                    <span class="settings-nav-value">
-                        {% if mountains_visited_count %}{{ mountains_visited_count }} selected{% endif %}
-                        <span class="settings-nav-chevron">›</span>
-                    </span>
-                </a>
-            </div>
+        <div class="settings-section">
+            <h2 class="settings-section-header">Equipment & Activity</h2>
+            <a href="{{ url_for('settings_equipment') }}" class="settings-row">
+                <span class="settings-row-label">Equipment</span>
+                <span class="settings-row-value">
+                    {% if has_equipment %}{{ equipment_summary }}{% endif %}
+                    <span class="settings-row-chevron">›</span>
+                </span>
+            </a>
+            <a href="{{ url_for('settings_mountains') }}" class="settings-row">
+                <span class="settings-row-label">Mountains Visited</span>
+                <span class="settings-row-value">
+                    {% if mountains_visited_count %}{{ mountains_visited_count }} selected{% endif %}
+                    <span class="settings-row-chevron">›</span>
+                </span>
+            </a>
         </div>
         
-        <!-- Section 3: Account -->
-        <div class="settings-nav-section">
-            <div class="settings-nav-title">Account</div>
-            <div class="settings-nav-card">
-                <a href="{{ url_for('settings_password') }}" class="settings-nav-row">
-                    <span class="settings-nav-label">Change Password</span>
-                    <span class="settings-nav-value">
-                        <span class="settings-nav-chevron">›</span>
-                    </span>
-                </a>
-                <a href="{{ url_for('logout') }}" class="settings-nav-row">
-                    <span class="settings-nav-label">Log Out</span>
-                    <span class="settings-nav-value">
-                        <span class="settings-nav-chevron">›</span>
-                    </span>
-                </a>
-            </div>
+        <div class="settings-section">
+            <h2 class="settings-section-header">Account</h2>
+            <a href="{{ url_for('settings_password') }}" class="settings-row">
+                <span class="settings-row-label">Change Password</span>
+                <span class="settings-row-value">
+                    <span class="settings-row-chevron">›</span>
+                </span>
+            </a>
+            <a href="{{ url_for('logout') }}" class="settings-row">
+                <span class="settings-row-label">Log Out</span>
+                <span class="settings-row-value">
+                    <span class="settings-row-chevron">›</span>
+                </span>
+            </a>
         </div>
     </div>
     
