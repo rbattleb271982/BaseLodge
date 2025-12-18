@@ -51,6 +51,7 @@ class User(UserMixin, db.Model):
     home_mountain = db.Column(db.String(100), nullable=True)
     mountains_visited = db.Column(db.JSON, default=list)
     open_dates = db.Column(db.JSON, default=list)  # List of YYYY-MM-DD strings
+    wish_list_resorts = db.Column(db.JSON, default=list)  # List of resort IDs (max 3)
     
     trips = db.relationship('SkiTrip', backref='user', lazy=True)
     friend_requests_sent = db.relationship('Invitation', foreign_keys='Invitation.sender_id', backref='sender', lazy=True)
@@ -216,6 +217,7 @@ class EquipmentSetup(db.Model):
     binding_type = db.Column(db.String(50), nullable=True)
     boot_brand = db.Column(db.String(50), nullable=True)
     boot_flex = db.Column(db.Integer, nullable=True)
+    purchase_year = db.Column(db.Integer, nullable=True)  # Year equipment was purchased
     
     user = db.relationship('User', backref='equipment_setups')
     
