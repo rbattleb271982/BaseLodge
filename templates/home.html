@@ -170,6 +170,34 @@
             color: var(--bl-color-text);
             margin: 0;
         }
+        .bl-segmented-small {
+            display: flex;
+            gap: 4px;
+            background: var(--bl-color-surface);
+            border-radius: 8px;
+            padding: 3px;
+            border: 1px solid var(--bl-color-border-soft);
+        }
+        .bl-segment-small {
+            flex: 1;
+            padding: 6px 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--bl-color-text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .bl-segment-small.active {
+            background: var(--bl-color-primary);
+            color: #fff;
+        }
+        .bl-segment-small:not(.active):hover {
+            background: rgba(143, 1, 27, 0.08);
+        }
     </style>
 </head>
 <body>
@@ -324,8 +352,18 @@
         <!-- My Trips Tab -->
         <div id="tab-my" class="bl-trip-list" {% if active_tab != 'my' %}style="display: none;"{% endif %}>
             {% if my_trips %}
+            <!-- Duration Filter -->
+            <div class="duration-filter-wrapper" style="margin-bottom: 12px;">
+                <div class="bl-segmented-small">
+                    <button class="bl-segment-small active" data-filter="all" onclick="filterByDuration('all')">All</button>
+                    <button class="bl-segment-small" data-filter="day_trip" onclick="filterByDuration('day_trip')">Day</button>
+                    <button class="bl-segment-small" data-filter="one_night" onclick="filterByDuration('one_night')">1 Night</button>
+                    <button class="bl-segment-small" data-filter="two_nights" onclick="filterByDuration('two_nights')">2 Nights</button>
+                    <button class="bl-segment-small" data-filter="three_plus_nights" onclick="filterByDuration('three_plus_nights')">3+</button>
+                </div>
+            </div>
                 {% for trip in my_trips %}
-                <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;" class="my-trip-item" data-duration="{{ trip.trip_duration }}">
                     <div class="bl-trip-card trip-card-full" style="flex-direction: row; align-items: center;">
                         <div style="flex: 1;">
                             <p class="trip-card-line1">
@@ -339,6 +377,12 @@
                     </div>
                 </a>
                 {% endfor %}
+                <div id="no-filter-results" style="display: none;">
+                    <div class="empty-state-container">
+                        <p class="empty-state-title">No trips match this filter.</p>
+                        <p class="empty-state-desc">Try a different duration or add a new trip.</p>
+                    </div>
+                </div>
             {% else %}
                 <div class="empty-state-container">
                     <p class="empty-state-title">You don't have any trips yet.</p>
@@ -568,6 +612,28 @@
                 });
             });
         });
+        
+        function filterByDuration(duration) {
+            const buttons = document.querySelectorAll('.bl-segment-small');
+            buttons.forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-filter') === duration);
+            });
+            
+            const trips = document.querySelectorAll('.my-trip-item');
+            let visibleCount = 0;
+            
+            trips.forEach(trip => {
+                const tripDuration = trip.getAttribute('data-duration');
+                const shouldShow = (duration === 'all' || tripDuration === duration);
+                trip.style.display = shouldShow ? 'block' : 'none';
+                if (shouldShow) visibleCount++;
+            });
+            
+            const noResults = document.getElementById('no-filter-results');
+            if (noResults) {
+                noResults.style.display = (visibleCount === 0 && duration !== 'all') ? 'block' : 'none';
+            }
+        }
     </script>
 </body>
 </html>
