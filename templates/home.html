@@ -309,10 +309,10 @@
                     <div class="bl-trip-card trip-card-full" style="flex-direction: row; align-items: center;">
                         <div style="flex: 1;">
                             <p class="trip-card-line1">
-                                {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d') }} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}
+                                {% if trip.start_date == trip.end_date %}{{ trip.start_date.strftime('%a, %b %d') }}{% else %}{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%d') }}{% endif %} · <strong>{{ trip.duration_display }}</strong>
                             </p>
                             <p class="trip-card-line2">
-                                Pass: {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer a ride{% elif trip.ride_intent == 'need_ride' %} · Needs a ride{% endif %}{% if trip.friends_can_ski and trip.friends_can_ski > 0 %} · {{ trip.friends_can_ski }} friend{% if trip.friends_can_ski != 1 %}s{% endif %} can ski here{% endif %}
+                                {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %} · Pass: {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer a ride{% elif trip.ride_intent == 'need_ride' %} · Needs a ride{% endif %}{% if trip.friends_can_ski and trip.friends_can_ski > 0 %} · {{ trip.friends_can_ski }} friend{% if trip.friends_can_ski != 1 %}s{% endif %} can ski here{% endif %}
                             </p>
                         </div>
                         <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="bl-trip-edit">Edit</a>
@@ -339,10 +339,10 @@
                     <div class="bl-trip-card trip-card-full" style="flex-direction: row; align-items: center;">
                         <div style="flex: 1;">
                             <p class="trip-card-line1">
-                                {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d') }} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}
+                                {% if trip.start_date == trip.end_date %}{{ trip.start_date.strftime('%a, %b %d') }}{% else %}{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%d') }}{% endif %} · <strong>{{ trip.duration_display }}</strong>
                             </p>
                             <p class="trip-card-line2">
-                                {{ trip.user.first_name }} · {{ normalize_rider_type(trip.user.rider_type) or 'Rider' }} · Pass: {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer a ride{% elif trip.ride_intent == 'need_ride' %} · Needs a ride{% endif %}
+                                {{ trip.user.first_name }} · {% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %} · Pass: {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer{% elif trip.ride_intent == 'need_ride' %} · Needs ride{% endif %}
                             </p>
                         </div>
                     </div>
