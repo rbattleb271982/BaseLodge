@@ -24,6 +24,9 @@ def upgrade():
     with op.batch_alter_table('user', schema=None) as batch_op:
         batch_op.add_column(sa.Column('equipment_status', sa.String(length=20), nullable=True))
 
+    # Backfill existing users with default value
+    op.execute("UPDATE \"user\" SET equipment_status = 'have_own_equipment' WHERE equipment_status IS NULL")
+    
     # ### end Alembic commands ###
 
 
