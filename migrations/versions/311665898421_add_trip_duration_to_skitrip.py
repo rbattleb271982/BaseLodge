@@ -46,26 +46,9 @@ def upgrade():
                type_=sa.String(length=2),
                existing_nullable=True)
 
-    # Add trip_duration column as nullable first
+    # Add trip_duration column as nullable (no backfill - will be handled later)
     with op.batch_alter_table('ski_trip', schema=None) as batch_op:
         batch_op.add_column(sa.Column('trip_duration', sa.String(length=20), nullable=True))
-    
-    # Backfill existing trips based on date calculation
-    connection = op.get_bind()
-    connection.execute(sa.text("""
-        UPDATE ski_trip SET trip_duration = 
-            CASE 
-                WHEN start_date = end_date THEN 'day_trip'
-                WHEN (end_date - start_date) = 1 THEN 'one_night'
-                WHEN (end_date - start_date) = 2 THEN 'two_nights'
-                ELSE 'three_plus_nights'
-            END
-        WHERE trip_duration IS NULL
-    """))
-    
-    # Now set NOT NULL constraint
-    with op.batch_alter_table('ski_trip', schema=None) as batch_op:
-        batch_op.alter_column('trip_duration', nullable=False)
 
     with op.batch_alter_table('user', schema=None) as batch_op:
         batch_op.alter_column('lifecycle_stage',

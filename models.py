@@ -136,7 +136,7 @@ class SkiTrip(db.Model):
     pass_type = db.Column(db.String(50), default="No Pass")
     is_public = db.Column(db.Boolean, default=True)
     ride_intent = db.Column(db.String(20), nullable=True)  # 'can_offer', 'need_ride', or None
-    trip_duration = db.Column(db.String(20), nullable=False, default='day_trip')  # day_trip, one_night, two_nights, three_plus_nights
+    trip_duration = db.Column(db.String(20), nullable=True)  # day_trip, one_night, two_nights, three_plus_nights
     trip_equipment_status = db.Column(db.String(20), nullable=True)  # use_default, have_own_equipment, needs_rentals (null = use_default)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
