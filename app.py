@@ -1699,6 +1699,52 @@ def home():
             # Sort by count (desc) - user's add order is preserved as secondary
             shared_interests.sort(key=lambda x: -x['count'])
     
+    # Weekend day-trip signal for home screen
+    weekend_daytrip_signal = None
+    if friend_ids:
+        # Calculate weekend window
+        # Mon-Thu: upcoming Fri-Sun; Fri-Sun: current Fri-Sun
+        weekday = today.weekday()  # 0 = Monday, 6 = Sunday
+        
+        if weekday <= 3:  # Mon-Thu: use upcoming Fri-Sun
+            days_to_friday = 4 - weekday
+            weekend_friday = today + timedelta(days=days_to_friday)
+        else:  # Fri-Sun: use current Fri-Sun
+            # Friday = weekday 4, Saturday = 5, Sunday = 6
+            days_since_friday = weekday - 4
+            weekend_friday = today - timedelta(days=days_since_friday)
+        
+        weekend_sunday = weekend_friday + timedelta(days=2)
+        
+        # Find friends' day trips within this weekend
+        weekend_daytrips = SkiTrip.query.filter(
+            SkiTrip.user_id.in_(friend_ids),
+            SkiTrip.is_public == True,
+            SkiTrip.trip_duration == 'day_trip',
+            SkiTrip.start_date >= weekend_friday,
+            SkiTrip.start_date <= weekend_sunday,
+            SkiTrip.end_date >= today  # Must be active
+        ).all()
+        
+        if weekend_daytrips:
+            # Group by resort to find the most popular destination
+            resort_counts = {}
+            for trip in weekend_daytrips:
+                resort_name = trip.resort.name if trip.resort else trip.mountain
+                if resort_name not in resort_counts:
+                    resort_counts[resort_name] = set()
+                resort_counts[resort_name].add(trip.user_id)
+            
+            # Find the resort with the most friends
+            if resort_counts:
+                top_resort = max(resort_counts.keys(), key=lambda r: len(resort_counts[r]))
+                friend_count = len(resort_counts[top_resort])
+                if friend_count > 0:
+                    weekend_daytrip_signal = {
+                        'count': friend_count,
+                        'resort': top_resort
+                    }
+    
     return render_template(
         'home.html',
         user=user,
@@ -1720,7 +1766,8 @@ def home():
         next_trip_countdown=next_trip_countdown,
         next_trip=next_trip,
         availability_nudge=availability_nudge,
-        shared_interests=shared_interests
+        shared_interests=shared_interests,
+        weekend_daytrip_signal=weekend_daytrip_signal
     )
 
 @app.route("/dismiss-nudge", methods=["POST"])

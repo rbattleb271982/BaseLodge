@@ -157,6 +157,19 @@
             border-bottom: none;
             padding-bottom: 0;
         }
+        .daytrip-signal-card {
+            background: linear-gradient(135deg, #E8F0FF 0%, #F0F4FF 100%);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(100, 130, 200, 0.2);
+        }
+        .daytrip-signal-text {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -250,6 +263,13 @@
                 <p class="availability-card-cta">See availability →</p>
             </div>
         </a>
+        {% endif %}
+        
+        <!-- Weekend Day-Trip Signal Card -->
+        {% if weekend_daytrip_signal %}
+        <div class="daytrip-signal-card">
+            <p class="daytrip-signal-text">{{ weekend_daytrip_signal.count }} friend{% if weekend_daytrip_signal.count != 1 %}s{% endif %} {% if weekend_daytrip_signal.count == 1 %}is{% else %}are{% endif %} day-tripping {{ weekend_daytrip_signal.resort }} this weekend</p>
+        </div>
         {% endif %}
         
         <!-- Shared Interest Card (only show if user has shared interests) -->
