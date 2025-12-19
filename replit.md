@@ -55,6 +55,15 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
   - *Friend Ordering by Relevance:* Friends list sorted by trip overlap, pass compatibility, and shared availability (score hidden)
   - *Rider-Aware Copy:* Jinja helpers (get_gear_term, get_ride_term) for context-aware terminology
   - *Seasonal Awareness:* Empty states adjust based on season (preseason, midseason, spring, offseason)
+- **Equipment Status Feature (Dec 2025):**
+  - *User Equipment Status:* Profile-level `equipment_status` field with values `have_own_equipment` or `needs_rentals`
+  - *Equipment Settings Toggle:* Segmented control on Settings > Equipment page to select status
+  - *Conditional Equipment Fields:* Equipment brand/details section hidden when status is `needs_rentals`
+  - *Trip-Level Override:* `trip_equipment_status` field allows per-trip override (Use my default / Have own equipment / Needs rentals)
+  - *Effective Status Resolution:* `SkiTrip.get_effective_equipment_status()` resolves trip override or falls back to user profile
+  - *Trip Card Display:* Equipment status shown on trip cards (e.g., "Jan 13–14 · 1 Night · Have own equipment")
+  - *Equipment Filter:* My Trips tab includes segmented control filter for equipment status (Any / Have own equipment / Needs rentals)
+  - *Dual Filtering:* Duration and equipment filters work together for combined filtering
 - **UI/UX Polish Pass (Dec 2025):**
   - *Settings screen:* Card-based layout with 24px group spacing, reduced header weight (12px, 600 weight)
   - *Wish List Destinations:* Redesigned to match Mountains Visited pattern (pills with × buttons, state filter, typeahead search)
