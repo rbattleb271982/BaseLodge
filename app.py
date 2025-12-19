@@ -476,6 +476,8 @@ def auth():
                     
                     # Update last_active_at on login (activity hygiene)
                     user.last_active_at = datetime.utcnow()
+                    # Increment login_count for planning flow tracking
+                    user.login_count = (user.login_count or 0) + 1
                     db.session.commit()
                     
                     # Connect with inviter if pending_inviter_id exists in session

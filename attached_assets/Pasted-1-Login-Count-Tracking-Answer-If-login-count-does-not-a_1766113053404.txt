@@ -1,0 +1,85 @@
+1. Login Count Tracking
+Answer:
+If login_count does not already exist, add a login_count integer field to the User model.
+Increment it on every successful login.
+Do not add a special is_second_login flag.
+Rule:
+First login → login_count == 1
+Second login → login_count == 2 (this is when the callout may appear)
+Why:
+login_count is more flexible and future-proof
+Avoids one-off flags and edge cases
+Simple to reason about and test
+2. Planning Completion Tracking
+Answer:
+Yes, add both fields.
+Add to User:
+planning_details_completed_at (nullable timestamp)
+planning_details_dismissed_at (nullable timestamp)
+Behavior:
+If either field is non-null → never show the callout again
+completed_at is set when core logistics fields are completed (or confirmed)
+dismissed_at is set when user taps “Skip for now”
+Why:
+Explicit, auditable state
+Prevents accidental re-prompts
+Useful later for analytics
+3. Skill Level
+Answer:
+Yes, we need an explicit skill_level field on User if it does not already exist.
+Do not reuse terrain_preferences.
+Skill level is a distinct concept.
+Add:
+skill_level with values: BEGINNER, INTERMEDIATE, ADVANCED
+Why:
+Terrain preference ≠ ability level
+Skill level is a core logistics + social signal
+Must be queryable and always visible
+4. Home Mountain
+Answer:
+Yes, use the existing home_mountain field referenced in replit.md.
+Do not create a new field.
+Rule:
+Only show the Home Mountain screen in the flow if this value is missing.
+If it exists, skip that screen entirely.
+5. Historical Pass Data
+Answer:
+Yes, store this as a JSON (or array-type) field on User.
+Recommended field:
+historical_passes_by_season
+Structure example:
+{
+  "2024_25": ["ikon", "epic"]
+}
+Rules:
+This data is never shown on friend profiles or public views.
+No additional hiding logic needed as long as it’s not referenced in templates.
+Why:
+Supports multiple passes per season
+Scales cleanly to future seasons
+Avoids schema churn later
+6. Core Completion Definition
+Answer:
+Core fields are only the following:
+Equipment status
+Skill level
+Home mountain (only if your app requires it)
+Nothing else counts.
+Explicitly not core:
+Historical pass data
+Equipment brands
+Wishlist
+Mountains visited
+Any analytics-only fields
+Completion rule:
+All core fields present → planning profile complete
+Optional fields never block completion
+7. Equipment Brand Hiding
+Answer:
+The existing JS/UI logic for hiding brand fields when equipment_status = needs_rentals is sufficient.
+This planning flow should reuse the same logic, not introduce new hiding rules.
+Rule:
+No brand fields should be visible anywhere when needs_rentals is selected.
+Do not delete or modify stored brand data.
+One-line instruction you can add (optional but helpful)
+Use these answers as final product decisions. Do not add additional flags or fields beyond what is specified.

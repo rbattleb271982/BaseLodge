@@ -91,6 +91,12 @@ class User(UserMixin, db.Model):
     email_digest = db.Column(db.Boolean, default=False)
     timezone = db.Column(db.String(50), nullable=True)
     
+    # Planning details flow (Dec 2025)
+    login_count = db.Column(db.Integer, default=0)
+    planning_details_completed_at = db.Column(db.DateTime, nullable=True)
+    planning_details_dismissed_at = db.Column(db.DateTime, nullable=True)
+    historical_passes_by_season = db.Column(db.JSON, default=dict)  # e.g., {"2024_25": ["ikon", "epic"]}
+    
     trips = db.relationship('SkiTrip', backref='user', lazy=True)
     friend_requests_sent = db.relationship('Invitation', foreign_keys='Invitation.sender_id', backref='sender', lazy=True)
     friend_requests_received = db.relationship('Invitation', foreign_keys='Invitation.receiver_id', backref='receiver', lazy=True)
