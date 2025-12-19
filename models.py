@@ -42,6 +42,17 @@ class TripDuration(PyEnum):
     THREE_PLUS_NIGHTS = "three_plus_nights"
 
 
+class EquipmentStatus(PyEnum):
+    HAVE_OWN_EQUIPMENT = "have_own_equipment"
+    NEEDS_RENTALS = "needs_rentals"
+
+
+class TripEquipmentStatus(PyEnum):
+    USE_DEFAULT = "use_default"
+    HAVE_OWN_EQUIPMENT = "have_own_equipment"
+    NEEDS_RENTALS = "needs_rentals"
+
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(80), nullable=False)
@@ -61,6 +72,7 @@ class User(UserMixin, db.Model):
     open_dates = db.Column(db.JSON, default=list)  # List of YYYY-MM-DD strings
     wish_list_resorts = db.Column(db.JSON, default=list)  # List of resort IDs (max 3)
     terrain_preferences = db.Column(db.JSON, default=list)  # List of terrain types (max 2): Groomers, Trees, Park, Backcountry
+    equipment_status = db.Column(db.String(20), default='have_own_equipment')  # have_own_equipment or needs_rentals
     
     # Email & lifecycle hygiene (Dec 2025)
     created_at = db.Column(db.DateTime, nullable=True)  # Set to earliest trip/friend or NOW
@@ -125,10 +137,28 @@ class SkiTrip(db.Model):
     is_public = db.Column(db.Boolean, default=True)
     ride_intent = db.Column(db.String(20), nullable=True)  # 'can_offer', 'need_ride', or None
     trip_duration = db.Column(db.String(20), nullable=False, default='day_trip')  # day_trip, one_night, two_nights, three_plus_nights
+    trip_equipment_status = db.Column(db.String(20), nullable=True)  # use_default, have_own_equipment, needs_rentals (null = use_default)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
         return f'<SkiTrip {self.mountain}>'
+    
+    def get_effective_equipment_status(self):
+        """Get effective equipment status, considering trip override and user default."""
+        if self.trip_equipment_status and self.trip_equipment_status != 'use_default':
+            return self.trip_equipment_status
+        # Fall back to user's profile equipment_status
+        return self.user.equipment_status or 'have_own_equipment'
+    
+    @property
+    def equipment_display(self):
+        """Return human-readable equipment status label."""
+        status = self.get_effective_equipment_status()
+        labels = {
+            'have_own_equipment': 'Have own equipment',
+            'needs_rentals': 'Needs rentals'
+        }
+        return labels.get(status, 'Have own equipment')
     
     @staticmethod
     def calculate_duration(start_date, end_date):

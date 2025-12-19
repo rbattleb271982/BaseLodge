@@ -149,6 +149,22 @@
         <a href="{{ url_for('settings') }}" class="back-link">← Back</a>
         <h1 class="page-header">Equipment</h1>
         
+        <!-- Equipment Status Toggle -->
+        <div class="equipment-card" style="margin-bottom: 24px;">
+            <h2 class="section-header" style="margin-bottom: 16px;">Equipment Status</h2>
+            <div class="equipment-status-toggle">
+                <label style="display: flex; align-items: center; gap: 12px; padding: 12px 0; cursor: pointer; border-bottom: 1px solid var(--bl-color-border-soft);">
+                    <input type="radio" name="equipment_status" value="have_own_equipment" {% if not user.equipment_status or user.equipment_status == 'have_own_equipment' %}checked{% endif %} onchange="updateEquipmentStatus(this.value)">
+                    <span style="font-size: 15px; color: var(--bl-color-text);">Have own equipment</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 12px; padding: 12px 0; cursor: pointer;">
+                    <input type="radio" name="equipment_status" value="needs_rentals" {% if user.equipment_status == 'needs_rentals' %}checked{% endif %} onchange="updateEquipmentStatus(this.value)">
+                    <span style="font-size: 15px; color: var(--bl-color-text);">Needs rentals</span>
+                </label>
+            </div>
+        </div>
+        
+        <div id="equipment-details-section" {% if user.equipment_status == 'needs_rentals' %}style="display: none;"{% endif %}>
         <h2 class="section-header">Primary Setup</h2>
         <div class="equipment-card">
             {% if primary_equipment %}
@@ -320,6 +336,7 @@
             </div>
             {% if secondary_equipment %}</div>{% endif %}
         </div>
+        </div><!-- Close equipment-details-section -->
     </div>
     
     {% include 'components/bottom_nav.html' %}
@@ -535,6 +552,25 @@
                 alert('Failed to delete equipment');
             }
         });
+    }
+    
+    async function updateEquipmentStatus(status) {
+        const formData = new FormData();
+        formData.append('equipment_status', status);
+        
+        const response = await fetch('/settings/equipment-status', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            const section = document.getElementById('equipment-details-section');
+            if (status === 'needs_rentals') {
+                section.style.display = 'none';
+            } else {
+                section.style.display = 'block';
+            }
+        }
     }
     </script>
 </body>

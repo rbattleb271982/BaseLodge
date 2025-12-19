@@ -1936,7 +1936,8 @@ def settings_equipment():
     
     return render_template("settings_equipment.html",
                            primary_equipment=primary_equipment,
-                           secondary_equipment=secondary_equipment)
+                           secondary_equipment=secondary_equipment,
+                           user=current_user)
 
 
 @app.route("/settings/equipment/save", methods=["POST"])
@@ -1994,6 +1995,20 @@ def settings_equipment_delete():
     if equipment:
         db.session.delete(equipment)
         db.session.commit()
+    
+    return jsonify({"success": True})
+
+
+@app.route("/settings/equipment-status", methods=["POST"])
+@login_required
+def settings_equipment_status():
+    """Update user's equipment_status (have_own_equipment or needs_rentals)."""
+    status = request.form.get("equipment_status", "have_own_equipment")
+    if status not in ["have_own_equipment", "needs_rentals"]:
+        return jsonify({"success": False, "error": "Invalid status"}), 400
+    
+    current_user.equipment_status = status
+    db.session.commit()
     
     return jsonify({"success": True})
 
@@ -2097,6 +2112,7 @@ def add_trip():
         set_home_mountain = request.form.get("set_home_mountain") == "on"
         ride_intent = request.form.get("ride_intent") or None
         trip_duration = request.form.get("trip_duration")
+        trip_equipment_status = request.form.get("trip_equipment_status") or "use_default"
 
         errors = []
 
@@ -2170,6 +2186,7 @@ def add_trip():
             is_public=is_public,
             ride_intent=ride_intent,
             trip_duration=trip_duration,
+            trip_equipment_status=trip_equipment_status if trip_equipment_status != 'use_default' else None,
         )
         db.session.add(trip)
         db.session.commit()
@@ -2214,6 +2231,7 @@ def edit_trip_form(trip_id):
         is_public = request.form.get("is_public") == "on"
         set_home_mountain = request.form.get("set_home_mountain") == "on"
         ride_intent = request.form.get("ride_intent") or None
+        trip_equipment_status = request.form.get("trip_equipment_status") or "use_default"
 
         errors = []
 
@@ -2283,6 +2301,7 @@ def edit_trip_form(trip_id):
         trip.end_date = end_date
         trip.is_public = is_public
         trip.ride_intent = ride_intent
+        trip.trip_equipment_status = trip_equipment_status if trip_equipment_status != 'use_default' else None
         
         # Auto-update duration based on dates
         trip.trip_duration = SkiTrip.calculate_duration(start_date, end_date)

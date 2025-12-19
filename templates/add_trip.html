@@ -314,6 +314,15 @@
                 </select>
             </div>
 
+            <div class="form-group">
+                <label for="trip_equipment_status">Equipment for this trip</label>
+                <select id="trip_equipment_status" name="trip_equipment_status">
+                    <option value="use_default" {% if not trip or not trip.trip_equipment_status or trip.trip_equipment_status == 'use_default' %}selected{% endif %}>Use my default</option>
+                    <option value="have_own_equipment" {% if trip and trip.trip_equipment_status == 'have_own_equipment' %}selected{% endif %}>Have own equipment</option>
+                    <option value="needs_rentals" {% if trip and trip.trip_equipment_status == 'needs_rentals' %}selected{% endif %}>Needs rentals</option>
+                </select>
+            </div>
+
             {% if not user.home_mountain or (trip and trip.resort and trip.resort.name != user.home_mountain) %}
             <div class="form-group toggle-group">
                 <label class="toggle-label">
