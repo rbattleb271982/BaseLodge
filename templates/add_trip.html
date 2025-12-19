@@ -123,6 +123,47 @@
         .inline-error.visible {
             display: block;
         }
+        
+        .duration-segment {
+            display: flex;
+            gap: 0;
+            border: 1px solid var(--bl-color-border);
+            border-radius: var(--bl-radius-md);
+            overflow: hidden;
+            background: var(--bl-color-background);
+        }
+        
+        .duration-segment label {
+            flex: 1;
+            text-align: center;
+            padding: var(--bl-space-3) var(--bl-space-2);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--bl-color-text-muted);
+            cursor: pointer;
+            border-right: 1px solid var(--bl-color-border);
+            background: var(--bl-color-surface);
+            transition: all 0.2s;
+            margin-bottom: 0;
+        }
+        
+        .duration-segment label:last-child {
+            border-right: none;
+        }
+        
+        .duration-segment input {
+            display: none;
+        }
+        
+        .duration-segment input:checked + span {
+            background: var(--bl-color-primary);
+            color: white;
+        }
+        
+        .duration-segment label:has(input:checked) {
+            background: var(--bl-color-primary);
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -181,6 +222,29 @@
                     <input type="date" id="end_date" name="end_date" required value="{% if trip and trip.end_date %}{{ trip.end_date.isoformat() }}{% endif %}" onchange="updatePlaceholders();">
                     <span class="date-placeholder" id="end_date_placeholder" {% if trip and trip.end_date %}style="display:none"{% endif %}>mm/dd/yy</span>
                 </div>
+            </div>
+
+            <div class="form-group">
+                <label>Trip duration</label>
+                <div class="duration-segment" id="duration-segment">
+                    <label>
+                        <input type="radio" name="trip_duration" value="day_trip" {% if trip and trip.trip_duration == 'day_trip' %}checked{% endif %} required>
+                        <span>Day Trip</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="trip_duration" value="one_night" {% if trip and trip.trip_duration == 'one_night' %}checked{% endif %}>
+                        <span>1 Night</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="trip_duration" value="two_nights" {% if trip and trip.trip_duration == 'two_nights' %}checked{% endif %}>
+                        <span>2 Nights</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="trip_duration" value="three_plus_nights" {% if trip and trip.trip_duration == 'three_plus_nights' %}checked{% endif %}>
+                        <span>3+ Nights</span>
+                    </label>
+                </div>
+                <p class="inline-error" id="duration-error">Please select a trip duration.</p>
             </div>
 
             <div class="form-group">

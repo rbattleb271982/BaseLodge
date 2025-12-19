@@ -2049,6 +2049,7 @@ def add_trip():
         is_public = request.form.get("is_public") == "on"
         set_home_mountain = request.form.get("set_home_mountain") == "on"
         ride_intent = request.form.get("ride_intent") or None
+        trip_duration = request.form.get("trip_duration")
 
         errors = []
 
@@ -2058,6 +2059,8 @@ def add_trip():
             errors.append("Please select a start date.")
         if not end_date_str:
             errors.append("Please select an end date.")
+        if not trip_duration:
+            errors.append("Please select a trip duration.")
 
         resort = None
         if resort_id:
@@ -2087,6 +2090,28 @@ def add_trip():
                 user=current_user,
                 form_action=url_for("add_trip"),
             )
+        
+        # Check for overlapping active trips at the same resort
+        today = date.today()
+        overlapping = SkiTrip.query.filter(
+            SkiTrip.user_id == current_user.id,
+            SkiTrip.resort_id == resort.id,
+            SkiTrip.end_date >= today,
+            SkiTrip.start_date <= end_date,
+            SkiTrip.end_date >= start_date
+        ).first()
+        
+        if overlapping:
+            return render_template(
+                "add_trip.html",
+                trip=None,
+                resorts=resorts,
+                states_with_resorts=get_states_with_resorts(),
+                user=current_user,
+                form_action=url_for("add_trip"),
+                overlap_trip=overlapping,
+                overlap_resort_name=resort.name,
+            )
 
         trip = SkiTrip(
             user_id=current_user.id,
@@ -2097,6 +2122,7 @@ def add_trip():
             end_date=end_date,
             is_public=is_public,
             ride_intent=ride_intent,
+            trip_duration=trip_duration,
         )
         db.session.add(trip)
         db.session.commit()
@@ -2179,6 +2205,29 @@ def edit_trip_form(trip_id):
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
             )
+        
+        # Check for overlapping active trips at the same resort (excluding current trip)
+        today = date.today()
+        overlapping = SkiTrip.query.filter(
+            SkiTrip.user_id == current_user.id,
+            SkiTrip.id != trip.id,
+            SkiTrip.resort_id == resort.id,
+            SkiTrip.end_date >= today,
+            SkiTrip.start_date <= end_date,
+            SkiTrip.end_date >= start_date
+        ).first()
+        
+        if overlapping:
+            return render_template(
+                "add_trip.html",
+                trip=trip,
+                resorts=resorts,
+                states_with_resorts=get_states_with_resorts(),
+                user=current_user,
+                form_action=url_for("edit_trip_form", trip_id=trip.id),
+                overlap_trip=overlapping,
+                overlap_resort_name=resort.name,
+            )
 
         trip.resort_id = resort.id
         trip.state = resort.state
@@ -2187,6 +2236,9 @@ def edit_trip_form(trip_id):
         trip.end_date = end_date
         trip.is_public = is_public
         trip.ride_intent = ride_intent
+        
+        # Auto-update duration based on dates
+        trip.trip_duration = SkiTrip.calculate_duration(start_date, end_date)
 
         if set_home_mountain and resort:
             current_user.home_mountain = resort.name
