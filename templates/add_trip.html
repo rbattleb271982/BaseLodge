@@ -164,6 +164,52 @@
             background: var(--bl-color-primary);
             color: white;
         }
+        
+        .overlap-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 16px;
+        }
+        
+        .overlap-modal-content {
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-lg);
+            padding: 24px;
+            max-width: 400px;
+            width: 100%;
+        }
+        
+        .overlap-modal-text {
+            font-size: 16px;
+            line-height: 1.5;
+            color: var(--bl-color-text);
+            margin: 0 0 20px 0;
+            text-align: center;
+        }
+        
+        .overlap-modal-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .bl-btn-secondary {
+            padding: var(--bl-space-4) var(--bl-space-5);
+            background: var(--bl-color-background);
+            color: var(--bl-color-text);
+            border: 1px solid var(--bl-color-border);
+            border-radius: var(--bl-radius-lg);
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -179,6 +225,18 @@
                 {% endfor %}
             {% endif %}
         {% endwith %}
+        
+        {% if overlap_trip %}
+        <div class="overlap-modal" id="overlap-modal">
+            <div class="overlap-modal-content">
+                <p class="overlap-modal-text">You already have a trip to {{ overlap_resort_name }} that overlaps these dates. Want to update that trip instead?</p>
+                <div class="overlap-modal-actions">
+                    <a href="{{ url_for('edit_trip_form', trip_id=overlap_trip.id) }}" class="bl-btn-primary" style="flex: 1; text-align: center; text-decoration: none;">Edit existing trip</a>
+                    <button type="button" onclick="closeOverlapModal()" class="bl-btn-secondary" style="flex: 1;">Cancel</button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <form method="POST" action="{{ form_action }}" class="form-card">
             <div class="form-group">
@@ -289,6 +347,13 @@
     {% include 'components/bottom_nav.html' %}
 
     <script>
+        function closeOverlapModal() {
+            const modal = document.getElementById('overlap-modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+        
         const resorts = {{ resorts|tojson }};
         const userPasses = {{ (user_passes or [])|tojson }};
         const stateSelect = document.getElementById('state');
