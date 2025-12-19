@@ -40,6 +40,13 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **Invite Token System:** Single-use invite tokens (`InviteToken` model) enforce one-time usage for friend invitations.
 - **Wish List Destinations:** Users can save up to 3 aspirational resorts via Settings. Displayed on own profile and friend profiles. Friend profiles show "Wish List Overlap" when both users share destination resorts.
 - **Friend Profile Features:** Full-page friend profiles at `/friends/<id>` with header card, equipment display, upcoming trips, pass compatibility badges ("Can ski your upcoming trips"), trip overlaps, availability overlaps, and wish list sections.
+- **Trip Duration Feature (Dec 2025):**
+  - *Duration Categories:* day_trip, one_night, two_nights, three_plus_nights stored in `trip_duration` column
+  - *Auto-Calculation:* Duration auto-calculated from dates during trip creation; auto-updates when dates change on edit
+  - *Prominent Display:* Trip cards show "Jan 13–14 · **1 Night**" format with duration emphasized
+  - *Overlap Validation:* Prevents duplicate active trips at same resort with modal offering to edit existing trip
+  - *Weekend Signal Card:* Home screen shows friends' weekend day trips (Mon-Thu shows upcoming Fri-Sun; Fri-Sun shows current weekend)
+  - *Duration Filter:* Segmented control on My Trips tab filters by All/Day/1 Night/2 Nights/3+
 - **Personalization Features (Dec 2025):**
   - *Terrain Preferences:* Users can select up to 2 terrain types (Groomers, Trees, Park, Backcountry), displayed on friend profiles with secondary text
   - *Smart Resort Defaults:* Trip creation pre-selects user's home state and sorts resorts by pass compatibility
