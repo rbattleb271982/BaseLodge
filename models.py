@@ -34,6 +34,14 @@ class EquipmentDiscipline(PyEnum):
     SKIER = "skier"
     SNOWBOARDER = "snowboarder"
 
+
+class TripDuration(PyEnum):
+    DAY_TRIP = "day_trip"
+    ONE_NIGHT = "one_night"
+    TWO_NIGHTS = "two_nights"
+    THREE_PLUS_NIGHTS = "three_plus_nights"
+
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(80), nullable=False)
@@ -116,10 +124,35 @@ class SkiTrip(db.Model):
     pass_type = db.Column(db.String(50), default="No Pass")
     is_public = db.Column(db.Boolean, default=True)
     ride_intent = db.Column(db.String(20), nullable=True)  # 'can_offer', 'need_ride', or None
+    trip_duration = db.Column(db.String(20), nullable=False, default='day_trip')  # day_trip, one_night, two_nights, three_plus_nights
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
         return f'<SkiTrip {self.mountain}>'
+    
+    @staticmethod
+    def calculate_duration(start_date, end_date):
+        """Calculate trip duration based on dates."""
+        if start_date == end_date:
+            return TripDuration.DAY_TRIP.value
+        nights = (end_date - start_date).days
+        if nights == 1:
+            return TripDuration.ONE_NIGHT.value
+        elif nights == 2:
+            return TripDuration.TWO_NIGHTS.value
+        else:
+            return TripDuration.THREE_PLUS_NIGHTS.value
+    
+    @property
+    def duration_display(self):
+        """Return human-readable duration label."""
+        labels = {
+            'day_trip': 'Day Trip',
+            'one_night': '1 Night',
+            'two_nights': '2 Nights',
+            'three_plus_nights': '3+ Nights'
+        }
+        return labels.get(self.trip_duration, 'Day Trip')
 
 
 class Friend(db.Model):
