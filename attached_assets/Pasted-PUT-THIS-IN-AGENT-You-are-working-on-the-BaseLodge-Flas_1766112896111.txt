@@ -1,0 +1,195 @@
+PUT THIS IN AGENT
+
+You are working on the BaseLodge Flask web app. Implement the following feature end-to-end, testing all flows before finishing. Use checkpoints sparingly.
+
+Goal
+Introduce a respectful, non-blocking planning-details prompt that appears on a user’s second login (not first), confirms signup completion, and optionally guides users through adding or confirming logistics-related profile details. The flow must avoid re-asking questions the user has already completed unless confirmation is lightweight and optional. No progress gauge or percentage should be shown.
+
+––––––––––––––––
+SECOND LOGIN HOME CALLOUT
+––––––––––––––––
+
+Trigger
+Show this callout only on a user’s second successful login after signup.
+
+Conditions to show:
+	•	User login_count == 2 (or equivalent second-login flag)
+	•	Callout has not been dismissed
+	•	Core planning fields are not fully complete
+
+Do NOT show this callout if:
+	•	All core planning fields are already complete
+	•	The user dismissed the callout previously
+	•	The user has already completed the planning flow
+
+Once dismissed or completed, persist a flag so the callout never reappears automatically.
+
+Placement
+Display the callout at the top of the Home screen, above other content.
+
+Copy (use exactly this wording)
+
+Title:
+You’re all set 🎉
+
+Body:
+You’ve completed sign up. Want to add a few planning details your friends will see, or jump right into creating a trip?
+
+Primary CTA:
+Add planning details
+
+Secondary CTA:
+Create a trip
+
+Tertiary (text link):
+Skip for now
+
+Behavior
+	•	Add planning details → launches the Planning / Logistics flow below
+	•	Create a trip → routes directly to trip creation and dismisses the callout
+	•	Skip for now → dismisses the callout permanently without blocking anything
+
+––––––––––––––––
+PLANNING / LOGISTICS FLOW
+––––––––––––––––
+
+Purpose
+This is not onboarding. This is optional profile enrichment focused on trip coordination. It should be concise, skippable, and avoid unnecessary repetition.
+
+General rules
+	•	Do NOT ask users to re-enter information they have already completed unless it is a simple confirm/edit screen
+	•	Pre-fill all existing values
+	•	Allow users to continue without making changes
+	•	Keep the flow short (do not add extra screens)
+
+––––––––––––––––
+FLOW SCREENS
+––––––––––––––––
+
+Screen 1: Equipment Status
+Label:
+Equipment
+
+Options:
+Have own equipment
+Needs rentals
+
+Helper text:
+Helps friends plan timing and logistics
+
+Behavior:
+	•	If equipment_status is already set, pre-select it
+	•	Allow user to change or continue without changes
+	•	This field is required for planning completion
+
+Brand field rule:
+	•	If equipment_status = Needs rentals, hide all equipment brand fields everywhere
+	•	If Have own equipment, show brand fields normally
+	•	Do not delete existing brand data; only hide/show based on status
+
+––––––––––––––––
+
+Screen 2: Skill Level (confirm-only if already set)
+Label:
+Skiing level
+
+Options:
+Beginner
+Intermediate
+Advanced
+
+Helper text:
+Helps friends plan terrain and pace
+
+Behavior:
+	•	If skill level already exists, pre-select it
+	•	User may tap Next without changing
+	•	Only require selection if no value exists yet
+
+––––––––––––––––
+
+Screen 3: Home mountain or primary region
+Only show this screen if the value is missing.
+
+Behavior:
+	•	Optional to skip
+	•	Counts toward completion if filled
+	•	If already set, do NOT show this screen
+
+––––––––––––––––
+
+Screen 4: Historical pass data (optional, analytics only)
+Label:
+Which passes did you have last season (2024–25)?
+
+Helper text:
+This won’t be shown to others. It helps us understand skiing trends.
+
+Options (multi-select allowed):
+Ikon
+Epic
+Indy
+Other
+None / didn’t have a pass
+Prefer not to say
+
+Behavior:
+	•	Optional
+	•	Can always be skipped
+	•	Does not block completion
+	•	This data is not surfaced anywhere in the product
+
+––––––––––––––––
+COMPLETION LOGIC
+––––––––––––––––
+
+A user’s planning profile is considered complete when all core logistics fields are present:
+	•	Equipment status
+	•	Skill level
+	•	Home mountain / region (if required in the app)
+
+Historical pass data and other enrichment fields do NOT affect completion.
+
+If the user:
+	•	Completes missing core fields → mark planning profile complete
+	•	Confirms existing values without changes → mark complete
+	•	Skips the entire flow → treat as acknowledged and do not nag
+
+Do not show a completion gauge, progress bar, or percentage.
+
+––––––––––––––––
+GENERAL UX RULES
+––––––––––––––––
+	•	Never block trip creation
+	•	Never force users to re-answer completed questions
+	•	Never repeat this callout after dismissal or completion
+	•	Keep tone affirming and optional
+	•	Avoid language like “complete your profile” or percentages
+
+––––––––––––––––
+TESTING REQUIREMENTS
+––––––––––––––––
+
+Before marking complete, manually verify:
+	•	Callout appears only on second login
+	•	Callout does not appear if planning fields are already complete
+	•	CTA routing works correctly
+	•	Skipping dismisses the callout permanently
+	•	Existing values are pre-filled
+	•	Confirm-only screens allow fast continuation
+	•	Equipment status hides/shows brand fields correctly
+	•	Historical pass data is optional and not surfaced
+	•	Trip creation always works without friction
+
+––––––––––––––––
+FINAL INSTRUCTION
+––––––––––––––––
+
+Do not mark this task complete until all scenarios are tested manually.
+
+When finished, summarize:
+	•	What was added
+	•	What was tested
+	•	Any assumptions made
+
+Do not add features beyond this specification.
