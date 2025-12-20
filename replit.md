@@ -48,6 +48,23 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - **Database Initialization:** Idempotent database initialization via `flask init-db` CLI command or `/admin/init-db` HTTP endpoint.
 - **Test Data Seeding:** `/admin/seed-test-users` provides demo data including a primary user, 20 friends with complete profiles, trips, equipment, and bidirectional friendships.
 
+### Lifecycle Signals (Dec 2025)
+
+**Canonical User States (computed properties on User model):**
+- `is_core_profile_complete`: True when rider_type AND pass_type AND skill_level all present
+- `has_started_planning`: True when `first_planning_timestamp` is set OR user has created a SkiTrip OR accepted as TripGuest
+- `is_active_user`: True when `is_core_profile_complete` AND `has_started_planning`
+
+**Lifecycle Signal Fields:**
+- `login_count`: Integer, incremented on every successful login (second-login detection: `login_count == 2`)
+- `first_planning_timestamp`: Set when user first creates a trip or accepts TripGuest (idempotent via `mark_planning_started()`)
+- `planning_completed_timestamp`: Set when user completes OR dismisses planning callout flow
+
+**Signal Integration Rules:**
+- Suppress planning nudges if `has_started_planning` is true OR `planning_completed_timestamp` is set
+- Suppress onboarding nudges if `is_core_profile_complete` is true
+- UI copy adapts: "Finish setting up your profile" vs "Profile", "Create your first trip" vs "+ Add a trip"
+
 ## External Dependencies
 - **Flask:** Python web framework.
 - **Flask-Login:** User session management.

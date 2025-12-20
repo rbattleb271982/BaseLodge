@@ -770,6 +770,9 @@ def create_trip():
     if not user.first_trip_created_at:
         user.first_trip_created_at = datetime.utcnow()
     
+    # Mark planning started (lifecycle signal)
+    user.mark_planning_started()
+    
     # Update lifecycle stage (planning started)
     user.update_lifecycle_stage()
     
@@ -3460,6 +3463,10 @@ def accept_group_trip_invite(trip_id):
     try:
         # Accept the invite
         guest.status = GuestStatus.ACCEPTED
+        
+        # Mark planning started (lifecycle signal)
+        current_user.mark_planning_started()
+        
         db.session.commit()
         
         # Create bidirectional friend connection with trip host if not already friends

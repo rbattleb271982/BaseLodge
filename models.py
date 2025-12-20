@@ -93,10 +93,11 @@ class User(UserMixin, db.Model):
     email_digest = db.Column(db.Boolean, default=False)
     timezone = db.Column(db.String(50), nullable=True)
     
-    # Planning details flow (Dec 2025)
+    # Lifecycle signals (Dec 2025)
     login_count = db.Column(db.Integer, default=0)
-    planning_details_completed_at = db.Column(db.DateTime, nullable=True)
-    planning_details_dismissed_at = db.Column(db.DateTime, nullable=True)
+    first_planning_timestamp = db.Column(db.DateTime, nullable=True)  # Set when user first creates trip or accepts TripGuest
+    planning_completed_timestamp = db.Column(db.DateTime, nullable=True)  # Set when user completes OR dismisses planning callout
+    planning_dismissed_timestamp = db.Column(db.DateTime, nullable=True)  # Legacy: use planning_completed_timestamp
     historical_passes_by_season = db.Column(db.JSON, default=dict)  # e.g., {"2024_25": ["ikon", "epic"]}
     
     trips = db.relationship('SkiTrip', backref='user', lazy=True)
@@ -131,17 +132,27 @@ class User(UserMixin, db.Model):
     @property
     def has_started_planning(self):
         """
-        A user has started planning if they created a SkiTrip or are an accepted TripGuest.
+        A user has started planning if first_planning_timestamp is set, OR if they
+        created a SkiTrip or are an accepted TripGuest (backward compatibility).
         Pending invites do not count. Trip ownership and accepted guest status are equivalent.
         """
-        # Check if user has created any trips
+        if self.first_planning_timestamp:
+            return True
         if self.trips and len(self.trips) > 0:
             return True
-        # Check if user is an accepted guest on any group trip
         for membership in self.trip_memberships:
             if membership.status == GuestStatus.ACCEPTED:
                 return True
         return False
+    
+    def mark_planning_started(self):
+        """
+        Set first_planning_timestamp if not already set. Call when user creates a trip
+        or accepts a TripGuest invitation. Idempotent - does not overwrite if already set.
+        """
+        if not self.first_planning_timestamp:
+            from datetime import datetime
+            self.first_planning_timestamp = datetime.utcnow()
     
     @property
     def is_active_user(self):
