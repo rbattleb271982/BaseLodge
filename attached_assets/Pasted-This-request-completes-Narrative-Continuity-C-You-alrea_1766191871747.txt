@@ -1,0 +1,118 @@
+This request completes Narrative Continuity (C). You already implemented partial logic; this is the final pass to complete the full 4-state narrative system. This is copy + conditional rendering only. Do not add new UI components or redesign layouts.
+
+First, answers to your clarifying questions (authoritative):
+	1.	Screens that require narrative headlines
+Apply narrative continuity to the following screens only:
+
+	•	Home (home.html)
+	•	Profile edit screen (edit_profile.html)
+	•	Trips (trips.html or equivalent trip list / empty state)
+	•	Friends (friends.html)
+
+Do NOT apply narrative headlines to more.html / settings. That screen is utility-focused and should remain minimal.
+	2.	Meaning of “Profile”
+“Profile” refers to the edit profile screen (edit_profile.html) only.
+Do not add narrative copy to more.html or other settings pages.
+	3.	Headline placement
+Do NOT introduce new layout elements.
+
+Place narrative copy using existing structures only, in this order of preference:
+	•	Use existing empty-state headline/subhead blocks where they exist
+	•	Otherwise, place a short subhead-style sentence directly under the existing page title
+	•	If neither exists, replace existing empty-state copy text (do not add a new banner)
+
+The narrative copy should be subtle, 1–2 lines max, visually secondary to the page title.
+	4.	State 2 CTA (“Now put it to use”)
+This should be integrated into existing empty-state or helper copy, not a new dismissible prompt.
+
+Do NOT add a modal, toast, banner, or dismissal logic.
+Simply adjust the copy and CTA language in the existing Home empty-state / helper text.
+	5.	State 4 (Active User) behavior
+Do NOT actively hide or remove elements.
+
+Instead:
+	•	Ensure no onboarding or planning nudges render when is_active_user == true
+	•	Allow the UI to naturally fall back to neutral, management-oriented copy
+	•	No instructional or directive language should appear
+
+Now, implement the full 4-state narrative system as follows.
+
+Narrative States (Derived — do not store new fields):
+
+State 1: Early Onboarding
+Conditions:
+	•	is_core_profile_complete == false
+	•	login_count <= 1
+
+Narrative intent:
+	•	Welcoming
+	•	Light guidance
+	•	No urgency
+
+Copy guidance:
+	•	“Finish setting up your profile”
+	•	“This takes about a minute”
+Apply on Home and Profile edit screens only.
+
+State 2: Profile Complete, Not Planning
+Conditions:
+	•	is_core_profile_complete == true
+	•	has_started_planning == false
+	•	login_count >= 2
+
+Narrative intent:
+	•	Confident
+	•	Invitational
+	•	Forward-looking
+
+Copy guidance:
+	•	“You’re all set”
+	•	“Now put it to use”
+Primary CTA language should guide toward creating or joining a trip.
+Apply primarily on Home and Trips screens.
+Do not repeat onboarding language.
+
+State 3: Planning Started, Not Fully Active
+Conditions:
+	•	has_started_planning == true
+	•	is_active_user == false (edge cases only)
+
+Narrative intent:
+	•	Affirming
+	•	Directional but minimal
+
+Copy guidance:
+	•	“You’re planning”
+	•	“Here’s what’s next”
+No beginner language.
+Apply on Home and Trips screens where applicable.
+
+State 4: Active User
+Conditions:
+	•	is_active_user == true
+
+Narrative intent:
+	•	Calm
+	•	Non-instructional
+	•	Neutral management tone
+
+Copy guidance:
+	•	“Manage your trips”
+	•	“View upcoming plans”
+	•	“Edit your profile”
+No onboarding or planning nudges should render.
+
+Implementation Rules:
+	•	Narrative state must be inferred dynamically using existing helpers:
+is_core_profile_complete, has_started_planning, is_active_user, login_count
+	•	Each screen should show at most ONE guiding headline or subhead
+	•	Button labels and helper text may change per state, but layout must remain unchanged
+	•	Avoid duplicate or conflicting CTAs across states
+
+Deliverables:
+	•	Full 4-state narrative continuity across Home, Profile edit, Trips, and Friends
+	•	login_count-aware differentiation between State 1 and State 2
+	•	No narrative copy on more.html
+	•	Short summary of where narrative logic was applied and how states map to copy
+
+Do not add new components, modals, walkthroughs, or animations. Ask clarifying questions only if required to avoid breaking an existing flow. Otherwise, proceed.

@@ -121,8 +121,19 @@
         
         {% else %}
         <div class="empty-card">
+            {% if current_user.is_active_user %}
+            <h3>No friends yet</h3>
+            <p>Invite someone to start planning together.</p>
+            {% elif current_user.has_started_planning %}
+            <h3>No friends yet</h3>
+            <p>Invite someone to share your trips with.</p>
+            {% elif current_user.is_core_profile_complete and (current_user.login_count or 0) >= 2 %}
+            <h3>You're all set</h3>
+            <p>Invite someone to start planning together.</p>
+            {% else %}
             <h3>No friends yet</h3>
             <p>Invite someone to get started planning together!</p>
+            {% endif %}
             <a href="{{ url_for('invite') }}" class="bl-btn-primary" style="display: inline-block; text-decoration: none;">Invite a Friend</a>
         </div>
         {% endif %}

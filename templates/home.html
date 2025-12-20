@@ -208,7 +208,15 @@
             <!-- Identity section -->
             <div style="padding: 16px 16px 0;">
                 <h1 class="bl-card-section-title" style="margin-bottom: 8px;">
+                    {% if user.is_active_user %}
+                    {{ user.first_name }}
+                    {% elif user.has_started_planning %}
+                    {{ user.first_name }}, you're planning
+                    {% elif user.is_core_profile_complete and (user.login_count or 0) >= 2 %}
+                    You're all set, {{ user.first_name }}
+                    {% else %}
                     Welcome, {{ user.first_name }}
+                    {% endif %}
                 </h1>
                 
                 <!-- Next trip inside profile card (2 lines, tappable) -->
@@ -393,9 +401,15 @@
                 </div>
             {% else %}
                 <div class="empty-state-container">
-                    {% if user.has_started_planning %}
+                    {% if user.is_active_user %}
                     <p class="empty-state-title">No upcoming trips.</p>
-                    <p class="empty-state-desc">Add a trip to start planning with friends.</p>
+                    <p class="empty-state-desc">Add a trip when you're ready.</p>
+                    {% elif user.has_started_planning %}
+                    <p class="empty-state-title">No upcoming trips.</p>
+                    <p class="empty-state-desc">Here's what's next: add another trip.</p>
+                    {% elif user.is_core_profile_complete and (user.login_count or 0) >= 2 %}
+                    <p class="empty-state-title">Now put it to use.</p>
+                    <p class="empty-state-desc">Create a trip to start planning with friends.</p>
                     {% else %}
                     <p class="empty-state-title">You don't have any trips yet.</p>
                     <p class="empty-state-desc">Create your first trip to start planning with friends.</p>
@@ -404,7 +418,7 @@
             {% endif %}
             
             <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none; margin-top: 16px;">
-                {% if user.has_started_planning %}+ Add a trip{% else %}Create your first trip{% endif %}
+                {% if user.is_active_user %}+ Add a trip{% elif user.has_started_planning %}+ Add a trip{% elif user.is_core_profile_complete and (user.login_count or 0) >= 2 %}Create a trip{% else %}Create your first trip{% endif %}
             </a>
         </div>
         
