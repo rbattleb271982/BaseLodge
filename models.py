@@ -97,7 +97,9 @@ class User(UserMixin, db.Model):
     login_count = db.Column(db.Integer, default=0)
     first_planning_timestamp = db.Column(db.DateTime, nullable=True)  # Set when user first creates trip or accepts TripGuest
     planning_completed_timestamp = db.Column(db.DateTime, nullable=True)  # Set when user completes OR dismisses planning callout
-    planning_dismissed_timestamp = db.Column(db.DateTime, nullable=True)  # Legacy: use planning_completed_timestamp
+    # DEPRECATED: planning_dismissed_timestamp is unused. Do NOT read or write.
+    # planning_completed_timestamp is the sole signal for both completion and dismissal.
+    planning_dismissed_timestamp = db.Column(db.DateTime, nullable=True)
     historical_passes_by_season = db.Column(db.JSON, default=dict)  # e.g., {"2024_25": ["ikon", "epic"]}
     
     trips = db.relationship('SkiTrip', backref='user', lazy=True)
