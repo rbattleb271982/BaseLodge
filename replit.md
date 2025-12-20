@@ -82,6 +82,26 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - Friends: Empty state copy adapts per state
 - More/Settings: No narrative copy (utility-focused)
 
+### Next Best Action (NBA) System (Dec 2025)
+
+**Core Rule:** At most ONE primary CTA (`.bl-btn-primary`) per screen. Some states intentionally have NO primary CTA.
+
+**NBA by State and Screen:**
+
+| Screen | State 1 (Early Onboarding) | State 2 (Profile Complete) | State 3 (Planning Started) | State 4 (Active) |
+|--------|---------------------------|---------------------------|---------------------------|------------------|
+| **Home - My Trips** | Copy only; "Select Pass" card is primary if shown | "Create a trip" is primary | Secondary button only | Secondary button only |
+| **Home - Open Avail** | Secondary button | Secondary button | Secondary button | Secondary button |
+| **Friends** | Secondary button (copy-only NBA) | Secondary button | Secondary button | Secondary button |
+| **Edit Profile** | Copy only ("Finish setting up") | Copy only | Copy only | Copy only |
+| **More/Settings** | No NBA (utility) | No NBA | No NBA | No NBA |
+
+**Implementation Rules:**
+- NBA expressed via: primary vs secondary button styling, CTA copy, headline alignment
+- No new UI components added
+- No features hidden or removed
+- No navigation reordering
+
 ## External Dependencies
 - **Flask:** Python web framework.
 - **Flask-Login:** User session management.
