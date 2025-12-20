@@ -417,7 +417,7 @@
                 </div>
             {% endif %}
             
-            <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none; margin-top: 16px;">
+            <a href="{{ url_for('add_trip') }}" class="{% if user.is_core_profile_complete and not user.has_started_planning %}bl-btn-primary{% else %}bl-btn-secondary{% endif %}" style="width: 100%; display: block; text-align: center; text-decoration: none; margin-top: 16px;">
                 {% if user.is_active_user %}+ Add a trip{% elif user.has_started_planning %}+ Add a trip{% elif user.is_core_profile_complete and (user.login_count or 0) >= 2 %}Create a trip{% else %}Create your first trip{% endif %}
             </a>
         </div>
@@ -559,13 +559,13 @@
                 <div class="empty-state-container">
                     <p class="empty-state-title">No friends are open on these dates yet.</p>
                     <p class="empty-state-desc">Try adding more dates or inviting friends.</p>
-                    <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="text-decoration: none; text-align: center; display: inline-block; margin: 8px 0;">Edit open dates</a>
+                    <a href="{{ url_for('add_open_dates') }}" class="bl-btn-secondary" style="text-decoration: none; text-align: center; display: inline-block; margin: 8px 0;">Edit open dates</a>
                 </div>
             {% else %}
                 <div class="empty-state-container">
                     <p class="empty-state-title">You haven't opened your availability yet.</p>
                     <p class="empty-state-desc">Turn it on to let friends know when you're free to ski.</p>
-                    <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="text-decoration: none; text-align: center; display: inline-block; margin: 8px 0;">Open availability</a>
+                    <a href="{{ url_for('add_open_dates') }}" class="bl-btn-secondary" style="text-decoration: none; text-align: center; display: inline-block; margin: 8px 0;">Open availability</a>
                 </div>
             {% endif %}
         </div>
