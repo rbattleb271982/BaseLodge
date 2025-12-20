@@ -1,0 +1,61 @@
+I want to add lightweight lifecycle signals to BaseLodge to support respectful, non-repetitive UX nudges. This builds on the canonical user states already defined (core profile complete, planning started, active user). This is not a feature expansion; it is lifecycle signal infrastructure.
+
+Goals:
+	•	Track minimal lifecycle signals needed for second-login and planning nudges
+	•	Ensure users are not repeatedly shown the same callouts
+	•	Preserve a calm, non-annoying experience
+	•	Keep logic simple and auditable
+
+Lifecycle Signals to Implement:
+	1.	Login Count
+Add a login_count integer field to the User model (default 0).
+
+Rules:
+	•	Increment login_count on every successful login
+	•	Do not reset or decay this value
+	•	This is a product signal, not analytics
+	•	Used only for conditional UI logic (e.g., second login detection)
+
+	2.	Planning Flow Completion
+Add planning_flow_completed_at (nullable timestamp) to the User model.
+
+Set this timestamp when:
+	•	The user completes the planning callout flow
+	•	OR the user explicitly dismisses the planning callout
+
+Completion means the user has seen and acknowledged the flow, not that they successfully created a trip.
+	3.	Planning Flow Dismissal
+Add planning_flow_dismissed_at (nullable timestamp) to the User model.
+
+Rules:
+	•	If dismissed, suppress the planning callout for the current lifecycle phase
+	•	Do not permanently block future planning nudges if lifecycle state changes
+	•	This is about respecting user intent, not permanent suppression
+
+Integration Rules:
+	•	These signals must work in combination with the canonical computed states:
+	•	is_core_profile_complete
+	•	has_started_planning
+	•	is_active_user
+	•	Do not show planning nudges if has_started_planning is true
+	•	Do not show onboarding nudges if is_core_profile_complete is true
+	•	Second-login logic should reference login_count == 2
+
+Placement:
+	•	Fields live on the User model
+	•	Increment logic lives in the login/auth flow
+	•	Conditional display logic should reference both canonical states (A) and lifecycle signals (B)
+
+Explicit Non-Goals:
+	•	Do not add scoring, streaks, or engagement metrics
+	•	Do not add notifications or emails
+	•	Do not redesign UI layouts
+	•	Do not introduce complex timing logic
+
+Deliverables:
+	•	User model updated with lifecycle signal fields
+	•	Login flow updated to increment login_count
+	•	Planning callout logic updated to respect completion and dismissal
+	•	Short summary explaining how A (canonical states) and B (lifecycle signals) work together
+
+Ask clarifying questions only if required to avoid breaking existing flows. Otherwise, proceed.
