@@ -1,0 +1,107 @@
+I want to define and implement canonical “system of truth” user states in BaseLodge.
+This is NOT a new feature build — it is a cohesion + lifecycle clarity pass.
+
+GOALS
+- Establish 3 computed user states:
+  1) Core Profile Complete
+  2) Planning Started
+  3) Active User
+- Use these states consistently across UI logic and copy
+- Do NOT add gamification, scoring, or engagement tracking
+- Prefer computed logic over stored booleans where possible
+
+--------------------------------
+STATE DEFINITIONS (AUTHORITATIVE)
+--------------------------------
+
+1) Core Profile Complete
+A user is considered core-profile-complete IF ALL of the following fields are present:
+- rider_type
+- pass_type
+- skill_level
+
+Notes:
+- home_state is optional (encouraged but not required)
+- equipment is optional and must NEVER block completion
+- Do NOT store a permanent boolean unless absolutely required
+- Prefer a computed property or helper function
+
+Name suggestion:
+- is_core_profile_complete(user)
+
+--------------------------------
+
+2) Planning Started
+A user has started planning IF ANY of the following are true:
+- User has created a trip
+- User has joined a trip as a guest
+- User has accepted a trip invite
+
+Notes:
+- This is a lifecycle signal, not analytics
+- Do NOT require date logic or future/past filtering
+- This may be implemented as a computed query-based check
+
+Name suggestion:
+- has_started_planning(user)
+
+--------------------------------
+
+3) Active User
+A user is considered active IF:
+- is_core_profile_complete == True
+AND
+- has_started_planning == True
+
+Notes:
+- This is a product state, not a marketing metric
+- Do NOT store as a static column unless required for performance
+
+Name suggestion:
+- is_active_user(user)
+
+--------------------------------
+IMPLEMENTATION REQUIREMENTS
+--------------------------------
+
+1) Create shared helper logic (utility function or model property)
+   - Do NOT duplicate logic across routes
+   - All checks should reference the same source
+
+2) Update UI behavior to reference these states:
+   - Home screen CTA logic
+   - Profile page banners / copy
+   - Suppress onboarding nudges once core profile is complete
+   - Suppress “start planning” nudges once planning has started
+
+3) Update COPY ONLY (no major UI changes):
+   - Use “Finish setting up your profile” if NOT core-profile-complete
+   - Use “Edit profile” if core-profile-complete
+   - Use “Create your first trip” if planning has not started
+   - Avoid repetitive or conflicting messages
+
+4) Seeded / test users:
+   - Must evaluate correctly under computed logic
+   - Do NOT special-case seeded users unless required
+
+--------------------------------
+EXPLICIT NON-GOALS
+--------------------------------
+- Do NOT add engagement scores
+- Do NOT add streaks
+- Do NOT add notifications
+- Do NOT add new tables unless strictly necessary
+- Do NOT redesign layouts
+
+--------------------------------
+DELIVERABLES
+--------------------------------
+- Helper logic for the 3 states
+- Updated conditional logic in relevant routes/templates
+- Brief summary explaining:
+  - Where logic lives
+  - How states are computed
+  - What UI behavior changed
+
+Ask clarifying questions ONLY if required to avoid breaking existing flows.
+Otherwise, proceed.
