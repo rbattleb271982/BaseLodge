@@ -393,13 +393,18 @@
                 </div>
             {% else %}
                 <div class="empty-state-container">
-                    <p class="empty-state-title">You don't have any trips yet.</p>
+                    {% if user.has_started_planning %}
+                    <p class="empty-state-title">No upcoming trips.</p>
                     <p class="empty-state-desc">Add a trip to start planning with friends.</p>
+                    {% else %}
+                    <p class="empty-state-title">You don't have any trips yet.</p>
+                    <p class="empty-state-desc">Create your first trip to start planning with friends.</p>
+                    {% endif %}
                 </div>
             {% endif %}
             
             <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none; margin-top: 16px;">
-                + Add a trip
+                {% if user.has_started_planning %}+ Add a trip{% else %}Create your first trip{% endif %}
             </a>
         </div>
         
