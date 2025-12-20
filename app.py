@@ -637,6 +637,7 @@ def setup_profile():
         user.rider_type = rider_type
         user.pass_type = ",".join(sorted(set(passes))) if passes else "None"
         user.onboarding_completed_at = datetime.utcnow()
+        user.update_lifecycle_stage()
         db.session.commit()
         
         # Emit onboarding_completed event
@@ -675,6 +676,7 @@ def edit_profile():
         terrain_list = [t.strip() for t in terrain_raw.split(",") if t.strip()][:2]
         user.terrain_preferences = terrain_list if terrain_list else []
         user.profile_completed_at = datetime.utcnow()
+        user.update_lifecycle_stage()
         
         db.session.commit()
         
@@ -767,6 +769,9 @@ def create_trip():
     # Track first trip created if not already set
     if not user.first_trip_created_at:
         user.first_trip_created_at = datetime.utcnow()
+    
+    # Update lifecycle stage (planning started)
+    user.update_lifecycle_stage()
     
     db.session.commit()
     
