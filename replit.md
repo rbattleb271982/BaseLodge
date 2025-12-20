@@ -63,7 +63,24 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 **Signal Integration Rules:**
 - Suppress planning nudges if `has_started_planning` is true OR `planning_completed_timestamp` is set
 - Suppress onboarding nudges if `is_core_profile_complete` is true
-- UI copy adapts: "Finish setting up your profile" vs "Profile", "Create your first trip" vs "+ Add a trip"
+- UI copy adapts based on 4 narrative states (see below)
+
+### Narrative Continuity (Dec 2025)
+
+**4 Narrative States (derived dynamically, not stored):**
+
+| State | Conditions | Intent | Example Copy |
+|-------|------------|--------|--------------|
+| 1. Early Onboarding | `!is_core_profile_complete && login_count <= 1` | Welcoming, light guidance | "Welcome, [Name]", "Finish setting up your profile" |
+| 2. Profile Complete, Not Planning | `is_core_profile_complete && !has_started_planning && login_count >= 2` | Confident, invitational | "You're all set", "Now put it to use" |
+| 3. Planning Started | `has_started_planning && !is_active_user` | Affirming, directional | "[Name], you're planning", "Here's what's next" |
+| 4. Active User | `is_active_user` | Calm, non-instructional | "[Name]", "+ Add a trip", "Edit Profile" |
+
+**Screens with narrative copy:**
+- Home: Headline adapts, empty states use state-appropriate messaging
+- Edit Profile: Title adapts ("Finish setting up" vs "Edit Profile"), subhead for State 1
+- Friends: Empty state copy adapts per state
+- More/Settings: No narrative copy (utility-focused)
 
 ## External Dependencies
 - **Flask:** Python web framework.
