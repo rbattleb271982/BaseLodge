@@ -3289,6 +3289,73 @@ def seed_test_users_endpoint():
         }), 500
 
 
+@app.route("/admin/seed-narrative-states", methods=["GET", "POST"])
+def seed_narrative_states_endpoint():
+    """
+    HTTP endpoint to seed 4 test users for narrative state validation.
+    Creates users for State 1, 2, 3, and 4 for testing NBA behavior.
+    
+    Usage: GET https://yourapp.replit.dev/admin/seed-narrative-states
+    
+    Test user logins (password: testpass123):
+    - state1.test@baselodge.dev (State 1: Early Onboarding)
+    - state2.test@baselodge.dev (State 2: Profile Complete, Not Planning)
+    - state3.test@baselodge.dev (State 3: Planning Started, Not Fully Active)
+    - state4.test@baselodge.dev (State 4: Active User)
+    """
+    try:
+        from seed_test_users import seed_narrative_state_users
+        
+        results = seed_narrative_state_users(app, db, User, SkiTrip, Resort)
+        
+        return jsonify({
+            "status": "success",
+            "message": "Narrative state test users seeded",
+            "details": results
+        }), 200
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to seed narrative state users: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@app.route("/admin/backfill-planning-timestamp", methods=["GET", "POST"])
+def backfill_planning_timestamp_endpoint():
+    """
+    HTTP endpoint to backfill first_planning_timestamp for existing users.
+    
+    Usage: GET https://yourapp.replit.dev/admin/backfill-planning-timestamp
+    
+    This is idempotent and safe to run multiple times.
+    Only updates users who have trips but no first_planning_timestamp set.
+    """
+    try:
+        from backfill_first_planning_timestamp import backfill_first_planning_timestamp
+        
+        try:
+            from models import TripGuest
+        except ImportError:
+            TripGuest = None
+        
+        results = backfill_first_planning_timestamp(app, db, User, SkiTrip, TripGuest)
+        
+        return jsonify({
+            "status": "success",
+            "message": "Backfill completed",
+            "details": results
+        }), 200
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "status": "error",
+            "message": f"Backfill failed: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 @app.route("/open-data-debug")
 @login_required
 def open_data_debug():

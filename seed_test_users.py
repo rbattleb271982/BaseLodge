@@ -121,6 +121,126 @@ def create_trips_for_user(db_session, SkiTrip, resorts_by_state, user_id, num_tr
     return trips_created
 
 
+def seed_narrative_state_users(app, db, User, SkiTrip, Resort):
+    """
+    Seed 4 test users representing the 4 narrative states for NBA validation.
+    
+    State 1: Early Onboarding (incomplete profile)
+    State 2: Profile Complete, Not Planning (no trips)
+    State 3: Planning Started, Not Fully Active (has trip, incomplete profile)
+    State 4: Active User (complete profile + has trip)
+    
+    Returns dict with created users.
+    """
+    from datetime import datetime
+    
+    with app.app_context():
+        results = {"users_created": [], "errors": []}
+        
+        state_users = [
+            {
+                "email": "state1.test@baselodge.dev",
+                "first_name": "StateOne",
+                "last_name": "Tester",
+                "rider_type": None,
+                "pass_type": None,
+                "skill_level": None,
+                "login_count": 1,
+                "create_trip": False,
+                "description": "State 1: Early Onboarding (incomplete profile)"
+            },
+            {
+                "email": "state2.test@baselodge.dev",
+                "first_name": "StateTwo",
+                "last_name": "Tester",
+                "rider_type": "Skier",
+                "pass_type": "Epic",
+                "skill_level": "Intermediate",
+                "login_count": 3,
+                "create_trip": False,
+                "description": "State 2: Profile Complete, Not Planning"
+            },
+            {
+                "email": "state3.test@baselodge.dev",
+                "first_name": "StateThree",
+                "last_name": "Tester",
+                "rider_type": "Snowboarder",
+                "pass_type": None,
+                "skill_level": None,
+                "login_count": 2,
+                "create_trip": True,
+                "description": "State 3: Planning Started, Not Fully Active"
+            },
+            {
+                "email": "state4.test@baselodge.dev",
+                "first_name": "StateFour",
+                "last_name": "Tester",
+                "rider_type": "Skier",
+                "pass_type": "Ikon",
+                "skill_level": "Advanced",
+                "login_count": 5,
+                "create_trip": True,
+                "description": "State 4: Active User"
+            }
+        ]
+        
+        resorts = Resort.query.filter(Resort.is_active == True).limit(5).all()
+        if not resorts:
+            results["errors"].append("No active resorts found")
+            return results
+        
+        for state_user in state_users:
+            existing = User.query.filter_by(email=state_user["email"]).first()
+            if existing:
+                results["users_created"].append({
+                    "email": state_user["email"],
+                    "status": "already_exists",
+                    "description": state_user["description"]
+                })
+                continue
+            
+            user = User(
+                first_name=state_user["first_name"],
+                last_name=state_user["last_name"],
+                email=state_user["email"],
+                password_hash=generate_password_hash("testpass123"),
+                rider_type=state_user["rider_type"],
+                pass_type=state_user["pass_type"],
+                skill_level=state_user["skill_level"],
+                login_count=state_user["login_count"],
+                home_state="CO",
+                is_seeded=True,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(user)
+            db.session.flush()
+            
+            if state_user["create_trip"]:
+                resort = random.choice(resorts)
+                trip = SkiTrip(
+                    user_id=user.id,
+                    resort_id=resort.id,
+                    state=resort.state,
+                    mountain=resort.name,
+                    start_date=date.today() + timedelta(days=30),
+                    end_date=date.today() + timedelta(days=32),
+                    is_public=True
+                )
+                db.session.add(trip)
+                user.first_planning_timestamp = datetime.utcnow()
+            
+            results["users_created"].append({
+                "email": state_user["email"],
+                "status": "created",
+                "description": state_user["description"],
+                "is_core_profile_complete": user.is_core_profile_complete,
+                "has_started_planning": state_user["create_trip"]
+            })
+        
+        db.session.commit()
+        return results
+
+
 def seed_test_data(app, db, User, Friend, SkiTrip, Resort, EquipmentSetup, EquipmentSlot, EquipmentDiscipline):
     """
     Main seeding function. Creates Richard + 20 friends with full data.

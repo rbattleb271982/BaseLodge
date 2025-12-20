@@ -1,0 +1,52 @@
+This request resolves final lifecycle, narrative, and production readiness questions. This is a clarification + completion pass, not a new feature build.
+
+Authoritative decisions:
+	1.	Production backfill for first_planning_timestamp
+Prepare the backfill script for production deployment, but do NOT auto-run it.
+The script should:
+
+	•	Identify users with existing SkiTrips or accepted TripGuest records
+	•	Set first_planning_timestamp if it is currently null
+	•	Be idempotent and safe to run once
+Document how and when it should be executed.
+
+	2.	planning_completed_timestamp usage
+There is currently NO explicit “dismiss planning callout” or “planning completion” UI.
+Do NOT invent or add such a flow.
+Do NOT set planning_completed_timestamp anywhere new at this time.
+Treat this field as future-ready infrastructure only.
+Planning nudges should primarily be suppressed via has_started_planning.
+	3.	Deprecated fields
+Keep the following columns in the schema for backward compatibility:
+
+	•	profile_setup_complete
+	•	planning_dismissed_timestamp
+
+Do NOT read from or write to these fields.
+Add comments clearly marking them deprecated.
+Do NOT remove them in this pass.
+	4.	State 1 “Select Pass” card
+Pass selection is part of State 1 “Finish profile.”
+Core Profile Complete requires rider_type, pass_type, and skill_level.
+If pass_type is missing, the user remains in State 1.
+
+Keep the existing gating logic for the Select Pass card (including pass_prompt_skipped), but ensure its narrative intent aligns with “Finish setting up your profile.”
+Do NOT introduce a new narrative state.
+	5.	Test data seeding
+Seed a small set of test users to validate all four narrative states and NBA behavior.
+Include at minimum:
+
+	•	One State 1 user (incomplete profile)
+	•	One State 2 user (profile complete, no planning)
+	•	One State 3 user (planning started, edge case)
+	•	One State 4 user (active user)
+Include trip owners and accepted guests.
+
+Deliverables:
+	•	Production-ready backfill script (not auto-run)
+	•	Deprecated fields clearly documented and unused
+	•	Select Pass card aligned with State 1 narrative
+	•	Seeded test users for validation
+	•	Short summary of what was prepared vs what was intentionally deferred
+
+Ask clarifying questions only if required to avoid breaking an existing flow. Otherwise, proceed.
