@@ -1,0 +1,69 @@
+I want to implement lightweight lifecycle signal infrastructure in BaseLodge. This builds on the canonical computed user states (core profile complete, planning started, active user). This is infrastructure work only, not a UI or feature expansion.
+
+Use the existing schema where possible. Do not add duplicate or overlapping fields.
+
+Existing Fields (Authoritative):
+	•	login_count (integer)
+	•	first_planning_timestamp
+	•	planning_completed_timestamp
+
+Do NOT rename these fields and do NOT add new overlapping columns.
+
+Lifecycle Signal Semantics:
+	1.	Login Count
+Use the existing login_count field.
+
+	•	Increment login_count on every successful login
+	•	Do not reset or decay this value
+	•	This enables detection of first login, second login (login_count == 2), and returning users
+	•	No UI changes required at this time
+
+	2.	Planning Started
+Use first_planning_timestamp as the authoritative signal.
+
+	•	Set first_planning_timestamp the first time the user:
+	•	Creates a SkiTrip
+	•	OR becomes a TripGuest with status = ACCEPTED
+	•	Do not overwrite once set
+	•	Pending invites do not count
+
+This field represents “planning has begun,” not completion.
+	3.	Planning Flow Completion / Acknowledgement
+Use planning_completed_timestamp as the authoritative signal.
+
+	•	Set this timestamp when the user completes OR dismisses the planning callout flow
+	•	Completion does NOT mean they successfully planned a trip
+	•	Completion means the user has seen the flow and made an explicit choice
+	•	Do not add a separate dismissal column
+
+Planning Callout Scope:
+	•	Do NOT build or redesign the planning callout UI
+	•	Only ensure lifecycle signals exist so callouts can respect them
+	•	Suppress future planning callouts if planning_completed_timestamp is set
+	•	Suppress planning callouts entirely if first_planning_timestamp exists
+
+Integration Rules:
+	•	Combine these signals with the canonical computed states:
+	•	is_core_profile_complete
+	•	has_started_planning (derived from first_planning_timestamp)
+	•	is_active_user
+	•	Do not show onboarding nudges if is_core_profile_complete is true
+	•	Do not show planning nudges if has_started_planning is true or planning_completed_timestamp is set
+
+Placement:
+	•	Fields live on the User model
+	•	Increment logic lives in the auth/login flow
+	•	Planning timestamps are set in trip creation / trip acceptance logic
+	•	Conditional logic should reference shared helpers, not inline checks
+
+Explicit Non-Goals:
+	•	Do not add new lifecycle UI
+	•	Do not add notifications, emails, or analytics
+	•	Do not redesign layouts
+	•	Do not introduce engagement scoring or timing heuristics
+
+Deliverables:
+	•	Correct usage of existing lifecycle fields with clear semantics
+	•	Login flow updates to increment login_count
+	•	Planning logic updates to set first_planning_timestamp and planning_completed_timestamp appropriately
+	•	Short summary explaining how lifecycle signals support future UX without adding new UI today
