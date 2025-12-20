@@ -1,0 +1,44 @@
+I want to do a cohesion and lifecycle “system of truth” pass in BaseLodge. This is not a new feature build. It is infrastructure work to make existing flows consistent and reliable. Please proceed without overengineering.
+
+First, define three canonical computed user states. These are the authoritative source of truth and should drive UI logic and lifecycle behavior.
+	1.	Core Profile Complete
+A user is core-profile-complete if they have rider_type, pass_type, and skill_level set. Home_state is optional and encouraged but not required. Equipment is always optional and must never block completion. This should be implemented as a computed helper (property or method), not a manually maintained boolean.
+	2.	Planning Started
+A user has started planning if any of the following are true: the user created a SkiTrip, the user is a TripGuest with status = ACCEPTED, or the user accepted a trip invite. Trip ownership and accepted guest status are equivalent signals. Pending invites do not count. This should also be computed, not stored.
+	3.	Active User
+A user is active if and only if they are core-profile-complete AND have started planning. This is a product state, not a marketing metric, and should be derived from the two states above.
+
+These helpers should live on the User model in models.py (as properties or methods). Do not place this logic in app.py, routes, or random utility files. All routes and templates should reference the same helpers.
+
+Now, regarding existing fields:
+
+The User model currently has profile_setup_complete (stored boolean). Keep this column for backward compatibility, but treat it as deprecated. Do not remove it, do not write to it anymore, and do not use it in UI or lifecycle logic. Add a comment indicating it is legacy and no longer authoritative.
+
+The User model also has a lifecycle_stage column with values like new, onboarding, active. Keep this column, but update it so that it derives from the new canonical states instead of being manually managed. The mapping should be:
+	•	Immediately after signup: lifecycle_stage = new
+	•	Not core-profile-complete OR core-profile-complete but not planning started: lifecycle_stage = onboarding
+	•	Core-profile-complete AND planning started: lifecycle_stage = active
+
+The computed helpers are the source of truth; lifecycle_stage mirrors them for email, analytics, or admin use.
+
+UI and behavior updates (copy-only, no major layout changes):
+	•	If user is not core-profile-complete, show language like “Finish setting up your profile”
+	•	If user is core-profile-complete, use “Edit profile”
+	•	If user has not started planning, show “Create your first trip”
+	•	Suppress onboarding or planning nudges once the corresponding state is achieved
+	•	Avoid repetitive or conflicting messages
+
+Seeded/test users must evaluate correctly under computed logic. Do not special-case them unless absolutely required.
+
+Important sequencing note: pause any in-progress “second login callout” or planning-flow work. Complete this cohesion pass first so those flows can consume the new canonical states cleanly without refactoring later.
+
+Explicit non-goals:
+Do not add engagement scores, streaks, notifications, new tables, or major UI redesigns. Do not introduce new lifecycle concepts beyond what is defined here.
+
+Deliverables:
+	•	Computed helper logic on the User model for the three states
+	•	Updated UI conditionals to reference those helpers
+	•	lifecycle_stage automatically updated to reflect computed truth
+	•	A short summary of what logic lives where and what behavior changed
+
+Ask clarifying questions only if absolutely necessary to avoid breaking an existing flow. Otherwise, proceed.

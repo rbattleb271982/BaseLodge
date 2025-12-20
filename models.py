@@ -61,6 +61,8 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     rider_type = db.Column(db.String(50))
     pass_type = db.Column(db.String(100))
+    # DEPRECATED: profile_setup_complete is legacy and no longer authoritative.
+    # Use is_core_profile_complete property instead. Do not write to this field.
     profile_setup_complete = db.Column(db.Boolean, default=False)
     gender = db.Column(db.String(20))
     birth_year = db.Column(db.Integer)
@@ -112,6 +114,58 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         return f'<User {self.email}>'
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # CANONICAL USER STATES (System of Truth - Dec 2025)
+    # These computed properties are the authoritative source for lifecycle logic.
+    # ─────────────────────────────────────────────────────────────────────────
+    
+    @property
+    def is_core_profile_complete(self):
+        """
+        A user is core-profile-complete if rider_type, pass_type, and skill_level are set.
+        home_state is optional. Equipment is always optional and never blocks completion.
+        """
+        return bool(self.rider_type and self.pass_type and self.skill_level)
+    
+    @property
+    def has_started_planning(self):
+        """
+        A user has started planning if they created a SkiTrip or are an accepted TripGuest.
+        Pending invites do not count. Trip ownership and accepted guest status are equivalent.
+        """
+        # Check if user has created any trips
+        if self.trips and len(self.trips) > 0:
+            return True
+        # Check if user is an accepted guest on any group trip
+        for membership in self.trip_memberships:
+            if membership.status == GuestStatus.ACCEPTED:
+                return True
+        return False
+    
+    @property
+    def is_active_user(self):
+        """
+        A user is active if they are core-profile-complete AND have started planning.
+        This is a product state, not a marketing metric.
+        """
+        return self.is_core_profile_complete and self.has_started_planning
+    
+    def update_lifecycle_stage(self):
+        """
+        Update lifecycle_stage to reflect the canonical computed states.
+        Call this after relevant state changes (trip creation, profile update, etc.)
+        
+        Mapping:
+        - Immediately after signup: 'new' (manually set, not derived here)
+        - Not core-profile-complete OR not planning started: 'onboarding'
+        - Core-profile-complete AND planning started: 'active'
+        """
+        if self.is_active_user:
+            self.lifecycle_stage = 'active'
+        elif self.is_core_profile_complete or self.has_started_planning:
+            self.lifecycle_stage = 'onboarding'
+        # Keep 'new' if neither condition is met (fresh signup)
 
 
 class Resort(db.Model):
