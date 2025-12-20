@@ -102,6 +102,27 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 - No features hidden or removed
 - No navigation reordering
 
+### Production Readiness (Dec 2025)
+
+**Backfill Script:**
+- `backfill_first_planning_timestamp.py` - Sets `first_planning_timestamp` for existing users with trips
+- Admin endpoint: `GET /admin/backfill-planning-timestamp`
+- Safe to run once after deploying migration c747cdb80425
+- Idempotent (safe to re-run)
+
+**Deprecated Fields (kept for backward compatibility):**
+- `profile_setup_complete` - Use `is_core_profile_complete` property instead
+- `planning_dismissed_timestamp` - Use `planning_completed_timestamp` instead
+- Do NOT read or write to these fields
+
+**Test Users for Narrative State Validation:**
+- Seed via: `GET /admin/seed-narrative-states`
+- Password for all: `testpass123`
+- `state1.test@baselodge.dev` - State 1: Early Onboarding (incomplete profile)
+- `state2.test@baselodge.dev` - State 2: Profile Complete, Not Planning
+- `state3.test@baselodge.dev` - State 3: Planning Started, Not Fully Active
+- `state4.test@baselodge.dev` - State 4: Active User
+
 ## External Dependencies
 - **Flask:** Python web framework.
 - **Flask-Login:** User session management.
