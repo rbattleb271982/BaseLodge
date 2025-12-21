@@ -360,24 +360,6 @@
         <!-- My Trips Tab -->
         <div id="tab-my" class="bl-trip-list" {% if active_tab != 'my' %}style="display: none;"{% endif %}>
             {% if my_trips %}
-            <!-- Duration Filter -->
-            <div class="duration-filter-wrapper" style="margin-bottom: 8px;">
-                <div class="bl-segmented-small">
-                    <button class="bl-segment-small active" data-filter="duration-all" onclick="filterTrips('duration', 'all')">Any</button>
-                    <button class="bl-segment-small" data-filter="duration-day_trip" onclick="filterTrips('duration', 'day_trip')">Day Trip</button>
-                    <button class="bl-segment-small" data-filter="duration-one_night" onclick="filterTrips('duration', 'one_night')">1 Night</button>
-                    <button class="bl-segment-small" data-filter="duration-two_nights" onclick="filterTrips('duration', 'two_nights')">2 Nights</button>
-                    <button class="bl-segment-small" data-filter="duration-three_plus_nights" onclick="filterTrips('duration', 'three_plus_nights')">3+</button>
-                </div>
-            </div>
-            <!-- Equipment Filter -->
-            <div class="duration-filter-wrapper" style="margin-bottom: 12px;">
-                <div class="bl-segmented-small">
-                    <button class="bl-segment-small active" data-filter="equip-all" onclick="filterTrips('equipment', 'all')">Any</button>
-                    <button class="bl-segment-small" data-filter="equip-have_own_equipment" onclick="filterTrips('equipment', 'have_own_equipment')">Have own equipment</button>
-                    <button class="bl-segment-small" data-filter="equip-needs_rentals" onclick="filterTrips('equipment', 'needs_rentals')">Needs rentals</button>
-                </div>
-            </div>
                 {% for trip in my_trips %}
                 <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;" class="my-trip-item" data-duration="{{ trip.trip_duration }}" data-equipment="{{ trip.get_effective_equipment_status() }}">
                     <div class="bl-trip-card trip-card-full" style="flex-direction: row; align-items: center;">

@@ -6,27 +6,66 @@
     <title>Base Lodge - Friends</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .filter-row {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        .filter-pill {
-            padding: 8px 14px;
-            border-radius: 20px;
+        .filter-toggle {
+            display: inline-block;
             font-size: 14px;
             font-weight: 500;
-            text-decoration: none;
-            transition: all 0.15s ease;
+            color: var(--bl-color-primary);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 0;
+            margin-bottom: 12px;
         }
-        .filter-pill.active {
+        .filter-toggle:hover {
+            opacity: 0.8;
+        }
+        .filter-panel {
+            display: none;
+            background: var(--bl-color-surface);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .filter-panel.active {
+            display: block;
+        }
+        .filter-section {
+            margin-bottom: 16px;
+        }
+        .filter-section:last-child {
+            margin-bottom: 0;
+        }
+        .filter-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--bl-color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .filter-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .filter-option {
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            background: rgba(0, 0, 0, 0.04);
+            color: var(--bl-color-text-muted);
+            cursor: pointer;
+            border: none;
+        }
+        .filter-option.active {
             background: var(--bl-color-primary);
             color: white;
         }
-        .filter-pill:not(.active) {
-            background: rgba(0, 0, 0, 0.04);
-            color: var(--bl-color-text-muted);
+        .filter-option:hover:not(.active) {
+            background: rgba(0, 0, 0, 0.08);
         }
         .flat-list {
             display: flex;
@@ -59,6 +98,11 @@
             color: var(--bl-color-text-muted);
             margin: 0;
         }
+        .trip-count {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin-top: 4px;
+        }
         .empty-card {
             background: var(--bl-color-surface);
             border-radius: 12px;
@@ -76,6 +120,12 @@
             color: var(--bl-color-text-muted);
             margin: 0 0 20px 0;
         }
+        .clear-filters {
+            font-size: 13px;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
@@ -84,23 +134,41 @@
         <h1 class="page-title">Friends</h1>
         
         {% if count_all > 0 %}
-        <div class="filter-row">
-            <a href="{{ url_for('friends', filter='All') }}"
-               class="filter-pill {% if filter_type == 'All' %}active{% endif %}">
-               All ({{ count_all }})
-            </a>
-            <a href="{{ url_for('friends', filter='Epic') }}"
-               class="filter-pill {% if filter_type == 'Epic' %}active{% endif %}">
-               Epic ({{ count_epic }})
-            </a>
-            <a href="{{ url_for('friends', filter='Ikon') }}"
-               class="filter-pill {% if filter_type == 'Ikon' %}active{% endif %}">
-               Ikon ({{ count_ikon }})
-            </a>
-            <a href="{{ url_for('friends', filter='Other') }}"
-               class="filter-pill {% if filter_type == 'Other' %}active{% endif %}">
-               Other ({{ count_other }})
-            </a>
+        <button class="filter-toggle" onclick="toggleFilterPanel()">
+            Filter{% if active_filter_count > 0 %} ({{ active_filter_count }}){% endif %}
+        </button>
+        {% if active_filter_count > 0 %}
+        <a href="{{ url_for('friends') }}" class="clear-filters">Clear</a>
+        {% endif %}
+        
+        <div class="filter-panel" id="filter-panel">
+            <div class="filter-section">
+                <div class="filter-label">Pass</div>
+                <div class="filter-options">
+                    <a href="{{ url_for('friends', skill=skill_filter, rider=rider_filter) }}" class="filter-option {% if pass_filter == 'All' %}active{% endif %}">All</a>
+                    <a href="{{ url_for('friends', pass='Epic', skill=skill_filter, rider=rider_filter) }}" class="filter-option {% if pass_filter == 'Epic' %}active{% endif %}">Epic</a>
+                    <a href="{{ url_for('friends', pass='Ikon', skill=skill_filter, rider=rider_filter) }}" class="filter-option {% if pass_filter == 'Ikon' %}active{% endif %}">Ikon</a>
+                    <a href="{{ url_for('friends', pass='Other', skill=skill_filter, rider=rider_filter) }}" class="filter-option {% if pass_filter == 'Other' %}active{% endif %}">Other</a>
+                </div>
+            </div>
+            <div class="filter-section">
+                <div class="filter-label">Skill Level</div>
+                <div class="filter-options">
+                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, rider=rider_filter) }}" class="filter-option {% if not skill_filter %}active{% endif %}">Any</a>
+                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, skill='Beginner', rider=rider_filter) }}" class="filter-option {% if skill_filter == 'Beginner' %}active{% endif %}">Beginner</a>
+                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, skill='Intermediate', rider=rider_filter) }}" class="filter-option {% if skill_filter == 'Intermediate' %}active{% endif %}">Intermediate</a>
+                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, skill='Advanced', rider=rider_filter) }}" class="filter-option {% if skill_filter == 'Advanced' %}active{% endif %}">Advanced</a>
+                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, skill='Expert', rider=rider_filter) }}" class="filter-option {% if skill_filter == 'Expert' %}active{% endif %}">Expert</a>
+                </div>
+            </div>
+            <div class="filter-section">
+                <div class="filter-label">Rider Type</div>
+                <div class="filter-options">
+                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, skill=skill_filter) }}" class="filter-option {% if not rider_filter %}active{% endif %}">Any</a>
+                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, skill=skill_filter, rider='Skier') }}" class="filter-option {% if rider_filter == 'Skier' %}active{% endif %}">Skier</a>
+                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, skill=skill_filter, rider='Snowboarder') }}" class="filter-option {% if rider_filter == 'Snowboarder' %}active{% endif %}">Snowboarder</a>
+                </div>
+            </div>
         </div>
         
         <div class="flat-list">
@@ -108,13 +176,16 @@
             <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="flat-row">
                 <p class="flat-row-line1">{{ friend.first_name }} {{ friend.last_name }}</p>
                 <p class="flat-row-line2">{% set parts = [] %}{% if friend.home_state %}{% set _ = parts.append(friend.home_state) %}{% endif %}{% if friend.rider_type %}{% set _ = parts.append(friend.rider_type) %}{% endif %}{% if friend.skill_level %}{% set _ = parts.append(friend.skill_level) %}{% endif %}{% if friend.pass_type %}{% set passes = friend.pass_type.split(',') %}{% if passes|length == 2 %}{% set _ = parts.append(passes[0] ~ ' & ' ~ passes[1]) %}{% elif passes|length > 2 %}{% set _ = parts.append(passes|join(', ')) %}{% else %}{% set _ = parts.append(passes[0]) %}{% endif %}{% endif %}{{ parts|join(' · ') if parts else '' }}</p>
+                {% if friend._upcoming_trip_count and friend._upcoming_trip_count > 0 %}
+                <p class="trip-count">{{ friend._upcoming_trip_count }} upcoming trip{% if friend._upcoming_trip_count != 1 %}s{% endif %}</p>
+                {% endif %}
             </a>
             {% endfor %}
             
             {% if friends|length == 0 %}
             <div class="empty-card" style="margin-top: 20px;">
-                <h3>No friends with this pass type</h3>
-                <p>Try a different filter or invite more friends.</p>
+                <h3>No friends match these filters</h3>
+                <p>Try different filters or <a href="{{ url_for('friends') }}">clear all filters</a>.</p>
             </div>
             {% endif %}
         </div>
@@ -138,6 +209,17 @@
         </div>
         {% endif %}
     </div>
+    
+    <script>
+        function toggleFilterPanel() {
+            const panel = document.getElementById('filter-panel');
+            panel.classList.toggle('active');
+        }
+        
+        {% if active_filter_count > 0 %}
+        document.getElementById('filter-panel').classList.add('active');
+        {% endif %}
+    </script>
     
     {% include 'components/bottom_nav.html' %}
 </body>

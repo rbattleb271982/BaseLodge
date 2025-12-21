@@ -1035,35 +1035,55 @@ def friends():
         
         return score
     
-    # Sort all friends by relevance (descending), then by name
-    for friend in all_friends:
-        friend._relevance_score = calculate_relevance(friend)
-    all_friends.sort(key=lambda f: (-f._relevance_score, f.first_name.lower()))
+    # Default sort: same-state friends first, then alphabetical by name
+    user_home_state = user.home_state
+    same_state_friends = [f for f in all_friends if f.home_state == user_home_state]
+    other_state_friends = [f for f in all_friends if f.home_state != user_home_state]
     
-    # Categorize friends by pass type
-    epic_friends = [f for f in all_friends if pass_category(f.pass_type) == "Epic"]
-    ikon_friends = [f for f in all_friends if pass_category(f.pass_type) == "Ikon"]
-    other_friends = [f for f in all_friends if pass_category(f.pass_type) == "Other"]
+    same_state_friends.sort(key=lambda f: f.first_name.lower())
+    other_state_friends.sort(key=lambda f: f.first_name.lower())
     
-    # Apply filter
-    if filter_type == "Epic":
-        friends_list = epic_friends
-    elif filter_type == "Ikon":
-        friends_list = ikon_friends
-    elif filter_type == "Other":
-        friends_list = other_friends
-    else:
-        friends_list = all_friends
+    all_friends_sorted = same_state_friends + other_state_friends
+    
+    # Calculate upcoming trip count for each friend
+    for friend in all_friends_sorted:
+        upcoming_count = SkiTrip.query.filter(
+            SkiTrip.user_id == friend.id,
+            SkiTrip.is_public == True,
+            SkiTrip.end_date >= today
+        ).count()
+        friend._upcoming_trip_count = upcoming_count
+    
+    # Get filter params (optional filters)
+    pass_filter = request.args.get("pass")
+    skill_filter = request.args.get("skill")
+    rider_filter = request.args.get("rider")
+    
+    # Apply optional filters
+    friends_list = all_friends_sorted
+    active_filter_count = 0
+    
+    if pass_filter and pass_filter != "All":
+        friends_list = [f for f in friends_list if pass_category(f.pass_type) == pass_filter]
+        active_filter_count += 1
+    
+    if skill_filter:
+        friends_list = [f for f in friends_list if f.skill_level == skill_filter]
+        active_filter_count += 1
+    
+    if rider_filter:
+        friends_list = [f for f in friends_list if f.rider_type == rider_filter]
+        active_filter_count += 1
     
     return render_template(
         "friends.html",
         user=user,
         friends=friends_list,
-        count_all=len(all_friends),
-        count_epic=len(epic_friends),
-        count_ikon=len(ikon_friends),
-        count_other=len(other_friends),
-        filter_type=filter_type
+        count_all=len(all_friends_sorted),
+        active_filter_count=active_filter_count,
+        pass_filter=pass_filter or "All",
+        skill_filter=skill_filter,
+        rider_filter=rider_filter
     )
 
 @app.route("/friends/<int:friend_id>")
