@@ -1,0 +1,122 @@
+This prompt consolidates multiple locked product decisions across the Home, Friend Profile, and Friends screens. These are UI composition, ordering, and consistency updates only. No new backend features, no data model changes.
+PART 1 — Home → My Trips: Remove Filters
+Objective
+Ensure the Home → My Trips tab functions purely as a calm overview of the user’s existing trips. This tab is not a browsing or filtering surface.
+Changes to Implement
+1️⃣ Remove filters from Home → My Trips
+When the active tab is My Trips, completely remove (do not render):
+Trip length filters
+Any
+Day Trip
+1 Night
+2 Nights
+3+
+Equipment filters
+Any
+Have own equipment
+Needs rentals
+These controls should not appear visually or take up layout space on this tab.
+2️⃣ Do NOT delete underlying data or logic
+This is a UI-only change.
+Trip length data remains stored on trips
+Equipment / rental preferences remain stored on the user profile
+These attributes will be surfaced elsewhere in the app (Friends’ Trips, Overlaps, Open Availability)
+Do NOT remove backend fields, queries, or models.
+3️⃣ My Trips tab scope (authoritative)
+My Trips should:
+Display trip cards
+Show social overlap signals
+Allow editing a trip
+Allow adding a trip
+It should NOT:
+Encourage filtering
+Encourage browsing
+Display preference controls
+PART 2 — Friend Profile: Canonical Top Profile Card
+Objective
+Make the top card on the Friend Profile / Friend Detail page visually and structurally identical to the user’s own profile card shown on the Home screen.
+Identity should be consistent everywhere. Context changes; identity does not.
+Changes to Implement
+1️⃣ Replace current Friend Profile top card contents
+Update the top card so it mirrors the Home profile card in structure and content.
+The top card should include:
+Primary
+Friend’s name
+Next upcoming trip (or “No upcoming trips”)
+Location (city/state)
+Identity
+Rider type (Skier / Snowboarder)
+Pass(es)
+Skill level
+Equipment
+Skis / Board
+Boots
+Activity summary
+Number of trips planned
+Number of mountains visited
+Mountains list should be expandable (same interaction as on the user’s Home profile card)
+Reuse existing styles and layout patterns from the Home profile card.
+2️⃣ Remove contextual signals from the top card
+Remove the following from the top profile card:
+“Can ski your upcoming trips” pill
+Availability / overlap messaging
+Any relationship-specific status indicators
+These do NOT belong in the identity card.
+3️⃣ Keep contextual sections below the card
+The following sections should remain below the top card as separate sections:
+Upcoming Trips
+Open Availability
+Overlap / shared availability messaging
+No logic changes required — only visual hierarchy and placement.
+PART 3 — Friends Screen: Sorting, Filters, and Trip Count
+Objective
+Reduce filter clutter, establish a clear default ordering, and surface meaningful activity signals on the Friends screen.
+1️⃣ Default Friends List Sorting (Authoritative)
+Apply the following default sort order:
+1️⃣ Friends whose home state matches the current user’s state
+2️⃣ Within each group, sort alphabetically by name
+Example:
+All same-state friends (alphabetical)
+Then all other friends (alphabetical)
+This ordering should apply:
+On initial page load
+When no filters are active
+Do NOT sort by activity by default.
+2️⃣ Remove persistent top filter pills
+Remove the current top-level filter pills:
+All (count)
+Epic
+Ikon
+Other
+These should no longer appear as pills at the top of the Friends screen.
+3️⃣ Optional filtering (secondary, hidden by default)
+Add a single, subtle “Filter” control (text button or icon).
+When invoked, it opens a lightweight inline panel or sheet containing optional filters:
+Pass (Epic / Ikon / Other) — multi-select
+Skill level
+Rider type
+Logistics flags (e.g. can drive / has space)
+Filters should:
+Be hidden by default
+Be optional
+Not dominate the screen visually
+4️⃣ Surface trips planned per friend
+For each friend row, display:
+Number of trips planned (e.g. “3 trips planned”)
+This should be:
+Secondary text
+Non-dominant
+For scanning only
+Do NOT add new backend fields.
+Global Guardrails
+Do NOT add new data fields
+Do NOT change backend models
+Do NOT change friend connection, availability, or overlap logic
+Do NOT introduce new UI components beyond what is described
+Focus on hierarchy, consistency, and clarity
+Deliverables
+Home → My Trips shows no filters
+Friend Profile top card matches Home profile card
+Friends list sorted by same-state → alphabetical
+Friends list shows trip count per friend
+Filters are optional and hidden by default
