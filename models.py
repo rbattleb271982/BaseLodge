@@ -219,6 +219,37 @@ class User(UserMixin, db.Model):
         elif self.is_core_profile_complete or self.has_started_planning:
             self.lifecycle_stage = 'onboarding'
         # Keep 'new' if neither condition is met (fresh signup)
+    
+    def get_visited_resorts(self):
+        """
+        Return list of Resort objects for visited mountains.
+        Uses visited_resort_ids (normalized) if available, otherwise returns empty list.
+        This enables access to full resort metadata (pass_brands, state, country, etc.)
+        """
+        if not self.visited_resort_ids or len(self.visited_resort_ids) == 0:
+            return []
+        from models import Resort
+        return Resort.query.filter(Resort.id.in_(self.visited_resort_ids)).all()
+    
+    @property
+    def visited_resorts_count(self):
+        """
+        Return count of visited resorts.
+        Prefers visited_resort_ids (normalized), falls back to mountains_visited (legacy).
+        """
+        if self.visited_resort_ids and len(self.visited_resort_ids) > 0:
+            return len(self.visited_resort_ids)
+        return len(self.mountains_visited or [])
+    
+    def get_home_resort(self):
+        """
+        Return the home Resort object if home_resort_id is set, otherwise None.
+        Enables access to full resort metadata for home mountain.
+        """
+        if not self.home_resort_id:
+            return None
+        from models import Resort
+        return Resort.query.get(self.home_resort_id)
 
 
 class Resort(db.Model):
