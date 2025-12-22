@@ -139,7 +139,9 @@ class User(UserMixin, db.Model):
     @property
     def display_rider_type(self):
         """
-        Returns rider type for display: "Skier" or "Skier · Snowboarder"
+        FULL display: Returns combined rider types for profile/detail views.
+        Format: "Skier" or "Skier · Snowboarder"
+        Use in: friend_profile.html, full profile views
         Never shows "Primary" or "Secondary" labels.
         """
         primary = self.primary_rider_type or self.rider_type
@@ -149,6 +151,15 @@ class User(UserMixin, db.Model):
         if secondary:
             return f"{primary} · {' · '.join(secondary)}"
         return primary
+    
+    @property
+    def compact_rider_type_display(self):
+        """
+        COMPACT display: Returns only primary rider type for summary views.
+        Format: "Skier" (never shows secondary)
+        Use in: home.html profile card, friends.html list, friend_row.html, invite cards
+        """
+        return self.primary_rider_type or self.rider_type
     
     @property
     def has_started_planning(self):
