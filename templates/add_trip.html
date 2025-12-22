@@ -39,6 +39,13 @@
             min-height: 48px;
         }
         
+        .form-group input:disabled,
+        .form-group select:disabled {
+            background: var(--bl-color-background);
+            color: var(--bl-color-text-muted);
+            cursor: not-allowed;
+        }
+        
         .date-wrapper {
             position: relative;
         }
@@ -124,45 +131,25 @@
             display: block;
         }
         
-        .duration-segment {
-            display: flex;
-            gap: 0;
+        .duration-display {
+            padding: var(--bl-space-4);
+            background: var(--bl-color-background);
             border: 1px solid var(--bl-color-border);
             border-radius: var(--bl-radius-md);
-            overflow: hidden;
-            background: var(--bl-color-background);
+            font-size: 15px;
+            color: var(--bl-color-text);
         }
         
-        .duration-segment label {
-            flex: 1;
-            text-align: center;
-            padding: var(--bl-space-3) var(--bl-space-2);
-            font-size: 13px;
-            font-weight: 500;
+        .duration-display.empty {
             color: var(--bl-color-text-muted);
-            cursor: pointer;
-            border-right: 1px solid var(--bl-color-border);
-            background: var(--bl-color-surface);
-            transition: all 0.2s;
-            margin-bottom: 0;
         }
         
-        .duration-segment label:last-child {
-            border-right: none;
+        .resort-search-wrapper {
+            position: relative;
         }
         
-        .duration-segment input {
-            display: none;
-        }
-        
-        .duration-segment input:checked + span {
-            background: var(--bl-color-primary);
-            color: white;
-        }
-        
-        .duration-segment label:has(input:checked) {
-            background: var(--bl-color-primary);
-            color: white;
+        .resort-search {
+            margin-bottom: var(--bl-space-2);
         }
         
         .overlap-modal {
@@ -238,79 +225,62 @@
         </div>
         {% endif %}
 
-        <form method="POST" action="{{ form_action }}" class="form-card">
+        <form method="POST" action="{{ form_action }}" class="form-card" id="trip-form">
             <div class="form-group">
-                <label for="state">State</label>
-                <select id="state" name="state" required onchange="updateResorts()">
-                    <option value="">Choose a state...</option>
-                    {% for state_code, state_name in states_with_resorts %}
-                        <option value="{{ state_code }}" {% if trip and trip.resort and trip.resort.state == state_code %}selected{% elif not trip and default_state == state_code %}selected{% endif %}>{{ state_name }}</option>
+                <label for="country">Country</label>
+                <select id="country" name="country" onchange="updateStates()">
+                    {% for country_code, country_name in countries_with_resorts %}
+                        <option value="{{ country_code }}" {% if trip and trip.resort and trip.resort.country == country_code %}selected{% elif not trip and default_country == country_code %}selected{% endif %}>{{ country_name }}</option>
                     {% endfor %}
                 </select>
             </div>
 
             <div class="form-group">
-                <label for="resort_id">Resort</label>
-                <select id="resort_id" name="resort_id" required {% if not (trip and trip.resort) and not default_state %}disabled{% endif %}>
-                    <option value="">{% if trip and trip.resort %}Choose a resort...{% elif default_state %}Select a resort{% else %}Select a state first{% endif %}</option>
-                    {% if trip and trip.resort %}
-                        {% for r in resorts %}
-                            {% if r.state == trip.resort.state %}
-                                <option value="{{ r.id }}" data-state="{{ r.state }}"
-                                    {% if trip.resort_id == r.id %}selected{% endif %}>
-                                    {{ r.name }}
-                                </option>
-                            {% endif %}
-                        {% endfor %}
-                    {% endif %}
+                <label for="state">State / Region</label>
+                <select id="state" name="state" required onchange="updateResorts()" disabled>
+                    <option value="">Choose a state...</option>
                 </select>
+            </div>
+
+            <div class="form-group">
+                <label for="resort_id">Resort</label>
+                <div class="resort-search-wrapper">
+                    <input type="text" id="resort_search" class="resort-search" placeholder="Search resorts..." oninput="filterResorts()" disabled>
+                    <select id="resort_id" name="resort_id" required disabled>
+                        <option value="">Select a state first</option>
+                    </select>
+                </div>
             </div>
 
             <div class="form-group">
                 <label for="start_date">Start date</label>
                 <div class="date-wrapper">
-                    <input type="date" id="start_date" name="start_date" required value="{% if trip and trip.start_date %}{{ trip.start_date.isoformat() }}{% endif %}" onchange="updateEndDateMin(); updatePlaceholders();">
+                    <input type="date" id="start_date" name="start_date" required value="{% if trip and trip.start_date %}{{ trip.start_date.isoformat() }}{% endif %}" onchange="updateEndDateMin(); updateDurationDisplay(); updatePlaceholders();">
                     <span class="date-placeholder" id="start_date_placeholder" {% if trip and trip.start_date %}style="display:none"{% endif %}>mm/dd/yy</span>
                 </div>
+                <p class="inline-error" id="start-date-error">Start date cannot be in the past.</p>
             </div>
 
             <div class="form-group">
                 <label for="end_date">End date</label>
                 <div class="date-wrapper">
-                    <input type="date" id="end_date" name="end_date" required value="{% if trip and trip.end_date %}{{ trip.end_date.isoformat() }}{% endif %}" onchange="updatePlaceholders();">
+                    <input type="date" id="end_date" name="end_date" required value="{% if trip and trip.end_date %}{{ trip.end_date.isoformat() }}{% endif %}" onchange="updateDurationDisplay(); updatePlaceholders();">
                     <span class="date-placeholder" id="end_date_placeholder" {% if trip and trip.end_date %}style="display:none"{% endif %}>mm/dd/yy</span>
                 </div>
+                <p class="inline-error" id="end-date-error">End date cannot be before start date.</p>
             </div>
 
             <div class="form-group">
                 <label>Trip duration</label>
-                <div class="duration-segment" id="duration-segment">
-                    <label>
-                        <input type="radio" name="trip_duration" value="day_trip" {% if trip and trip.trip_duration == 'day_trip' %}checked{% endif %} required>
-                        <span>Day Trip</span>
-                    </label>
-                    <label>
-                        <input type="radio" name="trip_duration" value="one_night" {% if trip and trip.trip_duration == 'one_night' %}checked{% endif %}>
-                        <span>1 Night</span>
-                    </label>
-                    <label>
-                        <input type="radio" name="trip_duration" value="two_nights" {% if trip and trip.trip_duration == 'two_nights' %}checked{% endif %}>
-                        <span>2 Nights</span>
-                    </label>
-                    <label>
-                        <input type="radio" name="trip_duration" value="three_plus_nights" {% if trip and trip.trip_duration == 'three_plus_nights' %}checked{% endif %}>
-                        <span>3+ Nights</span>
-                    </label>
-                </div>
-                <p class="inline-error" id="duration-error">Please select a trip duration.</p>
+                <div class="duration-display empty" id="duration-display">Select dates to calculate</div>
             </div>
 
             <div class="form-group">
                 <label for="ride_intent">Ride status</label>
                 <select id="ride_intent" name="ride_intent">
                     <option value="">No ride info</option>
-                    <option value="can_offer" {% if trip and trip.ride_intent == 'can_offer' %}selected{% endif %}>🚗 Can offer a ride</option>
-                    <option value="need_ride" {% if trip and trip.ride_intent == 'need_ride' %}selected{% endif %}>🙋 I need a ride</option>
+                    <option value="can_offer" {% if trip and trip.ride_intent == 'can_offer' %}selected{% endif %}>Can offer a ride</option>
+                    <option value="need_ride" {% if trip and trip.ride_intent == 'need_ride' %}selected{% endif %}>I need a ride</option>
                 </select>
             </div>
 
@@ -364,14 +334,24 @@
         }
         
         const resorts = {{ resorts|tojson }};
+        const statesByCountry = {{ states_by_country|tojson }};
         const userPasses = {{ (user_passes or [])|tojson }};
+        const isEditMode = {{ 'true' if trip else 'false' }};
+        const existingTripState = {{ ("'" + trip.resort.state + "'") if trip and trip.resort else 'null' }};
+        const existingTripResortId = {{ trip.resort_id if trip and trip.resort_id else 'null' }};
+        
+        const countrySelect = document.getElementById('country');
         const stateSelect = document.getElementById('state');
         const resortSelect = document.getElementById('resort_id');
+        const resortSearchInput = document.getElementById('resort_search');
         const startDateInput = document.getElementById('start_date');
         const endDateInput = document.getElementById('end_date');
+        const durationDisplay = document.getElementById('duration-display');
         const homeMountainCheckbox = document.getElementById('set_home_mountain');
         const homeMountainError = document.getElementById('home-mountain-error');
-        const form = document.querySelector('form.form-card');
+        const form = document.getElementById('trip-form');
+        
+        let currentStateResorts = [];
 
         function isPassCompatible(resort) {
             if (!userPasses || userPasses.length === 0) return false;
@@ -379,60 +359,135 @@
             return userPasses.some(p => resortBrands.includes(p.toLowerCase()));
         }
 
+        function updateStates() {
+            const selectedCountry = countrySelect.value;
+            const states = statesByCountry[selectedCountry] || [];
+            
+            stateSelect.innerHTML = '<option value="">Choose a state...</option>';
+            states.forEach(([code, name]) => {
+                const option = document.createElement('option');
+                option.value = code;
+                option.textContent = name;
+                if (existingTripState === code) {
+                    option.selected = true;
+                }
+                stateSelect.appendChild(option);
+            });
+            
+            stateSelect.disabled = states.length === 0;
+            
+            if (stateSelect.value) {
+                updateResorts();
+            } else {
+                resortSelect.disabled = true;
+                resortSelect.innerHTML = '<option value="">Select a state first</option>';
+                resortSearchInput.disabled = true;
+                resortSearchInput.value = '';
+            }
+        }
+
         function updateResorts() {
+            const selectedCountry = countrySelect.value;
             const selectedState = stateSelect.value;
-            const currentValue = resortSelect.value;
             
             if (selectedState) {
-                resortSelect.disabled = false;
-                resortSelect.innerHTML = '<option value="">Select a resort</option>';
+                currentStateResorts = resorts.filter(r => r.state === selectedState && r.country === selectedCountry);
                 
-                const stateResorts = resorts.filter(r => r.state === selectedState);
-                
-                stateResorts.sort((a, b) => {
+                currentStateResorts.sort((a, b) => {
                     const aCompat = isPassCompatible(a) ? 0 : 1;
                     const bCompat = isPassCompatible(b) ? 0 : 1;
                     if (aCompat !== bCompat) return aCompat - bCompat;
                     return a.name.localeCompare(b.name);
                 });
                 
-                stateResorts.forEach(r => {
-                    const option = document.createElement('option');
-                    option.value = r.id;
-                    option.textContent = r.name;
-                    if (r.id.toString() === currentValue) {
-                        option.selected = true;
-                    }
-                    resortSelect.appendChild(option);
-                });
+                resortSelect.disabled = false;
+                resortSearchInput.disabled = false;
+                resortSearchInput.value = '';
+                renderResortOptions(currentStateResorts);
             } else {
                 resortSelect.disabled = true;
                 resortSelect.innerHTML = '<option value="">Select a state first</option>';
+                resortSearchInput.disabled = true;
+                resortSearchInput.value = '';
+                currentStateResorts = [];
             }
             
-            // Clear home mountain error when state changes and resort is reset
             if (homeMountainError) {
                 homeMountainError.classList.remove('visible');
             }
         }
+        
+        function renderResortOptions(resortsToRender) {
+            resortSelect.innerHTML = '<option value="">Select a resort</option>';
+            resortsToRender.forEach(r => {
+                const option = document.createElement('option');
+                option.value = r.id;
+                option.textContent = r.name;
+                if (existingTripResortId === r.id) {
+                    option.selected = true;
+                }
+                resortSelect.appendChild(option);
+            });
+        }
+        
+        function filterResorts() {
+            const searchTerm = resortSearchInput.value.toLowerCase().trim();
+            if (!searchTerm) {
+                renderResortOptions(currentStateResorts);
+                return;
+            }
+            const filtered = currentStateResorts.filter(r => r.name.toLowerCase().includes(searchTerm));
+            renderResortOptions(filtered);
+        }
 
         function updateEndDateMin() {
+            const today = new Date().toISOString().split('T')[0];
+            
             if (startDateInput.value) {
-                endDateInput.min = startDateInput.value;
+                const minEndDate = startDateInput.value > today ? startDateInput.value : today;
+                endDateInput.min = isEditMode ? startDateInput.value : minEndDate;
                 if (endDateInput.value && endDateInput.value < startDateInput.value) {
                     endDateInput.value = startDateInput.value;
                 }
             }
         }
+        
+        function updateDurationDisplay() {
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+            
+            if (!startDate || !endDate) {
+                durationDisplay.textContent = 'Select dates to calculate';
+                durationDisplay.classList.add('empty');
+                return;
+            }
+            
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const nights = Math.round((end - start) / (1000 * 60 * 60 * 24));
+            
+            let durationText;
+            if (nights === 0) {
+                durationText = 'Day Trip';
+            } else if (nights === 1) {
+                durationText = '1 Night';
+            } else if (nights === 2) {
+                durationText = '2 Nights';
+            } else {
+                durationText = '3+ Nights';
+            }
+            
+            durationDisplay.textContent = durationText;
+            durationDisplay.classList.remove('empty');
+        }
 
-        // Set end date picker to start date month when focused
         endDateInput.addEventListener('focus', function() {
             if (startDateInput.value && !endDateInput.value) {
                 endDateInput.value = startDateInput.value;
+                updateDurationDisplay();
             }
         });
         
-        // Home mountain validation
         if (form && homeMountainCheckbox) {
             form.addEventListener('submit', function(e) {
                 if (homeMountainCheckbox.checked && !resortSelect.value) {
@@ -445,14 +500,12 @@
                 }
             });
             
-            // Clear error when resort is selected
             resortSelect.addEventListener('change', function() {
                 if (homeMountainError && resortSelect.value) {
                     homeMountainError.classList.remove('visible');
                 }
             });
             
-            // Clear error when checkbox is unchecked
             homeMountainCheckbox.addEventListener('change', function() {
                 if (homeMountainError && !homeMountainCheckbox.checked) {
                     homeMountainError.classList.remove('visible');
@@ -493,12 +546,22 @@
             updatePlaceholders();
         });
 
-        // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date().toISOString().split('T')[0];
+            
+            if (!isEditMode) {
+                startDateInput.min = today;
+                endDateInput.min = today;
+            }
+            
+            updateStates();
+            
             if (stateSelect.value) {
                 updateResorts();
             }
+            
             updateEndDateMin();
+            updateDurationDisplay();
             updatePlaceholders();
         });
     </script>
