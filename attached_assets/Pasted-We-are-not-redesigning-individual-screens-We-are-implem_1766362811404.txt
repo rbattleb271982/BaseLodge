@@ -1,0 +1,137 @@
+We are not redesigning individual screens.
+We are implementing a shared visual grammar and card system for BaseLodge to create a calm, confident, Carv-like experience while remaining beginner-friendly.
+This grammar must be applied consistently across:
+Home
+Profile
+Friends
+Trip-related cards
+CORE DESIGN PRINCIPLES (AUTHORITATIVE)
+Horizontal over vertical
+Prefer inline rows instead of stacked sections
+Cards must be short and wide, not tall
+One visual anchor per card
+Name or primary trip info is the anchor
+Everything else is supporting metadata
+Soft surfaces, minimal noise
+Use background color and spacing, not borders
+Avoid unnecessary dividers
+No decorative icons
+Strict consistency
+Same card structure everywhere
+No custom layouts per screen
+TYPOGRAPHY RULES (IMPORTANT CHANGE)
+Increase base font sizes slightly across cards:
+Primary text (names, key stats): +10–15%
+Secondary metadata: +5–10%
+Line height should increase proportionally
+Typography must remain consistent across all screens
+Do NOT introduce new font families or weights
+Goal: better legibility without adding vertical space
+BASELODGE CARD ANATOMY (LOCK THIS)
+All profile-based cards (self, friend, profile preview) must follow this exact structure:
+Row 1 — Header (single horizontal line)
+Left: Name
+Right: Status indicator
+Examples:
+“Starts today”
+“Next trip · Jan 12–15”
+Must be on one line
+No stacking
+Row 2 — Identity (single inline row)
+Display inline, separated by dots:
+State · Rider Type · Pass Type · Skill Level
+Example:
+CA · Skier · Epic & Ikon · Advanced
+State only — do not show mountain here.
+Row 3 — Equipment (conditional)
+Only show if user selected “I have my own equipment”
+Single inline row:
+Skis: Brand Model · Boots: Brand Model
+If user uses rentals, omit this row entirely.
+Row 4 — Stats (single row with vertical dividers)
+Three columns separated by thin vertical dividers:
+Trips Planned | Mountains Visited | Wishlist Mountains
+Each column contains:
+Small muted label
+Larger bold number
+EXPANDABLE BEHAVIOR (CRITICAL)
+Mountains Visited and Wishlist Mountains must be expandable
+Expansion behavior:
+Inline accordion
+Expands downward temporarily
+Collapses on second tap
+MUST NOT permanently increase card height
+SPACING & DENSITY RULES
+Reduce vertical padding inside cards by ~25%
+Maintain generous horizontal padding
+Avoid horizontal rules unless structurally required
+Collapsed cards must never exceed ~40% viewport height
+EQUIPMENT OWNERSHIP FLOW (LOCK THIS)
+Ownership selector
+Keep segmented control at top:
+I have my own equipment
+I use rentals
+If “I have my own equipment”
+Show Primary Equipment Setup
+Fields:
+Brand (dropdown)
+Model (free-text)
+Boots Brand + Model
+Secondary setup:
+Hidden by default
+Show “+ Add another setup”
+If secondary exists, show collapsed summary with Edit
+If “I use rentals”
+Hide all equipment inputs
+Preserve previously entered equipment data
+Restoring ownership restores prior inputs
+BRAND + MODEL RULES
+Brand
+Dropdown
+Sport-specific lists (do NOT merge ski/snowboard lists)
+Add missing brands as needed
+Include “Other”
+Model
+Free-text
+Optional
+No validation
+No autocomplete
+Placeholder:
+e.g. Ripstick 96, Bent Chetler 100
+DISPLAY LOGIC (EVERYWHERE)
+Brand + Model → Brand Model
+Brand only → Brand
+Model only → Model
+Neither → do not render
+Never display “Unknown model”.
+SAVE BUTTON CONSISTENCY (MANDATORY)
+Screens requiring explicit Save:
+Equipment
+Wishlist Destinations
+Mountains Visited
+Save button behavior:
+Primary button
+Sticky bottom placement
+Disabled until changes occur
+On Save:
+Persist data
+Navigate back
+No confirmation modal
+No toast
+❌ No autosave
+❌ No back-navigation saving
+EXPLICITLY DO NOT
+Do NOT stack fields vertically
+Do NOT invent new layouts per screen
+Do NOT introduce decorative UI
+Do NOT change typography per screen
+Do NOT add filters or pills unless explicitly requested
+Do NOT permanently expand cards
+SUCCESS CRITERIA
+If implemented correctly:
+App immediately feels calmer and more confident
+Cards are compact but readable
+Information density increases without clutter
+Experience aligns with Carv / Strava-level polish
+No regressions for existing users
+Implement this visual grammar first, then re-apply existing data without adding new UI elements.
