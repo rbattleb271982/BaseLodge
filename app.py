@@ -3560,6 +3560,69 @@ def backfill_planning_timestamp_endpoint():
         }), 500
 
 
+@app.route("/admin/seed-colorado-resorts", methods=["GET", "POST"])
+def seed_colorado_resorts_endpoint():
+    """
+    HTTP endpoint to add missing Colorado ski resorts.
+    
+    Usage: GET https://yourapp.replit.dev/admin/seed-colorado-resorts
+    
+    This is idempotent - safe to call multiple times.
+    Only creates resorts that don't already exist (checked by slug).
+    """
+    try:
+        colorado_resorts = [
+            {"name": "Beaver Creek", "slug": "beaver-creek", "state": "CO", "state_full": "Colorado", "country": "US", "brand": "Epic", "pass_brands": "Epic"},
+            {"name": "Telluride", "slug": "telluride", "state": "CO", "state_full": "Colorado", "country": "US", "brand": "Epic", "pass_brands": "Epic"},
+            {"name": "Wolf Creek", "slug": "wolf-creek", "state": "CO", "state_full": "Colorado", "country": "US", "brand": "Other", "pass_brands": None},
+            {"name": "Monarch Mountain", "slug": "monarch-mountain", "state": "CO", "state_full": "Colorado", "country": "US", "brand": "Other", "pass_brands": None},
+            {"name": "Ski Cooper", "slug": "ski-cooper", "state": "CO", "state_full": "Colorado", "country": "US", "brand": "Other", "pass_brands": None},
+            {"name": "Purgatory Resort", "slug": "purgatory-resort", "state": "CO", "state_full": "Colorado", "country": "US", "brand": "Other", "pass_brands": None},
+            {"name": "Silverton Mountain", "slug": "silverton-mountain", "state": "CO", "state_full": "Colorado", "country": "US", "brand": "Other", "pass_brands": None},
+            {"name": "Howelsen Hill", "slug": "howelsen-hill", "state": "CO", "state_full": "Colorado", "country": "US", "brand": "Other", "pass_brands": None},
+            {"name": "Echo Mountain", "slug": "echo-mountain", "state": "CO", "state_full": "Colorado", "country": "US", "brand": "Other", "pass_brands": None},
+            {"name": "Hoedown Hill", "slug": "hoedown-hill", "state": "CO", "state_full": "Colorado", "country": "US", "brand": "Other", "pass_brands": None},
+        ]
+        
+        created = []
+        existed = []
+        
+        for resort_data in colorado_resorts:
+            existing = Resort.query.filter_by(slug=resort_data["slug"]).first()
+            if existing:
+                existed.append(resort_data["name"])
+            else:
+                new_resort = Resort(
+                    name=resort_data["name"],
+                    slug=resort_data["slug"],
+                    state=resort_data["state"],
+                    state_full=resort_data["state_full"],
+                    country=resort_data["country"],
+                    brand=resort_data["brand"],
+                    pass_brands=resort_data["pass_brands"],
+                    is_active=True
+                )
+                db.session.add(new_resort)
+                created.append(resort_data["name"])
+        
+        db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Created {len(created)} resorts, {len(existed)} already existed",
+            "created": created,
+            "already_existed": existed
+        }), 200
+    except Exception as e:
+        import traceback
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to seed Colorado resorts: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 @app.route("/open-data-debug")
 @login_required
 def open_data_debug():
