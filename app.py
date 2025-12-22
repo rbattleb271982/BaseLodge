@@ -3786,6 +3786,135 @@ def seed_wa_ca_resorts_endpoint():
         }), 500
 
 
+@app.route("/admin/seed-western-resorts", methods=["GET", "POST"])
+def seed_western_resorts_endpoint():
+    """
+    HTTP endpoint to add missing ski resorts for OR, ID, MT, WY, AZ, NM, ND, SD.
+    
+    Usage: GET https://yourapp.replit.dev/admin/seed-western-resorts
+    
+    This is idempotent - safe to call multiple times.
+    Only creates resorts that don't already exist (checked by slug).
+    """
+    try:
+        resorts_by_state = {
+            "OR": {
+                "state_full": "Oregon",
+                "resorts": [
+                    {"name": "Mt. Bachelor", "slug": "mt-bachelor", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Mt. Hood Meadows", "slug": "mt-hood-meadows", "brand": "Other", "pass_brands": None},
+                    {"name": "Timberline Lodge", "slug": "timberline-lodge", "brand": "Other", "pass_brands": None},
+                    {"name": "Hoodoo", "slug": "hoodoo", "brand": "Other", "pass_brands": None},
+                    {"name": "Willamette Pass", "slug": "willamette-pass", "brand": "Other", "pass_brands": None},
+                    {"name": "Anthony Lakes", "slug": "anthony-lakes", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "ID": {
+                "state_full": "Idaho",
+                "resorts": [
+                    {"name": "Sun Valley", "slug": "sun-valley", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Schweitzer", "slug": "schweitzer", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Brundage", "slug": "brundage", "brand": "Other", "pass_brands": None},
+                    {"name": "Tamarack", "slug": "tamarack", "brand": "Other", "pass_brands": None},
+                    {"name": "Silver Mountain", "slug": "silver-mountain", "brand": "Other", "pass_brands": None},
+                    {"name": "Bogus Basin", "slug": "bogus-basin", "brand": "Other", "pass_brands": None},
+                    {"name": "Pebble Creek", "slug": "pebble-creek", "brand": "Other", "pass_brands": None},
+                    {"name": "Soldier Mountain", "slug": "soldier-mountain", "brand": "Other", "pass_brands": None},
+                    {"name": "Lookout Pass", "slug": "lookout-pass", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "MT": {
+                "state_full": "Montana",
+                "resorts": [
+                    {"name": "Big Sky", "slug": "big-sky", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Bridger Bowl", "slug": "bridger-bowl", "brand": "Other", "pass_brands": None},
+                    {"name": "Whitefish", "slug": "whitefish", "brand": "Other", "pass_brands": None},
+                    {"name": "Red Lodge", "slug": "red-lodge", "brand": "Other", "pass_brands": None},
+                    {"name": "Discovery Ski Area", "slug": "discovery-ski-area", "brand": "Other", "pass_brands": None},
+                    {"name": "Lost Trail", "slug": "lost-trail", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "WY": {
+                "state_full": "Wyoming",
+                "resorts": [
+                    {"name": "Jackson Hole", "slug": "jackson-hole", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Grand Targhee", "slug": "grand-targhee", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Snowy Range", "slug": "snowy-range", "brand": "Other", "pass_brands": None},
+                    {"name": "Meadowlark", "slug": "meadowlark", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "AZ": {
+                "state_full": "Arizona",
+                "resorts": [
+                    {"name": "Arizona Snowbowl", "slug": "arizona-snowbowl", "brand": "Other", "pass_brands": None},
+                    {"name": "Sunrise Park Resort", "slug": "sunrise-park-resort", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "NM": {
+                "state_full": "New Mexico",
+                "resorts": [
+                    {"name": "Taos Ski Valley", "slug": "taos-ski-valley", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Angel Fire", "slug": "angel-fire", "brand": "Other", "pass_brands": None},
+                    {"name": "Red River", "slug": "red-river", "brand": "Other", "pass_brands": None},
+                    {"name": "Ski Santa Fe", "slug": "ski-santa-fe", "brand": "Other", "pass_brands": None},
+                    {"name": "Sipapu", "slug": "sipapu", "brand": "Other", "pass_brands": None},
+                    {"name": "Pajarito", "slug": "pajarito", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "ND": {
+                "state_full": "North Dakota",
+                "resorts": [
+                    {"name": "Huff Hills", "slug": "huff-hills", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "SD": {
+                "state_full": "South Dakota",
+                "resorts": [
+                    {"name": "Terry Peak", "slug": "terry-peak", "brand": "Other", "pass_brands": None},
+                ]
+            },
+        }
+        
+        created = []
+        existed = []
+        
+        for state_code, state_data in resorts_by_state.items():
+            for resort_data in state_data["resorts"]:
+                existing = Resort.query.filter_by(slug=resort_data["slug"]).first()
+                if existing:
+                    existed.append(f"{resort_data['name']} ({state_code})")
+                else:
+                    new_resort = Resort(
+                        name=resort_data["name"],
+                        slug=resort_data["slug"],
+                        state=state_code,
+                        state_full=state_data["state_full"],
+                        country="US",
+                        brand=resort_data["brand"],
+                        pass_brands=resort_data["pass_brands"],
+                        is_active=True
+                    )
+                    db.session.add(new_resort)
+                    created.append(f"{resort_data['name']} ({state_code})")
+        
+        db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Created {len(created)} resorts, {len(existed)} already existed",
+            "created": created,
+            "already_existed": existed
+        }), 200
+    except Exception as e:
+        import traceback
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to seed western resorts: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 @app.route("/open-data-debug")
 @login_required
 def open_data_debug():

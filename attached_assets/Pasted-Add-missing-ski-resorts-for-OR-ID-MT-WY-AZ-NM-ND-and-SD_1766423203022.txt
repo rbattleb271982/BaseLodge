@@ -1,0 +1,112 @@
+Add missing ski resorts for OR, ID, MT, WY, AZ, NM, ND, and SD to the Resort table using the existing Resort model.
+This must be an idempotent operation.
+
+For EACH resort listed below:
+- Generate slug as lowercase, hyphenated name
+- If a Resort with that slug already exists, do nothing
+- If it does not exist, insert it
+
+================================
+OREGON (OR)
+================================
+1. Mt. Bachelor
+   - brand: Ikon
+   - pass_brands: Ikon
+2. Mt. Hood Meadows
+3. Timberline Lodge
+4. Hoodoo
+5. Willamette Pass
+6. Anthony Lakes
+
+================================
+IDAHO (ID)
+================================
+7. Sun Valley
+   - brand: Ikon
+   - pass_brands: Ikon
+8. Schweitzer
+   - brand: Ikon
+   - pass_brands: Ikon
+9. Brundage
+10. Tamarack
+11. Silver Mountain
+12. Bogus Basin
+13. Pebble Creek
+14. Soldier Mountain
+15. Lookout Pass
+
+================================
+MONTANA (MT)
+================================
+16. Big Sky
+    - brand: Ikon
+    - pass_brands: Ikon
+17. Bridger Bowl
+18. Whitefish
+19. Red Lodge
+20. Discovery Ski Area
+21. Lost Trail
+
+================================
+WYOMING (WY)
+================================
+22. Jackson Hole
+    - brand: Ikon
+    - pass_brands: Ikon
+23. Grand Targhee
+    - brand: Ikon
+    - pass_brands: Ikon
+24. Snowy Range
+25. Meadowlark
+
+================================
+ARIZONA (AZ)
+================================
+26. Arizona Snowbowl
+27. Sunrise Park Resort
+
+================================
+NEW MEXICO (NM)
+================================
+28. Taos Ski Valley
+    - brand: Ikon
+    - pass_brands: Ikon
+29. Angel Fire
+30. Red River
+31. Ski Santa Fe
+32. Sipapu
+33. Pajarito
+
+================================
+NORTH DAKOTA (ND)
+================================
+34. Huff Hills
+
+================================
+SOUTH DAKOTA (SD)
+================================
+35. Terry Peak
+
+--------------------------------
+Common attributes for ALL inserts:
+- country: US
+- is_active: True
+- brand: "Other" if not explicitly specified
+- pass_brands: null if not explicitly specified
+
+State attributes:
+- OR → state="OR", state_full="Oregon"
+- ID → state="ID", state_full="Idaho"
+- MT → state="MT", state_full="Montana"
+- WY → state="WY", state_full="Wyoming"
+- AZ → state="AZ", state_full="Arizona"
+- NM → state="NM", state_full="New Mexico"
+- ND → state="ND", state_full="North Dakota"
+- SD → state="SD", state_full="South Dakota"
+
+Requirements:
+- Use existing SQLAlchemy session
+- Commit once at the end
+- Print summary of created vs already-existing resorts
+- Do NOT modify any existing Resort rows
+- Do NOT touch SkiTrip
