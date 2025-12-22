@@ -99,13 +99,9 @@
         <div class="invite-card">
             <h1 class="invite-headline">{{ inviter.first_name }}{% if inviter.last_name %} {{ inviter.last_name }}{% endif %} wants to connect</h1>
             
-            {% set identity_parts = [] %}
-            {% if inviter.compact_rider_type_display %}{% set _ = identity_parts.append(inviter.compact_rider_type_display) %}{% endif %}
-            {% if inviter.skill_level %}{% set _ = identity_parts.append(inviter.skill_level) %}{% endif %}
-            {% if inviter.home_state %}{% set _ = identity_parts.append(inviter.home_state) %}{% endif %}
-            
-            {% if identity_parts %}
-            <p class="invite-identity">{{ identity_parts | join(' · ') }}</p>
+            {% set identity = inviter|identity_line %}
+            {% if identity %}
+            <p class="invite-identity">{{ identity }}</p>
             {% endif %}
             
             {% if inviter_trips_count and inviter_trips_count > 0 %}

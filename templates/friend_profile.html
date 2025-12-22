@@ -199,7 +199,9 @@
                     {% if friend.pass_type %}
                     {% set passes = friend.pass_type.split(',') %}
                     {% for p in passes %}
-                    <span class="profile-pill">{{ p }}</span>
+                    {% if p.strip() and p.strip().lower() != 'both' %}
+                    <span class="profile-pill">{{ p.strip() }}</span>
+                    {% endif %}
                     {% endfor %}
                     {% endif %}
                     {% if friend.skill_level %}

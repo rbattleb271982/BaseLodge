@@ -41,6 +41,64 @@ login_manager.login_view = "auth"
 def load_user(user_id):
     return db.session.get(User, int(user_id))
 
+# ============================================================================
+# CENTRALIZED IDENTITY FORMATTER
+# Single source of truth for user identity display across all templates.
+# Format: Rider Type · Passes · Skill Level
+# Never shows "Both" - all passes listed individually.
+# ============================================================================
+
+@app.template_filter('identity_line')
+def identity_line_filter(user):
+    """
+    Centralized identity formatter for user profile display.
+    Format: Rider Type · Passes · Skill Level
+    - Rider type: Primary only (compact display)
+    - Passes: All passes listed individually, never "Both"
+    - Skill level: Last if present
+    - Home state: Excluded from identity line
+    """
+    if not user:
+        return ''
+    
+    parts = []
+    
+    # Rider type (primary only, compact)
+    rider = user.primary_rider_type or getattr(user, 'rider_type', None)
+    if rider:
+        parts.append(rider)
+    
+    # Passes (all listed individually, never "Both")
+    if user.pass_type:
+        pass_str = user.pass_type.strip()
+        # Handle comma-separated passes
+        if ',' in pass_str:
+            passes = [p.strip() for p in pass_str.split(',') if p.strip() and p.strip().lower() != 'both']
+        else:
+            # Single pass - exclude "Both" if somehow stored
+            passes = [pass_str] if pass_str.lower() != 'both' else []
+        parts.extend(passes)
+    
+    # Skill level (last)
+    if user.skill_level:
+        parts.append(user.skill_level)
+    
+    return ' · '.join(parts) if parts else ''
+
+@app.template_filter('pass_display')
+def pass_display_filter(pass_type):
+    """
+    Displays passes individually, never showing "Both".
+    Use for standalone pass display in stats cards and settings.
+    """
+    if not pass_type:
+        return ''
+    pass_str = pass_type.strip()
+    if ',' in pass_str:
+        passes = [p.strip() for p in pass_str.split(',') if p.strip() and p.strip().lower() != 'both']
+        return ' · '.join(passes) if passes else ''
+    return pass_str if pass_str.lower() != 'both' else ''
+
 @app.before_request
 def before_request_handlers():
     # Make sessions permanent for Replit iframe compatibility

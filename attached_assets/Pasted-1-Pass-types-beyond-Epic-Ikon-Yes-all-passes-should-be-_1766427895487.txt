@@ -1,0 +1,66 @@
+1.	Pass types beyond Epic / Ikon
+
+Yes — all passes should be listed individually.
+There should be no special casing for Epic and Ikon beyond ordering.
+
+Rules to use going forward:
+• Any pass a user has is rendered as its own label
+• Multiple passes are joined with a middle dot
+• No collapsing into “Both” or any other shorthand
+• Order should be consistent and deterministic
+
+Example outputs:
+Skier · Epic · Ikon · Indy · Advanced
+Snowboarder · Indy · Mountain Collective · Intermediate
+
+This future-proofs the formatter and avoids rework when more passes are added.
+
+⸻
+
+	2.	Rider type display context
+
+Choose Option C.
+
+The identity line should always show only the primary rider type.
+Secondary rider types should not appear in the identity line and should be handled elsewhere on the page if needed.
+
+Reasoning:
+• The identity line is meant to be scannable and compact
+• Multiple rider types add noise and reduce clarity
+• Secondary rider types can live in profile details or edit views later without breaking this logic
+
+So the formatter always uses exactly one rider type.
+
+⸻
+
+	3.	Home state inclusion
+
+Home state is intentionally excluded from the identity line.
+
+Rationale:
+• Home state is location context, not identity
+• Mixing location with pass + rider logic made the line inconsistent and harder to scan
+• Some views (invites, guest lists) don’t reliably have or need location
+
+If home state is shown, it should be:
+• Displayed elsewhere on the card (header, subtext, or separate line)
+• Not part of the centralized identity formatter
+
+The identity line is now strictly:
+Rider Type · Passes · Skill Level
+
+⸻
+
+	4.	Centralized formatter implementation
+
+Yes — creating a Jinja2 template filter like {{ user | identity_line }} registered in app.py is exactly the right approach.
+
+This is the preferred solution.
+
+Why this works best:
+• Single source of truth
+• Clean templates
+• Impossible for “Both” to reappear unless the filter is changed
+• Easy to extend for new passes or rules later
+
+Replit should proceed with this approach.

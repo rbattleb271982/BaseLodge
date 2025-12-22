@@ -297,7 +297,7 @@
                         {% endif %}
                     </span>
                 </div>
-                <p class="flat-row-identity">{% set parts = [] %}{% if friend.home_state %}{% set _ = parts.append(friend.home_state) %}{% endif %}{% if friend.compact_rider_type_display %}{% set _ = parts.append(friend.compact_rider_type_display) %}{% endif %}{% if friend.skill_level %}{% set _ = parts.append(friend.skill_level) %}{% endif %}{% if friend.pass_type %}{% set passes = friend.pass_type.split(',') %}{% if passes|length == 2 %}{% set _ = parts.append(passes[0] ~ ' & ' ~ passes[1]) %}{% elif passes|length > 2 %}{% set _ = parts.append(passes|join(', ')) %}{% else %}{% set _ = parts.append(passes[0]) %}{% endif %}{% endif %}{{ parts|join(' · ') if parts else '' }}</p>
+                <p class="flat-row-identity">{{ friend|identity_line }}</p>
             </a>
             {% endfor %}
             
