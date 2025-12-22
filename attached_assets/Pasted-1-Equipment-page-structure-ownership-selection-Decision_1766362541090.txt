@@ -1,0 +1,83 @@
+1️⃣ Equipment page structure (ownership selection)
+Decision:
+✅ Keep it as a segmented control at the top
+Why:
+It already exists
+It’s the clearest binary choice
+It maps cleanly to the conditional logic we defined
+No need to invent a new pattern
+Implementation guidance:
+Segmented control options:
+I have my own equipment
+I use rentals
+Changing the selection should:
+Immediately show/hide relevant sections
+NOT auto-save (changes only persist on Save)
+✅ Keep as-is stylistically, just update copy + logic.
+2️⃣ Brand dropdown list (sport-specific vs unified)
+Decision:
+✅ Keep sport-specific brand lists and merge in the new brands where relevant
+Do NOT replace existing sport-specific lists with one generic list.
+Correct approach:
+Skis / Snowboards:
+Continue using sport-specific brand lists
+Add missing brands from the new starter list where appropriate
+Boots:
+Use a boots-appropriate brand list (already exists)
+Why this matters:
+Skiers don’t want to see snowboard-only brands in ski dropdowns
+Snowboarders don’t want ski-only brands
+This keeps UX clean and avoids regressions
+Key rule to pass to Replit:
+The provided brand list is additive, not a replacement. Maintain sport-specific filtering.
+3️⃣ Secondary setup visibility
+Decision:
+✅ Collapsed by default with an “Edit” affordance if it already exists
+Behavior rules:
+If no secondary setup exists yet:
+Show: “+ Add another setup”
+Secondary inputs are hidden
+If secondary setup already exists:
+Show a collapsed summary row (same compact pattern as primary)
+Include an “Edit” button
+Tapping “Edit” expands the secondary setup inline
+Why:
+Prevents vertical bloat
+Makes multiple setups feel intentional
+Matches your broader goal of compact, information-dense UI
+❌ Do NOT show secondary setup expanded by default.
+4️⃣ Mountains Visited page — standalone or embedded?
+Decision:
+✅ Treat it as a standalone edit screen
+Even if it’s technically embedded somewhere today, implement the Save button as if it’s a standalone edit page.
+Implementation rule:
+If the page:
+Has its own route OR
+Has a Back button in the header OR
+Is clearly a “selection” flow
+→ It must have an explicit Save button.
+This avoids edge cases and future refactors.
+5️⃣ Save button behavior (Wishlist & Mountains Visited)
+Decision:
+✅ After Save → navigate back to the previous screen (Settings/Profile)
+❌ No success message
+❌ No toast
+❌ No staying on the page
+Why:
+Matches user expectation for edit flows
+Keeps UX fast and clean
+Avoids extra UI noise
+Exact flow:
+User makes changes
+Save button becomes enabled
+User taps Save
+Data persists
+Navigate back
+That’s it.
+Summary You Can Send Back to Replit (Optional)
+If you want a concise response to paste back to Replit, here it is:
+• Keep the equipment ownership toggle as a segmented control at the top
+• Maintain sport-specific brand dropdowns; merge in missing brands rather than replacing lists
+• Secondary setup should be hidden by default — show “+ Add another setup”; if one exists, show collapsed with an Edit button
+• Treat Mountains Visited as a standalone edit screen and add a Save button
+• After Save on Wishlist/Mountains, navigate back — no success message or toast

@@ -155,11 +155,11 @@
             <div class="equipment-status-toggle">
                 <label style="display: flex; align-items: center; gap: 12px; padding: 12px 0; cursor: pointer; border-bottom: 1px solid var(--bl-color-border-soft);">
                     <input type="radio" name="equipment_status" value="have_own_equipment" {% if not user.equipment_status or user.equipment_status == 'have_own_equipment' %}checked{% endif %} onchange="updateEquipmentStatus(this.value)">
-                    <span style="font-size: 15px; color: var(--bl-color-text);">Have own equipment</span>
+                    <span style="font-size: 15px; color: var(--bl-color-text);">I have my own equipment</span>
                 </label>
                 <label style="display: flex; align-items: center; gap: 12px; padding: 12px 0; cursor: pointer;">
                     <input type="radio" name="equipment_status" value="needs_rentals" {% if user.equipment_status == 'needs_rentals' %}checked{% endif %} onchange="updateEquipmentStatus(this.value)">
-                    <span style="font-size: 15px; color: var(--bl-color-text);">Needs rentals</span>
+                    <span style="font-size: 15px; color: var(--bl-color-text);">I use rentals</span>
                 </label>
             </div>
         </div>
@@ -266,10 +266,10 @@
             {% if primary_equipment %}</div>{% endif %}
         </div>
         
+        <!-- Secondary Setup: hidden by default, show "+ Add another setup" -->
+        {% if secondary_equipment %}
         <h2 class="section-header">Secondary Setup</h2>
         <div class="equipment-card">
-            
-            {% if secondary_equipment %}
             <div id="secondary-view">
                 <div class="equipment-display">
                     <p class="equipment-brand">{{ secondary_equipment.brand or 'Secondary Setup' }}{% if secondary_equipment.model %} {{ secondary_equipment.model }}{% endif %}</p>
@@ -290,9 +290,15 @@
                 </div>
             </div>
             <div id="secondary-edit" class="equipment-edit-form" style="display: none;">
-            {% else %}
+        {% else %}
+        <div id="add-secondary-section" style="margin-top: 16px;">
+            <button type="button" id="add-secondary-btn" style="width: 100%; padding: 14px; background: transparent; border: 1px dashed var(--bl-color-border); border-radius: 10px; color: var(--bl-color-primary); font-size: 15px; font-weight: 500; cursor: pointer;">+ Add another setup</button>
+        </div>
+        <div id="secondary-form-wrapper" style="display: none;">
+            <h2 class="section-header" style="margin-top: 24px;">Secondary Setup</h2>
+            <div class="equipment-card">
             <div id="secondary-edit" class="equipment-edit-form">
-            {% endif %}
+        {% endif %}
                 <div class="equipment-grid">
                     <div>
                         <label class="form-label">Discipline</label>
@@ -355,19 +361,26 @@
                     {% if secondary_equipment %}
                     <button type="button" id="cancel-secondary-btn" class="btn-cancel">Cancel</button>
                     <button type="button" id="delete-secondary-btn" class="btn-delete">Delete</button>
+                    {% else %}
+                    <button type="button" id="cancel-add-secondary-btn" class="btn-cancel">Cancel</button>
                     {% endif %}
                 </div>
             </div>
-            {% if secondary_equipment %}</div>{% endif %}
+            {% if secondary_equipment %}
+            </div>
         </div>
+            {% else %}
+            </div>
+        </div>
+        {% endif %}
         </div><!-- Close equipment-details-section -->
     </div>
     
     {% include 'components/bottom_nav.html' %}
     
     <script>
-    const skiEquipmentBrands = ['Atomic', 'Black Crows', 'Blizzard', 'Dynastar', 'Elan', 'Faction', 'Fischer', 'Head', 'K2', 'Line', 'Nordica', 'Rossignol', 'Salomon', 'Scott', 'Volkl'];
-    const snowboardEquipmentBrands = ['Arbor', 'Bataleon', 'Burton', 'Capita', 'DC', 'GNU', 'Jones', 'K2', 'Lib Tech', 'Nitro', 'Ride', 'Rome', 'Salomon', 'Yes'];
+    const skiEquipmentBrands = ['Armada', 'Atomic', 'Black Crows', 'Blizzard', 'DPS', 'Dynastar', 'Elan', 'Faction', 'Fischer', 'Head', 'Icelantic', 'K2', 'Line', 'Moment', 'Nordica', 'ON3P', 'Rossignol', 'Salomon', 'Scott', 'Volkl', 'Other'];
+    const snowboardEquipmentBrands = ['Arbor', 'Bataleon', 'Burton', 'Capita', 'DC', 'GNU', 'Jones', 'K2', 'Lib Tech', 'Nitro', 'Ride', 'Rome', 'Salomon', 'Yes', 'Other'];
     
     const skierBindings = ['Alpine', 'Touring (pin)', 'Hybrid (Shift / Duke PT)', 'Telemark', 'Other'];
     const snowboarderBindings = ['Standard bindings', 'Step-On', 'Splitboard bindings', 'Other'];
@@ -603,6 +616,27 @@
                 section.style.display = 'block';
             }
         }
+    }
+    
+    // "+ Add another setup" button handler
+    const addSecondaryBtn = document.getElementById('add-secondary-btn');
+    const secondaryFormWrapper = document.getElementById('secondary-form-wrapper');
+    const addSecondarySection = document.getElementById('add-secondary-section');
+    
+    if (addSecondaryBtn) {
+        addSecondaryBtn.addEventListener('click', () => {
+            addSecondarySection.style.display = 'none';
+            secondaryFormWrapper.style.display = 'block';
+        });
+    }
+    
+    // Cancel add secondary button handler
+    const cancelAddSecondaryBtn = document.getElementById('cancel-add-secondary-btn');
+    if (cancelAddSecondaryBtn) {
+        cancelAddSecondaryBtn.addEventListener('click', () => {
+            secondaryFormWrapper.style.display = 'none';
+            addSecondarySection.style.display = 'block';
+        });
     }
     </script>
 </body>

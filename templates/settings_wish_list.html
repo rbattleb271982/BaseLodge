@@ -110,10 +110,34 @@
             border-radius: 8px;
             margin-bottom: 16px;
         }
+        
+        .sticky-save-container {
+            position: fixed;
+            bottom: 72px;
+            left: 0;
+            right: 0;
+            padding: 16px;
+            background: var(--bl-color-bg);
+            border-top: 1px solid var(--bl-color-border-soft);
+            z-index: 100;
+        }
+        
+        .sticky-save-container .bl-btn-primary {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            display: block;
+        }
+        
+        .sticky-save-container .bl-btn-primary:disabled {
+            background: var(--bl-color-text-muted);
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
-    <div class="page-container">
+    <div class="page-container" style="padding-bottom: 160px;">
         <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
         <a href="{{ url_for('settings') }}" style="display: inline-block; margin-bottom: 16px; color: var(--bl-color-text-muted); text-decoration: none; font-size: 16px;">← Back</a>
         <h1 class="page-title">Wish List Destinations</h1>
@@ -161,12 +185,29 @@
         </div>
     </div>
     
+    <div class="sticky-save-container">
+        <button type="button" id="save-btn" class="bl-btn-primary" disabled onclick="saveChanges()">Save</button>
+    </div>
+    
     {% include 'components/bottom_nav.html' %}
     
     <script>
-        let selectedIds = {{ wish_list_ids | tojson }};
+        const originalIds = {{ wish_list_ids | tojson }};
+        let selectedIds = [...originalIds];
         const maxResorts = 3;
         let currentStateFilter = 'all';
+        
+        function hasChanges() {
+            if (originalIds.length !== selectedIds.length) return true;
+            const sortedOriginal = [...originalIds].sort();
+            const sortedSelected = [...selectedIds].sort();
+            return !sortedOriginal.every((val, idx) => val === sortedSelected[idx]);
+        }
+        
+        function updateSaveButton() {
+            const saveBtn = document.getElementById('save-btn');
+            saveBtn.disabled = !hasChanges();
+        }
         
         function filterByState() {
             currentStateFilter = document.getElementById('state-filter').value;
@@ -205,34 +246,19 @@
                 selectedIds.push(id);
             }
             
-            saveAndUpdateUI();
+            updateUI();
+            updateSaveButton();
         }
         
         function removeResort(id) {
             const index = selectedIds.indexOf(id);
             if (index > -1) {
                 selectedIds.splice(index, 1);
-                // Uncheck the checkbox
                 const checkbox = document.querySelector(`input[value="${id}"]`);
                 if (checkbox) checkbox.checked = false;
-                saveAndUpdateUI();
+                updateUI();
+                updateSaveButton();
             }
-        }
-        
-        function saveAndUpdateUI() {
-            fetch('{{ url_for("settings_wish_list_save") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ resort_ids: selectedIds })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateUI();
-                }
-            });
         }
         
         function updateUI() {
@@ -262,6 +288,35 @@
                 const id = parseInt(checkbox.value);
                 checkbox.checked = selectedIds.includes(id);
             });
+        }
+        
+        async function saveChanges() {
+            const saveBtn = document.getElementById('save-btn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+            
+            try {
+                const response = await fetch('{{ url_for("settings_wish_list_save") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ resort_ids: selectedIds })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    window.location.href = '{{ url_for("settings") }}';
+                } else {
+                    alert('Failed to save changes');
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save';
+                }
+            } catch (error) {
+                alert('Failed to save changes');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+            }
         }
     </script>
 </body>
