@@ -803,7 +803,14 @@ def edit_profile():
         user.home_state = request.form.get("home_state") or None
         user.skill_level = request.form.get("skill_level") or None
         user.gear = request.form.get("gear") or None
-        user.home_mountain = request.form.get("home_mountain") or None
+        home_mountain_name = request.form.get("home_mountain") or None
+        user.home_mountain = home_mountain_name
+        if home_mountain_name:
+            home_resort = find_resort_by_name(home_mountain_name, user.home_state)
+            if home_resort:
+                user.home_resort_id = home_resort.id
+        else:
+            user.home_resort_id = None
         
         terrain_raw = request.form.get("terrain_preferences", "")
         terrain_list = [t.strip() for t in terrain_raw.split(",") if t.strip()][:2]
@@ -2412,6 +2419,7 @@ def add_trip():
 
             if set_home_mountain and resort:
                 current_user.home_mountain = resort.name
+                current_user.home_resort_id = resort.id
                 db.session.commit()
 
             flash("Trip added.", "trip")
@@ -2567,6 +2575,7 @@ def edit_trip_form(trip_id):
 
         if set_home_mountain and resort:
             current_user.home_mountain = resort.name
+            current_user.home_resort_id = resort.id
         
         try:
             db.session.commit()
@@ -2631,7 +2640,17 @@ def mountains_visited():
     
     if request.method == "POST":
         selected_mountains = request.form.getlist("mountains")
+        
+        resort_ids = []
+        for mountain_name in selected_mountains:
+            state_code = mountains_with_state.get(mountain_name)
+            resort = find_resort_by_name(mountain_name, state_code)
+            if resort:
+                resort_ids.append(resort.id)
+        
+        user.visited_resort_ids = list(set(resort_ids))
         user.mountains_visited = selected_mountains
+        
         try:
             db.session.commit()
             return redirect(url_for("settings"))
@@ -2641,7 +2660,15 @@ def mountains_visited():
             flash("Something went wrong while saving. Please try again.", "error")
             return redirect(url_for("mountains_visited"))
     
-    selected_mountains = user.mountains_visited or []
+    if user.visited_resort_ids and len(user.visited_resort_ids) > 0:
+        visited_resorts = Resort.query.filter(Resort.id.in_(user.visited_resort_ids)).all()
+        selected_mountains = [r.name for r in visited_resorts if r.name in all_mountains]
+        for legacy_name in (user.mountains_visited or []):
+            if legacy_name in all_mountains and legacy_name not in selected_mountains:
+                selected_mountains.append(legacy_name)
+    else:
+        selected_mountains = user.mountains_visited or []
+    
     mountains_visited_count = len(selected_mountains)
     states = sorted(MOUNTAINS_BY_STATE.keys())
     
