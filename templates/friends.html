@@ -71,6 +71,7 @@
             display: flex;
             flex-direction: column;
         }
+        /* Friend List Row: 2-row structure matching card grammar */
         .flat-row {
             display: flex;
             flex-direction: column;
@@ -87,21 +88,35 @@
         .flat-row:active {
             background: rgba(0, 0, 0, 0.02);
         }
-        .flat-row-line1 {
-            font-size: 16px;
+        /* Row 1: Name + Status (horizontal) */
+        .flat-row-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2px;
+        }
+        .flat-row-name {
+            font-size: 1rem;
             font-weight: 600;
             color: var(--bl-color-text);
-            margin: 0 0 2px 0;
+            margin: 0;
+            line-height: 1.3;
         }
-        .flat-row-line2 {
-            font-size: 14px;
+        .flat-row-status {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            white-space: nowrap;
+        }
+        .flat-row-status-active {
+            color: var(--bl-color-primary);
+            font-weight: 500;
+        }
+        /* Row 2: Identity */
+        .flat-row-identity {
+            font-size: 0.9rem;
             color: var(--bl-color-text-muted);
             margin: 0;
-        }
-        .trip-count {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-            margin-top: 4px;
+            line-height: 1.4;
         }
         .empty-card {
             background: var(--bl-color-surface);
@@ -174,11 +189,19 @@
         <div class="flat-list">
             {% for friend in friends %}
             <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="flat-row">
-                <p class="flat-row-line1">{{ friend.first_name }} {{ friend.last_name }}</p>
-                <p class="flat-row-line2">{% set parts = [] %}{% if friend.home_state %}{% set _ = parts.append(friend.home_state) %}{% endif %}{% if friend.rider_type %}{% set _ = parts.append(friend.rider_type) %}{% endif %}{% if friend.skill_level %}{% set _ = parts.append(friend.skill_level) %}{% endif %}{% if friend.pass_type %}{% set passes = friend.pass_type.split(',') %}{% if passes|length == 2 %}{% set _ = parts.append(passes[0] ~ ' & ' ~ passes[1]) %}{% elif passes|length > 2 %}{% set _ = parts.append(passes|join(', ')) %}{% else %}{% set _ = parts.append(passes[0]) %}{% endif %}{% endif %}{{ parts|join(' · ') if parts else '' }}</p>
-                {% if friend._upcoming_trip_count and friend._upcoming_trip_count > 0 %}
-                <p class="trip-count">{{ friend._upcoming_trip_count }} upcoming trip{% if friend._upcoming_trip_count != 1 %}s{% endif %}</p>
-                {% endif %}
+                <!-- Row 1: Name + Status -->
+                <div class="flat-row-header">
+                    <p class="flat-row-name">{{ friend.first_name }} {{ friend.last_name }}</p>
+                    <span class="flat-row-status {% if friend._upcoming_trip_count and friend._upcoming_trip_count > 0 %}flat-row-status-active{% endif %}">
+                        {% if friend._upcoming_trip_count and friend._upcoming_trip_count > 0 %}
+                            {{ friend._upcoming_trip_count }} trip{% if friend._upcoming_trip_count != 1 %}s{% endif %}
+                        {% else %}
+                            No trips
+                        {% endif %}
+                    </span>
+                </div>
+                <!-- Row 2: Identity -->
+                <p class="flat-row-identity">{% set parts = [] %}{% if friend.home_state %}{% set _ = parts.append(friend.home_state) %}{% endif %}{% if friend.rider_type %}{% set _ = parts.append(friend.rider_type) %}{% endif %}{% if friend.skill_level %}{% set _ = parts.append(friend.skill_level) %}{% endif %}{% if friend.pass_type %}{% set passes = friend.pass_type.split(',') %}{% if passes|length == 2 %}{% set _ = parts.append(passes[0] ~ ' & ' ~ passes[1]) %}{% elif passes|length > 2 %}{% set _ = parts.append(passes|join(', ')) %}{% else %}{% set _ = parts.append(passes[0]) %}{% endif %}{% endif %}{{ parts|join(' · ') if parts else '' }}</p>
             </a>
             {% endfor %}
             

@@ -1729,6 +1729,12 @@ def home():
             # Sort by count (desc) - user's add order is preserved as secondary
             shared_interests.sort(key=lambda x: -x['count'])
     
+    # Get wishlist resorts for profile card display
+    user_wishlist_resorts = []
+    if user_wish_list:
+        wishlist_resorts_query = Resort.query.filter(Resort.id.in_(user_wish_list)).all()
+        user_wishlist_resorts = [{'id': r.id, 'name': r.name} for r in wishlist_resorts_query]
+    
     # Weekend day-trip signal for home screen
     weekend_daytrip_signal = None
     if friend_ids:
@@ -1797,7 +1803,8 @@ def home():
         next_trip=next_trip,
         availability_nudge=availability_nudge,
         shared_interests=shared_interests,
-        weekend_daytrip_signal=weekend_daytrip_signal
+        weekend_daytrip_signal=weekend_daytrip_signal,
+        user_wishlist_resorts=user_wishlist_resorts
     )
 
 @app.route("/dismiss-nudge", methods=["POST"])

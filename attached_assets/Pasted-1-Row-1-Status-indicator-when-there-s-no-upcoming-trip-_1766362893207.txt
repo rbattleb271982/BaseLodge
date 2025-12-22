@@ -1,0 +1,76 @@
+1️⃣ Row 1 — Status indicator when there’s no upcoming trip
+Decision:
+✅ Show “No trips planned”
+Why:
+Blank space feels broken or unfinished
+“No trips planned” is clear, neutral, and motivating
+Keeps visual balance of Row 1 consistent across cards
+Rules:
+Text should be muted (secondary color)
+Same font size as other status indicators
+Do not show dates or extra copy
+Examples:
+Starts today
+Next trip · Jan 12–15
+No trips planned
+2️⃣ Row 4 — Wishlist count definition
+Decision:
+✅ Show wishlist resorts not yet visited
+Why:
+This is the interesting number
+Avoids double-counting places already completed
+Matches the mental model of “what’s left”
+Rule:
+Wishlist Mountains = wishlist − visited
+Expanded view can still show the full list
+3️⃣ Card height constraint (~40% viewport)
+Decision:
+✅ Ensure content fits naturally — no CSS max-height or internal scrolling
+Why:
+Scrollbars inside cards destroy the calm Carv-like feel
+Cards should never need internal scrolling when collapsed
+Height constraint is a design guardrail, not a CSS hack
+Implementation guidance:
+Keep rows compact
+Use inline text
+Use expand/collapse for overflow content (wishlist, mountains)
+No overflow: scroll on cards
+4️⃣ Friends List vs Friend Profile card structure
+Decision:
+✅ Use two variants — same grammar, different density
+Friends List (many friends)
+Use a condensed version:
+Row 1: Name + Status
+Row 2: Identity line
+Optional: Trip count inline (small)
+❌ Do NOT show:
+Equipment row
+Expandable stats
+Wishlist/mountains expansions
+Purpose: scan quickly
+Friend Profile (single friend detail)
+Use the full 4-row card exactly as spec’d:
+Header
+Identity
+Equipment (if owned)
+Stats with expanders
+Purpose: understand deeply
+This keeps consistency without bloating lists.
+5️⃣ Typography increase — scope
+Decision:
+✅ Apply font size increases only within cards, not globally
+Why:
+Avoids unintended regressions across forms, buttons, nav, etc.
+Cards are the primary reading surfaces
+Keeps rest of UI stable
+Implementation guidance:
+Adjust card-specific typography tokens or classes
+Headings, metadata, stats inside cards only
+Keep nav, filters, inputs unchanged for now
+TL;DR — Final Locked Answers You Can Send Back
+If you want a concise reply to Replit, here it is:
+• Status indicator should show “No trips planned” when applicable
+• Wishlist count should exclude already visited resorts
+• Card height should be controlled by layout, not max-height or scrolling
+• Friends List uses a condensed card; Friend Profile uses full 4-row card
+• Font size increases apply only within cards, not globally

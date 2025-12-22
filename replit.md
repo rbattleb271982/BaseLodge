@@ -20,6 +20,36 @@ Base Lodge is a Flask-based ski/snowboard trip planning application designed to 
 ### UI/UX Decisions
 The application uses a mobile-first responsive design with a unified "BaseLodge" design system and CSS variables. Key UI elements include segmented controls, a 4-tab bottom navigation with SVG icons, and a home-first navigation paradigm. Brand colors are a deep red (#8F011B) with clean backgrounds (#F7F7F7) and surfaces (#FFFFFF). Component partials ensure reusability. Profile forms are optimized for mobile with a max-width of 500px and scaled-up interactive elements. Settings screens utilize a card-based layout with redesigned wish list and equipment sections. Flash messages are context-specific.
 
+### Visual Grammar (Dec 2025)
+
+**Card 4-Row Structure (Home, Friend Profile):**
+| Row | Content | Typography |
+|-----|---------|------------|
+| 1. Header | Name + Status (horizontal) | Name: 1.1rem 600 weight; Status: 0.9rem muted (active = primary color) |
+| 2. Identity | State · Rider Type · Pass · Skill | 0.95rem muted |
+| 3. Equipment | Sport: Brand Model · Boots: Brand Model (conditional) | 0.9rem muted |
+| 4. Stats | Trips | Mountains | Wishlist (3 columns with vertical dividers) | Label: 0.75rem uppercase; Value: 1.15rem 600 weight |
+
+**Status Indicator:**
+- Shows "Next trip · Date" or date range for active trips (primary color)
+- Shows "No trips planned" for inactive (muted color)
+
+**Stats Row Features:**
+- 3 equal columns with `border-right` dividers between
+- Accordion expansion for Mountains and Wishlist (tap to expand)
+- One accordion open at a time (mutual exclusion)
+
+**Friends List 2-Row Structure:**
+| Row | Content | Typography |
+|-----|---------|------------|
+| 1. Header | Name + Status (horizontal) | Name: 1rem 600 weight; Status: 0.85rem |
+| 2. Identity | State · Rider Type · Skill · Pass | 0.9rem muted |
+
+**Typography Scale for Cards:**
+- Primary text increased +10-15% vs global baseline
+- Secondary text increased +5-10% vs global baseline
+- Applied to card contexts only, not global typography
+
 ### Technical Implementations
 The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for password hashing. Jinja2 handles templating, complemented by custom CSS and Vanilla JS for interactive elements and AJAX. Flask-Login provides robust session-based authentication. An event system captures high-signal user actions for email/push notifications, excluding seeded users. Email logging and suppression prevent duplicate sends. User lifecycle stages (`new`, `onboarding`, `active`) are derived from user actions and milestones. Canonical user states (`is_core_profile_complete`, `has_started_planning`, `is_active_user`) dictate UI copy and feature availability.
 

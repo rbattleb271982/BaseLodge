@@ -6,56 +6,105 @@
     <title>Base Lodge - Home</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .profile-divider {
-            height: 1px;
-            background: var(--bl-color-border-soft);
-            margin: 12px 16px;
+        /* Card Typography - +10-15% primary, +5-10% secondary */
+        .card-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0;
+            line-height: 1.3;
         }
-        .next-trip-line {
+        .card-status {
             font-size: 0.9rem;
             color: var(--bl-color-text-muted);
-            margin-bottom: 8px;
-            cursor: pointer;
+            white-space: nowrap;
         }
-        .next-trip-line-primary {
+        .card-status-active {
+            color: var(--bl-color-primary);
+            font-weight: 500;
+        }
+        
+        /* Row 1: Header - horizontal name + status */
+        .card-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        
+        /* Row 2: Identity line */
+        .card-identity-row {
+            font-size: 0.95rem;
+            color: var(--bl-color-text-muted);
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+        
+        /* Row 3: Equipment (conditional) */
+        .card-equipment-row {
+            font-size: 0.9rem;
+            color: var(--bl-color-text-muted);
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+        
+        /* Row 4: Stats with vertical dividers */
+        .card-stats-row {
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid var(--bl-color-border-soft);
+            margin-top: 10px;
+            padding-top: 10px;
+        }
+        .card-stat-col {
+            flex: 1;
+            text-align: center;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+        .card-stat-col:not(:last-child) {
+            border-right: 1px solid var(--bl-color-border-soft);
+        }
+        .card-stat-label {
+            font-size: 0.75rem;
+            color: var(--bl-color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 2px;
+        }
+        .card-stat-value {
+            font-size: 1.15rem;
             font-weight: 600;
             color: var(--bl-color-text);
         }
-        .next-trip-line-secondary {
-            font-size: 0.85rem;
-            color: var(--bl-color-text-muted);
+        
+        /* Expandable accordion for stats */
+        .stat-accordion {
+            display: none;
+            padding: 8px 0 0 0;
+            text-align: left;
         }
-        .identity-line {
-            font-size: 0.9rem;
-            color: var(--bl-color-text-muted);
-            margin-bottom: 8px;
-        }
-        .equipment-row {
-            font-size: 0.85rem;
-            color: var(--bl-color-text-muted);
-            cursor: pointer;
-            margin-bottom: 0;
-        }
-        .equipment-row:hover {
-            color: var(--bl-color-text);
-        }
-        .stats-row {
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: var(--bl-color-text);
-            text-decoration: none;
+        .stat-accordion.expanded {
             display: block;
-            margin-bottom: 8px;
         }
-        .stats-row:hover {
-            color: var(--bl-color-primary);
+        .stat-accordion-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
         }
+        .stat-accordion-list li {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            padding: 3px 0;
+        }
+        
         .friends-callout {
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             color: var(--bl-color-text-muted);
             text-decoration: none;
             display: block;
-            margin-top: 8px;
+            margin-top: 10px;
+            text-align: center;
         }
         .friends-callout:hover {
             color: var(--bl-color-primary);
@@ -204,89 +253,99 @@
     <div class="page-container" style="padding: 16px 16px 88px;">
         <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
         
-        <div class="bl-card" style="margin-bottom: 16px; padding: 0;">
-            <!-- Identity section -->
-            <div style="padding: 16px 16px 0;">
-                <h1 class="bl-card-section-title" style="margin-bottom: 8px;">
-                    {% if user.is_active_user %}
-                    {{ user.first_name }}
-                    {% elif user.has_started_planning %}
-                    {{ user.first_name }}, you're planning
-                    {% elif user.is_core_profile_complete and (user.login_count or 0) >= 2 %}
-                    You're all set, {{ user.first_name }}
-                    {% else %}
-                    Welcome, {{ user.first_name }}
-                    {% endif %}
-                </h1>
-                
-                <!-- Next trip inside profile card (2 lines, tappable) -->
-                {% if next_trip_countdown and next_trip %}
-                <a href="{{ url_for('edit_trip_form', trip_id=next_trip.id) }}" style="text-decoration: none; color: inherit;">
-                    <div class="next-trip-line">
-                        <div class="next-trip-line-primary">{{ next_trip_countdown }}</div>
-                        <div class="next-trip-line-secondary">
-                            {% if next_trip.resort %}
-                                {{ next_trip.resort.name }}, {{ next_trip.resort.state }}
-                            {% else %}
-                                {{ next_trip.mountain }}, {{ next_trip.state }}
-                            {% endif %}
-                        </div>
-                    </div>
-                </a>
-                {% endif %}
-                
-                <!-- Compressed identity line -->
-                <p class="identity-line">
-                    {{ normalize_rider_type(user.rider_type) or 'Rider' }} · {% set passes = user.pass_type.split(',') if user.pass_type else [] %}{% if passes|length == 2 %}{{ passes[0] }} & {{ passes[1] }}{% elif passes|length > 2 %}{{ passes|join(', ') }}{% elif passes|length == 1 %}{{ passes[0] }}{% else %}No pass selected{% endif %}{% if user.skill_level %} · {{ user.skill_level }}{% endif %}
-                </p>
-                
-                <!-- Equipment (collapsible, sport-aware) -->
-                {% set eq = primary_equipment if (primary_equipment and (primary_equipment.brand or primary_equipment.boot_brand)) else (secondary_equipment if (secondary_equipment and (secondary_equipment.brand or secondary_equipment.boot_brand)) else none) %}
-                {% if eq and (eq.brand or eq.boot_brand) %}
-                {% set discipline_val = eq.discipline.value if eq.discipline else 'skier' %}
-                {% set is_skier = discipline_val == 'skier' %}
-                {% set sport_label = 'Skis' if is_skier else 'Board' %}
-                <div class="equipment-row" onclick="toggleEquipment()">
-                    <span id="equipment-collapsed">{% if eq.brand %}{{ sport_label }}: {{ eq.brand }}{% if eq.model %} {{ eq.model }}{% endif %}{% endif %}{% if eq.boot_brand %}{% if eq.brand %} · {% endif %}Boots: {{ eq.boot_brand }}{% if eq.boot_model %} {{ eq.boot_model }}{% endif %}{% endif %}</span>
-                    <span id="equipment-expanded" style="display: none;">{% if eq.brand %}{{ sport_label }}: {{ eq.brand }}{% if eq.model %} {{ eq.model }}{% endif %}{% if eq.length_cm %} {{ eq.length_cm }}cm{% endif %}{% endif %}{% if eq.boot_brand %}<br>Boots: {{ eq.boot_brand }}{% if eq.boot_model %} {{ eq.boot_model }}{% endif %}{% if eq.boot_flex %} {{ eq.boot_flex }}{% endif %}{% endif %}</span>
-                </div>
-                {% elif user.rider_type %}
-                <div class="equipment-row">
-                    <a href="{{ url_for('settings_equipment') }}" style="color: var(--bl-color-primary); text-decoration: none;">Add equipment →</a>
-                </div>
-                {% endif %}
-            </div>
-            
-            <!-- Divider -->
-            <div class="profile-divider"></div>
-            
-            <!-- Context section -->
-            <div style="padding: 0 16px 16px;">
-                <!-- Unified stats row -->
-                <a href="{{ url_for('mountains_visited') }}" class="stats-row">
-                    {{ upcoming_trips|length }} trip{% if upcoming_trips|length != 1 %}s{% endif %} · {{ user_mountains|length if user_mountains else 0 }} mountain{% if (user_mountains|length if user_mountains else 0) != 1 %}s{% endif %}
-                </a>
-                
-                <!-- Friends-open callout -->
-                {% set active_tab = request.args.get('tab', 'my') %}
-                {% if active_tab == 'open' %}
-                <div class="friends-callout" style="cursor: default;">
-                    Plan a trip with your friends below
-                </div>
-                {% else %}
-                <a href="{{ url_for('home') }}?tab=open" class="friends-callout">
-                    {% if user_has_open_dates %}
-                        {% if open_friends_count > 0 %}
-                            {{ open_friends_count }} friend{% if open_friends_count != 1 %}s{% endif %} are open to ski on your dates →
+        <!-- Profile Card: 4-Row Structure -->
+        <div class="bl-card" style="margin-bottom: 16px; padding: 12px 16px;">
+            <!-- Row 1: Header (Name + Status) -->
+            <div class="card-header-row">
+                <h1 class="card-name">{{ user.first_name }}</h1>
+                <span class="card-status {% if next_trip %}card-status-active{% endif %}">
+                    {% if next_trip %}
+                        {% if next_trip_countdown == 'Starts today' or next_trip_countdown == 'Tomorrow' %}
+                            {{ next_trip_countdown }}
                         {% else %}
-                            No friends are open on your dates yet →
+                            Next trip · {{ next_trip.start_date.strftime('%b %d') }}{% if next_trip.start_date != next_trip.end_date %}–{{ next_trip.end_date.strftime('%b %d') }}{% endif %}
                         {% endif %}
                     {% else %}
-                        Set your open dates to see who can ski with you →
+                        No trips planned
                     {% endif %}
-                </a>
-                {% endif %}
+                </span>
             </div>
+            
+            <!-- Row 2: Identity (State · Rider Type · Pass · Skill) -->
+            <div class="card-identity-row">
+                {% if user.home_state %}{{ user.home_state }} · {% endif %}{{ normalize_rider_type(user.rider_type) or 'Rider' }} · {% set passes = user.pass_type.split(',') if user.pass_type else [] %}{% if passes|length == 2 %}{{ passes[0] }} & {{ passes[1] }}{% elif passes|length > 2 %}{{ passes|join(', ') }}{% elif passes|length == 1 %}{{ passes[0] }}{% else %}No pass{% endif %}{% if user.skill_level %} · {{ user.skill_level }}{% endif %}
+            </div>
+            
+            <!-- Row 3: Equipment (only if user has own equipment) -->
+            {% set eq = primary_equipment if (primary_equipment and (primary_equipment.brand or primary_equipment.boot_brand)) else (secondary_equipment if (secondary_equipment and (secondary_equipment.brand or secondary_equipment.boot_brand)) else none) %}
+            {% if user.equipment_status != 'needs_rentals' and eq and (eq.brand or eq.boot_brand) %}
+            {% set discipline_val = eq.discipline.value if eq.discipline else 'skier' %}
+            {% set is_skier = discipline_val == 'skier' %}
+            {% set sport_label = 'Skis' if is_skier else 'Board' %}
+            <div class="card-equipment-row">
+                {% if eq.brand %}{{ sport_label }}: {{ eq.brand }}{% if eq.model %} {{ eq.model }}{% endif %}{% endif %}{% if eq.boot_brand %}{% if eq.brand %} · {% endif %}Boots: {{ eq.boot_brand }}{% if eq.boot_model %} {{ eq.boot_model }}{% endif %}{% endif %}
+            </div>
+            {% endif %}
+            
+            <!-- Row 4: Stats (Trips | Mountains | Wishlist) with vertical dividers -->
+            <div class="card-stats-row">
+                <div class="card-stat-col" onclick="window.location.href='{{ url_for('home') }}'">
+                    <div class="card-stat-label">Trips</div>
+                    <div class="card-stat-value">{{ upcoming_trips|length }}</div>
+                </div>
+                <div class="card-stat-col" id="mountains-stat" onclick="toggleMountainsAccordion()">
+                    <div class="card-stat-label">Mountains</div>
+                    <div class="card-stat-value">{{ user_mountains|length if user_mountains else 0 }}</div>
+                    <div class="stat-accordion" id="mountains-accordion">
+                        {% if user_mountains and user_mountains|length > 0 %}
+                        <ul class="stat-accordion-list">
+                            {% for mtn in (user_mountains or [])[:5] %}
+                            <li>{{ mtn }}</li>
+                            {% endfor %}
+                            {% if (user_mountains or [])|length > 5 %}
+                            <li style="color: var(--bl-color-primary);">+ {{ (user_mountains or [])|length - 5 }} more</li>
+                            {% endif %}
+                        </ul>
+                        {% else %}
+                        <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">None yet</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-stat-col" id="wishlist-stat" onclick="toggleWishlistAccordion()">
+                    <div class="card-stat-label">Wishlist</div>
+                    <div class="card-stat-value">{{ user_wishlist_resorts|length }}</div>
+                    <div class="stat-accordion" id="wishlist-accordion">
+                        {% if user_wishlist_resorts|length > 0 %}
+                        <ul class="stat-accordion-list">
+                            {% for resort in user_wishlist_resorts[:3] %}
+                            <li>{{ resort.name }}</li>
+                            {% endfor %}
+                            {% if user_wishlist_resorts|length > 3 %}
+                            <li style="color: var(--bl-color-primary);">+ {{ user_wishlist_resorts|length - 3 }} more</li>
+                            {% endif %}
+                        </ul>
+                        {% else %}
+                        <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">None yet</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Friends availability callout -->
+            {% set active_tab = request.args.get('tab', 'my') %}
+            {% if active_tab != 'open' %}
+            <a href="{{ url_for('home') }}?tab=open" class="friends-callout">
+                {% if user_has_open_dates %}
+                    {% if open_friends_count > 0 %}
+                        {{ open_friends_count }} friend{% if open_friends_count != 1 %}s{% endif %} open on your dates →
+                    {% else %}
+                        No friends open on your dates yet →
+                    {% endif %}
+                {% else %}
+                    Set your open dates →
+                {% endif %}
+            </a>
+            {% endif %}
         </div>
         
         <!-- Availability Card (only show if overlaps exist) -->
@@ -574,6 +633,25 @@
             equipmentExpanded = !equipmentExpanded;
             collapsed.style.display = equipmentExpanded ? 'none' : 'inline';
             expanded.style.display = equipmentExpanded ? 'inline' : 'none';
+        }
+        
+        // Accordion toggles for stats
+        function toggleMountainsAccordion() {
+            const accordion = document.getElementById('mountains-accordion');
+            const wishlistAccordion = document.getElementById('wishlist-accordion');
+            // Close wishlist if open
+            wishlistAccordion.classList.remove('expanded');
+            // Toggle mountains
+            accordion.classList.toggle('expanded');
+        }
+        
+        function toggleWishlistAccordion() {
+            const accordion = document.getElementById('wishlist-accordion');
+            const mountainsAccordion = document.getElementById('mountains-accordion');
+            // Close mountains if open
+            mountainsAccordion.classList.remove('expanded');
+            // Toggle wishlist
+            accordion.classList.toggle('expanded');
         }
         
         function toggleDay(event, dayIndex) {
