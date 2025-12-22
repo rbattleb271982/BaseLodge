@@ -59,6 +59,23 @@ The backend uses Flask, SQLAlchemy for ORM, and Werkzeug for password hashing. J
 - **Database Initialization:** Idempotent via `flask init-db` or `/admin/init-db`.
 - **Test Data Seeding:** `/admin/seed-test-users` provides demo data.
 
+### Resort Architecture (Dec 2025)
+The `Resort` table is the single source of truth for resort data. All resort selections now store Resort IDs:
+- **Trips:** `SkiTrip.resort_id` (FK to Resort)
+- **Wishlist:** `User.wishlist_resort_ids` (JSON array of Resort IDs)
+- **Visited Mountains:** `User.visited_resort_ids` (JSON array of Resort IDs) with `User.mountains_visited` legacy fallback
+- **Home Mountain:** `User.home_resort_id` (FK to Resort) with `User.home_mountain` legacy fallback
+
+**Migration Pattern:** Dual-write strategy maintains backward compatibility. All write operations update both new ID fields and legacy string fields. GET operations prioritize legacy data then merge Resort IDs. Admin backfill endpoint: `/admin/backfill-resort-ids`.
+
+**Helper Methods:**
+- `User.get_visited_resorts()` - Returns Resort objects for visited mountains
+- `User.visited_resorts_count` - Property returning count
+- `User.get_home_resort()` - Returns Resort object for home mountain
+- `find_resort_by_name(name, state_code)` - Case-insensitive resort lookup with alias support
+
+**Future Work:** UI should transition from `MOUNTAINS_BY_STATE` constant to Resort table queries for checkboxes.
+
 ### Lifecycle Signals
 Canonical User States (`is_core_profile_complete`, `has_started_planning`, `is_active_user`) are computed properties on the User model. Lifecycle signal fields like `login_count`, `first_planning_timestamp`, and `planning_completed_timestamp` track user progress. These signals suppress nudges and adapt UI copy based on 4 narrative states.
 
