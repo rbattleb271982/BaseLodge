@@ -275,6 +275,16 @@ STATE_ABBR = {
 
 STATE_NAMES = {v: k for k, v in STATE_ABBR.items()}
 
+COUNTRY_NAMES = {
+    "US": "United States",
+    "CA": "Canada",
+    "JP": "Japan",
+    "FR": "France",
+    "CH": "Switzerland",
+    "AT": "Austria",
+    "IT": "Italy",
+}
+
 ALL_US_STATES = [
     ("AL", "Alabama"), ("AK", "Alaska"), ("AZ", "Arizona"), ("AR", "Arkansas"),
     ("CA", "California"), ("CO", "Colorado"), ("CT", "Connecticut"), ("DE", "Delaware"),
@@ -296,6 +306,39 @@ def get_states_with_resorts():
     states = db.session.query(Resort.state).filter(Resort.is_active == True).distinct().all()
     state_codes = sorted([s[0] for s in states if s[0]])
     return [(code, STATE_NAMES.get(code, code)) for code in state_codes]
+
+def get_countries_with_resorts():
+    """Get list of (country_code, country_name) tuples for countries that have resorts."""
+    countries = db.session.query(Resort.country).filter(Resort.is_active == True, Resort.country != None).distinct().all()
+    country_codes = [c[0] for c in countries if c[0]]
+    # Sort with US first, then alphabetically by name
+    def sort_key(code):
+        if code == "US":
+            return (0, "")
+        return (1, COUNTRY_NAMES.get(code, code))
+    country_codes = sorted(country_codes, key=sort_key)
+    return [(code, COUNTRY_NAMES.get(code, code)) for code in country_codes]
+
+def get_states_by_country():
+    """Get dictionary mapping country_code to list of (state_code, state_name) tuples."""
+    result = db.session.query(Resort.country, Resort.state, Resort.state_full).filter(
+        Resort.is_active == True, Resort.country != None
+    ).distinct().all()
+    
+    country_states = {}
+    for country, state, state_full in result:
+        if country and state:
+            if country not in country_states:
+                country_states[country] = []
+            display_name = state_full or STATE_NAMES.get(state, state)
+            if (state, display_name) not in country_states[country]:
+                country_states[country].append((state, display_name))
+    
+    # Sort states within each country
+    for country in country_states:
+        country_states[country] = sorted(country_states[country], key=lambda x: x[1])
+    
+    return country_states
 
 RIDER_TYPES = ["Skier", "Snowboarder", "Telemarking", "Snowshoeing", "Adaptive", "Other"]
 
@@ -2157,8 +2200,8 @@ def add_open_dates():
 @login_required
 def add_trip():
     resorts_objs = Resort.query.filter_by(is_active=True).order_by(Resort.state, Resort.name).all()
-    # Convert to dicts for JSON serialization (include pass_brands for smart sorting)
-    resorts = [{"id": r.id, "name": r.name, "state": r.state, "brand": r.brand, "pass_brands": r.pass_brands or r.brand or ""} for r in resorts_objs]
+    # Convert to dicts for JSON serialization (include pass_brands and country for smart sorting and filtering)
+    resorts = [{"id": r.id, "name": r.name, "state": r.state, "country": r.country, "brand": r.brand, "pass_brands": r.pass_brands or r.brand or ""} for r in resorts_objs]
     
     if request.method == "POST":
         resort_id = request.form.get("resort_id")
@@ -2167,7 +2210,6 @@ def add_trip():
         is_public = request.form.get("is_public") == "on"
         set_home_mountain = request.form.get("set_home_mountain") == "on"
         ride_intent = request.form.get("ride_intent") or None
-        trip_duration = request.form.get("trip_duration")
         trip_equipment_status = request.form.get("trip_equipment_status") or "use_default"
 
         errors = []
@@ -2178,8 +2220,6 @@ def add_trip():
             errors.append("Please select a start date.")
         if not end_date_str:
             errors.append("Please select an end date.")
-        if not trip_duration:
-            errors.append("Please select a trip duration.")
 
         resort = None
         if resort_id:
@@ -2189,12 +2229,18 @@ def add_trip():
 
         start_date = None
         end_date = None
+        today = date.today()
         if start_date_str and end_date_str:
             try:
                 start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
                 end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
                 if end_date < start_date:
                     errors.append("End date cannot be before start date.")
+                # For new trips, enforce future dates
+                if start_date < today:
+                    errors.append("Start date cannot be in the past.")
+                if end_date < today:
+                    errors.append("End date cannot be in the past.")
             except ValueError:
                 errors.append("Invalid date format.")
 
@@ -2206,12 +2252,14 @@ def add_trip():
                 trip=None,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
+                countries_with_resorts=get_countries_with_resorts(),
+                states_by_country=get_states_by_country(),
                 user=current_user,
                 form_action=url_for("add_trip"),
+                default_country="US",
             )
         
         # Check for overlapping active trips at the same resort
-        today = date.today()
         overlapping = SkiTrip.query.filter(
             SkiTrip.user_id == current_user.id,
             SkiTrip.resort_id == resort.id,
@@ -2226,11 +2274,17 @@ def add_trip():
                 trip=None,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
+                countries_with_resorts=get_countries_with_resorts(),
+                states_by_country=get_states_by_country(),
                 user=current_user,
                 form_action=url_for("add_trip"),
                 overlap_trip=overlapping,
                 overlap_resort_name=resort.name,
+                default_country="US",
             )
+
+        # Auto-calculate trip duration from dates
+        trip_duration = SkiTrip.calculate_duration(start_date, end_date)
 
         trip = SkiTrip(
             user_id=current_user.id,
@@ -2257,15 +2311,20 @@ def add_trip():
     # GET - Smart defaults for new trips
     user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
     default_state = current_user.home_state if current_user.home_state else None
+    # Default country from user profile or US
+    default_country = getattr(current_user, 'country', None) or "US"
     
     return render_template(
         "add_trip.html",
         trip=None,
         resorts=resorts,
         states_with_resorts=get_states_with_resorts(),
+        countries_with_resorts=get_countries_with_resorts(),
+        states_by_country=get_states_by_country(),
         user=current_user,
         form_action=url_for("add_trip"),
         default_state=default_state,
+        default_country=default_country,
         user_passes=user_passes,
     )
 
@@ -2277,8 +2336,12 @@ def edit_trip_form(trip_id):
         abort(403)
     
     resorts_objs = Resort.query.filter_by(is_active=True).order_by(Resort.state, Resort.name).all()
-    # Convert to dicts for JSON serialization
-    resorts = [{"id": r.id, "name": r.name, "state": r.state, "brand": r.brand} for r in resorts_objs]
+    # Convert to dicts for JSON serialization (include pass_brands and country)
+    resorts = [{"id": r.id, "name": r.name, "state": r.state, "country": r.country, "brand": r.brand, "pass_brands": r.pass_brands or r.brand or ""} for r in resorts_objs]
+    
+    # Store original dates to detect if they were changed
+    original_start = trip.start_date
+    original_end = trip.end_date
 
     if request.method == "POST":
         resort_id = request.form.get("resort_id")
@@ -2306,14 +2369,25 @@ def edit_trip_form(trip_id):
 
         start_date = None
         end_date = None
+        today = date.today()
         if start_date_str and end_date_str:
             try:
                 start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
                 end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
                 if end_date < start_date:
                     errors.append("End date cannot be before start date.")
+                # For edited trips, only enforce future dates if dates were changed
+                dates_changed = (start_date != original_start or end_date != original_end)
+                if dates_changed:
+                    if start_date < today:
+                        errors.append("Start date cannot be in the past.")
+                    if end_date < today:
+                        errors.append("End date cannot be in the past.")
             except ValueError:
                 errors.append("Invalid date format.")
+
+        # Determine default country for error re-render
+        default_country = trip.resort.country if trip.resort else "US"
 
         if errors:
             for e in errors:
@@ -2323,12 +2397,14 @@ def edit_trip_form(trip_id):
                 trip=trip,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
+                countries_with_resorts=get_countries_with_resorts(),
+                states_by_country=get_states_by_country(),
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
+                default_country=default_country,
             )
         
         # Check for overlapping active trips at the same resort (excluding current trip)
-        today = date.today()
         overlapping = SkiTrip.query.filter(
             SkiTrip.user_id == current_user.id,
             SkiTrip.id != trip.id,
@@ -2344,10 +2420,13 @@ def edit_trip_form(trip_id):
                 trip=trip,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
+                countries_with_resorts=get_countries_with_resorts(),
+                states_by_country=get_states_by_country(),
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
                 overlap_trip=overlapping,
                 overlap_resort_name=resort.name,
+                default_country=default_country,
             )
 
         trip.resort_id = resort.id
@@ -2368,14 +2447,21 @@ def edit_trip_form(trip_id):
         db.session.commit()
         return redirect(url_for("my_trips"))
 
-    # GET
+    # GET - determine default country from existing trip's resort
+    default_country = trip.resort.country if trip.resort else "US"
+    user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
+    
     return render_template(
         "add_trip.html",
         trip=trip,
         resorts=resorts,
         states_with_resorts=get_states_with_resorts(),
+        countries_with_resorts=get_countries_with_resorts(),
+        states_by_country=get_states_by_country(),
         user=current_user,
         form_action=url_for("edit_trip_form", trip_id=trip.id),
+        default_country=default_country,
+        user_passes=user_passes,
     )
 
 @app.route("/trips/<int:trip_id>/delete", methods=["POST"])
