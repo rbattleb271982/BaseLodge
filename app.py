@@ -3552,6 +3552,172 @@ def init_db_http():
         }), 500
 
 
+MOUNTAIN_NAME_ALIASES = {
+    "Crystal Mountain MI": "Crystal Mountain MI",
+    "Whitefish Mountain": "Whitefish",
+    "Brundage Mountain": "Brundage",
+    "Red Lodge Mountain": "Red Lodge",
+    "Wildcat Mountain": "Wildcat",
+    "Windham Mountain": "Windham",
+}
+
+def find_resort_by_name(mountain_name, state_code=None):
+    """
+    Find a Resort by legacy mountain name with case-insensitive matching.
+    Returns Resort or None if no match found.
+    
+    Matching strategy:
+    1. Check hardcoded alias map first
+    2. Exact case-insensitive match
+    3. Match with common suffix variations (Resort, Mountain, Ski Area)
+    """
+    from sqlalchemy import func
+    
+    if not mountain_name:
+        return None
+    
+    aliased_name = MOUNTAIN_NAME_ALIASES.get(mountain_name, mountain_name)
+    
+    query = Resort.query.filter(Resort.is_active == True)
+    if state_code:
+        query = query.filter(Resort.state == state_code)
+    
+    exact_match = query.filter(func.lower(Resort.name) == aliased_name.lower()).first()
+    if exact_match:
+        return exact_match
+    
+    suffix_variations = [
+        aliased_name,
+        f"{aliased_name} Resort",
+        f"{aliased_name} Mountain",
+        f"{aliased_name} Mountain Resort",
+        f"{aliased_name} Ski Area",
+        aliased_name.replace(" Resort", ""),
+        aliased_name.replace(" Mountain", ""),
+        aliased_name.replace(" Ski Area", ""),
+    ]
+    
+    for variation in suffix_variations:
+        match = query.filter(func.lower(Resort.name) == variation.lower()).first()
+        if match:
+            return match
+    
+    return None
+
+
+def build_mountain_to_resort_mapping():
+    """
+    Build a complete mapping of MOUNTAINS_BY_STATE strings to Resort IDs.
+    Returns: (mapping_dict, unmatched_list)
+    """
+    mapping = {}
+    unmatched = []
+    
+    for state_code, mountains in MOUNTAINS_BY_STATE.items():
+        for mountain_name in mountains:
+            resort = find_resort_by_name(mountain_name, state_code)
+            if resort:
+                mapping[mountain_name] = resort.id
+            else:
+                unmatched.append({"name": mountain_name, "state": state_code})
+    
+    return mapping, unmatched
+
+
+@app.route("/admin/backfill-resort-ids", methods=["GET", "POST"])
+def backfill_resort_ids_endpoint():
+    """
+    Backfill visited_resort_ids and home_resort_id from legacy string data.
+    Idempotent - safe to run multiple times.
+    
+    GET: Preview mode - shows what would be migrated
+    POST: Execute mode - performs the migration
+    
+    Usage: GET https://yourapp.replit.dev/admin/backfill-resort-ids
+    """
+    try:
+        mapping, unmatched = build_mountain_to_resort_mapping()
+        
+        is_preview = request.method == "GET"
+        
+        users_with_visited = User.query.filter(
+            db.or_(
+                User.mountains_visited.isnot(None),
+                User.home_mountain.isnot(None)
+            )
+        ).all()
+        
+        results = {
+            "mapping_stats": {
+                "total_mountains": sum(len(m) for m in MOUNTAINS_BY_STATE.values()),
+                "mapped": len(mapping),
+                "unmatched": len(unmatched)
+            },
+            "unmatched_mountains": unmatched,
+            "users_processed": 0,
+            "visited_mountains_migrated": 0,
+            "home_mountains_migrated": 0,
+            "unmapped_visited_names": [],
+            "unmapped_home_names": []
+        }
+        
+        for user in users_with_visited:
+            legacy_visited = user.mountains_visited or []
+            legacy_home = user.home_mountain
+            
+            if legacy_visited and (not user.visited_resort_ids or len(user.visited_resort_ids) == 0):
+                new_ids = []
+                for mountain_name in legacy_visited:
+                    if mountain_name in mapping:
+                        new_ids.append(mapping[mountain_name])
+                    else:
+                        resort = find_resort_by_name(mountain_name)
+                        if resort:
+                            new_ids.append(resort.id)
+                        elif mountain_name not in results["unmapped_visited_names"]:
+                            results["unmapped_visited_names"].append(mountain_name)
+                
+                if new_ids:
+                    if not is_preview:
+                        user.visited_resort_ids = list(set(new_ids))
+                    results["visited_mountains_migrated"] += len(new_ids)
+            
+            if legacy_home and not user.home_resort_id:
+                if legacy_home in mapping:
+                    if not is_preview:
+                        user.home_resort_id = mapping[legacy_home]
+                    results["home_mountains_migrated"] += 1
+                else:
+                    resort = find_resort_by_name(legacy_home)
+                    if resort:
+                        if not is_preview:
+                            user.home_resort_id = resort.id
+                        results["home_mountains_migrated"] += 1
+                    elif legacy_home not in results["unmapped_home_names"]:
+                        results["unmapped_home_names"].append(legacy_home)
+            
+            results["users_processed"] += 1
+        
+        if not is_preview:
+            db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "mode": "preview" if is_preview else "executed",
+            "message": f"{'Preview' if is_preview else 'Executed'} backfill for {results['users_processed']} users",
+            "results": results
+        }), 200
+        
+    except Exception as e:
+        import traceback
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": f"Backfill failed: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 @app.route("/admin/seed-test-users", methods=["GET", "POST"])
 def seed_test_users_endpoint():
     """
