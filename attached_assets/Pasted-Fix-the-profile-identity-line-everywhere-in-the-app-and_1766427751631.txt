@@ -1,0 +1,83 @@
+Fix the profile identity line everywhere in the app and centralize the logic so it cannot regress in the future.
+
+Problem Summary
+Profiles currently show the word “Both” when a user has Epic and Ikon.
+Rider type is missing or inconsistently displayed.
+Identity logic is duplicated across multiple templates, which causes drift and regressions.
+
+High-level Solution
+Create one centralized identity formatter and reuse it everywhere profiles appear.
+Remove all page-specific identity logic.
+Ensure “Both” can never appear again.
+
+Scope
+This must apply everywhere a user profile or profile summary appears, including:
+Home screen profile card
+Friend profile page
+Friends list rows
+Trip guest lists
+Invite cards
+Any other screen that displays pass type, rider type, or skill level
+
+Centralization Requirement (critical)
+Do NOT build the identity line separately in multiple templates.
+Create one single reusable formatter (preferred: a Jinja helper or template filter).
+All templates must use this one formatter.
+No template is allowed to construct identity text on its own.
+
+Identity Line Rules (text only)
+
+Format order (always):
+Rider Type · Epic · Ikon · Skill Level
+
+Pass logic:
+If user has Epic only → show “Epic”
+If user has Ikon only → show “Ikon”
+If user has both → show “Epic · Ikon”
+Never display the word “Both” under any circumstances
+
+Rider type:
+Must appear first if present
+Use existing rider types from onboarding (Skier, Snowboarder, Telemark, Adaptive, Cross-Country)
+
+Skill level:
+Appears last if present
+If missing, omit cleanly
+
+Separators:
+Use a middle dot between items
+No leading, trailing, or duplicate separators
+
+Implementation Guidance
+	1.	Create a single centralized identity formatter
+This formatter takes a User object and returns a plain text identity string following the rules above.
+	2.	Remove existing identity logic
+Delete or bypass any logic in templates that:
+Checks for “both”
+Manually concatenates pass names
+Builds identity strings inline
+	3.	Update all templates
+Replace existing identity rendering with a call to the centralized formatter everywhere profiles appear.
+	4.	Ensure consistency
+All screens must display the exact same identity output for the same user.
+No exceptions. No overrides.
+
+Expected Outputs
+
+Skier · Epic · Ikon · Advanced
+Snowboarder · Ikon · Intermediate
+Cross-Country · Epic · Beginner
+
+Never acceptable anywhere in the app
+
+Both
+Epic · Both
+Both · Epic · Ikon
+
+Acceptance Criteria
+
+There are zero occurrences of the word “Both” anywhere in the UI.
+Rider type is visible everywhere profiles appear.
+Epic and Ikon are always shown individually when both exist.
+The identity line is generated from one centralized location only.
+Future UI changes cannot reintroduce “Both” without modifying the central formatter.
