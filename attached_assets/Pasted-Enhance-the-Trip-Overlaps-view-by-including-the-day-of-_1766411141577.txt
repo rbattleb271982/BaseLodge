@@ -1,0 +1,100 @@
+Enhance the Trip Overlaps view by including the day of the week in overlap sentences, while maintaining clear single-day vs multi-day date formatting.
+
+This is a display and copy update only. Do not change overlap logic or database schema.
+
+⸻
+
+SECTION 1: Trip Overlaps copy format
+	1.	Sentence structure
+In the Trip Overlaps tab, display each overlap as a single human-readable sentence:
+
+“You overlap with {First Name} {Last Name} on {Day, Date or Day–Day, Date Range} at {Resort}.”
+
+Examples:
+	•	“You overlap with Brook Eriksson on Mon, Jan 20 at Alta.”
+	•	“You overlap with Sage Ortiz on Fri–Mon, Feb 14–Feb 17 at Eldora.”
+
+⸻
+
+SECTION 2: Name rules
+	2.	Friend name display
+
+	•	Always show first + last name when available
+	•	If last name is missing, fall back to first name only
+	•	Do not use usernames or emails
+
+⸻
+
+SECTION 3: Date + day formatting rules (important)
+	3.	Single-day overlap
+If start_date == end_date:
+
+	•	Show the day of week and date once
+	•	Format: “Mon, Jan 20”
+	•	Do NOT repeat the date
+
+Example:
+“You overlap with Brook Eriksson on Mon, Jan 20 at Alta.”
+	4.	Multi-day overlap
+If start_date != end_date:
+
+	•	Show day-of-week range and date range
+	•	Format: “Fri–Mon, Feb 14–Feb 17”
+
+Example:
+“You overlap with Sage Ortiz on Fri–Mon, Feb 14–Feb 17 at Eldora.”
+	5.	Formatting consistency
+
+	•	Use abbreviated day names (Mon, Tue, Wed, Thu, Fri, Sat, Sun)
+	•	Use existing date formatting utilities where possible
+	•	Do not include the year unless already standard elsewhere in the app
+
+⸻
+
+SECTION 4: Remove irrelevant metadata
+	6.	Pass information
+
+	•	Do not display pass type (Epic, Ikon, etc.) in Trip Overlaps
+	•	Pass is not relevant context for understanding overlaps
+
+⸻
+
+SECTION 5: Scope control
+	7.	Where this applies
+Apply this update only to:
+
+	•	Trips → Trip Overlaps tab
+
+Do not modify:
+	•	My Trips
+	•	Friends’ Trips
+	•	Trip Detail pages
+	•	Overlap detection logic
+
+⸻
+
+SECTION 6: Non-goals
+	•	Do not change card layout beyond text content
+	•	Do not add grouping or aggregation
+	•	Do not add avatars, icons, or CTAs
+	•	Do not refactor backend queries unless required for date access
+
+⸻
+
+SECTION 7: Testing requirements
+	•	Single-day overlaps show one day + date
+	•	Multi-day overlaps show correct day range + date range
+	•	No duplicated dates (e.g. Jan 20–Jan 20)
+	•	Day abbreviations render correctly
+	•	Friend names render correctly
+	•	Resort names render correctly
+	•	Pass is not shown
+	•	Mobile layout remains clean and readable
+
+⸻
+
+Agent instructions
+	•	Make the smallest possible change
+	•	Reuse existing date helpers
+	•	Fully test before marking complete
+	•	Do not refactor unrelated files
