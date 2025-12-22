@@ -288,23 +288,6 @@
 
 <body>
 
-{% set MOUNTAINS = {
-    'AK': ['Alyeska'],
-    'CA': ['Mammoth', 'Northstar', 'Palisades Tahoe', 'June Mountain', 'Sierra at Tahoe', 'China Peak', 'Boreal'],
-    'CO': ['Aspen', 'Beaver Creek', 'Breckenridge', 'Copper', 'Loveland', 'Keystone', 'Winter Park', 'Eldora', 'Powderhorn', 'Monarch', 'Sunlight', 'Telluride'],
-    'ID': ['Bogus Basin', 'Schweitzer', 'Sun Valley'],
-    'ME': ['Sugarloaf', 'Sunday River'],
-    'MI': ['Boyne Highlands', 'Nubs Nob'],
-    'MT': ['Big Sky', 'Whitefish'],
-    'NH': ['Cannon', 'Loon', 'Wildcat', 'Mount Sunapee', 'Waterville Valley'],
-    'NM': ['Taos', 'Santa Fe'],
-    'NY': ['Whiteface', 'Gore', 'Belleayre'],
-    'OR': ['Mount Hood', 'Timberline', 'Hoodoo'],
-    'UT': ['Alta', 'Brighton', 'The Canyons', 'Powder Mountain', 'Park City', 'Snowbasin', 'Nordic Valley', 'Sundance'],
-    'VT': ['Stowe', 'Smugglers Notch', 'Jay Peak', 'Killington', 'Sugarbush'],
-    'WA': ['Crystal', 'Mission Ridge', 'The Summit at Snoqualmie', 'White Pass'],
-    'WY': ['Jackson Hole', 'Grand Targhee']
-} %}
 
 <div class="edit-profile-container">
     <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
@@ -328,8 +311,8 @@
             <label>Home Mountain</label>
             <select name="home_mountain" id="home_mountain" {% if not current_user.home_state %}disabled{% endif %}>
                 <option value="">{% if not current_user.home_state %}Select state first{% else %}Select your home mountain{% endif %}</option>
-                {% if current_user.home_state and current_user.home_state in MOUNTAINS %}
-                    {% for m in MOUNTAINS[current_user.home_state]|sort %}
+                {% if current_user.home_state and current_user.home_state in mountains_by_state %}
+                    {% for m in mountains_by_state[current_user.home_state]|sort %}
                         <option value="{{ m }}" {% if current_user.home_mountain == m %}selected{% endif %}>{{ m }}</option>
                     {% endfor %}
                 {% endif %}
@@ -478,36 +461,39 @@ document.getElementById('birth-year-select').addEventListener('change', function
     document.getElementById('birth_year').value = this.value;
 });
 
-// Mountains by state mapping for filtering
-const mountainsByState = {
-    'AK': ['Alyeska'],
-    'CA': ['Mammoth', 'Northstar', 'Palisades Tahoe', 'June Mountain', 'Sierra at Tahoe', 'China Peak', 'Boreal'],
-    'CO': ['Aspen', 'Beaver Creek', 'Breckenridge', 'Copper', 'Loveland', 'Keystone', 'Winter Park', 'Eldora', 'Powderhorn', 'Monarch', 'Sunlight', 'Telluride'],
-    'ID': ['Bogus Basin', 'Schweitzer', 'Sun Valley'],
-    'ME': ['Sugarloaf', 'Sunday River'],
-    'MI': ['Boyne Highlands', 'Nubs Nob'],
-    'MT': ['Big Sky', 'Whitefish'],
-    'NH': ['Cannon', 'Loon', 'Wildcat', 'Mount Sunapee', 'Waterville Valley'],
-    'NM': ['Taos', 'Santa Fe'],
-    'NY': ['Whiteface', 'Gore', 'Belleayre'],
-    'OR': ['Mount Hood', 'Timberline', 'Hoodoo'],
-    'UT': ['Alta', 'Brighton', 'The Canyons', 'Powder Mountain', 'Park City', 'Snowbasin', 'Nordic Valley', 'Sundance'],
-    'VT': ['Stowe', 'Smugglers Notch', 'Jay Peak', 'Killington', 'Sugarbush'],
-    'WA': ['Crystal', 'Mission Ridge', 'The Summit at Snoqualmie', 'White Pass'],
-    'WY': ['Jackson Hole', 'Grand Targhee']
-};
+// Mountains by state mapping from server
+const mountainsByState = {{ mountains_by_state | tojson | safe }};
 
 function updateMountainOptions(stateAbbr, currentMountain) {
     const homeMountainSelect = document.getElementById('home_mountain');
     const mountains = mountainsByState[stateAbbr] || [];
     
     let html = '<option value="">Select your home mountain</option>';
-    mountains.sort().forEach(mountain => {
+    mountains.slice().sort().forEach(mountain => {
         const selected = (currentMountain === mountain) ? ' selected' : '';
         html += `<option value="${mountain}"${selected}>${mountain}</option>`;
     });
     homeMountainSelect.innerHTML = html;
 }
+
+// Validate home mountain matches home state on page load
+(function validateHomeMountain() {
+    const homeStateSelect = document.getElementById('home-state-select');
+    const homeMountainSelect = document.getElementById('home_mountain');
+    const homeMountainHidden = document.getElementById('home_mountain_hidden');
+    
+    const currentState = homeStateSelect.value;
+    const currentMountain = homeMountainHidden.value;
+    
+    if (currentState && currentMountain) {
+        const validMountains = mountainsByState[currentState] || [];
+        if (!validMountains.includes(currentMountain)) {
+            // Mismatch detected - clear the mountain
+            homeMountainHidden.value = '';
+            homeMountainSelect.value = '';
+        }
+    }
+})();
 
 document.getElementById('home-state-select').addEventListener('change', function() {
     document.getElementById('home_state').value = this.value;

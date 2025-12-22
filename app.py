@@ -745,7 +745,7 @@ def edit_profile():
     secondary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.SECONDARY).first()
     friends_count = Friend.query.filter_by(user_id=user.id).count()
     
-    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=CANONICAL_PASSES, rider_types=RIDER_TYPES, all_states=ALL_US_STATES, primary_equipment=primary_equipment, secondary_equipment=secondary_equipment)
+    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=CANONICAL_PASSES, rider_types=RIDER_TYPES, all_states=ALL_US_STATES, primary_equipment=primary_equipment, secondary_equipment=secondary_equipment, mountains_by_state=MOUNTAINS_BY_STATE)
 
 @app.route("/my-trips")
 @login_required

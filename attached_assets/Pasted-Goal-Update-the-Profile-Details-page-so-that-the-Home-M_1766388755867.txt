@@ -1,0 +1,88 @@
+Goal
+Update the Profile Details page so that the Home Mountain dropdown is dynamically filtered based on the selected Home State.
+
+This is a UX correctness update. Do not change database schema.
+
+⸻
+
+SECTION 1: Home State → Home Mountain dependency
+	1.	Disable Home Mountain until State is selected
+On the Profile Details page:
+
+	•	Disable the Home Mountain dropdown until a Home State is selected
+	•	Show placeholder text such as “Select your home mountain” while disabled
+
+The user must select a state first.
+
+⸻
+
+SECTION 2: Filter Home Mountain options by State
+	2.	State-scoped mountain list
+Once a Home State is selected:
+
+	•	Populate the Home Mountain dropdown with only mountains located in the selected state
+	•	Do not show mountains from other states
+	•	Use the existing mountain/resort data source already used elsewhere in the app
+
+	3.	Reset behavior
+When the Home State changes:
+
+	•	Clear any previously selected Home Mountain
+	•	Require the user to reselect a Home Mountain from the new state’s list
+
+This prevents invalid state/mountain combinations.
+
+⸻
+
+SECTION 3: Existing profile handling
+	4.	Existing users with saved data
+For users who already have:
+
+	•	A Home State
+	•	A Home Mountain
+
+Behavior:
+	•	On initial load, if the saved Home Mountain belongs to the saved Home State, display it normally
+	•	If there is a mismatch (legacy data), clear the Home Mountain field and prompt reselection
+
+Do not silently save mismatched values.
+
+⸻
+
+SECTION 4: Optional usability enhancement (only if trivial)
+	5.	Sorting and search (optional)
+If the mountain list is long:
+
+	•	Sort mountains alphabetically within the selected state
+	•	If search is already implemented elsewhere, reuse it; otherwise do not add new search logic
+
+This is optional and should not expand scope.
+
+⸻
+
+SECTION 5: Non-goals
+	•	Do not add Country selection to the Profile page
+	•	Do not change how Home State is stored
+	•	Do not modify onboarding flow unless it uses the same component
+	•	Do not redesign the Profile Details UI
+	•	Do not refactor unrelated code
+
+⸻
+
+SECTION 6: Testing requirements
+	•	Home Mountain is disabled until Home State is selected
+	•	Selecting a Home State enables Home Mountain
+	•	Home Mountain list only shows mountains in the selected state
+	•	Changing Home State clears Home Mountain
+	•	Existing valid state/mountain pairs remain intact
+	•	Invalid legacy pairs are cleared
+	•	Mobile UX works correctly
+
+⸻
+
+Agent instructions
+	•	Make the smallest possible change
+	•	Reuse existing data lookups and helpers
+	•	Validate on frontend and backend if applicable
+	•	Fully test before marking complete
+	•	Do not refactor unrelated files
