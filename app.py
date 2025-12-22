@@ -3690,6 +3690,102 @@ def seed_utah_resorts_endpoint():
         }), 500
 
 
+@app.route("/admin/seed-wa-ca-resorts", methods=["GET", "POST"])
+def seed_wa_ca_resorts_endpoint():
+    """
+    HTTP endpoint to add missing Washington and California ski resorts.
+    
+    Usage: GET https://yourapp.replit.dev/admin/seed-wa-ca-resorts
+    
+    This is idempotent - safe to call multiple times.
+    Only creates resorts that don't already exist (checked by slug).
+    """
+    try:
+        wa_resorts = [
+            {"name": "Stevens Pass", "slug": "stevens-pass", "brand": "Epic", "pass_brands": "Epic"},
+            {"name": "Crystal Mountain", "slug": "crystal-mountain", "brand": "Ikon", "pass_brands": "Ikon"},
+            {"name": "The Summit at Snoqualmie", "slug": "the-summit-at-snoqualmie", "brand": "Ikon", "pass_brands": "Ikon"},
+            {"name": "Mount Baker", "slug": "mount-baker", "brand": "Indy", "pass_brands": "Indy"},
+            {"name": "Mission Ridge", "slug": "mission-ridge", "brand": "Other", "pass_brands": None},
+            {"name": "White Pass", "slug": "white-pass", "brand": "Other", "pass_brands": None},
+            {"name": "49 Degrees North", "slug": "49-degrees-north", "brand": "Other", "pass_brands": None},
+            {"name": "Mt. Spokane", "slug": "mt-spokane", "brand": "Other", "pass_brands": None},
+        ]
+        
+        ca_resorts = [
+            {"name": "Heavenly", "slug": "heavenly", "brand": "Epic", "pass_brands": "Epic"},
+            {"name": "Northstar", "slug": "northstar", "brand": "Epic", "pass_brands": "Epic"},
+            {"name": "Kirkwood", "slug": "kirkwood", "brand": "Epic", "pass_brands": "Epic"},
+            {"name": "Palisades Tahoe", "slug": "palisades-tahoe", "brand": "Ikon", "pass_brands": "Ikon"},
+            {"name": "Mammoth Mountain", "slug": "mammoth-mountain", "brand": "Ikon", "pass_brands": "Ikon"},
+            {"name": "June Mountain", "slug": "june-mountain", "brand": "Ikon", "pass_brands": "Ikon"},
+            {"name": "Big Bear Mountain Resort", "slug": "big-bear-mountain-resort", "brand": "Ikon", "pass_brands": "Ikon"},
+            {"name": "Snow Valley", "slug": "snow-valley", "brand": "Ikon", "pass_brands": "Ikon"},
+            {"name": "Sierra-at-Tahoe", "slug": "sierra-at-tahoe", "brand": "Ikon", "pass_brands": "Ikon"},
+            {"name": "Sugar Bowl", "slug": "sugar-bowl", "brand": "Other", "pass_brands": None},
+            {"name": "Mt. Rose", "slug": "mt-rose", "brand": "Other", "pass_brands": None},
+            {"name": "Bear Valley", "slug": "bear-valley", "brand": "Other", "pass_brands": None},
+            {"name": "China Peak", "slug": "china-peak", "brand": "Other", "pass_brands": None},
+            {"name": "Dodge Ridge", "slug": "dodge-ridge", "brand": "Other", "pass_brands": None},
+        ]
+        
+        created = []
+        existed = []
+        
+        for resort_data in wa_resorts:
+            existing = Resort.query.filter_by(slug=resort_data["slug"]).first()
+            if existing:
+                existed.append(resort_data["name"] + " (WA)")
+            else:
+                new_resort = Resort(
+                    name=resort_data["name"],
+                    slug=resort_data["slug"],
+                    state="WA",
+                    state_full="Washington",
+                    country="US",
+                    brand=resort_data["brand"],
+                    pass_brands=resort_data["pass_brands"],
+                    is_active=True
+                )
+                db.session.add(new_resort)
+                created.append(resort_data["name"] + " (WA)")
+        
+        for resort_data in ca_resorts:
+            existing = Resort.query.filter_by(slug=resort_data["slug"]).first()
+            if existing:
+                existed.append(resort_data["name"] + " (CA)")
+            else:
+                new_resort = Resort(
+                    name=resort_data["name"],
+                    slug=resort_data["slug"],
+                    state="CA",
+                    state_full="California",
+                    country="US",
+                    brand=resort_data["brand"],
+                    pass_brands=resort_data["pass_brands"],
+                    is_active=True
+                )
+                db.session.add(new_resort)
+                created.append(resort_data["name"] + " (CA)")
+        
+        db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Created {len(created)} resorts, {len(existed)} already existed",
+            "created": created,
+            "already_existed": existed
+        }), 200
+    except Exception as e:
+        import traceback
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to seed WA/CA resorts: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 @app.route("/open-data-debug")
 @login_required
 def open_data_debug():
