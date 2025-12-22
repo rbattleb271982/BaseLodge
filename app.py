@@ -728,12 +728,18 @@ def edit_profile():
         user.profile_completed_at = datetime.utcnow()
         user.update_lifecycle_stage()
         
-        db.session.commit()
-        
-        # Emit profile_completed event
-        emit_event('profile_completed', user)
-        
-        return redirect(url_for("more"))
+        try:
+            db.session.commit()
+            
+            # Emit profile_completed event
+            emit_event('profile_completed', user)
+            
+            return redirect(url_for("more"))
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error saving profile: {e}")
+            flash("Something went wrong while saving your profile. Please try again.", "error")
+            return redirect(url_for("edit_profile"))
     
     primary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.PRIMARY).first()
     secondary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.SECONDARY).first()
@@ -2305,15 +2311,31 @@ def add_trip():
             trip_duration=trip_duration,
             trip_equipment_status=trip_equipment_status if trip_equipment_status != 'use_default' else None,
         )
-        db.session.add(trip)
-        db.session.commit()
-
-        if set_home_mountain and resort:
-            current_user.home_mountain = resort.name
+        try:
+            db.session.add(trip)
             db.session.commit()
 
-        flash("Trip added.", "trip")
-        return redirect(url_for("my_trips"))
+            if set_home_mountain and resort:
+                current_user.home_mountain = resort.name
+                db.session.commit()
+
+            flash("Trip added.", "trip")
+            return redirect(url_for("my_trips"))
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error adding trip: {e}")
+            flash("Something went wrong while saving your trip. Please try again.", "error")
+            return render_template(
+                "add_trip.html",
+                trip=None,
+                resorts=resorts,
+                states_with_resorts=get_states_with_resorts(),
+                countries_with_resorts=get_countries_with_resorts(),
+                states_by_country=get_states_by_country(),
+                user=current_user,
+                form_action=url_for("add_trip"),
+                default_country="US",
+            )
 
     # GET - Smart defaults for new trips
     user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
@@ -2451,8 +2473,24 @@ def edit_trip_form(trip_id):
         if set_home_mountain and resort:
             current_user.home_mountain = resort.name
         
-        db.session.commit()
-        return redirect(url_for("my_trips"))
+        try:
+            db.session.commit()
+            return redirect(url_for("my_trips"))
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error updating trip: {e}")
+            flash("Something went wrong while saving your trip. Please try again.", "error")
+            return render_template(
+                "add_trip.html",
+                trip=trip,
+                resorts=resorts,
+                states_with_resorts=get_states_with_resorts(),
+                countries_with_resorts=get_countries_with_resorts(),
+                states_by_country=get_states_by_country(),
+                user=current_user,
+                form_action=url_for("edit_trip_form", trip_id=trip.id),
+                default_country=default_country,
+            )
 
     # GET - determine default country from existing trip's resort
     default_country = trip.resort.country if trip.resort else "US"
@@ -2499,8 +2537,14 @@ def mountains_visited():
     if request.method == "POST":
         selected_mountains = request.form.getlist("mountains")
         user.mountains_visited = selected_mountains
-        db.session.commit()
-        return redirect(url_for("settings"))
+        try:
+            db.session.commit()
+            return redirect(url_for("settings"))
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error saving mountains visited: {e}")
+            flash("Something went wrong while saving. Please try again.", "error")
+            return redirect(url_for("mountains_visited"))
     
     selected_mountains = user.mountains_visited or []
     mountains_visited_count = len(selected_mountains)
@@ -2543,9 +2587,15 @@ def change_password():
             return redirect(url_for("change_password"))
         
         current_user.set_password(new_password)
-        db.session.commit()
-        flash("Password updated successfully.", "success")
-        return redirect(url_for("change_password"))
+        try:
+            db.session.commit()
+            flash("Password updated successfully.", "success")
+            return redirect(url_for("change_password"))
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error changing password: {e}")
+            flash("Something went wrong while updating your password. Please try again.", "error")
+            return redirect(url_for("change_password"))
     
     return render_template("change_password.html")
 
@@ -2795,9 +2845,15 @@ def select_pass():
     if request.method == "POST":
         chosen = request.form.get("pass_type")
         current_user.pass_type = chosen
-        db.session.commit()
-        session["pass_prompt_skipped"] = False
-        return redirect(url_for("home"))
+        try:
+            db.session.commit()
+            session["pass_prompt_skipped"] = False
+            return redirect(url_for("home"))
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error saving pass selection: {e}")
+            flash("Something went wrong while saving your pass. Please try again.", "error")
+            return redirect(url_for("select_pass"))
 
     return render_template(
         "select_pass.html",
