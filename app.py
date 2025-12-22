@@ -683,14 +683,19 @@ def setup_profile():
     user = current_user
     
     if request.method == "POST":
-        rider_type = request.form.get("rider_type")
+        primary_rider_type = request.form.get("primary_rider_type")
+        secondary_rider_types = request.form.getlist("secondary_rider_types")
         passes = request.form.getlist("pass_type")
 
-        if not rider_type:
-            flash("Please select a rider type.", "error")
+        if not primary_rider_type:
+            flash("Please select your primary rider type.", "error")
             return redirect(url_for("setup_profile"))
+        
+        # Validate secondary rider types (max 2, no overlap with primary)
+        secondary_rider_types = [rt for rt in secondary_rider_types if rt != primary_rider_type][:2]
 
-        user.rider_type = rider_type
+        user.primary_rider_type = primary_rider_type
+        user.secondary_rider_types = secondary_rider_types if secondary_rider_types else []
         user.pass_type = ",".join(sorted(set(passes))) if passes else "None"
         user.onboarding_completed_at = datetime.utcnow()
         user.update_lifecycle_stage()
@@ -720,8 +725,20 @@ def edit_profile():
         user.gender = request.form.get("gender") or None
         birth_year_raw = request.form.get("birth_year")
         user.birth_year = int(birth_year_raw) if birth_year_raw else None
-        user.rider_type = request.form.get("rider_type") or None
-        passes = request.form.getlist("pass_type")
+        
+        # Handle primary and secondary rider types
+        primary_rider_type = request.form.get("primary_rider_type")
+        if primary_rider_type:
+            user.primary_rider_type = primary_rider_type
+            # Parse secondary rider types from comma-separated string
+            secondary_raw = request.form.get("secondary_rider_types", "")
+            secondary_list = [rt.strip() for rt in secondary_raw.split(",") if rt.strip()]
+            # Validate: remove overlap with primary, max 2
+            secondary_list = [rt for rt in secondary_list if rt != primary_rider_type][:2]
+            user.secondary_rider_types = secondary_list if secondary_list else []
+        
+        passes_raw = request.form.get("pass_type", "")
+        passes = [p.strip() for p in passes_raw.split(",") if p.strip()]
         user.pass_type = ",".join(sorted(set(passes))) if passes else "None"
         user.home_state = request.form.get("home_state") or None
         user.skill_level = request.form.get("skill_level") or None
