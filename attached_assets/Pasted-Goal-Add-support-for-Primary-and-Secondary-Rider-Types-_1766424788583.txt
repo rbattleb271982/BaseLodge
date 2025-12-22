@@ -1,0 +1,125 @@
+Goal:
+Add support for Primary and Secondary Rider Types, mirroring how Terrain Preferences work, while keeping the UI clean and mobile-first.
+
+Requirements:
+• Primary rider type is REQUIRED (single select)
+• Secondary rider types are OPTIONAL (multi-select)
+• Secondary list must EXCLUDE the selected primary
+• Do NOT introduce frequency language ("often", "sometimes")
+• Do NOT expose “Primary / Secondary” labels in public profile display
+• Works in onboarding AND profile edit
+• Matches existing rider type options exactly
+
+Rider Type Options (authoritative list):
+- Skier
+- Snowboarder
+- Telemark
+- Cross-Country
+- Adaptive
+
+--------------------------------------------------
+1) DATABASE
+--------------------------------------------------
+
+If not already present, update User model:
+
+Add:
+- primary_rider_type (String, required)
+- secondary_rider_types (JSON, nullable)
+
+Example:
+primary_rider_type = "Skier"
+secondary_rider_types = ["Snowboarder"]
+
+Use JSON to align with terrain_preferences storage.
+
+Run migration if needed.
+
+--------------------------------------------------
+2) ONBOARDING UI
+--------------------------------------------------
+
+Replace the existing single rider_type selection with:
+
+A) Primary Rider Type (required)
+• Render as segmented buttons or radio buttons
+• User must select exactly one
+
+Label:
+"Primary rider type"
+Subtext:
+"The way you ride most often"
+
+B) Secondary Rider Type (optional)
+• Render as checkbox list
+• Dynamically exclude the selected Primary
+• Allow 0–2 selections (no more than 2)
+
+Label:
+"Secondary rider type (optional)"
+Subtext:
+"Only if you ride another way sometimes"
+
+--------------------------------------------------
+3) PROFILE EDIT UI
+--------------------------------------------------
+
+Mirror onboarding behavior exactly.
+
+• Editing primary updates the secondary list automatically
+• If a previously selected secondary becomes the new primary:
+  - Remove it from secondary_rider_types
+• Inline edit only (no modal)
+
+--------------------------------------------------
+4) BACKEND HANDLING
+--------------------------------------------------
+
+On form submit:
+• Require primary_rider_type
+• secondary_rider_types may be empty or omitted
+• Validate:
+  - No overlap between primary and secondary
+  - Secondary max length = 2
+
+--------------------------------------------------
+5) PUBLIC DISPLAY LOGIC
+--------------------------------------------------
+
+When displaying rider type on profile cards, trip cards, invites, etc:
+
+If primary only:
+"Skier"
+
+If primary + secondary:
+"Skier · Snowboarder"
+
+Do NOT show:
+"Primary:" or "Secondary:"
+Do NOT show ordering labels
+
+--------------------------------------------------
+6) FILTER / MATCHING COMPATIBILITY
+--------------------------------------------------
+
+Do not change matching logic yet.
+Just ensure data is stored cleanly so that later:
+• Primary matches can be weighted higher than secondary
+• Terrain overlap remains independent
+
+--------------------------------------------------
+7) DO NOT DO
+--------------------------------------------------
+
+❌ Do NOT rename existing rider types
+❌ Do NOT add frequency scoring
+❌ Do NOT introduce additional database tables
+❌ Do NOT break seeded users — backfill primary from existing rider_type if needed
+
+--------------------------------------------------
+8) BACKFILL (IF REQUIRED)
+--------------------------------------------------
+
+If users already have rider_type:
+• Set primary_rider_type = rider_type
+• Leave secondary_rider_types = null
