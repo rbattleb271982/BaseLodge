@@ -189,7 +189,7 @@
             
             <div class="profile-identity">
                 <div class="profile-identity-name">
-                    {{ friend.first_name }}
+                    {{ friend.first_name }}{% if friend.last_name %} {{ friend.last_name }}{% endif %}
                 </div>
 
                 <div class="profile-identity-pills">
@@ -218,15 +218,13 @@
                     </div>
                     {% endif %}
 
-                    {% if eq and eq.brand %}
                     <div class="profile-identity-row">
                         <span class="profile-identity-label">Equipment</span>
                         <span class="profile-identity-sep">·</span>
                         <span class="profile-identity-value">
-                            {{ eq.brand }}{% if eq.model %} {{ eq.model }}{% endif %}
+                            {% if eq and eq.brand %}{{ eq.brand }}{% if eq.model %} {{ eq.model }}{% endif %}{% else %}Not specified{% endif %}
                         </span>
                     </div>
-                    {% endif %}
                 </div>
             </div>
 
