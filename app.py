@@ -51,7 +51,9 @@ def before_request_handlers():
     if request.endpoint in excluded_endpoints:
         return None
     if current_user.is_authenticated:
-        if not current_user.rider_type or not current_user.pass_type:
+        # Check for profile completion using primary_rider_type with fallback to legacy rider_type
+        has_rider_type = current_user.primary_rider_type or current_user.rider_type
+        if not has_rider_type or not current_user.pass_type:
             return redirect(url_for('setup_profile'))
     return None
 
@@ -1013,7 +1015,7 @@ def get_friend_profile(friend_id):
             "name": f"{friend.first_name} {friend.last_name}",
             "email": friend.email,
             "pass_type": friend.pass_type or "No Pass",
-            "rider_type": friend.rider_type or "Not specified"
+            "rider_type": friend.display_rider_type or "Not specified"
         }
     }), 200
 
@@ -1152,20 +1154,22 @@ def friends():
         friends_list = [f for f in friends_list if f.skill_level in selected_skills]
         active_filter_count += 1
     
-    # Rider type filtering with "both" inclusion logic
+    # Rider type filtering using primary_rider_type with fallback
     if selected_riders and len(selected_riders) < len(RIDER_TYPES):
-        def matches_rider_filter(friend_rider_type):
-            if not friend_rider_type:
+        def matches_rider_filter(friend):
+            primary = friend.primary_rider_type or friend.rider_type
+            if not primary:
                 return False
-            # Direct match
-            if friend_rider_type in selected_riders:
+            # Check primary type
+            if primary in selected_riders:
                 return True
-            # "Both" inclusion: if user selected Skier or Snowboarder, include "Both" riders
-            if friend_rider_type.lower() == "both":
-                if "Skier" in selected_riders or "Snowboarder" in selected_riders:
+            # Check secondary types
+            secondaries = friend.secondary_rider_types or []
+            for secondary in secondaries:
+                if secondary in selected_riders:
                     return True
             return False
-        friends_list = [f for f in friends_list if matches_rider_filter(f.rider_type)]
+        friends_list = [f for f in friends_list if matches_rider_filter(f)]
         active_filter_count += 1
     
     return render_template(
@@ -1335,7 +1339,14 @@ def update_profile():
     if "last_name" in data:
         user.last_name = data.get("last_name", "").strip()
     if "rider_type" in data:
-        user.rider_type = data.get("rider_type", "").strip()
+        # Update primary_rider_type instead of legacy rider_type
+        user.primary_rider_type = data.get("rider_type", "").strip()
+    if "primary_rider_type" in data:
+        user.primary_rider_type = data.get("primary_rider_type", "").strip()
+    if "secondary_rider_types" in data:
+        secondary = data.get("secondary_rider_types", [])
+        if isinstance(secondary, list):
+            user.secondary_rider_types = secondary[:2]
     if "pass_type" in data:
         user.pass_type = data.get("pass_type", "").strip()
     
@@ -2683,7 +2694,8 @@ def seed_dummy_data():
             first_name="Richard",
             last_name="Battle-Baxter",
             email=richard_email,
-            rider_type="Skier",
+            primary_rider_type="Skier",
+            secondary_rider_types=[],
             pass_type="Epic",
             skill_level="Advanced",
             home_state="Colorado",
@@ -2745,11 +2757,13 @@ def seed_dummy_data():
         if existing:
             email = f"user_{i}_{random.randint(1000, 9999)}@example.com"
         
+        primary_rt = random.choice(rider_types)
         user = User(
             first_name=first,
             last_name=last,
             email=email,
-            rider_type=random.choice(rider_types),
+            primary_rider_type=primary_rt,
+            secondary_rider_types=[],
             pass_type=random.choice(pass_types),
             skill_level=random.choice(skill_levels),
             home_state=random.choice(states),
@@ -2914,7 +2928,8 @@ def generate_dummy_users():
             first_name="User",
             last_name=f"Test{i+1}",
             email=email,
-            rider_type=random.choice(rider_types),
+            primary_rider_type=random.choice(rider_types),
+            secondary_rider_types=[],
             skill_level=random.choice(skill_levels),
             pass_type=random.choice(pass_types)
         )
@@ -3048,7 +3063,8 @@ def create_extra_dummy_users():
             first_name="User",
             last_name=f"Test{idx}",
             email=email,
-            rider_type=random.choice(rider_types),
+            primary_rider_type=random.choice(rider_types),
+            secondary_rider_types=[],
             pass_type=random.choice(pass_types),
             skill_level=random.choice(skill_levels),
         )
@@ -3452,7 +3468,8 @@ def init_db_http():
                     first_name="Richard",
                     last_name="Battle-Baxter",
                     email="richardbattlebaxter@gmail.com",
-                    rider_type="Skier",
+                    primary_rider_type="Skier",
+                    secondary_rider_types=[],
                     pass_type="Epic",
                     skill_level="Advanced",
                     home_state="Colorado",
@@ -4885,7 +4902,8 @@ def seed_full_demo_world():
             richard = User(
                 first_name="Richard", last_name="Battle-Baxter",
                 email="richardbattlebaxter@gmail.com",
-                rider_type="Skier", pass_type="Epic", skill_level="Advanced",
+                primary_rider_type="Skier", secondary_rider_types=[],
+                pass_type="Epic", skill_level="Advanced",
                 home_state="Colorado", birth_year=1985, profile_setup_complete=True
             )
             richard.set_password("12345678")
@@ -4899,7 +4917,8 @@ def seed_full_demo_world():
             jonathan = User(
                 first_name="Jonathan", last_name="Schmitz",
                 email="jonathanmschmitz@gmail.com",
-                rider_type="Skier", pass_type="Ikon,MountainCollective", skill_level="Advanced",
+                primary_rider_type="Skier", secondary_rider_types=[],
+                pass_type="Ikon,MountainCollective", skill_level="Advanced",
                 home_state="Utah", birth_year=1990, profile_setup_complete=True
             )
             jonathan.set_password("12345678")
@@ -4919,11 +4938,13 @@ def seed_full_demo_world():
                 dummy_users.append(User.query.filter_by(email=email).first())
                 continue
             
+            primary_rt = random.choice(["Skier", "Snowboarder"])
             user = User(
                 first_name=random.choice(FIRST_NAMES),
                 last_name=random.choice(LAST_NAMES),
                 email=email,
-                rider_type=random.choice(["Skier", "Snowboarder"]),
+                primary_rider_type=primary_rt,
+                secondary_rider_types=[],
                 skill_level=random.choice(["Beginner", "Intermediate", "Advanced", "Expert"]),
                 home_state=random.choice(["Colorado", "Utah", "California", "Wyoming", "Montana", "Idaho", "Washington"]),
                 birth_year=random.randint(1970, 2005),
@@ -4950,16 +4971,17 @@ def seed_full_demo_world():
             if EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.PRIMARY).first():
                 continue
             
-            discipline = EquipmentDiscipline.SKIER if user.rider_type == "Skier" else EquipmentDiscipline.SNOWBOARDER
-            brands = SKIER_BRANDS if user.rider_type == "Skier" else SNOWBOARDER_BRANDS
+            user_rt = user.primary_rider_type or user.rider_type or "Skier"
+            discipline = EquipmentDiscipline.SKIER if user_rt == "Skier" else EquipmentDiscipline.SNOWBOARDER
+            brands = SKIER_BRANDS if user_rt == "Skier" else SNOWBOARDER_BRANDS
             
             primary = EquipmentSetup(
                 user_id=user.id,
                 slot=EquipmentSlot.PRIMARY,
                 discipline=discipline,
                 brand=random.choice(brands),
-                length_cm=random.randint(160, 190) if user.rider_type == "Skier" else random.randint(150, 165),
-                width_mm=random.randint(80, 105) if user.rider_type == "Skier" else None
+                length_cm=random.randint(160, 190) if user_rt == "Skier" else random.randint(150, 165),
+                width_mm=random.randint(80, 105) if user_rt == "Skier" else None
             )
             db.session.add(primary)
             equipment_count += 1
@@ -4970,8 +4992,8 @@ def seed_full_demo_world():
                     slot=EquipmentSlot.SECONDARY,
                     discipline=discipline,
                     brand=random.choice(brands),
-                    length_cm=random.randint(160, 190) if user.rider_type == "Skier" else random.randint(150, 165),
-                    width_mm=random.randint(80, 105) if user.rider_type == "Skier" else None
+                    length_cm=random.randint(160, 190) if user_rt == "Skier" else random.randint(150, 165),
+                    width_mm=random.randint(80, 105) if user_rt == "Skier" else None
                 )
                 db.session.add(secondary)
                 equipment_count += 1
