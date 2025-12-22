@@ -6,72 +6,201 @@
     <title>Base Lodge - Friends</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .filter-toggle {
-            display: inline-block;
-            font-size: 14px;
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            margin-bottom: 12px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        }
+        .filter-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
             font-weight: 500;
+            color: var(--bl-color-primary);
+            cursor: pointer;
+        }
+        .filter-bar-left:hover {
+            opacity: 0.8;
+        }
+        .filter-active-count {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+        }
+        .filter-bar-clear {
+            font-size: 14px;
             color: var(--bl-color-primary);
             background: none;
             border: none;
             cursor: pointer;
-            padding: 8px 0;
-            margin-bottom: 12px;
+            padding: 0;
         }
-        .filter-toggle:hover {
+        .filter-bar-clear:hover {
             opacity: 0.8;
         }
-        .filter-panel {
-            display: none;
+        .filter-bar-clear:disabled {
+            color: var(--bl-color-text-muted);
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        /* Bottom sheet overlay */
+        .sheet-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .sheet-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Bottom sheet */
+        .bottom-sheet {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background: var(--bl-color-surface);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
+            border-radius: 16px 16px 0 0;
+            z-index: 1001;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
         }
-        .filter-panel.active {
-            display: block;
+        .bottom-sheet.active {
+            transform: translateY(0);
         }
-        .filter-section {
-            margin-bottom: 16px;
+        .sheet-handle {
+            width: 36px;
+            height: 4px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 2px;
+            margin: 12px auto 8px;
         }
-        .filter-section:last-child {
+        .sheet-header {
+            padding: 8px 20px 16px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        }
+        .sheet-title {
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+            margin: 0;
+        }
+        .sheet-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+        }
+        .sheet-section {
+            margin-bottom: 24px;
+        }
+        .sheet-section:last-child {
             margin-bottom: 0;
         }
-        .filter-label {
+        .sheet-section-label {
             font-size: 12px;
             font-weight: 600;
             color: var(--bl-color-text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
         }
-        .filter-options {
+        .sheet-options {
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
+            flex-direction: column;
+            gap: 4px;
         }
-        .filter-option {
-            padding: 6px 12px;
-            border-radius: 16px;
-            font-size: 13px;
+        .sheet-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            font-size: 16px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        }
+        .sheet-option:last-child {
+            border-bottom: none;
+        }
+        .sheet-checkbox {
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+        .sheet-option.selected .sheet-checkbox {
+            background: var(--bl-color-primary);
+            border-color: var(--bl-color-primary);
+        }
+        .sheet-checkbox-check {
+            width: 12px;
+            height: 12px;
+            fill: white;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.15s ease;
+        }
+        .sheet-option.selected .sheet-checkbox-check {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .sheet-option-label {
+            flex: 1;
             font-weight: 500;
-            text-decoration: none;
-            background: rgba(0, 0, 0, 0.04);
-            color: var(--bl-color-text-muted);
+        }
+
+        .sheet-footer {
+            padding: 16px 20px;
+            padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+            display: flex;
+            gap: 12px;
+        }
+        .sheet-btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
             border: none;
+            transition: opacity 0.15s ease;
         }
-        .filter-option.active {
+        .sheet-btn:hover {
+            opacity: 0.9;
+        }
+        .sheet-btn-secondary {
+            background: rgba(0, 0, 0, 0.06);
+            color: var(--bl-color-text);
+        }
+        .sheet-btn-primary {
             background: var(--bl-color-primary);
             color: white;
         }
-        .filter-option:hover:not(.active) {
-            background: rgba(0, 0, 0, 0.08);
-        }
+
         .flat-list {
             display: flex;
             flex-direction: column;
         }
-        /* Friend List Row: 2-row structure matching card grammar */
         .flat-row {
             display: flex;
             flex-direction: column;
@@ -88,7 +217,6 @@
         .flat-row:active {
             background: rgba(0, 0, 0, 0.02);
         }
-        /* Row 1: Name + Status (horizontal) */
         .flat-row-header {
             display: flex;
             justify-content: space-between;
@@ -111,7 +239,6 @@
             color: var(--bl-color-primary);
             font-weight: 500;
         }
-        /* Row 2: Identity */
         .flat-row-identity {
             font-size: 0.9rem;
             color: var(--bl-color-text-muted);
@@ -135,12 +262,6 @@
             color: var(--bl-color-text-muted);
             margin: 0 0 20px 0;
         }
-        .clear-filters {
-            font-size: 13px;
-            color: var(--bl-color-primary);
-            text-decoration: none;
-            margin-left: 8px;
-        }
     </style>
 </head>
 <body>
@@ -149,47 +270,19 @@
         <h1 class="page-title">Friends</h1>
         
         {% if count_all > 0 %}
-        <button class="filter-toggle" onclick="toggleFilterPanel()">
-            Filter{% if active_filter_count > 0 %} ({{ active_filter_count }}){% endif %}
-        </button>
-        {% if active_filter_count > 0 %}
-        <a href="{{ url_for('friends') }}" class="clear-filters">Clear</a>
-        {% endif %}
-        
-        <div class="filter-panel" id="filter-panel">
-            <div class="filter-section">
-                <div class="filter-label">Pass</div>
-                <div class="filter-options">
-                    <a href="{{ url_for('friends', skill=skill_filter, rider=rider_filter) }}" class="filter-option {% if pass_filter == 'All' %}active{% endif %}">All</a>
-                    <a href="{{ url_for('friends', pass='Epic', skill=skill_filter, rider=rider_filter) }}" class="filter-option {% if pass_filter == 'Epic' %}active{% endif %}">Epic</a>
-                    <a href="{{ url_for('friends', pass='Ikon', skill=skill_filter, rider=rider_filter) }}" class="filter-option {% if pass_filter == 'Ikon' %}active{% endif %}">Ikon</a>
-                    <a href="{{ url_for('friends', pass='Other', skill=skill_filter, rider=rider_filter) }}" class="filter-option {% if pass_filter == 'Other' %}active{% endif %}">Other</a>
-                </div>
+        <div class="filter-bar">
+            <div class="filter-bar-left" onclick="openFilterSheet()">
+                <span>Filter</span>
+                {% if active_filter_count > 0 %}
+                <span class="filter-active-count">{{ active_filter_count }} active</span>
+                {% endif %}
             </div>
-            <div class="filter-section">
-                <div class="filter-label">Skill Level</div>
-                <div class="filter-options">
-                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, rider=rider_filter) }}" class="filter-option {% if not skill_filter %}active{% endif %}">Any</a>
-                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, skill='Beginner', rider=rider_filter) }}" class="filter-option {% if skill_filter == 'Beginner' %}active{% endif %}">Beginner</a>
-                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, skill='Intermediate', rider=rider_filter) }}" class="filter-option {% if skill_filter == 'Intermediate' %}active{% endif %}">Intermediate</a>
-                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, skill='Advanced', rider=rider_filter) }}" class="filter-option {% if skill_filter == 'Advanced' %}active{% endif %}">Advanced</a>
-                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, skill='Expert', rider=rider_filter) }}" class="filter-option {% if skill_filter == 'Expert' %}active{% endif %}">Expert</a>
-                </div>
-            </div>
-            <div class="filter-section">
-                <div class="filter-label">Rider Type</div>
-                <div class="filter-options">
-                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, skill=skill_filter) }}" class="filter-option {% if not rider_filter %}active{% endif %}">Any</a>
-                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, skill=skill_filter, rider='Skier') }}" class="filter-option {% if rider_filter == 'Skier' %}active{% endif %}">Skier</a>
-                    <a href="{{ url_for('friends', pass=pass_filter if pass_filter != 'All' else none, skill=skill_filter, rider='Snowboarder') }}" class="filter-option {% if rider_filter == 'Snowboarder' %}active{% endif %}">Snowboarder</a>
-                </div>
-            </div>
+            <button class="filter-bar-clear" onclick="clearAllFilters()" {% if active_filter_count == 0 %}disabled{% endif %}>Clear</button>
         </div>
         
         <div class="flat-list">
             {% for friend in friends %}
             <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="flat-row">
-                <!-- Row 1: Name + Status -->
                 <div class="flat-row-header">
                     <p class="flat-row-name">{{ friend.first_name }} {{ friend.last_name }}</p>
                     <span class="flat-row-status {% if friend._upcoming_trip_count and friend._upcoming_trip_count > 0 %}flat-row-status-active{% endif %}">
@@ -200,7 +293,6 @@
                         {% endif %}
                     </span>
                 </div>
-                <!-- Row 2: Identity -->
                 <p class="flat-row-identity">{% set parts = [] %}{% if friend.home_state %}{% set _ = parts.append(friend.home_state) %}{% endif %}{% if friend.rider_type %}{% set _ = parts.append(friend.rider_type) %}{% endif %}{% if friend.skill_level %}{% set _ = parts.append(friend.skill_level) %}{% endif %}{% if friend.pass_type %}{% set passes = friend.pass_type.split(',') %}{% if passes|length == 2 %}{% set _ = parts.append(passes[0] ~ ' & ' ~ passes[1]) %}{% elif passes|length > 2 %}{% set _ = parts.append(passes|join(', ')) %}{% else %}{% set _ = parts.append(passes[0]) %}{% endif %}{% endif %}{{ parts|join(' · ') if parts else '' }}</p>
             </a>
             {% endfor %}
@@ -208,7 +300,7 @@
             {% if friends|length == 0 %}
             <div class="empty-card" style="margin-top: 20px;">
                 <h3>No friends match these filters</h3>
-                <p>Try different filters or <a href="{{ url_for('friends') }}">clear all filters</a>.</p>
+                <p>Try different filters or clear all filters.</p>
             </div>
             {% endif %}
         </div>
@@ -233,15 +325,234 @@
         {% endif %}
     </div>
     
+    <!-- Filter Bottom Sheet -->
+    <div class="sheet-overlay" id="sheetOverlay" onclick="closeFilterSheet()"></div>
+    <div class="bottom-sheet" id="filterSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <h2 class="sheet-title">Filters</h2>
+        </div>
+        <div class="sheet-content">
+            <div class="sheet-section">
+                <div class="sheet-section-label">Rider Type</div>
+                <div class="sheet-options" id="riderOptions">
+                    <div class="sheet-option selected" data-group="rider" data-value="All" onclick="toggleOption(this)">
+                        <div class="sheet-checkbox">
+                            <svg class="sheet-checkbox-check" viewBox="0 0 12 12"><path d="M10.28 2.28a.75.75 0 0 1 0 1.06l-5.5 5.5a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06L4.5 7.56l4.97-4.97a.75.75 0 0 1 1.06 0Z"/></svg>
+                        </div>
+                        <span class="sheet-option-label">All</span>
+                    </div>
+                    {% for rt in rider_types %}
+                    <div class="sheet-option selected" data-group="rider" data-value="{{ rt }}" onclick="toggleOption(this)">
+                        <div class="sheet-checkbox">
+                            <svg class="sheet-checkbox-check" viewBox="0 0 12 12"><path d="M10.28 2.28a.75.75 0 0 1 0 1.06l-5.5 5.5a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06L4.5 7.56l4.97-4.97a.75.75 0 0 1 1.06 0Z"/></svg>
+                        </div>
+                        <span class="sheet-option-label">{{ rt }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="sheet-section">
+                <div class="sheet-section-label">Skill Level</div>
+                <div class="sheet-options" id="skillOptions">
+                    <div class="sheet-option selected" data-group="skill" data-value="All" onclick="toggleOption(this)">
+                        <div class="sheet-checkbox">
+                            <svg class="sheet-checkbox-check" viewBox="0 0 12 12"><path d="M10.28 2.28a.75.75 0 0 1 0 1.06l-5.5 5.5a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06L4.5 7.56l4.97-4.97a.75.75 0 0 1 1.06 0Z"/></svg>
+                        </div>
+                        <span class="sheet-option-label">All</span>
+                    </div>
+                    {% for skill in ['Beginner', 'Intermediate', 'Advanced', 'Expert'] %}
+                    <div class="sheet-option selected" data-group="skill" data-value="{{ skill }}" onclick="toggleOption(this)">
+                        <div class="sheet-checkbox">
+                            <svg class="sheet-checkbox-check" viewBox="0 0 12 12"><path d="M10.28 2.28a.75.75 0 0 1 0 1.06l-5.5 5.5a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06L4.5 7.56l4.97-4.97a.75.75 0 0 1 1.06 0Z"/></svg>
+                        </div>
+                        <span class="sheet-option-label">{{ skill }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="sheet-section">
+                <div class="sheet-section-label">Pass</div>
+                <div class="sheet-options" id="passOptions">
+                    <div class="sheet-option selected" data-group="pass" data-value="All" onclick="toggleOption(this)">
+                        <div class="sheet-checkbox">
+                            <svg class="sheet-checkbox-check" viewBox="0 0 12 12"><path d="M10.28 2.28a.75.75 0 0 1 0 1.06l-5.5 5.5a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06L4.5 7.56l4.97-4.97a.75.75 0 0 1 1.06 0Z"/></svg>
+                        </div>
+                        <span class="sheet-option-label">All</span>
+                    </div>
+                    {% for pass_opt in ['Epic', 'Ikon', 'Other'] %}
+                    <div class="sheet-option selected" data-group="pass" data-value="{{ pass_opt }}" onclick="toggleOption(this)">
+                        <div class="sheet-checkbox">
+                            <svg class="sheet-checkbox-check" viewBox="0 0 12 12"><path d="M10.28 2.28a.75.75 0 0 1 0 1.06l-5.5 5.5a.75.75 0 0 1-1.06 0l-2.5-2.5a.75.75 0 1 1 1.06-1.06L4.5 7.56l4.97-4.97a.75.75 0 0 1 1.06 0Z"/></svg>
+                        </div>
+                        <span class="sheet-option-label">{{ pass_opt }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="sheet-footer">
+            <button class="sheet-btn sheet-btn-secondary" onclick="clearSheetFilters()">Clear all</button>
+            <button class="sheet-btn sheet-btn-primary" onclick="applyFilters()">Apply filters</button>
+        </div>
+    </div>
+    
     <script>
-        function toggleFilterPanel() {
-            const panel = document.getElementById('filter-panel');
-            panel.classList.toggle('active');
+        const RIDER_TYPES = {{ rider_types|tojson }};
+        const SKILL_LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
+        const PASS_OPTIONS = ['Epic', 'Ikon', 'Other'];
+        
+        // Current filter state from URL
+        const currentFilters = {
+            rider: {{ selected_riders|tojson if selected_riders else '[]' }},
+            skill: {{ selected_skills|tojson if selected_skills else '[]' }},
+            pass: {{ selected_passes|tojson if selected_passes else '[]' }}
+        };
+        
+        function openFilterSheet() {
+            document.getElementById('sheetOverlay').classList.add('active');
+            document.getElementById('filterSheet').classList.add('active');
+            document.body.style.overflow = 'hidden';
+            syncSheetState();
         }
         
-        {% if active_filter_count > 0 %}
-        document.getElementById('filter-panel').classList.add('active');
-        {% endif %}
+        function closeFilterSheet() {
+            document.getElementById('sheetOverlay').classList.remove('active');
+            document.getElementById('filterSheet').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        
+        function syncSheetState() {
+            // Sync rider options
+            document.querySelectorAll('#riderOptions .sheet-option').forEach(opt => {
+                const val = opt.dataset.value;
+                if (val === 'All') {
+                    const isAll = currentFilters.rider.length === 0 || currentFilters.rider.length === RIDER_TYPES.length;
+                    opt.classList.toggle('selected', isAll);
+                } else {
+                    const isSelected = currentFilters.rider.length === 0 || currentFilters.rider.includes(val);
+                    opt.classList.toggle('selected', isSelected);
+                }
+            });
+            
+            // Sync skill options
+            document.querySelectorAll('#skillOptions .sheet-option').forEach(opt => {
+                const val = opt.dataset.value;
+                if (val === 'All') {
+                    const isAll = currentFilters.skill.length === 0 || currentFilters.skill.length === SKILL_LEVELS.length;
+                    opt.classList.toggle('selected', isAll);
+                } else {
+                    const isSelected = currentFilters.skill.length === 0 || currentFilters.skill.includes(val);
+                    opt.classList.toggle('selected', isSelected);
+                }
+            });
+            
+            // Sync pass options
+            document.querySelectorAll('#passOptions .sheet-option').forEach(opt => {
+                const val = opt.dataset.value;
+                if (val === 'All') {
+                    const isAll = currentFilters.pass.length === 0 || currentFilters.pass.length === PASS_OPTIONS.length;
+                    opt.classList.toggle('selected', isAll);
+                } else {
+                    const isSelected = currentFilters.pass.length === 0 || currentFilters.pass.includes(val);
+                    opt.classList.toggle('selected', isSelected);
+                }
+            });
+        }
+        
+        function toggleOption(el) {
+            const group = el.dataset.group;
+            const value = el.dataset.value;
+            const container = el.parentElement;
+            const allOptions = Array.from(container.querySelectorAll('.sheet-option'));
+            const allOption = allOptions.find(o => o.dataset.value === 'All');
+            const individualOptions = allOptions.filter(o => o.dataset.value !== 'All');
+            
+            if (value === 'All') {
+                // Toggle all: if currently all selected, deselect (but spec says never empty, so re-select all)
+                const allSelected = allOption.classList.contains('selected');
+                allOptions.forEach(o => o.classList.add('selected'));
+            } else {
+                // Toggle individual option
+                el.classList.toggle('selected');
+                
+                // Check if all individual options are now selected
+                const allIndividualSelected = individualOptions.every(o => o.classList.contains('selected'));
+                const noneSelected = individualOptions.every(o => !o.classList.contains('selected'));
+                
+                if (allIndividualSelected) {
+                    allOption.classList.add('selected');
+                } else if (noneSelected) {
+                    // Never allow empty - revert to All
+                    allOptions.forEach(o => o.classList.add('selected'));
+                } else {
+                    allOption.classList.remove('selected');
+                }
+            }
+        }
+        
+        function getSelectedValues(containerId, allValues) {
+            const container = document.getElementById(containerId);
+            const allOption = container.querySelector('[data-value="All"]');
+            
+            if (allOption.classList.contains('selected')) {
+                return []; // Empty means all (no filter)
+            }
+            
+            const selected = [];
+            container.querySelectorAll('.sheet-option').forEach(opt => {
+                if (opt.dataset.value !== 'All' && opt.classList.contains('selected')) {
+                    selected.push(opt.dataset.value);
+                }
+            });
+            return selected;
+        }
+        
+        function applyFilters() {
+            const riders = getSelectedValues('riderOptions', RIDER_TYPES);
+            const skills = getSelectedValues('skillOptions', SKILL_LEVELS);
+            const passes = getSelectedValues('passOptions', PASS_OPTIONS);
+            
+            const params = new URLSearchParams();
+            if (riders.length > 0) {
+                riders.forEach(r => params.append('rider', r));
+            }
+            if (skills.length > 0) {
+                skills.forEach(s => params.append('skill', s));
+            }
+            if (passes.length > 0) {
+                passes.forEach(p => params.append('pass', p));
+            }
+            
+            window.location.href = '/friends' + (params.toString() ? '?' + params.toString() : '');
+        }
+        
+        function clearSheetFilters() {
+            document.querySelectorAll('.sheet-option').forEach(opt => {
+                opt.classList.add('selected');
+            });
+        }
+        
+        function clearAllFilters() {
+            window.location.href = '/friends';
+        }
+        
+        // Touch gesture for dismissing sheet
+        let touchStartY = 0;
+        const sheet = document.getElementById('filterSheet');
+        
+        sheet.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+        
+        sheet.addEventListener('touchmove', (e) => {
+            const deltaY = e.touches[0].clientY - touchStartY;
+            if (deltaY > 100) {
+                closeFilterSheet();
+            }
+        }, { passive: true });
     </script>
     
     {% include 'components/bottom_nav.html' %}

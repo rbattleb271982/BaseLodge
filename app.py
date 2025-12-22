@@ -1054,25 +1054,39 @@ def friends():
         ).count()
         friend._upcoming_trip_count = upcoming_count
     
-    # Get filter params (optional filters)
-    pass_filter = request.args.get("pass")
-    skill_filter = request.args.get("skill")
-    rider_filter = request.args.get("rider")
+    # Get multi-select filter params
+    selected_riders = request.args.getlist("rider")
+    selected_skills = request.args.getlist("skill")
+    selected_passes = request.args.getlist("pass")
     
     # Apply optional filters
     friends_list = all_friends_sorted
     active_filter_count = 0
     
-    if pass_filter and pass_filter != "All":
-        friends_list = [f for f in friends_list if pass_category(f.pass_type) == pass_filter]
+    # Pass filtering (using pass_category helper)
+    if selected_passes and len(selected_passes) < 3:  # Less than all options
+        friends_list = [f for f in friends_list if pass_category(f.pass_type) in selected_passes]
         active_filter_count += 1
     
-    if skill_filter:
-        friends_list = [f for f in friends_list if f.skill_level == skill_filter]
+    # Skill filtering
+    if selected_skills and len(selected_skills) < 4:  # Less than all skill levels
+        friends_list = [f for f in friends_list if f.skill_level in selected_skills]
         active_filter_count += 1
     
-    if rider_filter:
-        friends_list = [f for f in friends_list if f.rider_type == rider_filter]
+    # Rider type filtering with "both" inclusion logic
+    if selected_riders and len(selected_riders) < len(RIDER_TYPES):
+        def matches_rider_filter(friend_rider_type):
+            if not friend_rider_type:
+                return False
+            # Direct match
+            if friend_rider_type in selected_riders:
+                return True
+            # "Both" inclusion: if user selected Skier or Snowboarder, include "Both" riders
+            if friend_rider_type.lower() == "both":
+                if "Skier" in selected_riders or "Snowboarder" in selected_riders:
+                    return True
+            return False
+        friends_list = [f for f in friends_list if matches_rider_filter(f.rider_type)]
         active_filter_count += 1
     
     return render_template(
@@ -1081,9 +1095,10 @@ def friends():
         friends=friends_list,
         count_all=len(all_friends_sorted),
         active_filter_count=active_filter_count,
-        pass_filter=pass_filter or "All",
-        skill_filter=skill_filter,
-        rider_filter=rider_filter
+        selected_riders=selected_riders,
+        selected_skills=selected_skills,
+        selected_passes=selected_passes,
+        rider_types=RIDER_TYPES
     )
 
 @app.route("/friends/<int:friend_id>")
