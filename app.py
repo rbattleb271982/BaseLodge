@@ -2636,19 +2636,22 @@ def mountains_visited():
         for mtn in state_mountains:
             all_mountains.append(mtn)
             mountains_with_state[mtn] = state
-    all_mountains = sorted(list(set(all_mountains)))
+    all_mountains_set = set(all_mountains)
+    all_mountains = sorted(list(all_mountains_set))
     
     if request.method == "POST":
         selected_mountains = request.form.getlist("mountains")
         
         resort_ids = []
+        seen_ids = set()
         for mountain_name in selected_mountains:
             state_code = mountains_with_state.get(mountain_name)
             resort = find_resort_by_name(mountain_name, state_code)
-            if resort:
+            if resort and resort.id not in seen_ids:
                 resort_ids.append(resort.id)
+                seen_ids.add(resort.id)
         
-        user.visited_resort_ids = list(set(resort_ids))
+        user.visited_resort_ids = resort_ids
         user.mountains_visited = selected_mountains
         
         try:
@@ -2660,14 +2663,21 @@ def mountains_visited():
             flash("Something went wrong while saving. Please try again.", "error")
             return redirect(url_for("mountains_visited"))
     
+    selected_mountains = []
+    seen_names = set()
+    
+    legacy_mountains = user.mountains_visited or []
+    for name in legacy_mountains:
+        if name not in seen_names:
+            selected_mountains.append(name)
+            seen_names.add(name)
+    
     if user.visited_resort_ids and len(user.visited_resort_ids) > 0:
         visited_resorts = Resort.query.filter(Resort.id.in_(user.visited_resort_ids)).all()
-        selected_mountains = [r.name for r in visited_resorts if r.name in all_mountains]
-        for legacy_name in (user.mountains_visited or []):
-            if legacy_name in all_mountains and legacy_name not in selected_mountains:
-                selected_mountains.append(legacy_name)
-    else:
-        selected_mountains = user.mountains_visited or []
+        for resort in visited_resorts:
+            if resort.name not in seen_names:
+                selected_mountains.append(resort.name)
+                seen_names.add(resort.name)
     
     mountains_visited_count = len(selected_mountains)
     states = sorted(MOUNTAINS_BY_STATE.keys())
