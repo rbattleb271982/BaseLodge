@@ -347,7 +347,7 @@ def get_states_by_country():
     
     return country_states
 
-RIDER_TYPES = ["Skier", "Snowboarder", "Telemarking", "Snowshoeing", "Cross-Country", "Adaptive", "Other"]
+RIDER_TYPES = ["Skier", "Snowboarder", "Telemark", "Cross-Country", "Adaptive"]
 
 def normalize_rider_type(rider_type):
     """Map 'Both' to 'Skier' for display. All other values pass through."""
