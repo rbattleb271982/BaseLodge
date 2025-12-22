@@ -1,0 +1,116 @@
+Add “Cross-Country” as a supported Rider Type and ensure it appears everywhere rider type is used in the app, including onboarding, profile editing, filters, friend views, and trip-related displays. Rider Type options must be consistent across all surfaces.
+
+This is a data-consistency and UI update. Do not change database schema.
+
+⸻
+
+SECTION 1: Source of truth for rider types
+	1.	Centralize rider type definitions
+Identify the existing source of truth used for Rider Types during onboarding (constants, enum, config, helper, or shared list).
+
+Update that source to include the following complete set of rider types:
+	•	Skier
+	•	Snowboarder
+	•	Telemarking
+	•	Snowshoeing
+	•	Cross-Country
+	•	Adaptive
+	•	Other
+
+Do not create multiple rider type lists in different files. All Rider Type UIs must reference this same source.
+
+⸻
+
+SECTION 2: Onboarding flow
+	2.	Onboarding rider type selection
+Ensure the onboarding Rider Type selection includes “Cross-Country” alongside the existing options.
+
+Behavior:
+	•	Single-select (radio buttons)
+	•	Persist value to the existing rider_type field
+	•	No UI redesign
+
+⸻
+
+SECTION 3: Profile Details page
+	3.	Profile rider type editing
+Update the Rider Type section on the Profile Details page to use the same centralized rider type list, including “Cross-Country”.
+
+Rules:
+	•	Single-select behavior remains
+	•	Preselect the user’s existing rider_type value
+	•	If an existing value is not recognized, default to “Other” and allow reselection
+
+⸻
+
+SECTION 4: Friends and social surfaces
+	4.	Friend profile display
+Ensure “Cross-Country” displays correctly wherever a friend’s rider type is shown:
+
+	•	Friend profile header
+	•	Friend cards
+	•	Friends’ Trips
+	•	Any identity summary rows
+
+No truncation or fallback to generic labels.
+
+⸻
+
+SECTION 5: Filters (where rider type filtering exists)
+	5.	Rider type filters
+Wherever rider type is used as a filter (e.g., Friends filtering):
+
+	•	Include “Cross-Country” as an option
+	•	Filtering must treat it as a first-class rider type
+	•	Do not exclude Cross-Country users unless explicitly filtered out
+
+Use the same centralized rider type list.
+
+⸻
+
+SECTION 6: Trips and trip details
+	6.	Trip-related displays
+Where rider type appears in trip-related contexts (friend trip views, ride context, etc.):
+
+	•	Ensure “Cross-Country” is rendered correctly
+	•	No assumptions that rider type is downhill-only
+
+This is a display update only.
+
+⸻
+
+SECTION 7: Data handling rules
+	7.	Storage and compatibility
+
+	•	Do not change database schema
+	•	Continue using the existing rider_type field
+	•	Existing users retain their current rider_type values
+	•	“Cross-Country” is simply an additional allowed value
+
+⸻
+
+SECTION 8: Non-goals
+	•	Do not redesign UI layouts
+	•	Do not add multi-select rider types
+	•	Do not add new database fields or tables
+	•	Do not refactor unrelated code
+
+⸻
+
+SECTION 9: Testing requirements
+	•	“Cross-Country” appears in onboarding rider type selection
+	•	“Cross-Country” appears in Profile Details rider type editing
+	•	“Cross-Country” displays correctly on friend profiles and lists
+	•	“Cross-Country” is available in rider type filters
+	•	Selecting and saving “Cross-Country” persists correctly
+	•	Existing rider types remain unaffected
+	•	Mobile layouts remain intact
+
+⸻
+
+Agent instructions
+	•	Update the shared rider type source first
+	•	Ensure all usages reference that same source
+	•	Make the smallest possible changes
+	•	Fully test before marking complete
+	•	Do not refactor unrelated files
