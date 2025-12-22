@@ -4133,6 +4133,142 @@ def seed_eastern_resorts_endpoint():
         }), 500
 
 
+@app.route("/admin/seed-canadian-resorts", methods=["GET", "POST"])
+def seed_canadian_resorts_endpoint():
+    """
+    HTTP endpoint to add missing Canadian ski resorts.
+    
+    Usage: GET https://yourapp.replit.dev/admin/seed-canadian-resorts
+    
+    This is idempotent - safe to call multiple times.
+    Only creates resorts that don't already exist (checked by slug).
+    """
+    try:
+        resorts_by_province = {
+            "BC": {
+                "state_full": "British Columbia",
+                "resorts": [
+                    {"name": "Whistler Blackcomb", "slug": "whistler-blackcomb", "brand": "Epic", "pass_brands": "Epic"},
+                    {"name": "Revelstoke", "slug": "revelstoke", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Sun Peaks", "slug": "sun-peaks", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Red Mountain", "slug": "red-mountain", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Panorama", "slug": "panorama", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Cypress Mountain", "slug": "cypress-mountain", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Big White", "slug": "big-white", "brand": "Other", "pass_brands": None},
+                    {"name": "SilverStar", "slug": "silverstar", "brand": "Other", "pass_brands": None},
+                    {"name": "Fernie", "slug": "fernie", "brand": "Other", "pass_brands": None},
+                    {"name": "Kicking Horse", "slug": "kicking-horse", "brand": "Other", "pass_brands": None},
+                    {"name": "Whitewater", "slug": "whitewater", "brand": "Other", "pass_brands": None},
+                    {"name": "Kimberley", "slug": "kimberley", "brand": "Other", "pass_brands": None},
+                    {"name": "Manning Park", "slug": "manning-park", "brand": "Other", "pass_brands": None},
+                    {"name": "Sasquatch Mountain", "slug": "sasquatch-mountain", "brand": "Other", "pass_brands": None},
+                    {"name": "Apex Mountain", "slug": "apex-mountain", "brand": "Indy", "pass_brands": "Indy"},
+                ]
+            },
+            "AB": {
+                "state_full": "Alberta",
+                "resorts": [
+                    {"name": "Lake Louise", "slug": "lake-louise", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Sunshine Village", "slug": "sunshine-village", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Marmot Basin", "slug": "marmot-basin", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Norquay", "slug": "norquay", "brand": "Other", "pass_brands": None},
+                    {"name": "Castle Mountain", "slug": "castle-mountain", "brand": "Indy", "pass_brands": "Indy"},
+                ]
+            },
+            "ON": {
+                "state_full": "Ontario",
+                "resorts": [
+                    {"name": "Blue Mountain", "slug": "blue-mountain-on", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Mount St. Louis Moonstone", "slug": "mount-st-louis-moonstone", "brand": "Other", "pass_brands": None},
+                    {"name": "Horseshoe Resort", "slug": "horseshoe-resort", "brand": "Other", "pass_brands": None},
+                    {"name": "Glen Eden", "slug": "glen-eden", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "QC": {
+                "state_full": "Quebec",
+                "resorts": [
+                    {"name": "Tremblant", "slug": "tremblant", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Le Massif", "slug": "le-massif", "brand": "Other", "pass_brands": None},
+                    {"name": "Mont Sainte-Anne", "slug": "mont-sainte-anne", "brand": "Other", "pass_brands": None},
+                    {"name": "Bromont", "slug": "bromont", "brand": "Other", "pass_brands": None},
+                    {"name": "Stoneham", "slug": "stoneham", "brand": "Other", "pass_brands": None},
+                    {"name": "Mont Orford", "slug": "mont-orford", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "NS": {
+                "state_full": "Nova Scotia",
+                "resorts": [
+                    {"name": "Ski Martock", "slug": "ski-martock", "brand": "Other", "pass_brands": None},
+                    {"name": "Wentworth", "slug": "wentworth", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "NL": {
+                "state_full": "Newfoundland",
+                "resorts": [
+                    {"name": "Marble Mountain", "slug": "marble-mountain", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "MB": {
+                "state_full": "Manitoba",
+                "resorts": [
+                    {"name": "Holiday Mountain", "slug": "holiday-mountain", "brand": "Other", "pass_brands": None},
+                    {"name": "Asessippi", "slug": "asessippi", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "SK": {
+                "state_full": "Saskatchewan",
+                "resorts": [
+                    {"name": "Table Mountain", "slug": "table-mountain", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "YT": {
+                "state_full": "Yukon",
+                "resorts": [
+                    {"name": "Mount Sima", "slug": "mount-sima", "brand": "Other", "pass_brands": None},
+                ]
+            },
+        }
+        
+        created = []
+        existed = []
+        
+        for province_code, province_data in resorts_by_province.items():
+            for resort_data in province_data["resorts"]:
+                existing = Resort.query.filter_by(slug=resort_data["slug"]).first()
+                if existing:
+                    existed.append(f"{resort_data['name']} ({province_code})")
+                else:
+                    new_resort = Resort(
+                        name=resort_data["name"],
+                        slug=resort_data["slug"],
+                        state=province_code,
+                        state_full=province_data["state_full"],
+                        country="CA",
+                        brand=resort_data["brand"],
+                        pass_brands=resort_data["pass_brands"],
+                        is_active=True
+                    )
+                    db.session.add(new_resort)
+                    created.append(f"{resort_data['name']} ({province_code})")
+        
+        db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Created {len(created)} resorts, {len(existed)} already existed",
+            "created": created,
+            "already_existed": existed
+        }), 200
+    except Exception as e:
+        import traceback
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to seed Canadian resorts: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 @app.route("/open-data-debug")
 @login_required
 def open_data_debug():
