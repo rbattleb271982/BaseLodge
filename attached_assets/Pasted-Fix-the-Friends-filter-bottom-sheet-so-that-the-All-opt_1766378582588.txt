@@ -1,0 +1,111 @@
+Fix the Friends filter bottom sheet so that the “All” option behaves as a true master toggle (same behavior as Clear), and tighten the mobile layout so filters take up significantly less vertical space.
+
+Scope and requirements
+	1.	Master “All” behavior (critical)
+Apply this logic independently to each filter group (Rider Type, Skill Level, Pass).
+
+Rules:
+	•	“All” is selected by default
+	•	When “All” is checked, all individual options are checked and no filtering is applied
+	•	When “All” is unchecked, ALL individual options are immediately unchecked (same result as Clear)
+	•	If the user checks any individual option, “All” automatically becomes unchecked
+	•	If the user checks all individual options, “All” automatically becomes checked again
+	•	If the user unchecks all individual options, automatically revert to “All”
+	•	Never allow a partially-selected state where “All” is unchecked but individual options remain selected
+
+Unchecking “All” must behave identically to tapping “Clear all”.
+	2.	Rider Type options
+The Rider Type filter must include ALL rider types supported by the app.
+
+At minimum, include:
+	•	All
+	•	Skier
+	•	Snowboarder
+	•	Telemarking
+	•	Snowshoeing
+	•	Adaptive
+	•	Other
+
+Do not hard-code logic assuming only skier/snowboarder exists.
+	3.	Rider Type filtering logic
+Filtering must be inclusive and future-proof.
+
+Rules:
+	•	If “All” is selected, do not apply a rider type filter
+	•	Otherwise, include users whose rider_type value is in the selected set
+	•	Users with rider_type = “both” must be included when Skier or Snowboarder is selected
+	•	Do not exclude Adaptive, Telemarking, or other rider types unless explicitly unchecked by the user
+
+Examples:
+	•	Selected: Skier → include skier and both
+	•	Selected: Snowboarder → include snowboarder and both
+	•	Selected: Skier + Telemarking → include skier, telemarking, and both
+	•	Selected: Adaptive only → include adaptive only
+
+	4.	Skill Level options
+Skill Level filter options:
+
+	•	All
+	•	Beginner
+	•	Intermediate
+	•	Advanced
+	•	Expert
+
+Use the same master “All” behavior rules as Rider Type.
+	5.	Pass options
+Pass filter options:
+
+	•	All
+	•	Epic
+	•	Ikon
+	•	Other
+
+Use the same master “All” behavior rules as Rider Type.
+	6.	Compact mobile layout (important)
+Tighten the filter UI to reduce vertical height.
+
+Requirements:
+	•	“All” appears on its own row at the top of each filter group
+	•	All other options are displayed in a two-column grid below “All”
+	•	Reduce vertical padding between rows while keeping tap targets accessible
+	•	Remove divider lines between options
+	•	Section headers should be visually lighter and smaller than the options
+	•	Filters should feel secondary to content, not dominant
+
+	7.	Bottom sheet behavior
+
+	•	Bottom sheet height should be approximately 85–90% of the screen
+	•	Content scrolls if needed
+	•	Footer with “Clear all” and “Apply filters” remains sticky
+	•	Sheet is dismissible via swipe down or backdrop tap
+
+	8.	Filter bar behavior
+
+	•	The Friends screen shows a single filter bar (no inline filters)
+	•	Display “Filter • X active” only when filters are not in the default All state
+	•	Tapping “Clear” resets all filters to All and refreshes the list
+
+	9.	Backend filtering
+
+	•	Apply filters only when selected values are a strict subset of all values
+	•	Use inclusion logic (IN queries), not equality checks
+	•	Skip filtering entirely when “All” is active for a filter group
+
+	10.	Non-goals
+Do not redesign friend cards
+Do not add sorting
+Do not add filter chips
+Do not change database schema
+	11.	Testing requirements
+Verify default state shows all friends
+Verify unchecking “All” clears all selections
+Verify “All” and “Clear all” produce identical results
+Verify rider types (including Adaptive and Telemarking) filter correctly
+Verify users with rider_type = “both” appear correctly
+Verify no empty result states
+Verify mobile viewport behavior
+
+Agent instructions
+Use minimal checkpoints
+Test before marking complete
+Do not refactor unrelated code
