@@ -52,8 +52,8 @@ def load_user(user_id):
 def identity_line_filter(user):
     """
     Centralized identity formatter for user profile display.
-    Format: Rider Type · Passes · Skill Level
-    - Rider type: Primary only (compact display)
+    Format: Rider Types · Passes · Skill Level
+    - Rider types: All types joined with " & " (e.g., "Skier & Snowboarder")
     - Passes: All passes listed individually, never "Both"
     - Skill level: Last if present
     - Home state: Excluded from identity line
@@ -63,10 +63,20 @@ def identity_line_filter(user):
     
     parts = []
     
-    # Rider type (primary only, compact)
-    rider = user.primary_rider_type or getattr(user, 'rider_type', None)
-    if rider:
-        parts.append(rider)
+    # Rider types (all types, multi-select)
+    if user.rider_types and len(user.rider_types) > 0:
+        rider_str = ' & '.join(user.rider_types)
+        parts.append(rider_str)
+    else:
+        # Legacy fallback
+        primary = user.primary_rider_type or getattr(user, 'rider_type', None)
+        if primary:
+            secondary = user.secondary_rider_types or []
+            if secondary:
+                rider_str = f"{primary} & {' & '.join(secondary)}"
+            else:
+                rider_str = primary
+            parts.append(rider_str)
     
     # Passes (all listed individually, never "Both")
     if user.pass_type:
@@ -109,9 +119,10 @@ def before_request_handlers():
     if request.endpoint in excluded_endpoints:
         return None
     if current_user.is_authenticated:
-        # Check for profile completion using primary_rider_type with fallback to legacy rider_type
-        has_rider_type = current_user.primary_rider_type or current_user.rider_type
-        if not has_rider_type or not current_user.pass_type:
+        # Check for profile completion: rider_types (new) or primary_rider_type/rider_type (legacy) + pass_type
+        has_rider_types = current_user.rider_types and len(current_user.rider_types) > 0
+        has_rider_type_legacy = current_user.primary_rider_type or current_user.rider_type
+        if not (has_rider_types or has_rider_type_legacy) or not current_user.pass_type:
             return redirect(url_for('setup_profile'))
     return None
 
@@ -743,19 +754,14 @@ def setup_profile():
     user = current_user
     
     if request.method == "POST":
-        primary_rider_type = request.form.get("primary_rider_type")
-        secondary_rider_types = request.form.getlist("secondary_rider_types")
+        rider_types = request.form.getlist("rider_types")
         passes = request.form.getlist("pass_type")
 
-        if not primary_rider_type:
-            flash("Please select your primary rider type.", "error")
+        if not rider_types:
+            flash("Please select at least one rider type.", "error")
             return redirect(url_for("setup_profile"))
-        
-        # Validate secondary rider types (max 2, no overlap with primary)
-        secondary_rider_types = [rt for rt in secondary_rider_types if rt != primary_rider_type][:2]
 
-        user.primary_rider_type = primary_rider_type
-        user.secondary_rider_types = secondary_rider_types if secondary_rider_types else []
+        user.rider_types = rider_types
         user.pass_type = ",".join(sorted(set(passes))) if passes else "None"
         user.onboarding_completed_at = datetime.utcnow()
         user.update_lifecycle_stage()
@@ -786,16 +792,10 @@ def edit_profile():
         birth_year_raw = request.form.get("birth_year")
         user.birth_year = int(birth_year_raw) if birth_year_raw else None
         
-        # Handle primary and secondary rider types
-        primary_rider_type = request.form.get("primary_rider_type")
-        if primary_rider_type:
-            user.primary_rider_type = primary_rider_type
-            # Parse secondary rider types from comma-separated string
-            secondary_raw = request.form.get("secondary_rider_types", "")
-            secondary_list = [rt.strip() for rt in secondary_raw.split(",") if rt.strip()]
-            # Validate: remove overlap with primary, max 2
-            secondary_list = [rt for rt in secondary_list if rt != primary_rider_type][:2]
-            user.secondary_rider_types = secondary_list if secondary_list else []
+        # Handle rider types (multi-select)
+        rider_types_raw = request.form.get("rider_types", "")
+        rider_types = [rt.strip() for rt in rider_types_raw.split(",") if rt.strip()]
+        user.rider_types = rider_types if rider_types else []
         
         passes_raw = request.form.get("pass_type", "")
         passes = [p.strip() for p in passes_raw.split(",") if p.strip()]

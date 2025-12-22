@@ -25,14 +25,19 @@ Card designs for Home and Friend Profiles follow a 5-row structure detailing Nam
 Friends List uses a 2-row structure for Name, Status, Rider Type, Passes, and Skill Level.
 
 ### Centralized Identity Formatter
-All identity lines use a `{{ user|identity_line }}` Jinja2 filter. The format is `Rider Type · Pass1 · Pass2 · Skill Level`. Rules include using only primary rider type, listing all passes individually, and placing skill level last. "Both" is never allowed in pass display. Typography scales are increased for card contexts.
+All identity lines use a `{{ user|identity_line }}` Jinja2 filter. The format is `Rider Types · Pass1 · Pass2 · Skill Level`. Rules include:
+- **Rider Types:** Multi-select display, all types joined with " & " (e.g., "Skier & Snowboarder")
+- **Passes:** All passes listed individually, never "Both"
+- **Skill Level:** Last if present
+- Home state excluded from identity line
+- Typography scales are increased for card contexts
 
 ### Technical Implementations
 The backend uses Flask, SQLAlchemy for ORM, and Werkzeug for password hashing. Jinja2 handles templating with custom CSS and Vanilla JS for interactivity and AJAX. Flask-Login provides session-based authentication. An event system captures high-signal user actions for notifications. User lifecycle stages (`new`, `onboarding`, `active`) and canonical user states (`is_core_profile_complete`, `has_started_planning`, `is_active_user`) dictate UI and feature availability.
 
 ### Feature Specifications
-- **Authentication & Onboarding:** Modern signup/login with simplified one-step onboarding.
-- **User Profile:** Comprehensive profiles (rider types, pass, skill, home state, equipment, visited mountains) within a "Settings" page.
+- **Authentication & Onboarding:** Modern signup/login with simplified one-step onboarding. Rider type uses multi-select checkboxes.
+- **User Profile:** Comprehensive profiles (multi-select rider types, pass, skill, home state, equipment, visited mountains) within a "Settings" page.
 - **Trip Management:** Create trips with country-first location, dates, public toggles, ride intent. Displayed in 3 tabs (My Trips, Friends' Trips, Overlaps). Auto-calculates duration. Date validation enforces future dates for new trips. Prevents duplicate active trips at the same resort. Includes resort search and filters.
 - **Friends System:** Invitation-based, bidirectional friendships with dedicated profiles supporting token-based invites.
 - **Pass Selection:** Quick-select for Epic/Ikon, "Other passes" dropdown, or "I don't have a pass."

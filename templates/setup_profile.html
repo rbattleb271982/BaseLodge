@@ -187,31 +187,16 @@
             
             <form method="POST" action="{{ url_for('setup_profile') }}" id="setup-form">
                 <div class="setup-section">
-                    <label class="setup-label">Primary rider type</label>
-                    <p class="pass-description">The way you ride most often</p>
-                    <div class="radio-group" id="primary-rider-group">
+                    <label class="setup-label">Rider type</label>
+                    <p class="pass-description">How you ride</p>
+                    <div class="checkbox-group" id="rider-types-group">
                         {% for rider_type in rider_types %}
-                        <label class="radio-label">
-                            <input type="radio" name="primary_rider_type" value="{{ rider_type }}">
-                            <span>{{ rider_type }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                    <p class="pass-description" style="margin-top: 8px;">Add more later.</p>
-                </div>
-                
-                <div class="setup-section">
-                    <label class="setup-label">Secondary rider type (optional)</label>
-                    <p class="pass-description">Only if you ride another way sometimes</p>
-                    <div class="checkbox-group" id="secondary-rider-group">
-                        {% for rider_type in rider_types %}
-                        <div class="checkbox-item secondary-rider-item" data-value="{{ rider_type }}">
-                            <input type="checkbox" name="secondary_rider_types" value="{{ rider_type }}" id="secondary_{{ loop.index }}">
-                            <label for="secondary_{{ loop.index }}">{{ rider_type }}</label>
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="rider_types" value="{{ rider_type }}" id="rider_{{ loop.index }}">
+                            <label for="rider_{{ loop.index }}">{{ rider_type }}</label>
                         </div>
                         {% endfor %}
                     </div>
-                    <p class="pass-description" id="secondary-hint" style="margin-top: 6px; color: var(--bl-color-text-muted);">Select up to 2</p>
                 </div>
                 
                 <div class="setup-section">
@@ -235,62 +220,18 @@
     </div>
     
     <script>
-        const primaryRadios = document.querySelectorAll('input[name="primary_rider_type"]');
-        const secondaryCheckboxes = document.querySelectorAll('input[name="secondary_rider_types"]');
-        const secondaryItems = document.querySelectorAll('.secondary-rider-item');
-        const continueBtn = document.getElementById('continue-btn');
+        const riderTypeCheckboxes = document.querySelectorAll('input[name="rider_types"]');
         const passCheckboxes = document.querySelectorAll('input[name="pass_type"]');
-        
-        function getSelectedPrimary() {
-            const checked = document.querySelector('input[name="primary_rider_type"]:checked');
-            return checked ? checked.value : null;
-        }
-        
-        function updateSecondaryVisibility() {
-            const selectedPrimary = getSelectedPrimary();
-            secondaryItems.forEach(item => {
-                const value = item.dataset.value;
-                if (value === selectedPrimary) {
-                    item.style.display = 'none';
-                    item.querySelector('input').checked = false;
-                } else {
-                    item.style.display = 'flex';
-                }
-            });
-        }
+        const continueBtn = document.getElementById('continue-btn');
         
         function updateContinueButton() {
-            const primarySelected = getSelectedPrimary();
+            const riderSelected = Array.from(riderTypeCheckboxes).some(cb => cb.checked);
             const passSelected = Array.from(passCheckboxes).some(cb => cb.checked);
-            continueBtn.disabled = !(primarySelected && passSelected);
+            continueBtn.disabled = !(riderSelected && passSelected);
         }
         
-        function enforceMaxSecondary() {
-            const checked = Array.from(secondaryCheckboxes).filter(cb => cb.checked);
-            if (checked.length >= 2) {
-                secondaryCheckboxes.forEach(cb => {
-                    if (!cb.checked) {
-                        cb.disabled = true;
-                    }
-                });
-            } else {
-                secondaryCheckboxes.forEach(cb => {
-                    cb.disabled = false;
-                });
-            }
-        }
-        
-        primaryRadios.forEach(radio => {
-            radio.addEventListener('change', function() {
-                updateSecondaryVisibility();
-                updateContinueButton();
-            });
-        });
-        
-        secondaryCheckboxes.forEach(cb => {
-            cb.addEventListener('change', function() {
-                enforceMaxSecondary();
-            });
+        riderTypeCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateContinueButton);
         });
         
         passCheckboxes.forEach(checkbox => {
@@ -311,12 +252,12 @@
         });
         
         document.getElementById('setup-form').addEventListener('submit', (e) => {
-            const primarySelected = getSelectedPrimary();
+            const selectedRiders = Array.from(riderTypeCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
             const selectedPasses = Array.from(passCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
             
-            if (!primarySelected) {
+            if (selectedRiders.length === 0) {
                 e.preventDefault();
-                alert('Please select your primary rider type.');
+                alert('Please select at least one rider type.');
                 return;
             }
             if (!selectedPasses.length) {
