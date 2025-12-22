@@ -29,7 +29,7 @@ The application uses a mobile-first responsive design with a unified "BaseLodge"
 | 2. Identity | State · Rider Type · Pass · Skill | 0.95rem muted; shows "Complete your profile →" CTA if core fields missing |
 | 2b. Terrain | Terrain · [pref1], [pref2] (always shown) | 0.9rem muted; shows "Terrain · Edit" if empty |
 | 3. Equipment | Sport: Brand Model · Boots: Brand Model (conditional) | 0.9rem muted; only shown if equipment_status = have_own_equipment |
-| 4. Stats | Trips | Mountains | Wishlist (3 columns with vertical dividers) | Label: 0.75rem uppercase; Value: 1.15rem 600 weight |
+| 4. Stats | Trips | Visited ⛰️ | Bucket List ⛰️ (3 columns with vertical dividers) | Label: 0.75rem uppercase with SVG icon; Value: 1.15rem 600 weight; Empty state shows "Edit" link |
 
 **Profile Card Design Principle:**
 - Cards answer "Who is this person as a ski partner?" — read-only identity snapshot, not a configuration surface

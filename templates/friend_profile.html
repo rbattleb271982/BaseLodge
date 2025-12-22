@@ -92,6 +92,17 @@
             text-transform: uppercase;
             letter-spacing: 0.3px;
             margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+        }
+        .card-stat-label .stat-icon {
+            width: 12px;
+            height: 12px;
+            stroke-width: 2;
+            stroke: var(--bl-color-text-muted);
+            flex-shrink: 0;
         }
         .card-stat-value {
             font-size: 1.15rem;
@@ -177,14 +188,12 @@
             <!-- Row 1: Header (Name + Status) -->
             <div class="card-header-row">
                 <h1 class="card-name">{{ friend.first_name }} {{ friend.last_name }}</h1>
-                <span class="card-status {% if trips and trips|length > 0 %}card-status-active{% endif %}">
-                    {% if trips and trips|length > 0 %}
-                        {% set next_trip = trips[0] %}
-                        Next · {{ next_trip.start_date.strftime('%b %d') }}{% if next_trip.start_date != next_trip.end_date %}–{{ next_trip.end_date.strftime('%b %d') }}{% endif %}
-                    {% else %}
-                        No trips planned
-                    {% endif %}
+                {% if trips and trips|length > 0 %}
+                {% set next_trip = trips[0] %}
+                <span class="card-status card-status-active">
+                    Next · {{ next_trip.start_date.strftime('%b %d') }}{% if next_trip.start_date != next_trip.end_date %}–{{ next_trip.end_date.strftime('%b %d') }}{% endif %}
                 </span>
+                {% endif %}
             </div>
             
             <!-- Row 2: Identity (State · Rider Type · Pass · Skill) -->
@@ -210,18 +219,18 @@
             </div>
             {% endif %}
             
-            <!-- Row 4: Stats (Trips | Mountains | Wishlist) with vertical dividers -->
+            <!-- Row 4: Stats (Trips | Visited | Bucket List) with vertical dividers -->
             <div class="card-stats-row">
                 <div class="card-stat-col">
                     <div class="card-stat-label">Trips</div>
                     <div class="card-stat-value">{{ trips|length if trips else 0 }}</div>
                 </div>
                 <div class="card-stat-col">
-                    <div class="card-stat-label">Mountains</div>
+                    <div class="card-stat-label">Visited <svg class="stat-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 17H3"/></svg></div>
                     <div class="card-stat-value">{{ friend_mountains_count }}</div>
                 </div>
                 <div class="card-stat-col">
-                    <div class="card-stat-label">Wishlist</div>
+                    <div class="card-stat-label">Bucket List <svg class="stat-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 17H3"/></svg></div>
                     <div class="card-stat-value">{{ friend_wish_list|length if friend_wish_list else 0 }}</div>
                 </div>
             </div>

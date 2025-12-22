@@ -79,11 +79,31 @@
             text-transform: uppercase;
             letter-spacing: 0.3px;
             margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+        }
+        .card-stat-label .stat-icon {
+            width: 12px;
+            height: 12px;
+            stroke-width: 2;
+            stroke: var(--bl-color-text-muted);
+            flex-shrink: 0;
         }
         .card-stat-value {
             font-size: 1.15rem;
             font-weight: 600;
             color: var(--bl-color-text);
+        }
+        .card-stat-value.edit-link {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--bl-color-primary);
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         /* Expandable accordion for stats */
@@ -301,29 +321,29 @@
                     <div class="card-stat-label">Trips</div>
                     <div class="card-stat-value">{{ upcoming_trips|length }}</div>
                 </div>
-                <div class="card-stat-col" id="mountains-stat" onclick="toggleMountainsAccordion()">
-                    <div class="card-stat-label">Mountains</div>
-                    <div class="card-stat-value">{{ user_mountains|length if user_mountains else 0 }}</div>
+                <div class="card-stat-col" id="mountains-stat" {% if user_mountains and user_mountains|length > 0 %}onclick="toggleMountainsAccordion()"{% endif %}>
+                    <div class="card-stat-label">Visited <svg class="stat-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 17H3"/></svg></div>
+                    {% if user_mountains and user_mountains|length > 0 %}
+                    <div class="card-stat-value">{{ user_mountains|length }}</div>
                     <div class="stat-accordion" id="mountains-accordion">
-                        {% if user_mountains and user_mountains|length > 0 %}
                         <ul class="stat-accordion-list">
-                            {% for mtn in (user_mountains or [])[:5] %}
+                            {% for mtn in user_mountains[:5] %}
                             <li>{{ mtn }}</li>
                             {% endfor %}
-                            {% if (user_mountains or [])|length > 5 %}
-                            <li style="color: var(--bl-color-primary);">+ {{ (user_mountains or [])|length - 5 }} more</li>
+                            {% if user_mountains|length > 5 %}
+                            <li style="color: var(--bl-color-primary);">+ {{ user_mountains|length - 5 }} more</li>
                             {% endif %}
                         </ul>
-                        {% else %}
-                        <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">None yet</p>
-                        {% endif %}
                     </div>
+                    {% else %}
+                    <a href="{{ url_for('mountains_visited') }}" class="card-stat-value edit-link">Edit</a>
+                    {% endif %}
                 </div>
-                <div class="card-stat-col" id="wishlist-stat" onclick="toggleWishlistAccordion()">
-                    <div class="card-stat-label">Wishlist</div>
+                <div class="card-stat-col" id="wishlist-stat" {% if user_wishlist_resorts|length > 0 %}onclick="toggleWishlistAccordion()"{% endif %}>
+                    <div class="card-stat-label">Bucket List <svg class="stat-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 17H3"/></svg></div>
+                    {% if user_wishlist_resorts|length > 0 %}
                     <div class="card-stat-value">{{ user_wishlist_resorts|length }}</div>
                     <div class="stat-accordion" id="wishlist-accordion">
-                        {% if user_wishlist_resorts|length > 0 %}
                         <ul class="stat-accordion-list">
                             {% for resort in user_wishlist_resorts[:3] %}
                             <li>{{ resort.name }}</li>
@@ -332,10 +352,10 @@
                             <li style="color: var(--bl-color-primary);">+ {{ user_wishlist_resorts|length - 3 }} more</li>
                             {% endif %}
                         </ul>
-                        {% else %}
-                        <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">None yet</p>
-                        {% endif %}
                     </div>
+                    {% else %}
+                    <a href="{{ url_for('settings_wish_list') }}" class="card-stat-value edit-link">Edit</a>
+                    {% endif %}
                 </div>
             </div>
             
