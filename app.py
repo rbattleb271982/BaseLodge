@@ -3915,6 +3915,224 @@ def seed_western_resorts_endpoint():
         }), 500
 
 
+@app.route("/admin/seed-eastern-resorts", methods=["GET", "POST"])
+def seed_eastern_resorts_endpoint():
+    """
+    HTTP endpoint to add missing ski resorts for eastern/midwest US states.
+    
+    Usage: GET https://yourapp.replit.dev/admin/seed-eastern-resorts
+    
+    This is idempotent - safe to call multiple times.
+    Only creates resorts that don't already exist (checked by slug).
+    """
+    try:
+        resorts_by_state = {
+            "NE": {
+                "state_full": "Nebraska",
+                "resorts": [
+                    {"name": "Mt. Crescent Ski Area", "slug": "mt-crescent-ski-area", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "KS": {
+                "state_full": "Kansas",
+                "resorts": [
+                    {"name": "Snow Creek", "slug": "snow-creek", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "MN": {
+                "state_full": "Minnesota",
+                "resorts": [
+                    {"name": "Lutsen Mountains", "slug": "lutsen-mountains", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Afton Alps", "slug": "afton-alps", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Spirit Mountain", "slug": "spirit-mountain", "brand": "Other", "pass_brands": None},
+                    {"name": "Giants Ridge", "slug": "giants-ridge", "brand": "Other", "pass_brands": None},
+                    {"name": "Buck Hill", "slug": "buck-hill", "brand": "Other", "pass_brands": None},
+                    {"name": "Welch Village", "slug": "welch-village", "brand": "Other", "pass_brands": None},
+                    {"name": "Mount Kato", "slug": "mount-kato", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "WI": {
+                "state_full": "Wisconsin",
+                "resorts": [
+                    {"name": "Wilmot Mountain", "slug": "wilmot-mountain", "brand": "Epic", "pass_brands": "Epic"},
+                    {"name": "Granite Peak", "slug": "granite-peak", "brand": "Other", "pass_brands": None},
+                    {"name": "Cascade Mountain", "slug": "cascade-mountain", "brand": "Other", "pass_brands": None},
+                    {"name": "Devil's Head", "slug": "devils-head", "brand": "Other", "pass_brands": None},
+                    {"name": "Alpine Valley", "slug": "alpine-valley", "brand": "Other", "pass_brands": None},
+                    {"name": "Crystal Mountain WI", "slug": "crystal-mountain-wi", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "MO": {
+                "state_full": "Missouri",
+                "resorts": [
+                    {"name": "Hidden Valley MO", "slug": "hidden-valley-mo", "brand": "Epic", "pass_brands": "Epic"},
+                ]
+            },
+            "MI": {
+                "state_full": "Michigan",
+                "resorts": [
+                    {"name": "Boyne Mountain", "slug": "boyne-mountain", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Boyne Highlands", "slug": "boyne-highlands", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Crystal Mountain MI", "slug": "crystal-mountain-mi", "brand": "Other", "pass_brands": None},
+                    {"name": "Nubs Nob", "slug": "nubs-nob", "brand": "Other", "pass_brands": None},
+                    {"name": "Shanty Creek", "slug": "shanty-creek", "brand": "Other", "pass_brands": None},
+                    {"name": "Mount Bohemia", "slug": "mount-bohemia", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "NY": {
+                "state_full": "New York",
+                "resorts": [
+                    {"name": "Whiteface", "slug": "whiteface", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Gore Mountain", "slug": "gore-mountain", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Hunter Mountain", "slug": "hunter-mountain", "brand": "Epic", "pass_brands": "Epic"},
+                    {"name": "Belleayre", "slug": "belleayre", "brand": "Other", "pass_brands": None},
+                    {"name": "Windham", "slug": "windham", "brand": "Other", "pass_brands": None},
+                    {"name": "Holiday Valley", "slug": "holiday-valley", "brand": "Other", "pass_brands": None},
+                    {"name": "Bristol Mountain", "slug": "bristol-mountain", "brand": "Other", "pass_brands": None},
+                    {"name": "Greek Peak", "slug": "greek-peak", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "PA": {
+                "state_full": "Pennsylvania",
+                "resorts": [
+                    {"name": "Seven Springs", "slug": "seven-springs", "brand": "Epic", "pass_brands": "Epic"},
+                    {"name": "Hidden Valley PA", "slug": "hidden-valley-pa", "brand": "Epic", "pass_brands": "Epic"},
+                    {"name": "Laurel Mountain", "slug": "laurel-mountain", "brand": "Epic", "pass_brands": "Epic"},
+                    {"name": "Blue Mountain", "slug": "blue-mountain", "brand": "Other", "pass_brands": None},
+                    {"name": "Camelback", "slug": "camelback", "brand": "Other", "pass_brands": None},
+                    {"name": "Jack Frost", "slug": "jack-frost", "brand": "Other", "pass_brands": None},
+                    {"name": "Big Boulder", "slug": "big-boulder", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "VT": {
+                "state_full": "Vermont",
+                "resorts": [
+                    {"name": "Killington", "slug": "killington", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Pico", "slug": "pico", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Sugarbush", "slug": "sugarbush", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Stratton", "slug": "stratton", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Stowe", "slug": "stowe", "brand": "Epic", "pass_brands": "Epic"},
+                    {"name": "Okemo", "slug": "okemo", "brand": "Epic", "pass_brands": "Epic"},
+                    {"name": "Mount Snow", "slug": "mount-snow", "brand": "Epic", "pass_brands": "Epic"},
+                    {"name": "Jay Peak", "slug": "jay-peak", "brand": "Other", "pass_brands": None},
+                    {"name": "Smugglers Notch", "slug": "smugglers-notch", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "NH": {
+                "state_full": "New Hampshire",
+                "resorts": [
+                    {"name": "Attitash", "slug": "attitash", "brand": "Epic", "pass_brands": "Epic"},
+                    {"name": "Wildcat", "slug": "wildcat", "brand": "Epic", "pass_brands": "Epic"},
+                    {"name": "Loon Mountain", "slug": "loon-mountain", "brand": "Other", "pass_brands": None},
+                    {"name": "Cannon Mountain", "slug": "cannon-mountain", "brand": "Other", "pass_brands": None},
+                    {"name": "Bretton Woods", "slug": "bretton-woods", "brand": "Other", "pass_brands": None},
+                    {"name": "Waterville Valley", "slug": "waterville-valley", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "ME": {
+                "state_full": "Maine",
+                "resorts": [
+                    {"name": "Sugarloaf", "slug": "sugarloaf", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Sunday River", "slug": "sunday-river", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Saddleback", "slug": "saddleback", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "MA": {
+                "state_full": "Massachusetts",
+                "resorts": [
+                    {"name": "Wachusett Mountain", "slug": "wachusett-mountain", "brand": "Other", "pass_brands": None},
+                    {"name": "Berkshire East", "slug": "berkshire-east", "brand": "Other", "pass_brands": None},
+                    {"name": "Jiminy Peak", "slug": "jiminy-peak", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "CT": {
+                "state_full": "Connecticut",
+                "resorts": [
+                    {"name": "Mohawk Mountain", "slug": "mohawk-mountain", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "NJ": {
+                "state_full": "New Jersey",
+                "resorts": [
+                    {"name": "Mountain Creek", "slug": "mountain-creek", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "MD": {
+                "state_full": "Maryland",
+                "resorts": [
+                    {"name": "Wisp Resort", "slug": "wisp-resort", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "VA": {
+                "state_full": "Virginia",
+                "resorts": [
+                    {"name": "Wintergreen", "slug": "wintergreen", "brand": "Other", "pass_brands": None},
+                    {"name": "Massanutten", "slug": "massanutten", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "WV": {
+                "state_full": "West Virginia",
+                "resorts": [
+                    {"name": "Snowshoe Mountain", "slug": "snowshoe-mountain", "brand": "Ikon", "pass_brands": "Ikon"},
+                    {"name": "Timberline Mountain", "slug": "timberline-mountain", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "NC": {
+                "state_full": "North Carolina",
+                "resorts": [
+                    {"name": "Sugar Mountain", "slug": "sugar-mountain", "brand": "Other", "pass_brands": None},
+                    {"name": "Beech Mountain", "slug": "beech-mountain", "brand": "Other", "pass_brands": None},
+                    {"name": "Appalachian Ski Mountain", "slug": "appalachian-ski-mountain", "brand": "Other", "pass_brands": None},
+                ]
+            },
+            "TN": {
+                "state_full": "Tennessee",
+                "resorts": [
+                    {"name": "Ober Mountain", "slug": "ober-mountain", "brand": "Other", "pass_brands": None},
+                ]
+            },
+        }
+        
+        created = []
+        existed = []
+        
+        for state_code, state_data in resorts_by_state.items():
+            for resort_data in state_data["resorts"]:
+                existing = Resort.query.filter_by(slug=resort_data["slug"]).first()
+                if existing:
+                    existed.append(f"{resort_data['name']} ({state_code})")
+                else:
+                    new_resort = Resort(
+                        name=resort_data["name"],
+                        slug=resort_data["slug"],
+                        state=state_code,
+                        state_full=state_data["state_full"],
+                        country="US",
+                        brand=resort_data["brand"],
+                        pass_brands=resort_data["pass_brands"],
+                        is_active=True
+                    )
+                    db.session.add(new_resort)
+                    created.append(f"{resort_data['name']} ({state_code})")
+        
+        db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Created {len(created)} resorts, {len(existed)} already existed",
+            "created": created,
+            "already_existed": existed
+        }), 200
+    except Exception as e:
+        import traceback
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to seed eastern resorts: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 @app.route("/open-data-debug")
 @login_required
 def open_data_debug():
