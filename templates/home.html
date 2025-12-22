@@ -255,17 +255,15 @@
             <!-- Row 1: Header (Name + Status) -->
             <div class="card-header-row">
                 <h1 class="card-name">{{ user.first_name }}</h1>
-                <span class="card-status {% if next_trip %}card-status-active{% endif %}">
-                    {% if next_trip %}
-                        {% if next_trip_countdown == 'Starts today' or next_trip_countdown == 'Tomorrow' %}
-                            {{ next_trip_countdown }}
-                        {% else %}
-                            Next trip · {{ next_trip.start_date.strftime('%b %d') }}{% if next_trip.start_date != next_trip.end_date %}–{{ next_trip.end_date.strftime('%b %d') }}{% endif %}
-                        {% endif %}
+                {% if next_trip %}
+                <span class="card-status card-status-active">
+                    {% if next_trip_countdown == 'Starts today' or next_trip_countdown == 'Tomorrow' %}
+                        {{ next_trip_countdown }}
                     {% else %}
-                        No trips planned
+                        Next trip · {{ next_trip.start_date.strftime('%b %d') }}{% if next_trip.start_date != next_trip.end_date %}–{{ next_trip.end_date.strftime('%b %d') }}{% endif %}
                     {% endif %}
                 </span>
+                {% endif %}
             </div>
             
             <!-- Row 2: Identity (State · Rider Type · Pass · Skill) -->
@@ -432,22 +430,6 @@
                         <p class="empty-state-title">No trips match this filter.</p>
                         <p class="empty-state-desc">Try a different duration or add a new trip.</p>
                     </div>
-                </div>
-            {% else %}
-                <div class="empty-state-container">
-                    {% if user.is_active_user %}
-                    <p class="empty-state-title">No upcoming trips.</p>
-                    <p class="empty-state-desc">Add a trip when you're ready.</p>
-                    {% elif user.has_started_planning %}
-                    <p class="empty-state-title">No upcoming trips.</p>
-                    <p class="empty-state-desc">Here's what's next: add another trip.</p>
-                    {% elif user.is_core_profile_complete and (user.login_count or 0) >= 2 %}
-                    <p class="empty-state-title">Now put it to use.</p>
-                    <p class="empty-state-desc">Create a trip to start planning with friends.</p>
-                    {% else %}
-                    <p class="empty-state-title">You don't have any trips yet.</p>
-                    <p class="empty-state-desc">Create your first trip to start planning with friends.</p>
-                    {% endif %}
                 </div>
             {% endif %}
             
