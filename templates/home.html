@@ -40,6 +40,14 @@
             line-height: 1.4;
         }
         
+        /* Row 2b: Terrain Preferences */
+        .card-terrain-row {
+            font-size: 0.9rem;
+            color: var(--bl-color-text-muted);
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+        
         /* Row 3: Equipment (conditional) */
         .card-equipment-row {
             font-size: 0.9rem;
@@ -98,17 +106,6 @@
             padding: 3px 0;
         }
         
-        .friends-callout {
-            font-size: 0.85rem;
-            color: var(--bl-color-text-muted);
-            text-decoration: none;
-            display: block;
-            margin-top: 10px;
-            text-align: center;
-        }
-        .friends-callout:hover {
-            color: var(--bl-color-primary);
-        }
         .availability-card {
             background: rgba(143, 1, 27, 0.06);
             border-radius: 10px;
@@ -273,8 +270,19 @@
             
             <!-- Row 2: Identity (State · Rider Type · Pass · Skill) -->
             <div class="card-identity-row">
+                {% if not user.is_core_profile_complete %}
+                <a href="{{ url_for('edit_profile') }}" style="color: var(--bl-color-primary); text-decoration: none;">Complete your profile →</a>
+                {% else %}
                 {% if user.home_state %}{{ user.home_state }} · {% endif %}{{ normalize_rider_type(user.rider_type) or 'Rider' }} · {% set passes = user.pass_type.split(',') if user.pass_type else [] %}{% if passes|length == 2 %}{{ passes[0] }} & {{ passes[1] }}{% elif passes|length > 2 %}{{ passes|join(', ') }}{% elif passes|length == 1 %}{{ passes[0] }}{% else %}No pass{% endif %}{% if user.skill_level %} · {{ user.skill_level }}{% endif %}
+                {% endif %}
             </div>
+            
+            <!-- Row 2b: Terrain Preferences (if set) -->
+            {% if user.terrain_preferences and user.terrain_preferences|length > 0 %}
+            <div class="card-terrain-row">
+                Terrain · {{ user.terrain_preferences[:3]|join(' · ') }}
+            </div>
+            {% endif %}
             
             <!-- Row 3: Equipment (only if user has own equipment) -->
             {% set eq = primary_equipment if (primary_equipment and (primary_equipment.brand or primary_equipment.boot_brand)) else (secondary_equipment if (secondary_equipment and (secondary_equipment.brand or secondary_equipment.boot_brand)) else none) %}
@@ -331,21 +339,6 @@
                 </div>
             </div>
             
-            <!-- Friends availability callout -->
-            {% set active_tab = request.args.get('tab', 'my') %}
-            {% if active_tab != 'open' %}
-            <a href="{{ url_for('home') }}?tab=open" class="friends-callout">
-                {% if user_has_open_dates %}
-                    {% if open_friends_count > 0 %}
-                        {{ open_friends_count }} friend{% if open_friends_count != 1 %}s{% endif %} open on your dates →
-                    {% else %}
-                        No friends open on your dates yet →
-                    {% endif %}
-                {% else %}
-                    Set your open dates →
-                {% endif %}
-            </a>
-            {% endif %}
         </div>
         
         <!-- Availability Card (only show if overlaps exist) -->
