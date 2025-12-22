@@ -170,7 +170,7 @@
             {% if primary_equipment %}
             <div id="primary-view">
                 <div class="equipment-display">
-                    <p class="equipment-brand">{{ primary_equipment.brand or 'Primary Setup' }}</p>
+                    <p class="equipment-brand">{{ primary_equipment.brand or 'Primary Setup' }}{% if primary_equipment.model %} {{ primary_equipment.model }}{% endif %}</p>
                     <p class="equipment-details">
                         {{ primary_equipment.discipline.value|capitalize }}{% if primary_equipment.length_cm %} · {{ primary_equipment.length_cm }}cm{% endif %}{% if primary_equipment.width_mm %} · {{ primary_equipment.width_mm }}mm{% endif %}
                     </p>
@@ -179,7 +179,7 @@
                     {% endif %}
                     {% if primary_equipment.boot_brand or primary_equipment.boot_flex %}
                     <p class="equipment-details">
-                        {% if primary_equipment.boot_brand %}{{ primary_equipment.boot_brand }} boots{% endif %}{% if primary_equipment.boot_brand and primary_equipment.boot_flex %} · {% endif %}{% if primary_equipment.boot_flex %}{{ primary_equipment.boot_flex }} flex{% endif %}
+                        {% if primary_equipment.boot_brand %}{{ primary_equipment.boot_brand }}{% if primary_equipment.boot_model %} {{ primary_equipment.boot_model }}{% endif %} boots{% endif %}{% if primary_equipment.boot_brand and primary_equipment.boot_flex %} · {% endif %}{% if primary_equipment.boot_flex %}{{ primary_equipment.boot_flex }} flex{% endif %}
                     </p>
                     {% endif %}
                     {% if primary_equipment.purchase_year %}
@@ -203,11 +203,17 @@
                             <option value="Snowboarder" {% if primary_equipment and primary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="form-label">Equipment Brand</label>
-                        <select id="primary-brand">
-                            <option value="">Select</option>
-                        </select>
+                    <div class="equipment-row">
+                        <div>
+                            <label class="form-label">Equipment Brand</label>
+                            <select id="primary-brand">
+                                <option value="">Select</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Model (optional)</label>
+                            <input type="text" id="primary-model" placeholder="e.g. Ripstick 96" value="{% if primary_equipment %}{{ primary_equipment.model or '' }}{% endif %}" />
+                        </div>
                     </div>
                     <div class="equipment-row">
                         <div>
@@ -225,14 +231,20 @@
                             <option value="">Select</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="form-label">Boot Brand</label>
-                        <select id="primary-boot-brand">
-                            <option value="">Select</option>
-                            {% for brand in ['Salomon', 'Tecnica', 'Lange', 'Atomic', 'Dalbello', 'Nordica', 'K2', 'Fischer', 'Burton', 'ThirtyTwo', 'Ride', 'Vans', 'DC', 'Other'] %}
-                            <option value="{{ brand }}" {% if primary_equipment and primary_equipment.boot_brand == brand %}selected{% endif %}>{{ brand }}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="equipment-row">
+                        <div>
+                            <label class="form-label">Boot Brand</label>
+                            <select id="primary-boot-brand">
+                                <option value="">Select</option>
+                                {% for brand in ['Salomon', 'Tecnica', 'Lange', 'Atomic', 'Dalbello', 'Nordica', 'K2', 'Fischer', 'Burton', 'ThirtyTwo', 'Ride', 'Vans', 'DC', 'Other'] %}
+                                <option value="{{ brand }}" {% if primary_equipment and primary_equipment.boot_brand == brand %}selected{% endif %}>{{ brand }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Boot Model (optional)</label>
+                            <input type="text" id="primary-boot-model" placeholder="e.g. Speedmachine" value="{% if primary_equipment %}{{ primary_equipment.boot_model or '' }}{% endif %}" />
+                        </div>
                     </div>
                     <div>
                         <label class="form-label">Boot Flex</label>
@@ -260,7 +272,7 @@
             {% if secondary_equipment %}
             <div id="secondary-view">
                 <div class="equipment-display">
-                    <p class="equipment-brand">{{ secondary_equipment.brand or 'Secondary Setup' }}</p>
+                    <p class="equipment-brand">{{ secondary_equipment.brand or 'Secondary Setup' }}{% if secondary_equipment.model %} {{ secondary_equipment.model }}{% endif %}</p>
                     <p class="equipment-details">
                         {{ secondary_equipment.discipline.value|capitalize }}{% if secondary_equipment.length_cm %} · {{ secondary_equipment.length_cm }}cm{% endif %}{% if secondary_equipment.width_mm %} · {{ secondary_equipment.width_mm }}mm{% endif %}
                     </p>
@@ -269,7 +281,7 @@
                     {% endif %}
                     {% if secondary_equipment.boot_brand or secondary_equipment.boot_flex %}
                     <p class="equipment-details">
-                        {% if secondary_equipment.boot_brand %}{{ secondary_equipment.boot_brand }} boots{% endif %}{% if secondary_equipment.boot_brand and secondary_equipment.boot_flex %} · {% endif %}{% if secondary_equipment.boot_flex %}{{ secondary_equipment.boot_flex }} flex{% endif %}
+                        {% if secondary_equipment.boot_brand %}{{ secondary_equipment.boot_brand }}{% if secondary_equipment.boot_model %} {{ secondary_equipment.boot_model }}{% endif %} boots{% endif %}{% if secondary_equipment.boot_brand and secondary_equipment.boot_flex %} · {% endif %}{% if secondary_equipment.boot_flex %}{{ secondary_equipment.boot_flex }} flex{% endif %}
                     </p>
                     {% endif %}
                 </div>
@@ -290,11 +302,17 @@
                             <option value="Snowboarder" {% if secondary_equipment and secondary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="form-label">Equipment Brand</label>
-                        <select id="secondary-brand">
-                            <option value="">Select</option>
-                        </select>
+                    <div class="equipment-row">
+                        <div>
+                            <label class="form-label">Equipment Brand</label>
+                            <select id="secondary-brand">
+                                <option value="">Select</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Model (optional)</label>
+                            <input type="text" id="secondary-model" placeholder="e.g. Ripstick 96" value="{% if secondary_equipment %}{{ secondary_equipment.model or '' }}{% endif %}" />
+                        </div>
                     </div>
                     <div class="equipment-row">
                         <div>
@@ -312,14 +330,20 @@
                             <option value="">Select</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="form-label">Boot Brand</label>
-                        <select id="secondary-boot-brand">
-                            <option value="">Select</option>
-                            {% for brand in ['Salomon', 'Tecnica', 'Lange', 'Atomic', 'Dalbello', 'Nordica', 'K2', 'Fischer', 'Burton', 'ThirtyTwo', 'Ride', 'Vans', 'DC', 'Other'] %}
-                            <option value="{{ brand }}" {% if secondary_equipment and secondary_equipment.boot_brand == brand %}selected{% endif %}>{{ brand }}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="equipment-row">
+                        <div>
+                            <label class="form-label">Boot Brand</label>
+                            <select id="secondary-boot-brand">
+                                <option value="">Select</option>
+                                {% for brand in ['Salomon', 'Tecnica', 'Lange', 'Atomic', 'Dalbello', 'Nordica', 'K2', 'Fischer', 'Burton', 'ThirtyTwo', 'Ride', 'Vans', 'DC', 'Other'] %}
+                                <option value="{{ brand }}" {% if secondary_equipment and secondary_equipment.boot_brand == brand %}selected{% endif %}>{{ brand }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Boot Model (optional)</label>
+                            <input type="text" id="secondary-boot-model" placeholder="e.g. Speedmachine" value="{% if secondary_equipment %}{{ secondary_equipment.boot_model or '' }}{% endif %}" />
+                        </div>
                     </div>
                     <div>
                         <label class="form-label">Boot Flex</label>
@@ -441,10 +465,12 @@
     document.getElementById('save-primary-btn').addEventListener('click', async () => {
         const discipline = document.getElementById('primary-discipline').value;
         const brand = document.getElementById('primary-brand').value;
+        const model = document.getElementById('primary-model').value;
         const length = document.getElementById('primary-length').value;
         const width = document.getElementById('primary-width').value;
         const bindingType = document.getElementById('primary-binding').value;
         const bootBrand = document.getElementById('primary-boot-brand').value;
+        const bootModel = document.getElementById('primary-boot-model').value;
         const bootFlex = document.getElementById('primary-boot-flex').value;
         const purchaseYear = document.getElementById('primary-purchase-year').value;
         
@@ -457,10 +483,12 @@
         formData.append('slot', 'primary');
         formData.append('discipline', discipline);
         formData.append('brand', brand);
+        formData.append('model', model);
         formData.append('length_cm', length);
         formData.append('width_mm', width);
         formData.append('binding_type', bindingType);
         formData.append('boot_brand', bootBrand);
+        formData.append('boot_model', bootModel);
         formData.append('boot_flex', bootFlex);
         formData.append('purchase_year', purchaseYear);
         
@@ -479,10 +507,12 @@
     document.getElementById('save-secondary-btn').addEventListener('click', async () => {
         const discipline = document.getElementById('secondary-discipline').value;
         const brand = document.getElementById('secondary-brand').value;
+        const model = document.getElementById('secondary-model').value;
         const length = document.getElementById('secondary-length').value;
         const width = document.getElementById('secondary-width').value;
         const bindingType = document.getElementById('secondary-binding').value;
         const bootBrand = document.getElementById('secondary-boot-brand').value;
+        const bootModel = document.getElementById('secondary-boot-model').value;
         const bootFlex = document.getElementById('secondary-boot-flex').value;
         
         if (!discipline) {
@@ -494,10 +524,12 @@
         formData.append('slot', 'secondary');
         formData.append('discipline', discipline);
         formData.append('brand', brand);
+        formData.append('model', model);
         formData.append('length_cm', length);
         formData.append('width_mm', width);
         formData.append('binding_type', bindingType);
         formData.append('boot_brand', bootBrand);
+        formData.append('boot_model', bootModel);
         formData.append('boot_flex', bootFlex);
         
         const response = await fetch('/settings/equipment/save', {
