@@ -65,7 +65,7 @@ The backend is built with Flask, using SQLAlchemy for ORM and Werkzeug for passw
 
 ### Feature Specifications
 - **Authentication & Onboarding:** Modern signup/login with simplified one-step onboarding using Flask-Login.
-- **User Profile:** Comprehensive profiles (rider type, pass type, skill level, home state, birth year, gender, equipment, mountains visited) consolidated into a "Settings" page.
+- **User Profile:** Comprehensive profiles (primary/secondary rider types, pass type, skill level, home state, birth year, gender, equipment, mountains visited) consolidated into a "Settings" page. Primary rider type is required; secondary rider types are optional (max 2). Rider type display shows combined format (e.g., "Skier · Snowboarder") without labels.
 - **Trip Management:** Users create trips with country-first location hierarchy (Country → State → Resort), dates, `is_public` toggles, `ride_intent` status. Trips are displayed in a 3-tab interface (My Trips, Friends' Trips, Overlaps). Trip duration is auto-calculated from dates (day_trip, one_night, two_nights, three_plus_nights). Date validation enforces future dates for new trips; edited trips allow unchanged past dates. Duplicate active trips at the same resort are prevented. Users can filter trips by duration and equipment status. Resort search within selected state enables quick discovery.
 - **Friends System:** Invitation-based, bidirectional friendships with dedicated friend profile pages. Supports token-based invites via URL and QR codes.
 - **Pass Selection:** Quick-select for Epic/Ikon, "Other passes" dropdown, and "I don't have a pass" option.
