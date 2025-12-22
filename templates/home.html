@@ -272,18 +272,9 @@
         
         <!-- Profile Card: 4-Row Structure -->
         <div class="bl-card" style="margin-bottom: 16px; padding: 12px 16px;">
-            <!-- Row 1: Header (Name + Status) -->
+            <!-- Row 1: Header (Name only, no status on Trips page) -->
             <div class="card-header-row">
                 <h1 class="card-name">{{ user.first_name }}</h1>
-                {% if next_trip %}
-                <span class="card-status card-status-active">
-                    {% if next_trip_countdown == 'Starts today' or next_trip_countdown == 'Tomorrow' %}
-                        {{ next_trip_countdown }}
-                    {% else %}
-                        Next trip · {{ next_trip.start_date.strftime('%b %d') }}{% if next_trip.start_date != next_trip.end_date %}–{{ next_trip.end_date.strftime('%b %d') }}{% endif %}
-                    {% endif %}
-                </span>
-                {% endif %}
             </div>
             
             <!-- Row 2: Identity (State · Rider Type · Pass · Skill) -->
@@ -361,12 +352,20 @@
             
         </div>
         
-        <!-- Availability Card (only show if overlaps exist) -->
-        {% if overlaps and overlaps|length > 0 %}
+        <!-- Availability Card (only show if open date matches exist) -->
+        {% if open_date_matches and open_date_matches|length > 0 %}
+        {% set unique_friends = [] %}
+        {% for match in open_date_matches %}
+            {% for f in match.friends %}
+                {% if f.id not in unique_friends %}
+                    {% set _ = unique_friends.append(f.id) %}
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
         <a href="{{ url_for('home') }}?tab=open" style="text-decoration: none; color: inherit;">
             <div class="availability-card">
                 <p class="availability-card-text">
-                    You and {{ overlaps|length }} friend{% if overlaps|length != 1 %}s{% endif %} are free {{ overlaps[0].start_date.strftime('%b %d') }}
+                    You and {{ unique_friends|length }} friend{% if unique_friends|length != 1 %}s{% endif %} have overlapping availability
                 </p>
                 <p class="availability-card-cta">See availability →</p>
             </div>
@@ -436,11 +435,8 @@
                 <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;" class="my-trip-item" data-duration="{{ trip.trip_duration }}" data-equipment="{{ trip.get_effective_equipment_status() }}">
                     <div class="bl-trip-card trip-card-full" style="flex-direction: row; align-items: center;">
                         <div style="flex: 1;">
-                            <p class="trip-card-line1">
-                                {% if trip.start_date == trip.end_date %}{{ trip.start_date.strftime('%a, %b %d') }}{% else %}{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%d') }}{% endif %} · <strong>{{ trip.duration_display }}</strong> · {{ trip.equipment_display }}
-                            </p>
-                            <p class="trip-card-line2">
-                                {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %} · Pass: {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer{% elif trip.ride_intent == 'need_ride' %} · Needs ride{% endif %}{% if trip.friends_can_ski and trip.friends_can_ski > 0 %} · {{ trip.friends_can_ski }} friend{% if trip.friends_can_ski != 1 %}s{% endif %} can ski{% endif %}
+                            <p class="trip-card-line1" style="margin: 0;">
+                                {% if trip.start_date == trip.end_date %}{{ trip.start_date.strftime('%b %d') }}{% else %}{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%d') }}{% endif %} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %} · {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}
                             </p>
                         </div>
                         <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="bl-trip-edit">Edit</a>
@@ -467,11 +463,11 @@
                 <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
                     <div class="bl-trip-card trip-card-full" style="flex-direction: row; align-items: center;">
                         <div style="flex: 1;">
-                            <p class="trip-card-line1">
-                                {% if trip.start_date == trip.end_date %}{{ trip.start_date.strftime('%a, %b %d') }}{% else %}{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%d') }}{% endif %} · <strong>{{ trip.duration_display }}</strong> · {{ trip.equipment_display }}
+                            <p class="trip-card-line1" style="margin: 0;">
+                                {% if trip.start_date == trip.end_date %}{{ trip.start_date.strftime('%b %d') }}{% else %}{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%d') }}{% endif %} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %} · {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}
                             </p>
-                            <p class="trip-card-line2">
-                                {{ trip.user.first_name }} · {% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer ride{% elif trip.ride_intent == 'need_ride' %} · Needs ride{% endif %}
+                            <p class="trip-card-line2" style="margin: 2px 0 0 0;">
+                                {{ trip.user.first_name }}
                             </p>
                         </div>
                     </div>
@@ -485,22 +481,20 @@
             {% endif %}
         </div>
         
-        <!-- Trip Overlaps Tab -->
+        <!-- Trip Overlaps Tab (read-only) -->
         <div id="tab-overlaps" class="bl-trip-list" {% if active_tab != 'overlaps' %}style="display: none;"{% endif %}>
             {% if overlaps and overlaps|length > 0 %}
                 {% for o in overlaps %}
-                <a href="{{ url_for('edit_trip_form', trip_id=o.my_trip_id) }}" style="text-decoration: none; color: inherit;">
-                    <div class="bl-trip-card trip-card-full" style="flex-direction: row; align-items: center;">
-                        <div style="flex: 1;">
-                            <p class="trip-card-line1">
-                                {{ o.start_date.strftime('%b %d') }} – {{ o.end_date.strftime('%b %d') }} · {{ o.mountain }}, {{ o.state }}
-                            </p>
-                            <p class="trip-card-line2">
-                                {{ o.friend_first_name }} · Pass: {{ o.brand or 'Other' }}
-                            </p>
-                        </div>
+                <div class="bl-trip-card trip-card-full" style="flex-direction: row; align-items: center;">
+                    <div style="flex: 1;">
+                        <p class="trip-card-line1">
+                            {{ o.start_date.strftime('%b %d') }}–{{ o.end_date.strftime('%b %d') }} · {{ o.mountain }}, {{ o.state }} · {{ o.brand or 'Other' }}
+                        </p>
+                        <p class="trip-card-line2">
+                            With {{ o.friend_first_name }}
+                        </p>
                     </div>
-                </a>
+                </div>
                 {% endfor %}
             {% else %}
                 <div class="empty-state-container">
