@@ -275,12 +275,14 @@
                 {% endif %}
             </div>
             
-            <!-- Row 2b: Terrain Preferences (if set) -->
-            {% if user.terrain_preferences and user.terrain_preferences|length > 0 %}
+            <!-- Row 2b: Terrain Preferences -->
             <div class="card-terrain-row">
-                Terrain · {{ user.terrain_preferences[:3]|join(' · ') }}
+                {% if user.terrain_preferences and user.terrain_preferences|length > 0 %}
+                Terrain · {{ user.terrain_preferences[:2]|join(', ') }}
+                {% else %}
+                <a href="{{ url_for('edit_profile') }}" style="color: var(--bl-color-text-muted); text-decoration: none;">Terrain · <span style="color: var(--bl-color-primary);">Edit</span></a>
+                {% endif %}
             </div>
-            {% endif %}
             
             <!-- Row 3: Equipment (only if user has own equipment) -->
             {% set eq = primary_equipment if (primary_equipment and (primary_equipment.brand or primary_equipment.boot_brand)) else (secondary_equipment if (secondary_equipment and (secondary_equipment.brand or secondary_equipment.boot_brand)) else none) %}

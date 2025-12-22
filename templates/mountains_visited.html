@@ -94,10 +94,13 @@
 <body>
     <div class="page-container">
         <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
-        <a href="{{ url_for('settings') }}" style="display: inline-block; margin-bottom: 16px; color: var(--bl-color-text-muted); text-decoration: none; font-size: 16px;">← Back</a>
-        <h1 class="page-title">Mountains Visited</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <a href="{{ url_for('settings') }}" style="color: var(--bl-color-text-muted); text-decoration: none; font-size: 16px;">← Back</a>
+            <button type="submit" form="mountains-form" class="bl-btn-primary" style="padding: 10px 20px; font-size: 15px;">Save</button>
+        </div>
+        <h1 class="page-title" style="margin-bottom: 16px;">Mountains Visited</h1>
         
-        <form method="POST">
+        <form method="POST" id="mountains-form">
             <select id="state-filter" class="mountain-search" style="cursor: pointer;" onchange="filterByState()">
                 <option value="all">All states</option>
                 {% for state in states %}
@@ -130,7 +133,6 @@
                 {% endfor %}
             </div>
             
-            <button type="submit" class="bl-btn-primary" style="width: 100%;">Save</button>
         </form>
     </div>
     

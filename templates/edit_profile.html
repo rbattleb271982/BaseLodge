@@ -308,10 +308,7 @@
 <div class="edit-profile-container">
     <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
     <a href="{{ url_for('settings') }}" class="back-link">← Back</a>
-    <h1 class="page-header">{% if current_user.is_active_user %}Edit Profile{% elif current_user.is_core_profile_complete %}Edit Profile{% else %}Finish setting up your profile{% endif %}</h1>
-    {% if not current_user.is_core_profile_complete and (current_user.login_count or 0) <= 1 %}
-    <p style="font-size: 15px; color: var(--bl-color-text-muted); margin: -16px 0 20px 0;">This takes about a minute.</p>
-    {% endif %}
+    <h1 class="page-header">Profile details</h1>
 
     <div class="section-card">
         <h3 class="section-title">About You</h3>
@@ -392,7 +389,7 @@
             <label>Favorite Terrain</label>
             <p style="font-size: 13px; color: var(--bl-color-text-muted); margin: 0 0 12px 0;">Select up to 2</p>
             {% set user_terrain = current_user.terrain_preferences or [] %}
-            {% for terrain in ["Groomers", "Trees", "Park", "Backcountry"] %}
+            {% for terrain in ["Groomers", "Trees", "Steeps", "Park", "First Chair", "Après"] %}
             <div class="checkbox-row">
                 <input type="checkbox" name="terrain_pref" value="{{ terrain }}" id="terrain_{{ loop.index }}" 
                        {% if terrain in user_terrain %}checked{% endif %}>
