@@ -42,7 +42,7 @@ Groomers, Trees, Steeps, Park, First Chair, Après (max 2 selections)
 
 **Status Indicator:**
 - Shows "Next trip · Date" or date range for active trips (primary color)
-- Shows "No trips planned" for inactive (muted color)
+- Shows nothing when user has no trips (quiet absence)
 
 **Stats Row Features:**
 - 3 equal columns with `border-right` dividers between
