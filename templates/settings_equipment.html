@@ -141,9 +141,29 @@
             cursor: pointer;
             min-height: 44px;
         }
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .toast.show {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
+    <div id="toast" class="toast"></div>
     <div class="settings-page-container">
         <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
         <a href="{{ url_for('settings') }}" class="back-link">← Back</a>
@@ -599,6 +619,15 @@
         });
     }
     
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2000);
+    }
+    
     async function updateEquipmentStatus(status) {
         const formData = new FormData();
         formData.append('equipment_status', status);
@@ -612,9 +641,13 @@
             const section = document.getElementById('equipment-details-section');
             if (status === 'needs_rentals') {
                 section.style.display = 'none';
+                showToast('Saved: Using rentals');
             } else {
                 section.style.display = 'block';
+                showToast('Saved: Own equipment');
             }
+        } else {
+            showToast('Failed to save');
         }
     }
     
