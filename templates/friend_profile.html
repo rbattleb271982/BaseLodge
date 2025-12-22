@@ -183,43 +183,56 @@
         <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
         <a href="javascript:history.back()" class="back-link">← Back</a>
         
-        <!-- Friend Profile Card: 4-Row Structure -->
+        <!-- Friend Profile Card: Identity + Stats -->
         <div class="profile-header-card">
-            <!-- Row 1: Header (Name + Status) -->
-            <div class="card-header-row">
-                <h1 class="card-name">{{ friend.first_name }} {{ friend.last_name }}</h1>
-                {% if trips and trips|length > 0 %}
-                {% set next_trip = trips[0] %}
-                <span class="card-status card-status-active">
-                    Next · {{ next_trip.start_date.strftime('%b %d') }}{% if next_trip.start_date != next_trip.end_date %}–{{ next_trip.end_date.strftime('%b %d') }}{% endif %}
-                </span>
-                {% endif %}
-            </div>
-            
-            <!-- Row 2: Identity (State · Rider Type · Pass · Skill) -->
-            <div class="card-identity-row">
-                {% if friend.home_state %}{{ friend.home_state }} · {% endif %}{{ friend.rider_type or 'Rider' }} · {% set passes = friend.pass_type.split(',') if friend.pass_type else [] %}{% if passes|length == 2 %}{{ passes[0] }} & {{ passes[1] }}{% elif passes|length > 2 %}{{ passes|join(', ') }}{% elif passes|length == 1 %}{{ passes[0] }}{% else %}No pass{% endif %}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}
-            </div>
-            
-            <!-- Row 2b: Terrain Preferences (if set) -->
-            {% if friend.terrain_preferences and friend.terrain_preferences|length > 0 %}
-            <div class="card-terrain-row">
-                Preferred Terrain · {{ friend.terrain_preferences[:2]|join(', ') }}
-            </div>
-            {% endif %}
-            
-            <!-- Row 3: Equipment (only if they have equipment) -->
             {% set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.boot_brand)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.boot_brand)) else none) %}
-            {% if eq and (eq.brand or eq.boot_brand) %}
-            {% set discipline_val = eq.discipline.value if eq.discipline else 'skier' %}
-            {% set is_skier = discipline_val == 'skier' %}
-            {% set sport_label = 'Skis' if is_skier else 'Board' %}
-            <div class="card-equipment-row">
-                {% if eq.brand %}{{ sport_label }}: {{ eq.brand }}{% if eq.model %} {{ eq.model }}{% endif %}{% endif %}{% if eq.boot_brand %}{% if eq.brand %} · {% endif %}Boots: {{ eq.boot_brand }}{% if eq.boot_model %} {{ eq.boot_model }}{% endif %}{% endif %}
-            </div>
-            {% endif %}
             
-            <!-- Row 4: Stats (Trips | Visited | Bucket List) with vertical dividers -->
+            <div class="profile-identity">
+                <div class="profile-identity-name">
+                    {{ friend.first_name }}
+                </div>
+
+                <div class="profile-identity-pills">
+                    {% if friend.rider_type %}
+                    <span class="profile-pill">{{ normalize_rider_type(friend.rider_type) }}</span>
+                    {% endif %}
+                    {% if friend.pass_type %}
+                    {% set passes = friend.pass_type.split(',') %}
+                    {% for p in passes %}
+                    <span class="profile-pill">{{ p }}</span>
+                    {% endfor %}
+                    {% endif %}
+                    {% if friend.skill_level %}
+                    <span class="profile-pill">{{ friend.skill_level }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="profile-identity-rows">
+                    {% if friend.terrain_preferences and friend.terrain_preferences|length > 0 %}
+                    <div class="profile-identity-row">
+                        <span class="profile-identity-label">Preferred Terrain</span>
+                        <span class="profile-identity-sep">·</span>
+                        <span class="profile-identity-value">
+                            {{ friend.terrain_preferences[:2]|join(', ') }}
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    {% if eq and eq.brand %}
+                    <div class="profile-identity-row">
+                        <span class="profile-identity-label">Equipment</span>
+                        <span class="profile-identity-sep">·</span>
+                        <span class="profile-identity-value">
+                            {{ eq.brand }}{% if eq.model %} {{ eq.model }}{% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="profile-card-divider"></div>
+            
+            <!-- Stats Row (Trips | Visited | Bucket List) with vertical dividers -->
             <div class="card-stats-row">
                 <div class="card-stat-col">
                     <div class="card-stat-label">Trips</div>
