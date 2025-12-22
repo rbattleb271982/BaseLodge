@@ -249,17 +249,16 @@
             <h2 class="section-header">Upcoming Trips</h2>
             {% if trips and trips|length > 0 %}
                 {% for trip in trips %}
-                <div class="trip-card">
-                    <p class="trip-card-line1">
-                        {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}
-                    </p>
-                    <p class="trip-card-line2">
-                        {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}No pass required{% endif %}
-                    </p>
-                    {% if trip.has_trip_overlap %}
-                    <p class="trip-overlap-indicator">You're both attending</p>
-                    {% endif %}
-                </div>
+                <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                    <div class="trip-card" style="padding: 14px 16px;">
+                        <p class="trip-card-line1" style="margin: 0; font-size: 15px;">
+                            {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %} · {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}
+                        </p>
+                        {% if trip.has_trip_overlap %}
+                        <p class="trip-overlap-indicator" style="margin: 4px 0 0 0; font-size: 13px;">You're both attending</p>
+                        {% endif %}
+                    </div>
+                </a>
                 {% endfor %}
             {% else %}
                 <div class="empty-state">No upcoming public trips</div>
