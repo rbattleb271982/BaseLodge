@@ -3623,6 +3623,73 @@ def seed_colorado_resorts_endpoint():
         }), 500
 
 
+@app.route("/admin/seed-utah-resorts", methods=["GET", "POST"])
+def seed_utah_resorts_endpoint():
+    """
+    HTTP endpoint to add missing Utah ski resorts.
+    
+    Usage: GET https://yourapp.replit.dev/admin/seed-utah-resorts
+    
+    This is idempotent - safe to call multiple times.
+    Only creates resorts that don't already exist (checked by slug).
+    """
+    try:
+        utah_resorts = [
+            {"name": "Park City", "slug": "park-city", "brand": "Epic", "pass_brands": "Epic"},
+            {"name": "Alta", "slug": "alta", "brand": "Ikon", "pass_brands": "Ikon"},
+            {"name": "Snowbird", "slug": "snowbird", "brand": "Ikon", "pass_brands": "Ikon"},
+            {"name": "Deer Valley", "slug": "deer-valley", "brand": "Ikon", "pass_brands": "Ikon"},
+            {"name": "Solitude", "slug": "solitude", "brand": "Ikon", "pass_brands": "Ikon"},
+            {"name": "Brighton", "slug": "brighton", "brand": "Ikon", "pass_brands": "Ikon"},
+            {"name": "Snowbasin", "slug": "snowbasin", "brand": "Ikon", "pass_brands": "Ikon"},
+            {"name": "Powder Mountain", "slug": "powder-mountain", "brand": "Indy", "pass_brands": "Indy"},
+            {"name": "Brian Head", "slug": "brian-head", "brand": "Indy", "pass_brands": "Indy"},
+            {"name": "Sundance", "slug": "sundance", "brand": "Other", "pass_brands": None},
+            {"name": "Nordic Valley", "slug": "nordic-valley", "brand": "Other", "pass_brands": None},
+            {"name": "Cherry Peak", "slug": "cherry-peak", "brand": "Other", "pass_brands": None},
+            {"name": "Eagle Point", "slug": "eagle-point", "brand": "Other", "pass_brands": None},
+            {"name": "Beaver Mountain", "slug": "beaver-mountain", "brand": "Other", "pass_brands": None},
+        ]
+        
+        created = []
+        existed = []
+        
+        for resort_data in utah_resorts:
+            existing = Resort.query.filter_by(slug=resort_data["slug"]).first()
+            if existing:
+                existed.append(resort_data["name"])
+            else:
+                new_resort = Resort(
+                    name=resort_data["name"],
+                    slug=resort_data["slug"],
+                    state="UT",
+                    state_full="Utah",
+                    country="US",
+                    brand=resort_data["brand"],
+                    pass_brands=resort_data["pass_brands"],
+                    is_active=True
+                )
+                db.session.add(new_resort)
+                created.append(resort_data["name"])
+        
+        db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Created {len(created)} resorts, {len(existed)} already existed",
+            "created": created,
+            "already_existed": existed
+        }), 200
+    except Exception as e:
+        import traceback
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to seed Utah resorts: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 @app.route("/open-data-debug")
 @login_required
 def open_data_debug():
