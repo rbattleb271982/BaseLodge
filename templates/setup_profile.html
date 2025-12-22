@@ -124,6 +124,34 @@
             margin: 0;
         }
         
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            min-height: 36px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .radio-label input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--bl-color-primary);
+            cursor: pointer;
+            margin: 0;
+        }
+        
+        .radio-label span {
+            font-size: 14px;
+        }
+        
         .pass-description {
             font-size: 11px;
             color: var(--bl-color-text-muted);
@@ -159,13 +187,30 @@
             
             <form method="POST" action="{{ url_for('setup_profile') }}" id="setup-form">
                 <div class="setup-section">
-                    <label class="setup-label">I am a...</label>
-                    <div class="segmented-control wrap" id="rider-control">
+                    <label class="setup-label">Primary rider type</label>
+                    <p class="pass-description">The way you ride most often</p>
+                    <div class="radio-group" id="primary-rider-group">
                         {% for rider_type in rider_types %}
-                        <button type="button" class="segment-btn" data-value="{{ rider_type }}">{{ rider_type }}</button>
+                        <label class="radio-label">
+                            <input type="radio" name="primary_rider_type" value="{{ rider_type }}">
+                            <span>{{ rider_type }}</span>
+                        </label>
                         {% endfor %}
                     </div>
-                    <input type="hidden" name="rider_type" id="rider_type" value="">
+                </div>
+                
+                <div class="setup-section">
+                    <label class="setup-label">Secondary rider type (optional)</label>
+                    <p class="pass-description">Only if you ride another way sometimes</p>
+                    <div class="checkbox-group" id="secondary-rider-group">
+                        {% for rider_type in rider_types %}
+                        <div class="checkbox-item secondary-rider-item" data-value="{{ rider_type }}">
+                            <input type="checkbox" name="secondary_rider_types" value="{{ rider_type }}" id="secondary_{{ loop.index }}">
+                            <label for="secondary_{{ loop.index }}">{{ rider_type }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <p class="pass-description" id="secondary-hint" style="margin-top: 6px; color: var(--bl-color-text-muted);">Select up to 2</p>
                 </div>
                 
                 <div class="setup-section">
@@ -189,41 +234,73 @@
     </div>
     
     <script>
-        const riderControl = document.getElementById('rider-control');
-        const riderInput = document.getElementById('rider_type');
+        const primaryRadios = document.querySelectorAll('input[name="primary_rider_type"]');
+        const secondaryCheckboxes = document.querySelectorAll('input[name="secondary_rider_types"]');
+        const secondaryItems = document.querySelectorAll('.secondary-rider-item');
         const continueBtn = document.getElementById('continue-btn');
-        const checkboxes = document.querySelectorAll('input[name="pass_type"]');
+        const passCheckboxes = document.querySelectorAll('input[name="pass_type"]');
+        
+        function getSelectedPrimary() {
+            const checked = document.querySelector('input[name="primary_rider_type"]:checked');
+            return checked ? checked.value : null;
+        }
+        
+        function updateSecondaryVisibility() {
+            const selectedPrimary = getSelectedPrimary();
+            secondaryItems.forEach(item => {
+                const value = item.dataset.value;
+                if (value === selectedPrimary) {
+                    item.style.display = 'none';
+                    item.querySelector('input').checked = false;
+                } else {
+                    item.style.display = 'flex';
+                }
+            });
+        }
         
         function updateContinueButton() {
-            const riderSelected = riderInput.value;
-            const passSelected = Array.from(checkboxes).some(cb => cb.checked);
-            if (riderSelected && passSelected) {
-                continueBtn.disabled = false;
+            const primarySelected = getSelectedPrimary();
+            const passSelected = Array.from(passCheckboxes).some(cb => cb.checked);
+            continueBtn.disabled = !(primarySelected && passSelected);
+        }
+        
+        function enforceMaxSecondary() {
+            const checked = Array.from(secondaryCheckboxes).filter(cb => cb.checked);
+            if (checked.length >= 2) {
+                secondaryCheckboxes.forEach(cb => {
+                    if (!cb.checked) {
+                        cb.disabled = true;
+                    }
+                });
             } else {
-                continueBtn.disabled = true;
+                secondaryCheckboxes.forEach(cb => {
+                    cb.disabled = false;
+                });
             }
         }
         
-        riderControl.addEventListener('click', (e) => {
-            if (e.target.classList.contains('segment-btn')) {
-                riderControl.querySelectorAll('.segment-btn').forEach(btn => btn.classList.remove('active'));
-                e.target.classList.add('active');
-                riderInput.value = e.target.dataset.value;
+        primaryRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                updateSecondaryVisibility();
                 updateContinueButton();
-            }
+            });
         });
         
-        checkboxes.forEach(checkbox => {
+        secondaryCheckboxes.forEach(cb => {
+            cb.addEventListener('change', function() {
+                enforceMaxSecondary();
+            });
+        });
+        
+        passCheckboxes.forEach(checkbox => {
             checkbox.addEventListener('change', function() {
-                // If "I don't have a pass" is checked, uncheck all others
                 if (this.value === "I don't have a pass" && this.checked) {
-                    checkboxes.forEach(cb => {
+                    passCheckboxes.forEach(cb => {
                         if (cb.value !== "I don't have a pass") {
                             cb.checked = false;
                         }
                     });
                 }
-                // If any other pass is checked, uncheck "I don't have a pass"
                 if (this.value !== "I don't have a pass" && this.checked) {
                     const noPassCheckbox = document.getElementById("pass_I don't have a pass");
                     if (noPassCheckbox) noPassCheckbox.checked = false;
@@ -233,12 +310,22 @@
         });
         
         document.getElementById('setup-form').addEventListener('submit', (e) => {
-            const selectedPasses = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+            const primarySelected = getSelectedPrimary();
+            const selectedPasses = Array.from(passCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+            
+            if (!primarySelected) {
+                e.preventDefault();
+                alert('Please select your primary rider type.');
+                return;
+            }
             if (!selectedPasses.length) {
                 e.preventDefault();
                 alert('Please select at least one pass.');
             }
         });
+        
+        updateSecondaryVisibility();
+        updateContinueButton();
     </script>
 </body>
 </html>

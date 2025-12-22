@@ -344,16 +344,31 @@
         <h3 class="section-title">Riding Details</h3>
         
         <div class="form-row">
-            <label>Rider Type</label>
-            <div class="radio-group" id="rider-type-group">
+            <label>Primary Rider Type</label>
+            <p style="font-size: 12px; color: var(--bl-color-text-muted); margin: 0 0 8px 0;">The way you ride most often</p>
+            <div class="radio-group" id="primary-rider-group">
+                {% set user_primary = current_user.primary_rider_type or current_user.rider_type %}
                 {% for rt in rider_types %}
                 <label class="radio-label">
-                    <input type="radio" name="rider_type_radio" value="{{ rt }}" 
-                           {% if current_user.rider_type == rt %}checked{% endif %}>
+                    <input type="radio" name="primary_rider_type_radio" value="{{ rt }}" 
+                           {% if user_primary == rt %}checked{% endif %}>
                     <span>{{ rt }}</span>
                 </label>
                 {% endfor %}
             </div>
+        </div>
+        
+        <div class="form-row">
+            <label>Secondary Rider Type (optional)</label>
+            <p style="font-size: 12px; color: var(--bl-color-text-muted); margin: 0 0 8px 0;">Only if you ride another way sometimes (max 2)</p>
+            {% set user_secondary = current_user.secondary_rider_types or [] %}
+            {% for rt in rider_types %}
+            <div class="checkbox-row secondary-rider-item" data-value="{{ rt }}">
+                <input type="checkbox" name="secondary_rider_type" value="{{ rt }}" id="secondary_rt_{{ loop.index }}" 
+                       {% if rt in user_secondary %}checked{% endif %}>
+                <label for="secondary_rt_{{ loop.index }}">{{ rt }}</label>
+            </div>
+            {% endfor %}
         </div>
         
         <div class="form-row">
@@ -406,7 +421,8 @@
 </div>
 
 <form method="POST" action="{{ url_for('edit_profile') }}" id="editProfileForm">
-    <input type="hidden" name="rider_type" id="rider_type" value="{{ current_user.rider_type or '' }}">
+    <input type="hidden" name="primary_rider_type" id="primary_rider_type" value="{{ current_user.primary_rider_type or current_user.rider_type or '' }}">
+    <input type="hidden" name="secondary_rider_types" id="secondary_rider_types_hidden" value="{{ (current_user.secondary_rider_types or [])|join(',') }}">
     <input type="hidden" name="pass_type" id="pass_type_hidden" value="{{ current_user.pass_type or '' }}">
     <input type="hidden" name="skill_level" id="skill_level" value="{{ current_user.skill_level or '' }}">
     <input type="hidden" name="gender" id="gender" value="{{ current_user.gender or '' }}">
@@ -426,12 +442,62 @@
 {% include 'components/bottom_nav.html' %}
 
 <script>
-const riderTypeInput = document.getElementById('rider_type');
+const primaryRiderTypeInput = document.getElementById('primary_rider_type');
+const secondaryRiderTypesInput = document.getElementById('secondary_rider_types_hidden');
 const skillLevelInput = document.getElementById('skill_level');
+const secondaryItems = document.querySelectorAll('.secondary-rider-item');
+const secondaryCheckboxes = document.querySelectorAll('input[name="secondary_rider_type"]');
 
-document.querySelectorAll('input[name="rider_type_radio"]').forEach(radio => {
+function getSelectedPrimary() {
+    const checked = document.querySelector('input[name="primary_rider_type_radio"]:checked');
+    return checked ? checked.value : null;
+}
+
+function updateSecondaryVisibility() {
+    const selectedPrimary = getSelectedPrimary();
+    secondaryItems.forEach(item => {
+        const value = item.dataset.value;
+        if (value === selectedPrimary) {
+            item.style.display = 'none';
+            item.querySelector('input').checked = false;
+        } else {
+            item.style.display = 'flex';
+        }
+    });
+    updateSecondaryHidden();
+}
+
+function updateSecondaryHidden() {
+    const checked = Array.from(secondaryCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+    secondaryRiderTypesInput.value = checked.join(',');
+}
+
+function enforceMaxSecondary() {
+    const checked = Array.from(secondaryCheckboxes).filter(cb => cb.checked);
+    if (checked.length >= 2) {
+        secondaryCheckboxes.forEach(cb => {
+            if (!cb.checked) {
+                cb.disabled = true;
+            }
+        });
+    } else {
+        secondaryCheckboxes.forEach(cb => {
+            cb.disabled = false;
+        });
+    }
+    updateSecondaryHidden();
+}
+
+document.querySelectorAll('input[name="primary_rider_type_radio"]').forEach(radio => {
     radio.addEventListener('change', function() {
-        riderTypeInput.value = this.value;
+        primaryRiderTypeInput.value = this.value;
+        updateSecondaryVisibility();
+    });
+});
+
+secondaryCheckboxes.forEach(cb => {
+    cb.addEventListener('change', function() {
+        enforceMaxSecondary();
     });
 });
 
@@ -441,12 +507,14 @@ document.querySelectorAll('input[name="skill_level_radio"]').forEach(radio => {
     });
 });
 
-// Initialize hidden inputs from radio buttons on page load
+// Initialize hidden inputs and visibility on page load
 (function() {
-    const selectedRiderType = document.querySelector('input[name="rider_type_radio"]:checked');
+    const selectedPrimaryRider = document.querySelector('input[name="primary_rider_type_radio"]:checked');
     const selectedSkillLevel = document.querySelector('input[name="skill_level_radio"]:checked');
-    if (selectedRiderType) riderTypeInput.value = selectedRiderType.value;
+    if (selectedPrimaryRider) primaryRiderTypeInput.value = selectedPrimaryRider.value;
     if (selectedSkillLevel) skillLevelInput.value = selectedSkillLevel.value;
+    updateSecondaryVisibility();
+    enforceMaxSecondary();
 })();
 
 document.getElementById('home_mountain').addEventListener('change', function() {
