@@ -1,0 +1,76 @@
+Goal:
+Make the Resort text input live-filter and auto-scroll the Resort <select> dropdown as the user types, so typing "Beaver" immediately surfaces "Beaver Creek" in the dropdown (mobile-friendly).
+
+Scope:
+• No backend changes
+• No new libraries
+• Vanilla JS only
+• Works on iOS Safari
+• Keeps existing <select> as the saved value
+
+Implementation Steps:
+
+1) HTML — confirm structure
+Ensure the resort input and select look like this:
+
+<input
+  type="text"
+  id="resortSearch"
+  placeholder="Search for a resort"
+/>
+
+<select id="resortSelect" name="resort_id">
+  <option value="">Select a resort</option>
+  {% for resort in resorts %}
+    <option value="{{ resort.id }}">
+      {{ resort.name }}
+    </option>
+  {% endfor %}
+</select>
+
+2) JavaScript — add live filtering + auto-scroll
+Add this script at the bottom of the template (or in main.js if shared):
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const searchInput = document.getElementById("resortSearch");
+  const select = document.getElementById("resortSelect");
+
+  if (!searchInput || !select) return;
+
+  searchInput.addEventListener("input", function () {
+    const query = this.value.toLowerCase();
+    let firstMatch = null;
+
+    Array.from(select.options).forEach(option => {
+      if (option.value === "") return;
+
+      const match = option.text.toLowerCase().includes(query);
+      option.hidden = !match;
+
+      if (match && !firstMatch) {
+        firstMatch = option;
+      }
+    });
+
+    // Auto-select & scroll to first match
+    if (firstMatch) {
+      select.value = firstMatch.value;
+      firstMatch.selected = true;
+    }
+  });
+});
+</script>
+
+3) UX polish (optional but recommended)
+• When a user manually selects an option, populate the search input with that name
+• Prevent empty searches from hiding all options
+
+Add this inside DOMContentLoaded:
+
+select.addEventListener("change", function () {
+  const selected = select.options[select.selectedIndex];
+  if (selected && selected.value !== "") {
+    searchInput.value = selected.text;
+  }
+});

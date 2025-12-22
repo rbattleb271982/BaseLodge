@@ -555,14 +555,32 @@
         }
         
         function filterResorts() {
-            const searchTerm = resortSearchInput.value.toLowerCase().trim();
-            if (!searchTerm) {
-                renderResortOptions(currentStateResorts);
-                return;
+            const query = resortSearchInput.value.toLowerCase().trim();
+            let firstMatch = null;
+            
+            Array.from(resortSelect.options).forEach(option => {
+                if (option.value === "") return;
+                
+                const match = !query || option.text.toLowerCase().includes(query);
+                option.hidden = !match;
+                
+                if (match && !firstMatch) {
+                    firstMatch = option;
+                }
+            });
+            
+            if (query && firstMatch) {
+                resortSelect.value = firstMatch.value;
+                firstMatch.selected = true;
             }
-            const filtered = currentStateResorts.filter(r => r.name.toLowerCase().includes(searchTerm));
-            renderResortOptions(filtered);
         }
+        
+        resortSelect.addEventListener("change", function() {
+            const selected = resortSelect.options[resortSelect.selectedIndex];
+            if (selected && selected.value !== "") {
+                resortSearchInput.value = selected.text;
+            }
+        });
 
         function updateEndDateMin() {
             const today = new Date().toISOString().split('T')[0];
