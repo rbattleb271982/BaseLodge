@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>You're invited to BaseLodge</title>
+    <title>Connect on BaseLodge</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
         .invite-landing-page {
@@ -15,110 +15,109 @@
             padding: var(--bl-space-6);
         }
         
-        .invite-landing-card {
+        .invite-card {
             background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-lg);
-            padding: var(--bl-space-8);
+            border-radius: var(--bl-radius-md);
+            border: 1px solid var(--bl-color-border-soft);
+            box-shadow: var(--bl-shadow-soft);
+            padding: var(--bl-space-6);
             max-width: 400px;
             width: 100%;
-            text-align: center;
-            box-shadow: var(--bl-shadow-soft);
         }
         
-        .invite-landing-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--bl-color-primary);
-            margin-bottom: var(--bl-space-4);
-        }
-        
-        .invite-landing-subtitle {
+        .invite-headline {
             font-size: 18px;
-            color: var(--bl-color-text);
-            margin-bottom: var(--bl-space-4);
             font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 8px 0;
+            line-height: 1.3;
         }
         
-        .invite-landing-description {
-            font-size: 15px;
+        .invite-identity {
+            font-size: 14px;
             color: var(--bl-color-text-muted);
-            line-height: 1.6;
-            margin-bottom: var(--bl-space-8);
+            margin: 0 0 12px 0;
         }
         
-        .invite-landing-button {
+        .invite-stat {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 16px 0;
+        }
+        
+        .invite-divider {
+            height: 1px;
+            background: var(--bl-color-border-soft);
+            margin: 16px 0;
+        }
+        
+        .invite-description {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            line-height: 1.5;
+            margin: 0 0 20px 0;
+        }
+        
+        .invite-cta-primary {
             display: block;
             width: 100%;
-            padding: var(--bl-space-5);
+            padding: 14px 16px;
             background: var(--bl-color-primary);
             color: white;
             border: none;
-            border-radius: var(--bl-radius-md);
+            border-radius: var(--bl-radius-lg);
             font-size: 16px;
             font-weight: 600;
             text-decoration: none;
+            text-align: center;
             cursor: pointer;
             transition: background 0.2s ease;
+            margin-bottom: 12px;
         }
         
-        .invite-landing-button:hover {
+        .invite-cta-primary:hover {
             background: #720115;
         }
         
-        .invite-landing-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: var(--bl-space-4);
-            margin-bottom: var(--bl-space-6);
-        }
-        
-        .invite-landing-button-secondary {
+        .invite-cta-secondary {
             display: block;
             width: 100%;
-            padding: var(--bl-space-5);
-            background: transparent;
-            color: var(--bl-color-primary);
-            border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-md);
-            font-size: 16px;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .invite-landing-button-secondary:hover {
-            background: var(--bl-color-bg);
-            border-color: var(--bl-color-primary);
-        }
-        
-        .invite-landing-fine-print {
-            font-size: 13px;
+            font-size: 14px;
             color: var(--bl-color-text-muted);
-            margin-top: var(--bl-space-6);
+            text-align: center;
+            text-decoration: none;
+        }
+        
+        .invite-cta-secondary:hover {
+            color: var(--bl-color-primary);
         }
     </style>
 </head>
 <body>
     <div class="invite-landing-page">
-        <div class="invite-landing-card">
-            <h1 class="invite-landing-title">{{ inviter.first_name }} wants to connect on BaseLodge</h1>
-            <p class="invite-landing-subtitle">
-                See when you can hit the slopes together and share ski trips.
-            </p>
-
-            <div class="invite-landing-buttons">
-                <a href="{{ url_for('auth') }}" class="invite-landing-button">
-                    Create account to connect
-                </a>
-                <a href="{{ url_for('auth') }}" class="invite-landing-button-secondary">
-                    Already have an account? Log in
-                </a>
-            </div>
-
-            <p class="invite-landing-fine-print">
-                By continuing, you'll create a BaseLodge account or log in to an existing one.
-            </p>
+        <div class="invite-card">
+            <h1 class="invite-headline">{{ inviter.first_name }}{% if inviter.last_name %} {{ inviter.last_name }}{% endif %} wants to connect</h1>
+            
+            {% set identity_parts = [] %}
+            {% if inviter.rider_type %}{% set _ = identity_parts.append(inviter.rider_type) %}{% endif %}
+            {% if inviter.skill_level %}{% set _ = identity_parts.append(inviter.skill_level) %}{% endif %}
+            {% if inviter.home_state %}{% set _ = identity_parts.append(inviter.home_state) %}{% endif %}
+            
+            {% if identity_parts %}
+            <p class="invite-identity">{{ identity_parts | join(' · ') }}</p>
+            {% endif %}
+            
+            {% if inviter_trips_count and inviter_trips_count > 0 %}
+            <p class="invite-stat">{{ inviter_trips_count }} trip{{ 's' if inviter_trips_count != 1 else '' }} planned</p>
+            {% endif %}
+            
+            <div class="invite-divider"></div>
+            
+            <p class="invite-description">See when you're both heading to the mountains and plan ski trips together.</p>
+            
+            <a href="{{ url_for('auth') }}" class="invite-cta-primary">Create account to connect</a>
+            <a href="{{ url_for('auth') }}" class="invite-cta-secondary">Already have an account? Log in</a>
         </div>
     </div>
 </body>

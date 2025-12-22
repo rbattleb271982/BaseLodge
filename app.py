@@ -668,7 +668,13 @@ def invite_token_landing(token):
         return redirect(url_for("friends"))
 
     # Otherwise render the landing page for signup / login
-    return render_template("invite_landing.html", inviter=inviter)
+    # Get inviter's upcoming trips count
+    today = date.today()
+    inviter_trips_count = SkiTrip.query.filter(
+        SkiTrip.user_id == inviter.id,
+        SkiTrip.start_date >= today
+    ).count()
+    return render_template("invite_landing.html", inviter=inviter, inviter_trips_count=inviter_trips_count)
 
 
 @app.route("/setup-profile", methods=["GET", "POST"])
