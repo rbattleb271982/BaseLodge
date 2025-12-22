@@ -151,6 +151,11 @@ def run_startup_diagnostics_once():
 # ============================================================================
 # ERROR HANDLER - Full stack trace for debugging
 # ============================================================================
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handle 404 Not Found errors with user-friendly template."""
+    return render_template("404.html"), 404
+
 @app.errorhandler(500)
 def internal_error(error):
     """Handle internal server errors with full traceback logging."""
@@ -163,7 +168,7 @@ def internal_error(error):
     traceback.print_exc()
     print("=" * 70)
     db.session.rollback()
-    return "An internal error occurred. Please check logs.", 500
+    return render_template("500.html"), 500
 
 @app.errorhandler(Exception)
 def handle_exception(e):
@@ -172,6 +177,8 @@ def handle_exception(e):
     
     # Don't catch HTTP errors like 404 - let them return normally
     if isinstance(e, HTTPException):
+        if e.code == 404:
+            return render_template("404.html"), 404
         return e
     
     import traceback
@@ -183,7 +190,7 @@ def handle_exception(e):
     traceback.print_exc()
     print("=" * 70)
     db.session.rollback()
-    return f"Error: {str(e)}", 500
+    return render_template("500.html"), 500
 
 def get_or_create_invite_token(user):
     """Get existing valid invite token for user or create a new one.

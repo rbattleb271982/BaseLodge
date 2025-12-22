@@ -1,0 +1,82 @@
+Objective: Fix all 🔴 launch-blocking issues identified in the BaseLodge UX/UI/Stability audit so the app is safe, complete, and ready for a small public beta.
+Important constraints:
+This is a hardening pass, not a redesign
+Do not introduce new features
+Do not refactor unrelated code
+Match existing design patterns and tone
+Prefer small, explicit changes
+Test all affected flows before finishing
+1️⃣ Add User-Friendly Error Pages (Critical)
+Requirements
+Create templates/404.html and templates/500.html
+Replace raw Flask error responses with these templates
+Pages must:
+Clearly explain what happened (human language)
+Reassure the user their data is safe
+Include a primary CTA back to Home
+Implementation
+Register @app.errorhandler(404) and update the existing @app.errorhandler(500)
+Ensure all get_or_404 routes render the custom 404 template
+2️⃣ Add Missing Empty States on Home Tabs (Critical)
+Tabs to fix in home.html:
+My Trips
+Friends’ Trips
+Trip Overlaps
+Open Availability
+Requirements
+Add explicit {% else %} blocks when lists are empty
+Each empty state must include:
+Clear explanation of what’s missing
+Why it matters
+A clear CTA (button or link) to the next logical action
+Follow the tone and pattern used in the Friends List empty state
+3️⃣ Replace Unsafe Back Navigation (Critical)
+Requirement
+Remove javascript:history.back() usage from:
+friend_profile.html
+Implementation
+Replace with explicit url_for(...) links to a safe destination (e.g. Friends list)
+Do not rely on browser history for primary navigation
+4️⃣ Resolve Duplicate Settings Pages (Critical Product Decision)
+Requirement
+Choose one canonical settings destination:
+Either /settings or /more
+Redirect the non-canonical route to the canonical one
+Update navigation links to point to the chosen destination
+Do not remove functionality — consolidate only
+5️⃣ Add Feedback for Equipment Status Changes (Critical UX)
+Problem
+Equipment status radio changes save silently, leaving users unsure if changes persisted
+Requirement
+Add visible confirmation when equipment status changes:
+Toast, inline confirmation, or status message
+Use existing UI patterns where possible
+Do not require additional clicks unless absolutely necessary
+6️⃣ Guardrails & Validation Safety (Critical)
+Requirements
+Wrap database commit operations in try/except for:
+add_trip
+edit_trip_form
+edit_profile
+change_password
+mountains_visited
+select_pass
+On failure:
+Roll back session
+Show user-friendly error message
+Ensure date validation on trip creation prevents past dates server-side
+Verify setup_profile cannot submit invalid data if JS is disabled
+7️⃣ Verification Checklist (Required Before Completion)
+Before marking complete, confirm:
+No raw Flask error pages are visible
+All Home tabs render meaningful empty states
+No history.back() remains in templates
+Only one settings destination exists
+Equipment status changes give user feedback
+No form submission can silently fail
+📤 Final Output Expectations
+When finished, provide:
+A short summary of what was changed
+A checklist confirming each item above is complete
+Any edge cases discovered during testing
+Do not proceed to polish or nice-to-have improvements.
