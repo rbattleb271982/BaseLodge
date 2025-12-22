@@ -1586,9 +1586,12 @@ def home():
                     if date_ranges_overlap(my.start_date, my.end_date, friend_trip.start_date, friend_trip.end_date):
                         # Get resort info from my trip (or friend's trip if mine doesn't have it)
                         resort = my.resort or friend_trip.resort
+                        friend_full_name = friend_trip.user.first_name
+                        if friend_trip.user.last_name:
+                            friend_full_name += " " + friend_trip.user.last_name
                         overlaps.append({
                             "my_trip_id": my.id,
-                            "friend_name": friend_trip.user.first_name + " " + friend_trip.user.last_name,
+                            "friend_name": friend_full_name,
                             "friend_first_name": friend_trip.user.first_name,
                             "friend_id": friend_trip.user_id,
                             "mountain": resort.name if resort else my.mountain,
