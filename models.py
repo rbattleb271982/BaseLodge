@@ -59,7 +59,10 @@ class User(UserMixin, db.Model):
     last_name = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
+    # DEPRECATED: rider_type is legacy. Use primary_rider_type instead. Kept for backward compatibility.
     rider_type = db.Column(db.String(50))
+    primary_rider_type = db.Column(db.String(50))  # Required: Skier, Snowboarder, Telemark, Cross-Country, Adaptive
+    secondary_rider_types = db.Column(db.JSON, default=list)  # Optional, max 2, excludes primary
     pass_type = db.Column(db.String(100))
     # DEPRECATED: profile_setup_complete is legacy and no longer authoritative.
     # Use is_core_profile_complete property instead. Do not write to this field.
@@ -126,10 +129,26 @@ class User(UserMixin, db.Model):
     @property
     def is_core_profile_complete(self):
         """
-        A user is core-profile-complete if rider_type, pass_type, and skill_level are set.
+        A user is core-profile-complete if primary_rider_type, pass_type, and skill_level are set.
         home_state is optional. Equipment is always optional and never blocks completion.
+        Falls back to legacy rider_type for backward compatibility.
         """
-        return bool(self.rider_type and self.pass_type and self.skill_level)
+        rider = self.primary_rider_type or self.rider_type
+        return bool(rider and self.pass_type and self.skill_level)
+    
+    @property
+    def display_rider_type(self):
+        """
+        Returns rider type for display: "Skier" or "Skier · Snowboarder"
+        Never shows "Primary" or "Secondary" labels.
+        """
+        primary = self.primary_rider_type or self.rider_type
+        if not primary:
+            return None
+        secondary = self.secondary_rider_types or []
+        if secondary:
+            return f"{primary} · {' · '.join(secondary)}"
+        return primary
     
     @property
     def has_started_planning(self):
