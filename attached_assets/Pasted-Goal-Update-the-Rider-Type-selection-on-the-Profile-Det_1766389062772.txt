@@ -1,0 +1,81 @@
+Goal
+Update the Rider Type selection on the Profile Details page so it includes the full set of rider types used during onboarding, ensuring consistency across the app.
+
+This is a UI consistency update. Do not change database schema.
+
+⸻
+
+SECTION 1: Rider Type options
+	1.	Align rider types with onboarding
+On the Profile Details page, update the Rider Type selection so it includes the exact same rider type options used during onboarding.
+
+At minimum, this must include:
+	•	Skier
+	•	Snowboarder
+	•	Telemarking
+	•	Snowshoeing
+	•	Adaptive
+	•	Other (if supported elsewhere)
+
+Do not limit the list to only Skier and Snowboarder.
+	2.	Source of truth
+
+	•	Reuse the same constants, enums, or configuration used for onboarding rider types
+	•	Do not duplicate or hard-code a separate list for the Profile page
+	•	If onboarding pulls from a shared constant or helper, use that same source here
+
+This ensures future rider types automatically appear everywhere.
+
+⸻
+
+SECTION 2: Selection behavior
+	3.	Single selection
+
+	•	Rider Type remains a single-select choice (radio buttons)
+	•	Selecting one rider type deselects the others
+	•	Persist the selected value to the existing rider_type field on the user profile
+
+	4.	Existing users
+
+	•	If a user already has a rider_type value that exists in the expanded list, it should be pre-selected correctly
+	•	If a user has a legacy value not present in the list, default to “Other” and allow reselection
+
+⸻
+
+SECTION 3: UI and placement
+	5.	Layout
+
+	•	Keep existing layout and styling
+	•	Do not redesign the Profile Details page
+	•	Only expand the list of options
+
+	6.	Accessibility
+
+	•	Ensure all rider types are equally tappable
+	•	Do not hide less common rider types behind additional interactions
+
+⸻
+
+SECTION 4: Non-goals
+	•	Do not change onboarding UI
+	•	Do not change database schema
+	•	Do not add multi-select rider types
+	•	Do not refactor unrelated profile fields
+
+⸻
+
+SECTION 5: Testing requirements
+	•	Profile page shows all rider types used in onboarding
+	•	User can select Telemarking, Adaptive, etc.
+	•	Selected rider type saves correctly
+	•	Returning to Profile page shows the correct selection
+	•	No regressions for existing Skier/Snowboarder users
+	•	Mobile layout remains intact
+
+⸻
+
+Agent instructions
+	•	Use the same rider type source as onboarding
+	•	Make the smallest possible change
+	•	Fully test before marking complete
+	•	Do not refactor unrelated code
