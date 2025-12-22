@@ -503,7 +503,12 @@
         {% endif %}
         
         {% set active_tab = request.args.get('tab', 'my') %}
-        <div style="margin-top:16px;margin-bottom:12px;">
+        
+        <a href="{{ url_for('add_trip') }}" id="create-trip-btn" class="bl-btn-primary" style="width: 100%; display: {% if active_tab == 'my' %}block{% else %}none{% endif %}; text-align: center; text-decoration: none; margin-top: 16px; margin-bottom: 16px;">
+            Create a trip
+        </a>
+        
+        <div style="margin-bottom:12px;">
             <div class="bl-tabs-wrapper">
                 <button class="bl-tab-button {% if active_tab == 'my' %}active{% endif %}" data-tab="my">My Trips</button>
                 <button class="bl-tab-button {% if active_tab == 'friends' %}active{% endif %}" data-tab="friends">Friends' Trips</button>
@@ -540,9 +545,6 @@
                 </div>
             {% endif %}
             
-            <a href="{{ url_for('add_trip') }}" class="{% if user.is_core_profile_complete and not user.has_started_planning %}bl-btn-primary{% else %}bl-btn-secondary{% endif %}" style="width: 100%; display: block; text-align: center; text-decoration: none; margin-top: 16px;">
-                {% if user.is_active_user %}+ Add a trip{% elif user.has_started_planning %}+ Add a trip{% elif user.is_core_profile_complete and (user.login_count or 0) >= 2 %}Create a trip{% else %}Create your first trip{% endif %}
-            </a>
         </div>
         
         <!-- Friends' Trips Tab -->
@@ -808,6 +810,12 @@
                         panel.style.display = 'none';
                     });
                     document.getElementById('tab-' + tabName).style.display = 'flex';
+                    
+                    // Show/hide Create Trip button based on active tab
+                    const createTripBtn = document.getElementById('create-trip-btn');
+                    if (createTripBtn) {
+                        createTripBtn.style.display = tabName === 'my' ? 'block' : 'none';
+                    }
                     
                     window.history.replaceState({}, '', '{{ url_for("home") }}?tab=' + tabName);
                 });
