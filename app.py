@@ -5386,7 +5386,26 @@ def fix_seeded_users():
     db.session.commit()
     print(f"  ✨ Added {connections_added} friend connections")
 
-    # Step 3: Verification
+    # Step 3: Fix pass_type cleanup (convert "both" to "epic" for seeded users)
+    print("\n🎿 STEP 3: Cleaning up pass_type values")
+    seeded_users_with_both = User.query.filter(
+        User.is_seeded == True,
+        (User.pass_type.ilike('%both%') | (User.pass_type == 'both'))
+    ).all()
+    
+    both_count = 0
+    for user in seeded_users_with_both:
+        if user.pass_type and 'both' in user.pass_type.lower():
+            user.pass_type = user.pass_type.replace('Both', 'Epic').replace('both', 'Epic')
+            both_count += 1
+    
+    if both_count > 0:
+        db.session.commit()
+        print(f"  ✨ Converted {both_count} seeded users from 'both' to 'epic'")
+    else:
+        print(f"  ✓ No seeded users with pass_type='both' found")
+
+    # Step 4: Verification
     print("\n" + "=" * 70)
     print("✅ VERIFICATION")
     print("=" * 70)
@@ -5403,6 +5422,12 @@ def fix_seeded_users():
     
     print(f"Richard password check: {richard_pwd_ok}")
     print(f"Jonathan password check: {jonathan_pwd_ok}")
+    
+    # Check for any remaining "both" values
+    users_with_both = User.query.filter(
+        User.pass_type.ilike('%both%') | (User.pass_type == 'both')
+    ).count()
+    print(f"Users with pass_type containing 'both': {users_with_both}")
     
     print("\n✅ FIX COMPLETE!")
     print("=" * 70)
