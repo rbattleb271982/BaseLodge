@@ -75,10 +75,14 @@
         
         .toggle-label {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: var(--bl-space-3);
             cursor: pointer;
             font-size: 15px;
+        }
+        
+        .toggle-label input[type="checkbox"] {
+            margin-top: 2px;
         }
         
         .toggle-label input {
@@ -195,6 +199,99 @@
             border-radius: var(--bl-radius-lg);
             font-size: 15px;
             font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .delete-section {
+            margin-top: var(--bl-space-8);
+            padding-top: var(--bl-space-6);
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+        
+        .delete-button {
+            width: 100%;
+            padding: var(--bl-space-5) var(--bl-space-6);
+            background: transparent;
+            color: #DC2626;
+            border: 2px solid #DC2626;
+            border-radius: var(--bl-radius-lg);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .delete-button:active {
+            background: #DC2626;
+            color: white;
+        }
+        
+        .delete-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 16px;
+        }
+        
+        .delete-modal.visible {
+            display: flex;
+        }
+        
+        .delete-modal-content {
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-lg);
+            padding: 24px;
+            max-width: 340px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .delete-modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 8px 0;
+        }
+        
+        .delete-modal-text {
+            font-size: 15px;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 24px 0;
+        }
+        
+        .delete-modal-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .delete-modal-cancel {
+            flex: 1;
+            padding: var(--bl-space-4) var(--bl-space-5);
+            background: var(--bl-color-background);
+            color: var(--bl-color-text);
+            border: 1px solid var(--bl-color-border);
+            border-radius: var(--bl-radius-lg);
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .delete-modal-confirm {
+            flex: 1;
+            padding: var(--bl-space-4) var(--bl-space-5);
+            background: #DC2626;
+            color: white;
+            border: none;
+            border-radius: var(--bl-radius-lg);
+            font-size: 15px;
+            font-weight: 600;
             cursor: pointer;
         }
     </style>
@@ -317,9 +414,22 @@
         </form>
         
         {% if trip %}
-        <form method="POST" action="{{ url_for('delete_trip_form', trip_id=trip.id) }}" style="margin-top: var(--bl-space-6);">
-            <a href="#" onclick="if(confirm('Are you sure you want to delete this trip?')) { this.closest('form').submit(); } return false;" style="color: var(--bl-color-primary); text-decoration: none; font-size: 14px; font-weight: 500;">Delete trip</a>
-        </form>
+        <div class="delete-section">
+            <button type="button" class="delete-button" onclick="showDeleteModal()">Delete trip</button>
+        </div>
+        
+        <div class="delete-modal" id="delete-modal">
+            <div class="delete-modal-content">
+                <h3 class="delete-modal-title">Delete trip?</h3>
+                <p class="delete-modal-text">This action cannot be undone.</p>
+                <div class="delete-modal-actions">
+                    <button type="button" class="delete-modal-cancel" onclick="hideDeleteModal()">Cancel</button>
+                    <form method="POST" action="{{ url_for('delete_trip_form', trip_id=trip.id) }}" style="flex: 1; margin: 0;">
+                        <button type="submit" class="delete-modal-confirm" style="width: 100%;">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
         {% endif %}
     </div>
 
@@ -330,6 +440,20 @@
             const modal = document.getElementById('overlap-modal');
             if (modal) {
                 modal.style.display = 'none';
+            }
+        }
+        
+        function showDeleteModal() {
+            const modal = document.getElementById('delete-modal');
+            if (modal) {
+                modal.classList.add('visible');
+            }
+        }
+        
+        function hideDeleteModal() {
+            const modal = document.getElementById('delete-modal');
+            if (modal) {
+                modal.classList.remove('visible');
             }
         }
         

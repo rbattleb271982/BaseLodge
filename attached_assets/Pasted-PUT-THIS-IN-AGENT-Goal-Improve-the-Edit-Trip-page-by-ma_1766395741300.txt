@@ -1,0 +1,65 @@
+PUT THIS IN AGENT
+
+Goal
+Improve the Edit Trip page by making the Delete Trip action clearer and safer, and by fixing checkbox alignment issues for better visual polish.
+
+This is a UX and layout update only. Do not change database schema.
+
+SECTION 1: Delete Trip button behavior and placement
+
+1. Placement
+- Keep the Delete Trip action at the bottom of the Edit Trip page
+- Do NOT move it to the top of the screen
+- Visually separate it from the Save button using spacing or a divider
+
+2. Button styling
+- Replace the current text-style Delete Trip link with a full-width button
+- The button should be visually destructive (red outline or red fill)
+- Use clear copy: "Delete trip"
+- Button should be large enough to match the primary Save button height
+
+3. Confirmation requirement
+- Tapping Delete trip must open a confirmation modal
+- The trip must NOT be deleted immediately
+
+Modal requirements:
+- Title: "Delete trip?"
+- Body text: "This action cannot be undone."
+- Actions:
+  - Cancel (default)
+  - Delete (destructive)
+
+Only delete the trip after explicit confirmation.
+
+SECTION 2: Checkbox alignment fix
+
+4. Checkbox + label alignment
+- Fix checkbox alignment so the checkbox aligns with the first line of text, not vertically centered
+- This applies to:
+  - "Make this trip visible to friends"
+  - Any similar checkbox + multiline label on this screen
+
+Implementation notes:
+- Use flex alignment that top-aligns the checkbox with the text block
+- Ensure multi-line labels wrap naturally without shifting checkbox position
+
+SECTION 3: Non-goals
+
+- Do not change delete logic or permissions
+- Do not change Save behavior
+- Do not redesign the rest of the Edit Trip form
+- Do not refactor unrelated layout code
+
+SECTION 4: Testing requirements
+
+- Delete Trip button is full-width and visually distinct
+- Delete requires confirmation before removal
+- Cancel leaves trip untouched
+- Checkbox text and checkbox are properly aligned
+- Mobile layout remains clean and readable
+
+Agent instructions
+- Make the smallest possible layout changes
+- Reuse existing modal components if available
+- Fully test before marking complete
+- Do not refactor unrelated code
