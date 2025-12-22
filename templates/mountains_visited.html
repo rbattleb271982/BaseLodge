@@ -23,11 +23,50 @@
             margin-bottom: var(--bl-space-6);
         }
         
+        .selected-mountains-wrapper {
+            position: relative;
+            margin-bottom: var(--bl-space-6);
+        }
+        
         .selected-mountains {
             display: flex;
             flex-wrap: wrap;
             gap: var(--bl-space-3);
-            margin-bottom: var(--bl-space-6);
+            max-height: 120px;
+            overflow-y: auto;
+            transition: max-height 0.3s ease;
+        }
+        
+        .selected-mountains.expanded {
+            max-height: none;
+        }
+        
+        .selected-mountains-fade {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 24px;
+            background: linear-gradient(transparent, var(--bl-color-bg));
+            pointer-events: none;
+        }
+        
+        .selected-mountains-wrapper.expanded .selected-mountains-fade {
+            display: none;
+        }
+        
+        .expand-toggle {
+            font-size: 13px;
+            color: var(--bl-color-primary);
+            background: none;
+            border: none;
+            padding: 8px 0 0 0;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .expand-toggle:hover {
+            text-decoration: underline;
         }
         
         .mountain-pill {
@@ -116,13 +155,19 @@
                 <span id="count-display">{{ mountains_visited_count }} selected</span>
             </div>
             
-            <div class="selected-mountains" id="selected-pills">
-                {% for m in selected_mountains %}
-                <span class="mountain-pill" data-mountain="{{ m }}">
-                    {{ m }}
-                    <button type="button" class="remove-btn" onclick="removeMountain('{{ m }}')" aria-label="Remove {{ m }}">✕</button>
-                </span>
-                {% endfor %}
+            <div class="selected-mountains-wrapper" id="selected-wrapper">
+                <div class="selected-mountains" id="selected-pills">
+                    {% for m in selected_mountains %}
+                    <span class="mountain-pill" data-mountain="{{ m }}">
+                        {{ m }}
+                        <button type="button" class="remove-btn" onclick="removeMountain('{{ m }}')" aria-label="Remove {{ m }}">✕</button>
+                    </span>
+                    {% endfor %}
+                </div>
+                <div class="selected-mountains-fade" id="selected-fade"></div>
+                <button type="button" class="expand-toggle" id="expand-toggle" style="display: none;" onclick="toggleExpand()">
+                    View all selected (<span id="expand-count">0</span>)
+                </button>
             </div>
             
             <div class="mountain-list" id="mountain-list">
@@ -179,6 +224,8 @@
             updatePills();
         }
         
+        let isExpanded = false;
+        
         function updatePills() {
             const checks = document.querySelectorAll('input[name="mountains"]:checked');
             const pillsContainer = document.getElementById('selected-pills');
@@ -206,7 +253,56 @@
                 
                 pillsContainer.appendChild(pill);
             });
+            
+            updateExpandToggle(selected.length);
         }
+        
+        function updateExpandToggle(count) {
+            const pillsContainer = document.getElementById('selected-pills');
+            const expandToggle = document.getElementById('expand-toggle');
+            const expandCount = document.getElementById('expand-count');
+            const fade = document.getElementById('selected-fade');
+            
+            // Check if content overflows
+            const isOverflowing = pillsContainer.scrollHeight > pillsContainer.clientHeight;
+            
+            if (count > 0 && (isOverflowing || isExpanded)) {
+                expandToggle.style.display = 'block';
+                expandCount.textContent = count;
+                fade.style.display = isExpanded ? 'none' : 'block';
+            } else {
+                expandToggle.style.display = 'none';
+                fade.style.display = 'none';
+            }
+        }
+        
+        function toggleExpand() {
+            const wrapper = document.getElementById('selected-wrapper');
+            const pillsContainer = document.getElementById('selected-pills');
+            const expandToggle = document.getElementById('expand-toggle');
+            const fade = document.getElementById('selected-fade');
+            
+            isExpanded = !isExpanded;
+            
+            if (isExpanded) {
+                wrapper.classList.add('expanded');
+                pillsContainer.classList.add('expanded');
+                expandToggle.innerHTML = 'Collapse';
+                fade.style.display = 'none';
+            } else {
+                wrapper.classList.remove('expanded');
+                pillsContainer.classList.remove('expanded');
+                const count = document.querySelectorAll('input[name="mountains"]:checked').length;
+                expandToggle.innerHTML = 'View all selected (<span id="expand-count">' + count + '</span>)';
+                fade.style.display = 'block';
+            }
+        }
+        
+        // Check overflow on initial load
+        document.addEventListener('DOMContentLoaded', function() {
+            const count = document.querySelectorAll('input[name="mountains"]:checked').length;
+            setTimeout(() => updateExpandToggle(count), 100);
+        });
     </script>
 </body>
 </html>
