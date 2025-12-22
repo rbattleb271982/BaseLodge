@@ -3560,6 +3560,49 @@ def backfill_planning_timestamp_endpoint():
         }), 500
 
 
+@app.route("/admin/backfill-primary-rider-type", methods=["GET", "POST"])
+def backfill_primary_rider_type_endpoint():
+    """
+    HTTP endpoint to backfill primary_rider_type from legacy rider_type for existing users.
+    
+    Usage: GET https://yourapp.replit.dev/admin/backfill-primary-rider-type
+    
+    This is idempotent and safe to run multiple times.
+    Only updates users who have rider_type but no primary_rider_type set.
+    """
+    try:
+        users_updated = 0
+        users_skipped = 0
+        
+        users = User.query.all()
+        for user in users:
+            if user.rider_type and not user.primary_rider_type:
+                user.primary_rider_type = user.rider_type
+                user.secondary_rider_types = []
+                users_updated += 1
+            else:
+                users_skipped += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "message": "Backfill completed",
+            "details": {
+                "users_updated": users_updated,
+                "users_skipped": users_skipped
+            }
+        }), 200
+    except Exception as e:
+        import traceback
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": f"Backfill failed: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 @app.route("/admin/seed-colorado-resorts", methods=["GET", "POST"])
 def seed_colorado_resorts_endpoint():
     """
