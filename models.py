@@ -370,12 +370,14 @@ class EquipmentSetup(db.Model):
         nullable=False
     )
     brand = db.Column(db.String(100), nullable=True)
+    model = db.Column(db.String(100), nullable=True)
     length_cm = db.Column(db.Integer, nullable=True)
     width_mm = db.Column(db.Integer, nullable=True)
     binding_type = db.Column(db.String(50), nullable=True)
     boot_brand = db.Column(db.String(50), nullable=True)
+    boot_model = db.Column(db.String(100), nullable=True)
     boot_flex = db.Column(db.Integer, nullable=True)
-    purchase_year = db.Column(db.Integer, nullable=True)  # Year equipment was purchased
+    purchase_year = db.Column(db.Integer, nullable=True)
     
     user = db.relationship('User', backref='equipment_setups')
     

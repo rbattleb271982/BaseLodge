@@ -1976,10 +1976,12 @@ def settings_equipment_save():
     slot_str = request.form.get("slot", "primary")
     discipline_str = request.form.get("discipline", "")
     brand = request.form.get("brand", "")
+    model = request.form.get("model", "")
     length_cm = request.form.get("length_cm", "")
     width_mm = request.form.get("width_mm", "")
     binding_type = request.form.get("binding_type", "")
     boot_brand = request.form.get("boot_brand", "")
+    boot_model = request.form.get("boot_model", "")
     boot_flex = request.form.get("boot_flex", "")
     purchase_year = request.form.get("purchase_year", "")
     
@@ -2001,10 +2003,12 @@ def settings_equipment_save():
             equipment.binding_type = None
     
     equipment.brand = brand if brand else None
+    equipment.model = model if model else None
     equipment.length_cm = int(length_cm) if length_cm else None
     equipment.width_mm = int(width_mm) if width_mm else None
     equipment.binding_type = binding_type if binding_type else None
     equipment.boot_brand = boot_brand if boot_brand else None
+    equipment.boot_model = boot_model if boot_model else None
     equipment.boot_flex = int(boot_flex) if boot_flex and int(boot_flex) > 0 else None
     
     # Purchase year only for primary equipment

@@ -1,0 +1,78 @@
+Part 1 — Profile Card
+1️⃣ Friends List density
+Decision:
+✅ Use a simplified version of the card in the Friends list.
+Friends list card should include:
+Row 1: Header (Name + Status)
+Row 2: Identity (State · Rider · Pass · Level)
+Row 4 (partial): Trips Planned count only
+Do NOT include in Friends list:
+Equipment row
+Full stats row (Mountains Visited / Wishlist)
+Rationale:
+Friends list is for scanning people, not full profiles
+Equipment + mountain stats add height without improving first-pass decisions
+Full 4-row card should be used on:
+Home (my profile)
+Friend Profile detail page
+This gives you density and consistency.
+2️⃣ Expandable behavior (Mountains Visited / Wishlist)
+Decision:
+✅ Inline accordion expansion within the card, not a modal.
+Behavior rules:
+Tapping expands inline
+Expanding temporarily increases card height
+Second tap collapses it back
+Expansion is transient and reversible
+Card returns to original height when collapsed
+This satisfies the requirement:
+“Must NOT permanently increase card height”
+Rationale:
+Keeps context
+Avoids modal fatigue
+Feels lightweight and intentional
+3️⃣ Status indicator position
+Decision:
+✅ Move status entirely into Row 1, inline to the right of the name.
+❌ Do NOT keep the old two-line block.
+Final rule:
+Name (left)
+Status (right)
+Single line only
+Examples:
+Richard Next trip · Jan 12–15
+Alex Starts today
+Rationale:
+Eliminates vertical waste
+Makes status instantly scannable
+Reinforces the “status card” concept
+Part 2 — Equipment Model
+4️⃣ Data storage for Model
+Decision:
+✅ Yes — add Model as a separate database column.
+Examples:
+ski_brand, ski_model
+board_brand, board_model
+boot_brand, boot_model
+Do NOT concatenate brand + model into one field.
+Rationale:
+Cleaner data model
+Easier display logic
+Future-proof (filters, normalization, analytics)
+Still backward-compatible (model nullable)
+5️⃣ Scope of Model support
+Decision:
+✅ Model applies to ALL equipment types, including boots.
+That means:
+Skis / Snowboard → Brand + Model
+Boots → Brand + Model
+Rationale:
+Boot models matter just as much as skis/boards
+Consistency beats special cases
+Users already think in brand + model terms for boots
+✅ TL;DR FOR REPLIT
+Friends list = simplified card (no equipment, no mountain stats)
+Mountains/Wishlist expansion = inline accordion
+Status = inline, right of name, single line
+Model = separate DB columns
+Model applies to skis/boards AND boots
