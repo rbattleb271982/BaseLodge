@@ -350,22 +350,12 @@
                     {{ user.first_name }}
                 </div>
 
-                <div class="profile-identity-pills">
-                    {% if user.compact_rider_type_display %}
-                    <span class="profile-pill">{{ user.compact_rider_type_display }}</span>
-                    {% endif %}
-                    {% if user.pass_type %}
-                    {% set passes = user.pass_type.split(',') %}
-                    {% for p in passes %}
-                    {% if p.strip() and p.strip().lower() != 'both' %}
-                    <span class="profile-pill">{{ p.strip() }}</span>
-                    {% endif %}
-                    {% endfor %}
-                    {% endif %}
-                    {% if user.skill_level %}
-                    <span class="profile-pill">{{ user.skill_level }}</span>
-                    {% endif %}
+                {% set identity = user|identity_line %}
+                {% if identity %}
+                <div class="profile-identity-line" style="font-size: 0.95rem; color: var(--bl-color-text-secondary); margin-bottom: 12px;">
+                    {{ identity }}
                 </div>
+                {% endif %}
 
                 <div class="profile-identity-rows">
                     {% if user.terrain_preferences and user.terrain_preferences|length > 0 %}
