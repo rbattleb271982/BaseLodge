@@ -25,9 +25,9 @@ The application uses a mobile-first responsive design with a unified "BaseLodge"
 **Card 5-Row Structure (Home, Friend Profile):**
 | Row | Content | Typography |
 |-----|---------|------------|
-| 1. Header | Name + Status (horizontal) | Name: 1.1rem 600 weight; Status: 0.9rem muted (active = primary color) |
+| 1. Header | Name + Status (horizontal) | Name: 1.1rem 600 weight; Status: 0.9rem (only shown if trip exists) |
 | 2. Identity | State · Rider Type · Pass · Skill | 0.95rem muted; shows "Complete your profile →" CTA if core fields missing |
-| 2b. Terrain | Terrain · [preference 1] · [preference 2] (conditional, max 3) | 0.9rem muted; only shown if terrain_preferences set |
+| 2b. Terrain | Terrain · [pref1], [pref2] (always shown) | 0.9rem muted; shows "Terrain · Edit" if empty |
 | 3. Equipment | Sport: Brand Model · Boots: Brand Model (conditional) | 0.9rem muted; only shown if equipment_status = have_own_equipment |
 | 4. Stats | Trips | Mountains | Wishlist (3 columns with vertical dividers) | Label: 0.75rem uppercase; Value: 1.15rem 600 weight |
 
@@ -35,6 +35,10 @@ The application uses a mobile-first responsive design with a unified "BaseLodge"
 - Cards answer "Who is this person as a ski partner?" — read-only identity snapshot, not a configuration surface
 - Settings is the source of truth for all editable fields
 - Explicitly excluded: gender, birth year, home mountain, open dates CTA, equipment dimensions/specs
+- Status indicator only appears when user has an upcoming trip (absence is quiet)
+
+**Terrain Preferences Options:**
+Groomers, Trees, Steeps, Park, First Chair, Après (max 2 selections)
 
 **Status Indicator:**
 - Shows "Next trip · Date" or date range for active trips (primary color)
