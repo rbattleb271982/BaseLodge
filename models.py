@@ -73,8 +73,10 @@ class User(UserMixin, db.Model):
     home_state = db.Column(db.String(50))
     skill_level = db.Column(db.String(50))
     gear = db.Column(db.String(200))
-    home_mountain = db.Column(db.String(100), nullable=True)
-    mountains_visited = db.Column(db.JSON, default=list)
+    home_mountain = db.Column(db.String(100), nullable=True)  # DEPRECATED: Use home_resort_id instead
+    mountains_visited = db.Column(db.JSON, default=list)  # DEPRECATED: Use visited_resort_ids instead
+    home_resort_id = db.Column(db.Integer, db.ForeignKey('resort.id'), nullable=True)  # FK to Resort table
+    visited_resort_ids = db.Column(db.JSON, default=list)  # List of Resort IDs (normalized)
     open_dates = db.Column(db.JSON, default=list)  # List of YYYY-MM-DD strings
     wish_list_resorts = db.Column(db.JSON, default=list)  # List of resort IDs (max 3)
     terrain_preferences = db.Column(db.JSON, default=list)  # List of terrain types (max 2): Groomers, Trees, Park, Backcountry
@@ -112,6 +114,7 @@ class User(UserMixin, db.Model):
     friends = db.relationship('Friend', foreign_keys='Friend.user_id', backref='user_obj', lazy=True)
     events = db.relationship('Event', backref='user', lazy=True)
     email_logs = db.relationship('EmailLog', backref='user', lazy=True)
+    home_resort = db.relationship('Resort', foreign_keys=[home_resort_id], lazy=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
