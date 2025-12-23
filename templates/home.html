@@ -491,11 +491,13 @@
         <div id="tab-overlaps" class="bl-trip-list" role="tabpanel" {% if active_tab != 'overlaps' %}style="display: none;"{% endif %}>
             {% if overlaps and overlaps|length > 0 %}
                 {% for o in overlaps %}
-                <div class="bl-trip-card">
-                    <p class="bl-trip-card-dates">You and {{ o.friend_name }} overlap at {{ o.mountain }}</p>
-                    <p class="bl-trip-card-resort">{% if o.start_date == o.end_date %}{{ o.start_date.strftime('%a, %b %d') }}{% else %}{{ o.start_date.strftime('%a, %b %d') }} – {{ o.end_date.strftime('%a, %b %d') }}{% endif %}</p>
-                    <p class="bl-trip-card-pass">Same resort, {% if o.start_date == o.end_date %}same date{% else %}overlapping dates{% endif %}</p>
-                </div>
+                <a href="{{ url_for('friend_profile', friend_id=o.friend_id, resort_id=o.resort_id, overlap_start=o.start_date.strftime('%Y-%m-%d'), overlap_end=o.end_date.strftime('%Y-%m-%d')) }}" style="text-decoration: none; color: inherit;">
+                    <div class="bl-trip-card">
+                        <p class="bl-trip-card-dates">You and {{ o.friend_first_name }} overlap at {{ o.mountain }}</p>
+                        <p class="bl-trip-card-resort">{% if o.start_date == o.end_date %}{{ o.start_date.strftime('%a, %b %d') }}{% else %}{{ o.start_date.strftime('%a, %b %d') }} – {{ o.end_date.strftime('%a, %b %d') }}{% endif %}</p>
+                        <p class="bl-trip-card-pass">Same resort, {% if o.start_date == o.end_date %}same date{% else %}overlapping dates{% endif %}</p>
+                    </div>
+                </a>
                 {% endfor %}
             {% else %}
                 <div class="empty-state-container">
@@ -565,16 +567,32 @@
                             {% set diff_pass_friends = sorted_friends | rejectattr('pass_type', 'equalto', user.pass_type) | list %}
                             
                             {% for friend in same_pass_friends | sort(attribute='name') | sort(attribute='skill_level', reverse=False) %}
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 8px 0;">
-                                    <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; font-weight: 500; flex: 1;">{{ friend.name }}</a>
-                                    <span style="font-size: 0.85rem; color: var(--bl-color-text-muted);">{{ friend.pass_type }}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
+                                <div style="display: flex; flex-direction: column; margin-bottom: 10px; padding: 8px 0;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; font-weight: 500; flex: 1;">{{ friend.name }}</a>
+                                        <span style="font-size: 0.85rem; color: var(--bl-color-text-muted);">{{ friend.pass_type }}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
+                                    </div>
+                                    {% if friend.can_propose_trip %}
+                                    <a href="{{ url_for('create_trip') }}?friend_id={{ friend.id }}&start_date={{ match.date_str }}&end_date={{ match.date_str }}&is_group=1" 
+                                       style="font-size: 0.85rem; color: var(--bl-color-primary); font-weight: 500; margin-top: 4px; text-decoration: none;">
+                                        Propose a trip →
+                                    </a>
+                                    {% endif %}
                                 </div>
                             {% endfor %}
                             
                             {% for friend in diff_pass_friends | sort(attribute='name') %}
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 8px 0;">
-                                    <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; font-weight: 500; flex: 1;">{{ friend.name }}</a>
-                                    <span style="font-size: 0.85rem; color: var(--bl-color-text-muted);">{{ friend.pass_type }}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
+                                <div style="display: flex; flex-direction: column; margin-bottom: 10px; padding: 8px 0;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; font-weight: 500; flex: 1;">{{ friend.name }}</a>
+                                        <span style="font-size: 0.85rem; color: var(--bl-color-text-muted);">{{ friend.pass_type }}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
+                                    </div>
+                                    {% if friend.can_propose_trip %}
+                                    <a href="{{ url_for('create_trip') }}?friend_id={{ friend.id }}&start_date={{ match.date_str }}&end_date={{ match.date_str }}&is_group=1" 
+                                       style="font-size: 0.85rem; color: var(--bl-color-primary); font-weight: 500; margin-top: 4px; text-decoration: none;">
+                                        Propose a trip →
+                                    </a>
+                                    {% endif %}
                                 </div>
                             {% endfor %}
                             

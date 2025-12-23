@@ -299,10 +299,10 @@
 <body>
     <div class="page-container">
         <h1 class="page-title">
-            {% if trip %}Edit trip{% else %}Add a trip{% endif %}
+            {% if trip %}Edit trip{% elif prefill_friend and is_group %}Propose a trip{% else %}Add a trip{% endif %}
         </h1>
         
-        {% if not trip %}
+        {% if not trip and not (prefill_friend and is_group) %}
         <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0 0 16px 0;">Trips you add here are visible to your friends.</p>
         {% endif %}
 
@@ -325,8 +325,21 @@
             </div>
         </div>
         {% endif %}
+        
+        {% if prefill_friend and is_group %}
+        <div class="proposal-banner" style="background: rgba(143, 1, 27, 0.08); border: 1px solid rgba(143, 1, 27, 0.2); border-radius: var(--bl-radius-md); padding: var(--bl-space-4); margin-bottom: var(--bl-space-5);">
+            <p style="margin: 0; font-size: 14px; color: var(--bl-color-text);">
+                <strong>Proposing a trip with {{ prefill_friend.first_name }}</strong><br>
+                <span style="color: var(--bl-color-text-muted);">They'll receive an invite when you save this trip.</span>
+            </p>
+        </div>
+        {% endif %}
 
         <form method="POST" action="{{ form_action }}" class="form-card" id="trip-form">
+            {% if prefill_friend and is_group %}
+            <input type="hidden" name="friend_id" value="{{ prefill_friend.id }}">
+            <input type="hidden" name="is_group" value="1">
+            {% endif %}
             <div class="form-group">
                 <label for="country">Country</label>
                 <select id="country" name="country" onchange="updateStates()">
@@ -356,8 +369,8 @@
             <div class="form-group">
                 <label for="start_date">Start date</label>
                 <div class="date-wrapper">
-                    <input type="date" id="start_date" name="start_date" required value="{% if trip and trip.start_date %}{{ trip.start_date.isoformat() }}{% endif %}" onchange="updateEndDateMin(); updateDurationDisplay(); updatePlaceholders();">
-                    <span class="date-placeholder" id="start_date_placeholder" {% if trip and trip.start_date %}style="display:none"{% endif %}>mm/dd/yy</span>
+                    <input type="date" id="start_date" name="start_date" required value="{% if trip and trip.start_date %}{{ trip.start_date.isoformat() }}{% elif prefill_start_date %}{{ prefill_start_date }}{% endif %}" onchange="updateEndDateMin(); updateDurationDisplay(); updatePlaceholders();">
+                    <span class="date-placeholder" id="start_date_placeholder" {% if trip and trip.start_date or prefill_start_date %}style="display:none"{% endif %}>mm/dd/yy</span>
                 </div>
                 <p class="inline-error" id="start-date-error">Start date cannot be in the past.</p>
             </div>
@@ -365,8 +378,8 @@
             <div class="form-group">
                 <label for="end_date">End date</label>
                 <div class="date-wrapper">
-                    <input type="date" id="end_date" name="end_date" required value="{% if trip and trip.end_date %}{{ trip.end_date.isoformat() }}{% endif %}" onchange="updateDurationDisplay(); updatePlaceholders();">
-                    <span class="date-placeholder" id="end_date_placeholder" {% if trip and trip.end_date %}style="display:none"{% endif %}>mm/dd/yy</span>
+                    <input type="date" id="end_date" name="end_date" required value="{% if trip and trip.end_date %}{{ trip.end_date.isoformat() }}{% elif prefill_end_date %}{{ prefill_end_date }}{% endif %}" onchange="updateDurationDisplay(); updatePlaceholders();">
+                    <span class="date-placeholder" id="end_date_placeholder" {% if trip and trip.end_date or prefill_end_date %}style="display:none"{% endif %}>mm/dd/yy</span>
                 </div>
                 <p class="inline-error" id="end-date-error">End date cannot be before start date.</p>
             </div>
@@ -414,7 +427,7 @@
                 <p class="helper-text">Only friends can see this trip.</p>
             </div>
 
-            <button type="submit" class="primary-button">{% if trip %}Save changes{% else %}Save trip{% endif %}</button>
+            <button type="submit" class="primary-button">{% if trip %}Save changes{% elif prefill_friend and is_group %}Send invite{% else %}Save trip{% endif %}</button>
         </form>
         
         {% if trip %}

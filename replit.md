@@ -38,7 +38,7 @@ The backend uses Flask, SQLAlchemy for ORM, and Werkzeug for password hashing. J
 ### Feature Specifications
 - **Authentication & Onboarding:** Two-step flow: (1) Minimal signup collects only first name, last name, email, password. (2) Full-screen Identity Setup immediately after signup collects rider_types (multi-select), skill_level (radio), and pass_type (multi-select chips). Progressive modals on Home (1st-2nd logins only) collect riding style only (equipment removed from onboarding - managed in Settings instead). Welcome screen with 3 CTAs (Add Trip, Invite Friends, Explore) appears once after follow-ups complete. Stop conditions: `welcome_next_steps_shown_at` set OR `login_count > 2` = no more modals. User model computed properties: `is_core_profile_complete`, `is_equipment_complete`, `is_profile_complete`, `should_show_progressive_modal`. Equipment is optional and managed in Settings > Equipment.
 - **User Profile:** Comprehensive profiles (multi-select rider types, pass, skill, home state, equipment, visited mountains) within a "Settings" page.
-- **Trip Management:** Create trips with country-first location, dates, public toggles, ride intent. Displayed in 3 tabs (My Trips, Friends' Trips, Overlaps). Auto-calculates duration. Date validation enforces future dates for new trips. Prevents duplicate active trips at the same resort. Includes resort search and filters.
+- **Trip Management:** Create trips with country-first location, dates, public toggles, ride intent. Displayed in 3 tabs (My Trips, Friends' Trips, Overlaps). Auto-calculates duration. Date validation enforces future dates for new trips. Prevents duplicate active trips at the same resort. Includes resort search and filters. Group trip creation via "Propose a trip" flow with URL prefill params (friend_id, start_date, end_date, is_group).
 - **Friends System:** Invitation-based, bidirectional friendships with dedicated profiles supporting token-based invites.
 - **Pass Selection:** Quick-select for Epic/Ikon, "Other passes" dropdown, or "I don't have a pass."
 - **Navigation:** Consistent 4-tab bottom navigation (Home, Friends, Invite, Settings).
@@ -55,7 +55,7 @@ The backend uses Flask, SQLAlchemy for ORM, and Werkzeug for password hashing. J
 - **Database:** SQLite for development, PostgreSQL for production, managed via SQLAlchemy.
 - **File Structure:** Organized separation of application logic, models, templates, and static assets.
 - **API Endpoints:** Dedicated routes for authentication, trip, friend, profile, and equipment management.
-- **Models:** Core models include `User`, `SkiTrip`, `Resort`, `Friend`, `Invitation`, `InviteToken`, `GroupTrip`, `TripGuest`, and `EquipmentSetup`.
+- **Models:** Core models include `User`, `SkiTrip`, `Resort`, `Friend`, `Invitation`, `InviteToken`, `GroupTrip`, `TripGuest`, `SkiTripParticipant`, and `EquipmentSetup`.
 - **Database Initialization:** Idempotent via `flask init-db` or `/admin/init-db`.
 - **Test Data Seeding:** `/admin/seed-test-users` provides demo data.
 

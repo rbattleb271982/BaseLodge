@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps
 from flask_migrate import Migrate
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, Event
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, Event, SkiTripParticipant
 from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
 from io import BytesIO
@@ -928,6 +928,10 @@ def create_trip():
     if overlapping:
         return jsonify({"success": False, "error": "You already have a trip during these dates."}), 409
     
+    # Check if this is a group trip proposal
+    friend_id = data.get("friend_id")
+    is_group_trip = data.get("is_group", False)
+    
     trip = SkiTrip(
         user_id=user.id,
         state=state,
@@ -935,9 +939,16 @@ def create_trip():
         start_date=start_date,
         end_date=end_date,
         pass_type=pass_type,
-        is_public=is_public
+        is_public=is_public,
+        is_group_trip=is_group_trip or (friend_id is not None),
+        created_by_user_id=user.id
     )
     db.session.add(trip)
+    db.session.flush()  # Get trip.id before adding participants
+    
+    # Add participant if friend_id is provided
+    if friend_id:
+        trip.add_participant(friend_id, GuestStatus.INVITED)
     
     # Track first trip created if not already set
     if not user.first_trip_created_at:
@@ -1151,6 +1162,27 @@ def remove_friend(friend_id):
     
     return jsonify({"success": True, "message": "Friend removed"}), 200
 
+
+@app.route("/api/friends/<int:friend_id>/toggle-trip-invites", methods=["POST"])
+@login_required
+def toggle_trip_invites(friend_id):
+    """Toggle trip_invites_allowed for a friendship."""
+    friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
+    
+    if not friendship:
+        return jsonify({"success": False, "error": "Friendship not found"}), 404
+    
+    # Toggle the value
+    new_value = not friendship.trip_invites_allowed
+    friendship.trip_invites_allowed = new_value
+    db.session.commit()
+    
+    return jsonify({
+        "success": True,
+        "trip_invites_allowed": new_value
+    }), 200
+
+
 def pass_category(pass_type):
     """Categorize pass type into Epic, Ikon, or Other."""
     if pass_type in ["Epic", "Epic Local", "Epic Pass", "Epic 4-day"]:
@@ -1218,7 +1250,10 @@ def friends():
     
     all_friends_sorted = same_state_friends + other_state_friends
     
-    # Calculate upcoming trip count for each friend
+    # Build a lookup for friendship data (including trip_invites_allowed)
+    friendship_lookup = {f.friend_id: f for f in friend_links}
+    
+    # Calculate upcoming trip count for each friend and attach friendship data
     for friend in all_friends_sorted:
         upcoming_count = SkiTrip.query.filter(
             SkiTrip.user_id == friend.id,
@@ -1226,6 +1261,9 @@ def friends():
             SkiTrip.end_date >= today
         ).count()
         friend._upcoming_trip_count = upcoming_count
+        # Attach friendship permission
+        friendship = friendship_lookup.get(friend.id)
+        friend._trip_invites_allowed = friendship.trip_invites_allowed if friendship else False
     
     # Get multi-select filter params
     selected_riders = request.args.getlist("rider")
@@ -1281,6 +1319,26 @@ def friends():
 def friend_profile(friend_id):
     friend = User.query.get_or_404(friend_id)
     user = current_user
+    
+    # Parse overlap context from URL params (for context banner)
+    overlap_context = None
+    resort_id = request.args.get('resort_id', type=int)
+    overlap_start = request.args.get('overlap_start')
+    overlap_end = request.args.get('overlap_end')
+    
+    if resort_id and overlap_start:
+        resort = Resort.query.get(resort_id)
+        if resort:
+            try:
+                start_date = datetime.strptime(overlap_start, '%Y-%m-%d').date()
+                end_date = datetime.strptime(overlap_end, '%Y-%m-%d').date() if overlap_end else start_date
+                overlap_context = {
+                    'resort_name': resort.name,
+                    'start_date': start_date,
+                    'end_date': end_date
+                }
+            except (ValueError, TypeError):
+                pass
     
     mountains = friend.mountains_visited or []
     friend_mountains_count = len(mountains)
@@ -1391,7 +1449,8 @@ def friend_profile(friend_id):
         friend_wish_list=friend_wish_list,
         wish_list_overlap=wish_list_overlap,
         visited_resorts=friend_visited_resorts,
-        wishlist_resorts=friend_wishlist_resorts
+        wishlist_resorts=friend_wishlist_resorts,
+        overlap_context=overlap_context
     )
 
 @app.route("/profile/<int:user_id>")
@@ -1457,8 +1516,28 @@ def update_profile():
 def create_trip_page():
     user = current_user
     
+    # Get pre-filled parameters from "Propose a trip" flow
+    prefill_friend_id = request.args.get('friend_id', type=int)
+    prefill_start_date = request.args.get('start_date')
+    prefill_end_date = request.args.get('end_date')
+    is_group = request.args.get('is_group') == '1'
+    
+    prefill_friend = None
+    if prefill_friend_id:
+        prefill_friend = User.query.get(prefill_friend_id)
+    
     states = sorted(MOUNTAINS_BY_STATE.keys())
-    return render_template("create_trip.html", user=user, states=states, mountains_by_state=MOUNTAINS_BY_STATE, pass_options=PASS_OPTIONS)
+    return render_template(
+        "create_trip.html", 
+        user=user, 
+        states=states, 
+        mountains_by_state=MOUNTAINS_BY_STATE, 
+        pass_options=PASS_OPTIONS,
+        prefill_start_date=prefill_start_date,
+        prefill_end_date=prefill_end_date,
+        prefill_friend=prefill_friend,
+        is_group=is_group
+    )
 
 @app.route("/invite")
 @login_required
@@ -1613,6 +1692,48 @@ def dates_to_ranges(date_strings):
     ranges.append({"start_date": current_start, "end_date": current_end})
     return ranges
 
+
+def check_trip_invite_eligibility(user_id, friend_id):
+    """
+    Check if user can invite friend to a trip.
+    Returns True if at least ONE condition is met:
+    1. They share a trip overlap (past or upcoming)
+    2. They share open availability
+    3. The friendship has trip_invites_allowed = True
+    """
+    today = date.today()
+    today_str = today.strftime('%Y-%m-%d')
+    
+    # Check 1: Friendship permission
+    friendship = Friend.query.filter_by(user_id=user_id, friend_id=friend_id).first()
+    if friendship and friendship.trip_invites_allowed:
+        return True
+    
+    # Check 2: Trip overlap (any trip, past or upcoming)
+    user_trips = SkiTrip.query.filter_by(user_id=user_id).all()
+    friend_trips = SkiTrip.query.filter(
+        SkiTrip.user_id == friend_id,
+        SkiTrip.is_public == True
+    ).all()
+    
+    for ut in user_trips:
+        for ft in friend_trips:
+            if ut.mountain == ft.mountain:
+                if date_ranges_overlap(ut.start_date, ut.end_date, ft.start_date, ft.end_date):
+                    return True
+    
+    # Check 3: Shared open availability
+    user = User.query.get(user_id)
+    friend = User.query.get(friend_id)
+    if user and friend:
+        user_open_dates = set(d for d in (user.open_dates or []) if d >= today_str)
+        friend_open_dates = set(d for d in (friend.open_dates or []) if d >= today_str)
+        if user_open_dates & friend_open_dates:
+            return True
+    
+    return False
+
+
 def compute_availability_overlaps(user_open_dates, friend_open_dates):
     """Compute overlapping date ranges between user and friend's open dates.
     Returns list of {start_date, end_date} dicts representing overlap ranges.
@@ -1729,6 +1850,7 @@ def home():
                             "mountain": resort.name if resort else my.mountain,
                             "state": resort.state if resort else my.state,
                             "brand": resort.brand if resort else None,
+                            "resort_id": resort.id if resort else None,
                             "start_date": max(my.start_date, friend_trip.start_date),
                             "end_date": min(my.end_date, friend_trip.end_date)
                         })
@@ -1784,7 +1906,8 @@ def home():
                         "id": friend.id,
                         "pass_type": friend.pass_type,
                         "skill_level": friend.skill_level,
-                        "pass_info": pass_info
+                        "pass_info": pass_info,
+                        "can_propose_trip": check_trip_invite_eligibility(user.id, friend.id)
                     })
             
             if matching_friends:
@@ -2444,6 +2567,16 @@ def add_trip():
     # Convert to dicts for JSON serialization (include pass_brands and country for smart sorting and filtering)
     resorts = [{"id": r.id, "name": r.name, "state": r.state, "country": r.country, "brand": r.brand, "pass_brands": r.pass_brands or r.brand or ""} for r in resorts_objs]
     
+    # Get prefill parameters for "Propose a trip" flow
+    prefill_friend_id = request.args.get('friend_id', type=int)
+    prefill_start_date = request.args.get('start_date')
+    prefill_end_date = request.args.get('end_date')
+    is_group = request.args.get('is_group') == '1'
+    
+    prefill_friend = None
+    if prefill_friend_id:
+        prefill_friend = User.query.get(prefill_friend_id)
+    
     if request.method == "POST":
         resort_id = request.form.get("resort_id")
         start_date_str = request.form.get("start_date")
@@ -2452,6 +2585,10 @@ def add_trip():
         set_home_mountain = request.form.get("set_home_mountain") == "on"
         ride_intent = request.form.get("ride_intent") or None
         trip_equipment_status = request.form.get("trip_equipment_status") or "use_default"
+        
+        # Group trip parameters
+        friend_id = request.form.get("friend_id", type=int)
+        is_group_trip = request.form.get("is_group") == "1"
 
         errors = []
 
@@ -2538,9 +2675,17 @@ def add_trip():
             ride_intent=ride_intent,
             trip_duration=trip_duration,
             trip_equipment_status=trip_equipment_status if trip_equipment_status != 'use_default' else None,
+            is_group_trip=is_group_trip or (friend_id is not None),
+            created_by_user_id=current_user.id,
         )
         try:
             db.session.add(trip)
+            db.session.flush()  # Get trip.id before adding participants
+            
+            # Add participant if this is a group trip proposal
+            if friend_id:
+                trip.add_participant(friend_id, GuestStatus.INVITED)
+            
             db.session.commit()
 
             if set_home_mountain and resort:
@@ -2584,6 +2729,10 @@ def add_trip():
         default_state=default_state,
         default_country=default_country,
         user_passes=user_passes,
+        prefill_friend=prefill_friend,
+        prefill_start_date=prefill_start_date,
+        prefill_end_date=prefill_end_date,
+        is_group=is_group,
     )
 
 @app.route("/trips/<int:trip_id>/edit", methods=["GET", "POST"])

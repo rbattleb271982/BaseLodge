@@ -165,6 +165,14 @@
             padding: 14px 16px;
             margin-bottom: 12px;
         }
+        .context-banner {
+            background: rgba(143, 1, 27, 0.06);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+        }
         .overlap-callout-text {
             font-size: 14px;
             color: var(--bl-color-text);
@@ -182,6 +190,12 @@
     <div class="page-container">
         <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
         <a href="{{ url_for('friends') }}" class="back-link">← Back</a>
+        
+        {% if overlap_context %}
+        <div class="context-banner">
+            You overlap on {{ overlap_context.resort_name }} · {{ overlap_context.start_date.strftime('%b %d') }}{% if overlap_context.start_date != overlap_context.end_date %}–{{ overlap_context.end_date.strftime('%b %d') }}{% endif %}
+        </div>
+        {% endif %}
         
         <!-- Friend Profile Card -->
         {% set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.boot_brand)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.boot_brand)) else none) %}
