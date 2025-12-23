@@ -830,14 +830,18 @@ def edit_profile():
         user.home_state = request.form.get("home_state") or None
         user.skill_level = request.form.get("skill_level") or None
         user.gear = request.form.get("gear") or None
-        home_mountain_name = request.form.get("home_mountain") or None
-        user.home_mountain = home_mountain_name
-        if home_mountain_name:
-            home_resort = find_resort_by_name(home_mountain_name, user.home_state)
+        home_resort_id_raw = request.form.get("home_resort_id") or None
+        if home_resort_id_raw:
+            home_resort = Resort.query.get(int(home_resort_id_raw))
             if home_resort:
                 user.home_resort_id = home_resort.id
+                user.home_mountain = home_resort.name  # Keep legacy field in sync
+            else:
+                user.home_resort_id = None
+                user.home_mountain = None
         else:
             user.home_resort_id = None
+            user.home_mountain = None
         
         terrain_raw = request.form.get("terrain_preferences", "")
         terrain_list = [t.strip() for t in terrain_raw.split(",") if t.strip()][:2]
@@ -862,7 +866,15 @@ def edit_profile():
     secondary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.SECONDARY).first()
     friends_count = Friend.query.filter_by(user_id=user.id).count()
     
-    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=CANONICAL_PASSES, rider_types=RIDER_TYPES, all_states=ALL_US_STATES, primary_equipment=primary_equipment, secondary_equipment=secondary_equipment, mountains_by_state=MOUNTAINS_BY_STATE)
+    # Build resorts by state from database
+    all_resorts = Resort.query.filter_by(is_active=True).order_by(Resort.state, Resort.name).all()
+    resorts_by_state = {}
+    for resort in all_resorts:
+        if resort.state not in resorts_by_state:
+            resorts_by_state[resort.state] = []
+        resorts_by_state[resort.state].append({"id": resort.id, "name": resort.name})
+    
+    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=CANONICAL_PASSES, rider_types=RIDER_TYPES, all_states=ALL_US_STATES, primary_equipment=primary_equipment, secondary_equipment=secondary_equipment, resorts_by_state=resorts_by_state)
 
 @app.route("/my-trips")
 @login_required

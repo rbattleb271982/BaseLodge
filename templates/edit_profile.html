@@ -309,12 +309,16 @@
         
         <div class="form-row">
             <label>Home Mountain</label>
-            <select name="home_mountain" id="home_mountain" {% if not current_user.home_state %}disabled{% endif %}>
-                <option value="">{% if not current_user.home_state %}Select state first{% else %}Select your home mountain{% endif %}</option>
-                {% if current_user.home_state and current_user.home_state in mountains_by_state %}
-                    {% for m in mountains_by_state[current_user.home_state]|sort %}
-                        <option value="{{ m }}" {% if current_user.home_mountain == m %}selected{% endif %}>{{ m }}</option>
+            <select name="home_resort_id" id="home_resort_id" {% if not current_user.home_state %}disabled{% endif %}>
+                {% if not current_user.home_state %}
+                    <option value="">Select your home state first</option>
+                {% elif current_user.home_state in resorts_by_state and resorts_by_state[current_user.home_state]|length > 0 %}
+                    <option value="">Select your home mountain</option>
+                    {% for resort in resorts_by_state[current_user.home_state] %}
+                        <option value="{{ resort.id }}" {% if current_user.home_resort_id == resort.id %}selected{% endif %}>{{ resort.name }}</option>
                     {% endfor %}
+                {% else %}
+                    <option value="">No mountains available in this state</option>
                 {% endif %}
             </select>
         </div>
