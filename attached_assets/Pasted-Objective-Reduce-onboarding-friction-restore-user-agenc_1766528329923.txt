@@ -1,0 +1,106 @@
+Objective
+Reduce onboarding friction, restore user agency, and simplify the post-signup experience while preserving data quality.
+Mandatory onboarding should feel complete, optional personalization should be permission-based, and no screen should overwhelm the user with choices.
+Do not add new required fields.
+Do not gate core functionality.
+Do not introduce chat, messaging, or notes.
+1. Mandatory onboarding ends after identity setup
+The following screen remains mandatory and completes account creation:
+Rider Type (Skier, Snowboarder, Telemark, Cross-Country, Adaptive)
+Skill Level
+Pass
+Once the user taps Continue on this screen:
+The account is considered fully created
+Onboarding is complete
+No additional questions may appear automatically
+This screen must be the only required onboarding step.
+2. Add a one-time Welcome modal (permission-based)
+Immediately after mandatory onboarding completes and before the user interacts with the app, show a one-time Welcome modal.
+Copy (exact)
+Title
+Welcome to BaseLodge
+Subtext
+You’re all set. Start by adding a trip, or explore when you’re ready.
+CTA
+[ Done ]
+Behavior
+This modal is shown only once
+Persist a flag (e.g. welcome_seen = true)
+Tapping Done:
+Dismisses the modal
+Lands the user in the default app view (My Trips / Home)
+Does not force any action
+Do not show any additional CTAs on this screen
+Remove entirely
+❌ Add a trip button
+❌ Invite friends button
+❌ Explore BaseLodge button
+❌ Any stacked or competing CTAs
+This screen is orientation, not a menu.
+3. Optional Terrain Personalization (permission-based)
+Terrain preferences are optional and must only appear when explicitly chosen by the user.
+Trigger
+Terrain modal is shown only if the user explicitly chooses to personalize their experience (not automatically on app load).
+Terrain modal copy
+Title
+Favorite terrain
+Subtext
+This helps friends understand how you like to ski. You can change this anytime.
+Helper text
+Choose up to 2
+Allowed terrain options (ONLY THESE)
+Groomers
+Trees
+Steeps
+Park
+❌ Remove:
+First Chair
+Après-ski
+These are not terrain types and must not appear.
+❌ Remove any “Step X of Y” language
+❌ Do not imply obligation or progress completion
+4. Terrain selection behavior (IMPORTANT UX RULE)
+Terrain selection must be forgiving and non-blocking.
+Rules
+Users may select up to 2 terrain options
+If a user already has 2 selected and taps a third:
+The newly selected option replaces the second selection
+Do not block the action
+Do not show an error, warning, or toast
+Example
+Groomers → Trees
+Tap Steeps
+Result: Groomers + Steeps
+No friction. No errors.
+5. Terrain must never block anything
+Terrain preferences are purely descriptive and must never block:
+Entering the app
+Creating or editing trips
+Inviting friends
+Viewing profiles
+Any core functionality
+Rules
+Terrain selection is optional
+Users may submit 0, 1, or 2 selections
+Users may skip or close the modal without penalty
+If terrain is unset:
+Display as Not specified or omit entirely
+Do not show errors, warnings, or nags
+6. Editing terrain later
+Terrain preferences must be editable later via:
+Profile screen
+No forced reminders. No blocking nudges.
+Definition of Done
+Mandatory onboarding ends cleanly after identity screen
+Users feel “done” immediately after tapping Continue
+Welcome modal is calm, minimal, and shown only once
+Welcome screen has one CTA only: “Done”
+Terrain personalization is optional, skippable, and non-blocking
+Terrain options are limited to true terrain types
+Selecting a 3rd terrain replaces the 2nd (no errors)
+No surprise modals on first app load
+Implementation Guardrails
+Do not reintroduce multiple CTAs
+Do not auto-trigger terrain modals
+Do not infer “missing” terrain as an error state
+Favor user agency over completion metrics
