@@ -26,6 +26,24 @@ class GuestStatus(PyEnum):
     DECLINED = "declined"
 
 
+class ParticipantRole(PyEnum):
+    OWNER = "owner"
+    GUEST = "guest"
+
+
+class ParticipantTransportation(PyEnum):
+    DRIVING = "driving"
+    FLYING = "flying"
+    TRAIN_BUS = "train_bus"
+    TBD = "tbd"
+
+
+class ParticipantEquipment(PyEnum):
+    OWN = "own"
+    RENTING = "renting"
+    NEEDS_RENTALS = "needs_rentals"
+
+
 class EquipmentSlot(PyEnum):
     PRIMARY = "primary"
     SECONDARY = "secondary"
@@ -461,18 +479,82 @@ class SkiTrip(db.Model):
             parts.append(f"{accepted} accepted")
         return " · ".join(parts)
     
-    def add_participant(self, user_id, status=None):
+    def add_participant(self, user_id, status=None, role=None):
         """Add a participant to the trip. Returns the SkiTripParticipant record."""
         if status is None:
             status = GuestStatus.INVITED
+        if role is None:
+            role = ParticipantRole.GUEST
         existing = SkiTripParticipant.query.filter_by(trip_id=self.id, user_id=user_id).first()
         if existing:
             existing.status = status
+            if role:
+                existing.role = role
             return existing
-        participant = SkiTripParticipant(trip_id=self.id, user_id=user_id, status=status)
+        participant = SkiTripParticipant(trip_id=self.id, user_id=user_id, status=status, role=role)
         db.session.add(participant)
-        self.is_group_trip = True
+        if role != ParticipantRole.OWNER:
+            self.is_group_trip = True
         return participant
+    
+    def add_owner_as_participant(self):
+        """Add trip owner as a participant with OWNER role and ACCEPTED status."""
+        return self.add_participant(
+            self.user_id,
+            status=GuestStatus.ACCEPTED,
+            role=ParticipantRole.OWNER
+        )
+    
+    def get_all_participants(self):
+        """Get all participants including owner (accepted or owner role)."""
+        return SkiTripParticipant.query.filter(
+            SkiTripParticipant.trip_id == self.id,
+            db.or_(
+                SkiTripParticipant.status == GuestStatus.ACCEPTED,
+                SkiTripParticipant.role == ParticipantRole.OWNER
+            )
+        ).all()
+    
+    def get_group_signals(self):
+        """Get aggregated transportation and equipment counts for the group."""
+        participants = self.get_all_participants()
+        
+        transportation = {
+            'driving': 0,
+            'flying': 0,
+            'train_bus': 0,
+            'tbd': 0,
+        }
+        equipment = {
+            'own': 0,
+            'renting': 0,
+            'needs_rentals': 0,
+        }
+        
+        for p in participants:
+            if p.transportation_status:
+                key = p.transportation_status.value
+                if key in transportation:
+                    transportation[key] += 1
+            else:
+                transportation['tbd'] += 1
+            
+            if p.equipment_status:
+                key = p.equipment_status.value
+                if key in equipment:
+                    equipment[key] += 1
+            elif p.user and p.user.equipment_status:
+                if p.user.equipment_status == EquipmentStatus.HAVE_OWN_EQUIPMENT:
+                    equipment['own'] += 1
+                elif p.user.equipment_status == EquipmentStatus.NEEDS_RENTALS:
+                    equipment['needs_rentals'] += 1
+            else:
+                pass
+        
+        return {
+            'transportation': transportation,
+            'equipment': equipment,
+        }
 
 
 class Friend(db.Model):
@@ -503,6 +585,19 @@ class SkiTripParticipant(db.Model):
         default=GuestStatus.INVITED,
         nullable=False
     )
+    role = db.Column(
+        db.Enum(ParticipantRole, name='participant_role_enum', create_constraint=True),
+        default=ParticipantRole.GUEST,
+        nullable=False
+    )
+    transportation_status = db.Column(
+        db.Enum(ParticipantTransportation, name='participant_transportation_enum', create_constraint=True),
+        nullable=True
+    )
+    equipment_status = db.Column(
+        db.Enum(ParticipantEquipment, name='participant_equipment_enum', create_constraint=True),
+        nullable=True
+    )
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     user = db.relationship('User', backref='ski_trip_participations')
@@ -510,6 +605,34 @@ class SkiTripParticipant(db.Model):
     __table_args__ = (
         db.UniqueConstraint('trip_id', 'user_id', name='unique_ski_trip_participant'),
     )
+    
+    def get_display_transportation(self):
+        """Get transportation status for display."""
+        if self.transportation_status:
+            labels = {
+                ParticipantTransportation.DRIVING: "Driving",
+                ParticipantTransportation.FLYING: "Flying",
+                ParticipantTransportation.TRAIN_BUS: "Train / Bus",
+                ParticipantTransportation.TBD: "TBD",
+            }
+            return labels.get(self.transportation_status, "TBD")
+        return "TBD"
+    
+    def get_display_equipment(self):
+        """Get equipment status for display with fallback to profile."""
+        if self.equipment_status:
+            labels = {
+                ParticipantEquipment.OWN: "Has own equipment",
+                ParticipantEquipment.RENTING: "Renting",
+                ParticipantEquipment.NEEDS_RENTALS: "Needs rentals",
+            }
+            return labels.get(self.equipment_status, "TBD")
+        if self.user and self.user.equipment_status:
+            if self.user.equipment_status == EquipmentStatus.HAVE_OWN_EQUIPMENT:
+                return "Has own equipment"
+            elif self.user.equipment_status == EquipmentStatus.NEEDS_RENTALS:
+                return "Needs rentals"
+        return "TBD"
     
     def __repr__(self):
         return f'<SkiTripParticipant trip={self.trip_id} user={self.user_id} status={self.status.value}>'

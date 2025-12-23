@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps
 from flask_migrate import Migrate
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, Event, SkiTripParticipant
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, Event, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment
 from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
 from io import BytesIO
@@ -973,6 +973,9 @@ def create_trip():
     )
     db.session.add(trip)
     db.session.flush()  # Get trip.id before adding participants
+    
+    # Auto-add owner as participant
+    trip.add_owner_as_participant()
     
     # Add participant if friend_id is provided
     if friend_id:
@@ -2745,6 +2748,9 @@ def add_trip():
             db.session.add(trip)
             db.session.flush()  # Get trip.id before adding participants
             
+            # Auto-add owner as participant
+            trip.add_owner_as_participant()
+            
             # Add participant if this is a group trip proposal
             if friend_id:
                 trip.add_participant(friend_id, GuestStatus.INVITED)
@@ -3000,6 +3006,20 @@ def trip_detail(trip_id):
     # Get trip owner info
     owner = User.query.get(trip.user_id)
     
+    # Get group signals for aggregated view
+    group_signals = trip.get_group_signals()
+    
+    # Get all participants (owner + accepted guests) for display
+    all_participants = trip.get_all_participants()
+    
+    # Get current user's participant record for inline editing
+    current_user_participant = participant
+    if is_owner:
+        # Owner needs their own participant record
+        current_user_participant = SkiTripParticipant.query.filter_by(
+            trip_id=trip_id, user_id=current_user.id, role=ParticipantRole.OWNER
+        ).first()
+    
     return render_template(
         "trip_detail.html",
         trip=trip,
@@ -3011,6 +3031,9 @@ def trip_detail(trip_id):
         accepted_participants=accepted_participants,
         friends_for_invite=friends_for_invite,
         invite_count=len(invited_participants),
+        group_signals=group_signals,
+        all_participants=all_participants,
+        current_user_participant=current_user_participant,
     )
 
 
@@ -3102,6 +3125,51 @@ def respond_to_trip_invite(trip_id):
         return redirect(url_for("home"))
     else:
         abort(400)
+
+
+@app.route("/api/trips/<int:trip_id>/participant/signals", methods=["POST"])
+@login_required
+def update_participant_signals(trip_id):
+    """Update current user's transportation and equipment signals for a trip."""
+    trip = SkiTrip.query.get_or_404(trip_id)
+    
+    # Find the user's participant record
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, user_id=current_user.id
+    ).first()
+    
+    if not participant:
+        return jsonify({"success": False, "error": "You are not a participant of this trip."}), 404
+    
+    # Only accepted participants or owners can update their signals
+    if participant.status != GuestStatus.ACCEPTED and participant.role != ParticipantRole.OWNER:
+        return jsonify({"success": False, "error": "You must accept the invite first."}), 403
+    
+    data = request.get_json() or {}
+    
+    # Update transportation status
+    transportation = data.get("transportation_status")
+    if transportation:
+        try:
+            participant.transportation_status = ParticipantTransportation(transportation)
+        except ValueError:
+            pass
+    
+    # Update equipment status
+    equipment = data.get("equipment_status")
+    if equipment:
+        try:
+            participant.equipment_status = ParticipantEquipment(equipment)
+        except ValueError:
+            pass
+    
+    db.session.commit()
+    
+    return jsonify({
+        "success": True,
+        "transportation_display": participant.get_display_transportation(),
+        "equipment_display": participant.get_display_equipment(),
+    })
 
 
 @app.route("/trips/<int:trip_id>/delete", methods=["POST"])

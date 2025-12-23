@@ -1,0 +1,89 @@
+1. Group Signals — Data Model
+These fields do not exist yet on SkiTripParticipant.
+You should add them.
+Add to SkiTripParticipant:
+transportation_status = db.Column(
+    db.Enum(
+        "driving",
+        "flying",
+        "train_bus",
+        "tbd",
+        name="transportation_status_enum"
+    ),
+    nullable=True
+)
+
+equipment_status = db.Column(
+    db.Enum(
+        "own",
+        "renting",
+        "needs_rentals",
+        name="equipment_status_enum"
+    ),
+    nullable=True
+)
+Why
+These are per-user, per-trip signals
+They must be queryable for aggregation (Group Signals)
+Enums keep values consistent and aggregations cheap
+Do not store these on SkiTrip.
+2. Trip Owner vs Participants
+👉 Add the owner to SkiTripParticipant automatically.
+This is the correct and future-proof option.
+Implementation rule
+When a trip is created:
+Automatically create a SkiTripParticipant row for the owner
+Mark them as role = "owner" or equivalent if roles exist
+Why
+Owners also have transportation + equipment
+Simplifies Group Signals aggregation
+Avoids special-case logic everywhere
+Makes owners and guests symmetric participants
+❌ Do NOT store owner signals directly on SkiTrip
+❌ Do NOT use separate logic paths for owner vs guests
+3. Equipment Fallback Display
+Display logic for participant badges:
+If SkiTripParticipant.equipment_status is set
+→ display that value
+Else if profile-level equipment exists
+→ display profile equipment
+Else
+→ display TBD
+So yes — fallback to profile equipment.
+Existing profile field
+If a field like User.equipment_status already exists → use it
+If profile equipment is currently stored in a different structure (e.g., JSON or related table), reuse that logic
+Do not add a new profile field just for this task
+Why
+“Has own equipment” is a strong default signal
+Showing TBD when we know something would be misleading
+4. Editing Own Signals
+Editing should be inline on the Trip Detail page, but only for the current user.
+Behavior
+For other participants → read-only badges
+For the current user:
+Transportation and Equipment badges become tappable
+Tapping opens a small inline selector (dropdown or bottom sheet)
+Save updates the SkiTripParticipant record immediately
+Do NOT
+Navigate away to another screen
+Send the user to Trip Edit
+Reuse Profile edit UI for this
+Why
+These are personal coordination signals, not trip configuration
+Inline edits keep the flow lightweight
+Encourages completion without friction
+5. Completed Items (5, 6, 7)
+If items 5 (My Trips tiles), 6 (Friends toggle), and 7 (Trip disappearing bug) are already completed:
+👉 Leave them as-is
+👉 No additional tweaks needed unless they conflict with this new work
+Just verify:
+Group Signals aggregation includes owners (since they’re now participants)
+Trip disappearance bug does not reappear due to participant refactors
+Otherwise, do not revisit or rework them.
+TL;DR for Replit
+Add transportation_status + equipment_status to SkiTripParticipant (Enum, nullable)
+Auto-add trip owner to participants
+Fallback equipment display: Trip override → Profile → TBD
+Inline edit controls for current user only
+Leave completed items untouched unless broken

@@ -108,6 +108,60 @@
             text-decoration: none;
         }
         
+        .group-signals {
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-lg);
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            cursor: pointer;
+        }
+        .group-signals-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 8px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .group-signals-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .group-signals-item {
+            font-size: 0.9rem;
+            color: var(--bl-color-text);
+        }
+        .group-signals-item strong {
+            font-weight: 600;
+        }
+        
+        .participant-badges {
+            font-size: 0.8rem;
+            color: var(--bl-color-text-muted);
+            margin-top: 2px;
+        }
+        
+        .participant-info {
+            flex: 1;
+        }
+        
+        .inline-signal-select {
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            border: 1px solid var(--bl-color-border);
+            border-radius: 6px;
+            background: #fff;
+            color: var(--bl-color-text);
+            cursor: pointer;
+        }
+        
+        .signal-edit-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 6px;
+        }
+        
         /* Invite Modal - True overlay */
         .modal-overlay {
             display: none;
@@ -249,7 +303,6 @@
         
         <div class="trip-header">
             <h1>{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</h1>
-            <p class="trip-dates">{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d, %Y') }}</p>
         </div>
         
         {% if is_invited %}
@@ -274,6 +327,43 @@
             </button>
             {% if invite_count > 0 %}
             <p class="invite-count">{{ invite_count }} invite{{ 's' if invite_count != 1 else '' }} sent</p>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        {% set trans = group_signals.transportation if group_signals else {} %}
+        {% set equip = group_signals.equipment if group_signals else {} %}
+        {% set has_trans = (trans.get('driving', 0) + trans.get('flying', 0) + trans.get('train_bus', 0)) > 0 %}
+        {% set has_equip = (equip.get('own', 0) + equip.get('renting', 0) + equip.get('needs_rentals', 0)) > 0 %}
+        {% if has_trans or has_equip %}
+        <div class="group-signals" onclick="document.getElementById('participants-section').scrollIntoView({behavior: 'smooth'})">
+            <p class="group-signals-title">Group Signals</p>
+            <div class="group-signals-row">
+                {% if trans.get('driving', 0) > 0 %}
+                <span class="group-signals-item">Driving: <strong>{{ trans.driving }}</strong></span>
+                {% endif %}
+                {% if trans.get('flying', 0) > 0 %}
+                <span class="group-signals-item">Flying: <strong>{{ trans.flying }}</strong></span>
+                {% endif %}
+                {% if trans.get('train_bus', 0) > 0 %}
+                <span class="group-signals-item">Train / Bus: <strong>{{ trans.train_bus }}</strong></span>
+                {% endif %}
+                {% if trans.get('tbd', 0) > 0 %}
+                <span class="group-signals-item">TBD: <strong>{{ trans.tbd }}</strong></span>
+                {% endif %}
+            </div>
+            {% if has_equip %}
+            <div class="group-signals-row" style="margin-top: 6px;">
+                {% if equip.get('own', 0) > 0 %}
+                <span class="group-signals-item">Has own equipment: <strong>{{ equip.own }}</strong></span>
+                {% endif %}
+                {% if equip.get('renting', 0) > 0 %}
+                <span class="group-signals-item">Renting: <strong>{{ equip.renting }}</strong></span>
+                {% endif %}
+                {% if equip.get('needs_rentals', 0) > 0 %}
+                <span class="group-signals-item">Needs rentals: <strong>{{ equip.needs_rentals }}</strong></span>
+                {% endif %}
+            </div>
             {% endif %}
         </div>
         {% endif %}
