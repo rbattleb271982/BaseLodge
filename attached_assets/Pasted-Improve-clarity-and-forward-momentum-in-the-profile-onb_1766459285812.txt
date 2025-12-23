@@ -1,0 +1,87 @@
+Improve clarity and forward momentum in the profile + onboarding experience by:
+Removing unnecessary inputs from follow-up screens
+Making empty mountain modals actionable
+Ensuring users land exactly where they can fix missing data
+Avoiding dead ends or “now what?” moments
+This is a UI + routing refinement only.
+Do not add new screens, models, or flows.
+1️⃣ REMOVE EQUIPMENT FROM FOLLOW-UP SCREENS
+Scope
+Any post-login follow-up modal / onboarding modal (including those shown in screenshots)
+Change
+❌ Completely remove all equipment-related inputs from these screens:
+“What do you usually ride?”
+Equipment brand / model
+Boots brand / model
+Reason
+Equipment is handled elsewhere in the profile
+These screens should be fast and focused
+Do not reintroduce equipment here in any form.
+2️⃣ RIDING STYLE SCREEN — COPY TIGHTENING
+Screen
+Your riding style (Step 2 of 2)
+Update copy
+Current
+What best describes how you like to ride?
+Change to
+What best describes how you like to ride?
+Choose one
+Formatting rules:
+“Choose one” is secondary / lighter text
+Not inline with options
+No logic change (still single-select)
+3️⃣ “MOUNTAINS I’VE VISITED” MODAL — EMPTY STATE CTA
+When
+User opens Mountains I’ve Visited
+Count = 0
+Modal content should show:
+Existing empty message:
+No mountains added yet
+PLUS a clear primary CTA
+CTA copy
+Add visited mountains
+CTA behavior (CRITICAL)
+When tapped:
+Close the modal
+Navigate the user to their Profile screen
+Auto-scroll / deep-link to the exact section where Visited Mountains are managed
+This must not:
+Land the user at the top of Profile
+Require manual scrolling
+Open a new screen
+This should feel like a direct handoff.
+4️⃣ “MOUNTAINS I WANT TO VISIT” MODAL — SAME PATTERN
+Apply the exact same behavior to:
+Mountains I want to visit
+Empty state CTA
+Add bucket list mountains
+CTA behavior
+Close modal
+Navigate to Profile
+Auto-scroll / deep-link to Bucket List Mountains section
+5️⃣ PROFILE SCROLL / ANCHOR BEHAVIOR (IMPORTANT)
+Implement reliable section targeting on the Profile page so that:
+Visiting /profile#visited-mountains scrolls directly to Visited Mountains
+Visiting /profile#bucket-list-mountains scrolls directly to Bucket List Mountains
+Requirements:
+Must work on mobile
+Must account for fixed headers (offset scroll if needed)
+Must not feel janky or delayed
+Use existing profile sections — do not restructure the page.
+6️⃣ INTERACTION RULES
+CTAs only appear when mountain count = 0
+If mountains exist, modal remains read-only list
+No edit controls inside modals
+Profile remains the single place to add/remove mountains
+7️⃣ WHAT NOT TO DO (STRICT)
+❌ Do not add edit buttons inside the modals
+❌ Do not create new mountain selection screens
+❌ Do not duplicate mountain selectors
+❌ Do not reintroduce equipment here
+❌ Do not change mountain data models
+8️⃣ DONE CRITERIA
+Riding style screen clearly communicates single-select
+Equipment is no longer shown in follow-up modals
+Empty mountain modals always give users a next step
+One tap takes users exactly where they can add mountains
+No dead ends, no confusion

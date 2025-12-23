@@ -296,22 +296,19 @@ class User(UserMixin, db.Model):
     def is_profile_complete(self):
         """
         Profile is complete when:
-        - is_equipment_complete is true
         - primary_riding_style is not null
+        Note: Equipment is managed in settings, not part of onboarding flow.
         """
-        return self.is_equipment_complete and self.primary_riding_style is not None
+        return self.primary_riding_style is not None
     
     def get_profile_completion_progress(self):
         """
         Calculate profile completion progress (derived, not stored).
         Returns (completed_steps, total_steps)
+        Note: Only riding style is part of progressive onboarding flow.
         """
-        completed = 0
-        if self.is_equipment_complete:
-            completed += 1
-        if self.primary_riding_style:
-            completed += 1
-        return completed, 2
+        completed = 1 if self.primary_riding_style else 0
+        return completed, 1
     
     @property
     def should_show_progressive_modal(self):

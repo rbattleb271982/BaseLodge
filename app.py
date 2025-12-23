@@ -1996,12 +1996,10 @@ def home():
     completed_steps, total_steps = user.get_profile_completion_progress()
     show_welcome_screen = user.is_profile_complete and not user.welcome_next_steps_shown_at
     
-    # Determine which modal to show
+    # Determine which modal to show (only riding style now - equipment removed from flow)
     current_modal = None
     if show_progressive_modal and not user.is_profile_complete:
-        if not user.is_equipment_complete:
-            current_modal = 'equipment'
-        elif not user.primary_riding_style:
+        if not user.primary_riding_style:
             current_modal = 'riding_style'
     
     return render_template(

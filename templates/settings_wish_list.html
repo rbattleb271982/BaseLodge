@@ -144,7 +144,7 @@
             <a href="{{ url_for('settings') }}" style="color: var(--bl-color-text-muted); text-decoration: none; font-size: 16px;">← Back</a>
             <button type="button" id="save-btn-top" class="bl-btn-primary" style="padding: 10px 20px; font-size: 15px;" disabled onclick="saveChanges()">Save</button>
         </div>
-        <h1 class="page-title" style="margin-bottom: 8px;">Wish List Destinations</h1>
+        <h1 class="page-title" id="bucket-list-mountains" style="margin-bottom: 8px;">Wish List Destinations</h1>
         <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0 0 16px 0;">Mountains you want to ski someday.</p>
         
         <div class="selected-counter">
@@ -319,6 +319,20 @@
                 saveBtn.disabled = false;
                 saveBtn.textContent = 'Save';
             }
+        }
+        
+        // Handle anchor scroll with offset for fixed header
+        if (window.location.hash) {
+            document.addEventListener('DOMContentLoaded', function() {
+                const target = document.querySelector(window.location.hash);
+                if (target) {
+                    setTimeout(function() {
+                        const offset = 80;
+                        const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
+                        window.scrollTo({ top: top, behavior: 'smooth' });
+                    }, 100);
+                }
+            });
         }
     </script>
 </body>

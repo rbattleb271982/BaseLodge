@@ -774,74 +774,6 @@
         }
     </script>
     
-    {% if current_modal == 'equipment' %}
-    <!-- Equipment Modal -->
-    <div class="onboarding-modal-overlay" id="equipment-modal">
-        <div class="onboarding-modal">
-            <div class="modal-progress">Step {{ completed_steps + 1 }} of {{ total_steps }}</div>
-            <h2 class="modal-title">Your equipment</h2>
-            
-            <form method="POST" action="{{ url_for('save_onboarding_equipment') }}" id="equipment-form">
-                <div class="form-group">
-                    <label class="form-label">How do you usually handle equipment?</label>
-                    <div class="radio-group">
-                        <label class="radio-label radio-card">
-                            <input type="radio" name="equipment_status" value="own" required>
-                            <span>I bring my own</span>
-                        </label>
-                        <label class="radio-label radio-card">
-                            <input type="radio" name="equipment_status" value="rent">
-                            <span>I rent</span>
-                        </label>
-                        <label class="radio-label radio-card">
-                            <input type="radio" name="equipment_status" value="both">
-                            <span>I do both</span>
-                        </label>
-                    </div>
-                </div>
-                
-                <div id="rental-note" class="helper-note" style="display: none;">
-                    No problem - you can skip gear details.
-                </div>
-                
-                <div id="gear-details" style="display: none;">
-                    <div class="form-group">
-                        <label class="form-label">What do you usually ride? <span class="optional-label">(optional)</span></label>
-                        <input type="text" name="equipment_brand" class="form-input" placeholder="Brand (e.g., Volkl, Burton)">
-                        <input type="text" name="equipment_model" class="form-input" placeholder="Model (e.g., Mantra, Custom)" style="margin-top: 8px;">
-                        <p class="form-helper">Not sure? Totally fine - you can skip this.</p>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">What boots do you use? <span class="optional-label">(optional)</span></label>
-                        <input type="text" name="boot_brand" class="form-input" placeholder="Boot brand (e.g., Tecnica, Burton)">
-                        <input type="text" name="boot_model" class="form-input" placeholder="Boot model" style="margin-top: 8px;">
-                        <p class="form-helper">If you don't know, you can leave this blank.</p>
-                    </div>
-                </div>
-                
-                <button type="submit" class="bl-btn-primary form-submit">Continue</button>
-            </form>
-        </div>
-    </div>
-    
-    <script>
-        document.querySelectorAll('input[name="equipment_status"]').forEach(radio => {
-            radio.addEventListener('change', function() {
-                const gearDetails = document.getElementById('gear-details');
-                const rentalNote = document.getElementById('rental-note');
-                if (this.value === 'rent') {
-                    gearDetails.style.display = 'none';
-                    rentalNote.style.display = 'block';
-                } else {
-                    gearDetails.style.display = 'block';
-                    rentalNote.style.display = 'none';
-                }
-            });
-        });
-    </script>
-    {% endif %}
-    
     {% if current_modal == 'riding_style' %}
     <!-- Riding Style Modal -->
     <div class="onboarding-modal-overlay" id="riding-style-modal">
@@ -852,6 +784,7 @@
             <form method="POST" action="{{ url_for('save_onboarding_riding_style') }}">
                 <div class="form-group">
                     <label class="form-label">What best describes how you like to ride?</label>
+                    <p class="form-helper" style="margin-top: 4px; margin-bottom: 12px;">Choose one</p>
                     <div class="radio-group">
                         <label class="radio-label radio-card">
                             <input type="radio" name="primary_riding_style" value="Groomers" required>

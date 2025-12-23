@@ -102,6 +102,9 @@
             </div>
             {% else %}
             <div class="mountain-empty">No mountains added yet</div>
+            {% if is_owner %}
+            <a href="{{ url_for('settings_mountains') }}#visited-mountains" class="bl-btn-primary mountain-empty-cta" data-close-modal="true">Add visited mountains</a>
+            {% endif %}
             {% endif %}
         </div>
     </div>
@@ -124,6 +127,9 @@
             </div>
             {% else %}
             <div class="mountain-empty">No mountains added yet</div>
+            {% if is_owner %}
+            <a href="{{ url_for('settings_wish_list') }}#bucket-list-mountains" class="bl-btn-primary mountain-empty-cta" data-close-modal="true">Add bucket list mountains</a>
+            {% endif %}
             {% endif %}
         </div>
     </div>
@@ -348,7 +354,29 @@
         color: var(--bl-color-text-muted, #666666);
         font-style: italic;
         text-align: center;
-        padding: 24px 0;
+        padding: 24px 0 8px;
+    }
+    
+    .mountain-empty-cta {
+        display: block;
+        width: 100%;
+        max-width: 280px;
+        margin: 16px auto 8px;
+        padding: 12px 24px;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        text-align: center;
+        text-decoration: none;
+        background: var(--bl-color-primary, #8F011B);
+        color: #FFFFFF;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    
+    .mountain-empty-cta:hover {
+        background: var(--bl-color-primary-hover, #7A0117);
     }
 </style>
 
@@ -408,6 +436,15 @@
         if (e.target.closest('.bl-modal-close')) {
             closeModal();
             return;
+        }
+        
+        const ctaLink = e.target.closest('[data-close-modal]');
+        if (ctaLink && activeModal) {
+            activeModal.classList.remove('active');
+            activeModal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+            activeModal = null;
+            triggerElement = null;
         }
     });
     
