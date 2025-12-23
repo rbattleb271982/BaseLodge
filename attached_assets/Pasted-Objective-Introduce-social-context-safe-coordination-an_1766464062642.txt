@@ -1,0 +1,198 @@
+Objective
+Introduce social context, safe coordination, and shared planning into BaseLodge by implementing:
+Friend profile → trip context linking
+Open Availability → “Propose a trip”
+Group Trips (MVP)
+Explicit invite permission controls on Friend cards
+Clear eligibility rules to prevent unwanted or creepy invites
+This is a UI + behavior + light data-model update.
+Do NOT add messaging, chat, payments, or complex permissions systems.
+CORE PRINCIPLE (DO NOT VIOLATE)
+Connections alone do NOT grant the right to invite someone on a trip.
+Trip invites must be either:
+Earned through shared context, OR
+Explicitly allowed by the receiving user
+Absence of affordance is preferred over warnings.
+PART 1: FRIEND PROFILE → TRIP CONTEXT LINKING
+Problem
+When users tap a friend from Trip Overlaps or Friends’ Trips, they lose the context of why that friend appeared.
+Solution
+Preserve overlap context when navigating to a friend’s profile.
+Implementation details:
+When navigating to a friend profile from:
+Trip Overlaps
+Friends’ Trips
+Pass context via route params or navigation state:
+resort_id
+overlap_start_date
+overlap_end_date
+On the friend profile page:
+If overlap context exists, render a subtle context banner above the profile card.
+Banner copy format:
+“You overlap on Beaver Creek · Jan 12–14”
+Rules:
+Informational only
+Muted background
+Smaller than hero line
+Not dismissible
+Only appears when context exists
+Never shown on your own profile
+Do NOT:
+Persist overlap context in the database
+Add new tables for this feature
+PART 2: FRIEND CARD — 3-LINE RELATIONSHIP MODEL (NEW)
+Friend cards should display three lines, plus trip count.
+Required structure:
+Line 1: Identity
+Friend name (left)
+Trip count (right)
+Line 2: Ski identity
+Rider type · Passes · Skill level
+Example: Skier · Epic + Ikon · Advanced
+Line 3: Relationship permission state
+Text only, muted, tappable
+Copy (LOCKED):
+“Trip invites: On”
+“Trip invites: Off”
+Rules:
+Default state is Off
+Tapping line 3 toggles the state
+Optional confirmation only on first enable:
+“This person will be able to propose trips with you.”
+No confirmation needed to turn Off
+No icons required
+No overflow menus
+This state represents explicit consent.
+PART 3: INVITE ELIGIBILITY RULES (ANTI-CREEP GUARDRAILS)
+A user may see “Propose a trip” for a friend ONLY if at least ONE is true:
+They share a trip overlap (past or upcoming)
+They share open availability
+The friend card permission is set to:
+“Trip invites: On”
+If none are true:
+Do NOT render the CTA
+Do NOT show disabled buttons
+Do NOT explain why
+This prevents cold or random invites.
+PART 4: OPEN AVAILABILITY → “PROPOSE A TRIP”
+Problem
+Open Availability shows shared dates but does not convert intent into action.
+Solution
+Add a “Propose a trip” action when eligibility rules are satisfied.
+Implementation details:
+In Open Avail. tab:
+When a user taps a friend with overlapping availability AND eligibility is true:
+Show inline prompt or lightweight sheet
+Copy:
+“You’re both free Jan 12–14”
+Primary CTA:
+“Propose a trip”
+On tap “Propose a trip”:
+Navigate to Create Trip
+Pre-fill:
+Start date = overlap start
+End date = overlap end
+Mark trip as:
+is_group_trip = true
+Add the selected friend as a pending participant
+No auto-acceptance.
+PART 5: GROUP TRIPS — MVP (FOUNDATIONAL)
+This is required so shared planning has a proper home.
+DATA MODEL CHANGES (ADD)
+Trip model:
+is_group_trip (boolean, default false)
+created_by_user_id
+organizer_label = “Organizer” (display only)
+New table: TripParticipant
+id
+trip_id
+user_id
+status (enum: invited, accepted, declined)
+created_at
+Rules:
+Creator is automatically added as:
+status = accepted
+Invited users start as:
+status = invited
+Declined users can be re-invited later
+GROUP TRIP BEHAVIOR
+Creation:
+A trip becomes a group trip if:
+Created via “Propose a trip”, OR
+Additional participants exist
+Viewing:
+Group trips appear in My Trips like solo trips
+Add a subtle label:
+“Shared Trip”
+Show organizer as:
+“Organizer: [Name]”
+Editing:
+Only the organizer can edit:
+Dates
+Resort
+Participants cannot edit trip details
+Acceptance:
+Invited users see:
+“Invited to this trip”
+They must explicitly Accept or Decline
+Decline behavior:
+Decline sets status = declined
+Creator is notified inline on the trip card
+Declined users may be removed by the organizer
+Deletion:
+If the organizer deletes the trip:
+All participants are notified
+Trip disappears for everyone
+PART 6: TRIP OVERLAPS + GROUP TRIPS
+Overlaps should:
+Continue working for solo trips
+Also detect overlaps involving group trips
+Show overlaps separately (do not merge)
+If overlap involves a group trip:
+Add a subtle label:
+“Group trip overlap”
+Each overlap card must include:
+Primary line:
+“You and Sarah overlap at Vail · Jan 15–17”
+Secondary explanation line (muted):
+“Same resort, overlapping dates”
+“Same dates, different resorts”
+“Partial date overlap at the same resort”
+Do NOT:
+Rewrite the primary sentence
+Show raw date math
+Use vague labels like “Overlap detected”
+PART 7: TERMINOLOGY (LOCKED)
+Use:
+“Organizer” (not Host)
+“Shared Trip” (user-facing)
+“Propose a trip” (CTA)
+EXPLICITLY OUT OF SCOPE
+Do NOT build:
+Chat or messaging
+Cost splitting
+Notifications beyond existing patterns
+Participant editing beyond accept/decline
+Multi-resort trips
+Global permission settings
+ACCEPTANCE CRITERIA
+Friend cards show 3 lines clearly
+Trip invite permission is visible and controllable
+Random connections cannot send invites
+“Propose a trip” appears only when eligible
+Group trips behave predictably
+Overlaps explain why they exist
+No regressions to solo trip behavior
+TESTING (MANDATORY)
+Before finishing:
+Connect with a new friend → verify Trip invites = Off
+Toggle Trip invites On → verify CTA appears
+Toggle Off → CTA disappears
+Overlap without permission → CTA still appears
+No overlap + no permission → no CTA
+Propose a trip from Open Avail.
+Accept invitation
+Decline invitation
+Re-invite declined user
+Delete shared trip → verify notifications
+Do not finish until all tests pass.
