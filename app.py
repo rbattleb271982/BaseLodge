@@ -881,9 +881,20 @@ def edit_profile():
 def my_trips():
     today = date.today()
 
+    # Get trips where user is an accepted participant (not owner)
+    accepted_participation_trip_ids = db.session.query(SkiTripParticipant.trip_id).filter(
+        SkiTripParticipant.user_id == current_user.id,
+        SkiTripParticipant.status == GuestStatus.ACCEPTED
+    ).subquery()
+
     upcoming_trips = (
         SkiTrip.query
-        .filter_by(user_id=current_user.id)
+        .filter(
+            db.or_(
+                SkiTrip.user_id == current_user.id,
+                SkiTrip.id.in_(accepted_participation_trip_ids)
+            )
+        )
         .filter(SkiTrip.end_date >= today)
         .order_by(SkiTrip.start_date.asc())
         .all()
@@ -891,7 +902,12 @@ def my_trips():
 
     past_trips = (
         SkiTrip.query
-        .filter_by(user_id=current_user.id)
+        .filter(
+            db.or_(
+                SkiTrip.user_id == current_user.id,
+                SkiTrip.id.in_(accepted_participation_trip_ids)
+            )
+        )
         .filter(SkiTrip.end_date < today)
         .order_by(SkiTrip.start_date.desc())
         .all()
@@ -1818,15 +1834,27 @@ def home():
     
     today = date.today()
     
-    # Upcoming trips for intro card
+    # Get trips where user is an accepted participant (not owner)
+    accepted_participation_trip_ids = db.session.query(SkiTripParticipant.trip_id).filter(
+        SkiTripParticipant.user_id == user.id,
+        SkiTripParticipant.status == GuestStatus.ACCEPTED
+    ).subquery()
+    
+    # Upcoming trips for intro card (owned + accepted participations)
     upcoming_trips = SkiTrip.query.filter(
-        SkiTrip.user_id == user.id,
+        db.or_(
+            SkiTrip.user_id == user.id,
+            SkiTrip.id.in_(accepted_participation_trip_ids)
+        ),
         SkiTrip.end_date >= today
     ).order_by(SkiTrip.start_date.asc()).all()
     
-    # My upcoming trips
+    # My upcoming trips (owned + accepted participations)
     my_trips = SkiTrip.query.filter(
-        SkiTrip.user_id == user.id,
+        db.or_(
+            SkiTrip.user_id == user.id,
+            SkiTrip.id.in_(accepted_participation_trip_ids)
+        ),
         SkiTrip.start_date >= today
     ).order_by(SkiTrip.start_date.asc()).all()
     
@@ -2131,10 +2159,10 @@ def home():
     completed_steps, total_steps = user.get_profile_completion_progress()
     show_welcome_screen = user.is_profile_complete and not user.welcome_next_steps_shown_at
     
-    # Determine which modal to show (only riding style now - equipment removed from flow)
+    # Determine which modal to show (terrain preferences - equipment removed from flow)
     current_modal = None
     if show_progressive_modal and not user.is_profile_complete:
-        if not user.primary_riding_style:
+        if not user.terrain_preferences or len(user.terrain_preferences) == 0:
             current_modal = 'riding_style'
     
     # Get pending trip invites for the user
@@ -2228,13 +2256,19 @@ def save_onboarding_equipment():
 @app.route("/onboarding/riding-style", methods=["POST"])
 @login_required
 def save_onboarding_riding_style():
-    """Save riding style from progressive completion modal."""
+    """Save terrain preferences from progressive completion modal."""
     user = current_user
     
-    riding_style = request.form.get("primary_riding_style")
+    # Try hidden input first (populated by JS), then fall back to checkbox values
+    terrain_raw = request.form.get("terrain_preferences", "")
+    terrain_list = [t.strip() for t in terrain_raw.split(",") if t.strip()][:2]
     
-    if riding_style:
-        user.primary_riding_style = riding_style
+    # Fallback: read directly from checkboxes if hidden input is empty
+    if not terrain_list:
+        terrain_list = request.form.getlist("terrain_pref")[:2]
+    
+    if terrain_list:
+        user.terrain_preferences = terrain_list
         db.session.commit()
     
     return redirect(url_for("home"))

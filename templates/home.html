@@ -475,7 +475,7 @@
                             <div class="bl-trip-card-content">
                                 <p class="bl-trip-card-dates">{% if trip.start_date == trip.end_date %}{{ trip.start_date.strftime('%a, %b %d') }}{% else %}{{ trip.start_date.strftime('%a, %b %d') }} – {{ trip.end_date.strftime('%a, %b %d') }}{% endif %}</p>
                                 <p class="bl-trip-card-resort">{% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</p>
-                                <p class="bl-trip-card-pass">{% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}</p>
+                                <p class="bl-trip-card-pass">{% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.invite_summary %} · {{ trip.invite_summary }}{% endif %}</p>
                             </div>
                             <span class="bl-trip-edit">View</span>
                         </div>
@@ -808,42 +808,51 @@
     </script>
     
     {% if current_modal == 'riding_style' %}
-    <!-- Riding Style Modal -->
+    <!-- Terrain Preferences Modal (formerly Riding Style) -->
     <div class="onboarding-modal-overlay" id="riding-style-modal">
         <div class="onboarding-modal">
             <div class="modal-progress">Step {{ completed_steps + 1 }} of {{ total_steps }}</div>
-            <h2 class="modal-title">Your riding style</h2>
+            <h2 class="modal-title">Favorite terrain</h2>
             
-            <form method="POST" action="{{ url_for('save_onboarding_riding_style') }}">
+            <form method="POST" action="{{ url_for('save_onboarding_riding_style') }}" id="terrain-form">
                 <div class="form-group">
-                    <label class="form-label">What best describes how you like to ride?</label>
-                    <p class="form-helper" style="margin-top: 4px; margin-bottom: 12px;">Choose one</p>
-                    <div class="radio-group">
-                        <label class="radio-label radio-card">
-                            <input type="radio" name="primary_riding_style" value="Groomers" required>
-                            <span>Groomers</span>
+                    <label class="form-label">What kind of terrain do you prefer?</label>
+                    <p class="form-helper" style="margin-top: 4px; margin-bottom: 12px;">Choose up to 2</p>
+                    <div class="checkbox-group" style="display: flex; flex-direction: column; gap: 8px;">
+                        {% for terrain in ["Groomers", "Trees", "Steeps", "Park", "First Chair", "Après"] %}
+                        <label class="checkbox-label checkbox-card" style="display: flex; align-items: center; padding: 12px 16px; border: 1px solid var(--bl-color-border); border-radius: 10px; cursor: pointer;">
+                            <input type="checkbox" name="terrain_pref" value="{{ terrain }}" style="margin-right: 12px;">
+                            <span>{{ terrain }}</span>
                         </label>
-                        <label class="radio-label radio-card">
-                            <input type="radio" name="primary_riding_style" value="Powder">
-                            <span>Powder</span>
-                        </label>
-                        <label class="radio-label radio-card">
-                            <input type="radio" name="primary_riding_style" value="All-Mountain">
-                            <span>All-Mountain</span>
-                        </label>
-                        <label class="radio-label radio-card">
-                            <input type="radio" name="primary_riding_style" value="Park">
-                            <span>Park</span>
-                        </label>
-                        <label class="radio-label radio-card">
-                            <input type="radio" name="primary_riding_style" value="Mixed">
-                            <span>Mixed</span>
-                        </label>
+                        {% endfor %}
                     </div>
                 </div>
+                <input type="hidden" name="terrain_preferences" id="onboarding_terrain_hidden" value="">
                 
                 <button type="submit" class="bl-btn-primary form-submit">Continue</button>
             </form>
+            <script>
+                (function() {
+                    const form = document.getElementById('terrain-form');
+                    const checkboxes = form.querySelectorAll('input[name="terrain_pref"]');
+                    const hiddenInput = document.getElementById('onboarding_terrain_hidden');
+                    
+                    function updateHidden() {
+                        const checked = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
+                        hiddenInput.value = checked.join(',');
+                    }
+                    
+                    checkboxes.forEach(cb => {
+                        cb.addEventListener('change', function() {
+                            const checked = Array.from(checkboxes).filter(c => c.checked);
+                            if (checked.length > 2) {
+                                this.checked = false;
+                            }
+                            updateHidden();
+                        });
+                    });
+                })();
+            </script>
         </div>
     </div>
     {% endif %}

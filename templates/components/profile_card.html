@@ -49,7 +49,7 @@
                 {% if equipment and equipment.brand %}
                     {{ equipment.brand }}{% if equipment.model %} {{ equipment.model }}{% endif %}
                 {% elif is_owner %}
-                    <span class="tile-add-link">Add equipment</span>
+                    <a href="{{ url_for('settings_equipment') }}#equipment-section" class="tile-add-link">Add equipment</a>
                 {% else %}
                     <span class="tile-muted">Not specified</span>
                 {% endif %}
@@ -61,7 +61,7 @@
                 {% if equipment and equipment.boot_brand %}
                     {{ equipment.boot_brand }}{% if equipment.boot_model %} {{ equipment.boot_model }}{% endif %}
                 {% elif is_owner %}
-                    <span class="tile-add-link">Add boots</span>
+                    <a href="{{ url_for('settings_equipment') }}#boots-section" class="tile-add-link">Add boots</a>
                 {% else %}
                     <span class="tile-muted">Not specified</span>
                 {% endif %}
@@ -189,6 +189,11 @@
     .tile-add-link {
         color: var(--bl-color-primary, #8F011B);
         cursor: pointer;
+        text-decoration: none;
+    }
+    
+    .tile-add-link:hover {
+        text-decoration: underline;
     }
     
     .tile-muted {

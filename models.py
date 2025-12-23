@@ -297,18 +297,18 @@ class User(UserMixin, db.Model):
     def is_profile_complete(self):
         """
         Profile is complete when:
-        - primary_riding_style is not null
+        - terrain_preferences has at least one selection
         Note: Equipment is managed in settings, not part of onboarding flow.
         """
-        return self.primary_riding_style is not None
+        return self.terrain_preferences is not None and len(self.terrain_preferences) > 0
     
     def get_profile_completion_progress(self):
         """
         Calculate profile completion progress (derived, not stored).
         Returns (completed_steps, total_steps)
-        Note: Only riding style is part of progressive onboarding flow.
+        Note: Only terrain preferences is part of progressive onboarding flow.
         """
-        completed = 1 if self.primary_riding_style else 0
+        completed = 1 if (self.terrain_preferences and len(self.terrain_preferences) > 0) else 0
         return completed, 1
     
     @property
@@ -436,6 +436,30 @@ class SkiTrip(db.Model):
     def get_declined_participants(self):
         """Return list of declined SkiTripParticipant records."""
         return [p for p in self.participants if p.status == GuestStatus.DECLINED]
+    
+    @property
+    def invited_count(self):
+        """Return count of invited (pending) participants."""
+        return len(self.get_pending_participants())
+    
+    @property
+    def accepted_count(self):
+        """Return count of accepted participants."""
+        return len(self.get_accepted_participants())
+    
+    @property
+    def invite_summary(self):
+        """Return formatted invite summary for trip tiles (e.g., '3 invited · 1 accepted')."""
+        invited = self.invited_count
+        accepted = self.accepted_count
+        if invited == 0 and accepted == 0:
+            return None
+        parts = []
+        if invited > 0:
+            parts.append(f"{invited} invited")
+        if accepted > 0:
+            parts.append(f"{accepted} accepted")
+        return " · ".join(parts)
     
     def add_participant(self, user_id, status=None):
         """Add a participant to the trip. Returns the SkiTripParticipant record."""
