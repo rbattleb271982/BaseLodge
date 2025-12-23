@@ -1,0 +1,90 @@
+Goal
+Unify and clarify the profile card experience so that:
+Your profile and friend profiles show the exact same information
+Friend profiles are read-only
+The profile stats row is clearer and consistent
+Navigation from stats behaves predictably
+No new screens, models, or features are introduced
+This is a UI + navigation refactor only.
+1️⃣ PROFILE CARD LOCATION (IMPORTANT)
+👉 The profile card being refactored lives on the Home screen (logged-in Home / Trips screen).
+This is the primary profile card users see after login
+Do NOT modify the Settings page
+Settings remains an edit surface and is out of scope
+2️⃣ SHARED PROFILE CARD (SINGLE SOURCE OF TRUTH)
+Create or refactor to one reusable profile card component used for:
+Logged-in user profile
+Friend profile view
+The component must accept:
+user (the profile being viewed)
+is_owner (boolean: viewing own profile vs friend)
+3️⃣ PROFILE CARD CONTENT (SHOW FOR BOTH USER & FRIENDS)
+Identity Section (same for all profiles)
+Display the following fields identically for own and friend profiles:
+Rider Type
+Skill Level
+Pass type(s)
+Primary Riding Style
+Equipment:
+Equipment status (own / rent / both)
+Skis / Board brand + model (if present)
+Boots brand + model (if present)
+Rules:
+Only show fields that exist
+No placeholders
+No “Unknown”
+Same order and formatting everywhere
+4️⃣ PROFILE STATS ROW (HOME SCREEN ONLY)
+Stats shown (EXACTLY THREE)
+Trips Created
+Visited Mountains
+Bucket List Mountains
+Layout
+Single horizontal row
+3 equal-width columns
+Label on top
+Number underneath
+No icons
+Center-aligned content
+Example structure
+Trips Created
+3
+5️⃣ PROFILE STATS INTERACTION & ROUTING (EXPLICIT)
+Trips Created
+👉 Navigate to Home → My Trips tab
+Behavior:
+If already on Home → switch/highlight My Trips tab
+If elsewhere → navigate to Home with My Trips selected
+Do NOT create a new page
+Visited Mountains
+👉 Route to existing Visited Mountains edit/view flow
+Do NOT create a new standalone screen
+On friend profiles, open in read-only mode
+Bucket List Mountains
+👉 Route to existing Bucket List Mountains edit/view flow
+Do NOT create a new standalone screen
+On friend profiles, open in read-only mode
+6️⃣ EDIT PERMISSIONS (ONLY DIFFERENCE BETWEEN USER & FRIEND)
+If is_owner == true
+Show existing edit affordances
+Allow add / remove / edit actions
+If is_owner == false
+Hide all edit controls
+Disable add / remove actions
+Lists open in read-only mode
+No “Edit”, “Add”, or inline inputs
+This difference must be enforced at the UI level.
+7️⃣ WHAT NOT TO DO (STRICT)
+❌ Do not create a second friend profile card
+❌ Do not add new backend fields or models
+❌ Do not create new screens or routes
+❌ Do not hide equipment, skill, or pass info on friend profiles
+❌ Do not modify Settings layouts
+This is one component, two permission states.
+8️⃣ DONE CRITERIA
+Profile card looks identical for user and friends
+Friend profiles are fully read-only
+Stats row appears only on Home profile card
+Stats navigation behaves exactly as specified
+No duplicated templates or logic
+No new screens introduced

@@ -183,71 +183,11 @@
         <div class="bl-header"><a href="{{ url_for('home') }}">Base Lodge</a></div>
         <a href="{{ url_for('friends') }}" class="back-link">← Back</a>
         
-        <!-- Friend Profile Card: Identity + Stats -->
-        <div class="profile-header-card">
-            {% set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.boot_brand)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.boot_brand)) else none) %}
-            
-            <div class="profile-identity">
-                <div class="profile-identity-name">
-                    {{ friend.first_name }}{% if friend.last_name %} {{ friend.last_name }}{% endif %}
-                </div>
-
-                <div class="profile-identity-pills">
-                    {% if friend.display_rider_type %}
-                    <span class="profile-pill">{{ friend.display_rider_type }}</span>
-                    {% endif %}
-                    {% if friend.pass_type %}
-                    {% set passes = friend.pass_type.split(',') %}
-                    {% for p in passes %}
-                    {% if p.strip() and p.strip().lower() != 'both' %}
-                    <span class="profile-pill">{{ p.strip() }}</span>
-                    {% endif %}
-                    {% endfor %}
-                    {% endif %}
-                    {% if friend.skill_level %}
-                    <span class="profile-pill">{{ friend.skill_level }}</span>
-                    {% endif %}
-                </div>
-
-                <div class="profile-identity-rows">
-                    {% if friend.terrain_preferences and friend.terrain_preferences|length > 0 %}
-                    <div class="profile-identity-row">
-                        <span class="profile-identity-label">Preferred Terrain</span>
-                        <span class="profile-identity-sep">·</span>
-                        <span class="profile-identity-value">
-                            {{ friend.terrain_preferences[:2]|join(', ') }}
-                        </span>
-                    </div>
-                    {% endif %}
-
-                    <div class="profile-identity-row">
-                        <span class="profile-identity-label">Equipment</span>
-                        <span class="profile-identity-sep">·</span>
-                        <span class="profile-identity-value">
-                            {% if eq and eq.brand %}{{ eq.brand }}{% if eq.model %} {{ eq.model }}{% endif %}{% else %}Not specified{% endif %}
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="profile-card-divider"></div>
-            
-            <!-- Stats Row (Trips | Visited | Bucket List) with vertical dividers -->
-            <div class="card-stats-row">
-                <div class="card-stat-col">
-                    <div class="card-stat-label">Trips</div>
-                    <div class="card-stat-value">{{ trips|length if trips else 0 }}</div>
-                </div>
-                <div class="card-stat-col">
-                    <div class="card-stat-label">Visited <svg class="stat-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 17H3"/></svg></div>
-                    <div class="card-stat-value">{{ friend_mountains_count }}</div>
-                </div>
-                <div class="card-stat-col">
-                    <div class="card-stat-label">Bucket List <svg class="stat-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 17H3"/></svg></div>
-                    <div class="card-stat-value">{{ friend_wish_list|length if friend_wish_list else 0 }}</div>
-                </div>
-            </div>
-        </div>
+        <!-- Friend Profile Card -->
+        {% set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.boot_brand)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.boot_brand)) else none) %}
+        {% with profile_user=friend, is_owner=false, trips_count=trips|length if trips else 0, visited_count=friend_mountains_count, bucket_list_count=friend_wish_list|length if friend_wish_list else 0, equipment=eq %}
+            {% include 'components/profile_card.html' %}
+        {% endwith %}
         
         {% if trip_overlaps and trip_overlaps|length > 0 %}
         <div class="section-header" style="margin-top: 0;">Trip Overlaps</div>

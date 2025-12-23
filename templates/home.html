@@ -341,92 +341,13 @@
     <div class="page-container" style="padding: 16px 16px 88px;">
         <div class="bl-header">Trips</div>
         
-        <!-- Profile Card: Identity + Stats -->
-        <div class="bl-card" style="margin-bottom: 16px; padding: 12px 16px;">
-            {% set eq = primary_equipment if (primary_equipment and (primary_equipment.brand or primary_equipment.boot_brand)) else (secondary_equipment if (secondary_equipment and (secondary_equipment.brand or secondary_equipment.boot_brand)) else none) %}
-            
-            <div class="profile-identity">
-                <div class="profile-identity-name">
-                    {{ user.first_name }}
-                </div>
-
-                {% set identity = user|identity_line %}
-                {% if identity %}
-                <div class="profile-identity-line" style="font-size: 0.95rem; color: var(--bl-color-text-secondary); margin-bottom: 12px;">
-                    {{ identity }}
-                </div>
-                {% endif %}
-
-                <div class="profile-identity-rows">
-                    {% if user.terrain_preferences and user.terrain_preferences|length > 0 %}
-                    <div class="profile-identity-row">
-                        <span class="profile-identity-label">Preferred Terrain</span>
-                        <span class="profile-identity-sep">·</span>
-                        <span class="profile-identity-value">
-                            {{ user.terrain_preferences[:2]|join(', ') }}
-                        </span>
-                    </div>
-                    {% endif %}
-
-                    {% if eq and eq.brand %}
-                    <div class="profile-identity-row">
-                        <span class="profile-identity-label">Equipment</span>
-                        <span class="profile-identity-sep">·</span>
-                        <span class="profile-identity-value">
-                            {{ eq.brand }}{% if eq.model %} {{ eq.model }}{% endif %}
-                        </span>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <div class="profile-card-divider"></div>
-            
-            <!-- Stats Row (Trips | Mountains | Wishlist) with vertical dividers -->
-            <div class="card-stats-row">
-                <div class="card-stat-col" onclick="window.location.href='{{ url_for('home') }}'">
-                    <div class="card-stat-label">Trips</div>
-                    <div class="card-stat-value">{{ upcoming_trips|length }}</div>
-                </div>
-                <div class="card-stat-col" id="mountains-stat" {% if user_mountains and user_mountains|length > 3 %}onclick="openVisitedModal()"{% elif user_mountains and user_mountains|length > 0 %}onclick="toggleMountainsAccordion()"{% endif %}>
-                    <div class="card-stat-label">Visited <svg class="stat-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 17H3"/></svg></div>
-                    {% if user_mountains and user_mountains|length > 3 %}
-                    <div class="card-stat-value">{{ user_mountains|length }}</div>
-                    <div class="stat-view-all">View all</div>
-                    {% elif user_mountains and user_mountains|length > 0 %}
-                    <div class="card-stat-value">{{ user_mountains|length }}</div>
-                    <div class="stat-accordion" id="mountains-accordion">
-                        <ul class="stat-accordion-list">
-                            {% for mtn in user_mountains %}
-                            <li>{{ mtn }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% else %}
-                    <a href="{{ url_for('mountains_visited') }}" class="card-stat-value edit-link">Edit</a>
-                    {% endif %}
-                </div>
-                <div class="card-stat-col" id="wishlist-stat" {% if user_wishlist_resorts|length > 0 %}onclick="toggleWishlistAccordion()"{% endif %}>
-                    <div class="card-stat-label">Bucket List <svg class="stat-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 17H3"/></svg></div>
-                    {% if user_wishlist_resorts|length > 0 %}
-                    <div class="card-stat-value">{{ user_wishlist_resorts|length }}</div>
-                    <div class="stat-accordion" id="wishlist-accordion">
-                        <ul class="stat-accordion-list">
-                            {% for resort in user_wishlist_resorts[:3] %}
-                            <li>{{ resort.name }}</li>
-                            {% endfor %}
-                            {% if user_wishlist_resorts|length > 3 %}
-                            <li style="color: var(--bl-color-primary);">+ {{ user_wishlist_resorts|length - 3 }} more</li>
-                            {% endif %}
-                        </ul>
-                    </div>
-                    {% else %}
-                    <a href="{{ url_for('settings_wish_list') }}" class="card-stat-value edit-link">Edit</a>
-                    {% endif %}
-                </div>
-            </div>
-            
-        </div>
+        <!-- Profile Card -->
+        {% set eq = primary_equipment if (primary_equipment and (primary_equipment.brand or primary_equipment.boot_brand)) else (secondary_equipment if (secondary_equipment and (secondary_equipment.brand or secondary_equipment.boot_brand)) else none) %}
+        {% with profile_user=user, is_owner=true, trips_count=upcoming_trips|length, visited_count=user_mountains|length if user_mountains else 0, bucket_list_count=user_wishlist_resorts|length if user_wishlist_resorts else 0, equipment=eq %}
+            {% include 'components/profile_card.html' %}
+        {% endwith %}
+        
+        <p class="helper-text" style="margin: -8px 0 16px 0; font-size: 13px; color: var(--bl-color-text-muted);">Add trips you're planning so friends can see where you're skiing.</p>
         
         <!-- Availability Card (only show if open date matches exist) -->
         {% if open_date_matches and open_date_matches|length > 0 %}
@@ -532,8 +453,9 @@
                 </div>
             {% else %}
                 <div class="empty-state-container">
-                    <p class="empty-state-title">No upcoming trips yet.</p>
-                    <p class="empty-state-desc">Plan your next ski day and see when friends are heading out too.</p>
+                    <p class="empty-state-title">No trips yet</p>
+                    <p class="empty-state-desc">Add a trip and your friends will see where you're going.</p>
+                    <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="display: inline-block; margin-top: 8px; text-decoration: none; padding: 10px 20px; font-size: 14px;">Add a trip</a>
                 </div>
             {% endif %}
             
