@@ -416,32 +416,35 @@
         {% endif %}
         
         {% set active_tab = request.args.get('tab', 'my') %}
+        {% set has_trips = my_trips and my_trips|length > 0 %}
         
-        <a href="{{ url_for('add_trip') }}" id="create-trip-btn" class="bl-btn-primary" style="width: 100%; display: {% if active_tab == 'my' %}block{% else %}none{% endif %}; text-align: center; text-decoration: none; margin-top: 16px; margin-bottom: 16px;">
+        <a href="{{ url_for('add_trip') }}" id="create-trip-btn" class="{% if has_trips %}bl-btn-outline{% else %}bl-btn-primary{% endif %}" style="width: 100%; display: {% if active_tab == 'my' %}block{% else %}none{% endif %}; text-align: center; text-decoration: none; margin-top: 16px; margin-bottom: 16px;">
             Create a trip
         </a>
         
-        <div style="margin-bottom:12px;">
+        <div style="margin-bottom:12px;" role="tablist">
             <div class="bl-tabs-wrapper">
-                <button class="bl-tab-button {% if active_tab == 'my' %}active{% endif %}" data-tab="my">My Trips</button>
-                <button class="bl-tab-button {% if active_tab == 'friends' %}active{% endif %}" data-tab="friends">Friends' Trips</button>
-                <button class="bl-tab-button {% if active_tab == 'overlaps' %}active{% endif %}" data-tab="overlaps">Trip Overlaps</button>
-                <button class="bl-tab-button {% if active_tab == 'open' %}active{% endif %}" data-tab="open">Open Avail.</button>
+                <button class="bl-tab-button {% if active_tab == 'my' %}active{% endif %}" data-tab="my" role="tab" aria-selected="{% if active_tab == 'my' %}true{% else %}false{% endif %}">My Trips</button>
+                <button class="bl-tab-button {% if active_tab == 'friends' %}active{% endif %}" data-tab="friends" role="tab" aria-selected="{% if active_tab == 'friends' %}true{% else %}false{% endif %}">Friends' Trips</button>
+                <button class="bl-tab-button {% if active_tab == 'overlaps' %}active{% endif %}" data-tab="overlaps" role="tab" aria-selected="{% if active_tab == 'overlaps' %}true{% else %}false{% endif %}">Trip Overlaps</button>
+                <button class="bl-tab-button {% if active_tab == 'open' %}active{% endif %}" data-tab="open" role="tab" aria-selected="{% if active_tab == 'open' %}true{% else %}false{% endif %}">Open Avail.</button>
             </div>
         </div>
         
         <!-- My Trips Tab -->
-        <div id="tab-my" class="bl-trip-list" {% if active_tab != 'my' %}style="display: none;"{% endif %}>
+        <div id="tab-my" class="bl-trip-list" role="tabpanel" {% if active_tab != 'my' %}style="display: none;"{% endif %}>
             {% if my_trips %}
                 {% for trip in my_trips %}
                 <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;" class="my-trip-item" data-duration="{{ trip.trip_duration }}" data-equipment="{{ trip.get_effective_equipment_status() }}">
-                    <div class="bl-trip-card trip-card-full" style="flex-direction: row; align-items: center;">
-                        <div style="flex: 1;">
-                            <p class="trip-card-line1" style="margin: 0;">
-                                {% if trip.start_date == trip.end_date %}{{ trip.start_date.strftime('%b %d') }}{% else %}{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%d') }}{% endif %} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %} · {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}
-                            </p>
+                    <div class="bl-trip-card">
+                        <div class="bl-trip-card-header">
+                            <div class="bl-trip-card-content">
+                                <p class="bl-trip-card-dates">{% if trip.start_date == trip.end_date %}{{ trip.start_date.strftime('%a, %b %d') }}{% else %}{{ trip.start_date.strftime('%a, %b %d') }} – {{ trip.end_date.strftime('%a, %b %d') }}{% endif %}</p>
+                                <p class="bl-trip-card-resort">{% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</p>
+                                <p class="bl-trip-card-pass">{% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}</p>
+                            </div>
+                            <span class="bl-trip-edit">Edit</span>
                         </div>
-                        <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="bl-trip-edit">Edit</a>
                     </div>
                 </a>
                 {% endfor %}
@@ -454,63 +457,56 @@
             {% else %}
                 <div class="empty-state-container">
                     <p class="empty-state-title">No trips yet</p>
-                    <p class="empty-state-desc">Add a trip and your friends will see where you're going.</p>
-                    <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="display: inline-block; margin-top: 8px; text-decoration: none; padding: 10px 20px; font-size: 14px;">Add a trip</a>
+                    <p class="empty-state-desc">Add trips you're planning so friends can see where you're skiing.</p>
+                    <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="display: inline-block; margin-top: 12px; text-decoration: none; padding: 12px 24px; font-size: 15px;">Create a trip</a>
                 </div>
             {% endif %}
             
         </div>
         
         <!-- Friends' Trips Tab -->
-        <div id="tab-friends" class="bl-trip-list" {% if active_tab != 'friends' %}style="display: none;"{% endif %}>
+        <div id="tab-friends" class="bl-trip-list" role="tabpanel" {% if active_tab != 'friends' %}style="display: none;"{% endif %}>
             {% if friend_trips %}
                 {% for trip in friend_trips %}
                 <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                    <div class="bl-trip-card trip-card-full" style="flex-direction: row; align-items: center;">
-                        <div style="flex: 1;">
-                            <p class="trip-card-line1" style="margin: 0;">
-                                {% if trip.start_date == trip.end_date %}{{ trip.start_date.strftime('%b %d') }}{% else %}{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%d') }}{% endif %} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %} · {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}
-                            </p>
-                            <p class="trip-card-line2" style="margin: 2px 0 0 0;">
-                                {{ trip.user.first_name }}{% if trip.user.last_name %} {{ trip.user.last_name }}{% endif %}
-                            </p>
+                    <div class="bl-trip-card">
+                        <div class="bl-trip-card-content">
+                            <p class="bl-trip-card-dates">{% if trip.start_date == trip.end_date %}{{ trip.start_date.strftime('%a, %b %d') }}{% else %}{{ trip.start_date.strftime('%a, %b %d') }} – {{ trip.end_date.strftime('%a, %b %d') }}{% endif %}</p>
+                            <p class="bl-trip-card-resort">{% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</p>
+                            <p class="bl-trip-card-pass">{% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}</p>
+                            <p class="bl-trip-card-friend">{{ trip.user.first_name }}{% if trip.user.last_name %} {{ trip.user.last_name }}{% endif %}</p>
                         </div>
                     </div>
                 </a>
                 {% endfor %}
             {% else %}
                 <div class="empty-state-container">
-                    <p class="empty-state-title">Your friends don't have any upcoming trips yet.</p>
-                    <p class="empty-state-desc">Invite friends or check back soon.</p>
+                    <p class="empty-state-title">No friends' trips yet</p>
+                    <p class="empty-state-desc">When friends add trips, you'll see them here.</p>
                 </div>
             {% endif %}
         </div>
         
         <!-- Trip Overlaps Tab (read-only) -->
-        <div id="tab-overlaps" class="bl-trip-list" {% if active_tab != 'overlaps' %}style="display: none;"{% endif %}>
+        <div id="tab-overlaps" class="bl-trip-list" role="tabpanel" {% if active_tab != 'overlaps' %}style="display: none;"{% endif %}>
             {% if overlaps and overlaps|length > 0 %}
                 {% for o in overlaps %}
-                <div class="bl-trip-card trip-card-full" style="flex-direction: row; align-items: center;">
-                    <div style="flex: 1;">
-                        <p style="font-weight: 600; font-size: 0.95rem; margin: 0 0 4px 0; line-height: 1.4;">
-                            You and {{ o.friend_name }} overlap at
-                        </p>
-                        <p style="font-weight: 600; font-size: 0.95rem; margin: 0; line-height: 1.4;">
-                            {{ o.mountain }} on {% if o.start_date == o.end_date %}{{ o.start_date.strftime('%a, %b %d') }}{% else %}{{ o.start_date.strftime('%a') }}–{{ o.end_date.strftime('%a') }}, {{ o.start_date.strftime('%b %d') }}–{{ o.end_date.strftime('%b %d') }}{% endif %}
-                        </p>
-                    </div>
+                <div class="bl-trip-card">
+                    <p class="bl-trip-card-dates">You and {{ o.friend_name }} overlap at {{ o.mountain }}</p>
+                    <p class="bl-trip-card-resort">{% if o.start_date == o.end_date %}{{ o.start_date.strftime('%a, %b %d') }}{% else %}{{ o.start_date.strftime('%a, %b %d') }} – {{ o.end_date.strftime('%a, %b %d') }}{% endif %}</p>
+                    <p class="bl-trip-card-pass">Same resort, {% if o.start_date == o.end_date %}same date{% else %}overlapping dates{% endif %}</p>
                 </div>
                 {% endfor %}
             {% else %}
                 <div class="empty-state-container">
-                    <p class="empty-state-title">No overlapping trips yet.</p>
-                    <p class="empty-state-desc">When you and friends plan trips on the same dates, they'll show up here.</p>
+                    <p class="empty-state-title">No overlaps found</p>
+                    <p class="empty-state-desc">When you and friends are skiing at the same place or time, it'll show up here.</p>
                 </div>
             {% endif %}
         </div>
         
         <!-- Open Availability Tab -->
-        <div id="tab-open" class="bl-trip-list" {% if active_tab != 'open' %}style="display: none;"{% endif %}>
+        <div id="tab-open" class="bl-trip-list" role="tabpanel" {% if active_tab != 'open' %}style="display: none;"{% endif %}>
             {% if open_date_matches and open_date_matches|length > 0 %}
             <div style="background: linear-gradient(135deg, rgba(143, 1, 27, 0.08), rgba(143, 1, 27, 0.04)); border: 1px solid rgba(143, 1, 27, 0.2); border-radius: 12px; padding: 14px; margin-bottom: 16px;">
                 {% set total_friends = [] %}
@@ -596,13 +592,13 @@
                 <div class="empty-state-container">
                     <p class="empty-state-title">No friends are open on these dates yet.</p>
                     <p class="empty-state-desc">Try adding more dates or inviting friends.</p>
-                    <a href="{{ url_for('add_open_dates') }}" class="bl-btn-secondary" style="text-decoration: none; text-align: center; display: inline-block; margin: 8px 0;">Edit open dates</a>
+                    <a href="{{ url_for('add_open_dates') }}" class="bl-btn-outline" style="text-decoration: none; text-align: center; display: inline-block; margin: 12px 0;">Edit open dates</a>
                 </div>
             {% else %}
                 <div class="empty-state-container">
-                    <p class="empty-state-title">You haven't opened your availability yet.</p>
-                    <p class="empty-state-desc">Turn it on to let friends know when you're free to ski.</p>
-                    <a href="{{ url_for('add_open_dates') }}" class="bl-btn-secondary" style="text-decoration: none; text-align: center; display: inline-block; margin: 8px 0;">Open availability</a>
+                    <p class="empty-state-title">No open availability yet</p>
+                    <p class="empty-state-desc">Mark days you're open to ski to help friends plan trips with you.</p>
+                    <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="text-decoration: none; text-align: center; display: inline-block; margin: 12px 0; padding: 12px 24px; font-size: 15px;">Add Open Dates</a>
                 </div>
             {% endif %}
         </div>
@@ -698,8 +694,12 @@
                 tab.addEventListener('click', function() {
                     const tabName = this.getAttribute('data-tab');
                     
-                    tabs.forEach(t => t.classList.remove('active'));
+                    tabs.forEach(t => {
+                        t.classList.remove('active');
+                        t.setAttribute('aria-selected', 'false');
+                    });
                     this.classList.add('active');
+                    this.setAttribute('aria-selected', 'true');
                     
                     panels.forEach(panel => {
                         panel.style.display = 'none';
