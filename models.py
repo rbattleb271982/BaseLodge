@@ -129,7 +129,7 @@ class User(UserMixin, db.Model):
     
     # Progressive profile completion (Dec 2025)
     primary_riding_style = db.Column(db.String(50), nullable=True)  # Groomers, Powder, All-Mountain, Park, Mixed
-    welcome_next_steps_shown_at = db.Column(db.DateTime, nullable=True)  # Set when welcome screen is shown (once only)
+    welcome_modal_seen_at = db.Column(db.DateTime, nullable=True)  # Set when welcome modal dismissed (once only)
     
     trips = db.relationship('SkiTrip', foreign_keys='SkiTrip.user_id', backref='user', lazy=True)
     friend_requests_sent = db.relationship('Invitation', foreign_keys='Invitation.sender_id', backref='sender', lazy=True)
@@ -343,7 +343,7 @@ class User(UserMixin, db.Model):
             return False
         if self.is_profile_complete:
             return False
-        if self.welcome_next_steps_shown_at:
+        if self.welcome_modal_seen_at:
             return False
         login_count = self.login_count or 0
         return login_count <= 2

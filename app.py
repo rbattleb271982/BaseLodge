@@ -2159,8 +2159,7 @@ def home():
                     }
     
     # Welcome modal - shown once after identity setup is complete (no more progressive modals)
-    # Uses welcome_next_steps_shown_at flag (semantically: welcome_modal_seen_at)
-    show_welcome_screen = user.is_core_profile_complete and not user.welcome_next_steps_shown_at
+    show_welcome_screen = user.is_core_profile_complete and not user.welcome_modal_seen_at
     
     # Get pending trip invites for the user
     pending_invites = []
@@ -2270,11 +2269,11 @@ def save_onboarding_riding_style():
 @app.route("/onboarding/welcome-shown", methods=["POST"])
 @login_required
 def mark_welcome_shown():
-    """Mark the welcome screen as shown (once only)."""
+    """Mark the welcome modal as dismissed (once only)."""
     user = current_user
     
-    if not user.welcome_next_steps_shown_at:
-        user.welcome_next_steps_shown_at = datetime.utcnow()
+    if not user.welcome_modal_seen_at:
+        user.welcome_modal_seen_at = datetime.utcnow()
         db.session.commit()
     
     # Support custom redirect destinations from welcome screen
@@ -4438,6 +4437,56 @@ def backfill_primary_rider_type_endpoint():
             "details": {
                 "users_updated": users_updated,
                 "users_skipped": users_skipped
+            }
+        }), 200
+    except Exception as e:
+        import traceback
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": f"Backfill failed: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@app.route("/admin/backfill-organizers-as-participants", methods=["GET", "POST"])
+def backfill_organizers_as_participants():
+    """
+    HTTP endpoint to backfill trip organizers as participants.
+    
+    Usage: GET https://yourapp.replit.dev/admin/backfill-organizers-as-participants
+    
+    This is idempotent - safe to run multiple times.
+    Only creates participant records for trips where the owner is not already a participant.
+    """
+    try:
+        trips_updated = 0
+        trips_skipped = 0
+        
+        all_trips = SkiTrip.query.all()
+        for trip in all_trips:
+            # Check if owner already has a participant record
+            existing = SkiTripParticipant.query.filter_by(
+                trip_id=trip.id,
+                user_id=trip.user_id
+            ).first()
+            
+            if existing:
+                trips_skipped += 1
+            else:
+                # Add owner as participant with OWNER role
+                trip.add_owner_as_participant()
+                trips_updated += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "message": "Backfill completed",
+            "details": {
+                "trips_updated": trips_updated,
+                "trips_skipped": trips_skipped,
+                "total_trips": len(all_trips)
             }
         }), 200
     except Exception as e:

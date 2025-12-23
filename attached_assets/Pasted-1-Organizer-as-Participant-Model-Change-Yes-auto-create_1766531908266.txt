@@ -1,0 +1,67 @@
+1. Organizer as Participant (Model Change)
+👉 Yes, auto-create a participant record for the organizer.
+👉 Yes, backfill existing trips.
+Required behavior
+When a trip is created:
+Automatically create a SkiTripParticipant row for the organizer
+For existing trips:
+Backfill so each trip owner appears as a participant
+Why
+Organizer is a participant conceptually
+Transportation & equipment are person-level signals
+This avoids special-case logic everywhere
+Group Signals, “Who’s Going,” and inline editing all become consistent
+Implementation notes
+Organizer can be marked with:
+role = "organizer" or similar (if roles exist)
+No UI distinction beyond labeling “You (Organizer)”
+❌ Do not store organizer signals on SkiTrip
+❌ Do not maintain parallel logic paths
+2. Terrain Preferences — Legacy Data
+👉 Preserve existing values in the database. Do not delete or migrate them.
+Correct handling
+Stop showing First Chair and Après-ski as selectable options going forward
+Leave existing user records untouched
+When displaying terrain:
+Ignore legacy values, or
+Filter them out of UI display
+Do NOT
+Auto-map them to other terrain values
+Force users to re-select
+Run destructive migrations
+This keeps data safe and avoids unexpected changes to user profiles.
+3. Welcome Modal Field (welcome_next_steps_shown_at)
+👉 Rename the existing field for clarity and reuse it.
+Preferred approach
+Rename:
+welcome_next_steps_shown_at
+→ welcome_modal_seen_at
+Use this field to track dismissal of the new simplified welcome modal
+Behavior
+Set the timestamp when user taps Done
+Modal should never reappear after this is set
+Why
+Avoids unnecessary new fields
+Clearer semantics
+Existing users should not be re-prompted unexpectedly
+❌ Do not create a second overlapping flag
+❌ Do not reset for all users
+4. “Who’s Going” Inline Editing (UX Choice)
+👉 Use a bottom sheet / modal picker on mobile.
+Why
+Dropdowns inline are cramped and awkward on mobile
+Bottom sheets are:
+Easier to tap
+More legible
+Consistent with modern mobile UX
+This keeps the “badge” display clean until interaction
+Behavior
+Tap badge → bottom sheet opens
+Select value → sheet closes → badge updates
+Only editable for the current user
+Desktop can optionally use inline dropdowns, but mobile should default to bottom sheets.
+TL;DR for Replit
+Organizer = participant → auto-create + backfill
+Preserve legacy terrain data, hide invalid options
+Rename and reuse welcome_next_steps_shown_at
+Use bottom-sheet pickers for editing transportation/equipment

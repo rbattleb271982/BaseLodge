@@ -6,18 +6,35 @@
     <title>Base Lodge - Trip Details</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .trip-header {
+        .trip-nav-header {
+            display: flex;
+            align-items: center;
             margin-bottom: 20px;
+            position: relative;
         }
-        .trip-header h1 {
-            font-size: 1.4rem;
-            font-weight: 600;
-            margin: 0 0 4px 0;
+        .back-chevron {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
             color: var(--bl-color-text);
+            text-decoration: none;
+            border-radius: var(--bl-radius-md);
         }
-        .trip-header .trip-dates {
-            font-size: 1rem;
-            color: var(--bl-color-text-muted);
+        .back-chevron:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        .trip-title {
+            flex: 1;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0;
+            color: var(--bl-color-text);
+            text-align: center;
+        }
+        .nav-spacer {
+            width: 40px;
         }
         
         .invite-cta {
@@ -97,6 +114,123 @@
         .participant-status.accepted {
             background: #E8F5E9;
             color: #2E7D32;
+        }
+        .participant-badges {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            margin: 4px 0 0 0;
+        }
+        .participant-badges.editable {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .badge-link {
+            background: none;
+            border: none;
+            padding: 0;
+            font: inherit;
+            color: var(--bl-color-text-muted);
+            cursor: pointer;
+            transition: color 0.15s ease;
+        }
+        .badge-link:hover, .badge-link:focus {
+            color: var(--bl-color-primary);
+            outline: none;
+        }
+        .badge-link:focus-visible {
+            outline: 2px solid var(--bl-color-primary);
+            outline-offset: 2px;
+            border-radius: 2px;
+        }
+        .badge-link.unset {
+            color: var(--bl-color-primary);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .badge-separator {
+            color: var(--bl-color-text-muted);
+        }
+        .organizer-reminder {
+            background: rgba(143, 1, 27, 0.06);
+            border-radius: var(--bl-radius-md);
+            padding: 10px 12px;
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            display: none;
+        }
+        .organizer-reminder.visible {
+            display: block;
+        }
+        
+        .signal-picker-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .signal-picker-overlay.active {
+            display: flex;
+        }
+        .signal-picker-sheet {
+            background: #ffffff;
+            border-radius: 16px 16px 0 0;
+            width: 100%;
+            max-width: 500px;
+            padding: 16px 20px;
+            padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        }
+        .signal-picker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .signal-picker-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        .signal-picker-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #666;
+            cursor: pointer;
+            padding: 4px;
+        }
+        .signal-picker-option {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            cursor: pointer;
+            font-size: 1rem;
+            color: var(--bl-color-text);
+        }
+        .signal-picker-option:last-child {
+            border-bottom: none;
+        }
+        .signal-picker-option:hover, .signal-picker-option:focus {
+            color: var(--bl-color-primary);
+            outline: none;
+        }
+        .signal-picker-option:focus-visible {
+            background: rgba(143, 1, 27, 0.06);
+        }
+        .signal-picker-option.selected {
+            color: var(--bl-color-primary);
+            font-weight: 500;
         }
         
         .edit-link {
@@ -299,10 +433,14 @@
 </head>
 <body>
     <div class="page-container">
-        <a href="{{ url_for('home') }}" class="back-link">Back to Home</a>
-        
-        <div class="trip-header">
-            <h1>{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</h1>
+        <div class="trip-nav-header">
+            <a href="{{ url_for('home') }}" class="back-chevron" aria-label="Back to home">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
+            <h1 class="trip-title">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</h1>
+            <div class="nav-spacer"></div>
         </div>
         
         {% if is_invited %}
@@ -322,12 +460,15 @@
         </div>
         {% elif is_owner %}
         <div class="invite-cta">
-            <button class="bl-btn-primary" onclick="openInviteModal()">
+            <button class="bl-btn-primary" onclick="handleInviteClick()">
                 {% if invite_count > 0 %}Invite more people{% else %}Invite people to this trip{% endif %}
             </button>
             {% if invite_count > 0 %}
             <p class="invite-count">{{ invite_count }} invite{{ 's' if invite_count != 1 else '' }} sent</p>
             {% endif %}
+            <div class="organizer-reminder" id="organizerReminder">
+                Add your transportation and equipment so others can plan.
+            </div>
         </div>
         {% endif %}
         
@@ -432,20 +573,34 @@
                         {% if p.role and p.role.value == 'owner' %} (Organizer){% endif %}
                     </span>
                     {% if p.user_id == current_user.id and (is_owner or is_guest) %}
-                    <div class="signal-edit-row" id="my-signals-row">
-                        <select class="inline-signal-select" id="my-transportation" onchange="updateMySignals()">
-                            <option value="">Transportation...</option>
-                            <option value="driving" {% if p.transportation_status and p.transportation_status.value == 'driving' %}selected{% endif %}>Driving</option>
-                            <option value="flying" {% if p.transportation_status and p.transportation_status.value == 'flying' %}selected{% endif %}>Flying</option>
-                            <option value="train_bus" {% if p.transportation_status and p.transportation_status.value == 'train_bus' %}selected{% endif %}>Train / Bus</option>
-                            <option value="tbd" {% if p.transportation_status and p.transportation_status.value == 'tbd' %}selected{% endif %}>TBD</option>
-                        </select>
-                        <select class="inline-signal-select" id="my-equipment" onchange="updateMySignals()">
-                            <option value="">Equipment...</option>
-                            <option value="own" {% if p.equipment_status and p.equipment_status.value == 'own' %}selected{% endif %}>Has own equipment</option>
-                            <option value="renting" {% if p.equipment_status and p.equipment_status.value == 'renting' %}selected{% endif %}>Renting</option>
-                            <option value="needs_rentals" {% if p.equipment_status and p.equipment_status.value == 'needs_rentals' %}selected{% endif %}>Needs rentals</option>
-                        </select>
+                    {% set my_trans = p.get_display_transportation() %}
+                    {% set my_equip = p.get_display_equipment() %}
+                    {% set trans_unset = not p.transportation_status %}
+                    {% set equip_unset = not p.equipment_status and (not p.user.equipment_status) %}
+                    {% set trans_value = p.transportation_status.value if p.transportation_status else '' %}
+                    {% set equip_value = p.equipment_status.value if p.equipment_status else '' %}
+                    <div class="participant-badges editable" 
+                         data-trans-value="{{ trans_value }}" 
+                         data-equip-value="{{ equip_value }}"
+                         data-trans-unset="{{ 'true' if trans_unset else 'false' }}"
+                         data-equip-unset="{{ 'true' if equip_unset else 'false' }}">
+                        <button type="button" class="badge-link {% if trans_unset %}unset{% endif %}" 
+                                onclick="openSignalPicker('transportation')" 
+                                id="my-trans-badge"
+                                aria-label="Edit transportation status"
+                                aria-expanded="false"
+                                aria-haspopup="listbox">
+                            {% if trans_unset %}Add transportation{% else %}{{ my_trans }}{% endif %}
+                        </button>
+                        <span class="badge-separator" aria-hidden="true">·</span>
+                        <button type="button" class="badge-link {% if equip_unset %}unset{% endif %}" 
+                                onclick="openSignalPicker('equipment')" 
+                                id="my-equip-badge"
+                                aria-label="Edit equipment status"
+                                aria-expanded="false"
+                                aria-haspopup="listbox">
+                            {% if equip_unset %}Add equipment{% else %}{{ my_equip }}{% endif %}
+                        </button>
                     </div>
                     {% else %}
                     <p class="participant-badges">{{ p.get_display_transportation() }} · {{ p.get_display_equipment() }}</p>
@@ -519,6 +674,20 @@
     <script>
         let scrollPosition = 0;
         
+        function handleInviteClick() {
+            const transBadge = document.getElementById('my-trans-badge');
+            const equipBadge = document.getElementById('my-equip-badge');
+            const transStillUnset = transBadge && transBadge.classList.contains('unset');
+            const equipStillUnset = equipBadge && equipBadge.classList.contains('unset');
+            
+            const reminder = document.getElementById('organizerReminder');
+            if (reminder && (transStillUnset || equipStillUnset)) {
+                reminder.classList.add('visible');
+            }
+            
+            openInviteModal();
+        }
+        
         function openInviteModal() {
             scrollPosition = window.pageYOffset;
             document.body.classList.add('modal-open');
@@ -553,33 +722,148 @@
     {% endif %}
     
     {% if is_owner or is_guest %}
+    <div class="signal-picker-overlay" id="signalPickerOverlay">
+        <div class="signal-picker-sheet">
+            <div class="signal-picker-header">
+                <h3 id="signalPickerTitle">Select</h3>
+                <button class="signal-picker-close" onclick="closeSignalPicker()">&times;</button>
+            </div>
+            <div id="signalPickerOptions"></div>
+        </div>
+    </div>
+    
     <script>
-        function updateMySignals() {
-            const transportation = document.getElementById('my-transportation')?.value || '';
-            const equipment = document.getElementById('my-equipment')?.value || '';
+        let currentPickerType = null;
+        let activeTriggerElement = null;
+        let selectionMade = false;
+        
+        const badgeContainer = document.querySelector('.participant-badges.editable');
+        let currentTransportation = badgeContainer ? badgeContainer.dataset.transValue : '';
+        let currentEquipment = badgeContainer ? badgeContainer.dataset.equipValue : '';
+        
+        const transportationOptions = [
+            { value: 'driving', label: 'Driving' },
+            { value: 'flying', label: 'Flying' },
+            { value: 'train_bus', label: 'Train / Bus' },
+            { value: 'tbd', label: 'TBD' }
+        ];
+        
+        const equipmentOptions = [
+            { value: 'own', label: 'Has own equipment' },
+            { value: 'renting', label: 'Renting' },
+            { value: 'needs_rentals', label: 'Needs rentals' }
+        ];
+        
+        function openSignalPicker(type) {
+            currentPickerType = type;
+            selectionMade = false;
+            activeTriggerElement = type === 'transportation' 
+                ? document.getElementById('my-trans-badge') 
+                : document.getElementById('my-equip-badge');
             
-            if (!transportation && !equipment) return;
+            const overlay = document.getElementById('signalPickerOverlay');
+            const title = document.getElementById('signalPickerTitle');
+            const optionsContainer = document.getElementById('signalPickerOptions');
+            const sheet = document.querySelector('.signal-picker-sheet');
+            
+            const options = type === 'transportation' ? transportationOptions : equipmentOptions;
+            const currentValue = type === 'transportation' ? currentTransportation : currentEquipment;
+            
+            title.textContent = type === 'transportation' ? 'Transportation' : 'Equipment';
+            
+            if (activeTriggerElement) {
+                activeTriggerElement.setAttribute('aria-expanded', 'true');
+            }
+            sheet.setAttribute('aria-label', type === 'transportation' ? 'Transportation options' : 'Equipment options');
+            
+            optionsContainer.innerHTML = options.map(opt => `
+                <button type="button" class="signal-picker-option ${opt.value === currentValue ? 'selected' : ''}" 
+                     onclick="selectSignal('${type}', '${opt.value}', '${opt.label}')"
+                     role="option"
+                     aria-selected="${opt.value === currentValue ? 'true' : 'false'}">
+                    ${opt.label}
+                </button>
+            `).join('');
+            
+            overlay.classList.add('active');
+            optionsContainer.querySelector('.signal-picker-option')?.focus();
+        }
+        
+        function closeSignalPicker() {
+            document.getElementById('signalPickerOverlay').classList.remove('active');
+            
+            if (activeTriggerElement) {
+                activeTriggerElement.setAttribute('aria-expanded', 'false');
+                activeTriggerElement.focus();
+            }
+            
+            currentPickerType = null;
+            activeTriggerElement = null;
+        }
+        
+        function selectSignal(type, value, label) {
+            selectionMade = true;
+            
+            if (type === 'transportation') {
+                currentTransportation = value;
+                const badge = document.getElementById('my-trans-badge');
+                badge.textContent = label;
+                badge.classList.remove('unset');
+            } else {
+                currentEquipment = value;
+                const badge = document.getElementById('my-equip-badge');
+                badge.textContent = label;
+                badge.classList.remove('unset');
+            }
+            
+            closeSignalPicker();
+            saveSignals();
+            updateOrganizerReminder();
+        }
+        
+        function updateOrganizerReminder() {
+            const reminder = document.getElementById('organizerReminder');
+            if (reminder && currentTransportation && currentEquipment) {
+                reminder.classList.remove('visible');
+            }
+        }
+        
+        function saveSignals() {
+            if (!currentTransportation && !currentEquipment) {
+                return;
+            }
+            
+            const payload = {};
+            if (currentTransportation) {
+                payload.transportation_status = currentTransportation;
+            }
+            if (currentEquipment) {
+                payload.equipment_status = currentEquipment;
+            }
             
             fetch('{{ url_for("update_participant_signals", trip_id=trip.id) }}', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    transportation_status: transportation || null,
-                    equipment_status: equipment || null,
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    console.log('Signals updated:', data);
+                    console.log('Signals saved');
                 }
             })
-            .catch(error => {
-                console.error('Error updating signals:', error);
-            });
+            .catch(error => console.error('Error saving signals:', error));
         }
+        
+        document.getElementById('signalPickerOverlay').addEventListener('click', function(e) {
+            if (e.target === this) closeSignalPicker();
+        });
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('signalPickerOverlay').classList.contains('active')) {
+                closeSignalPicker();
+            }
+        });
     </script>
     {% endif %}
 </body>
