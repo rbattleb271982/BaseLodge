@@ -250,18 +250,54 @@
             margin: 0;
             line-height: 1.4;
         }
-        .flat-row-permission {
-            font-size: 0.85rem;
-            color: var(--bl-color-text-muted);
-            margin: 4px 0 0 0;
-            line-height: 1.4;
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 44px;
+            padding: 8px 0;
             cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
-        .flat-row-permission:active {
+        .toggle-row:active {
             opacity: 0.7;
         }
-        .flat-row-permission-on {
-            color: var(--bl-color-primary);
+        .toggle-row-label {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            flex: 1;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 30px;
+            flex-shrink: 0;
+            pointer-events: none;
+        }
+        .toggle-switch-track {
+            position: absolute;
+            inset: 0;
+            background: #D1D5DB;
+            border-radius: 15px;
+            transition: background 0.2s ease;
+        }
+        .toggle-switch-thumb {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 26px;
+            height: 26px;
+            background: #FFFFFF;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease;
+        }
+        .toggle-row[data-enabled="true"] .toggle-switch-track {
+            background: var(--bl-color-primary);
+        }
+        .toggle-row[data-enabled="true"] .toggle-switch-thumb {
+            transform: translateX(20px);
         }
         .empty-card {
             background: var(--bl-color-surface);
@@ -313,12 +349,21 @@
                     </div>
                     <p class="flat-row-identity">{{ friend|identity_line }}</p>
                 </a>
-                <p class="flat-row-permission {% if friend._trip_invites_allowed %}flat-row-permission-on{% endif %}" 
-                   data-friend-id="{{ friend.id }}"
-                   data-enabled="{{ 'true' if friend._trip_invites_allowed else 'false' }}"
-                   onclick="toggleTripInvites(event, {{ friend.id }})">
-                    Trip invites: {{ 'On' if friend._trip_invites_allowed else 'Off' }}
-                </p>
+                <div class="toggle-row" 
+                     role="switch"
+                     aria-checked="{{ 'true' if friend._trip_invites_allowed else 'false' }}"
+                     aria-label="Trip invites"
+                     tabindex="0"
+                     data-friend-id="{{ friend.id }}"
+                     data-enabled="{{ 'true' if friend._trip_invites_allowed else 'false' }}"
+                     onclick="toggleTripInvites(event, {{ friend.id }})"
+                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTripInvites(event,{{ friend.id }});}">
+                    <span class="toggle-row-label">Trip invites</span>
+                    <div class="toggle-switch">
+                        <div class="toggle-switch-track"></div>
+                        <div class="toggle-switch-thumb"></div>
+                    </div>
+                </div>
             </div>
             {% endfor %}
             
@@ -431,7 +476,7 @@
             event.preventDefault();
             event.stopPropagation();
             
-            const el = event.target;
+            const el = event.currentTarget;
             const currentlyEnabled = el.dataset.enabled === 'true';
             
             // Only confirm on first enable
@@ -454,8 +499,7 @@
                 if (data.success) {
                     const newEnabled = data.trip_invites_allowed;
                     el.dataset.enabled = newEnabled ? 'true' : 'false';
-                    el.textContent = `Trip invites: ${newEnabled ? 'On' : 'Off'}`;
-                    el.classList.toggle('flat-row-permission-on', newEnabled);
+                    el.setAttribute('aria-checked', newEnabled ? 'true' : 'false');
                 }
             } catch (err) {
                 console.error('Failed to toggle trip invites:', err);
