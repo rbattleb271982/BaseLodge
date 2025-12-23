@@ -108,6 +108,10 @@ class User(UserMixin, db.Model):
     planning_dismissed_timestamp = db.Column(db.DateTime, nullable=True)
     historical_passes_by_season = db.Column(db.JSON, default=dict)  # e.g., {"2024_25": ["ikon", "epic"]}
     
+    # Progressive profile completion (Dec 2025)
+    primary_riding_style = db.Column(db.String(50), nullable=True)  # Groomers, Powder, All-Mountain, Park, Mixed
+    welcome_next_steps_shown_at = db.Column(db.DateTime, nullable=True)  # Set when welcome screen is shown (once only)
+    
     trips = db.relationship('SkiTrip', backref='user', lazy=True)
     friend_requests_sent = db.relationship('Invitation', foreign_keys='Invitation.sender_id', backref='sender', lazy=True)
     friend_requests_received = db.relationship('Invitation', foreign_keys='Invitation.receiver_id', backref='receiver', lazy=True)
@@ -250,6 +254,63 @@ class User(UserMixin, db.Model):
             return None
         from models import Resort
         return Resort.query.get(self.home_resort_id)
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # PROGRESSIVE PROFILE COMPLETION (Dec 2025)
+    # ─────────────────────────────────────────────────────────────────────────
+    
+    def get_active_equipment(self):
+        """Get the user's active equipment setup, if any."""
+        from models import EquipmentSetup
+        return EquipmentSetup.query.filter_by(
+            user_id=self.id,
+            is_active=True
+        ).first()
+    
+    @property
+    def is_equipment_complete(self):
+        """
+        Equipment step is complete if an active EquipmentSetup exists 
+        AND equipment_status is not null.
+        Brand/model fields are optional and never gate completion.
+        """
+        equipment = self.get_active_equipment()
+        return equipment is not None and equipment.equipment_status is not None
+    
+    @property
+    def is_profile_complete(self):
+        """
+        Profile is complete when:
+        - is_equipment_complete is true
+        - primary_riding_style is not null
+        """
+        return self.is_equipment_complete and self.primary_riding_style is not None
+    
+    def get_profile_completion_progress(self):
+        """
+        Calculate profile completion progress (derived, not stored).
+        Returns (completed_steps, total_steps)
+        """
+        completed = 0
+        if self.is_equipment_complete:
+            completed += 1
+        if self.primary_riding_style:
+            completed += 1
+        return completed, 2
+    
+    @property
+    def should_show_progressive_modal(self):
+        """
+        Determine if progressive profile completion modals should be shown.
+        Show on 1st login, or 2nd login if profile incomplete.
+        Never show after that.
+        """
+        if self.is_profile_complete:
+            return False
+        if self.welcome_next_steps_shown_at:
+            return False
+        login_count = self.login_count or 0
+        return login_count <= 2
 
 
 class Resort(db.Model):
@@ -434,11 +495,11 @@ class EquipmentSetup(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     slot = db.Column(
         db.Enum(EquipmentSlot, name='equipment_slot_enum', create_constraint=True),
-        nullable=False
+        nullable=True  # Made nullable for onboarding flow
     )
     discipline = db.Column(
         db.Enum(EquipmentDiscipline, name='equipment_discipline_enum', create_constraint=True),
-        nullable=False
+        nullable=True  # Made nullable for onboarding flow
     )
     brand = db.Column(db.String(100), nullable=True)
     model = db.Column(db.String(100), nullable=True)
@@ -450,6 +511,10 @@ class EquipmentSetup(db.Model):
     boot_flex = db.Column(db.Integer, nullable=True)
     purchase_year = db.Column(db.Integer, nullable=True)
     
+    # Onboarding fields (Dec 2025)
+    equipment_status = db.Column(db.String(20), nullable=True)  # 'own', 'rent', 'both'
+    is_active = db.Column(db.Boolean, default=True)  # True for primary/active equipment setup
+    
     user = db.relationship('User', backref='equipment_setups')
     
     __table_args__ = (
@@ -457,7 +522,9 @@ class EquipmentSetup(db.Model):
     )
     
     def __repr__(self):
-        return f'<EquipmentSetup user={self.user_id} slot={self.slot.value} discipline={self.discipline.value}>'
+        slot_val = self.slot.value if self.slot else 'none'
+        discipline_val = self.discipline.value if self.discipline else 'none'
+        return f'<EquipmentSetup user={self.user_id} slot={slot_val} discipline={discipline_val}>'
 
 
 class DismissedNudge(db.Model):
