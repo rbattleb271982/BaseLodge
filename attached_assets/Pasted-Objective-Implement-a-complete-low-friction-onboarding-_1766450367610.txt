@@ -1,0 +1,204 @@
+Objective
+Implement a complete, low-friction onboarding → progressive profile completion → orientation flow for BaseLodge, using existing models and avoiding duplicated state.
+This flow must:
+Be renter-friendly and non-blocking
+Never duplicate equipment data
+Never store step counters
+Never nag beyond the 2nd login
+Feel obvious to first-time users
+1️⃣ ONBOARDING (EXTEND EXISTING FLOW)
+Scope
+Extend the existing signup/onboarding screen (same route and template).
+Do not create a second onboarding flow.
+Layout
+Single screen
+No scrolling on mobile
+2-column layout for the first row
+Fields (REQUIRED)
+Row 1 — Two columns
+Rider Type (multi-select checkboxes)
+Skier
+Snowboarder
+Telemark
+Cross-Country
+Adaptive
+Skill Level (single-select radio)
+Beginner
+Intermediate
+Advanced
+Expert
+Row 2 — Full width
+Pass (single-select; use existing User.pass field)
+Epic
+Ikon
+Indy
+Mountain Collective
+Powder Alliance
+Freedom
+Ski California
+Other
+None / No Pass
+Save directly to User
+rider_type[]
+skill_level
+pass
+Submit once and route into the app.
+2️⃣ POST-LOGIN PROGRESSIVE COMPLETION
+When to show
+On 1st login
+On 2nd login only if profile is incomplete
+Never show again after that
+3️⃣ EQUIPMENT — CANONICAL SYSTEM (CRITICAL)
+Source of truth
+Use the existing EquipmentSetup model.
+Do NOT add equipment fields to User.
+All gear entered via pop-ups must create or update the user’s active EquipmentSetup record.
+Required / Optional Fields (on EquipmentSetup)
+Add nullable columns if missing:
+equipment_status     # own / rent / both
+equipment_brand      # skis / board
+equipment_model
+boot_brand
+boot_model
+Equipment Step Completion (DERIVED — DO NOT STORE)
+The Equipment step is complete if:
+An active EquipmentSetup exists for the user AND
+equipment_status is NOT null
+Brand/model fields are optional and never gate completion.
+Example SQLAlchemy — Create / Update EquipmentSetup
+equipment = EquipmentSetup.query.filter_by(
+    user_id=current_user.id,
+    is_active=True
+).first()
+
+if not equipment:
+    equipment = EquipmentSetup(
+        user_id=current_user.id,
+        is_active=True
+    )
+    db.session.add(equipment)
+
+equipment.equipment_status = form.equipment_status
+equipment.equipment_brand = form.equipment_brand or None
+equipment.equipment_model = form.equipment_model or None
+equipment.boot_brand = form.boot_brand or None
+equipment.boot_model = form.boot_model or None
+
+db.session.commit()
+Example SQLAlchemy — Equipment Completion Check
+def is_equipment_complete(user):
+    equipment = EquipmentSetup.query.filter_by(
+        user_id=user.id,
+        is_active=True
+    ).first()
+
+    return equipment is not None and equipment.equipment_status is not None
+4️⃣ POP-UP STEP 1 — EQUIPMENT
+Modal title
+Your equipment
+Step A — Equipment Status (REQUIRED)
+How do you usually handle equipment?
+I bring my own
+I rent
+I do both
+If user selects Rent, show:
+“No problem — you can skip gear details.”
+Step B — Skis / Board (OPTIONAL)
+Brand (autocomplete)
+Model (filtered by brand)
+Helper text:
+“Not sure? Totally fine — you can skip this.”
+Step C — Boots (OPTIONAL)
+Boot brand (autocomplete)
+Boot model (optional text/list)
+Helper text:
+“If you don’t know, you can leave this blank.”
+Explicit Skip boots option required.
+5️⃣ POP-UP STEP 2 — PRIMARY RIDING STYLE
+Save on User
+primary_riding_style
+Question
+What best describes how you like to ride?
+Options (single-select)
+Groomers
+Powder
+All-Mountain
+Park
+Mixed
+6️⃣ PROFILE COMPLETION LOGIC (GLOBAL RULE)
+Completion is DERIVED — never stored
+A profile is complete when:
+is_equipment_complete(user) is true
+user.primary_riding_style is not null
+Example SQLAlchemy — Profile Completion
+def is_profile_complete(user):
+    return (
+        is_equipment_complete(user)
+        and user.primary_riding_style is not None
+    )
+7️⃣ PROGRESS GAUGE (DERIVED)
+Total steps: 2
+Do not store step counters
+def profile_completion_progress(user):
+    completed = 0
+
+    if is_equipment_complete(user):
+        completed += 1
+
+    if user.primary_riding_style:
+        completed += 1
+
+    return completed, 2
+Display as:
+“Step X of 2”
+Dots or small bar
+8️⃣ FINAL SCREEN — WELCOME TO BASELODGE
+When to show
+Immediately after profile becomes complete.
+Show once only.
+Set:
+welcome_next_steps_shown_at = now()
+Screen Content
+Header
+Welcome to BaseLodge
+Subtext
+You’re all set. Here’s what you can do next.
+Option 1 — Add a Trip
+Title
+Do you already have a trip planned?
+Description
+Add it to the app and your friends will see where you’re going.
+CTA
+Add a trip → /trips/new
+Option 2 — Invite Friends
+Title
+Want to invite friends?
+Description
+Bring your ski crew — or start building one.
+CTA
+Invite friends → /invite
+Option 3 — Explore
+Title
+Just want to browse?
+Description
+Check out trips, see what friends are planning, or explore at your own pace.
+CTA
+Explore BaseLodge → dismiss modal, return to Trips tab
+Footer:
+You can do any of this later — have fun.
+9️⃣ STOP CONDITIONS (NON-NEGOTIABLE)
+After profile is complete → no more pop-ups
+After 2nd login (even if incomplete) → no more pop-ups
+Remaining fields handled only via Profile page
+10️⃣ IMPLEMENTATION GUARDRAILS
+No duplicate data across models
+No additional onboarding steps
+No blocking flows
+No manual step counters
+No follow-up questions
+No checkpoints unless absolutely necessary
+✅ DONE WHEN
+New users understand what to do next
+Renters never feel excluded
+Progress always resumes correctly
+Entire flow completes in under ~30 seconds
