@@ -1,198 +1,420 @@
 {# 
-  Reusable Profile Card Component
+  Unified Profile Card Component (United-style tile layout)
   
   Required context:
   - profile_user: The user being displayed (current_user or friend)
   - is_owner: Boolean - true if viewing own profile, false for friends
-  - trips_count: Number of trips created
-  - visited_count: Number of visited mountains  
-  - bucket_list_count: Number of bucket list mountains
+  - upcoming_trips_count: Number of upcoming trips
   - equipment: Primary equipment object (optional)
+  - visited_resorts: List of Resort objects for visited mountains
+  - wishlist_resorts: List of Resort objects for wishlist mountains
   
-  For owner (is_owner=true):
-  - Stats are clickable/editable
-  - Visited/Bucket List navigate to edit flows
-  
-  For friend (is_owner=false):
-  - Stats are read-only or open in read-only mode
+  All surfaces must use this shared partial:
+  - User's own profile card (home)
+  - Friend profile cards
+  - Friends list
+  - Trip guests / invites
 #}
 
-<div class="bl-profile-card">
-    <div class="profile-identity">
-        <div class="profile-identity-name">
-            {{ profile_user.first_name }}{% if not is_owner and profile_user.last_name %} {{ profile_user.last_name }}{% endif %}
+<div class="bl-profile-tile">
+    {# 1. Identity: Name + Location #}
+    <div class="tile-identity">
+        <div class="tile-name">
+            {{ profile_user.first_name }}{% if profile_user.last_name %} {{ profile_user.last_name }}{% endif %}
         </div>
-
-        {% set identity = profile_user|identity_line %}
-        {% if identity %}
-        <div class="profile-identity-line">
-            {{ identity }}
-        </div>
+        {% if profile_user.home_state %}
+        <div class="tile-location">{{ profile_user.home_state }}</div>
         {% endif %}
+    </div>
 
-        <div class="profile-identity-rows">
-            {% if profile_user.primary_riding_style %}
-            <div class="profile-identity-row">
-                <span class="profile-identity-label">Riding Style</span>
-                <span class="profile-identity-sep">·</span>
-                <span class="profile-identity-value">{{ profile_user.primary_riding_style }}</span>
-            </div>
-            {% endif %}
-            
-            {% if profile_user.terrain_preferences and profile_user.terrain_preferences|length > 0 %}
-            <div class="profile-identity-row">
-                <span class="profile-identity-label">Preferred Terrain</span>
-                <span class="profile-identity-sep">·</span>
-                <span class="profile-identity-value">
-                    {{ profile_user.terrain_preferences[:2]|join(', ') }}
-                </span>
-            </div>
-            {% endif %}
+    {# 2. Hero line: Rider Type · Passes · Skill #}
+    {% set identity = profile_user|identity_line %}
+    {% if identity %}
+    <div class="tile-hero">{{ identity }}</div>
+    {% endif %}
 
-            {% if equipment and (equipment.brand or equipment.boot_brand) %}
-            <div class="profile-identity-row">
-                <span class="profile-identity-label">Equipment</span>
-                <span class="profile-identity-sep">·</span>
-                <span class="profile-identity-value">
-                    {% if equipment.brand %}{{ equipment.brand }}{% if equipment.model %} {{ equipment.model }}{% endif %}{% elif equipment.boot_brand %}{{ equipment.boot_brand }}{% if equipment.boot_model %} {{ equipment.boot_model }}{% endif %} boots{% endif %}
-                </span>
-            </div>
-            {% endif %}
+    {# 3. Trip summary #}
+    <div class="tile-trips">
+        {% if upcoming_trips_count == 0 %}
+            No upcoming trips
+        {% elif upcoming_trips_count == 1 %}
+            1 upcoming trip
+        {% else %}
+            {{ upcoming_trips_count }} upcoming trips
+        {% endif %}
+    </div>
+
+    {# 4. Equipment + Boots #}
+    <div class="tile-equipment-section">
+        <div class="tile-equipment-row">
+            <span class="tile-label">Equipment:</span>
+            <span class="tile-value">
+                {% if equipment and equipment.brand %}
+                    {{ equipment.brand }}{% if equipment.model %} {{ equipment.model }}{% endif %}
+                {% elif is_owner %}
+                    <span class="tile-add-link">Add equipment</span>
+                {% else %}
+                    <span class="tile-muted">Not specified</span>
+                {% endif %}
+            </span>
+        </div>
+        <div class="tile-equipment-row">
+            <span class="tile-label">Boots:</span>
+            <span class="tile-value">
+                {% if equipment and equipment.boot_brand %}
+                    {{ equipment.boot_brand }}{% if equipment.boot_model %} {{ equipment.boot_model }}{% endif %}
+                {% elif is_owner %}
+                    <span class="tile-add-link">Add boots</span>
+                {% else %}
+                    <span class="tile-muted">Not specified</span>
+                {% endif %}
+            </span>
         </div>
     </div>
 
-    <div class="profile-card-divider"></div>
-    
-    <div class="profile-stats-row">
-        {% if is_owner %}
-        <a href="{{ url_for('home') }}?tab=my" class="profile-stat-col" aria-label="View your trips">
-        {% else %}
-        <div class="profile-stat-col">
-        {% endif %}
-            <div class="profile-stat-label">Trips Created</div>
-            <div class="profile-stat-value">{{ trips_count }}</div>
-        {% if is_owner %}
-        </a>
-        {% else %}
+    {# 5. Mountain rows with chevrons #}
+    <div class="tile-mountain-rows">
+        <button type="button" class="tile-mountain-row" data-modal-target="visited-modal-{{ profile_user.id }}">
+            <span>Mountains I've visited ({{ visited_resorts|length }})</span>
+            <span class="tile-chevron">›</span>
+        </button>
+        <button type="button" class="tile-mountain-row" data-modal-target="wishlist-modal-{{ profile_user.id }}">
+            <span>Mountains I want to visit ({{ wishlist_resorts|length }})</span>
+            <span class="tile-chevron">›</span>
+        </button>
+    </div>
+</div>
+
+{# Modal 1: Mountains I've Visited #}
+<div class="bl-modal-overlay" id="visited-modal-{{ profile_user.id }}" aria-hidden="true">
+    <div class="bl-modal" role="dialog" aria-labelledby="visited-title-{{ profile_user.id }}">
+        <div class="bl-modal-header">
+            <h2 id="visited-title-{{ profile_user.id }}" class="bl-modal-title">Mountains I've Visited</h2>
+            <button type="button" class="bl-modal-close" aria-label="Close">&times;</button>
         </div>
-        {% endif %}
-        
-        {% if is_owner %}
-        <a href="{{ url_for('mountains_visited') }}" class="profile-stat-col" aria-label="Edit visited mountains">
-        {% else %}
-        <div class="profile-stat-col">
-        {% endif %}
-            <div class="profile-stat-label">Visited Mountains</div>
-            <div class="profile-stat-value">{{ visited_count }}</div>
-        {% if is_owner %}
-        </a>
-        {% else %}
+        <div class="bl-modal-subhead">{{ visited_resorts|length }} total</div>
+        <div class="bl-modal-body">
+            {% if visited_resorts|length > 0 %}
+            <div class="mountain-list">
+                {% for resort in visited_resorts|sort(attribute='name') %}
+                <div class="mountain-item">{{ resort.name }}</div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="mountain-empty">No mountains added yet</div>
+            {% endif %}
         </div>
-        {% endif %}
-        
-        {% if is_owner %}
-        <a href="{{ url_for('settings_wish_list') }}" class="profile-stat-col" aria-label="Edit bucket list">
-        {% else %}
-        <div class="profile-stat-col">
-        {% endif %}
-            <div class="profile-stat-label">Bucket List Mountains</div>
-            <div class="profile-stat-value">{{ bucket_list_count }}</div>
-        {% if is_owner %}
-        </a>
-        {% else %}
+    </div>
+</div>
+
+{# Modal 2: Mountains I Want to Visit #}
+<div class="bl-modal-overlay" id="wishlist-modal-{{ profile_user.id }}" aria-hidden="true">
+    <div class="bl-modal" role="dialog" aria-labelledby="wishlist-title-{{ profile_user.id }}">
+        <div class="bl-modal-header">
+            <h2 id="wishlist-title-{{ profile_user.id }}" class="bl-modal-title">Mountains I Want to Visit</h2>
+            <button type="button" class="bl-modal-close" aria-label="Close">&times;</button>
         </div>
-        {% endif %}
+        <div class="bl-modal-subhead">{{ wishlist_resorts|length }} total</div>
+        <div class="bl-modal-body">
+            {% if wishlist_resorts|length > 0 %}
+            <div class="mountain-list">
+                {% for resort in wishlist_resorts|sort(attribute='name') %}
+                <div class="mountain-item">{{ resort.name }}</div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="mountain-empty">No mountains added yet</div>
+            {% endif %}
+        </div>
     </div>
 </div>
 
 <style>
-    .bl-profile-card {
-        background: var(--bl-color-surface);
+    .bl-profile-tile {
+        background: var(--bl-color-surface, #FFFFFF);
         border-radius: var(--bl-radius-lg, 12px);
-        padding: 16px;
+        border: 1px solid var(--bl-color-border-soft, #E5E5E5);
+        padding: 20px;
         margin-bottom: 16px;
     }
     
-    .profile-identity-name {
-        font-size: 1.25rem;
+    .tile-identity {
+        margin-bottom: 8px;
+    }
+    
+    .tile-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--bl-color-text, #1A1A1A);
+        line-height: 1.2;
+    }
+    
+    .tile-location {
+        font-size: 0.875rem;
+        color: var(--bl-color-text-muted, #666666);
+        margin-top: 2px;
+    }
+    
+    .tile-hero {
+        font-size: 1.125rem;
         font-weight: 600;
-        color: var(--bl-color-text);
-        margin-bottom: 4px;
-    }
-    
-    .profile-identity-line {
-        font-size: 0.95rem;
-        color: var(--bl-color-text-secondary);
+        color: var(--bl-color-text, #1A1A1A);
         margin-bottom: 12px;
-    }
-    
-    .profile-identity-rows {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-    
-    .profile-identity-row {
-        font-size: 0.9rem;
-        color: var(--bl-color-text-muted);
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    
-    .profile-identity-label {
-        color: var(--bl-color-text-muted);
-    }
-    
-    .profile-identity-sep {
-        color: var(--bl-color-text-muted);
-    }
-    
-    .profile-identity-value {
-        color: var(--bl-color-text);
-    }
-    
-    .profile-card-divider {
-        height: 1px;
-        background: var(--bl-color-border-soft);
-        margin: 12px 0;
-    }
-    
-    .profile-stats-row {
-        display: flex;
-        gap: 0;
-    }
-    
-    .profile-stat-col {
-        flex: 1;
-        text-align: center;
-        padding: 8px 4px;
-        text-decoration: none;
-        color: inherit;
-        border-radius: 8px;
-        transition: background 0.15s;
-    }
-    
-    a.profile-stat-col:hover {
-        background: rgba(0, 0, 0, 0.03);
-    }
-    
-    .profile-stat-col:not(:last-child) {
-        border-right: 1px solid var(--bl-color-border-soft);
-    }
-    
-    .profile-stat-label {
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--bl-color-text-muted);
-        margin-bottom: 4px;
         line-height: 1.3;
     }
     
-    .profile-stat-value {
-        font-size: 28px;
+    .tile-trips {
+        font-size: 0.9375rem;
+        color: var(--bl-color-text-secondary, #444444);
+        margin-bottom: 16px;
+    }
+    
+    .tile-equipment-section {
+        margin-bottom: 16px;
+    }
+    
+    .tile-equipment-row {
+        font-size: 0.875rem;
+        color: var(--bl-color-text-muted, #666666);
+        margin-bottom: 4px;
+        display: flex;
+        gap: 6px;
+    }
+    
+    .tile-label {
+        color: var(--bl-color-text-muted, #666666);
+    }
+    
+    .tile-value {
+        color: var(--bl-color-text, #1A1A1A);
+    }
+    
+    .tile-add-link {
+        color: var(--bl-color-primary, #8F011B);
+        cursor: pointer;
+    }
+    
+    .tile-muted {
+        color: var(--bl-color-text-muted, #666666);
+        font-style: italic;
+    }
+    
+    .tile-mountain-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        border-top: 1px solid var(--bl-color-border-soft, #E5E5E5);
+        padding-top: 12px;
+    }
+    
+    .tile-mountain-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        font-size: 0.9375rem;
+        color: var(--bl-color-text, #1A1A1A);
+        cursor: pointer;
+        background: none;
+        border: none;
+        width: 100%;
+        text-align: left;
+        transition: background 0.15s;
+        border-radius: 4px;
+        margin: 0 -4px;
+        padding-left: 4px;
+        padding-right: 4px;
+    }
+    
+    .tile-mountain-row:hover {
+        background: rgba(0, 0, 0, 0.03);
+    }
+    
+    .tile-mountain-row:not(:last-child) {
+        border-bottom: 1px solid var(--bl-color-border-soft, #E5E5E5);
+    }
+    
+    .tile-chevron {
+        font-size: 1.25rem;
+        color: var(--bl-color-text-muted, #666666);
+        font-weight: 300;
+    }
+    
+    /* Modal styles */
+    .bl-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.2s, visibility 0.2s;
+        padding: 16px;
+    }
+    
+    .bl-modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .bl-modal {
+        background: var(--bl-color-surface, #FFFFFF);
+        border-radius: var(--bl-radius-lg, 12px);
+        width: 100%;
+        max-width: 500px;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        transform: translateY(20px);
+        transition: transform 0.2s;
+    }
+    
+    .bl-modal-overlay.active .bl-modal {
+        transform: translateY(0);
+    }
+    
+    .bl-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 20px 8px;
+    }
+    
+    .bl-modal-title {
+        font-size: 1.25rem;
         font-weight: 600;
-        color: var(--bl-color-text);
+        color: var(--bl-color-text, #1A1A1A);
+        margin: 0;
+    }
+    
+    .bl-modal-close {
+        background: none;
+        border: none;
+        font-size: 1.75rem;
+        color: var(--bl-color-text-muted, #666666);
+        cursor: pointer;
+        padding: 0;
         line-height: 1;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background 0.15s;
+    }
+    
+    .bl-modal-close:hover {
+        background: rgba(0, 0, 0, 0.05);
+    }
+    
+    .bl-modal-subhead {
+        font-size: 0.875rem;
+        color: var(--bl-color-text-muted, #666666);
+        padding: 0 20px 12px;
+    }
+    
+    .bl-modal-body {
+        padding: 0 20px 20px;
+        overflow-y: auto;
+        flex: 1;
+    }
+    
+    .mountain-list {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    
+    @media (min-width: 480px) {
+        .mountain-list {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+    
+    .mountain-item {
+        font-size: 0.9375rem;
+        color: var(--bl-color-text, #1A1A1A);
+        padding: 8px 0;
+        border-bottom: 1px solid var(--bl-color-border-soft, #E5E5E5);
+        word-wrap: break-word;
+    }
+    
+    .mountain-empty {
+        font-size: 0.9375rem;
+        color: var(--bl-color-text-muted, #666666);
+        font-style: italic;
+        text-align: center;
+        padding: 24px 0;
     }
 </style>
+
+<script>
+(function() {
+    if (window._profileCardModalsInitialized) return;
+    window._profileCardModalsInitialized = true;
+    
+    let activeModal = null;
+    let triggerElement = null;
+    
+    function openModal(modalId, trigger) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        
+        activeModal = modal;
+        triggerElement = trigger;
+        modal.classList.add('active');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        
+        const modalDialog = modal.querySelector('.bl-modal');
+        if (modalDialog) {
+            modalDialog.setAttribute('tabindex', '-1');
+            modalDialog.focus();
+        }
+    }
+    
+    function closeModal() {
+        if (!activeModal) return;
+        
+        activeModal.classList.remove('active');
+        activeModal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        
+        if (triggerElement) {
+            triggerElement.focus();
+            triggerElement = null;
+        }
+        activeModal = null;
+    }
+    
+    document.addEventListener('click', function(e) {
+        const trigger = e.target.closest('[data-modal-target]');
+        if (trigger) {
+            e.preventDefault();
+            const modalId = trigger.getAttribute('data-modal-target');
+            openModal(modalId, trigger);
+            return;
+        }
+        
+        if (e.target.classList.contains('bl-modal-overlay')) {
+            closeModal();
+            return;
+        }
+        
+        if (e.target.closest('.bl-modal-close')) {
+            closeModal();
+            return;
+        }
+    });
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && activeModal) {
+            closeModal();
+        }
+    });
+})();
+</script>

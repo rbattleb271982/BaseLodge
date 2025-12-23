@@ -52,42 +52,37 @@ def load_user(user_id):
 def identity_line_filter(user):
     """
     Centralized identity formatter for user profile display.
-    Format: Rider Types · Passes · Skill Level
-    - Rider types: All types joined with " & " (e.g., "Skier & Snowboarder")
-    - Passes: All passes listed individually, never "Both"
+    Format: Rider Type · Passes · Skill Level
+    - Rider types: First rider type only (e.g., "Skier")
+    - Passes: Up to 2 passes joined with " + " as single segment (e.g., "Epic + Ikon")
     - Skill level: Last if present
-    - Home state: Excluded from identity line
+    - If no passes, omit pass segment entirely
     """
     if not user:
         return ''
     
     parts = []
     
-    # Rider types (all types, multi-select)
+    # Rider type (first type only for hero line brevity)
     if user.rider_types and len(user.rider_types) > 0:
-        rider_str = ' & '.join(user.rider_types)
-        parts.append(rider_str)
+        parts.append(user.rider_types[0])
     else:
         # Legacy fallback
         primary = user.primary_rider_type or getattr(user, 'rider_type', None)
         if primary:
-            secondary = user.secondary_rider_types or []
-            if secondary:
-                rider_str = f"{primary} & {' & '.join(secondary)}"
-            else:
-                rider_str = primary
-            parts.append(rider_str)
+            parts.append(primary)
     
-    # Passes (all listed individually, never "Both")
+    # Passes (up to 2, joined with " + " as single segment)
     if user.pass_type:
         pass_str = user.pass_type.strip()
-        # Handle comma-separated passes
         if ',' in pass_str:
-            passes = [p.strip() for p in pass_str.split(',') if p.strip() and p.strip().lower() != 'both']
+            passes = [p.strip() for p in pass_str.split(',') if p.strip() and p.strip().lower() not in ('both', 'no pass')]
         else:
-            # Single pass - exclude "Both" if somehow stored
-            passes = [pass_str] if pass_str.lower() != 'both' else []
-        parts.extend(passes)
+            passes = [pass_str] if pass_str.lower() not in ('both', 'no pass') else []
+        # Limit to 2 passes, preserve stored order
+        passes = passes[:2]
+        if passes:
+            parts.append(' + '.join(passes))
     
     # Skill level (last)
     if user.skill_level:
@@ -1291,6 +1286,10 @@ def friend_profile(friend_id):
     friend_mountains_count = len(mountains)
     friend_mountains_sorted = sorted([m.name if hasattr(m, 'name') else m for m in mountains])
     
+    # Get Resort objects for profile card (new unified component)
+    friend_visited_resorts = friend.get_visited_resorts()
+    friend_wishlist_resorts = friend.get_wishlist_resorts()
+    
     today = date.today()
     today_str = today.strftime('%Y-%m-%d')
     
@@ -1390,7 +1389,9 @@ def friend_profile(friend_id):
         friend_secondary_equipment=friend_secondary_equipment,
         can_ski_user_trips=can_ski_user_trips,
         friend_wish_list=friend_wish_list,
-        wish_list_overlap=wish_list_overlap
+        wish_list_overlap=wish_list_overlap,
+        visited_resorts=friend_visited_resorts,
+        wishlist_resorts=friend_wishlist_resorts
     )
 
 @app.route("/profile/<int:user_id>")
@@ -1804,6 +1805,10 @@ def home():
     user_mountains = user.mountains_visited or []
     user_mountains_sorted = sorted([m.name if hasattr(m, 'name') else m for m in user_mountains])
     
+    # Get Resort objects for profile card (new unified component)
+    visited_resorts = user.get_visited_resorts()
+    wishlist_resorts = user.get_wishlist_resorts()
+    
     # Count friends with open date overlaps
     open_friends_count, user_has_open_dates = count_friends_open_on_same_dates(user)
     
@@ -2023,6 +2028,8 @@ def home():
         shared_interests=shared_interests,
         weekend_daytrip_signal=weekend_daytrip_signal,
         user_wishlist_resorts=user_wishlist_resorts,
+        visited_resorts=visited_resorts,
+        wishlist_resorts=wishlist_resorts,
         show_progressive_modal=show_progressive_modal,
         current_modal=current_modal,
         completed_steps=completed_steps,

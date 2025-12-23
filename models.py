@@ -255,6 +255,21 @@ class User(UserMixin, db.Model):
         from models import Resort
         return Resort.query.get(self.home_resort_id)
     
+    def get_wishlist_resorts(self):
+        """
+        Return list of Resort objects for wishlist mountains.
+        Uses wish_list_resorts (list of resort IDs).
+        """
+        if not self.wish_list_resorts or len(self.wish_list_resorts) == 0:
+            return []
+        from models import Resort
+        return Resort.query.filter(Resort.id.in_(self.wish_list_resorts)).all()
+    
+    @property
+    def wishlist_resorts_count(self):
+        """Return count of wishlist resorts."""
+        return len(self.wish_list_resorts or [])
+    
     # ─────────────────────────────────────────────────────────────────────────
     # PROGRESSIVE PROFILE COMPLETION (Dec 2025)
     # ─────────────────────────────────────────────────────────────────────────

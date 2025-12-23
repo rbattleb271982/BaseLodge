@@ -343,7 +343,7 @@
         
         <!-- Profile Card -->
         {% set eq = primary_equipment if (primary_equipment and (primary_equipment.brand or primary_equipment.boot_brand)) else (secondary_equipment if (secondary_equipment and (secondary_equipment.brand or secondary_equipment.boot_brand)) else none) %}
-        {% with profile_user=user, is_owner=true, trips_count=upcoming_trips|length, visited_count=user_mountains|length if user_mountains else 0, bucket_list_count=user_wishlist_resorts|length if user_wishlist_resorts else 0, equipment=eq %}
+        {% with profile_user=user, is_owner=true, upcoming_trips_count=upcoming_trips|length, equipment=eq, visited_resorts=visited_resorts, wishlist_resorts=wishlist_resorts %}
             {% include 'components/profile_card.html' %}
         {% endwith %}
         

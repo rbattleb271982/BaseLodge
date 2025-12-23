@@ -185,7 +185,7 @@
         
         <!-- Friend Profile Card -->
         {% set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.boot_brand)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.boot_brand)) else none) %}
-        {% with profile_user=friend, is_owner=false, trips_count=trips|length if trips else 0, visited_count=friend_mountains_count, bucket_list_count=friend_wish_list|length if friend_wish_list else 0, equipment=eq %}
+        {% with profile_user=friend, is_owner=false, upcoming_trips_count=trips|length if trips else 0, equipment=eq, visited_resorts=visited_resorts, wishlist_resorts=wishlist_resorts %}
             {% include 'components/profile_card.html' %}
         {% endwith %}
         
