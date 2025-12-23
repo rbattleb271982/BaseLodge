@@ -302,9 +302,14 @@ class User(UserMixin, db.Model):
     def should_show_progressive_modal(self):
         """
         Determine if progressive profile completion modals should be shown.
-        Show on 1st login, or 2nd login if profile incomplete.
-        Never show after that.
+        Requirements:
+        1. Core identity must be complete first (rider_types, skill_level, pass_type)
+        2. Show on 1st login, or 2nd login if profile incomplete
+        3. Never show after that
         """
+        # Must have core identity before showing follow-up modals
+        if not self.is_core_profile_complete:
+            return False
         if self.is_profile_complete:
             return False
         if self.welcome_next_steps_shown_at:

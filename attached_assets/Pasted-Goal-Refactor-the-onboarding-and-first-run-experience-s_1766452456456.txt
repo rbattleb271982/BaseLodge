@@ -1,0 +1,191 @@
+Goal
+Refactor the onboarding and first-run experience so that:
+Account creation is fast and minimal
+Core identity is collected immediately after signup on a full-screen step
+Follow-up questions are handled via quick modals
+Users are clearly oriented on what to do next
+Nothing feels heavy, confusing, or repetitive
+This is a flow + UI refactor only.
+Do not add new features or data models beyond what is specified.
+1️⃣ SIGNUP SCREEN — ACCOUNT CREATION ONLY
+Purpose
+Create the account. Nothing else.
+Signup screen must ONLY include:
+First Name
+Last Name
+Email
+Password
+❌ REMOVE COMPLETELY from signup:
+Rider Type
+Skill Level
+Pass
+Any other identity or preference fields
+Behavior
+On submit, create the user account
+Immediately route to Identity Setup screen
+2️⃣ IDENTITY SETUP SCREEN (AFTER SIGNUP) — FULL SCREEN
+Purpose
+Establish core identity. This is required.
+UI
+Full screen (not modal)
+Single screen
+No scrolling on mobile
+This is the first in-app experience
+Header
+Tell us a bit about yourself
+Subtext:
+This helps personalize your BaseLodge experience.
+Fields (REQUIRED)
+Row 1 — Two columns
+Rider Type (multi-select checkboxes)
+Skier
+Snowboarder
+Telemark
+Cross-Country
+Adaptive
+Skill Level (single-select radios)
+Beginner
+Intermediate
+Advanced
+Expert
+Row 2 — Full width
+Pass (single-select or multi-select as currently supported)
+Epic
+Ikon
+Indy
+Mountain Collective
+Powder Alliance
+Freedom
+Ski California
+Other
+No Pass
+CTA
+Continue
+Helper text below CTA:
+You can change these later in your profile.
+Save behavior
+On Continue:
+rider_type[]
+skill_level
+pass_type[]
+Then route to Home / Trips screen.
+This screen is not skippable.
+3️⃣ HOME / TRIPS SCREEN (FIRST LANDING)
+User is now fully inside the app.
+Identity is known
+Home profile card is visible
+Microcopy already explains what to do next
+4️⃣ FOLLOW-UP QUESTIONS — MODAL FLOW (POST-LOGIN)
+When to show
+On 1st login
+On 2nd login only if incomplete
+Never after that
+UI
+Modal or bottom sheet
+One question cluster per modal
+Fast, dismissible, non-blocking
+Completion definition (derived, not stored)
+Profile follow-ups are complete when:
+equipment_status IS NOT NULL
+AND
+primary_riding_style IS NOT NULL
+MODAL 1 — EQUIPMENT
+Title
+Your equipment
+Step A — Equipment Status (REQUIRED)
+How do you usually handle equipment?
+I bring my own
+I rent
+I do both
+Save:
+equipment_status
+If user selects Rent, show helper:
+No problem — you can skip gear details.
+Step B — Skis / Board (OPTIONAL)
+What do you usually ride?
+Brand (autocomplete)
+Model (filtered by brand)
+Helper:
+Not sure? Totally fine — you can skip this.
+Save independently:
+equipment_brand
+equipment_model
+Step C — Boots (OPTIONAL)
+What boots do you use?
+Boot brand (autocomplete)
+Boot model (free text or list)
+Helper:
+If you don’t know, you can leave this blank.
+Save:
+boot_brand
+boot_model
+Explicit Skip boots option required.
+MODAL 2 — PRIMARY RIDING STYLE
+Title
+Your riding style
+Question
+What best describes how you like to ride?
+Options (single-select):
+Groomers
+Powder
+All-Mountain
+Park
+Mixed
+Save:
+primary_riding_style
+Progress indicator
+Total steps: 2
+Display “Step X of 2”
+Progress is derived from fields, not stored
+5️⃣ COMPLETION SCREEN — FULL SCREEN
+When to show
+Immediately after the final required follow-up is completed
+Only once per user
+Set:
+welcome_next_steps_shown_at = now()
+Screen content
+Header
+Welcome to BaseLodge
+Subtext:
+You’re all set. Here’s what you can do next.
+Option 1
+Do you already have a trip planned?
+Add it to the app and your friends will see where you’re going.
+CTA:
+Add a trip
+→ /trips/new
+Option 2
+Want to invite friends?
+Bring your ski crew — or start building one.
+CTA:
+Invite friends
+→ /invite
+Option 3
+Just want to browse?
+Check out trips, see what friends are planning, or explore at your own pace.
+CTA:
+Explore BaseLodge
+→ dismiss modal, remain on Home / Trips
+Footer:
+You can do any of this later — have fun.
+6️⃣ STOP CONDITIONS (IMPORTANT)
+After completion screen → no more onboarding UI
+After second login (even if incomplete) → stop showing modals
+Remaining fields are handled only via Profile page
+7️⃣ WHAT NOT TO DO (STRICT)
+❌ Do not combine signup + identity
+❌ Do not re-add identity fields to signup
+❌ Do not make follow-ups full screen
+❌ Do not add new models or screens
+❌ Do not block app usage after identity step
+❌ Do not store step counters
+8️⃣ DONE CRITERIA
+Signup feels fast and lightweight
+Identity feels intentional and focused
+Follow-ups feel quick and optional
+Users know what to do next
+No “what am I supposed to do?” moments
+Flow completes cleanly in under 1 minute
+Do not ask follow-up questions.
+Do not add checkpoints unless absolutely necessary.
+Implement exactly as specified.

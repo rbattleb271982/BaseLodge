@@ -115,7 +115,7 @@ def before_request_handlers():
     session.permanent = True
     
     # Require profile setup for authenticated users
-    excluded_endpoints = {'auth', 'setup_profile', 'logout', 'static', 'invite_token_landing', 'test_login_direct'}
+    excluded_endpoints = {'auth', 'identity_setup', 'setup_profile', 'logout', 'static', 'invite_token_landing', 'test_login_direct'}
     if request.endpoint in excluded_endpoints:
         return None
     if current_user.is_authenticated:
@@ -123,7 +123,7 @@ def before_request_handlers():
         has_rider_types = current_user.rider_types and len(current_user.rider_types) > 0
         has_rider_type_legacy = current_user.primary_rider_type or current_user.rider_type
         if not (has_rider_types or has_rider_type_legacy) or not current_user.pass_type:
-            return redirect(url_for('setup_profile'))
+            return redirect(url_for('identity_setup'))
     return None
 
 def admin_required(f):
@@ -542,12 +542,7 @@ def auth():
             email = request.form.get("email", "").lower().strip()
             password = request.form.get("password", "")
             
-            # Get onboarding fields
-            rider_types = request.form.getlist("rider_types")
-            skill_level = request.form.get("skill_level", "").strip()
-            pass_type = request.form.get("pass_type", "").strip()
-            
-            # Validate required fields
+            # Validate required fields (account creation only - identity collected on next screen)
             if not first_name or not last_name or not email or not password:
                 flash("All fields are required.", "error")
                 return render_template("auth.html")
@@ -555,19 +550,6 @@ def auth():
             # Validate password length
             if len(password) < 8:
                 flash("Password must be at least 8 characters.", "error")
-                return render_template("auth.html")
-            
-            # Validate onboarding fields
-            if not rider_types:
-                flash("Please select at least one rider type.", "error")
-                return render_template("auth.html")
-            
-            if not skill_level:
-                flash("Please select your skill level.", "error")
-                return render_template("auth.html")
-            
-            if not pass_type:
-                flash("Please select your pass type.", "error")
                 return render_template("auth.html")
             
             existing_user = User.query.filter_by(email=email).first()
@@ -579,9 +561,6 @@ def auth():
                 first_name=first_name,
                 last_name=last_name,
                 email=email,
-                rider_types=rider_types,
-                skill_level=skill_level,
-                pass_type=pass_type,
                 created_at=datetime.utcnow(),
                 login_count=1  # First login happens on signup
             )
@@ -601,8 +580,8 @@ def auth():
             if next_url:
                 session["next_after_setup"] = next_url
             
-            # Go directly to home - profile completion modals will handle the rest
-            return redirect(url_for("home"))
+            # Route to identity setup screen (required step after signup)
+            return redirect(url_for("identity_setup"))
         
         elif form_type == "login":
             email = request.form.get("email", "").lower().strip()
@@ -635,6 +614,52 @@ def auth():
             return render_template("auth.html")
     
     return render_template("auth.html")
+
+
+@app.route("/identity-setup", methods=["GET", "POST"])
+@login_required
+def identity_setup():
+    """Identity setup screen - shown immediately after signup to collect core identity."""
+    # If user already has core identity, redirect to home
+    if current_user.is_core_profile_complete:
+        return redirect(url_for("home"))
+    
+    if request.method == "POST":
+        rider_types = request.form.getlist("rider_types")
+        skill_level = request.form.get("skill_level", "").strip()
+        pass_types = request.form.getlist("pass_types")
+        
+        # Validate required fields
+        if not rider_types:
+            flash("Please select at least one rider type.", "error")
+            return render_template("identity_setup.html")
+        
+        if not skill_level:
+            flash("Please select your skill level.", "error")
+            return render_template("identity_setup.html")
+        
+        if not pass_types:
+            flash("Please select at least one pass option.", "error")
+            return render_template("identity_setup.html")
+        
+        # Save identity data
+        current_user.rider_types = rider_types
+        current_user.skill_level = skill_level
+        # Store pass_type as comma-separated for backward compatibility, or first pass if single
+        if len(pass_types) == 1:
+            current_user.pass_type = pass_types[0]
+        else:
+            current_user.pass_type = ", ".join(pass_types)
+        
+        db.session.commit()
+        
+        # Redirect to home
+        next_url = session.pop("next_after_setup", None)
+        if next_url:
+            return redirect(next_url)
+        return redirect(url_for("home"))
+    
+    return render_template("identity_setup.html")
 
 
 def _connect_pending_inviter(user):

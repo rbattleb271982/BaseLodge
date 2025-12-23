@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set Up Your Profile - Base Lodge</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .identity-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--bl-color-bg);
+            padding: var(--bl-space-6);
+        }
+        
+        .identity-card {
+            width: 100%;
+            max-width: 500px;
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-lg);
+            border: 1px solid var(--bl-color-border-soft);
+            box-shadow: var(--bl-shadow-soft);
+            padding: var(--bl-space-8);
+        }
+        
+        .identity-header {
+            text-align: center;
+            margin-bottom: var(--bl-space-8);
+        }
+        
+        .identity-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--bl-color-text);
+            margin-bottom: var(--bl-space-2);
+        }
+        
+        .identity-subtitle {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            line-height: 1.5;
+        }
+        
+        .form-group {
+            margin-bottom: var(--bl-space-6);
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin-bottom: var(--bl-space-3);
+        }
+        
+        .form-row-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--bl-space-6);
+        }
+        
+        @media (max-width: 480px) {
+            .form-row-2col {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .checkbox-group, .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--bl-space-2);
+        }
+        
+        .checkbox-group.compact, .radio-group.compact {
+            gap: var(--bl-space-1);
+        }
+        
+        .checkbox-label, .radio-label {
+            display: flex;
+            align-items: center;
+            gap: var(--bl-space-2);
+            font-size: 14px;
+            color: var(--bl-color-text);
+            cursor: pointer;
+        }
+        
+        .checkbox-label input, .radio-label input {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--bl-color-primary);
+            cursor: pointer;
+        }
+        
+        .pass-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--bl-space-3);
+        }
+        
+        .pass-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border: 1px solid var(--bl-color-border);
+            border-radius: 999px;
+            font-size: 14px;
+            color: var(--bl-color-text);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            background: var(--bl-color-surface);
+        }
+        
+        .pass-chip:hover {
+            border-color: var(--bl-color-primary);
+        }
+        
+        .pass-chip input {
+            display: none;
+        }
+        
+        .pass-chip.selected {
+            background: var(--bl-color-primary);
+            border-color: var(--bl-color-primary);
+            color: #FFFFFF;
+        }
+        
+        .form-submit {
+            width: 100%;
+            margin-bottom: var(--bl-space-4);
+        }
+        
+        .form-footer {
+            text-align: center;
+            font-size: 12px;
+            color: var(--bl-color-text-muted);
+        }
+        
+        .form-error {
+            background: #FFEBEE;
+            border: 1px solid var(--bl-color-error);
+            border-radius: var(--bl-radius-md);
+            padding: var(--bl-space-5);
+            margin-bottom: var(--bl-space-6);
+            font-size: 13px;
+            color: var(--bl-color-error);
+        }
+        
+        .required-asterisk {
+            color: var(--bl-color-error, #dc2626);
+        }
+    </style>
+</head>
+<body>
+    <div class="identity-container">
+        <div class="identity-card">
+            <div class="identity-header">
+                <h1 class="identity-title">Tell us a bit about yourself</h1>
+                <p class="identity-subtitle">This helps personalize your BaseLodge experience.</p>
+            </div>
+            
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div class="form-error">
+                        {% for message in messages %}
+                            {{ message }}<br>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            
+            <form method="POST" action="{{ url_for('identity_setup') }}">
+                <div class="form-row-2col">
+                    <div class="form-group">
+                        <label class="form-label">I am a... <span class="required-asterisk">*</span></label>
+                        <div class="checkbox-group compact">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="rider_types" value="Skier"> Skier
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="rider_types" value="Snowboarder"> Snowboarder
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="rider_types" value="Telemark"> Telemark
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="rider_types" value="Cross-Country"> Cross-Country
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="rider_types" value="Adaptive"> Adaptive
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Skill Level <span class="required-asterisk">*</span></label>
+                        <div class="radio-group compact">
+                            <label class="radio-label">
+                                <input type="radio" name="skill_level" value="Beginner" required> Beginner
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="skill_level" value="Intermediate"> Intermediate
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="skill_level" value="Advanced"> Advanced
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="skill_level" value="Expert"> Expert
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Pass <span class="required-asterisk">*</span></label>
+                    <div class="pass-options" id="pass-options">
+                        <label class="pass-chip">
+                            <input type="checkbox" name="pass_types" value="Epic"> Epic
+                        </label>
+                        <label class="pass-chip">
+                            <input type="checkbox" name="pass_types" value="Ikon"> Ikon
+                        </label>
+                        <label class="pass-chip">
+                            <input type="checkbox" name="pass_types" value="Indy"> Indy
+                        </label>
+                        <label class="pass-chip">
+                            <input type="checkbox" name="pass_types" value="Mountain Collective"> Mountain Collective
+                        </label>
+                        <label class="pass-chip">
+                            <input type="checkbox" name="pass_types" value="Powder Alliance"> Powder Alliance
+                        </label>
+                        <label class="pass-chip">
+                            <input type="checkbox" name="pass_types" value="Freedom"> Freedom
+                        </label>
+                        <label class="pass-chip">
+                            <input type="checkbox" name="pass_types" value="Ski California"> Ski California
+                        </label>
+                        <label class="pass-chip">
+                            <input type="checkbox" name="pass_types" value="Other"> Other
+                        </label>
+                        <label class="pass-chip">
+                            <input type="checkbox" name="pass_types" value="No Pass"> No Pass
+                        </label>
+                    </div>
+                </div>
+                
+                <button type="submit" class="bl-btn-primary form-submit">Continue</button>
+                
+                <p class="form-footer">You can change these later in your profile.</p>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        document.querySelectorAll('.pass-chip').forEach(chip => {
+            const input = chip.querySelector('input');
+            
+            if (input.checked) {
+                chip.classList.add('selected');
+            }
+            
+            chip.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'INPUT') {
+                    input.checked = !input.checked;
+                }
+                chip.classList.toggle('selected', input.checked);
+                
+                const noPassChip = document.querySelector('.pass-chip input[value="No Pass"]');
+                const noPassLabel = noPassChip.closest('.pass-chip');
+                
+                if (input.value === 'No Pass' && input.checked) {
+                    document.querySelectorAll('.pass-chip input').forEach(other => {
+                        if (other !== input) {
+                            other.checked = false;
+                            other.closest('.pass-chip').classList.remove('selected');
+                        }
+                    });
+                } else if (input.value !== 'No Pass' && input.checked) {
+                    noPassChip.checked = false;
+                    noPassLabel.classList.remove('selected');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
