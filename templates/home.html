@@ -434,11 +434,42 @@
             </div>
         </div>
         
+        {% if pending_invites and pending_invites|length > 0 %}
+        <div class="bl-invites-section" style="margin-bottom: 20px;">
+            <h3 style="font-size: 1rem; font-weight: 600; margin: 0 0 12px 0; color: var(--bl-color-text);">Trip Invites</h3>
+            {% for invite in pending_invites %}
+            <div class="bl-invite-card" style="background: linear-gradient(135deg, rgba(143, 1, 27, 0.06), rgba(143, 1, 27, 0.02)); border: 1px solid rgba(143, 1, 27, 0.15); border-radius: var(--bl-radius-lg); padding: 14px 16px; margin-bottom: 10px;">
+                <div style="margin-bottom: 10px;">
+                    <p style="font-size: 0.95rem; font-weight: 600; color: var(--bl-color-text); margin: 0 0 4px 0;">
+                        {% if invite.trip.resort %}{{ invite.trip.resort.name }}{% else %}{{ invite.trip.mountain }}{% endif %}
+                    </p>
+                    <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0 0 2px 0;">
+                        {{ invite.trip.start_date.strftime('%b %d') }}–{{ invite.trip.end_date.strftime('%b %d, %Y') }}
+                    </p>
+                    <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">
+                        Invited by {{ invite.inviter.first_name }}{% if invite.inviter.last_name %} {{ invite.inviter.last_name }}{% endif %}
+                    </p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=invite.trip.id) }}" style="flex: 1;">
+                        <input type="hidden" name="action" value="accept">
+                        <button type="submit" class="bl-btn-primary" style="width: 100%; padding: 10px; font-size: 0.9rem;">Accept</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=invite.trip.id) }}" style="flex: 1;">
+                        <input type="hidden" name="action" value="decline">
+                        <button type="submit" class="bl-btn-outline" style="width: 100%; padding: 10px; font-size: 0.9rem;">Decline</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
         <!-- My Trips Tab -->
         <div id="tab-my" class="bl-trip-list" role="tabpanel" {% if active_tab != 'my' %}style="display: none;"{% endif %}>
             {% if my_trips %}
                 {% for trip in my_trips %}
-                <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;" class="my-trip-item" data-duration="{{ trip.trip_duration }}" data-equipment="{{ trip.get_effective_equipment_status() }}">
+                <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;" class="my-trip-item" data-duration="{{ trip.trip_duration }}" data-equipment="{{ trip.get_effective_equipment_status() }}">
                     <div class="bl-trip-card">
                         <div class="bl-trip-card-header">
                             <div class="bl-trip-card-content">
@@ -446,7 +477,7 @@
                                 <p class="bl-trip-card-resort">{% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</p>
                                 <p class="bl-trip-card-pass">{% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}</p>
                             </div>
-                            <span class="bl-trip-edit">Edit</span>
+                            <span class="bl-trip-edit">View</span>
                         </div>
                     </div>
                 </a>

@@ -1,0 +1,119 @@
+Implement Trip Invites using the existing SkiTripParticipant model and add a canonical Trip Detail page.
+	1.	Model usage (do NOT create new tables)
+
+Reuse the existing SkiTripParticipant model.
+
+Use the status field as follows:
+	•	INVITED = pending invite
+	•	ACCEPTED = trip guest (read-only)
+	•	DECLINED = declined invite
+
+Enforce idempotency:
+	•	One SkiTripParticipant record per (trip_id, user_id)
+	•	Prevent duplicate INVITED records
+	•	Prevent inviting the trip owner
+	•	Only the trip owner can create INVITED records
+
+	2.	Trip Detail page
+
+Create a new read-only Trip Detail page at:
+GET /trips/
+
+This page is the primary hub for a trip.
+
+Behavior:
+	•	Trip owner:
+	•	Can see “Invite people to this trip” button
+	•	Can see list of guests and invite statuses
+	•	Can navigate to Edit Trip via explicit button
+	•	Guests:
+	•	Read-only access
+	•	No invite or edit actions
+
+If the trip does not exist or the user is not authorized to view it, return 404.
+	3.	Invite CTA (owner-only)
+
+On the Trip Detail page, if the logged-in user is the trip owner:
+	•	Display a primary button labeled “Invite people to this trip”
+	•	Place it near the top of the page (above the fold)
+
+Clicking the button opens a modal or bottom sheet (mobile-first).
+	4.	Invite modal behavior
+
+Modal contents:
+	•	Title: Invite friends
+	•	List only connected friends
+
+For each friend:
+	•	Show name and identity line (rider type · pass type · skill level)
+
+Selection rules:
+	•	Friends already on the trip (ACCEPTED) are disabled and labeled “Already on trip”
+	•	Friends already invited (INVITED) are disabled and labeled “Invite sent”
+	•	Multi-select enabled
+	•	Send button disabled until at least one friend is selected
+
+On submit:
+	•	Create SkiTripParticipant records with status = INVITED
+	•	Do not auto-accept
+	•	Do not grant edit permissions
+
+	5.	Invite visibility for invitees
+
+On the Home Trips screen, add a new “Invites” section.
+
+Rules:
+	•	Only render this section if the user has at least one INVITED SkiTripParticipant record
+	•	Display each invite as a card with:
+	•	Trip name
+	•	Resort
+	•	Dates
+	•	Inviter name
+
+Each invite card must have:
+	•	Accept button
+	•	Decline button
+
+Accept behavior:
+	•	Update status to ACCEPTED
+	•	User becomes a read-only guest on the trip
+	•	Trip appears under “Your Trips”
+
+Decline behavior:
+	•	Update status to DECLINED
+	•	Invite no longer appears
+
+	6.	Post-create redirect
+
+After successfully creating a trip:
+	•	Redirect the user to /trips/
+	•	Do NOT redirect back to /my-trips
+
+This ensures the invite CTA is immediately visible.
+	7.	Permissions and safeguards
+
+	•	Only trip owners can invite
+	•	Guests cannot invite others
+	•	Users cannot invite themselves
+	•	Users cannot invite non-connected users
+	•	Enforce all checks server-side (not just UI)
+
+	8.	Non-goals
+
+Do NOT implement:
+	•	Email or SMS notifications
+	•	Public invite links
+	•	Auto-accept behavior
+	•	Inviting during trip creation
+
+	9.	Testing requirements
+
+Before finishing:
+	•	Verify owner vs guest visibility
+	•	Verify duplicate invite prevention
+	•	Verify accept and decline flows
+	•	Verify redirect after trip creation
+	•	Verify mobile modal usability
+
+Do not finish until the flow is fully tested end-to-end.
+Use checkpoints sparingly and only if explicitly requested.

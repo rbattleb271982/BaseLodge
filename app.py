@@ -2137,6 +2137,22 @@ def home():
         if not user.primary_riding_style:
             current_modal = 'riding_style'
     
+    # Get pending trip invites for the user
+    pending_invites = []
+    invite_participants = SkiTripParticipant.query.filter_by(
+        user_id=user.id,
+        status=GuestStatus.INVITED
+    ).all()
+    for p in invite_participants:
+        trip = p.trip
+        if trip and trip.end_date >= today:
+            inviter = User.query.get(trip.user_id)
+            pending_invites.append({
+                'trip': trip,
+                'inviter': inviter,
+                'participant_id': p.id
+            })
+    
     return render_template(
         'home.html',
         user=user,
@@ -2167,7 +2183,8 @@ def home():
         current_modal=current_modal,
         completed_steps=completed_steps,
         total_steps=total_steps,
-        show_welcome_screen=show_welcome_screen
+        show_welcome_screen=show_welcome_screen,
+        pending_invites=pending_invites
     )
 
 @app.route("/onboarding/equipment", methods=["POST"])
@@ -2706,7 +2723,7 @@ def add_trip():
                 db.session.commit()
 
             flash("Trip added.", "trip")
-            return redirect(url_for("my_trips"))
+            return redirect(url_for("trip_detail", trip_id=trip.id))
         except Exception as e:
             db.session.rollback()
             print(f"Error adding trip: {e}")
@@ -2899,6 +2916,159 @@ def edit_trip_form(trip_id):
         default_country=default_country,
         user_passes=user_passes,
     )
+
+@app.route("/trips/<int:trip_id>")
+@login_required
+def trip_detail(trip_id):
+    """Trip Detail page - primary hub for viewing and managing a trip."""
+    trip = SkiTrip.query.get_or_404(trip_id)
+    
+    # Check if user is owner or a participant
+    is_owner = trip.user_id == current_user.id
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, user_id=current_user.id
+    ).first()
+    is_guest = participant and participant.status == GuestStatus.ACCEPTED
+    is_invited = participant and participant.status == GuestStatus.INVITED
+    
+    # Owner, accepted guests, and invited users can view the trip detail
+    if not is_owner and not is_guest and not is_invited:
+        abort(404)
+    
+    # Get participants grouped by status
+    invited_participants = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, status=GuestStatus.INVITED
+    ).all()
+    accepted_participants = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, status=GuestStatus.ACCEPTED
+    ).all()
+    
+    # Get connected friends for invite modal (owner only)
+    friends_for_invite = []
+    if is_owner:
+        friend_links = Friend.query.filter_by(user_id=current_user.id).all()
+        friend_ids = [f.friend_id for f in friend_links]
+        if friend_ids:
+            friends = User.query.filter(User.id.in_(friend_ids)).all()
+            
+            # Check which friends are already invited or accepted
+            existing_participants = {p.user_id: p.status for p in trip.participants}
+            
+            for friend in friends:
+                status = existing_participants.get(friend.id)
+                friends_for_invite.append({
+                    'user': friend,
+                    'status': status.value if status else None,
+                    'disabled': status is not None,
+                    'label': 'Already on trip' if status == GuestStatus.ACCEPTED else ('Invite sent' if status == GuestStatus.INVITED else None)
+                })
+    
+    # Get trip owner info
+    owner = User.query.get(trip.user_id)
+    
+    return render_template(
+        "trip_detail.html",
+        trip=trip,
+        owner=owner,
+        is_owner=is_owner,
+        is_guest=is_guest,
+        is_invited=is_invited,
+        invited_participants=invited_participants,
+        accepted_participants=accepted_participants,
+        friends_for_invite=friends_for_invite,
+        invite_count=len(invited_participants),
+    )
+
+
+@app.route("/trips/<int:trip_id>/invite", methods=["POST"])
+@login_required
+def send_trip_invites(trip_id):
+    """Send trip invites to selected friends."""
+    trip = SkiTrip.query.get_or_404(trip_id)
+    
+    # Only trip owner can invite
+    if trip.user_id != current_user.id:
+        abort(403)
+    
+    friend_ids = request.form.getlist("friend_ids")
+    if not friend_ids:
+        flash("Please select at least one friend to invite.", "error")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
+    
+    # Validate that all selected users are connected friends
+    friend_links = Friend.query.filter_by(user_id=current_user.id).all()
+    connected_friend_ids = {f.friend_id for f in friend_links}
+    
+    invites_sent = 0
+    for friend_id_str in friend_ids:
+        try:
+            friend_id = int(friend_id_str)
+        except ValueError:
+            continue
+        
+        # Skip if not a connected friend
+        if friend_id not in connected_friend_ids:
+            continue
+        
+        # Skip if user is the trip owner
+        if friend_id == current_user.id:
+            continue
+        
+        # Check for existing participant record (idempotency)
+        existing = SkiTripParticipant.query.filter_by(
+            trip_id=trip_id, user_id=friend_id
+        ).first()
+        
+        if not existing:
+            participant = SkiTripParticipant(
+                trip_id=trip_id,
+                user_id=friend_id,
+                status=GuestStatus.INVITED
+            )
+            db.session.add(participant)
+            invites_sent += 1
+    
+    if invites_sent > 0:
+        # Mark trip as group trip if not already
+        if not trip.is_group_trip:
+            trip.is_group_trip = True
+        db.session.commit()
+        flash(f"Invite{'s' if invites_sent > 1 else ''} sent to {invites_sent} friend{'s' if invites_sent > 1 else ''}.", "success")
+    else:
+        flash("No new invites were sent.", "info")
+    
+    return redirect(url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/trips/<int:trip_id>/respond", methods=["POST"])
+@login_required
+def respond_to_trip_invite(trip_id):
+    """Accept or decline a trip invite."""
+    trip = SkiTrip.query.get_or_404(trip_id)
+    
+    # Find the user's participant record
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, user_id=current_user.id
+    ).first()
+    
+    if not participant or participant.status != GuestStatus.INVITED:
+        abort(404)
+    
+    action = request.form.get("action")
+    
+    if action == "accept":
+        participant.status = GuestStatus.ACCEPTED
+        db.session.commit()
+        flash("You've joined the trip!", "success")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
+    elif action == "decline":
+        participant.status = GuestStatus.DECLINED
+        db.session.commit()
+        flash("Invite declined.", "info")
+        return redirect(url_for("home"))
+    else:
+        abort(400)
+
 
 @app.route("/trips/<int:trip_id>/delete", methods=["POST"])
 @login_required

@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base Lodge - Trip Details</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .trip-header {
+            margin-bottom: 20px;
+        }
+        .trip-header h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin: 0 0 4px 0;
+            color: var(--bl-color-text);
+        }
+        .trip-header .trip-dates {
+            font-size: 1rem;
+            color: var(--bl-color-text-muted);
+        }
+        
+        .invite-cta {
+            margin-bottom: 20px;
+        }
+        .invite-cta .bl-btn-primary {
+            width: 100%;
+            padding: 14px 20px;
+            font-size: 1rem;
+        }
+        .invite-count {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            margin-top: 8px;
+            text-align: center;
+        }
+        
+        .trip-detail-card {
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-lg);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .trip-detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+        .trip-detail-row:last-child {
+            border-bottom: none;
+        }
+        .trip-detail-label {
+            font-size: 0.9rem;
+            color: var(--bl-color-text-muted);
+        }
+        .trip-detail-value {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            text-align: right;
+        }
+        
+        .participants-section {
+            margin-top: 20px;
+        }
+        .participants-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 0 0 12px 0;
+            color: var(--bl-color-text);
+        }
+        .participant-card {
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-md);
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .participant-name {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--bl-color-text);
+        }
+        .participant-status {
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        .participant-status.invited {
+            background: #FFF3E0;
+            color: #E65100;
+        }
+        .participant-status.accepted {
+            background: #E8F5E9;
+            color: #2E7D32;
+        }
+        
+        .edit-link {
+            display: block;
+            text-align: center;
+            margin-top: 16px;
+            font-size: 0.95rem;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+        }
+        
+        /* Invite Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-sheet {
+            background: var(--bl-color-background);
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+        .modal-header h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--bl-color-text-muted);
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+        }
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+        .modal-footer .bl-btn-primary {
+            width: 100%;
+            padding: 14px;
+        }
+        .modal-footer .bl-btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .friend-select-row {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            gap: 12px;
+        }
+        .friend-select-row:last-child {
+            border-bottom: none;
+        }
+        .friend-select-row.disabled {
+            opacity: 0.5;
+        }
+        .friend-select-row input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--bl-color-primary);
+        }
+        .friend-select-info {
+            flex: 1;
+        }
+        .friend-select-name {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            margin: 0 0 2px 0;
+        }
+        .friend-select-identity {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+        }
+        .friend-select-status {
+            font-size: 0.8rem;
+            color: var(--bl-color-text-muted);
+            font-style: italic;
+        }
+        
+        .empty-friends {
+            text-align: center;
+            padding: 24px;
+            color: var(--bl-color-text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <a href="{{ url_for('home') }}" class="back-link">Back to Home</a>
+        
+        <div class="trip-header">
+            <h1>{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</h1>
+            <p class="trip-dates">{{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d, %Y') }}</p>
+        </div>
+        
+        {% if is_invited %}
+        <div class="invite-response-cta" style="background: linear-gradient(135deg, rgba(143, 1, 27, 0.06), rgba(143, 1, 27, 0.02)); border: 1px solid rgba(143, 1, 27, 0.15); border-radius: var(--bl-radius-lg); padding: 16px; margin-bottom: 20px;">
+            <p style="font-size: 0.95rem; font-weight: 600; color: var(--bl-color-text); margin: 0 0 4px 0;">You're invited to this trip!</p>
+            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0 0 12px 0;">{{ owner.first_name }}{% if owner.last_name %} {{ owner.last_name }}{% endif %} wants you to join.</p>
+            <div style="display: flex; gap: 10px;">
+                <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}" style="flex: 1;">
+                    <input type="hidden" name="action" value="accept">
+                    <button type="submit" class="bl-btn-primary" style="width: 100%; padding: 12px; font-size: 0.95rem;">Accept</button>
+                </form>
+                <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}" style="flex: 1;">
+                    <input type="hidden" name="action" value="decline">
+                    <button type="submit" class="bl-btn-outline" style="width: 100%; padding: 12px; font-size: 0.95rem;">Decline</button>
+                </form>
+            </div>
+        </div>
+        {% elif is_owner %}
+        <div class="invite-cta">
+            <button class="bl-btn-primary" onclick="openInviteModal()">
+                {% if invite_count > 0 %}Invite more people{% else %}Invite people to this trip{% endif %}
+            </button>
+            {% if invite_count > 0 %}
+            <p class="invite-count">{{ invite_count }} invite{{ 's' if invite_count != 1 else '' }} sent</p>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <div class="trip-detail-card">
+            <div class="trip-detail-row">
+                <span class="trip-detail-label">Resort</span>
+                <span class="trip-detail-value">
+                    {% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}
+                </span>
+            </div>
+            
+            <div class="trip-detail-row">
+                <span class="trip-detail-label">Location</span>
+                <span class="trip-detail-value">
+                    {% if trip.resort %}{{ trip.resort.state_full or trip.resort.state }}{% if trip.resort.country and trip.resort.country != 'US' %}, {{ trip.resort.country }}{% endif %}{% else %}{{ trip.state }}{% endif %}
+                </span>
+            </div>
+            
+            <div class="trip-detail-row">
+                <span class="trip-detail-label">Dates</span>
+                <span class="trip-detail-value">
+                    {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d, %Y') }}
+                </span>
+            </div>
+            
+            <div class="trip-detail-row">
+                <span class="trip-detail-label">Pass Type</span>
+                <span class="trip-detail-value">
+                    {% if trip.resort %}{{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.pass_type or 'Not specified' }}{% endif %}
+                </span>
+            </div>
+            
+            <div class="trip-detail-row">
+                <span class="trip-detail-label">Trip Length</span>
+                <span class="trip-detail-value">{{ trip.duration_display }}</span>
+            </div>
+            
+            <div class="trip-detail-row">
+                <span class="trip-detail-label">Equipment</span>
+                <span class="trip-detail-value">{{ trip.equipment_display }}</span>
+            </div>
+            
+            <div class="trip-detail-row">
+                <span class="trip-detail-label">Ride Status</span>
+                <span class="trip-detail-value">
+                    {% if trip.ride_intent == 'can_offer' %}Has space for more{% elif trip.ride_intent == 'need_ride' %}Needs a ride{% else %}Not specified{% endif %}
+                </span>
+            </div>
+            
+            <div class="trip-detail-row">
+                <span class="trip-detail-label">Visibility</span>
+                <span class="trip-detail-value">{{ 'Public' if trip.is_public else 'Private' }}</span>
+            </div>
+        </div>
+        
+        {% if accepted_participants or invited_participants %}
+        <div class="participants-section">
+            <h3>Who's Going</h3>
+            
+            {% if is_owner %}
+            <div class="participant-card">
+                <span class="participant-name">You (Organizer)</span>
+            </div>
+            {% else %}
+            <div class="participant-card">
+                <span class="participant-name">{{ owner.first_name }} {{ owner.last_name or '' }} (Organizer)</span>
+            </div>
+            {% endif %}
+            
+            {% for p in accepted_participants %}
+            <div class="participant-card">
+                <span class="participant-name">{{ p.user.first_name }} {{ p.user.last_name or '' }}</span>
+                <span class="participant-status accepted">Going</span>
+            </div>
+            {% endfor %}
+            
+            {% if is_owner %}
+            {% for p in invited_participants %}
+            <div class="participant-card">
+                <span class="participant-name">{{ p.user.first_name }} {{ p.user.last_name or '' }}</span>
+                <span class="participant-status invited">Invited</span>
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        {% if is_owner %}
+        <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="edit-link">Edit Trip</a>
+        {% endif %}
+    </div>
+    
+    {% include 'components/bottom_nav.html' %}
+    
+    {% if is_owner %}
+    <div class="modal-overlay" id="inviteModal">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h2>Invite friends</h2>
+                <button class="modal-close" onclick="closeInviteModal()">&times;</button>
+            </div>
+            <form method="POST" action="{{ url_for('send_trip_invites', trip_id=trip.id) }}" id="inviteForm">
+                <div class="modal-body">
+                    {% if friends_for_invite %}
+                        {% for f in friends_for_invite %}
+                        <div class="friend-select-row {% if f.disabled %}disabled{% endif %}">
+                            <input type="checkbox" 
+                                   name="friend_ids" 
+                                   value="{{ f.user.id }}" 
+                                   id="friend_{{ f.user.id }}"
+                                   {% if f.disabled %}disabled{% endif %}
+                                   onchange="updateSendButton()">
+                            <div class="friend-select-info">
+                                <p class="friend-select-name">{{ f.user.first_name }} {{ f.user.last_name or '' }}</p>
+                                <p class="friend-select-identity">{{ f.user|identity_line }}</p>
+                            </div>
+                            {% if f.label %}
+                            <span class="friend-select-status">{{ f.label }}</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-friends">
+                            <p>No friends to invite yet.</p>
+                            <p>Connect with friends first to invite them to trips.</p>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="bl-btn-primary" id="sendInvitesBtn" disabled>Send invites</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        function openInviteModal() {
+            document.getElementById('inviteModal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeInviteModal() {
+            document.getElementById('inviteModal').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        
+        function updateSendButton() {
+            const checkboxes = document.querySelectorAll('#inviteForm input[type="checkbox"]:not(:disabled):checked');
+            document.getElementById('sendInvitesBtn').disabled = checkboxes.length === 0;
+        }
+        
+        document.getElementById('inviteModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeInviteModal();
+            }
+        });
+    </script>
+    {% endif %}
+</body>
+</html>
