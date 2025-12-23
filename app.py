@@ -1194,23 +1194,24 @@ def remove_friend(friend_id):
     return jsonify({"success": True, "message": "Friend removed"}), 200
 
 
-@app.route("/api/friends/<int:friend_id>/toggle-trip-invites", methods=["POST"])
+@app.route("/api/friends/<int:friend_id>/set-trip-invites", methods=["POST"])
 @login_required
-def toggle_trip_invites(friend_id):
-    """Toggle trip_invites_allowed for a friendship."""
+def set_trip_invites(friend_id):
+    """Set trip_invites_allowed for a friendship (explicit Yes/No, no toggle)."""
     friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
     
     if not friendship:
         return jsonify({"success": False, "error": "Friendship not found"}), 404
     
-    # Toggle the value
-    new_value = not friendship.trip_invites_allowed
-    friendship.trip_invites_allowed = new_value
+    data = request.get_json() or {}
+    allow = data.get('allow', False)
+    
+    friendship.trip_invites_allowed = bool(allow)
     db.session.commit()
     
     return jsonify({
         "success": True,
-        "trip_invites_allowed": new_value
+        "trip_invites_allowed": friendship.trip_invites_allowed
     }), 200
 
 
@@ -2637,7 +2638,6 @@ def add_trip():
         start_date_str = request.form.get("start_date")
         end_date_str = request.form.get("end_date")
         is_public = request.form.get("is_public") == "on"
-        set_home_mountain = request.form.get("set_home_mountain") == "on"
         ride_intent = request.form.get("ride_intent") or None
         trip_equipment_status = request.form.get("trip_equipment_status") or "use_default"
         accommodation_status = request.form.get("accommodation_status") or None
@@ -2753,11 +2753,6 @@ def add_trip():
             
             db.session.commit()
 
-            if set_home_mountain and resort:
-                current_user.home_mountain = resort.name
-                current_user.home_resort_id = resort.id
-                db.session.commit()
-
             flash("Trip added.", "trip")
             return redirect(url_for("trip_detail", trip_id=trip.id))
         except Exception as e:
@@ -2820,7 +2815,6 @@ def edit_trip_form(trip_id):
         start_date_str = request.form.get("start_date")
         end_date_str = request.form.get("end_date")
         is_public = request.form.get("is_public") == "on"
-        set_home_mountain = request.form.get("set_home_mountain") == "on"
         ride_intent = request.form.get("ride_intent") or None
         trip_equipment_status = request.form.get("trip_equipment_status") or "use_default"
         accommodation_status = request.form.get("accommodation_status") or None
@@ -2919,10 +2913,6 @@ def edit_trip_form(trip_id):
         
         # Auto-update duration based on dates
         trip.trip_duration = SkiTrip.calculate_duration(start_date, end_date)
-
-        if set_home_mountain and resort:
-            current_user.home_mountain = resort.name
-            current_user.home_resort_id = resort.id
         
         try:
             db.session.commit()

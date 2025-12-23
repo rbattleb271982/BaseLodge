@@ -550,17 +550,6 @@
                     <label for="accommodation_link">Accommodation Link</label>
                     <input type="url" id="accommodation_link" name="accommodation_link" placeholder="https://..." value="{{ trip.accommodation_link if trip and trip.accommodation_link else '' }}">
                 </div>
-                
-                {% if not user.home_mountain or (trip and trip.resort and trip.resort.name != user.home_mountain) %}
-                <div class="form-group toggle-group">
-                    <label class="toggle-label">
-                        <input type="checkbox" name="set_home_mountain" id="set_home_mountain">
-                        <span>Set this as my home mountain</span>
-                    </label>
-                    <p class="helper-text">Your go-to mountain for quick getaways.</p>
-                    <p class="inline-error" id="home-mountain-error">Please choose a resort before setting it as your home mountain.</p>
-                </div>
-                {% endif %}
             </div>
 
             <button type="submit" class="primary-button">{% if trip %}Save changes{% elif prefill_friend and is_group %}Send invite{% else %}Save trip{% endif %}</button>
@@ -623,8 +612,6 @@
         const resortSearchInput = document.getElementById('resort_search');
         const startDateInput = document.getElementById('start_date');
         const endDateInput = document.getElementById('end_date');
-        const homeMountainCheckbox = document.getElementById('set_home_mountain');
-        const homeMountainError = document.getElementById('home-mountain-error');
         const form = document.getElementById('trip-form');
         const dateRangeHelper = document.getElementById('date-range-helper');
         const rangeText = document.getElementById('range-text');
@@ -855,9 +842,6 @@
                 currentStateResorts = [];
             }
             
-            if (homeMountainError) {
-                homeMountainError.classList.remove('visible');
-            }
         }
         
         function renderResortOptions(resortsToRender) {
@@ -901,31 +885,6 @@
             }
         });
 
-        
-        if (form && homeMountainCheckbox) {
-            form.addEventListener('submit', function(e) {
-                if (homeMountainCheckbox.checked && !resortSelect.value) {
-                    e.preventDefault();
-                    if (homeMountainError) {
-                        homeMountainError.classList.add('visible');
-                    }
-                    resortSelect.focus();
-                    return false;
-                }
-            });
-            
-            resortSelect.addEventListener('change', function() {
-                if (homeMountainError && resortSelect.value) {
-                    homeMountainError.classList.remove('visible');
-                }
-            });
-            
-            homeMountainCheckbox.addEventListener('change', function() {
-                if (homeMountainError && !homeMountainCheckbox.checked) {
-                    homeMountainError.classList.remove('visible');
-                }
-            });
-        }
 
         // Toggle accommodation link visibility based on accommodation status
         function toggleAccommodationLink() {

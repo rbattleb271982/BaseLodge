@@ -1,0 +1,79 @@
+PUT THIS IN AGENT
+
+OBJECTIVE
+Fix P0 trip-creation blockers and finalize Friends screen invite-permission clarity.
+This work is corrective and clarifying only. Do not add new features or flows.
+
+SECTION 3 — TRIP CREATION (P0 FIXES)
+
+1) REMOVE HOME MOUNTAIN FROM TRIP CREATION
+- Remove entirely:
+  - Checkbox: “Set this as my home mountain”
+  - Helper text: “Your go-to mountain for quick getaways.”
+- Home Mountain is profile-level only.
+- Trip creation must not mutate profile data.
+- Do not relocate this control—remove it.
+
+2) FIX STATE / REGION SELECTION (BLOCKING)
+Expected behavior:
+- Country dropdown is selectable.
+- State/Region dropdown:
+  - Disabled until Country is selected.
+  - Enabled immediately after Country selection.
+  - Populates with valid states/regions.
+- User can select a State/Region successfully.
+Actions:
+- Debug and fix the Country → State dependency.
+- Ensure selected state persists to the trip model.
+- Must work on mobile and desktop.
+
+3) FIX TRIP DATES CALENDAR (BLOCKING)
+Expected behavior:
+- Calendar renders visible days.
+- Month navigation arrows work.
+- Users can select start and end dates.
+- Selected dates persist correctly on save.
+Actions:
+- Fix calendar initialization so it loads with a valid initial month,
+  is not visually hidden/disabled, and responds to interaction.
+- Trip creation cannot proceed without dates; the calendar must work reliably.
+
+SECTION 4 — FRIENDS SCREEN: INVITE PERMISSION CLARITY
+
+4) INLINE YES/NO TOGGLE (NO AMBIGUITY)
+Render the permission as a single inline sentence with an inline toggle.
+
+Required format:
+Allow this friend to invite me to trips   [ Yes | No ]
+
+Layout rules:
+- Toggle appears immediately after the sentence.
+- Text and toggle on the same horizontal row.
+- Toggle visually completes the sentence.
+- Do not right-align or separate the toggle.
+
+5) INTERACTION BEHAVIOR (NO POP-UPS)
+- Toggling updates permission immediately.
+- No confirmation modals.
+- No success pop-ups.
+- Must scale to large friend lists without repeated feedback.
+Error handling:
+- If update fails, revert the toggle and show one generic error message.
+
+SECTION 5 — SCOPE GUARDRAILS
+Do NOT:
+- Add new fields.
+- Add confirmation dialogs.
+- Add onboarding prompts.
+- Add personality/preference features.
+- Change underlying permission logic (presentation only).
+
+DEFINITION OF DONE
+- Home Mountain fully removed from Trip creation.
+- Country → State → Resort flow works end-to-end.
+- Calendar renders and allows date selection.
+- Users can successfully create a trip on mobile.
+- Friend invite toggle is inline, clear, and labeled Yes/No.
+- No confirmation pop-ups remain.
+
+Implement exactly as written.

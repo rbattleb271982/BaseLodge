@@ -250,6 +250,46 @@
             margin: 0;
             line-height: 1.4;
         }
+        .invite-permission-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0 8px 0;
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+        }
+        .invite-permission-label {
+            color: var(--bl-color-text-muted);
+            flex-shrink: 0;
+        }
+        .inline-toggle {
+            display: flex;
+            background: var(--bl-color-border-soft);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--bl-color-border);
+        }
+        .inline-toggle-option {
+            padding: 4px 12px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            color: var(--bl-color-text-muted);
+            background: transparent;
+            border: none;
+            transition: all 0.15s ease;
+        }
+        .inline-toggle-option:first-child {
+            border-right: 1px solid var(--bl-color-border);
+        }
+        .inline-toggle-option.active {
+            background: var(--bl-color-primary);
+            color: white;
+        }
+        .inline-toggle-option:hover:not(.active) {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        
         .toggle-row {
             display: flex;
             justify-content: space-between;
@@ -349,19 +389,19 @@
                     </div>
                     <p class="flat-row-identity">{{ friend|identity_line }}</p>
                 </a>
-                <div class="toggle-row" 
-                     role="switch"
-                     aria-checked="{{ 'true' if friend._trip_invites_allowed else 'false' }}"
-                     aria-label="Can invite me to trips"
-                     tabindex="0"
-                     data-friend-id="{{ friend.id }}"
-                     data-enabled="{{ 'true' if friend._trip_invites_allowed else 'false' }}"
-                     onclick="toggleTripInvites(event, {{ friend.id }})"
-                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTripInvites(event,{{ friend.id }});}">
-                    <span class="toggle-row-label">Can invite me to trips</span>
-                    <div class="toggle-switch">
-                        <div class="toggle-switch-track"></div>
-                        <div class="toggle-switch-thumb"></div>
+                <div class="invite-permission-row" data-friend-id="{{ friend.id }}" data-enabled="{{ 'true' if friend._trip_invites_allowed else 'false' }}">
+                    <span class="invite-permission-label">Allow this friend to invite me to trips</span>
+                    <div class="inline-toggle" role="radiogroup" aria-label="Allow trip invites">
+                        <button type="button" 
+                                class="inline-toggle-option {% if friend._trip_invites_allowed %}active{% endif %}"
+                                data-value="yes"
+                                onclick="setTripInvites(event, {{ friend.id }}, true)"
+                                aria-pressed="{{ 'true' if friend._trip_invites_allowed else 'false' }}">Yes</button>
+                        <button type="button" 
+                                class="inline-toggle-option {% if not friend._trip_invites_allowed %}active{% endif %}"
+                                data-value="no"
+                                onclick="setTripInvites(event, {{ friend.id }}, false)"
+                                aria-pressed="{{ 'true' if not friend._trip_invites_allowed else 'false' }}">No</button>
                     </div>
                 </div>
             </div>
@@ -470,39 +510,63 @@
     </div>
     
     <script>
-        let firstEnableConfirmed = localStorage.getItem('tripInvitesConfirmed') === 'true';
-        
-        async function toggleTripInvites(event, friendId) {
+        async function setTripInvites(event, friendId, allow) {
             event.preventDefault();
             event.stopPropagation();
             
-            const el = event.currentTarget;
-            const currentlyEnabled = el.dataset.enabled === 'true';
+            const row = document.querySelector(`.invite-permission-row[data-friend-id="${friendId}"]`);
+            const yesBtn = row.querySelector('[data-value="yes"]');
+            const noBtn = row.querySelector('[data-value="no"]');
+            const currentlyEnabled = row.dataset.enabled === 'true';
             
-            // Only confirm on first enable
-            if (!currentlyEnabled && !firstEnableConfirmed) {
-                if (!confirm('This person will be able to propose trips with you.')) {
-                    return;
-                }
-                firstEnableConfirmed = true;
-                localStorage.setItem('tripInvitesConfirmed', 'true');
+            // If already in the desired state, do nothing
+            if ((allow && currentlyEnabled) || (!allow && !currentlyEnabled)) {
+                return;
             }
             
+            // Optimistically update UI
+            if (allow) {
+                yesBtn.classList.add('active');
+                noBtn.classList.remove('active');
+            } else {
+                yesBtn.classList.remove('active');
+                noBtn.classList.add('active');
+            }
+            row.dataset.enabled = allow ? 'true' : 'false';
+            
             try {
-                const response = await fetch(`/api/friends/${friendId}/toggle-trip-invites`, {
+                const response = await fetch(`/api/friends/${friendId}/set-trip-invites`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ allow: allow })
                 });
                 
                 const data = await response.json();
                 
-                if (data.success) {
-                    const newEnabled = data.trip_invites_allowed;
-                    el.dataset.enabled = newEnabled ? 'true' : 'false';
-                    el.setAttribute('aria-checked', newEnabled ? 'true' : 'false');
+                if (!data.success) {
+                    // Revert UI on failure
+                    if (allow) {
+                        yesBtn.classList.remove('active');
+                        noBtn.classList.add('active');
+                    } else {
+                        yesBtn.classList.add('active');
+                        noBtn.classList.remove('active');
+                    }
+                    row.dataset.enabled = currentlyEnabled ? 'true' : 'false';
+                    alert('Unable to update permission. Please try again.');
                 }
             } catch (err) {
-                console.error('Failed to toggle trip invites:', err);
+                console.error('Failed to update trip invites:', err);
+                // Revert UI on error
+                if (allow) {
+                    yesBtn.classList.remove('active');
+                    noBtn.classList.add('active');
+                } else {
+                    yesBtn.classList.add('active');
+                    noBtn.classList.remove('active');
+                }
+                row.dataset.enabled = currentlyEnabled ? 'true' : 'false';
+                alert('Unable to update permission. Please try again.');
             }
         }
         
