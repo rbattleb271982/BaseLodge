@@ -1,0 +1,108 @@
+Feature: Trip Invites from Trip Detail Page (Owner-Only)
+
+Implement the ability for a trip owner to invite friends after a trip has been created, from the Trip Detail page. This is a continuation of the existing trip flow — do not modify the Create Trip form.
+
+⸻
+
+1. Entry Point (UX)
+	•	Add a primary button on the Trip Detail page:
+	•	Label: “Invite people to this trip”
+	•	Visible only if:
+	•	The logged-in user is the trip owner
+	•	Placement:
+	•	Above the fold, near the trip header (not hidden in overflow)
+	•	After creating a trip, redirect the user directly to the Trip Detail page so this CTA is immediately visible.
+
+⸻
+
+2. Invite Modal / Bottom Sheet
+
+Clicking the button opens a modal or bottom sheet (mobile-first).
+
+Modal contents:
+	•	Title: Invite friends
+	•	List of connected friends only
+	•	Each friend row shows:
+	•	Name
+	•	Rider type · Pass type · Skill level (same identity line used elsewhere)
+	•	Multi-select enabled
+
+Disabled / excluded states:
+	•	Friends already on the trip → disabled with label “Already on trip”
+	•	Friends already invited → disabled with label “Invite sent”
+
+CTA:
+	•	Send invites
+	•	Disabled until at least one friend is selected
+
+⸻
+
+3. Backend Logic
+
+Create a new model if not already present:
+
+TripInvite
+
+Fields:
+	•	id
+	•	trip_id
+	•	inviter_id
+	•	invitee_id
+	•	status (pending, accepted, declined)
+	•	created_at
+	•	responded_at (nullable)
+
+Rules:
+	•	Enforce idempotency:
+	•	One active invite per (trip_id, invitee_id)
+	•	Prevent duplicate invites
+	•	Only the trip owner can create invites
+	•	Invite does not auto-add user to trip
+
+⸻
+
+4. Acceptance Flow
+	•	Invited user sees the invite:
+	•	On their Trips screen (or notifications placeholder if that exists)
+	•	Actions:
+	•	Accept → user is added to the trip as a guest (read-only)
+	•	Decline → invite marked declined
+	•	On acceptance:
+	•	Create TripGuest (or equivalent) record
+	•	Do not grant edit permissions to invitee
+
+⸻
+
+5. Permissions & Safeguards
+	•	Only trip owner sees the invite button
+	•	Guests cannot invite others
+	•	Prevent inviting:
+	•	Yourself
+	•	Non-connected users
+	•	If a friend is removed, existing invites are cleaned up or invalidated
+
+⸻
+
+6. UI States
+	•	Show “Invites sent” count on the Trip Detail page (optional but recommended)
+	•	Button text can change to:
+	•	“Invite more people” once at least one invite exists
+
+⸻
+
+7. Non-Goals (Do NOT implement)
+	•	No inviting during trip creation
+	•	No SMS or email sending yet (just DB + UI)
+	•	No auto-accept
+	•	No public invite links
+
+⸻
+
+8. Testing Requirements
+
+Before finishing:
+	•	Verify owner vs guest visibility
+	•	Verify duplicate invite prevention
+	•	Verify accept → guest added
+	•	Verify decline path
+	•	Verify mobile layout (modal usability)
