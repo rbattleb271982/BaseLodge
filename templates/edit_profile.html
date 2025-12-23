@@ -375,9 +375,9 @@
         
         <div class="form-row">
             <label>Favorite Terrain</label>
-            <p style="font-size: 13px; color: var(--bl-color-text-muted); margin: 0 0 12px 0;">Select up to 2</p>
+            <p style="font-size: 13px; color: var(--bl-color-text-muted); margin: 0 0 12px 0;">This helps friends understand how you like to ski. Choose up to 2.</p>
             {% set user_terrain = current_user.terrain_preferences or [] %}
-            {% for terrain in ["Groomers", "Trees", "Steeps", "Park", "First Chair", "Après"] %}
+            {% for terrain in ["Groomers", "Trees", "Steeps", "Park"] %}
             <div class="checkbox-row">
                 <input type="checkbox" name="terrain_pref" value="{{ terrain }}" id="terrain_{{ loop.index }}" 
                        {% if terrain in user_terrain %}checked{% endif %}>
@@ -556,21 +556,38 @@ document.querySelectorAll('input[name="pass_type"]').forEach(cb => {
     });
 });
 
-// Terrain preferences - max 2 selections
+// Terrain preferences - max 2 selections (3rd replaces 2nd, no blocking)
 (function() {
     const terrainCheckboxes = document.querySelectorAll('input[name="terrain_pref"]');
     const terrainHidden = document.getElementById('terrain_preferences_hidden');
+    let selectionOrder = [];
+    
+    // Initialize selection order from currently checked boxes
+    terrainCheckboxes.forEach(cb => {
+        if (cb.checked) selectionOrder.push(cb.value);
+    });
     
     function updateTerrainHidden() {
-        const checked = Array.from(terrainCheckboxes).filter(c => c.checked).map(c => c.value);
-        terrainHidden.value = checked.join(',');
+        terrainHidden.value = selectionOrder.join(',');
     }
     
     terrainCheckboxes.forEach(cb => {
         cb.addEventListener('change', function() {
-            const checked = Array.from(terrainCheckboxes).filter(c => c.checked);
-            if (checked.length > 2) {
-                this.checked = false;
+            if (this.checked) {
+                // Add to selection order
+                selectionOrder.push(this.value);
+                // If more than 2, remove the oldest (2nd) and uncheck it
+                if (selectionOrder.length > 2) {
+                    const toRemove = selectionOrder.shift();
+                    terrainCheckboxes.forEach(otherCb => {
+                        if (otherCb.value === toRemove) {
+                            otherCb.checked = false;
+                        }
+                    });
+                }
+            } else {
+                // Remove from selection order
+                selectionOrder = selectionOrder.filter(v => v !== this.value);
             }
             updateTerrainHidden();
         });

@@ -379,6 +379,8 @@ class SkiTrip(db.Model):
     ride_intent = db.Column(db.String(20), nullable=True)  # 'can_offer', 'need_ride', or None
     trip_duration = db.Column(db.String(20), nullable=True)  # day_trip, one_night, two_nights, three_plus_nights
     trip_equipment_status = db.Column(db.String(20), nullable=True)  # use_default, have_own_equipment, needs_rentals (null = use_default)
+    accommodation_status = db.Column(db.String(20), nullable=True)  # none_yet, hotel, airbnb, other
+    accommodation_link = db.Column(db.String(500), nullable=True)  # URL to accommodation booking
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_group_trip = db.Column(db.Boolean, default=False)  # True if trip has participants
     created_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Organizer (null = legacy, use user_id)

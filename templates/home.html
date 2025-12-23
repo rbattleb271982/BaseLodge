@@ -807,92 +807,16 @@
         }
     </script>
     
-    {% if current_modal == 'riding_style' %}
-    <!-- Terrain Preferences Modal (formerly Riding Style) -->
-    <div class="onboarding-modal-overlay" id="riding-style-modal">
-        <div class="onboarding-modal">
-            <div class="modal-progress">Step {{ completed_steps + 1 }} of {{ total_steps }}</div>
-            <h2 class="modal-title">Favorite terrain</h2>
-            
-            <form method="POST" action="{{ url_for('save_onboarding_riding_style') }}" id="terrain-form">
-                <div class="form-group">
-                    <label class="form-label">What kind of terrain do you prefer?</label>
-                    <p class="form-helper" style="margin-top: 4px; margin-bottom: 12px;">Choose up to 2</p>
-                    <div class="checkbox-group" style="display: flex; flex-direction: column; gap: 8px;">
-                        {% for terrain in ["Groomers", "Trees", "Steeps", "Park", "First Chair", "Après"] %}
-                        <label class="checkbox-label checkbox-card" style="display: flex; align-items: center; padding: 12px 16px; border: 1px solid var(--bl-color-border); border-radius: 10px; cursor: pointer;">
-                            <input type="checkbox" name="terrain_pref" value="{{ terrain }}" style="margin-right: 12px;">
-                            <span>{{ terrain }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
-                <input type="hidden" name="terrain_preferences" id="onboarding_terrain_hidden" value="">
-                
-                <button type="submit" class="bl-btn-primary form-submit">Continue</button>
-            </form>
-            <script>
-                (function() {
-                    const form = document.getElementById('terrain-form');
-                    const checkboxes = form.querySelectorAll('input[name="terrain_pref"]');
-                    const hiddenInput = document.getElementById('onboarding_terrain_hidden');
-                    
-                    function updateHidden() {
-                        const checked = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
-                        hiddenInput.value = checked.join(',');
-                    }
-                    
-                    checkboxes.forEach(cb => {
-                        cb.addEventListener('change', function() {
-                            const checked = Array.from(checkboxes).filter(c => c.checked);
-                            if (checked.length > 2) {
-                                this.checked = false;
-                            }
-                            updateHidden();
-                        });
-                    });
-                })();
-            </script>
-        </div>
-    </div>
-    {% endif %}
-    
     {% if show_welcome_screen %}
-    <!-- Welcome to BaseLodge Screen -->
+    <!-- Welcome to BaseLodge Screen - Simple orientation modal -->
     <div class="onboarding-modal-overlay" id="welcome-modal">
         <div class="onboarding-modal welcome-modal">
             <h2 class="modal-title">Welcome to BaseLodge</h2>
-            <p class="modal-subtitle">You're all set. Here's what you can do next.</p>
+            <p class="modal-subtitle">You're all set. Start by adding a trip, or explore when you're ready.</p>
             
-            <div class="welcome-options">
-                <div class="welcome-option">
-                    <h3>Do you already have a trip planned?</h3>
-                    <p>Add it to the app and your friends will see where you're going.</p>
-                    <form method="POST" action="{{ url_for('mark_welcome_shown') }}">
-                        <input type="hidden" name="redirect_to" value="{{ url_for('add_trip') }}">
-                        <button type="submit" class="bl-btn-primary welcome-btn">Add a trip</button>
-                    </form>
-                </div>
-                
-                <div class="welcome-option">
-                    <h3>Want to invite friends?</h3>
-                    <p>Bring your ski crew - or start building one.</p>
-                    <form method="POST" action="{{ url_for('mark_welcome_shown') }}">
-                        <input type="hidden" name="redirect_to" value="{{ url_for('invite') }}">
-                        <button type="submit" class="bl-btn-secondary welcome-btn">Invite friends</button>
-                    </form>
-                </div>
-                
-                <div class="welcome-option">
-                    <h3>Just want to browse?</h3>
-                    <p>Check out trips, see what friends are planning, or explore at your own pace.</p>
-                    <form method="POST" action="{{ url_for('mark_welcome_shown') }}">
-                        <button type="submit" class="bl-btn-secondary welcome-btn">Explore BaseLodge</button>
-                    </form>
-                </div>
-            </div>
-            
-            <p class="welcome-footer">You can do any of this later - have fun.</p>
+            <form method="POST" action="{{ url_for('mark_welcome_shown') }}" style="margin-top: 24px;">
+                <button type="submit" class="bl-btn-primary" style="width: 100%; padding: 14px;">Done</button>
+            </form>
         </div>
     </div>
     {% endif %}

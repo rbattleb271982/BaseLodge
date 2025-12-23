@@ -420,31 +420,47 @@
             </div>
         </div>
         
-        {% if accepted_participants or invited_participants %}
-        <div class="participants-section">
+        {% if all_participants or invited_participants %}
+        <div class="participants-section" id="participants-section">
             <h3>Who's Going</h3>
             
-            {% if is_owner %}
+            {% for p in all_participants %}
             <div class="participant-card">
-                <span class="participant-name">You (Organizer)</span>
-            </div>
-            {% else %}
-            <div class="participant-card">
-                <span class="participant-name">{{ owner.first_name }} {{ owner.last_name or '' }} (Organizer)</span>
-            </div>
-            {% endif %}
-            
-            {% for p in accepted_participants %}
-            <div class="participant-card">
-                <span class="participant-name">{{ p.user.first_name }} {{ p.user.last_name or '' }}</span>
-                <span class="participant-status accepted">Going</span>
+                <div class="participant-info">
+                    <span class="participant-name">
+                        {% if p.user_id == current_user.id %}You{% else %}{{ p.user.first_name }} {{ p.user.last_name or '' }}{% endif %}
+                        {% if p.role and p.role.value == 'owner' %} (Organizer){% endif %}
+                    </span>
+                    {% if p.user_id == current_user.id and (is_owner or is_guest) %}
+                    <div class="signal-edit-row" id="my-signals-row">
+                        <select class="inline-signal-select" id="my-transportation" onchange="updateMySignals()">
+                            <option value="">Transportation...</option>
+                            <option value="driving" {% if p.transportation_status and p.transportation_status.value == 'driving' %}selected{% endif %}>Driving</option>
+                            <option value="flying" {% if p.transportation_status and p.transportation_status.value == 'flying' %}selected{% endif %}>Flying</option>
+                            <option value="train_bus" {% if p.transportation_status and p.transportation_status.value == 'train_bus' %}selected{% endif %}>Train / Bus</option>
+                            <option value="tbd" {% if p.transportation_status and p.transportation_status.value == 'tbd' %}selected{% endif %}>TBD</option>
+                        </select>
+                        <select class="inline-signal-select" id="my-equipment" onchange="updateMySignals()">
+                            <option value="">Equipment...</option>
+                            <option value="own" {% if p.equipment_status and p.equipment_status.value == 'own' %}selected{% endif %}>Has own equipment</option>
+                            <option value="renting" {% if p.equipment_status and p.equipment_status.value == 'renting' %}selected{% endif %}>Renting</option>
+                            <option value="needs_rentals" {% if p.equipment_status and p.equipment_status.value == 'needs_rentals' %}selected{% endif %}>Needs rentals</option>
+                        </select>
+                    </div>
+                    {% else %}
+                    <p class="participant-badges">{{ p.get_display_transportation() }} · {{ p.get_display_equipment() }}</p>
+                    {% endif %}
+                </div>
             </div>
             {% endfor %}
             
             {% if is_owner %}
             {% for p in invited_participants %}
             <div class="participant-card">
-                <span class="participant-name">{{ p.user.first_name }} {{ p.user.last_name or '' }}</span>
+                <div class="participant-info">
+                    <span class="participant-name">{{ p.user.first_name }} {{ p.user.last_name or '' }}</span>
+                    <p class="participant-badges">Pending invite</p>
+                </div>
                 <span class="participant-status invited">Invited</span>
             </div>
             {% endfor %}
@@ -533,6 +549,37 @@
                 closeInviteModal();
             }
         });
+    </script>
+    {% endif %}
+    
+    {% if is_owner or is_guest %}
+    <script>
+        function updateMySignals() {
+            const transportation = document.getElementById('my-transportation')?.value || '';
+            const equipment = document.getElementById('my-equipment')?.value || '';
+            
+            if (!transportation && !equipment) return;
+            
+            fetch('{{ url_for("update_participant_signals", trip_id=trip.id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    transportation_status: transportation || null,
+                    equipment_status: equipment || null,
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Signals updated:', data);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating signals:', error);
+            });
+        }
     </script>
     {% endif %}
 </body>

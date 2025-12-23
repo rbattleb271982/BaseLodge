@@ -2157,16 +2157,9 @@ def home():
                         'resort': top_resort
                     }
     
-    # Progressive profile completion state
-    show_progressive_modal = user.should_show_progressive_modal
-    completed_steps, total_steps = user.get_profile_completion_progress()
-    show_welcome_screen = user.is_profile_complete and not user.welcome_next_steps_shown_at
-    
-    # Determine which modal to show (terrain preferences - equipment removed from flow)
-    current_modal = None
-    if show_progressive_modal and not user.is_profile_complete:
-        if not user.terrain_preferences or len(user.terrain_preferences) == 0:
-            current_modal = 'riding_style'
+    # Welcome modal - shown once after identity setup is complete (no more progressive modals)
+    # Uses welcome_next_steps_shown_at flag (semantically: welcome_modal_seen_at)
+    show_welcome_screen = user.is_core_profile_complete and not user.welcome_next_steps_shown_at
     
     # Get pending trip invites for the user
     pending_invites = []
@@ -2210,10 +2203,6 @@ def home():
         user_wishlist_resorts=user_wishlist_resorts,
         visited_resorts=visited_resorts,
         wishlist_resorts=wishlist_resorts,
-        show_progressive_modal=show_progressive_modal,
-        current_modal=current_modal,
-        completed_steps=completed_steps,
-        total_steps=total_steps,
         show_welcome_screen=show_welcome_screen,
         pending_invites=pending_invites
     )
@@ -2651,6 +2640,11 @@ def add_trip():
         set_home_mountain = request.form.get("set_home_mountain") == "on"
         ride_intent = request.form.get("ride_intent") or None
         trip_equipment_status = request.form.get("trip_equipment_status") or "use_default"
+        accommodation_status = request.form.get("accommodation_status") or None
+        accommodation_link = request.form.get("accommodation_link") or None
+        # Clear link if accommodation status is none_yet
+        if accommodation_status == "none_yet":
+            accommodation_link = None
         
         # Group trip parameters
         friend_id = request.form.get("friend_id", type=int)
@@ -2741,6 +2735,8 @@ def add_trip():
             ride_intent=ride_intent,
             trip_duration=trip_duration,
             trip_equipment_status=trip_equipment_status if trip_equipment_status != 'use_default' else None,
+            accommodation_status=accommodation_status if accommodation_status != 'none_yet' else None,
+            accommodation_link=accommodation_link,
             is_group_trip=is_group_trip or (friend_id is not None),
             created_by_user_id=current_user.id,
         )
@@ -2827,6 +2823,11 @@ def edit_trip_form(trip_id):
         set_home_mountain = request.form.get("set_home_mountain") == "on"
         ride_intent = request.form.get("ride_intent") or None
         trip_equipment_status = request.form.get("trip_equipment_status") or "use_default"
+        accommodation_status = request.form.get("accommodation_status") or None
+        accommodation_link = request.form.get("accommodation_link") or None
+        # Clear link if accommodation status is none_yet
+        if accommodation_status == "none_yet":
+            accommodation_link = None
 
         errors = []
 
@@ -2913,6 +2914,8 @@ def edit_trip_form(trip_id):
         trip.is_public = is_public
         trip.ride_intent = ride_intent
         trip.trip_equipment_status = trip_equipment_status if trip_equipment_status != 'use_default' else None
+        trip.accommodation_status = accommodation_status if accommodation_status != 'none_yet' else None
+        trip.accommodation_link = accommodation_link
         
         # Auto-update duration based on dates
         trip.trip_duration = SkiTrip.calculate_duration(start_date, end_date)
