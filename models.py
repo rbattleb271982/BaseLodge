@@ -23,6 +23,7 @@ class TransportationStatus(PyEnum):
 class GuestStatus(PyEnum):
     INVITED = "invited"
     ACCEPTED = "accepted"
+    DECLINED = "declined"
 
 
 class EquipmentSlot(PyEnum):
@@ -361,6 +362,10 @@ class SkiTrip(db.Model):
     trip_duration = db.Column(db.String(20), nullable=True)  # day_trip, one_night, two_nights, three_plus_nights
     trip_equipment_status = db.Column(db.String(20), nullable=True)  # use_default, have_own_equipment, needs_rentals (null = use_default)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_group_trip = db.Column(db.Boolean, default=False)  # True if trip has participants
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Organizer (null = legacy, use user_id)
+    
+    participants = db.relationship('SkiTripParticipant', backref='trip', lazy=True, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<SkiTrip {self.mountain}>'
@@ -405,6 +410,44 @@ class SkiTrip(db.Model):
             'three_plus_nights': '3+ Nights'
         }
         return labels.get(self.trip_duration, 'Day Trip')
+    
+    @property
+    def organizer_id(self):
+        """Return the organizer user ID. Uses created_by_user_id if set, else user_id."""
+        return self.created_by_user_id or self.user_id
+    
+    def get_organizer(self):
+        """Return the organizer User object."""
+        return User.query.get(self.organizer_id)
+    
+    def is_organizer(self, user_id):
+        """Check if given user_id is the trip organizer."""
+        return self.organizer_id == user_id
+    
+    def get_accepted_participants(self):
+        """Return list of accepted SkiTripParticipant records."""
+        return [p for p in self.participants if p.status == GuestStatus.ACCEPTED]
+    
+    def get_pending_participants(self):
+        """Return list of pending/invited SkiTripParticipant records."""
+        return [p for p in self.participants if p.status == GuestStatus.INVITED]
+    
+    def get_declined_participants(self):
+        """Return list of declined SkiTripParticipant records."""
+        return [p for p in self.participants if p.status == GuestStatus.DECLINED]
+    
+    def add_participant(self, user_id, status=None):
+        """Add a participant to the trip. Returns the SkiTripParticipant record."""
+        if status is None:
+            status = GuestStatus.INVITED
+        existing = SkiTripParticipant.query.filter_by(trip_id=self.id, user_id=user_id).first()
+        if existing:
+            existing.status = status
+            return existing
+        participant = SkiTripParticipant(trip_id=self.id, user_id=user_id, status=status)
+        db.session.add(participant)
+        self.is_group_trip = True
+        return participant
 
 
 class Friend(db.Model):
@@ -413,6 +456,7 @@ class Friend(db.Model):
     friend_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_seeded = db.Column(db.Boolean, default=False)
+    trip_invites_allowed = db.Column(db.Boolean, default=False)  # Explicit permission for trip invites
     
     friend = db.relationship('User', foreign_keys=[friend_id], backref='friended_by')
     
@@ -420,6 +464,30 @@ class Friend(db.Model):
 
     def __repr__(self):
         return f'<Friend {self.user_id} -> {self.friend_id}>'
+
+
+class SkiTripParticipant(db.Model):
+    """Participant in a shared/group SkiTrip."""
+    __tablename__ = 'ski_trip_participant'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    trip_id = db.Column(db.Integer, db.ForeignKey('ski_trip.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status = db.Column(
+        db.Enum(GuestStatus, name='ski_trip_participant_status_enum', create_constraint=True),
+        default=GuestStatus.INVITED,
+        nullable=False
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='ski_trip_participations')
+    
+    __table_args__ = (
+        db.UniqueConstraint('trip_id', 'user_id', name='unique_ski_trip_participant'),
+    )
+    
+    def __repr__(self):
+        return f'<SkiTripParticipant trip={self.trip_id} user={self.user_id} status={self.status.value}>'
 
 
 class Invitation(db.Model):
