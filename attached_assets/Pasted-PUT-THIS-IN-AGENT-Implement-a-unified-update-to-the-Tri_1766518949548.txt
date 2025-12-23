@@ -1,0 +1,93 @@
+PUT THIS IN AGENT
+
+Implement a unified update to the Trip Creation and Trip Editing flows using a single date-range calendar, with trip duration automatically calculated and stored as days, never user-editable.
+
+This is one cohesive update. Do not split into partial fixes.
+
+DECISIONS (DO NOT OVERRIDE):
+- Same-day trips are allowed
+- Duration is counted as DAYS (inclusive)
+- Duration is stored on the trip model (auto-calculated)
+- Selecting an earlier date resets the start date
+- Trip editing uses the same date-range picker
+- Trips can start today
+- Calendar defaults to current month
+- Show a subtle confirmation line after selection
+
+1) UI: Date-range picker (Create + Edit)
+
+- Remove separate Start Date and End Date inputs entirely
+- Remove Trip Duration input entirely
+- Add a single date-range picker calendar
+- Users select dates only via the calendar (no text entry)
+
+2) Date-range interaction rules
+
+- First tap selects start_date
+- Second tap selects end_date
+- Selected range is visually highlighted
+- If user taps a date earlier than start_date:
+  - Reset start_date to the new date
+  - Clear end_date
+- Do not allow invalid range states to persist
+
+3) Validation (client + server)
+
+- Require both start_date and end_date
+- Allow same-day trips (start_date == end_date)
+- Enforce end_date >= start_date
+- Prevent submission without a complete range
+- Server-side validation is required even if client-side fails
+
+4) Duration calculation (stored, not displayed)
+
+- Calculate duration as inclusive DAYS:
+  duration_days = (end_date - start_date) + 1
+- Persist duration_days on:
+  - Trip creation
+  - Trip edit when dates change
+- Duration must never be user-editable
+- Do not display duration during trip creation or editing
+
+5) Confirmation helper (UX)
+
+- After a valid range is selected, show a subtle helper line below the calendar:
+  Example: “Dec 25–27 · 3 days”
+- This text is read-only and updates live with date changes
+
+6) Display elsewhere
+
+- Duration may be displayed read-only:
+  - On the Trip Detail page
+  - In trip summary cards
+- Dates should always render as a single range (e.g., “Dec 25–27, 2025”)
+
+7) Earliest date rules
+
+- Users may select today as a valid start date
+- Past dates must be disabled in the calendar
+
+8) Non-goals
+
+- Do NOT show duration as an input
+- Do NOT allow manual date typing
+- Do NOT change the database schema
+- Do NOT allow partial date selections to be saved
+
+9) Acceptance criteria
+
+- Trip Creation shows one calendar only
+- Trip Editing uses the same calendar
+- Same-day trips save correctly
+- Invalid ranges cannot be submitted
+- Duration is stored correctly as days
+- Duration updates correctly when dates change
+- No JS, validation, or submission errors occur
+
+Do not finish until verified by:
+- Creating same-day and multi-day trips
+- Editing existing trips
+- Attempting invalid selections
+- Confirming duration consistency across views
+
+Use checkpoints only if explicitly requested.

@@ -46,18 +46,123 @@
             cursor: not-allowed;
         }
         
-        .date-wrapper {
-            position: relative;
+        /* Date Range Calendar */
+        .calendar-container {
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border);
+            border-radius: var(--bl-radius-lg);
+            overflow: hidden;
         }
-        
-        .date-placeholder {
-            position: absolute;
-            left: var(--bl-space-4);
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--bl-color-text-muted);
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: var(--bl-color-background);
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+        .calendar-header button {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--bl-color-text);
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: var(--bl-radius-md);
+        }
+        .calendar-header button:hover {
+            background: var(--bl-color-border-soft);
+        }
+        .calendar-header button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        .calendar-month-year {
             font-size: 16px;
-            pointer-events: none;
+            font-weight: 600;
+            color: var(--bl-color-text);
+        }
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            padding: 8px 8px 4px 8px;
+            background: var(--bl-color-background);
+        }
+        .calendar-weekday {
+            text-align: center;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--bl-color-text-muted);
+            padding: 4px;
+        }
+        .calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            padding: 4px 8px 12px 8px;
+            gap: 2px;
+        }
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: var(--bl-color-text);
+            transition: all 0.15s;
+        }
+        .calendar-day:hover:not(.disabled):not(.selected-start):not(.selected-end) {
+            background: var(--bl-color-border-soft);
+        }
+        .calendar-day.disabled {
+            color: var(--bl-color-text-muted);
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .calendar-day.other-month {
+            visibility: hidden;
+        }
+        .calendar-day.today {
+            font-weight: 600;
+            border: 2px solid var(--bl-color-primary);
+        }
+        .calendar-day.selected-start,
+        .calendar-day.selected-end {
+            background: var(--bl-color-primary);
+            color: white;
+            font-weight: 600;
+        }
+        .calendar-day.in-range {
+            background: rgba(143, 1, 27, 0.12);
+            border-radius: 0;
+        }
+        .calendar-day.selected-start {
+            border-radius: 50% 0 0 50%;
+        }
+        .calendar-day.selected-end {
+            border-radius: 0 50% 50% 0;
+        }
+        .calendar-day.selected-start.selected-end {
+            border-radius: 50%;
+        }
+        .date-range-helper {
+            margin-top: 12px;
+            padding: 10px 14px;
+            background: rgba(143, 1, 27, 0.06);
+            border-radius: var(--bl-radius-md);
+            font-size: 14px;
+            color: var(--bl-color-text);
+            text-align: center;
+            display: none;
+        }
+        .date-range-helper.visible {
+            display: block;
+        }
+        .date-range-helper .range-text {
+            font-weight: 500;
         }
         
         .form-group input:focus,
@@ -367,26 +472,32 @@
             </div>
 
             <div class="form-group">
-                <label for="start_date">Start date</label>
-                <div class="date-wrapper">
-                    <input type="date" id="start_date" name="start_date" required value="{% if trip and trip.start_date %}{{ trip.start_date.isoformat() }}{% elif prefill_start_date %}{{ prefill_start_date }}{% endif %}" onchange="updateEndDateMin(); updateDurationDisplay(); updatePlaceholders();">
-                    <span class="date-placeholder" id="start_date_placeholder" {% if trip and trip.start_date or prefill_start_date %}style="display:none"{% endif %}>mm/dd/yy</span>
+                <label>Trip dates</label>
+                <input type="hidden" id="start_date" name="start_date" required value="{% if trip and trip.start_date %}{{ trip.start_date.isoformat() }}{% elif prefill_start_date %}{{ prefill_start_date }}{% endif %}">
+                <input type="hidden" id="end_date" name="end_date" required value="{% if trip and trip.end_date %}{{ trip.end_date.isoformat() }}{% elif prefill_end_date %}{{ prefill_end_date }}{% endif %}">
+                
+                <div class="calendar-container" id="date-range-calendar">
+                    <div class="calendar-header">
+                        <button type="button" id="prev-month" onclick="navigateMonth(-1)">&larr;</button>
+                        <span class="calendar-month-year" id="calendar-month-year"></span>
+                        <button type="button" id="next-month" onclick="navigateMonth(1)">&rarr;</button>
+                    </div>
+                    <div class="calendar-weekdays">
+                        <span class="calendar-weekday">Su</span>
+                        <span class="calendar-weekday">Mo</span>
+                        <span class="calendar-weekday">Tu</span>
+                        <span class="calendar-weekday">We</span>
+                        <span class="calendar-weekday">Th</span>
+                        <span class="calendar-weekday">Fr</span>
+                        <span class="calendar-weekday">Sa</span>
+                    </div>
+                    <div class="calendar-days" id="calendar-days"></div>
                 </div>
-                <p class="inline-error" id="start-date-error">Start date cannot be in the past.</p>
-            </div>
-
-            <div class="form-group">
-                <label for="end_date">End date</label>
-                <div class="date-wrapper">
-                    <input type="date" id="end_date" name="end_date" required value="{% if trip and trip.end_date %}{{ trip.end_date.isoformat() }}{% elif prefill_end_date %}{{ prefill_end_date }}{% endif %}" onchange="updateDurationDisplay(); updatePlaceholders();">
-                    <span class="date-placeholder" id="end_date_placeholder" {% if trip and trip.end_date or prefill_end_date %}style="display:none"{% endif %}>mm/dd/yy</span>
+                
+                <div class="date-range-helper" id="date-range-helper">
+                    <span class="range-text" id="range-text"></span>
                 </div>
-                <p class="inline-error" id="end-date-error">End date cannot be before start date.</p>
-            </div>
-
-            <div class="form-group">
-                <label>Trip duration</label>
-                <div class="duration-display empty" id="duration-display">Select dates to calculate</div>
+                <p class="inline-error" id="date-error">Please select a date range</p>
             </div>
 
             <div class="form-group">
@@ -487,12 +598,178 @@
         const resortSearchInput = document.getElementById('resort_search');
         const startDateInput = document.getElementById('start_date');
         const endDateInput = document.getElementById('end_date');
-        const durationDisplay = document.getElementById('duration-display');
         const homeMountainCheckbox = document.getElementById('set_home_mountain');
         const homeMountainError = document.getElementById('home-mountain-error');
         const form = document.getElementById('trip-form');
+        const dateRangeHelper = document.getElementById('date-range-helper');
+        const rangeText = document.getElementById('range-text');
+        const dateError = document.getElementById('date-error');
         
         let currentStateResorts = [];
+        
+        // Calendar state
+        let currentMonth = new Date();
+        let selectedStartDate = startDateInput.value ? new Date(startDateInput.value + 'T00:00:00') : null;
+        let selectedEndDate = endDateInput.value ? new Date(endDateInput.value + 'T00:00:00') : null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        function formatDateShort(date) {
+            return monthNames[date.getMonth()].slice(0, 3) + ' ' + date.getDate();
+        }
+        
+        function formatDateISO(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        
+        function isSameDay(d1, d2) {
+            if (!d1 || !d2) return false;
+            return d1.getFullYear() === d2.getFullYear() && 
+                   d1.getMonth() === d2.getMonth() && 
+                   d1.getDate() === d2.getDate();
+        }
+        
+        function isInRange(date) {
+            if (!selectedStartDate || !selectedEndDate) return false;
+            return date > selectedStartDate && date < selectedEndDate;
+        }
+        
+        function renderCalendar() {
+            const calendarDays = document.getElementById('calendar-days');
+            const monthYearLabel = document.getElementById('calendar-month-year');
+            const prevBtn = document.getElementById('prev-month');
+            
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+            
+            monthYearLabel.textContent = `${monthNames[month]} ${year}`;
+            
+            // Disable prev button if current month is this month (for new trips)
+            const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const displayMonth = new Date(year, month, 1);
+            prevBtn.disabled = !isEditMode && displayMonth <= thisMonth;
+            
+            // Get first day of month and number of days
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startDay = firstDay.getDay();
+            const totalDays = lastDay.getDate();
+            
+            let html = '';
+            
+            // Empty cells for days before first of month
+            for (let i = 0; i < startDay; i++) {
+                html += '<button type="button" class="calendar-day other-month" disabled></button>';
+            }
+            
+            // Days of the month
+            for (let day = 1; day <= totalDays; day++) {
+                const date = new Date(year, month, day);
+                const dateStr = formatDateISO(date);
+                
+                let classes = ['calendar-day'];
+                let disabled = false;
+                
+                // Past date check (only for new trips, not editing)
+                if (!isEditMode && date < today) {
+                    classes.push('disabled');
+                    disabled = true;
+                }
+                
+                // Today marker
+                if (isSameDay(date, today)) {
+                    classes.push('today');
+                }
+                
+                // Selection states
+                if (isSameDay(date, selectedStartDate)) {
+                    classes.push('selected-start');
+                    if (isSameDay(selectedStartDate, selectedEndDate)) {
+                        classes.push('selected-end');
+                    }
+                }
+                if (isSameDay(date, selectedEndDate) && !isSameDay(selectedStartDate, selectedEndDate)) {
+                    classes.push('selected-end');
+                }
+                if (isInRange(date)) {
+                    classes.push('in-range');
+                }
+                
+                html += `<button type="button" class="${classes.join(' ')}" 
+                         data-date="${dateStr}" 
+                         ${disabled ? 'disabled' : ''}
+                         onclick="selectDate('${dateStr}')">${day}</button>`;
+            }
+            
+            calendarDays.innerHTML = html;
+        }
+        
+        function navigateMonth(delta) {
+            // Use first day of month to avoid overflow issues (e.g., Jan 31 + 1 month = Mar 3)
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+            currentMonth = new Date(year, month + delta, 1);
+            renderCalendar();
+        }
+        
+        function selectDate(dateStr) {
+            const clickedDate = new Date(dateStr + 'T00:00:00');
+            
+            // If no start date, or if clicked date is before start date, reset and set as start
+            if (!selectedStartDate || clickedDate < selectedStartDate) {
+                selectedStartDate = clickedDate;
+                selectedEndDate = null;
+            }
+            // If start date exists but no end date, set as end (or same day)
+            else if (!selectedEndDate) {
+                selectedEndDate = clickedDate;
+            }
+            // If both exist, reset to new start
+            else {
+                selectedStartDate = clickedDate;
+                selectedEndDate = null;
+            }
+            
+            updateHiddenInputs();
+            updateDateRangeHelper();
+            renderCalendar();
+        }
+        
+        function updateHiddenInputs() {
+            startDateInput.value = selectedStartDate ? formatDateISO(selectedStartDate) : '';
+            endDateInput.value = selectedEndDate ? formatDateISO(selectedEndDate) : '';
+        }
+        
+        function updateDateRangeHelper() {
+            if (selectedStartDate && selectedEndDate) {
+                const days = Math.round((selectedEndDate - selectedStartDate) / (1000 * 60 * 60 * 24)) + 1;
+                const dayLabel = days === 1 ? '1 day' : `${days} days`;
+                
+                let rangeStr;
+                if (isSameDay(selectedStartDate, selectedEndDate)) {
+                    rangeStr = `${formatDateShort(selectedStartDate)}, ${selectedStartDate.getFullYear()}`;
+                } else if (selectedStartDate.getFullYear() === selectedEndDate.getFullYear()) {
+                    rangeStr = `${formatDateShort(selectedStartDate)}–${formatDateShort(selectedEndDate)}, ${selectedStartDate.getFullYear()}`;
+                } else {
+                    rangeStr = `${formatDateShort(selectedStartDate)}, ${selectedStartDate.getFullYear()} – ${formatDateShort(selectedEndDate)}, ${selectedEndDate.getFullYear()}`;
+                }
+                
+                rangeText.textContent = `${rangeStr} · ${dayLabel}`;
+                dateRangeHelper.classList.add('visible');
+                dateError.classList.remove('visible');
+            } else if (selectedStartDate) {
+                rangeText.textContent = `${formatDateShort(selectedStartDate)} – Select end date`;
+                dateRangeHelper.classList.add('visible');
+            } else {
+                dateRangeHelper.classList.remove('visible');
+            }
+        }
 
         function isPassCompatible(resort) {
             if (!userPasses || userPasses.length === 0) return false;
@@ -599,53 +876,6 @@
             }
         });
 
-        function updateEndDateMin() {
-            const today = new Date().toISOString().split('T')[0];
-            
-            if (startDateInput.value) {
-                const minEndDate = startDateInput.value > today ? startDateInput.value : today;
-                endDateInput.min = isEditMode ? startDateInput.value : minEndDate;
-                if (endDateInput.value && endDateInput.value < startDateInput.value) {
-                    endDateInput.value = startDateInput.value;
-                }
-            }
-        }
-        
-        function updateDurationDisplay() {
-            const startDate = startDateInput.value;
-            const endDate = endDateInput.value;
-            
-            if (!startDate || !endDate) {
-                durationDisplay.textContent = 'Select dates to calculate';
-                durationDisplay.classList.add('empty');
-                return;
-            }
-            
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            const nights = Math.round((end - start) / (1000 * 60 * 60 * 24));
-            
-            let durationText;
-            if (nights === 0) {
-                durationText = 'Day Trip';
-            } else if (nights === 1) {
-                durationText = '1 Night';
-            } else if (nights === 2) {
-                durationText = '2 Nights';
-            } else {
-                durationText = '3+ Nights';
-            }
-            
-            durationDisplay.textContent = durationText;
-            durationDisplay.classList.remove('empty');
-        }
-
-        endDateInput.addEventListener('focus', function() {
-            if (startDateInput.value && !endDateInput.value) {
-                endDateInput.value = startDateInput.value;
-                updateDurationDisplay();
-            }
-        });
         
         if (form && homeMountainCheckbox) {
             form.addEventListener('submit', function(e) {
@@ -672,57 +902,33 @@
             });
         }
 
-        function updatePlaceholders() {
-            const startPlaceholder = document.getElementById('start_date_placeholder');
-            const endPlaceholder = document.getElementById('end_date_placeholder');
-            
-            if (startDateInput.value) {
-                startPlaceholder.style.display = 'none';
-            } else {
-                startPlaceholder.style.display = 'block';
-            }
-            
-            if (endDateInput.value) {
-                endPlaceholder.style.display = 'none';
-            } else {
-                endPlaceholder.style.display = 'block';
-            }
-        }
-        
-        startDateInput.addEventListener('focus', function() {
-            document.getElementById('start_date_placeholder').style.display = 'none';
-        });
-        
-        startDateInput.addEventListener('blur', function() {
-            updatePlaceholders();
-        });
-        
-        endDateInput.addEventListener('focus', function() {
-            document.getElementById('end_date_placeholder').style.display = 'none';
-        });
-        
-        endDateInput.addEventListener('blur', function() {
-            updatePlaceholders();
-        });
-
         document.addEventListener('DOMContentLoaded', function() {
-            const today = new Date().toISOString().split('T')[0];
-            
-            if (!isEditMode) {
-                startDateInput.min = today;
-                endDateInput.min = today;
-            }
-            
             updateStates();
             
             if (stateSelect.value) {
                 updateResorts();
             }
             
-            updateEndDateMin();
-            updateDurationDisplay();
-            updatePlaceholders();
+            // Initialize calendar to show month of selected start date or current month
+            if (selectedStartDate) {
+                currentMonth = new Date(selectedStartDate.getFullYear(), selectedStartDate.getMonth(), 1);
+            }
+            
+            renderCalendar();
+            updateDateRangeHelper();
         });
+        
+        // Form validation - require complete date range
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                if (!startDateInput.value || !endDateInput.value) {
+                    e.preventDefault();
+                    dateError.classList.add('visible');
+                    document.getElementById('date-range-calendar').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return false;
+                }
+            });
+        }
     </script>
 </body>
 </html>
