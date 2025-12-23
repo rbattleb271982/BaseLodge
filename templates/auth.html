@@ -170,6 +170,58 @@
             color: var(--bl-color-text-muted);
             line-height: 1.6;
         }
+        
+        .form-row-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--bl-space-6);
+        }
+        
+        @media (max-width: 480px) {
+            .form-row-2col {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .checkbox-group, .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--bl-space-2);
+        }
+        
+        .checkbox-group.compact, .radio-group.compact {
+            gap: var(--bl-space-1);
+        }
+        
+        .radio-group.horizontal-wrap {
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: var(--bl-space-3);
+        }
+        
+        .checkbox-label, .radio-label {
+            display: flex;
+            align-items: center;
+            gap: var(--bl-space-2);
+            font-size: 14px;
+            color: var(--bl-color-text);
+            cursor: pointer;
+        }
+        
+        .checkbox-label input, .radio-label input {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--bl-color-primary);
+            cursor: pointer;
+        }
+        
+        .required-asterisk {
+            color: var(--bl-color-error, #dc2626);
+        }
+        
+        .auth-card {
+            max-width: 500px;
+        }
     </style>
 </head>
 <body>
@@ -221,6 +273,82 @@
                         <button type="button" class="password-toggle" data-target="signup-password">Show</button>
                     </div>
                     <p class="form-helper">At least 8 characters</p>
+                </div>
+                
+                <!-- Two-column row for Rider Type and Skill Level -->
+                <div class="form-row-2col">
+                    <div class="form-group">
+                        <label class="form-label">I am a... <span class="required-asterisk">*</span></label>
+                        <div class="checkbox-group compact">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="rider_types" value="Skier"> Skier
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="rider_types" value="Snowboarder"> Snowboarder
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="rider_types" value="Telemark"> Telemark
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="rider_types" value="Cross-Country"> Cross-Country
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="rider_types" value="Adaptive"> Adaptive
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Skill Level <span class="required-asterisk">*</span></label>
+                        <div class="radio-group compact">
+                            <label class="radio-label">
+                                <input type="radio" name="skill_level" value="Beginner" required> Beginner
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="skill_level" value="Intermediate"> Intermediate
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="skill_level" value="Advanced"> Advanced
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="skill_level" value="Expert"> Expert
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Full width Pass Type -->
+                <div class="form-group">
+                    <label class="form-label">Pass <span class="required-asterisk">*</span></label>
+                    <div class="radio-group horizontal-wrap">
+                        <label class="radio-label">
+                            <input type="radio" name="pass_type" value="Epic" required> Epic
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="pass_type" value="Ikon"> Ikon
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="pass_type" value="Indy"> Indy
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="pass_type" value="Mountain Collective"> Mountain Collective
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="pass_type" value="Powder Alliance"> Powder Alliance
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="pass_type" value="Freedom"> Freedom
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="pass_type" value="Ski California"> Ski California
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="pass_type" value="Other"> Other
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="pass_type" value="No Pass"> No Pass
+                        </label>
+                    </div>
                 </div>
                 
                 <button type="submit" class="bl-btn-primary form-submit">Create Account</button>

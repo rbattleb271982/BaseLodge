@@ -542,6 +542,11 @@ def auth():
             email = request.form.get("email", "").lower().strip()
             password = request.form.get("password", "")
             
+            # Get onboarding fields
+            rider_types = request.form.getlist("rider_types")
+            skill_level = request.form.get("skill_level", "").strip()
+            pass_type = request.form.get("pass_type", "").strip()
+            
             # Validate required fields
             if not first_name or not last_name or not email or not password:
                 flash("All fields are required.", "error")
@@ -552,6 +557,19 @@ def auth():
                 flash("Password must be at least 8 characters.", "error")
                 return render_template("auth.html")
             
+            # Validate onboarding fields
+            if not rider_types:
+                flash("Please select at least one rider type.", "error")
+                return render_template("auth.html")
+            
+            if not skill_level:
+                flash("Please select your skill level.", "error")
+                return render_template("auth.html")
+            
+            if not pass_type:
+                flash("Please select your pass type.", "error")
+                return render_template("auth.html")
+            
             existing_user = User.query.filter_by(email=email).first()
             if existing_user:
                 flash("An account with this email already exists.", "error")
@@ -560,7 +578,12 @@ def auth():
             user = User(
                 first_name=first_name,
                 last_name=last_name,
-                email=email
+                email=email,
+                rider_types=rider_types,
+                skill_level=skill_level,
+                pass_type=pass_type,
+                created_at=datetime.utcnow(),
+                login_count=1  # First login happens on signup
             )
             user.set_password(password)
             db.session.add(user)
@@ -578,22 +601,19 @@ def auth():
             if next_url:
                 session["next_after_setup"] = next_url
             
-            return redirect(url_for("setup_profile"))
+            # Go directly to home - profile completion modals will handle the rest
+            return redirect(url_for("home"))
         
         elif form_type == "login":
             email = request.form.get("email", "").lower().strip()
-            password = request.form.get("password", "").strip()  # ← STRIP PASSWORD TOO
-            
-            app.logger.info(f"🔐 LOGIN ATTEMPT: email='{email}' (len={len(email)}), password_len={len(password)}")
+            password = request.form.get("password", "").strip()
             
             user = User.query.filter_by(email=email).first()
             if user:
                 pwd_ok = user.check_password(password)
-                app.logger.info(f"🔐 USER FOUND: {user.email}, password_check={pwd_ok}")
                 
                 if pwd_ok:
                     login_user(user)
-                    app.logger.info(f"✅ LOGGED IN: user_id={user.id}, authenticated={user.is_authenticated}")
                     
                     # Update last_active_at on login (activity hygiene)
                     user.last_active_at = datetime.utcnow()
@@ -605,24 +625,11 @@ def auth():
                     _connect_pending_inviter(user)
                     
                     next_url = request.args.get("next")
-                    if user.rider_type and user.pass_type:
-                        app.logger.info(f"✅ REDIRECTING TO HOME: rider_type={user.rider_type}, pass_type={user.pass_type}")
-                        if next_url:
-                            return redirect(next_url)
-                        return redirect(url_for("home"))
-                    else:
-                        app.logger.warning(f"⚠️ INCOMPLETE PROFILE: rider_type={user.rider_type}, pass_type={user.pass_type}")
-                        if next_url:
-                            session["next_after_setup"] = next_url
-                        return redirect(url_for("setup_profile"))
-                else:
-                    app.logger.warning(f"❌ WRONG PASSWORD for {email}")
-                    app.logger.warning(f"   Password attempt length: {len(password)}, Hash check failed")
-            else:
-                app.logger.warning(f"❌ USER NOT FOUND: {email}")
-                # Debug: check what users exist
-                all_users = User.query.all()
-                app.logger.warning(f"   Available users: {[u.email for u in all_users]}")
+                    if next_url:
+                        return redirect(next_url)
+                    
+                    # Always go to home - modals will handle progressive completion
+                    return redirect(url_for("home"))
             
             flash("Invalid email or password.", "error")
             return render_template("auth.html")
@@ -1954,6 +1961,19 @@ def home():
                         'resort': top_resort
                     }
     
+    # Progressive profile completion state
+    show_progressive_modal = user.should_show_progressive_modal
+    completed_steps, total_steps = user.get_profile_completion_progress()
+    show_welcome_screen = user.is_profile_complete and not user.welcome_next_steps_shown_at
+    
+    # Determine which modal to show
+    current_modal = None
+    if show_progressive_modal and not user.is_profile_complete:
+        if not user.is_equipment_complete:
+            current_modal = 'equipment'
+        elif not user.primary_riding_style:
+            current_modal = 'riding_style'
+    
     return render_template(
         'home.html',
         user=user,
@@ -1977,8 +1997,84 @@ def home():
         availability_nudge=availability_nudge,
         shared_interests=shared_interests,
         weekend_daytrip_signal=weekend_daytrip_signal,
-        user_wishlist_resorts=user_wishlist_resorts
+        user_wishlist_resorts=user_wishlist_resorts,
+        show_progressive_modal=show_progressive_modal,
+        current_modal=current_modal,
+        completed_steps=completed_steps,
+        total_steps=total_steps,
+        show_welcome_screen=show_welcome_screen
     )
+
+@app.route("/onboarding/equipment", methods=["POST"])
+@login_required
+def save_onboarding_equipment():
+    """Save equipment status from progressive completion modal."""
+    user = current_user
+    
+    equipment_status = request.form.get("equipment_status")
+    equipment_brand = request.form.get("equipment_brand", "").strip() or None
+    equipment_model = request.form.get("equipment_model", "").strip() or None
+    boot_brand = request.form.get("boot_brand", "").strip() or None
+    boot_model = request.form.get("boot_model", "").strip() or None
+    
+    if not equipment_status:
+        return redirect(url_for("home"))
+    
+    # Get or create active equipment setup
+    equipment = EquipmentSetup.query.filter_by(
+        user_id=user.id,
+        is_active=True
+    ).first()
+    
+    if not equipment:
+        equipment = EquipmentSetup(
+            user_id=user.id,
+            is_active=True
+        )
+        db.session.add(equipment)
+    
+    equipment.equipment_status = equipment_status
+    equipment.brand = equipment_brand
+    equipment.model = equipment_model
+    equipment.boot_brand = boot_brand
+    equipment.boot_model = boot_model
+    
+    db.session.commit()
+    return redirect(url_for("home"))
+
+
+@app.route("/onboarding/riding-style", methods=["POST"])
+@login_required
+def save_onboarding_riding_style():
+    """Save riding style from progressive completion modal."""
+    user = current_user
+    
+    riding_style = request.form.get("primary_riding_style")
+    
+    if riding_style:
+        user.primary_riding_style = riding_style
+        db.session.commit()
+    
+    return redirect(url_for("home"))
+
+
+@app.route("/onboarding/welcome-shown", methods=["POST"])
+@login_required
+def mark_welcome_shown():
+    """Mark the welcome screen as shown (once only)."""
+    user = current_user
+    
+    if not user.welcome_next_steps_shown_at:
+        user.welcome_next_steps_shown_at = datetime.utcnow()
+        db.session.commit()
+    
+    # Support custom redirect destinations from welcome screen
+    redirect_to = request.form.get("redirect_to")
+    if redirect_to and redirect_to.startswith('/'):
+        return redirect(redirect_to)
+    
+    return redirect(url_for("home"))
+
 
 @app.route("/dismiss-nudge", methods=["POST"])
 @login_required
