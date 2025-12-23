@@ -108,7 +108,7 @@
             text-decoration: none;
         }
         
-        /* Invite Modal */
+        /* Invite Modal - True overlay */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -117,22 +117,34 @@
             right: 0;
             bottom: 0;
             background: rgba(0,0,0,0.5);
-            z-index: 1000;
+            z-index: 9999;
             align-items: flex-end;
             justify-content: center;
+            -webkit-backdrop-filter: blur(2px);
+            backdrop-filter: blur(2px);
         }
         .modal-overlay.active {
             display: flex;
+        }
+        body.modal-open {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+        body.modal-open .bottom-nav {
+            display: none;
         }
         .modal-sheet {
             background: var(--bl-color-background);
             border-radius: 20px 20px 0 0;
             width: 100%;
             max-width: 500px;
-            max-height: 80vh;
+            max-height: 85vh;
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
         }
         .modal-header {
             display: flex;
@@ -140,6 +152,7 @@
             align-items: center;
             padding: 16px 20px;
             border-bottom: 1px solid var(--bl-color-border-soft);
+            flex-shrink: 0;
         }
         .modal-header h2 {
             font-size: 1.1rem;
@@ -149,20 +162,28 @@
         .modal-close {
             background: none;
             border: none;
-            font-size: 1.5rem;
+            font-size: 1.8rem;
             color: var(--bl-color-text-muted);
             cursor: pointer;
-            padding: 0;
+            padding: 4px 8px;
             line-height: 1;
+            border-radius: 4px;
+        }
+        .modal-close:hover {
+            background: var(--bl-color-border-soft);
         }
         .modal-body {
             flex: 1;
             overflow-y: auto;
             padding: 16px 20px;
+            -webkit-overflow-scrolling: touch;
         }
         .modal-footer {
             padding: 16px 20px;
+            padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
             border-top: 1px solid var(--bl-color-border-soft);
+            background: var(--bl-color-background);
+            flex-shrink: 0;
         }
         .modal-footer .bl-btn-primary {
             width: 100%;
@@ -386,14 +407,20 @@
     </div>
     
     <script>
+        let scrollPosition = 0;
+        
         function openInviteModal() {
+            scrollPosition = window.pageYOffset;
+            document.body.classList.add('modal-open');
+            document.body.style.top = `-${scrollPosition}px`;
             document.getElementById('inviteModal').classList.add('active');
-            document.body.style.overflow = 'hidden';
         }
         
         function closeInviteModal() {
             document.getElementById('inviteModal').classList.remove('active');
-            document.body.style.overflow = '';
+            document.body.classList.remove('modal-open');
+            document.body.style.top = '';
+            window.scrollTo(0, scrollPosition);
         }
         
         function updateSendButton() {
@@ -403,6 +430,12 @@
         
         document.getElementById('inviteModal').addEventListener('click', function(e) {
             if (e.target === this) {
+                closeInviteModal();
+            }
+        });
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('inviteModal').classList.contains('active')) {
                 closeInviteModal();
             }
         });
