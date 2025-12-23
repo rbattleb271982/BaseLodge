@@ -1,0 +1,163 @@
+Objective
+Refactor the BaseLodge profile card UI to a United-style tile layout that is calm, scannable, and scalable, while preserving all existing data. Add two modal pop-ups for large mountain lists.
+
+This is a UI and presentation-logic change only. Do NOT change database schemas.
+
+Scope
+Affected surfaces (all must be updated):
+	•	User’s own profile card
+	•	Friend profile cards
+	•	Friends list
+	•	Trip guests / invites
+	•	Any surface where profile cards appear
+
+All profile cards must use one shared partial or component.
+
+Final profile card – closed state (locked)
+	1.	Identity
+
+	•	Name: large and bold
+	•	Location: City, State (muted, optional)
+No avatars. No icons.
+
+	2.	Hero line (most important)
+Text format: Skier · Ikon · Advanced
+
+Rules:
+	•	Uses rider_type, primary_pass, and skill_level
+	•	Single line only
+	•	Largest text after name
+	•	May use semibold
+	•	Must not wrap into multiple rows
+
+	3.	Trip summary
+Text format: X upcoming trips
+
+Rules:
+	•	Upcoming trips only
+	•	If X equals 0, show “No upcoming trips”
+	•	Do not show next-trip details here
+
+	4.	Equipment (both required)
+
+Equipment line
+Text format: Equipment: Volkl Mantra M6
+
+Rules:
+	•	Show brand and model when both exist
+	•	Show brand only if model is missing
+	•	If neither exists, show “Add equipment”
+
+Boots line
+Text format: Boots: Tecnica Mach1
+
+Rules:
+	•	Same logic as equipment
+	•	If missing, show “Add boots”
+
+Do not use commas, hyphens, or extra punctuation.
+	5.	Mountain rows (always visible)
+
+Two tappable rows with chevrons:
+	•	Mountains I’ve visited (42) ›
+	•	Mountains I want to visit (17) ›
+
+Rules:
+	•	Always show both rows
+	•	Count must come from canonical Resort IDs
+	•	If count is 0, still show (0)
+	•	Entire row is clickable
+	•	Chevron aligned right
+
+Modals (new)
+
+Modal 1 – Mountains I’ve visited
+Triggered by clicking the first row.
+
+Title: Mountains I’ve Visited
+Subhead: 42 total
+
+Body:
+	•	Alphabetical list of mountain names
+	•	Two columns on desktop
+	•	One column on mobile
+	•	Scrollable
+	•	Text wraps (do not truncate)
+
+Empty state copy:
+“No mountains added yet”
+
+Modal 2 – Mountains I want to visit
+Same structure, separate modal, separate trigger.
+
+Interaction and state rules (mandatory)
+	•	Clicking anywhere else on the profile card does nothing
+	•	Only mountain rows open modals
+	•	On modal open:
+	•	Lock background scroll
+	•	Trap keyboard focus inside modal
+	•	On modal close:
+	•	Restore focus to the triggering row
+	•	Modal must close via:
+	•	X button
+	•	Tap outside
+	•	Escape key
+
+Visual hierarchy constraints (locked)
+
+Font priority from largest to smallest:
+	1.	Name
+	2.	Hero line
+	3.	Trip summary
+	4.	Equipment and boots
+	5.	Mountain rows
+
+Rules:
+	•	Only name and hero line may be bold or semibold
+	•	All other rows must be regular or muted
+	•	No icons except chevrons on mountain rows
+	•	Card height must remain fixed in closed state
+
+Empty and edge cases
+	•	Brand exists but model missing: show brand only
+	•	Equipment and boots both missing: show “Add equipment” and “Add boots”
+	•	Mountain count is 0: modal still opens with empty copy
+	•	Long mountain names must wrap cleanly
+	•	Do not show placeholders like “Unknown”
+
+Component and code requirements
+	•	Profile card markup must live in one reusable partial
+	•	Modal must be reusable for both mountain lists
+	•	Modal content must be driven by passed data (title, count, list)
+	•	Use existing Resort relationships
+	•	Do not introduce per-click database queries if data is already loaded
+
+Explicitly do not do
+	•	Do not reintroduce 3-column layouts
+	•	Do not inline-expand mountain lists
+	•	Do not add avatars, badges, stats, or icons
+	•	Do not truncate mountain names
+	•	Do not modify schemas or migrations
+	•	Do not add edit controls inside modals
+
+Acceptance criteria
+	•	Profile cards are visually compact and consistent everywhere
+	•	Equipment brand, model, and boots render correctly
+	•	Mountain counts are accurate
+	•	Users with 40+ mountains can scroll smoothly
+	•	Mobile-first layout works cleanly
+	•	No regressions on friends list or trip guests
+
+Testing (required – do not skip)
+
+Before finishing:
+	•	Test users with no equipment
+	•	Test users with brand only
+	•	Test users with brand and model
+	•	Test mountain counts of 0, 3, and 40+
+	•	Test self profile and friend profile
+	•	Verify no layout shift
+	•	Verify no console errors
+	•	Verify focus returns correctly after modal close
+
+Do not finish until all tests pass.
