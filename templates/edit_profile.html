@@ -416,7 +416,7 @@
     <input type="hidden" name="gender" id="gender" value="{{ current_user.gender or '' }}">
     <input type="hidden" name="birth_year" id="birth_year" value="{{ current_user.birth_year or '' }}">
     <input type="hidden" name="home_state" id="home_state" value="{{ current_user.home_state or '' }}">
-    <input type="hidden" name="home_mountain" id="home_mountain_hidden" value="{{ current_user.home_mountain or '' }}">
+    <input type="hidden" name="home_resort_id" id="home_resort_id_hidden" value="{{ current_user.home_resort_id or '' }}">
     <input type="hidden" name="gear" id="gear_hidden" value="{{ current_user.gear or '' }}">
     <input type="hidden" name="terrain_preferences" id="terrain_preferences_hidden" value="{{ (current_user.terrain_preferences or [])|join(',') }}">
 </form>
@@ -456,8 +456,8 @@ document.querySelectorAll('input[name="skill_level_radio"]').forEach(radio => {
     updateRiderTypesHidden();
 })();
 
-document.getElementById('home_mountain').addEventListener('change', function() {
-    document.getElementById('home_mountain_hidden').value = this.value;
+document.getElementById('home_resort_id').addEventListener('change', function() {
+    document.getElementById('home_resort_id_hidden').value = this.value;
 });
 
 document.getElementById('gender-select').addEventListener('change', function() {
@@ -468,51 +468,58 @@ document.getElementById('birth-year-select').addEventListener('change', function
     document.getElementById('birth_year').value = this.value;
 });
 
-// Mountains by state mapping from server
-const mountainsByState = {{ mountains_by_state | tojson | safe }};
+// Resorts by state mapping from server (contains {id, name} objects)
+const resortsByState = {{ resorts_by_state | tojson | safe }};
 
-function updateMountainOptions(stateAbbr, currentMountain) {
-    const homeMountainSelect = document.getElementById('home_mountain');
-    const mountains = mountainsByState[stateAbbr] || [];
+function updateResortOptions(stateAbbr, currentResortId) {
+    const homeResortSelect = document.getElementById('home_resort_id');
+    const resorts = resortsByState[stateAbbr] || [];
+    
+    if (resorts.length === 0) {
+        homeResortSelect.innerHTML = '<option value="">No mountains available in this state</option>';
+        homeResortSelect.disabled = true;
+        return;
+    }
     
     let html = '<option value="">Select your home mountain</option>';
-    mountains.slice().sort().forEach(mountain => {
-        const selected = (currentMountain === mountain) ? ' selected' : '';
-        html += `<option value="${mountain}"${selected}>${mountain}</option>`;
+    resorts.forEach(resort => {
+        const selected = (currentResortId && parseInt(currentResortId) === resort.id) ? ' selected' : '';
+        html += `<option value="${resort.id}"${selected}>${resort.name}</option>`;
     });
-    homeMountainSelect.innerHTML = html;
+    homeResortSelect.innerHTML = html;
+    homeResortSelect.disabled = false;
 }
 
-// Validate home mountain matches home state on page load
-(function validateHomeMountain() {
+// Validate home resort matches home state on page load
+(function validateHomeResort() {
     const homeStateSelect = document.getElementById('home-state-select');
-    const homeMountainSelect = document.getElementById('home_mountain');
-    const homeMountainHidden = document.getElementById('home_mountain_hidden');
+    const homeResortSelect = document.getElementById('home_resort_id');
+    const homeResortHidden = document.getElementById('home_resort_id_hidden');
     
     const currentState = homeStateSelect.value;
-    const currentMountain = homeMountainHidden.value;
+    const currentResortId = homeResortHidden.value;
     
-    if (currentState && currentMountain) {
-        const validMountains = mountainsByState[currentState] || [];
-        if (!validMountains.includes(currentMountain)) {
-            // Mismatch detected - clear the mountain
-            homeMountainHidden.value = '';
-            homeMountainSelect.value = '';
+    if (currentState && currentResortId) {
+        const validResorts = resortsByState[currentState] || [];
+        const isValid = validResorts.some(r => r.id === parseInt(currentResortId));
+        if (!isValid) {
+            // Mismatch detected - clear the resort
+            homeResortHidden.value = '';
+            homeResortSelect.value = '';
         }
     }
 })();
 
 document.getElementById('home-state-select').addEventListener('change', function() {
     document.getElementById('home_state').value = this.value;
-    const homeMountainSelect = document.getElementById('home_mountain');
+    const homeResortSelect = document.getElementById('home_resort_id');
     if (this.value) {
-        homeMountainSelect.disabled = false;
-        updateMountainOptions(this.value, '');
-        document.getElementById('home_mountain_hidden').value = '';
+        updateResortOptions(this.value, '');
+        document.getElementById('home_resort_id_hidden').value = '';
     } else {
-        homeMountainSelect.disabled = true;
-        homeMountainSelect.innerHTML = '<option value="">Select state first</option>';
-        document.getElementById('home_mountain_hidden').value = '';
+        homeResortSelect.disabled = true;
+        homeResortSelect.innerHTML = '<option value="">Select your home state first</option>';
+        document.getElementById('home_resort_id_hidden').value = '';
     }
 });
 
