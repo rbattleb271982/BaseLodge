@@ -232,13 +232,21 @@
                 <p class="auth-subtitle">The best days on the mountain don't just happen — they're made.</p>
             </div>
             
-            {% with messages = get_flashed_messages() %}
+            {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
+                    {% set auth_messages = [] %}
+                    {% for category, message in messages %}
+                        {% if category in ['error', 'auth', 'message'] %}
+                            {% set _ = auth_messages.append(message) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if auth_messages %}
                     <div class="form-error">
-                        {% for message in messages %}
+                        {% for message in auth_messages %}
                             {{ message }}<br>
                         {% endfor %}
                     </div>
+                    {% endif %}
                 {% endif %}
             {% endwith %}
             
