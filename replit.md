@@ -18,7 +18,7 @@ Base Lodge is a Flask-based ski/snowboard trip planning application designed to 
 ## System Architecture
 
 ### UI/UX Decisions
-The application uses a mobile-first responsive design with a unified "BaseLodge" design system and CSS variables. Key UI elements include segmented controls, a 4-tab bottom navigation with SVG icons, and a home-first navigation paradigm. Brand colors are a deep red (#8F011B for light, #FF6B7A for dark) with clean backgrounds and surfaces. Component partials ensure reusability. Profile forms are optimized for mobile with a max-width of 500px. Settings screens utilize a card-based layout. Flash messages are context-specific.
+The application uses a mobile-first responsive design with a unified "BaseLodge" design system and CSS variables. Key UI elements include segmented controls, a 5-tab bottom navigation with SVG icons (Trips, Friends, Invite, Profile, Feedback), and a home-first navigation paradigm. Brand colors are a deep red (#8F011B for light, #FF6B7A for dark) with clean backgrounds and surfaces. Component partials ensure reusability. Profile forms are optimized for mobile with a max-width of 500px. Settings screens utilize a card-based layout. Flash messages are context-specific.
 
 **Dark Mode Support (Dec 2025):** System-based dark mode via `@media (prefers-color-scheme: dark)`. All colors use CSS variables (`--bl-color-*`) with automatic overrides for dark mode. Alpine-inspired dark palette with subtle slate backgrounds (#0E1114, #1C2127) and adjusted accent colors. No manual toggle required - follows OS preference. Admin pages are excluded from dark mode styling.
 
@@ -45,7 +45,8 @@ The backend uses Flask, SQLAlchemy for ORM, and Werkzeug for password hashing. J
 - **Trip Invites:** Trip owners can invite connected friends from Trip Detail page. Invites use SkiTripParticipant model with INVITED/ACCEPTED/DECLINED status. Invited users can view trip details before accepting. Home page shows pending invites with Accept/Decline actions.
 - **Friends System:** Invitation-based, bidirectional friendships with dedicated profiles supporting token-based invites.
 - **Pass Selection:** Quick-select for Epic/Ikon, "Other passes" dropdown, or "I don't have a pass."
-- **Navigation:** Consistent 4-tab bottom navigation (Home, Friends, Invite, Settings).
+- **Navigation:** Consistent 5-tab bottom navigation (Trips, Friends, Invite, Profile, Feedback) with flexbox layout supporting dynamic item counts.
+- **Feedback System:** Users can submit suggestions via `/feedback` page. Emails sent to `ADMIN_FEEDBACK_EMAIL` via SendGrid. Requires `SENDGRID_API_KEY` secret. Admin email never exposed to frontend.
 - **Open Dates:** Users mark available ski dates for friend matching.
 - **Multi-Pass & International Resort Support:** `Resort` model includes `pass_brands`, `country`, and expanded `state` for international regions.
 - **Shared Interest Discovery:** Home screen card for overlapping wishlist resorts.
