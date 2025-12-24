@@ -603,8 +603,9 @@
         const statesByCountry = {{ states_by_country|tojson }};
         const userPasses = {{ (user_passes or [])|tojson }};
         const isEditMode = {{ 'true' if trip else 'false' }};
-        const existingTripState = {{ ("'" + trip.resort.state + "'") if trip and trip.resort else 'null' }};
+        const existingTripState = {{ ("'" + (trip.resort.state if trip.resort else trip.state) + "'") if trip and (trip.resort or trip.state) else 'null' }};
         const existingTripResortId = {{ trip.resort_id if trip and trip.resort_id else 'null' }};
+        const existingTripCountry = {{ ("'" + (trip.resort.country if trip.resort else 'US') + "'") if trip else 'null' }};
         
         const countrySelect = document.getElementById('country');
         const stateSelect = document.getElementById('state');
@@ -912,6 +913,11 @@
         });
         
         function initializeForm() {
+            // In edit mode, ensure country is set first
+            if (isEditMode && existingTripCountry) {
+                countrySelect.value = existingTripCountry;
+            }
+            
             const selectedCountry = countrySelect.value;
             const states = statesByCountry[selectedCountry] || [];
             
