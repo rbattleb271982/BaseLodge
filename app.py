@@ -374,6 +374,22 @@ ALL_US_STATES = [
     ("WI", "Wisconsin"), ("WY", "Wyoming")
 ]
 
+ALL_CANADA_PROVINCES = [
+    ("AB", "Alberta"), ("BC", "British Columbia"), ("MB", "Manitoba"),
+    ("NB", "New Brunswick"), ("NL", "Newfoundland and Labrador"), ("NS", "Nova Scotia"),
+    ("NT", "Northwest Territories"), ("NU", "Nunavut"), ("ON", "Ontario"),
+    ("PE", "Prince Edward Island"), ("QC", "Quebec"), ("SK", "Saskatchewan"), ("YT", "Yukon")
+]
+
+def get_grouped_locations():
+    """Get locations grouped by country for the unified location selector.
+    Returns dict with country names as keys and sorted list of (code, name) tuples as values.
+    """
+    return {
+        "United States": sorted(ALL_US_STATES, key=lambda x: x[1]),
+        "Canada": sorted(ALL_CANADA_PROVINCES, key=lambda x: x[1])
+    }
+
 def get_states_with_resorts():
     """Get list of (state_abbr, state_name) tuples for states that have resorts, sorted by name."""
     states = db.session.query(Resort.state).filter(Resort.is_active == True).distinct().all()
@@ -686,10 +702,10 @@ def location_setup():
             return redirect(next_url)
         return redirect(url_for("home"))
     
-    # Get all US states for dropdown
-    states = [(code, name) for code, name in sorted(STATE_ABBR.items(), key=lambda x: x[1])]
+    # Get grouped locations for the unified selector
+    grouped_locations = get_grouped_locations()
     
-    return render_template("location_setup.html", states=states)
+    return render_template("location_setup.html", grouped_locations=grouped_locations)
 
 
 def _connect_pending_inviter(user):
@@ -909,7 +925,7 @@ def edit_profile():
             resorts_by_state[resort.state] = []
         resorts_by_state[resort.state].append({"id": resort.id, "name": resort.name})
     
-    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=CANONICAL_PASSES, rider_types=RIDER_TYPES, all_states=ALL_US_STATES, primary_equipment=primary_equipment, secondary_equipment=secondary_equipment, resorts_by_state=resorts_by_state)
+    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=CANONICAL_PASSES, rider_types=RIDER_TYPES, all_states=ALL_US_STATES, primary_equipment=primary_equipment, secondary_equipment=secondary_equipment, resorts_by_state=resorts_by_state, grouped_locations=get_grouped_locations())
 
 @app.route("/my-trips")
 @login_required

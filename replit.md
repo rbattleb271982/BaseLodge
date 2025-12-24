@@ -45,8 +45,8 @@ The backend uses Flask, SQLAlchemy for ORM, and Werkzeug for password hashing. J
 - **Trip Invites:** Trip owners can invite connected friends from Trip Detail page. Invites use SkiTripParticipant model with INVITED/ACCEPTED/DECLINED status. Invited users can view trip details before accepting. Home page shows pending invites with Accept/Decline actions.
 - **Friends System:** Invitation-based, bidirectional friendships with dedicated profiles supporting token-based invites.
 - **Pass Selection:** Quick-select for Epic/Ikon, "Other passes" dropdown, or "I don't have a pass."
-- **Navigation:** Consistent 5-tab bottom navigation (Trips, Friends, Invite, Profile, Feedback) with flexbox layout supporting dynamic item counts.
-- **Feedback System:** Users can submit suggestions via `/feedback` page. Emails sent to `ADMIN_FEEDBACK_EMAIL` via SendGrid. Requires `SENDGRID_API_KEY` secret. Admin email never exposed to frontend.
+- **Navigation:** Consistent 4-tab bottom navigation (Trips, Friends, Invite, Profile) with flexbox layout.
+- **Location Selector:** Unified typeahead component for all state/province selection. Options grouped by country (United States, Canada), alphabetically sorted. Supports keyboard navigation, mouse, and touch. Shared via `components/location_selector.html`.
 - **Open Dates:** Users mark available ski dates for friend matching.
 - **Multi-Pass & International Resort Support:** `Resort` model includes `pass_brands`, `country`, and expanded `state` for international regions.
 - **Shared Interest Discovery:** Home screen card for overlapping wishlist resorts.

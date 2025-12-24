@@ -298,13 +298,26 @@
         <h3 class="section-title">About You</h3>
         
         <div class="form-row">
-            <label>Home State</label>
-            <select name="home_state" id="home-state-select">
-                <option value="">Select</option>
-                {% for abbr, name in all_states %}
-                <option value="{{ abbr }}" {% if current_user.home_state == abbr %}selected{% endif %}>{{ name }}</option>
-                {% endfor %}
-            </select>
+            <label>Home State / Province</label>
+            {% include 'components/location_selector.html' %}
+            <div class="bl-location-selector" id="home-state-selector">
+                <input type="text" class="bl-location-input" placeholder="Type to search..." autocomplete="off" {% if current_user.home_state %}value="{{ current_user.home_state }}"{% endif %}>
+                <input type="hidden" name="home_state_selector" id="home-state-hidden" value="{{ current_user.home_state or '' }}">
+                <span class="bl-location-chevron">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                        <path d="M2.5 4.5L6 8l3.5-3.5"/>
+                    </svg>
+                </span>
+                <div class="bl-location-dropdown">
+                    {% for country, locations in grouped_locations.items() %}
+                    <div class="bl-location-group-header" data-group="{{ country }}">{{ country }}</div>
+                    {% for code, name in locations %}
+                    <div class="bl-location-option" data-value="{{ code }}" data-group="{{ country }}">{{ name }}</div>
+                    {% endfor %}
+                    {% endfor %}
+                    <div class="bl-location-no-results">No matches found</div>
+                </div>
+            </div>
         </div>
         
         <div class="form-row">
@@ -492,12 +505,12 @@ function updateResortOptions(stateAbbr, currentResortId) {
 
 // Validate home resort matches home state on page load
 (function validateHomeResort() {
-    const homeStateSelect = document.getElementById('home-state-select');
+    const homeStateHidden = document.getElementById('home-state-hidden');
     const homeResortSelect = document.getElementById('home_resort_id');
     const homeResortHidden = document.getElementById('home_resort_id_hidden');
     
-    const currentState = homeStateSelect.value;
-    const currentResortId = homeResortHidden.value;
+    const currentState = homeStateHidden ? homeStateHidden.value : '';
+    const currentResortId = homeResortHidden ? homeResortHidden.value : '';
     
     if (currentState && currentResortId) {
         const validResorts = resortsByState[currentState] || [];
@@ -505,23 +518,41 @@ function updateResortOptions(stateAbbr, currentResortId) {
         if (!isValid) {
             // Mismatch detected - clear the resort
             homeResortHidden.value = '';
-            homeResortSelect.value = '';
+            if (homeResortSelect) homeResortSelect.value = '';
         }
     }
 })();
 
-document.getElementById('home-state-select').addEventListener('change', function() {
-    document.getElementById('home_state').value = this.value;
-    const homeResortSelect = document.getElementById('home_resort_id');
-    if (this.value) {
-        updateResortOptions(this.value, '');
-        document.getElementById('home_resort_id_hidden').value = '';
-    } else {
-        homeResortSelect.disabled = true;
-        homeResortSelect.innerHTML = '<option value="">Select your home state first</option>';
-        document.getElementById('home_resort_id_hidden').value = '';
+// Initialize location selector with callback for home_resort cascade
+(function() {
+    const container = document.getElementById('home-state-selector');
+    if (container) {
+        const selector = new LocationSelector(container, {
+            onChange: function(value, text) {
+                document.getElementById('home_state').value = value;
+                const homeResortSelect = document.getElementById('home_resort_id');
+                if (value) {
+                    updateResortOptions(value, '');
+                    document.getElementById('home_resort_id_hidden').value = '';
+                } else {
+                    homeResortSelect.disabled = true;
+                    homeResortSelect.innerHTML = '<option value="">Select your home state first</option>';
+                    document.getElementById('home_resort_id_hidden').value = '';
+                }
+            }
+        });
+        container.dataset.initialized = 'true';
+        
+        // Set initial display value from the selected option
+        const currentValue = document.getElementById('home-state-hidden').value;
+        if (currentValue) {
+            const option = container.querySelector(`[data-value="${currentValue}"]`);
+            if (option) {
+                container.querySelector('.bl-location-input').value = option.textContent.trim();
+            }
+        }
     }
-});
+})();
 
 // Initialize pass_type_hidden with existing checked values on page load
 (function() {
