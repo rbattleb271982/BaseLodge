@@ -1,0 +1,87 @@
+PUT THIS IN AGENT
+
+Critical Bug:
+On the Edit Trip screen, users cannot re-select Country, State/Region, Resort, or Trip Dates. The State and Resort fields remain disabled and the calendar does not re-render when editing an existing trip. This is caused by form state being initialized only for “create” mode and not re-hydrated for “edit” mode.
+
+Goal:
+Ensure the Trip Create/Edit form fully supports re-editing all fields every time. Country, State, Resort, and Calendar must always be interactive and correctly populated when editing an existing trip.
+
+Root Cause (to fix):
+- Dependent dropdowns (State → Resort) are only enabled via onChange handlers
+- Existing trip values are rendered visually but not injected into form state
+- Calendar component initializes only on first mount and does not re-bind when dates already exist
+
+Permanent Fix – Required Changes:
+
+1. Explicitly detect EDIT MODE
+In the trip form JS, determine edit mode using:
+- Presence of trip.id OR
+- Presence of existing trip data passed from backend
+
+Create a boolean:
+isEditMode = true if trip data exists
+
+2. Re-hydrate form state on load (NOT on user interaction)
+On page load (DOMContentLoaded or equivalent):
+
+- Set countrySelect.value = trip.country
+- Set stateSelect.value = trip.state
+- Enable stateSelect if country exists
+- Populate state options immediately (do NOT wait for country change event)
+
+- Set resortSelect.value = trip.resort_id
+- Enable resortSelect if state exists
+- Populate resort options immediately (do NOT wait for state change event)
+
+This logic MUST run once on load when isEditMode === true.
+
+3. Decouple enable/disable logic from onChange only
+Currently:
+- State is enabled only when country changes
+- Resort is enabled only when state changes
+
+Fix:
+- Enable State if country has ANY value (including initial trip value)
+- Enable Resort if state has ANY value (including initial trip value)
+
+Never rely solely on onChange to enable dependent fields.
+
+4. Calendar – force re-render with existing dates
+When editing a trip with start_date / end_date:
+
+- Explicitly pass existing dates into calendar initialization
+- Do NOT short-circuit calendar rendering because dates already exist
+- If calendar uses internal state, destroy and re-init on edit load
+
+Example logic (conceptual):
+if (isEditMode && trip.start_date && trip.end_date) {
+  calendar.init({
+    startDate: trip.start_date,
+    endDate: trip.end_date,
+    editable: true
+  })
+}
+
+Calendar must always render days + navigation arrows regardless of mode.
+
+5. Remove any “disabled” attributes set server-side
+- Do NOT render disabled State or Resort fields from HTML
+- All disabling/enabling must be controlled client-side based on values
+
+6. Validation (must all pass):
+- User can re-select Country
+- Changing Country resets State and Resort correctly
+- User can re-select State
+- Resort list re-populates immediately
+- Calendar always renders and allows date changes
+- Works on both Create Trip and Edit Trip
+- Works on mobile Safari
+
+Do NOT:
+- Do NOT add new fields
+- Do NOT change database schema
+- Do NOT fork separate create/edit templates
+- Do NOT rely on page refreshes or hacks
+
+Deliverable:
+Trip Create/Edit form behaves identically every time. No locked fields. No missing calendar. Bug is permanently resolved.

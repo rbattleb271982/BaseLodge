@@ -460,7 +460,7 @@
 
                 <div class="form-group">
                     <label for="state">State / Region</label>
-                    <select id="state" name="state" required onchange="updateResorts()" disabled>
+                    <select id="state" name="state" required onchange="updateResorts()">
                         <option value="">Choose a state...</option>
                     </select>
                 </div>
@@ -468,8 +468,8 @@
                 <div class="form-group">
                     <label for="resort_id">Resort</label>
                     <div class="resort-search-wrapper">
-                        <input type="text" id="resort_search" class="resort-search" placeholder="Search resorts..." oninput="filterResorts()" disabled>
-                        <select id="resort_id" name="resort_id" required disabled>
+                        <input type="text" id="resort_search" class="resort-search" placeholder="Search resorts..." oninput="filterResorts()">
+                        <select id="resort_id" name="resort_id" required>
                             <option value="">Select a state first</option>
                         </select>
                     </div>
@@ -790,6 +790,7 @@
         }
 
         function updateStates() {
+            // Called when user changes country - reset state and resort selections
             const selectedCountry = countrySelect.value;
             const states = statesByCountry[selectedCountry] || [];
             
@@ -798,22 +799,17 @@
                 const option = document.createElement('option');
                 option.value = code;
                 option.textContent = name;
-                if (existingTripState === code) {
-                    option.selected = true;
-                }
                 stateSelect.appendChild(option);
             });
             
             stateSelect.disabled = states.length === 0;
             
-            if (stateSelect.value) {
-                updateResorts();
-            } else {
-                resortSelect.disabled = true;
-                resortSelect.innerHTML = '<option value="">Select a state first</option>';
-                resortSearchInput.disabled = true;
-                resortSearchInput.value = '';
-            }
+            // Reset resort when country changes
+            resortSelect.disabled = true;
+            resortSelect.innerHTML = '<option value="">Select a state first</option>';
+            resortSearchInput.disabled = true;
+            resortSearchInput.value = '';
+            currentStateResorts = [];
         }
 
         function updateResorts() {
@@ -845,14 +841,16 @@
         }
         
         function renderResortOptions(resortsToRender) {
+            // Called when user changes state - don't auto-select existing resort
             resortSelect.innerHTML = '<option value="">Select a resort</option>';
             resortsToRender.forEach(r => {
                 const option = document.createElement('option');
                 option.value = r.id;
                 option.textContent = r.name;
-                if (existingTripResortId === r.id) {
-                    option.selected = true;
+                if (isPassCompatible(r)) {
+                    option.textContent += ' ✓';
                 }
+                option.dataset.search = r.name.toLowerCase();
                 resortSelect.appendChild(option);
             });
         }
@@ -898,11 +896,8 @@
         }
         
         document.addEventListener('DOMContentLoaded', function() {
-            updateStates();
-            
-            if (stateSelect.value) {
-                updateResorts();
-            }
+            // Initialize form - handles both create and edit mode
+            initializeForm();
             
             // Initialize calendar to show month of selected start date or current month
             if (selectedStartDate) {
@@ -915,6 +910,70 @@
             // Initialize accommodation link visibility
             toggleAccommodationLink();
         });
+        
+        function initializeForm() {
+            const selectedCountry = countrySelect.value;
+            const states = statesByCountry[selectedCountry] || [];
+            
+            // Populate state dropdown
+            stateSelect.innerHTML = '<option value="">Choose a state...</option>';
+            states.forEach(([code, name]) => {
+                const option = document.createElement('option');
+                option.value = code;
+                option.textContent = name;
+                stateSelect.appendChild(option);
+            });
+            
+            // Enable/disable state based on whether we have states
+            stateSelect.disabled = states.length === 0;
+            
+            // In edit mode, pre-select the state
+            if (isEditMode && existingTripState) {
+                stateSelect.value = existingTripState;
+            }
+            
+            // If state is selected (edit mode or prefill), populate and enable resorts
+            if (stateSelect.value) {
+                const selectedState = stateSelect.value;
+                currentStateResorts = resorts.filter(r => r.state === selectedState && r.country === selectedCountry);
+                currentStateResorts.sort((a, b) => {
+                    const aCompat = isPassCompatible(a);
+                    const bCompat = isPassCompatible(b);
+                    if (aCompat !== bCompat) return bCompat - aCompat;
+                    return a.name.localeCompare(b.name);
+                });
+                
+                resortSelect.innerHTML = '<option value="">Select a resort</option>';
+                currentStateResorts.forEach(resort => {
+                    const option = document.createElement('option');
+                    option.value = resort.id;
+                    option.textContent = resort.name;
+                    option.dataset.search = resort.name.toLowerCase();
+                    if (isPassCompatible(resort)) {
+                        option.textContent += ' ✓';
+                    }
+                    resortSelect.appendChild(option);
+                });
+                
+                resortSelect.disabled = false;
+                resortSearchInput.disabled = false;
+                
+                // In edit mode, pre-select the resort
+                if (isEditMode && existingTripResortId) {
+                    resortSelect.value = existingTripResortId;
+                    // Set the search input to show resort name
+                    const selectedOption = resortSelect.options[resortSelect.selectedIndex];
+                    if (selectedOption && selectedOption.value !== "") {
+                        resortSearchInput.value = selectedOption.text.replace(' ✓', '');
+                    }
+                }
+            } else {
+                resortSelect.disabled = true;
+                resortSelect.innerHTML = '<option value="">Select a state first</option>';
+                resortSearchInput.disabled = true;
+                resortSearchInput.value = '';
+            }
+        }
         
         // Form validation - require complete date range
         if (form) {
