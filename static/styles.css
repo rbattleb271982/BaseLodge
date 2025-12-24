@@ -18,6 +18,7 @@
   --bl-color-success: #3E7E3F;
   --bl-color-error: #C62828;
   --bl-shadow-soft: 0 2px 6px rgba(0,0,0,0.06);
+  --bl-shadow-card: 0 8px 24px rgba(0,0,0,0.12);
 
   --bl-space-2: 4px;
   --bl-space-3: 6px;
@@ -30,6 +31,25 @@
   --bl-radius-sm: 6px;
   --bl-radius-md: 16px;
   --bl-radius-lg: 20px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bl-color-primary: #FF6B7A;
+    --bl-color-primary-soft: #FF8A95;
+    --bl-color-primary-hover: #FF4D5E;
+    --bl-color-bg: #0E1114;
+    --bl-color-surface: #1C2127;
+    --bl-color-border-soft: #2A313A;
+    --bl-color-border: #3A424D;
+    --bl-color-text: #F5F7FA;
+    --bl-color-text-muted: #B3BCC7;
+    --bl-color-accent-blue: #1E3A5F;
+    --bl-color-success: #4CAF8E;
+    --bl-color-error: #E26D5C;
+    --bl-shadow-soft: 0 2px 6px rgba(0,0,0,0.35);
+    --bl-shadow-card: 0 8px 24px rgba(0,0,0,0.55);
+  }
 }
 
 body {
@@ -61,8 +81,8 @@ body {
 }
 
 .bl-btn-primary:hover {
-  background: #720115;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  background: var(--bl-color-primary-hover);
+  box-shadow: var(--bl-shadow-soft);
 }
 
 .bl-btn-primary:disabled {
@@ -71,7 +91,7 @@ body {
 }
 
 .bl-btn-secondary {
-  background: white;
+  background: var(--bl-color-surface);
   color: var(--bl-color-text);
   border: 1px solid var(--bl-color-border);
   border-radius: var(--bl-radius-lg);
@@ -125,7 +145,7 @@ body {
 }
 
 .bl-chip {
-  background: white;
+  background: var(--bl-color-surface);
   border: 1px solid var(--bl-color-border);
   border-radius: 999px;
   padding: 4px 10px;
@@ -380,7 +400,7 @@ textarea:focus {
   justify-content: space-between;
   align-items: center;
   padding: 14px 16px;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid var(--bl-color-border-soft);
   text-decoration: none;
   color: inherit;
   transition: background 0.2s ease;
@@ -396,17 +416,17 @@ textarea:focus {
 
 .settings-label {
   font-weight: 500;
-  color: #222;
+  color: var(--bl-color-text);
 }
 
 .settings-value {
-  color: #666;
+  color: var(--bl-color-text-muted);
   margin-right: 8px;
   font-size: 14px;
 }
 
 .settings-chevron {
-  color: #999;
+  color: var(--bl-color-text-muted);
   font-size: 18px;
 }
 
@@ -416,7 +436,7 @@ textarea:focus {
 
 .profile-stats {
   font-size: 0.9rem;
-  color: #555;
+  color: var(--bl-color-text-muted);
   margin-bottom: 16px;
   padding: 12px;
   background: var(--bl-color-bg);
@@ -433,10 +453,10 @@ textarea:focus {
 
 .settings-section {
   border-radius: 12px;
-  background: #fff;
+  background: var(--bl-color-surface);
   padding: 8px 0;
   margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: var(--bl-shadow-soft);
 }
 
 .settings-section-title {
@@ -453,7 +473,7 @@ textarea:focus {
   padding: 12px 16px;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--bl-color-border-soft);
 }
 
 .settings-row:last-child {
@@ -474,7 +494,7 @@ textarea:focus {
 
 .settings-value {
   font-size: 0.95rem;
-  color: #555;
+  color: var(--bl-color-text-muted);
   text-align: right;
   white-space: nowrap;
   overflow: hidden;
@@ -526,7 +546,7 @@ textarea:focus {
 }
 
 .chip:hover {
-  background: #f0f0f0;
+  background: var(--bl-color-border-soft);
 }
 
 .chip.selected {
@@ -591,8 +611,8 @@ textarea:focus {
 }
 
 .bl-button-primary:hover {
-  background: #720115;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  background: var(--bl-color-primary-hover);
+  box-shadow: var(--bl-shadow-soft);
 }
 
 .bl-button-primary:disabled {
@@ -606,7 +626,7 @@ textarea:focus {
   justify-content: space-between;
   align-items: center;
   padding: 14px 4px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--bl-color-border-soft);
 }
 
 .friend-row:last-child {
@@ -616,12 +636,12 @@ textarea:focus {
 .friend-name {
   font-weight: 600;
   font-size: 16px;
-  color: #222;
+  color: var(--bl-color-text);
 }
 
 .friend-meta {
   font-size: 14px;
-  color: #777;
+  color: var(--bl-color-text-muted);
   text-align: right;
   min-width: 40%;
 }
@@ -646,15 +666,15 @@ textarea:focus {
 .filter-btn {
   padding: 6px 12px;
   border-radius: 20px;
-  background: #f1f1f1;
-  color: #444;
+  background: var(--bl-color-bg);
+  color: var(--bl-color-text-muted);
   font-size: 14px;
   text-decoration: none;
   transition: all 0.2s ease;
 }
 
 .filter-btn:hover {
-  background: #e5e5e5;
+  background: var(--bl-color-border-soft);
 }
 
 .filter-btn.active {
@@ -666,13 +686,13 @@ textarea:focus {
 .friend-trip-row {
   display: block;
   padding: 14px 6px;
-  border-bottom: 1px solid #eee;
-  color: #000;
+  border-bottom: 1px solid var(--bl-color-border-soft);
+  color: var(--bl-color-text);
   text-decoration: none;
 }
 
 .friend-trip-row:hover {
-  background: #fafafa;
+  background: var(--bl-color-bg);
 }
 
 .friend-trip-row:last-child {
@@ -687,15 +707,15 @@ textarea:focus {
 
 .friend-trip-location {
   font-size: 14px;
-  color: #666;
+  color: var(--bl-color-text-muted);
 }
 
 /* Trip Detail Card Styles */
 .trip-detail-card {
-  background: #fff;
+  background: var(--bl-color-surface);
   padding: var(--bl-space-6);
   border-radius: var(--bl-radius-lg);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  box-shadow: var(--bl-shadow-soft);
 }
 
 .trip-detail-row {
@@ -777,7 +797,7 @@ textarea:focus {
 
 .bl-tab-divider {
   width: 1px;
-  background-color: #D8D3CC;
+  background-color: var(--bl-color-border);
   align-self: stretch;
   margin: 8px 0;
 }
@@ -898,7 +918,7 @@ textarea:focus {
   width: 40px;
   height: 40px;
   border-radius: 999px;
-  background-color: #F7F4EF;
+  background-color: var(--bl-color-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1015,7 +1035,7 @@ textarea:focus {
 .profile-pill {
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(0,0,0,0.06);
+  background: var(--bl-color-border-soft);
   font-weight: 600;
   font-size: 15px;
 }
@@ -1032,13 +1052,14 @@ textarea:focus {
 }
 
 .profile-identity-label {
-  color: #6b7280;
+  color: var(--bl-color-text-muted);
   font-weight: 600;
 }
 
 .profile-identity-sep {
   margin: 0 8px;
-  color: rgba(107,114,128,0.6);
+  color: var(--bl-color-text-muted);
+  opacity: 0.6;
 }
 
 .profile-identity-value {
@@ -1047,6 +1068,6 @@ textarea:focus {
 
 .profile-card-divider {
   height: 1px;
-  background: rgba(0,0,0,0.06);
+  background: var(--bl-color-border-soft);
   margin: 14px 0;
 }
