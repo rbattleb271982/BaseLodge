@@ -609,32 +609,32 @@ class SkiTripParticipant(db.Model):
     )
     
     def get_display_transportation(self):
-        """Get transportation status for display."""
+        """Get transportation status for display with labeled fallback."""
         if self.transportation_status:
             labels = {
                 ParticipantTransportation.DRIVING: "Driving",
                 ParticipantTransportation.FLYING: "Flying",
                 ParticipantTransportation.TRAIN_BUS: "Train / Bus",
-                ParticipantTransportation.TBD: "TBD",
+                ParticipantTransportation.TBD: "Ride: Not set",
             }
-            return labels.get(self.transportation_status, "TBD")
-        return "TBD"
+            return labels.get(self.transportation_status, "Ride: Not set")
+        return "Ride: Not set"
     
     def get_display_equipment(self):
         """Get equipment status for display with fallback to profile."""
         if self.equipment_status:
             labels = {
-                ParticipantEquipment.OWN: "Has own equipment",
+                ParticipantEquipment.OWN: "Bringing own",
                 ParticipantEquipment.RENTING: "Renting",
-                ParticipantEquipment.NEEDS_RENTALS: "Needs rentals",
+                ParticipantEquipment.NEEDS_RENTALS: "Renting",
             }
-            return labels.get(self.equipment_status, "TBD")
+            return labels.get(self.equipment_status, "Equipment: Not set")
         if self.user and self.user.equipment_status:
             if self.user.equipment_status == EquipmentStatus.HAVE_OWN_EQUIPMENT:
-                return "Has own equipment"
+                return "Bringing own"
             elif self.user.equipment_status == EquipmentStatus.NEEDS_RENTALS:
-                return "Needs rentals"
-        return "TBD"
+                return "Renting"
+        return "Equipment: Not set"
     
     def __repr__(self):
         return f'<SkiTripParticipant trip={self.trip_id} user={self.user_id} status={self.status.value}>'

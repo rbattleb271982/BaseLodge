@@ -493,19 +493,16 @@
                 <span class="group-signals-item">Train / Bus: <strong>{{ trans.train_bus }}</strong></span>
                 {% endif %}
                 {% if trans.get('tbd', 0) > 0 %}
-                <span class="group-signals-item">TBD: <strong>{{ trans.tbd }}</strong></span>
+                <span class="group-signals-item">Ride not set: <strong>{{ trans.tbd }}</strong></span>
                 {% endif %}
             </div>
             {% if has_equip %}
             <div class="group-signals-row" style="margin-top: 6px;">
                 {% if equip.get('own', 0) > 0 %}
-                <span class="group-signals-item">Has own equipment: <strong>{{ equip.own }}</strong></span>
+                <span class="group-signals-item">Bringing own: <strong>{{ equip.own }}</strong></span>
                 {% endif %}
-                {% if equip.get('renting', 0) > 0 %}
-                <span class="group-signals-item">Renting: <strong>{{ equip.renting }}</strong></span>
-                {% endif %}
-                {% if equip.get('needs_rentals', 0) > 0 %}
-                <span class="group-signals-item">Needs rentals: <strong>{{ equip.needs_rentals }}</strong></span>
+                {% if equip.get('renting', 0) + equip.get('needs_rentals', 0) > 0 %}
+                <span class="group-signals-item">Renting: <strong>{{ equip.get('renting', 0) + equip.get('needs_rentals', 0) }}</strong></span>
                 {% endif %}
             </div>
             {% endif %}
@@ -748,13 +745,12 @@
             { value: 'driving', label: 'Driving' },
             { value: 'flying', label: 'Flying' },
             { value: 'train_bus', label: 'Train / Bus' },
-            { value: 'tbd', label: 'TBD' }
+            { value: 'tbd', label: 'Not set' }
         ];
         
         const equipmentOptions = [
-            { value: 'own', label: 'Has own equipment' },
-            { value: 'renting', label: 'Renting' },
-            { value: 'needs_rentals', label: 'Needs rentals' }
+            { value: 'own', label: 'Bringing my own equipment' },
+            { value: 'renting', label: 'Renting equipment' }
         ];
         
         function openSignalPicker(type) {
