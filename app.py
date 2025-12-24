@@ -657,44 +657,27 @@ def identity_setup():
 @app.route("/location-setup", methods=["GET", "POST"])
 @login_required
 def location_setup():
-    """Location setup screen - step 2 of onboarding to collect home state and mountain."""
+    """Location setup screen - step 2 of onboarding to collect home state only."""
     user = current_user
     
     # If user hasn't completed identity setup, redirect back
     if not user.is_core_profile_complete:
         return redirect(url_for("identity_setup"))
     
-    # If user already has location, redirect to home
-    if user.home_state and (user.home_resort_id or user.home_mountain):
+    # If user already has home_state, redirect to home
+    if user.home_state:
         return redirect(url_for("home"))
     
     if request.method == "POST":
         home_state = request.form.get("home_state", "").strip()
-        home_mountain_id = request.form.get("home_mountain", "").strip()
         
-        # Validate required fields
+        # Validate required field
         if not home_state:
             flash("Please select your home state.", "error")
             return redirect(url_for("location_setup"))
         
-        if not home_mountain_id:
-            flash("Please select your home mountain.", "error")
-            return redirect(url_for("location_setup"))
-        
-        # Save location data
+        # Save home state
         user.home_state = home_state
-        
-        # Set home_resort_id and also home_mountain for backward compatibility
-        try:
-            resort_id = int(home_mountain_id)
-            resort = Resort.query.get(resort_id)
-            if resort:
-                user.home_resort_id = resort_id
-                user.home_mountain = resort.name  # Backward compatibility
-        except (ValueError, TypeError):
-            # If not a valid ID, treat as resort name (legacy)
-            user.home_mountain = home_mountain_id
-        
         db.session.commit()
         
         # Redirect to home - welcome modal will show
@@ -703,21 +686,10 @@ def location_setup():
             return redirect(next_url)
         return redirect(url_for("home"))
     
-    # Get resorts grouped by state for the dropdown
-    all_resorts = Resort.query.filter_by(country='US').order_by(Resort.name).all()
-    resorts_by_state = {}
-    for resort in all_resorts:
-        if resort.state not in resorts_by_state:
-            resorts_by_state[resort.state] = []
-        resorts_by_state[resort.state].append({
-            'id': resort.id,
-            'name': resort.name
-        })
+    # Get all US states for dropdown
+    states = [(code, name) for code, name in sorted(STATE_ABBR.items(), key=lambda x: x[1])]
     
-    # Get list of states that have resorts
-    states = [(code, STATE_ABBR.get(code, code)) for code in sorted(resorts_by_state.keys())]
-    
-    return render_template("location_setup.html", states=states, resorts_by_state=resorts_by_state)
+    return render_template("location_setup.html", states=states)
 
 
 def _connect_pending_inviter(user):
@@ -2222,9 +2194,8 @@ def home():
                     }
     
     # Welcome modal - shown once after FULL onboarding is complete:
-    # Requires: rider_types, pass_type, skill_level (core profile) PLUS home_state AND home_mountain
-    is_location_complete = bool(user.home_state and (user.home_resort_id or user.home_mountain))
-    is_onboarding_complete = user.is_core_profile_complete and is_location_complete
+    # Requires: rider_types, pass_type, skill_level (core profile) PLUS home_state
+    is_onboarding_complete = user.is_core_profile_complete and bool(user.home_state)
     show_welcome_screen = is_onboarding_complete and not user.welcome_modal_seen_at
     
     # Get pending trip invites for the user

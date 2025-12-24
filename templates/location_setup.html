@@ -128,49 +128,10 @@
                     </select>
                 </div>
                 
-                <div class="form-group">
-                    <label class="form-label">Home Mountain</label>
-                    <select name="home_mountain" id="home-mountain" class="form-select" required disabled>
-                        <option value="">Select your state first</option>
-                    </select>
-                </div>
-                
                 <button type="submit" class="bl-btn-primary form-submit">Continue</button>
             </form>
         </div>
     </div>
     
-    <script>
-        const resortsByState = {{ resorts_by_state | tojson | safe }};
-        const stateSelect = document.getElementById('home-state');
-        const mountainSelect = document.getElementById('home-mountain');
-        
-        stateSelect.addEventListener('change', function() {
-            const state = this.value;
-            mountainSelect.innerHTML = '';
-            
-            if (!state) {
-                mountainSelect.innerHTML = '<option value="">Select your state first</option>';
-                mountainSelect.disabled = true;
-                return;
-            }
-            
-            const resorts = resortsByState[state] || [];
-            if (resorts.length === 0) {
-                mountainSelect.innerHTML = '<option value="">No resorts found</option>';
-                mountainSelect.disabled = true;
-                return;
-            }
-            
-            mountainSelect.disabled = false;
-            mountainSelect.innerHTML = '<option value="">Select your home mountain</option>';
-            resorts.forEach(resort => {
-                const option = document.createElement('option');
-                option.value = resort.id;
-                option.textContent = resort.name;
-                mountainSelect.appendChild(option);
-            });
-        });
-    </script>
 </body>
 </html>
