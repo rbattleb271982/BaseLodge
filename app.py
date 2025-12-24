@@ -2393,6 +2393,65 @@ def friend_trip_details(trip_id):
         friends_open_on_trip=friends_open_on_trip
     )
 
+@app.route("/feedback", methods=["GET", "POST"])
+@login_required
+def feedback():
+    success = False
+    error = None
+    
+    if request.method == "POST":
+        feedback_text = request.form.get("feedback_text", "").strip()
+        
+        if not feedback_text:
+            error = "Please enter your feedback before submitting."
+        else:
+            admin_email = os.environ.get("ADMIN_FEEDBACK_EMAIL")
+            sendgrid_api_key = os.environ.get("SENDGRID_API_KEY")
+            
+            if not admin_email:
+                error = "Feedback system is not configured. Please try again later."
+            elif not sendgrid_api_key:
+                error = "Email service is not configured. Please try again later."
+            else:
+                try:
+                    import sendgrid
+                    from sendgrid.helpers.mail import Mail, Email, To, Content
+                    
+                    sg = sendgrid.SendGridAPIClient(api_key=sendgrid_api_key)
+                    
+                    from_email = Email("feedback@baselodge.app")
+                    to_email = To(admin_email)
+                    subject = "New BaseLodge Feedback"
+                    
+                    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+                    body = f"""New feedback received from BaseLodge:
+
+Feedback:
+{feedback_text}
+
+---
+User Details:
+- Name: {current_user.first_name} {current_user.last_name}
+- Email: {current_user.email}
+- User ID: {current_user.id}
+- Submitted: {timestamp}
+"""
+                    content = Content("text/plain", body)
+                    mail = Mail(from_email, to_email, subject, content)
+                    
+                    response = sg.client.mail.send.post(request_body=mail.get())
+                    
+                    if response.status_code in [200, 201, 202]:
+                        success = True
+                    else:
+                        error = "Failed to send feedback. Please try again later."
+                        
+                except Exception as e:
+                    print(f"Feedback email error: {e}")
+                    error = "Failed to send feedback. Please try again later."
+    
+    return render_template("feedback.html", success=success, error=error)
+
 @app.route("/more")
 @login_required
 def more():

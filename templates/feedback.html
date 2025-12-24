@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Feedback{% endblock %}
+
+{% block content %}
+<div class="page-container" style="padding-bottom: 80px;">
+  <div class="bl-header">
+    <a href="{{ url_for('home') }}">BaseLodge</a>
+  </div>
+  
+  <h1 class="page-title">Feedback</h1>
+  
+  <p class="bl-text-secondary" style="margin-bottom: var(--bl-space-6); line-height: 1.5;">
+    We're always working on new ideas and improvements.
+    Some things are still a work in progress — and that's intentional.
+    If you have a suggestion or notice something that could be better, we'd love to hear it.
+  </p>
+  
+  {% if success %}
+  <div class="bl-flash bl-flash-success" style="margin-bottom: var(--bl-space-6);">
+    Thanks — your feedback has been sent.
+  </div>
+  {% endif %}
+  
+  {% if error %}
+  <div class="bl-flash bl-flash-error" style="margin-bottom: var(--bl-space-6);">
+    {{ error }}
+  </div>
+  {% endif %}
+  
+  {% if not success %}
+  <form method="POST" action="{{ url_for('feedback') }}">
+    <div class="bl-form-group" style="margin-bottom: var(--bl-space-6);">
+      <label class="bl-label" for="feedback_text">Your feedback</label>
+      <textarea 
+        id="feedback_text" 
+        name="feedback_text" 
+        class="bl-textarea" 
+        rows="6" 
+        placeholder="Share an idea, suggestion, or something we could improve..."
+        required
+        style="width: 100%; resize: vertical;"
+      ></textarea>
+    </div>
+    
+    <button type="submit" class="bl-btn bl-btn-primary" style="width: 100%;">
+      Send feedback
+    </button>
+  </form>
+  {% endif %}
+</div>
+
+{% include 'components/bottom_nav.html' %}
+{% endblock %}
