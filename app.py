@@ -2907,14 +2907,19 @@ def add_trip():
             )
 
     # GET - render the add trip form
+    countries_data = get_countries_with_resorts()
+    states_data = get_states_by_country()
+    print(f"[DEBUG add_trip GET] countries_with_resorts count: {len(countries_data)}, data: {countries_data}")
+    print(f"[DEBUG add_trip GET] states_by_country keys: {list(states_data.keys()) if states_data else 'EMPTY'}")
+    print(f"[DEBUG add_trip GET] resorts count: {len(resorts)}")
     
     return render_template(
         "add_trip.html",
         trip=None,
         resorts=resorts,
         states_with_resorts=get_states_with_resorts(),
-        countries_with_resorts=get_countries_with_resorts(),
-        states_by_country=get_states_by_country(),
+        countries_with_resorts=countries_data,
+        states_by_country=states_data,
         user=current_user,
         form_action=url_for("add_trip"),
         default_state=default_state,
@@ -4048,6 +4053,22 @@ def force_create_base_users():
         created["jonathan"] = "already existed"
 
     return {"status": "success", "result": created}
+
+@app.route("/debug/trip-form-data")
+def debug_trip_form_data():
+    """Debug endpoint to verify trip form data."""
+    countries = get_countries_with_resorts()
+    states = get_states_by_country()
+    resorts_objs = Resort.query.filter_by(is_active=True).limit(10).all()
+    resorts_sample = [{"id": r.id, "name": r.name, "state": r.state, "country": r.country} for r in resorts_objs]
+    return {
+        "countries_with_resorts": countries,
+        "countries_count": len(countries),
+        "states_by_country_keys": list(states.keys()) if states else [],
+        "states_by_country_US": states.get("US", [])[:5] if states else [],
+        "resorts_sample": resorts_sample,
+        "resort_count": Resort.query.filter_by(is_active=True).count()
+    }
 
 @app.route("/force-reset-passwords")
 def force_reset_passwords():

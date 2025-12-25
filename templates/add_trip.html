@@ -472,6 +472,7 @@
                 
                 <div class="form-group">
                     <label for="country">Country</label>
+                    <!-- DEBUG: countries_with_resorts count = {{ countries_with_resorts|length if countries_with_resorts else 'NONE' }} -->
                     <select id="country" name="country" required>
                         {% for country_code, country_name in countries_with_resorts %}
                         <option value="{{ country_code }}" {% if (trip and trip.resort and trip.resort.country == country_code) or (not trip and ((default_country and default_country == country_code) or (not default_country and country_code == 'US'))) %}selected{% endif %}>{{ country_name }}</option>
