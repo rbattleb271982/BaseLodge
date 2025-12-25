@@ -1,0 +1,71 @@
+PUT THIS IN AGENT
+
+GOAL
+Fix dark-mode rendering issues for the Country and State / Province / Region dropdowns on:
+- /settings/visited (Mountains I’ve Visited)
+- /settings/wishlist (Wishlist Destinations)
+
+This is a VISUAL / CSS-ONLY fix.
+Filtering logic is already correct and must NOT be changed.
+
+CRITICAL CONSTRAINTS
+- DO NOT modify:
+  - My Trips tab
+  - Trip creation or editing
+  - Any trip-related templates, routes, or JS
+- DO NOT change filtering behavior or JS logic
+- Scope CSS changes ONLY to the visited and wishlist settings screens
+
+CURRENT ISSUE
+In dark mode:
+- Country dropdown appears disabled due to low contrast
+- Region dropdown (disabled state) uses opacity, making text unreadable
+- Dropdown styles are visually inconsistent and confusing
+
+DESIRED DARK-MODE BEHAVIOR
+1) Enabled dropdowns:
+   - Solid dark background
+   - High-contrast white text
+   - Clear tappable affordance
+
+2) Disabled dropdown (Region before country selection):
+   - Slightly darker background
+   - Muted but readable text
+   - NO opacity-based dimming
+
+3) Both dropdowns must:
+   - Match in height, border radius, and visual weight
+   - Look intentional and usable in dark mode
+
+IMPLEMENTATION REQUIREMENTS
+- Use CSS only (no JS changes)
+- Do NOT rely on opacity for disabled states
+- Use dark-mode–appropriate colors (iOS-style dark surfaces preferred)
+- Scope selectors so changes ONLY affect:
+  - /settings/visited
+  - /settings/wishlist
+
+REFERENCE STYLING (GUIDANCE, NOT GLOBAL)
+.dark select {
+  background-color: #1c1c1e;
+  color: #ffffff;
+  border: 1px solid #2c2c2e;
+}
+
+.dark select:disabled {
+  background-color: #141416;
+  color: #6e6e73;
+  border-color: #2c2c2e;
+  opacity: 1;
+}
+
+VALIDATION CHECKLIST (MUST PASS)
+- “All countries” looks enabled and tappable in dark mode
+- Disabled Region dropdown is readable (not washed out)
+- Visual hierarchy is clear: Country → Region → Search
+- No changes to My Trips or any trip-related UI
+- Behavior identical in dev and prod
+
+DO NOT add new features.
+DO NOT refactor unrelated styles.
+Fix the rendering cleanly and stop.
