@@ -6370,6 +6370,7 @@ def fix_seeded_users():
 def backfill_country_codes():
     """
     Backfill country_code and state_code for resorts based on state field.
+    v2 - Updated 2025-12-25
     
     Usage: GET https://yourapp.replit.dev/admin/backfill-country-codes
     
