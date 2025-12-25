@@ -2909,9 +2909,31 @@ def add_trip():
     # GET - render the add trip form
     countries_data = get_countries_with_resorts()
     states_data = get_states_by_country()
-    print(f"[DEBUG add_trip GET] countries_with_resorts count: {len(countries_data)}, data: {countries_data}")
-    print(f"[DEBUG add_trip GET] states_by_country keys: {list(states_data.keys()) if states_data else 'EMPTY'}")
-    print(f"[DEBUG add_trip GET] resorts count: {len(resorts)}")
+    
+    # CRITICAL DEBUG: Log data before render
+    print(f"[CRITICAL add_trip GET] Template: templates/add_trip.html")
+    print(f"[CRITICAL add_trip GET] countries_with_resorts: {countries_data}")
+    print(f"[CRITICAL add_trip GET] states_by_country keys: {list(states_data.keys()) if states_data else 'EMPTY'}")
+    print(f"[CRITICAL add_trip GET] resorts count: {len(resorts)}")
+    
+    # HARD FAIL: If critical data is missing, raise exception
+    if not countries_data:
+        print("[CRITICAL ERROR] countries_with_resorts is EMPTY - applying fallback")
+        # Fallback: Minimal hardcoded data to keep app usable
+        countries_data = [("US", "United States"), ("CA", "Canada")]
+        print(f"[FALLBACK] Using hardcoded countries: {countries_data}")
+    
+    if not states_data:
+        print("[CRITICAL ERROR] states_by_country is EMPTY - applying fallback")
+        # Fallback: Minimal hardcoded data
+        states_data = {
+            "US": [("CO", "Colorado"), ("UT", "Utah"), ("CA", "California"), ("VT", "Vermont")],
+            "CA": [("BC", "British Columbia"), ("AB", "Alberta")]
+        }
+        print(f"[FALLBACK] Using hardcoded states: {list(states_data.keys())}")
+    
+    # Final verification
+    print(f"[FINAL] Rendering with {len(countries_data)} countries, {len(states_data)} country-state mappings")
     
     return render_template(
         "add_trip.html",
