@@ -454,8 +454,9 @@ def get_resorts_for_trip_form():
     """Get all active resorts for the Add Trip form.
     Returns list of dicts with id, name, country_code, state_code, pass_brands.
     Frontend JS derives all geography from this single list.
+    Excludes region-level entities (is_region=True).
     """
-    resorts = Resort.query.filter_by(is_active=True).order_by(
+    resorts = Resort.query.filter_by(is_active=True, is_region=False).order_by(
         Resort.country_code, Resort.state_code, Resort.name
     ).all()
     return [
@@ -1097,8 +1098,8 @@ def edit_profile():
     secondary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.SECONDARY).first()
     friends_count = Friend.query.filter_by(user_id=user.id).count()
     
-    # Build resorts by state from database
-    all_resorts = Resort.query.filter_by(is_active=True).order_by(Resort.state, Resort.name).all()
+    # Build resorts by state from database (exclude region-level entities)
+    all_resorts = Resort.query.filter_by(is_active=True, is_region=False).order_by(Resort.state, Resort.name).all()
     resorts_by_state = {}
     for resort in all_resorts:
         if resort.state not in resorts_by_state:
@@ -2838,8 +2839,8 @@ def settings_password():
 @app.route("/settings/wish-list")
 @login_required
 def settings_wish_list():
-    # Get all resorts for selection, ordered by country, state, name
-    resorts = Resort.query.filter_by(is_active=True).order_by(
+    # Get all resorts for selection, ordered by country, state, name (exclude regions)
+    resorts = Resort.query.filter_by(is_active=True, is_region=False).order_by(
         Resort.country_code, Resort.state_code, Resort.name
     ).all()
     
@@ -3514,8 +3515,8 @@ def delete_trip_form(trip_id):
 def mountains_visited():
     user = current_user
     
-    # Get all resorts from database (source of truth)
-    all_resorts = Resort.query.filter_by(is_active=True).order_by(
+    # Get all resorts from database (source of truth, exclude region-level entities)
+    all_resorts = Resort.query.filter_by(is_active=True, is_region=False).order_by(
         Resort.country_code, Resort.state_code, Resort.name
     ).all()
     
