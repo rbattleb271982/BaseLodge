@@ -573,6 +573,18 @@
         if (!resorts || resorts.length === 0) {
             console.error("CRITICAL: No resorts data loaded!");
             alert("Debug: No resort data loaded. Count: " + (resorts ? resorts.length : 'null'));
+        } else {
+            // Show first 3 resorts to see data structure
+            const sample = resorts.slice(0, 3);
+            console.log("DIAGNOSTIC: First 3 resorts:", JSON.stringify(sample, null, 2));
+            
+            // Check for country_code specifically
+            const withCountryCode = resorts.filter(r => r.country_code).length;
+            console.log("DIAGNOSTIC: Resorts with country_code:", withCountryCode, "of", resorts.length);
+            
+            if (withCountryCode === 0) {
+                alert("DEBUG: " + resorts.length + " resorts loaded but NONE have country_code! First resort: " + JSON.stringify(resorts[0]));
+            }
         }
         
         // Existing trip data for edit mode
