@@ -1,447 +1,374 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Base Lodge - {% if trip %}Edit{% else %}Add{% endif %} Trip</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+{% extends "base.html" %}
+
+{% block title %}{% if trip %}Edit Trip{% else %}Add Trip{% endif %} - Base Lodge{% endblock %}
+
+{% block content %}
     <style>
-        /* Ensure page container doesn't block interactions */
         .page-container {
-            position: relative;
-            z-index: 1;
+            padding: var(--bl-space-4);
+            padding-bottom: 100px;
+            max-width: 500px;
+            margin: 0 auto;
         }
-        
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--bl-color-text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: var(--bl-space-4);
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 var(--bl-space-5) 0;
+        }
+
         .form-card {
             background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border);
             border-radius: var(--bl-radius-lg);
-            border: 1px solid var(--bl-color-border-soft);
-            padding: var(--bl-space-6);
-            margin-bottom: var(--bl-space-8);
-            position: relative;
-            z-index: 5;
+            padding: var(--bl-space-4);
+            margin-bottom: var(--bl-space-4);
         }
-        
+
         .form-group {
-            margin-bottom: var(--bl-space-6);
-            position: relative;
-            z-index: 10;
+            margin-bottom: var(--bl-space-4);
         }
-        
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
         .form-group label {
             display: block;
-            font-weight: 500;
             font-size: 14px;
+            font-weight: 500;
             color: var(--bl-color-text);
-            margin-bottom: var(--bl-space-3);
+            margin-bottom: var(--bl-space-2);
         }
-        
-        .form-group input,
-        .form-group select {
+
+        .form-group select,
+        .form-group input[type="text"] {
             width: 100%;
-            padding: var(--bl-space-4) var(--bl-space-4);
+            padding: 12px;
             border: 1px solid var(--bl-color-border);
             border-radius: var(--bl-radius-md);
             font-size: 16px;
-            font-family: inherit;
-            background: var(--bl-color-surface);
-            color: var(--bl-color-text);
-            min-height: 48px;
-            -webkit-appearance: menulist;
-            -moz-appearance: menulist;
-            appearance: menulist;
-            cursor: pointer;
-            position: relative;
-            z-index: 20;
-            pointer-events: auto !important;
-        }
-        
-        .form-group input:disabled,
-        .form-group select:disabled {
             background: var(--bl-color-background);
-            color: var(--bl-color-text-muted);
-            cursor: not-allowed;
+            color: var(--bl-color-text);
+            -webkit-appearance: none;
+            appearance: none;
         }
-        
-        /* Date Range Calendar */
-        .calendar-container {
-            background: var(--bl-color-surface);
+
+        .form-group select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+
+        .resort-search-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .resort-search {
+            width: 100%;
+            padding: 12px;
             border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-lg);
-            overflow: hidden;
+            border-radius: var(--bl-radius-md);
+            font-size: 16px;
+            background: var(--bl-color-background);
+            color: var(--bl-color-text);
         }
+
+        .calendar-container {
+            background: var(--bl-color-background);
+            border: 1px solid var(--bl-color-border);
+            border-radius: var(--bl-radius-md);
+            padding: var(--bl-space-3);
+        }
+
         .calendar-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 16px;
-            background: var(--bl-color-background);
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            margin-bottom: var(--bl-space-3);
         }
+
         .calendar-header button {
             background: none;
             border: none;
-            font-size: 20px;
+            font-size: 18px;
             color: var(--bl-color-text);
             cursor: pointer;
             padding: 8px 12px;
-            border-radius: var(--bl-radius-md);
         }
-        .calendar-header button:hover {
-            background: var(--bl-color-border-soft);
-        }
+
         .calendar-header button:disabled {
             opacity: 0.3;
             cursor: not-allowed;
         }
+
         .calendar-month-year {
-            font-size: 16px;
             font-weight: 600;
+            font-size: 16px;
             color: var(--bl-color-text);
         }
+
         .calendar-weekdays {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            padding: 8px 8px 4px 8px;
-            background: var(--bl-color-background);
-        }
-        .calendar-weekday {
             text-align: center;
+            margin-bottom: var(--bl-space-2);
+        }
+
+        .calendar-weekday {
             font-size: 12px;
-            font-weight: 500;
             color: var(--bl-color-text-muted);
             padding: 4px;
         }
+
         .calendar-days {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            padding: 4px 8px 12px 8px;
             gap: 2px;
         }
+
         .calendar-day {
             aspect-ratio: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            border-radius: 50%;
-            cursor: pointer;
             border: none;
             background: none;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: var(--bl-radius-sm);
             color: var(--bl-color-text);
-            transition: all 0.15s;
         }
-        .calendar-day:hover:not(.disabled):not(.selected-start):not(.selected-end) {
-            background: var(--bl-color-border-soft);
+
+        .calendar-day:hover:not(:disabled) {
+            background: var(--bl-color-surface);
         }
+
         .calendar-day.disabled {
             color: var(--bl-color-text-muted);
             opacity: 0.4;
             cursor: not-allowed;
         }
-        .calendar-day.other-month {
-            visibility: hidden;
-        }
+
         .calendar-day.today {
             font-weight: 600;
-            border: 2px solid var(--bl-color-primary);
+            border: 1px solid var(--bl-color-primary);
         }
+
         .calendar-day.selected-start,
         .calendar-day.selected-end {
             background: var(--bl-color-primary);
             color: white;
-            font-weight: 600;
         }
+
         .calendar-day.in-range {
-            background: rgba(143, 1, 27, 0.12);
-            border-radius: 0;
+            background: rgba(143, 1, 27, 0.1);
         }
-        .calendar-day.selected-start {
-            border-radius: 50% 0 0 50%;
+
+        .calendar-day.other-month {
+            visibility: hidden;
         }
-        .calendar-day.selected-end {
-            border-radius: 0 50% 50% 0;
-        }
-        .calendar-day.selected-start.selected-end {
-            border-radius: 50%;
-        }
+
         .date-range-helper {
-            margin-top: 12px;
-            padding: 10px 14px;
-            background: rgba(143, 1, 27, 0.06);
-            border-radius: var(--bl-radius-md);
+            margin-top: var(--bl-space-2);
+            text-align: center;
             font-size: 14px;
             color: var(--bl-color-text);
-            text-align: center;
             display: none;
         }
+
         .date-range-helper.visible {
             display: block;
         }
-        .date-range-helper .range-text {
-            font-weight: 500;
+
+        .inline-error {
+            color: #dc3545;
+            font-size: 13px;
+            margin-top: var(--bl-space-2);
+            display: none;
         }
-        
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: var(--bl-color-primary);
-            box-shadow: 0 0 0 3px rgba(143, 1, 27, 0.1);
+
+        .inline-error.visible {
+            display: block;
         }
-        
+
         .toggle-group {
             display: flex;
             flex-direction: column;
-            gap: var(--bl-space-3);
+            gap: 4px;
         }
-        
+
         .toggle-label {
             display: flex;
-            align-items: flex-start;
-            gap: var(--bl-space-3);
+            align-items: center;
+            gap: 12px;
             cursor: pointer;
-            font-size: 15px;
         }
-        
+
         .toggle-label input[type="checkbox"] {
-            margin-top: 2px;
+            width: 20px;
+            height: 20px;
+            accent-color: var(--bl-color-primary);
         }
-        
-        .toggle-label input {
-            width: auto;
-            margin: 0;
-            cursor: pointer;
-        }
-        
+
         .helper-text {
             font-size: 13px;
             color: var(--bl-color-text-muted);
             margin: 0;
+            padding-left: 32px;
         }
-        
+
         .primary-button {
             width: 100%;
-            padding: var(--bl-space-5) var(--bl-space-6);
+            padding: 14px;
             background: var(--bl-color-primary);
             color: white;
             border: none;
-            border-radius: var(--bl-radius-lg);
+            border-radius: var(--bl-radius-md);
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s;
         }
-        
-        .primary-button:active {
-            background: #6B000F;
-        }
-        
-        .error-message {
-            background: #FEE;
-            border: 1px solid #FCC;
-            border-radius: var(--bl-radius-md);
-            padding: var(--bl-space-4);
-            margin-bottom: var(--bl-space-6);
-            color: #C00;
-            font-size: 14px;
-        }
-        
-        .inline-error {
-            color: #C00;
-            font-size: 13px;
-            margin-top: 4px;
-            display: none;
-        }
-        
-        .inline-error.visible {
-            display: block;
-        }
-        
-        .duration-display {
-            padding: var(--bl-space-4);
-            background: var(--bl-color-background);
-            border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-md);
-            font-size: 15px;
-            color: var(--bl-color-text);
-        }
-        
-        .duration-display.empty {
-            color: var(--bl-color-text-muted);
-        }
-        
-        .resort-search-wrapper {
-            position: relative;
-        }
-        
-        .resort-search {
-            margin-bottom: var(--bl-space-2);
-        }
-        
-        .overlap-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 16px;
-        }
-        
-        .overlap-modal.visible {
-            display: flex;
-        }
-        
-        .overlap-modal-content {
-            background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-lg);
-            padding: 24px;
-            max-width: 400px;
-            width: 100%;
-        }
-        
-        .overlap-modal-text {
-            font-size: 16px;
-            line-height: 1.5;
-            color: var(--bl-color-text);
-            margin: 0 0 20px 0;
+
+        .delete-section {
+            margin-top: var(--bl-space-5);
             text-align: center;
         }
-        
-        .overlap-modal-actions {
-            display: flex;
-            gap: 12px;
-        }
-        
-        .bl-btn-secondary {
-            padding: var(--bl-space-4) var(--bl-space-5);
-            background: var(--bl-color-background);
-            color: var(--bl-color-text);
-            border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-lg);
-            font-size: 15px;
-            font-weight: 500;
-            cursor: pointer;
-        }
-        
-        .delete-section {
-            margin-top: var(--bl-space-8);
-            padding-top: var(--bl-space-6);
-            border-top: 1px solid var(--bl-color-border-soft);
-        }
-        
+
         .delete-button {
-            width: 100%;
-            padding: var(--bl-space-5) var(--bl-space-6);
-            background: transparent;
-            color: #DC2626;
-            border: 2px solid #DC2626;
-            border-radius: var(--bl-radius-lg);
-            font-size: 16px;
-            font-weight: 600;
+            background: none;
+            border: none;
+            color: #dc3545;
+            font-size: 14px;
             cursor: pointer;
-            transition: all 0.2s;
+            padding: 12px;
         }
-        
-        .delete-button:active {
-            background: #DC2626;
-            color: white;
-        }
-        
+
         .delete-modal {
+            display: none;
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
             background: rgba(0, 0, 0, 0.5);
-            display: none;
+            z-index: 1000;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
-            padding: 16px;
+            padding: var(--bl-space-4);
         }
-        
+
         .delete-modal.visible {
             display: flex;
         }
-        
+
         .delete-modal-content {
             background: var(--bl-color-surface);
             border-radius: var(--bl-radius-lg);
-            padding: 24px;
-            max-width: 340px;
+            padding: var(--bl-space-5);
+            max-width: 320px;
             width: 100%;
             text-align: center;
         }
-        
+
         .delete-modal-title {
             font-size: 18px;
             font-weight: 600;
-            color: var(--bl-color-text);
             margin: 0 0 8px 0;
+            color: var(--bl-color-text);
         }
-        
+
         .delete-modal-text {
-            font-size: 15px;
+            font-size: 14px;
             color: var(--bl-color-text-muted);
-            margin: 0 0 24px 0;
+            margin: 0 0 var(--bl-space-4) 0;
         }
-        
+
         .delete-modal-actions {
             display: flex;
             gap: 12px;
         }
-        
+
         .delete-modal-cancel {
             flex: 1;
-            padding: var(--bl-space-4) var(--bl-space-5);
-            background: var(--bl-color-background);
-            color: var(--bl-color-text);
+            padding: 12px;
+            background: var(--bl-color-surface);
             border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-lg);
-            font-size: 15px;
-            font-weight: 500;
+            border-radius: var(--bl-radius-md);
             cursor: pointer;
+            color: var(--bl-color-text);
         }
-        
+
         .delete-modal-confirm {
             flex: 1;
-            padding: var(--bl-space-4) var(--bl-space-5);
-            background: #DC2626;
+            padding: 12px;
+            background: #dc3545;
             color: white;
             border: none;
-            border-radius: var(--bl-radius-lg);
-            font-size: 15px;
-            font-weight: 600;
+            border-radius: var(--bl-radius-md);
             cursor: pointer;
         }
-    </style>
-</head>
-<body>
-    <div class="page-container">
-        <h1 class="page-title">
-            {% if trip %}Edit trip{% elif prefill_friend and is_group %}Propose a trip{% else %}Add a trip{% endif %}
-        </h1>
-        
-        {% if not trip and not (prefill_friend and is_group) %}
-        <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0 0 16px 0;">Trips you add here are visible to your friends.</p>
-        {% endif %}
 
-        {% with messages = get_flashed_messages(category_filter=["trip", "error"]) %}
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="error-message">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+        .overlap-modal {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: var(--bl-space-4);
+        }
+
+        .overlap-modal-content {
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-lg);
+            padding: var(--bl-space-5);
+            max-width: 320px;
+            width: 100%;
+        }
+
+        .overlap-modal-text {
+            font-size: 15px;
+            color: var(--bl-color-text);
+            margin: 0 0 var(--bl-space-4) 0;
+            line-height: 1.5;
+        }
+
+        .overlap-modal-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .proposal-banner {
+            background: rgba(143, 1, 27, 0.08);
+            border: 1px solid rgba(143, 1, 27, 0.2);
+            border-radius: var(--bl-radius-md);
+            padding: var(--bl-space-4);
+            margin-bottom: var(--bl-space-5);
+        }
+    </style>
+
+    <div class="page-container">
+        <a href="{{ url_for('home') }}" class="back-link">&larr; Back</a>
+        <h1 class="page-title">{% if trip %}Edit Trip{% else %}Add Trip{% endif %}</h1>
         
         {% if overlap_trip %}
-        <div class="overlap-modal visible" id="overlap-modal">
+        <div class="overlap-modal" id="overlap-modal">
             <div class="overlap-modal-content">
                 <p class="overlap-modal-text">You already have a trip to {{ overlap_resort_name }} that overlaps these dates. Want to update that trip instead?</p>
                 <div class="overlap-modal-actions">
@@ -453,7 +380,7 @@
         {% endif %}
         
         {% if prefill_friend and is_group %}
-        <div class="proposal-banner" style="background: rgba(143, 1, 27, 0.08); border: 1px solid rgba(143, 1, 27, 0.2); border-radius: var(--bl-radius-md); padding: var(--bl-space-4); margin-bottom: var(--bl-space-5);">
+        <div class="proposal-banner">
             <p style="margin: 0; font-size: 14px; color: var(--bl-color-text);">
                 <strong>Proposing a trip with {{ prefill_friend.first_name }}</strong><br>
                 <span style="color: var(--bl-color-text-muted);">They'll receive an invite when you save this trip.</span>
@@ -473,24 +400,21 @@
                 <div class="form-group">
                     <label for="country">Country</label>
                     <select id="country" name="country" required>
-                        <option value="">Choose country</option>
-                        {% for country_code, country_name in countries_with_resorts %}
-                        <option value="{{ country_code }}" {% if (trip and trip.resort and (trip.resort.country_code == country_code or trip.resort.country == country_code)) or (not trip and ((default_country and default_country == country_code) or (not default_country and country_code == 'US'))) %}selected{% endif %}>{{ country_name }}</option>
-                        {% endfor %}
+                        <option value="">Loading...</option>
                     </select>
                 </div>
 
                 <div class="form-group">
                     <label for="state">State / Region</label>
-                    <select id="state" name="state" required onchange="updateResorts()">
-                        <option value="">Choose a state...</option>
+                    <select id="state" name="state" required>
+                        <option value="">Select a country first</option>
                     </select>
                 </div>
 
                 <div class="form-group">
                     <label for="resort_id">Resort</label>
                     <div class="resort-search-wrapper">
-                        <input type="text" id="resort_search" class="resort-search" placeholder="Search resorts..." oninput="filterResorts()">
+                        <input type="text" id="resort_search" class="resort-search" placeholder="Search resorts..." disabled>
                         <select id="resort_id" name="resort_id" required>
                             <option value="">Select a state first</option>
                         </select>
@@ -504,9 +428,9 @@
                     
                     <div class="calendar-container" id="date-range-calendar">
                         <div class="calendar-header">
-                            <button type="button" id="prev-month" onclick="navigateMonth(-1)">&larr;</button>
+                            <button type="button" id="prev-month">&larr;</button>
                             <span class="calendar-month-year" id="calendar-month-year"></span>
-                            <button type="button" id="next-month" onclick="navigateMonth(1)">&rarr;</button>
+                            <button type="button" id="next-month">&rarr;</button>
                         </div>
                         <div class="calendar-weekdays">
                             <span class="calendar-weekday">Su</span>
@@ -556,7 +480,7 @@
                         <option value="have_own_equipment" {% if trip and trip.trip_equipment_status == 'have_own_equipment' %}selected{% endif %}>Bringing my own equipment</option>
                         <option value="needs_rentals" {% if trip and trip.trip_equipment_status == 'needs_rentals' %}selected{% endif %}>Renting equipment</option>
                     </select>
-                    <p class="helper-text" style="margin-top: 6px;">Defaults to your profile preference, but you can change it for this trip.</p>
+                    <p class="helper-text" style="margin-top: 6px; padding-left: 0;">Defaults to your profile preference, but you can change it for this trip.</p>
                 </div>
 
                 <div class="form-group">
@@ -600,45 +524,106 @@
     {% include 'components/bottom_nav.html' %}
 
     <script>
-        console.log("Add Trip JS loaded");
-        
-        function closeOverlapModal() {
-            const modal = document.getElementById('overlap-modal');
-            if (modal) {
-                modal.style.display = 'none';
-            }
-        }
-        
-        function showDeleteModal() {
-            const modal = document.getElementById('delete-modal');
-            if (modal) {
-                modal.classList.add('visible');
-            }
-        }
-        
-        function hideDeleteModal() {
-            const modal = document.getElementById('delete-modal');
-            if (modal) {
-                modal.classList.remove('visible');
-            }
-        }
-        
+        // ===========================================
+        // DATA FROM BACKEND (single source of truth)
+        // ===========================================
         const resorts = {{ resorts|tojson }};
-        const statesByCountry = {{ states_by_country|tojson }};
         const userPasses = {{ (user_passes or [])|tojson }};
         const isEditMode = {{ 'true' if trip else 'false' }};
         
-        const formState = {
-            country: {{ ((trip.resort.country_code or trip.resort.country if trip.resort else 'US') if trip else (default_country or 'US'))|tojson }} || 'US',
-            state: {{ ((trip.resort.state_code or trip.resort.state if trip.resort else trip.state) if trip and (trip.resort or trip.state) else none)|tojson }},
-            resort: {{ (trip.resort_id if trip and trip.resort_id else none)|tojson }},
+        // Existing trip data for edit mode
+        const existingTrip = {
+            countryCode: {{ (trip.resort.country_code if trip and trip.resort else none)|tojson }},
+            stateCode: {{ (trip.resort.state_code if trip and trip.resort else none)|tojson }},
+            resortId: {{ (trip.resort_id if trip else none)|tojson }},
             startDate: {{ (trip.start_date.isoformat() if trip and trip.start_date else none)|tojson }},
             endDate: {{ (trip.end_date.isoformat() if trip and trip.end_date else none)|tojson }}
         };
         
-        console.log("formState initialized:", formState);
-        console.log("statesByCountry available:", statesByCountry ? Object.keys(statesByCountry) : "NULL");
+        // ===========================================
+        // DISPLAY NAME MAPS (frontend-only labels)
+        // ===========================================
+        const COUNTRY_NAMES = {
+            'US': 'United States',
+            'CA': 'Canada',
+            'JP': 'Japan',
+            'FR': 'France',
+            'CH': 'Switzerland',
+            'AT': 'Austria',
+            'IT': 'Italy'
+        };
         
+        const STATE_NAMES = {
+            // US States
+            'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas',
+            'CA': 'California', 'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware',
+            'FL': 'Florida', 'GA': 'Georgia', 'HI': 'Hawaii', 'ID': 'Idaho',
+            'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa', 'KS': 'Kansas',
+            'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+            'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi',
+            'MO': 'Missouri', 'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada',
+            'NH': 'New Hampshire', 'NJ': 'New Jersey', 'NM': 'New Mexico', 'NY': 'New York',
+            'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio', 'OK': 'Oklahoma',
+            'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+            'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah',
+            'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia',
+            'WI': 'Wisconsin', 'WY': 'Wyoming',
+            // Canada Provinces
+            'AB': 'Alberta', 'BC': 'British Columbia', 'MB': 'Manitoba',
+            'NB': 'New Brunswick', 'NL': 'Newfoundland and Labrador',
+            'NS': 'Nova Scotia', 'NT': 'Northwest Territories', 'NU': 'Nunavut',
+            'ON': 'Ontario', 'PE': 'Prince Edward Island', 'QC': 'Quebec',
+            'SK': 'Saskatchewan', 'YT': 'Yukon'
+        };
+        
+        // ===========================================
+        // DERIVE GEOGRAPHY FROM RESORTS
+        // ===========================================
+        function deriveCountries() {
+            const countries = [...new Set(resorts.map(r => r.country_code))].filter(Boolean);
+            // Sort: US first, then alphabetically
+            countries.sort((a, b) => {
+                if (a === 'US') return -1;
+                if (b === 'US') return 1;
+                return (COUNTRY_NAMES[a] || a).localeCompare(COUNTRY_NAMES[b] || b);
+            });
+            return countries;
+        }
+        
+        function deriveStates(countryCode) {
+            const states = [...new Set(
+                resorts
+                    .filter(r => r.country_code === countryCode)
+                    .map(r => r.state_code)
+            )].filter(Boolean);
+            // Sort alphabetically by display name
+            states.sort((a, b) => {
+                return (STATE_NAMES[a] || a).localeCompare(STATE_NAMES[b] || b);
+            });
+            return states;
+        }
+        
+        function deriveResorts(countryCode, stateCode) {
+            return resorts
+                .filter(r => r.country_code === countryCode && r.state_code === stateCode)
+                .sort((a, b) => {
+                    // Sort pass-compatible resorts first
+                    const aCompat = isPassCompatible(a) ? 0 : 1;
+                    const bCompat = isPassCompatible(b) ? 0 : 1;
+                    if (aCompat !== bCompat) return aCompat - bCompat;
+                    return a.name.localeCompare(b.name);
+                });
+        }
+        
+        function isPassCompatible(resort) {
+            if (!userPasses || userPasses.length === 0) return false;
+            const resortBrands = (resort.pass_brands || '').split(',').map(b => b.trim().toLowerCase());
+            return userPasses.some(p => resortBrands.includes(p.toLowerCase()));
+        }
+        
+        // ===========================================
+        // DOM ELEMENTS
+        // ===========================================
         const countrySelect = document.getElementById('country');
         const stateSelect = document.getElementById('state');
         const resortSelect = document.getElementById('resort_id');
@@ -650,17 +635,111 @@
         const rangeText = document.getElementById('range-text');
         const dateError = document.getElementById('date-error');
         
-        let currentStateResorts = [];
+        // ===========================================
+        // POPULATE DROPDOWNS
+        // ===========================================
+        function populateCountries() {
+            const countries = deriveCountries();
+            countrySelect.innerHTML = '<option value="">Choose country</option>';
+            countries.forEach(code => {
+                const option = document.createElement('option');
+                option.value = code;
+                option.textContent = COUNTRY_NAMES[code] || code;
+                countrySelect.appendChild(option);
+            });
+        }
         
-        // Calendar state
-        let currentMonth = new Date();
-        let selectedStartDate = startDateInput.value ? new Date(startDateInput.value + 'T00:00:00') : null;
-        let selectedEndDate = endDateInput.value ? new Date(endDateInput.value + 'T00:00:00') : null;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        function populateStates(countryCode) {
+            const states = deriveStates(countryCode);
+            stateSelect.innerHTML = '<option value="">Choose a state...</option>';
+            states.forEach(code => {
+                const option = document.createElement('option');
+                option.value = code;
+                option.textContent = STATE_NAMES[code] || code;
+                stateSelect.appendChild(option);
+            });
+            stateSelect.disabled = states.length === 0;
+            
+            // Clear resort dropdown
+            resortSelect.innerHTML = '<option value="">Select a state first</option>';
+            resortSelect.disabled = true;
+            resortSearchInput.disabled = true;
+            resortSearchInput.value = '';
+        }
         
+        function populateResorts(countryCode, stateCode) {
+            const filteredResorts = deriveResorts(countryCode, stateCode);
+            resortSelect.innerHTML = '<option value="">Select a resort</option>';
+            filteredResorts.forEach(r => {
+                const option = document.createElement('option');
+                option.value = r.id;
+                option.textContent = r.name + (isPassCompatible(r) ? ' ✓' : '');
+                option.dataset.search = r.name.toLowerCase();
+                resortSelect.appendChild(option);
+            });
+            resortSelect.disabled = filteredResorts.length === 0;
+            resortSearchInput.disabled = filteredResorts.length === 0;
+        }
+        
+        // ===========================================
+        // EVENT HANDLERS
+        // ===========================================
+        countrySelect.addEventListener('change', function() {
+            const country = this.value;
+            if (country) {
+                populateStates(country);
+            } else {
+                stateSelect.innerHTML = '<option value="">Select a country first</option>';
+                stateSelect.disabled = true;
+                resortSelect.innerHTML = '<option value="">Select a state first</option>';
+                resortSelect.disabled = true;
+                resortSearchInput.disabled = true;
+            }
+        });
+        
+        stateSelect.addEventListener('change', function() {
+            const country = countrySelect.value;
+            const state = this.value;
+            if (country && state) {
+                populateResorts(country, state);
+            } else {
+                resortSelect.innerHTML = '<option value="">Select a state first</option>';
+                resortSelect.disabled = true;
+                resortSearchInput.disabled = true;
+            }
+        });
+        
+        resortSearchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            let firstMatch = null;
+            Array.from(resortSelect.options).forEach(option => {
+                if (option.value === "") return;
+                const match = !query || option.textContent.toLowerCase().includes(query);
+                option.hidden = !match;
+                if (match && !firstMatch) firstMatch = option;
+            });
+            if (query && firstMatch) {
+                resortSelect.value = firstMatch.value;
+            }
+        });
+        
+        resortSelect.addEventListener('change', function() {
+            const selected = this.options[this.selectedIndex];
+            if (selected && selected.value !== "") {
+                resortSearchInput.value = selected.textContent.replace(' ✓', '');
+            }
+        });
+        
+        // ===========================================
+        // CALENDAR LOGIC
+        // ===========================================
         const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
                            'July', 'August', 'September', 'October', 'November', 'December'];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        let selectedStartDate = startDateInput.value ? new Date(startDateInput.value + 'T00:00:00') : null;
+        let selectedEndDate = endDateInput.value ? new Date(endDateInput.value + 'T00:00:00') : null;
         
         function formatDateShort(date) {
             return monthNames[date.getMonth()].slice(0, 3) + ' ' + date.getDate();
@@ -695,12 +774,10 @@
             
             monthYearLabel.textContent = `${monthNames[month]} ${year}`;
             
-            // Disable prev button if current month is this month (for new trips)
             const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
             const displayMonth = new Date(year, month, 1);
             prevBtn.disabled = !isEditMode && displayMonth <= thisMonth;
             
-            // Get first day of month and number of days
             const firstDay = new Date(year, month, 1);
             const lastDay = new Date(year, month + 1, 0);
             const startDay = firstDay.getDay();
@@ -708,12 +785,10 @@
             
             let html = '';
             
-            // Empty cells for days before first of month
             for (let i = 0; i < startDay; i++) {
                 html += '<button type="button" class="calendar-day other-month" disabled></button>';
             }
             
-            // Days of the month
             for (let day = 1; day <= totalDays; day++) {
                 const date = new Date(year, month, day);
                 const dateStr = formatDateISO(date);
@@ -721,74 +796,54 @@
                 let classes = ['calendar-day'];
                 let disabled = false;
                 
-                // Past date check (only for new trips, not editing)
                 if (!isEditMode && date < today) {
                     classes.push('disabled');
                     disabled = true;
                 }
                 
-                // Today marker
-                if (isSameDay(date, today)) {
-                    classes.push('today');
-                }
-                
-                // Selection states
+                if (isSameDay(date, today)) classes.push('today');
                 if (isSameDay(date, selectedStartDate)) {
                     classes.push('selected-start');
-                    if (isSameDay(selectedStartDate, selectedEndDate)) {
-                        classes.push('selected-end');
-                    }
+                    if (isSameDay(selectedStartDate, selectedEndDate)) classes.push('selected-end');
                 }
                 if (isSameDay(date, selectedEndDate) && !isSameDay(selectedStartDate, selectedEndDate)) {
                     classes.push('selected-end');
                 }
-                if (isInRange(date)) {
-                    classes.push('in-range');
-                }
+                if (isInRange(date)) classes.push('in-range');
                 
                 html += `<button type="button" class="${classes.join(' ')}" 
-                         data-date="${dateStr}" 
-                         ${disabled ? 'disabled' : ''}
+                         data-date="${dateStr}" ${disabled ? 'disabled' : ''}
                          onclick="selectDate('${dateStr}')">${day}</button>`;
             }
             
             calendarDays.innerHTML = html;
         }
         
-        function navigateMonth(delta) {
-            // Use first day of month to avoid overflow issues (e.g., Jan 31 + 1 month = Mar 3)
-            const year = currentMonth.getFullYear();
-            const month = currentMonth.getMonth();
-            currentMonth = new Date(year, month + delta, 1);
-            renderCalendar();
-        }
-        
         function selectDate(dateStr) {
-            const clickedDate = new Date(dateStr + 'T00:00:00');
+            const date = new Date(dateStr + 'T00:00:00');
             
-            // If no start date, or if clicked date is before start date, reset and set as start
-            if (!selectedStartDate || clickedDate < selectedStartDate) {
-                selectedStartDate = clickedDate;
+            if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
+                selectedStartDate = date;
                 selectedEndDate = null;
-            }
-            // If start date exists but no end date, set as end (or same day)
-            else if (!selectedEndDate) {
-                selectedEndDate = clickedDate;
-            }
-            // If both exist, reset to new start
-            else {
-                selectedStartDate = clickedDate;
+                startDateInput.value = dateStr;
+                endDateInput.value = '';
+            } else if (date < selectedStartDate) {
+                selectedStartDate = date;
                 selectedEndDate = null;
+                startDateInput.value = dateStr;
+                endDateInput.value = '';
+            } else {
+                selectedEndDate = date;
+                endDateInput.value = dateStr;
             }
             
-            updateHiddenInputs();
-            updateDateRangeHelper();
             renderCalendar();
+            updateDateRangeHelper();
         }
         
-        function updateHiddenInputs() {
-            startDateInput.value = selectedStartDate ? formatDateISO(selectedStartDate) : '';
-            endDateInput.value = selectedEndDate ? formatDateISO(selectedEndDate) : '';
+        function navigateMonth(delta) {
+            currentMonth.setMonth(currentMonth.getMonth() + delta);
+            renderCalendar();
         }
         
         function updateDateRangeHelper() {
@@ -815,380 +870,81 @@
                 dateRangeHelper.classList.remove('visible');
             }
         }
-
-        function isPassCompatible(resort) {
-            if (!userPasses || userPasses.length === 0) return false;
-            const resortBrands = (resort.pass_brands || resort.brand || '').split(',').map(b => b.trim().toLowerCase());
-            return userPasses.some(p => resortBrands.includes(p.toLowerCase()));
-        }
-
-        function populateStates(country, preserveSelection) {
-            console.log("=== populateStates START ===");
-            console.log("Country arg:", country);
-            
-            // Handle missing statesByCountry gracefully
-            if (!statesByCountry || Object.keys(statesByCountry).length === 0) {
-                console.error("statesByCountry is null/empty - showing error to user");
-                stateSelect.innerHTML = '<option value="">No state data available</option>';
-                stateSelect.disabled = true;
-                return;
-            }
-            
-            // Find states for this country, with cascading fallback
-            let states = statesByCountry[country];
-            let effectiveCountry = country;
-            
-            if (!states || states.length === 0) {
-                console.warn("No states for country:", country, "- trying fallbacks");
-                
-                // Fallback 1: Try US
-                if (statesByCountry['US'] && statesByCountry['US'].length > 0) {
-                    console.warn("Using US states as fallback");
-                    states = statesByCountry['US'];
-                    effectiveCountry = 'US';
-                } else {
-                    // Fallback 2: Try first available country
-                    const availableCountries = Object.keys(statesByCountry).filter(k => statesByCountry[k].length > 0);
-                    if (availableCountries.length > 0) {
-                        effectiveCountry = availableCountries[0];
-                        states = statesByCountry[effectiveCountry];
-                        console.warn("Using", effectiveCountry, "as fallback");
-                    } else {
-                        console.error("No countries have states!");
-                        stateSelect.innerHTML = '<option value="">No states available</option>';
-                        stateSelect.disabled = true;
-                        return;
-                    }
-                }
-                
-                // Update country select to match fallback
-                if (effectiveCountry !== country) {
-                    countrySelect.value = effectiveCountry;
-                    formState.country = effectiveCountry;
-                }
-            }
-            
-            console.log("Found", states.length, "states for", effectiveCountry);
-            
-            // Clear and repopulate
-            stateSelect.innerHTML = '<option value="">Choose a state...</option>';
-            states.forEach(([code, name]) => {
-                const option = document.createElement('option');
-                option.value = code;
-                option.textContent = name;
-                stateSelect.appendChild(option);
-            });
-            stateSelect.disabled = false;
-            
-            // Preserve selection if editing
-            if (preserveSelection && formState.state) {
-                stateSelect.value = formState.state;
-                console.log("Preserved state selection:", formState.state, "Result:", stateSelect.value);
-            }
-            
-            console.log("=== populateStates END ===");
-        }
         
-        function populateResorts(country, state, preserveSelection) {
-            console.log("=== populateResorts ===");
-            console.log("Selected country:", country, "state:", state);
-            console.log("Total resorts available:", resorts.length);
-            
-            // Show sample of resorts data for debugging
-            if (resorts.length > 0) {
-                console.log("Sample resorts (first 5):", resorts.slice(0, 5).map(r => ({id: r.id, name: r.name, country: r.country, state: r.state})));
-            }
-            
-            if (!state) {
-                resortSelect.innerHTML = '<option value="">Select a state first</option>';
-                resortSelect.disabled = true;
-                resortSearchInput.disabled = true;
-                resortSearchInput.value = '';
-                currentStateResorts = [];
-                return;
-            }
-            
-            // Filter resorts by country AND state
-            currentStateResorts = resorts.filter(r => r.state === state && r.country === country);
-            console.log("Filtered result:", currentStateResorts.length, "resorts for", country + "/" + state);
-            
-            // Handle empty state - show informative message
-            if (currentStateResorts.length === 0) {
-                console.warn("No resorts found for", country, state);
-                // Show resorts that DO match this country for debugging
-                const countryResorts = resorts.filter(r => r.country === country);
-                console.log("Resorts matching country only:", countryResorts.length);
-                if (countryResorts.length > 0) {
-                    console.log("States with resorts in", country + ":", [...new Set(countryResorts.map(r => r.state))]);
-                }
-                
-                resortSelect.innerHTML = '<option value="">No resorts found for this state</option>';
-                resortSelect.disabled = true;
-                resortSearchInput.disabled = true;
-                resortSearchInput.value = '';
-                return;
-            }
-            
-            console.log("Found", currentStateResorts.length, "resorts for", country, state);
-            currentStateResorts.sort((a, b) => {
-                const aCompat = isPassCompatible(a) ? 0 : 1;
-                const bCompat = isPassCompatible(b) ? 0 : 1;
-                if (aCompat !== bCompat) return aCompat - bCompat;
-                return a.name.localeCompare(b.name);
-            });
-            
-            resortSelect.innerHTML = '<option value="">Select a resort</option>';
-            currentStateResorts.forEach(r => {
-                const option = document.createElement('option');
-                option.value = r.id;
-                option.textContent = r.name;
-                if (isPassCompatible(r)) {
-                    option.textContent += ' ✓';
-                }
-                option.dataset.search = r.name.toLowerCase();
-                resortSelect.appendChild(option);
-            });
-            
-            resortSelect.disabled = false;
-            resortSearchInput.disabled = false;
-            
-            if (preserveSelection && formState.resort) {
-                resortSelect.value = formState.resort;
-                const selectedOption = resortSelect.options[resortSelect.selectedIndex];
-                if (selectedOption && selectedOption.value !== "") {
-                    resortSearchInput.value = selectedOption.text.replace(' ✓', '');
-                }
-            }
-        }
-        
-        function updateStates() {
-            formState.country = countrySelect.value;
-            formState.state = null;
-            formState.resort = null;
-            
-            populateStates(formState.country, false);
-            populateResorts(formState.country, null, false);
-            resortSearchInput.value = '';
-        }
-
-        function updateResorts() {
-            formState.state = stateSelect.value || null;
-            formState.resort = null;
-            
-            populateResorts(formState.country, formState.state, false);
-            resortSearchInput.value = '';
-        }
-        
-        
-        function filterResorts() {
-            const query = resortSearchInput.value.toLowerCase().trim();
-            let firstMatch = null;
-            
-            Array.from(resortSelect.options).forEach(option => {
-                if (option.value === "") return;
-                
-                const match = !query || option.text.toLowerCase().includes(query);
-                option.hidden = !match;
-                
-                if (match && !firstMatch) {
-                    firstMatch = option;
-                }
-            });
-            
-            if (query && firstMatch) {
-                resortSelect.value = firstMatch.value;
-                firstMatch.selected = true;
-            }
-        }
-        
-        resortSelect.addEventListener("change", function() {
-            const selected = resortSelect.options[resortSelect.selectedIndex];
-            if (selected && selected.value !== "") {
-                resortSearchInput.value = selected.text;
-            }
-        });
-
-
-        // Toggle accommodation link visibility based on accommodation status
+        // ===========================================
+        // ACCOMMODATION TOGGLE
+        // ===========================================
         function toggleAccommodationLink() {
             const status = document.getElementById('accommodation_status').value;
             const linkGroup = document.getElementById('accommodation-link-group');
-            if (status && status !== 'none_yet') {
-                linkGroup.style.display = 'block';
-            } else {
-                linkGroup.style.display = 'none';
-            }
+            linkGroup.style.display = (status && status !== 'none_yet') ? 'block' : 'none';
         }
         
+        // ===========================================
+        // MODAL FUNCTIONS
+        // ===========================================
+        function closeOverlapModal() {
+            const modal = document.getElementById('overlap-modal');
+            if (modal) modal.style.display = 'none';
+        }
+        
+        function showDeleteModal() {
+            const modal = document.getElementById('delete-modal');
+            if (modal) modal.classList.add('visible');
+        }
+        
+        function hideDeleteModal() {
+            const modal = document.getElementById('delete-modal');
+            if (modal) modal.classList.remove('visible');
+        }
+        
+        // ===========================================
+        // INITIALIZATION
+        // ===========================================
         document.addEventListener('DOMContentLoaded', function() {
-            console.log("=== ADD TRIP PAGE INIT ===");
-            console.log("isEditMode:", isEditMode);
+            console.log("Add Trip: Initializing with", resorts.length, "resorts");
             
-            // CRITICAL: Validate required elements exist
-            if (!countrySelect) {
-                console.error("FATAL: Country select not found - ABORTING");
-                return;
-            }
-            if (!stateSelect) {
-                console.error("FATAL: State select not found - ABORTING");
-                return;
-            }
-            if (!resortSelect) {
-                console.error("FATAL: Resort select not found - ABORTING");
-                return;
-            }
+            // Populate countries from resorts
+            populateCountries();
             
-            // CRITICAL: Validate country dropdown has options
-            const countryOptions = Array.from(countrySelect.options).filter(o => o.value !== '');
-            console.log("Country options found:", countryOptions.length, countryOptions.map(o => o.value));
+            // Calendar navigation
+            document.getElementById('prev-month').addEventListener('click', () => navigateMonth(-1));
+            document.getElementById('next-month').addEventListener('click', () => navigateMonth(1));
             
-            if (countryOptions.length === 0) {
-                console.error("FATAL: Country select has no valid options!");
-                console.error("countries_with_resorts was:", {{ countries_with_resorts|tojson }});
-                return;
-            }
-            
-            // WARN but don't abort if statesByCountry is empty - initializeForm has fallback logic
-            if (!statesByCountry || Object.keys(statesByCountry).length === 0) {
-                console.warn("WARNING: statesByCountry is empty or null - will attempt fallback");
-                console.warn("Backend data:", {{ countries_with_resorts|tojson }});
-            } else {
-                console.log("statesByCountry keys:", Object.keys(statesByCountry));
-            }
-            
-            console.log("Total resorts:", resorts ? resorts.length : 0);
-            console.log("formState at init:", JSON.stringify(formState));
-            
-            // Wire up event listeners FIRST
-            countrySelect.addEventListener('change', updateStates);
-            stateSelect.addEventListener('change', updateResorts);
-            resortSearchInput.addEventListener('input', filterResorts);
-            
-            // MANDATORY: Initialize form (handles all fallbacks and populates states)
-            initializeForm();
-            initializeCalendar();
-            toggleAccommodationLink();
-            
-            // ========================================
-            // DIAGNOSTIC SUITE - DO NOT REMOVE
-            // ========================================
-            
-            // 1. Document-level click listener (capture phase)
-            document.addEventListener('click', function(e) {
-                console.log('📍 DOCUMENT CLICK:', e.target.tagName, e.target.id || e.target.className);
-            }, true);
-            
-            // 2. Country select click listener
-            countrySelect.addEventListener('click', () => console.log('✅ COUNTRY CLICK RECEIVED'));
-            stateSelect.addEventListener('click', () => console.log('✅ STATE CLICK RECEIVED'));
-            resortSelect.addEventListener('click', () => console.log('✅ RESORT CLICK RECEIVED'));
-            
-            // 3. Element from point diagnostic
-            const countryRect = countrySelect.getBoundingClientRect();
-            const elementAtCountry = document.elementFromPoint(countryRect.left + 5, countryRect.top + 5);
-            console.log('🔍 ELEMENT FROM POINT at country dropdown:', elementAtCountry?.tagName, elementAtCountry?.id || elementAtCountry?.className);
-            if (elementAtCountry !== countrySelect) {
-                console.warn('⚠️ BLOCKING ELEMENT DETECTED:', elementAtCountry);
-            }
-            
-            // 4. Ancestor stacking context analysis
-            console.log('📊 ANCESTOR ANALYSIS for country select:');
-            let ancestor = countrySelect.parentElement;
-            let depth = 0;
-            while (ancestor && depth < 15) {
-                const style = getComputedStyle(ancestor);
-                const hasStackingContext = 
-                    style.position !== 'static' ||
-                    style.zIndex !== 'auto' ||
-                    style.opacity !== '1' ||
-                    style.transform !== 'none';
-                if (hasStackingContext || style.pointerEvents !== 'auto') {
-                    console.log(`  L${depth}: <${ancestor.tagName}> .${ancestor.className.split(' ')[0] || 'no-class'}`,
-                        '| pos:', style.position,
-                        '| z:', style.zIndex,
-                        '| pointer:', style.pointerEvents,
-                        '| stacking:', hasStackingContext ? 'YES' : 'no');
-                }
-                ancestor = ancestor.parentElement;
-                depth++;
-            }
-            
-            // 5. Country select computed styles
-            const countryStyle = getComputedStyle(countrySelect);
-            console.log('🎨 COUNTRY SELECT STYLES:',
-                'display:', countryStyle.display,
-                '| visibility:', countryStyle.visibility,
-                '| pointer-events:', countryStyle.pointerEvents,
-                '| z-index:', countryStyle.zIndex,
-                '| position:', countryStyle.position);
-            
-            // 6. Check for overlapping fixed/absolute elements
-            const allFixed = document.querySelectorAll('[style*="position: fixed"], [style*="position:fixed"]');
-            const allAbsolute = document.querySelectorAll('[style*="position: absolute"], [style*="position:absolute"]');
-            console.log('📌 Fixed elements:', allFixed.length, '| Absolute elements:', allAbsolute.length);
-            
-            // 7. Check bottom nav
-            const bottomNav = document.querySelector('.bl-bottom-nav');
-            if (bottomNav) {
-                const navStyle = getComputedStyle(bottomNav);
-                const navRect = bottomNav.getBoundingClientRect();
-                console.log('🧭 BOTTOM NAV:', 'top:', navRect.top, 'bottom:', navRect.bottom, 'z-index:', navStyle.zIndex, 'position:', navStyle.position);
-            }
-            
-            console.log("=== DIAGNOSTIC INIT COMPLETE ===");
-        });
-        
-        function initializeForm() {
-            console.log("=== initializeForm START ===");
-            console.log("formState.country:", formState.country);
-            console.log("countrySelect.value:", countrySelect.value);
-            
-            // Determine initial country: formState > select value > 'US'
-            let country = formState.country || countrySelect.value || 'US';
-            if (country === '') country = 'US';
-            
-            // Set country in select (populateStates may override if invalid)
-            countrySelect.value = country;
-            formState.country = country;
-            
-            console.log("Initial country:", country);
-            
-            // MANDATORY: Populate states immediately - handles all fallback logic internally
-            populateStates(country, true);
-            
-            // After populateStates, formState.country may have been updated if fallback occurred
-            const effectiveCountry = formState.country;
-            console.log("Effective country after populateStates:", effectiveCountry);
-            
-            // Populate resorts if a state is already selected
-            const state = formState.state || stateSelect.value;
-            if (state && state !== '') {
-                populateResorts(effectiveCountry, state, true);
-            }
-            
-            console.log("=== initializeForm END ===");
-        }
-        
-        function initializeCalendar() {
-            if (formState.startDate) {
-                selectedStartDate = new Date(formState.startDate + 'T00:00:00');
-                startDateInput.value = formState.startDate;
-            }
-            if (formState.endDate) {
-                selectedEndDate = new Date(formState.endDate + 'T00:00:00');
-                endDateInput.value = formState.endDate;
-            }
-            
+            // Set initial calendar month
             if (selectedStartDate) {
                 currentMonth = new Date(selectedStartDate.getFullYear(), selectedStartDate.getMonth(), 1);
             }
             
+            // ALWAYS render calendar immediately (not gated on geography)
             renderCalendar();
             updateDateRangeHelper();
-        }
-        
-        // Form validation - require complete date range
-        if (form) {
+            toggleAccommodationLink();
+            
+            // If editing, restore selections
+            if (isEditMode && existingTrip.countryCode) {
+                countrySelect.value = existingTrip.countryCode;
+                populateStates(existingTrip.countryCode);
+                
+                if (existingTrip.stateCode) {
+                    stateSelect.value = existingTrip.stateCode;
+                    populateResorts(existingTrip.countryCode, existingTrip.stateCode);
+                    
+                    if (existingTrip.resortId) {
+                        resortSelect.value = existingTrip.resortId;
+                        const selected = resortSelect.options[resortSelect.selectedIndex];
+                        if (selected && selected.value) {
+                            resortSearchInput.value = selected.textContent.replace(' ✓', '');
+                        }
+                    }
+                }
+            } else {
+                // Default to US for new trips
+                countrySelect.value = 'US';
+                populateStates('US');
+            }
+            
+            // Form validation
             form.addEventListener('submit', function(e) {
                 if (!startDateInput.value || !endDateInput.value) {
                     e.preventDefault();
@@ -1197,7 +953,9 @@
                     return false;
                 }
             });
-        }
+            
+            console.log("Add Trip: Initialization complete");
+        });
     </script>
 </body>
 </html>
