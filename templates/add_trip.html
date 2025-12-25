@@ -607,12 +607,14 @@
         const isEditMode = {{ 'true' if trip else 'false' }};
         
         const formState = {
-            country: {{ ((trip.resort.country if trip.resort else 'US') if trip else (default_country or 'US'))|tojson }},
+            country: {{ ((trip.resort.country if trip.resort else 'US') if trip else (default_country or 'US'))|tojson }} || 'US',
             state: {{ ((trip.resort.state if trip.resort else trip.state) if trip and (trip.resort or trip.state) else none)|tojson }},
             resort: {{ (trip.resort_id if trip and trip.resort_id else none)|tojson }},
             startDate: {{ (trip.start_date.isoformat() if trip and trip.start_date else none)|tojson }},
             endDate: {{ (trip.end_date.isoformat() if trip and trip.end_date else none)|tojson }}
         };
+        
+        console.log("formState initialized:", formState);
         
         const countrySelect = document.getElementById('country');
         const stateSelect = document.getElementById('state');
@@ -926,11 +928,18 @@
         });
         
         function initializeForm() {
-            countrySelect.value = formState.country;
+            console.log("initializeForm called with country:", formState.country);
             
-            populateStates(formState.country, true);
+            // Ensure country is set (default to US)
+            const country = formState.country || 'US';
+            countrySelect.value = country;
             
-            populateResorts(formState.country, formState.state, true);
+            // Always populate states for the selected country
+            populateStates(country, true);
+            console.log("States populated for country:", country);
+            
+            // Populate resorts if a state is already selected
+            populateResorts(country, formState.state, true);
         }
         
         function initializeCalendar() {
