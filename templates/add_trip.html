@@ -849,7 +849,15 @@
         }
         
         function populateResorts(country, state, preserveSelection) {
-            console.log("populateResorts called:", country, state);
+            console.log("=== populateResorts ===");
+            console.log("Selected country:", country, "state:", state);
+            console.log("Total resorts available:", resorts.length);
+            
+            // Show sample of resorts data for debugging
+            if (resorts.length > 0) {
+                console.log("Sample resorts (first 5):", resorts.slice(0, 5).map(r => ({id: r.id, name: r.name, country: r.country, state: r.state})));
+            }
+            
             if (!state) {
                 resortSelect.innerHTML = '<option value="">Select a state first</option>';
                 resortSelect.disabled = true;
@@ -859,12 +867,28 @@
                 return;
             }
             
+            // Filter resorts by country AND state
             currentStateResorts = resorts.filter(r => r.state === state && r.country === country);
+            console.log("Filtered result:", currentStateResorts.length, "resorts for", country + "/" + state);
+            
+            // Handle empty state - show informative message
             if (currentStateResorts.length === 0) {
-                console.warn("No resorts found for", country, state, "Sample resorts:", resorts.slice(0, 3).map(r => ({name: r.name, country: r.country, state: r.state})));
-            } else {
-                console.log("Found", currentStateResorts.length, "resorts for", country, state);
+                console.warn("No resorts found for", country, state);
+                // Show resorts that DO match this country for debugging
+                const countryResorts = resorts.filter(r => r.country === country);
+                console.log("Resorts matching country only:", countryResorts.length);
+                if (countryResorts.length > 0) {
+                    console.log("States with resorts in", country + ":", [...new Set(countryResorts.map(r => r.state))]);
+                }
+                
+                resortSelect.innerHTML = '<option value="">No resorts found for this state</option>';
+                resortSelect.disabled = true;
+                resortSearchInput.disabled = true;
+                resortSearchInput.value = '';
+                return;
             }
+            
+            console.log("Found", currentStateResorts.length, "resorts for", country, state);
             currentStateResorts.sort((a, b) => {
                 const aCompat = isPassCompatible(a) ? 0 : 1;
                 const bCompat = isPassCompatible(b) ? 0 : 1;

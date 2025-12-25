@@ -2975,6 +2975,10 @@ def add_trip():
     print(f"[add_trip GET] US states count: {len(states_data.get('US', []))}")
     print(f"[add_trip GET] Resorts count: {len(resorts)}")
     
+    # Log distinct country/state pairs from resorts for alignment verification
+    resort_pairs = set((r['country'], r['state']) for r in resorts if r['country'] and r['state'])
+    print(f"[add_trip GET] Resort country/state pairs (sample): {list(resort_pairs)[:10]}")
+    
     return render_template(
         "add_trip.html",
         trip=None,
