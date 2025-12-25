@@ -608,12 +608,16 @@ def auth():
                 flash("An account with this email already exists.", "error")
                 return render_template("auth.html")
             
+            # Capture inviter from session BEFORE any commits (durable linkage)
+            pending_inviter_id = session.get("pending_inviter_id")
+            
             user = User(
                 first_name=first_name,
                 last_name=last_name,
                 email=email,
                 created_at=datetime.utcnow(),
-                login_count=1  # First login happens on signup
+                login_count=1,  # First login happens on signup
+                invited_by_user_id=pending_inviter_id  # Persist inviter durably
             )
             user.set_password(password)
             db.session.add(user)
@@ -749,59 +753,98 @@ def location_setup():
 
 
 def _connect_pending_inviter(user):
-    """Helper to connect user with pending inviter from session."""
-    inviter_id = session.get("pending_inviter_id")
+    """
+    Helper to connect user with pending inviter.
+    
+    Priority:
+    1. Check user.invited_by_user_id (durable, survives session loss)
+    2. Fall back to session pending_inviter_id
+    
+    Idempotent: Does not create duplicate Friend rows if they already exist.
+    """
+    # Priority 1: Durable inviter reference on User record
+    inviter_id = user.invited_by_user_id
+    source = "durable"
+    
+    # Priority 2: Fall back to session (legacy path)
+    if not inviter_id:
+        inviter_id = session.get("pending_inviter_id")
+        source = "session"
+    
     invite_token_id = session.get("pending_invite_token_id")
     
-    if inviter_id and inviter_id != user.id:
-        inviter = User.query.get(inviter_id)
-        invite_token = InviteToken.query.get(invite_token_id) if invite_token_id else None
-        
-        if inviter:
-            # Check sender limits
-            if not can_sender_accept_more_invites(inviter):
-                session.pop("pending_inviter_id", None)
-                session.pop("pending_invite_token_id", None)
-                return
-            
-            # Check token is not already used (single-use enforcement)
-            if invite_token:
-                if invite_token.is_used():
-                    session.pop("pending_inviter_id", None)
-                    session.pop("pending_invite_token_id", None)
-                    return
-            
-            # Check if already friends
-            existing = Friend.query.filter(
-                db.or_(
-                    db.and_(Friend.user_id == user.id, Friend.friend_id == inviter.id),
-                    db.and_(Friend.user_id == inviter.id, Friend.friend_id == user.id),
-                )
-            ).first()
-            if not existing:
-                # Create bidirectional connection
-                f1 = Friend(user_id=user.id, friend_id=inviter.id)
-                f2 = Friend(user_id=inviter.id, friend_id=user.id)
-                db.session.add_all([f1, f2])
-                
-                # Track first connection if not already set
-                if not user.first_connection_at:
-                    user.first_connection_at = datetime.utcnow()
-                if not inviter.first_connection_at:
-                    inviter.first_connection_at = datetime.utcnow()
-                
-                # Mark token as used (single-use enforcement)
-                if invite_token:
-                    invite_token.used_at = datetime.utcnow()
-                
-                db.session.commit()
-                
-                # Emit connection_created events for both users
-                emit_event('connection_created', user, {'friend_id': inviter.id})
-                emit_event('connection_created', inviter, {'friend_id': user.id})
-        
+    # Debug logging for verification
+    app.logger.info(f"[_connect_pending_inviter] user_id={user.id}, inviter_id={inviter_id}, source={source}")
+    
+    if not inviter_id or inviter_id == user.id:
+        app.logger.info(f"[_connect_pending_inviter] No valid inviter found for user_id={user.id}")
         session.pop("pending_inviter_id", None)
         session.pop("pending_invite_token_id", None)
+        return
+    
+    inviter = User.query.get(inviter_id)
+    invite_token = InviteToken.query.get(invite_token_id) if invite_token_id else None
+    
+    if not inviter:
+        app.logger.warning(f"[_connect_pending_inviter] Inviter user_id={inviter_id} not found")
+        session.pop("pending_inviter_id", None)
+        session.pop("pending_invite_token_id", None)
+        return
+    
+    # Check sender limits
+    if not can_sender_accept_more_invites(inviter):
+        app.logger.info(f"[_connect_pending_inviter] Inviter user_id={inviter_id} has reached invite limit")
+        session.pop("pending_inviter_id", None)
+        session.pop("pending_invite_token_id", None)
+        return
+    
+    # Check token is not already used (single-use enforcement)
+    if invite_token and invite_token.is_used():
+        app.logger.info(f"[_connect_pending_inviter] Token already used for user_id={user.id}")
+        session.pop("pending_inviter_id", None)
+        session.pop("pending_invite_token_id", None)
+        return
+    
+    # Idempotent check: Do not create duplicate rows if already friends
+    existing = Friend.query.filter(
+        db.or_(
+            db.and_(Friend.user_id == user.id, Friend.friend_id == inviter.id),
+            db.and_(Friend.user_id == inviter.id, Friend.friend_id == user.id),
+        )
+    ).first()
+    
+    if existing:
+        app.logger.info(f"[_connect_pending_inviter] Connection already exists between user_id={user.id} and inviter_id={inviter_id}")
+        session.pop("pending_inviter_id", None)
+        session.pop("pending_invite_token_id", None)
+        return
+    
+    # Create bidirectional connection
+    f1 = Friend(user_id=user.id, friend_id=inviter.id)
+    f2 = Friend(user_id=inviter.id, friend_id=user.id)
+    db.session.add_all([f1, f2])
+    
+    # Track first connection if not already set
+    if not user.first_connection_at:
+        user.first_connection_at = datetime.utcnow()
+    if not inviter.first_connection_at:
+        inviter.first_connection_at = datetime.utcnow()
+    
+    # Mark token as used (single-use enforcement)
+    if invite_token:
+        invite_token.used_at = datetime.utcnow()
+    
+    db.session.commit()
+    
+    app.logger.info(f"[_connect_pending_inviter] SUCCESS: Created bidirectional connection user_id={user.id} <-> inviter_id={inviter_id}")
+    
+    # Emit connection_created events for both users
+    emit_event('connection_created', user, {'friend_id': inviter.id})
+    emit_event('connection_created', inviter, {'friend_id': user.id})
+    
+    # Clean up session
+    session.pop("pending_inviter_id", None)
+    session.pop("pending_invite_token_id", None)
 
 
 @app.route("/r/<token>")
