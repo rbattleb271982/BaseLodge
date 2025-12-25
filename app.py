@@ -6370,12 +6370,13 @@ def fix_seeded_users():
 def admin_version():
     """Simple version check endpoint to verify production deployment."""
     return jsonify({
-        "version": "2025-12-25-v4",
+        "version": "2025-12-25-v5",
         "status": "ok",
         "endpoints_available": [
             "/admin/version",
             "/admin/backfill-country-codes",
             "/admin/resorts-audit",
+            "/admin/sync-resorts-from-dev",
             "/admin/init-db"
         ]
     })
@@ -6458,6 +6459,446 @@ def backfill_country_codes():
             "skipped": skipped[:20],
             "total_resorts": len(resorts)
         }), 200
+    except Exception as e:
+        import traceback
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@app.route("/admin/sync-resorts-from-dev", methods=["GET", "POST"])
+def sync_resorts_from_dev():
+    """
+    Sync resorts from development canonical list to production.
+    IDEMPOTENT - safe to run multiple times.
+    
+    Behavior:
+    - INSERT: Resorts in DEV but missing in PROD
+    - UPDATE: pass_brands mismatches (DEV wins)
+    - SKIP: Matching resorts
+    - NO DELETES: PROD-only resorts left untouched
+    
+    Matching key: (name.lower().strip(), state_code.upper(), country_code.upper())
+    """
+    
+    # Canonical resort data from DEVELOPMENT (source of truth)
+    # This list represents the 266 resorts in development
+    CANONICAL_RESORTS = [
+        # === UNITED STATES (200 resorts) ===
+        # Colorado
+        {"name": "Vail", "state_code": "CO", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Beaver Creek", "state_code": "CO", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Breckenridge", "state_code": "CO", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Keystone", "state_code": "CO", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Crested Butte", "state_code": "CO", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Aspen Snowmass", "state_code": "CO", "country_code": "US", "pass_brands": "Ikon,MountainCollective"},
+        {"name": "Aspen Highlands", "state_code": "CO", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Aspen Mountain", "state_code": "CO", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Buttermilk", "state_code": "CO", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Winter Park", "state_code": "CO", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Steamboat", "state_code": "CO", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Copper Mountain", "state_code": "CO", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Eldora", "state_code": "CO", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Arapahoe Basin", "state_code": "CO", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Loveland", "state_code": "CO", "country_code": "US", "pass_brands": "Indy"},
+        {"name": "Monarch Mountain", "state_code": "CO", "country_code": "US", "pass_brands": "Indy"},
+        {"name": "Ski Cooper", "state_code": "CO", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Wolf Creek", "state_code": "CO", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Telluride", "state_code": "CO", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Purgatory Resort", "state_code": "CO", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Silverton Mountain", "state_code": "CO", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Sunlight Mountain", "state_code": "CO", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Howelsen Hill", "state_code": "CO", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Echo Mountain", "state_code": "CO", "country_code": "US", "pass_brands": "Other"},
+        # Utah
+        {"name": "Park City", "state_code": "UT", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Deer Valley", "state_code": "UT", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Snowbird", "state_code": "UT", "country_code": "US", "pass_brands": "Ikon,MountainCollective"},
+        {"name": "Alta", "state_code": "UT", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Brighton", "state_code": "UT", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Solitude", "state_code": "UT", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Snowbasin", "state_code": "UT", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Powder Mountain", "state_code": "UT", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Brian Head", "state_code": "UT", "country_code": "US", "pass_brands": "Indy"},
+        {"name": "Sundance", "state_code": "UT", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Nordic Valley", "state_code": "UT", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Cherry Peak", "state_code": "UT", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Eagle Point", "state_code": "UT", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Beaver Mountain", "state_code": "UT", "country_code": "US", "pass_brands": "Other"},
+        # California
+        {"name": "Mammoth Mountain", "state_code": "CA", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Palisades Tahoe", "state_code": "CA", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Heavenly", "state_code": "CA", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Kirkwood", "state_code": "CA", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Northstar", "state_code": "CA", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Sugar Bowl", "state_code": "CA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Mt. Rose", "state_code": "CA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Bear Valley", "state_code": "CA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "China Peak", "state_code": "CA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Dodge Ridge", "state_code": "CA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "June Mountain", "state_code": "CA", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Big Bear", "state_code": "CA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Mountain High", "state_code": "CA", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Snow Summit", "state_code": "CA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Snow Valley", "state_code": "CA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Mt. Baldy", "state_code": "CA", "country_code": "US", "pass_brands": "Other"},
+        # Wyoming
+        {"name": "Jackson Hole Mountain Resort", "state_code": "WY", "country_code": "US", "pass_brands": "Ikon,MountainCollective"},
+        {"name": "Grand Targhee", "state_code": "WY", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Snow King", "state_code": "WY", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Snowy Range", "state_code": "WY", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Hogadon", "state_code": "WY", "country_code": "US", "pass_brands": "Other"},
+        {"name": "White Pine", "state_code": "WY", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Meadowlark", "state_code": "WY", "country_code": "US", "pass_brands": "Other"},
+        # Montana
+        {"name": "Big Sky", "state_code": "MT", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Whitefish Mountain", "state_code": "MT", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Bridger Bowl", "state_code": "MT", "country_code": "US", "pass_brands": "Indy"},
+        {"name": "Red Lodge Mountain", "state_code": "MT", "country_code": "US", "pass_brands": "Indy"},
+        {"name": "Lost Trail", "state_code": "MT", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Lookout Pass", "state_code": "MT", "country_code": "US", "pass_brands": "Indy"},
+        {"name": "Showdown", "state_code": "MT", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Blacktail Mountain", "state_code": "MT", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Great Divide", "state_code": "MT", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Maverick Mountain", "state_code": "MT", "country_code": "US", "pass_brands": "Other"},
+        # Idaho
+        {"name": "Sun Valley", "state_code": "ID", "country_code": "US", "pass_brands": "Ikon,MountainCollective"},
+        {"name": "Schweitzer", "state_code": "ID", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Brundage Mountain", "state_code": "ID", "country_code": "US", "pass_brands": "Indy"},
+        {"name": "Tamarack", "state_code": "ID", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Silver Mountain", "state_code": "ID", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Bogus Basin", "state_code": "ID", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Pebble Creek", "state_code": "ID", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Kelly Canyon", "state_code": "ID", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Soldier Mountain", "state_code": "ID", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Magic Mountain", "state_code": "ID", "country_code": "US", "pass_brands": "Other"},
+        # Washington
+        {"name": "Crystal Mountain", "state_code": "WA", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Stevens Pass", "state_code": "WA", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Mt. Baker", "state_code": "WA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Snoqualmie", "state_code": "WA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Mission Ridge", "state_code": "WA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "White Pass", "state_code": "WA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "49 Degrees North", "state_code": "WA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Mt. Spokane", "state_code": "WA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Loup Loup", "state_code": "WA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Bluewood", "state_code": "WA", "country_code": "US", "pass_brands": "Other"},
+        # Oregon
+        {"name": "Mt. Bachelor", "state_code": "OR", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Mt. Hood Meadows", "state_code": "OR", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Timberline Lodge", "state_code": "OR", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Ski Bowl", "state_code": "OR", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Hoodoo", "state_code": "OR", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Willamette Pass", "state_code": "OR", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Anthony Lakes", "state_code": "OR", "country_code": "US", "pass_brands": "Other"},
+        # New Mexico
+        {"name": "Taos Ski Valley", "state_code": "NM", "country_code": "US", "pass_brands": "Ikon,MountainCollective"},
+        {"name": "Ski Santa Fe", "state_code": "NM", "country_code": "US", "pass_brands": "Indy"},
+        {"name": "Angel Fire", "state_code": "NM", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Red River", "state_code": "NM", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Sipapu", "state_code": "NM", "country_code": "US", "pass_brands": "Indy"},
+        {"name": "Ski Apache", "state_code": "NM", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Pajarito", "state_code": "NM", "country_code": "US", "pass_brands": "Other"},
+        # Vermont
+        {"name": "Stowe", "state_code": "VT", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Killington", "state_code": "VT", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Sugarbush", "state_code": "VT", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Okemo", "state_code": "VT", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Mount Snow", "state_code": "VT", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Stratton", "state_code": "VT", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Jay Peak", "state_code": "VT", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Smugglers Notch", "state_code": "VT", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Pico Mountain", "state_code": "VT", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Burke Mountain", "state_code": "VT", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Magic Mountain", "state_code": "VT", "country_code": "US", "pass_brands": "Indy"},
+        {"name": "Suicide Six", "state_code": "VT", "country_code": "US", "pass_brands": "Other"},
+        # New Hampshire
+        {"name": "Loon Mountain", "state_code": "NH", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Cannon Mountain", "state_code": "NH", "country_code": "US", "pass_brands": "Indy"},
+        {"name": "Bretton Woods", "state_code": "NH", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Attitash", "state_code": "NH", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Wildcat Mountain", "state_code": "NH", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Waterville Valley", "state_code": "NH", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Gunstock", "state_code": "NH", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Ragged Mountain", "state_code": "NH", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Pats Peak", "state_code": "NH", "country_code": "US", "pass_brands": "Other"},
+        {"name": "King Pine", "state_code": "NH", "country_code": "US", "pass_brands": "Other"},
+        # Maine
+        {"name": "Sunday River", "state_code": "ME", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Sugarloaf", "state_code": "ME", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Saddleback", "state_code": "ME", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Big Rock", "state_code": "ME", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Mt. Abram", "state_code": "ME", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Shawnee Peak", "state_code": "ME", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Lost Valley", "state_code": "ME", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Camden Snow Bowl", "state_code": "ME", "country_code": "US", "pass_brands": "Other"},
+        # New York
+        {"name": "Whiteface", "state_code": "NY", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Gore Mountain", "state_code": "NY", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Hunter Mountain", "state_code": "NY", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Windham Mountain", "state_code": "NY", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Holiday Valley", "state_code": "NY", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Belleayre", "state_code": "NY", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Greek Peak", "state_code": "NY", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Peek'n Peak", "state_code": "NY", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Bristol Mountain", "state_code": "NY", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Plattekill", "state_code": "NY", "country_code": "US", "pass_brands": "Indy"},
+        # Pennsylvania
+        {"name": "Seven Springs", "state_code": "PA", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Camelback", "state_code": "PA", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Blue Mountain", "state_code": "PA", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Jack Frost", "state_code": "PA", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Big Boulder", "state_code": "PA", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Elk Mountain", "state_code": "PA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Shawnee Mountain", "state_code": "PA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Hidden Valley", "state_code": "PA", "country_code": "US", "pass_brands": "Epic"},
+        # Michigan
+        {"name": "Boyne Mountain", "state_code": "MI", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Boyne Highlands", "state_code": "MI", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Crystal Mountain", "state_code": "MI", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Shanty Creek", "state_code": "MI", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Nubs Nob", "state_code": "MI", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Mt. Brighton", "state_code": "MI", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Mt. Bohemia", "state_code": "MI", "country_code": "US", "pass_brands": "Indy"},
+        {"name": "Caberfae Peaks", "state_code": "MI", "country_code": "US", "pass_brands": "Other"},
+        # Wisconsin
+        {"name": "Granite Peak", "state_code": "WI", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Devil's Head", "state_code": "WI", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Cascade Mountain", "state_code": "WI", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Wilmot Mountain", "state_code": "WI", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Whitecap Mountain", "state_code": "WI", "country_code": "US", "pass_brands": "Other"},
+        # West Virginia
+        {"name": "Snowshoe Mountain", "state_code": "WV", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Canaan Valley", "state_code": "WV", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Timberline Mountain", "state_code": "WV", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Winterplace", "state_code": "WV", "country_code": "US", "pass_brands": "Other"},
+        # Alaska
+        {"name": "Alyeska", "state_code": "AK", "country_code": "US", "pass_brands": "Ikon"},
+        # Nevada
+        {"name": "Lee Canyon", "state_code": "NV", "country_code": "US", "pass_brands": "Other"},
+        # Arizona
+        {"name": "Arizona Snowbowl", "state_code": "AZ", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Sunrise Park", "state_code": "AZ", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Mt. Lemmon", "state_code": "AZ", "country_code": "US", "pass_brands": "Other"},
+        # Minnesota
+        {"name": "Lutsen Mountains", "state_code": "MN", "country_code": "US", "pass_brands": "Ikon"},
+        {"name": "Spirit Mountain", "state_code": "MN", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Giants Ridge", "state_code": "MN", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Afton Alps", "state_code": "MN", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Wild Mountain", "state_code": "MN", "country_code": "US", "pass_brands": "Other"},
+        # Massachusetts
+        {"name": "Wachusett", "state_code": "MA", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Jiminy Peak", "state_code": "MA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Berkshire East", "state_code": "MA", "country_code": "US", "pass_brands": "Indy"},
+        {"name": "Ski Butternut", "state_code": "MA", "country_code": "US", "pass_brands": "Other"},
+        # Connecticut
+        {"name": "Mohawk Mountain", "state_code": "CT", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Mount Southington", "state_code": "CT", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Ski Sundown", "state_code": "CT", "country_code": "US", "pass_brands": "Other"},
+        # North Carolina
+        {"name": "Beech Mountain", "state_code": "NC", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Sugar Mountain", "state_code": "NC", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Appalachian Ski Mountain", "state_code": "NC", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Cataloochee", "state_code": "NC", "country_code": "US", "pass_brands": "Other"},
+        # Tennessee
+        {"name": "Ober Mountain", "state_code": "TN", "country_code": "US", "pass_brands": "Other"},
+        # Virginia
+        {"name": "Wintergreen", "state_code": "VA", "country_code": "US", "pass_brands": "Epic"},
+        {"name": "Massanutten", "state_code": "VA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "The Homestead", "state_code": "VA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Bryce Resort", "state_code": "VA", "country_code": "US", "pass_brands": "Other"},
+        # Maryland
+        {"name": "Wisp Resort", "state_code": "MD", "country_code": "US", "pass_brands": "Other"},
+        # New Jersey
+        {"name": "Mountain Creek", "state_code": "NJ", "country_code": "US", "pass_brands": "Ikon"},
+        # South Dakota
+        {"name": "Terry Peak", "state_code": "SD", "country_code": "US", "pass_brands": "Other"},
+        # North Dakota
+        {"name": "Huff Hills", "state_code": "ND", "country_code": "US", "pass_brands": "Other"},
+        # Iowa
+        {"name": "Sundown Mountain", "state_code": "IA", "country_code": "US", "pass_brands": "Other"},
+        {"name": "Seven Oaks", "state_code": "IA", "country_code": "US", "pass_brands": "Other"},
+        
+        # === CANADA (43 resorts) ===
+        # British Columbia
+        {"name": "Whistler Blackcomb", "state_code": "BC", "country_code": "CA", "pass_brands": "Epic"},
+        {"name": "Revelstoke Mountain Resort", "state_code": "BC", "country_code": "CA", "pass_brands": "Ikon"},
+        {"name": "Sun Peaks Resort", "state_code": "BC", "country_code": "CA", "pass_brands": "Ikon"},
+        {"name": "Big White Ski Resort", "state_code": "BC", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "SilverStar Mountain Resort", "state_code": "BC", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "Kicking Horse Mountain Resort", "state_code": "BC", "country_code": "CA", "pass_brands": "Epic"},
+        {"name": "Fernie Alpine Resort", "state_code": "BC", "country_code": "CA", "pass_brands": "Epic"},
+        {"name": "Panorama Mountain Resort", "state_code": "BC", "country_code": "CA", "pass_brands": "Ikon"},
+        {"name": "Red Mountain Resort", "state_code": "BC", "country_code": "CA", "pass_brands": "Ikon"},
+        {"name": "Red Mountain", "state_code": "BC", "country_code": "CA", "pass_brands": "Ikon"},
+        {"name": "Whitewater Ski Resort", "state_code": "BC", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "Whitewater", "state_code": "BC", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "Cypress Mountain", "state_code": "BC", "country_code": "CA", "pass_brands": "Ikon"},
+        {"name": "Apex Mountain", "state_code": "BC", "country_code": "CA", "pass_brands": "Indy"},
+        {"name": "Kimberley", "state_code": "BC", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "Manning Park", "state_code": "BC", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "Sasquatch Mountain", "state_code": "BC", "country_code": "CA", "pass_brands": "Other"},
+        # Alberta
+        {"name": "Lake Louise Ski Resort", "state_code": "AB", "country_code": "CA", "pass_brands": "Ikon"},
+        {"name": "Banff Sunshine Village", "state_code": "AB", "country_code": "CA", "pass_brands": "Ikon"},
+        {"name": "Sunshine Village", "state_code": "AB", "country_code": "CA", "pass_brands": "Ikon"},
+        {"name": "Nakiska Ski Area", "state_code": "AB", "country_code": "CA", "pass_brands": "Epic"},
+        {"name": "Marmot Basin", "state_code": "AB", "country_code": "CA", "pass_brands": "Ikon"},
+        {"name": "Mt. Norquay", "state_code": "AB", "country_code": "CA", "pass_brands": "Ikon"},
+        {"name": "Norquay", "state_code": "AB", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "Castle Mountain", "state_code": "AB", "country_code": "CA", "pass_brands": "Indy"},
+        # Ontario
+        {"name": "Blue Mountain Resort", "state_code": "ON", "country_code": "CA", "pass_brands": "Ikon"},
+        {"name": "Mount St. Louis Moonstone", "state_code": "ON", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "Horseshoe Resort", "state_code": "ON", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "Glen Eden", "state_code": "ON", "country_code": "CA", "pass_brands": "Other"},
+        # Quebec
+        {"name": "Tremblant", "state_code": "QC", "country_code": "CA", "pass_brands": "Ikon"},
+        {"name": "Le Massif de Charlevoix", "state_code": "QC", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "Le Massif", "state_code": "QC", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "Mont-Sainte-Anne", "state_code": "QC", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "Stoneham Mountain Resort", "state_code": "QC", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "Bromont", "state_code": "QC", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "Mont Orford", "state_code": "QC", "country_code": "CA", "pass_brands": "Other"},
+        # Nova Scotia
+        {"name": "Ski Martock", "state_code": "NS", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "Wentworth", "state_code": "NS", "country_code": "CA", "pass_brands": "Other"},
+        # Newfoundland
+        {"name": "Marble Mountain", "state_code": "NL", "country_code": "CA", "pass_brands": "Other"},
+        # Manitoba
+        {"name": "Holiday Mountain", "state_code": "MB", "country_code": "CA", "pass_brands": "Other"},
+        {"name": "Asessippi", "state_code": "MB", "country_code": "CA", "pass_brands": "Other"},
+        # Saskatchewan
+        {"name": "Table Mountain", "state_code": "SK", "country_code": "CA", "pass_brands": "Other"},
+        # Yukon
+        {"name": "Mount Sima", "state_code": "YT", "country_code": "CA", "pass_brands": "Other"},
+        
+        # === JAPAN (6 resorts) ===
+        {"name": "Niseko", "state_code": "Hokkaido", "country_code": "JP", "pass_brands": "Ikon"},
+        {"name": "Rusutsu", "state_code": "Hokkaido", "country_code": "JP", "pass_brands": "Ikon"},
+        {"name": "Hakuba", "state_code": "Nagano", "country_code": "JP", "pass_brands": "Epic"},
+        {"name": "Nozawa Onsen", "state_code": "Nagano", "country_code": "JP", "pass_brands": "Other"},
+        {"name": "Myoko Kogen", "state_code": "Niigata", "country_code": "JP", "pass_brands": "Other"},
+        {"name": "Furano", "state_code": "Hokkaido", "country_code": "JP", "pass_brands": "Other"},
+        
+        # === FRANCE (9 resorts) ===
+        {"name": "Chamonix", "state_code": "Auvergne-Rhône-Alpes", "country_code": "FR", "pass_brands": "Ikon"},
+        {"name": "Val d'Isère", "state_code": "Auvergne-Rhône-Alpes", "country_code": "FR", "pass_brands": "Ikon"},
+        {"name": "Courchevel", "state_code": "Auvergne-Rhône-Alpes", "country_code": "FR", "pass_brands": "Other"},
+        {"name": "Méribel", "state_code": "Auvergne-Rhône-Alpes", "country_code": "FR", "pass_brands": "Other"},
+        {"name": "Val Thorens", "state_code": "Auvergne-Rhône-Alpes", "country_code": "FR", "pass_brands": "Other"},
+        {"name": "Les Arcs", "state_code": "Auvergne-Rhône-Alpes", "country_code": "FR", "pass_brands": "Other"},
+        {"name": "La Plagne", "state_code": "Auvergne-Rhône-Alpes", "country_code": "FR", "pass_brands": "Other"},
+        {"name": "Megève", "state_code": "Auvergne-Rhône-Alpes", "country_code": "FR", "pass_brands": "Other"},
+        {"name": "Les Deux Alpes", "state_code": "Auvergne-Rhône-Alpes", "country_code": "FR", "pass_brands": "Other"},
+        
+        # === SWITZERLAND (4 resorts) ===
+        {"name": "Zermatt", "state_code": "Valais", "country_code": "CH", "pass_brands": "Ikon"},
+        {"name": "Verbier", "state_code": "Valais", "country_code": "CH", "pass_brands": "Other"},
+        {"name": "St. Moritz", "state_code": "Graubünden", "country_code": "CH", "pass_brands": "Other"},
+        {"name": "Gstaad", "state_code": "Bern", "country_code": "CH", "pass_brands": "Other"},
+        
+        # === AUSTRIA (3 resorts) ===
+        {"name": "St. Anton am Arlberg", "state_code": "Tyrol", "country_code": "AT", "pass_brands": "Ikon"},
+        {"name": "Kitzbühel", "state_code": "Tyrol", "country_code": "AT", "pass_brands": "Other"},
+        {"name": "Ischgl", "state_code": "Tyrol", "country_code": "AT", "pass_brands": "Other"},
+        
+        # === ITALY (1 resort) ===
+        {"name": "Dolomiti Superski", "state_code": "Trentino-Alto Adige", "country_code": "IT", "pass_brands": "Other"},
+    ]
+    
+    def normalize_key(name, state_code, country_code):
+        return (
+            (name or '').strip().lower(),
+            (state_code or '').strip().upper(),
+            (country_code or '').strip().upper()
+        )
+    
+    try:
+        # Build lookup of existing resorts in production by normalized key
+        existing_resorts = Resort.query.all()
+        prod_by_key = {}
+        for r in existing_resorts:
+            key = normalize_key(r.name, r.state_code or r.state, r.country_code or r.country)
+            prod_by_key[key] = r
+        
+        inserted = 0
+        updated = 0
+        skipped = 0
+        details = {"inserted": [], "updated": [], "skipped": []}
+        
+        for canonical in CANONICAL_RESORTS:
+            name = canonical["name"]
+            state_code = canonical["state_code"]
+            country_code = canonical["country_code"]
+            pass_brands = canonical["pass_brands"]
+            
+            key = normalize_key(name, state_code, country_code)
+            
+            if key in prod_by_key:
+                # Resort exists - check if update needed
+                existing = prod_by_key[key]
+                existing_pass_brands = existing.pass_brands or existing.brand or ""
+                
+                if existing_pass_brands != pass_brands:
+                    # Update pass_brands
+                    existing.pass_brands = pass_brands
+                    existing.brand = pass_brands.split(',')[0] if pass_brands else "Other"
+                    updated += 1
+                    details["updated"].append(f"{name} ({state_code}): {existing_pass_brands} -> {pass_brands}")
+                else:
+                    skipped += 1
+                    if len(details["skipped"]) < 10:
+                        details["skipped"].append(f"{name} ({state_code})")
+            else:
+                # Resort missing - INSERT with unique slug
+                import re
+                base_slug = re.sub(r'[^a-z0-9-]', '', name.lower().replace(' ', '-').replace("'", ""))
+                slug = f"{base_slug}-{state_code.lower()}-{country_code.lower()}"
+                
+                # Check if slug exists, add suffix if needed
+                existing_slug = Resort.query.filter_by(slug=slug).first()
+                if existing_slug:
+                    slug = f"{slug}-2"
+                
+                new_resort = Resort(
+                    name=name,
+                    slug=slug,
+                    state=state_code,
+                    state_code=state_code,
+                    state_full=state_code,
+                    country=country_code,
+                    country_code=country_code,
+                    brand=pass_brands.split(',')[0] if pass_brands else "Other",
+                    pass_brands=pass_brands
+                )
+                db.session.add(new_resort)
+                db.session.flush()  # Flush each insert to avoid bulk constraint issues
+                inserted += 1
+                details["inserted"].append(f"{name} ({state_code}, {country_code})")
+        
+        db.session.commit()
+        
+        # Final count
+        final_count = Resort.query.count()
+        
+        return jsonify({
+            "status": "success",
+            "inserted": inserted,
+            "updated": updated,
+            "skipped": skipped,
+            "deleted": 0,
+            "final_resort_count": final_count,
+            "details": {
+                "inserted": details["inserted"][:50],
+                "updated": details["updated"],
+                "skipped_sample": details["skipped"]
+            }
+        }), 200
+        
     except Exception as e:
         import traceback
         db.session.rollback()
