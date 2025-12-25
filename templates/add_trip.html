@@ -473,8 +473,9 @@
                 <div class="form-group">
                     <label for="country">Country</label>
                     <select id="country" name="country" required>
+                        <option value="">Choose country</option>
                         {% for country_code, country_name in countries_with_resorts %}
-                        <option value="{{ country_code }}" {% if (trip and trip.resort and trip.resort.country == country_code) or (not trip and ((default_country and default_country == country_code) or (not default_country and country_code == 'US'))) %}selected{% endif %}>{{ country_name }}</option>
+                        <option value="{{ country_code }}" {% if (trip and trip.resort and (trip.resort.country_code == country_code or trip.resort.country == country_code)) or (not trip and ((default_country and default_country == country_code) or (not default_country and country_code == 'US'))) %}selected{% endif %}>{{ country_name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -628,14 +629,15 @@
         const isEditMode = {{ 'true' if trip else 'false' }};
         
         const formState = {
-            country: {{ ((trip.resort.country if trip.resort else 'US') if trip else (default_country or 'US'))|tojson }} || 'US',
-            state: {{ ((trip.resort.state if trip.resort else trip.state) if trip and (trip.resort or trip.state) else none)|tojson }},
+            country: {{ ((trip.resort.country_code or trip.resort.country if trip.resort else 'US') if trip else (default_country or 'US'))|tojson }} || 'US',
+            state: {{ ((trip.resort.state_code or trip.resort.state if trip.resort else trip.state) if trip and (trip.resort or trip.state) else none)|tojson }},
             resort: {{ (trip.resort_id if trip and trip.resort_id else none)|tojson }},
             startDate: {{ (trip.start_date.isoformat() if trip and trip.start_date else none)|tojson }},
             endDate: {{ (trip.end_date.isoformat() if trip and trip.end_date else none)|tojson }}
         };
         
         console.log("formState initialized:", formState);
+        console.log("statesByCountry available:", statesByCountry ? Object.keys(statesByCountry) : "NULL");
         
         const countrySelect = document.getElementById('country');
         const stateSelect = document.getElementById('state');
@@ -821,19 +823,36 @@
         }
 
         function populateStates(country, preserveSelection) {
-            console.log("populateStates called:", country);
+            console.log("=== populateStates START ===");
+            console.log("Country arg:", country);
+            
+            // FAIL-LOUD: Check statesByCountry exists
             if (!statesByCountry) {
-                console.error("statesByCountry is null/undefined!");
-                stateSelect.innerHTML = '<option value="">Error loading states</option>';
+                console.error("FATAL: statesByCountry is null/undefined!");
+                stateSelect.innerHTML = '<option value="">Error: No state data</option>';
                 stateSelect.disabled = true;
                 return;
             }
-            const states = statesByCountry[country] || [];
-            if (states.length === 0) {
-                console.warn("No states found for country:", country, "Available keys:", Object.keys(statesByCountry));
-            } else {
-                console.log("Found", states.length, "states for", country);
+            
+            // FAIL-LOUD: Check country has states, fallback to US if not
+            let states = statesByCountry[country];
+            if (!states || states.length === 0) {
+                console.error("No states for country:", country, "- Available:", Object.keys(statesByCountry).join(", "));
+                // Fallback to US
+                if (country !== 'US' && statesByCountry['US']) {
+                    console.warn("Falling back to US states");
+                    states = statesByCountry['US'];
+                    country = 'US';
+                } else {
+                    stateSelect.innerHTML = '<option value="">No options available</option>';
+                    stateSelect.disabled = true;
+                    return;
+                }
             }
+            
+            console.log("Found", states.length, "states for", country);
+            
+            // Clear and repopulate safely
             stateSelect.innerHTML = '<option value="">Choose a state...</option>';
             states.forEach(([code, name]) => {
                 const option = document.createElement('option');
@@ -841,11 +860,15 @@
                 option.textContent = name;
                 stateSelect.appendChild(option);
             });
-            stateSelect.disabled = states.length === 0;
+            stateSelect.disabled = false;
             
+            // Preserve selection if editing
             if (preserveSelection && formState.state) {
                 stateSelect.value = formState.state;
+                console.log("Preserved state selection:", formState.state, "Result:", stateSelect.value);
             }
+            
+            console.log("=== populateStates END ===");
         }
         
         function populateResorts(country, state, preserveSelection) {
@@ -981,35 +1004,56 @@
         
         document.addEventListener('DOMContentLoaded', function() {
             console.log("=== ADD TRIP PAGE INIT ===");
+            console.log("isEditMode:", isEditMode);
             
-            // Hard assertions - stop if critical elements missing
-            console.assert(countrySelect, "FATAL: Country select not found");
-            console.assert(stateSelect, "FATAL: State select not found");
-            console.assert(resortSelect, "FATAL: Resort select not found");
-            console.assert(countrySelect && countrySelect.options.length > 0, "FATAL: Country select has no options");
-            console.assert(statesByCountry, "FATAL: statesByCountry is null/undefined");
-            console.assert(resorts && resorts.length > 0, "FATAL: resorts array is empty");
-            
-            if (!countrySelect || !stateSelect || !resortSelect) {
-                console.error("Trip form elements missing - ABORTING", {countrySelect, stateSelect, resortSelect});
+            // CRITICAL: Validate required elements exist
+            if (!countrySelect) {
+                console.error("FATAL: Country select not found - ABORTING");
+                return;
+            }
+            if (!stateSelect) {
+                console.error("FATAL: State select not found - ABORTING");
+                return;
+            }
+            if (!resortSelect) {
+                console.error("FATAL: Resort select not found - ABORTING");
                 return;
             }
             
-            // Wire up event listeners explicitly
+            // CRITICAL: Validate country dropdown has options
+            const countryOptions = Array.from(countrySelect.options).filter(o => o.value !== '');
+            console.log("Country options found:", countryOptions.length, countryOptions.map(o => o.value));
+            
+            if (countryOptions.length === 0) {
+                console.error("FATAL: Country select has no valid options!");
+                console.error("countries_with_resorts was:", {{ countries_with_resorts|tojson }});
+                return;
+            }
+            
+            // CRITICAL: Validate statesByCountry is populated
+            if (!statesByCountry || Object.keys(statesByCountry).length === 0) {
+                console.error("FATAL: statesByCountry is empty or null!");
+                console.error("statesByCountry value:", statesByCountry);
+                return;
+            }
+            
+            console.log("statesByCountry keys:", Object.keys(statesByCountry));
+            console.log("Total resorts:", resorts ? resorts.length : 0);
+            console.log("formState at init:", JSON.stringify(formState));
+            
+            // DEFENSIVE: If country select value is empty, force to US
+            if (!countrySelect.value || countrySelect.value === '') {
+                console.warn("Country select has no value, forcing to US");
+                countrySelect.value = 'US';
+                formState.country = 'US';
+            }
+            
+            // Wire up event listeners
             countrySelect.addEventListener('change', updateStates);
             stateSelect.addEventListener('change', updateResorts);
             resortSearchInput.addEventListener('input', filterResorts);
             
-            // Log diagnostic data
-            console.log("Country options:", Array.from(countrySelect.options).map(o => o.value));
-            console.log("statesByCountry keys:", statesByCountry ? Object.keys(statesByCountry) : "NULL");
-            console.log("Total resorts:", resorts ? resorts.length : 0);
-            console.log("formState:", formState);
-            
-            // Validate country has states
-            const country = formState.country || countrySelect.value || 'US';
-            console.assert(statesByCountry && statesByCountry[country], "No states for country: " + country + ", available: " + (statesByCountry ? Object.keys(statesByCountry).join(", ") : "none"));
-            
+            // MANDATORY: Initialize form (populates states immediately)
             initializeForm();
             initializeCalendar();
             toggleAccommodationLink();
@@ -1084,18 +1128,53 @@
         });
         
         function initializeForm() {
-            console.log("initializeForm called with country:", formState.country);
+            console.log("=== initializeForm START ===");
+            console.log("formState.country:", formState.country);
+            console.log("countrySelect.value:", countrySelect.value);
+            console.log("countrySelect.options.length:", countrySelect.options.length);
             
-            // Ensure country is set (default to US)
-            const country = formState.country || 'US';
+            // DEFENSIVE: Check if country dropdown has valid options (besides placeholder)
+            const validCountryOptions = Array.from(countrySelect.options).filter(o => o.value !== '');
+            if (validCountryOptions.length === 0) {
+                console.error("FATAL: Country dropdown has no valid options!");
+                return;
+            }
+            
+            // DEFENSIVE: Determine country - formState > select value > first valid option > US
+            let country = formState.country || countrySelect.value;
+            if (!country || country === '' || !statesByCountry[country]) {
+                console.warn("Country invalid or has no states, falling back to US");
+                country = 'US';
+                // If US doesn't have states either, try first available
+                if (!statesByCountry[country]) {
+                    const fallbackCountry = Object.keys(statesByCountry)[0];
+                    console.warn("US not available, falling back to:", fallbackCountry);
+                    country = fallbackCountry || 'US';
+                }
+            }
+            
+            // DEFENSIVE: Force-set country in both formState and select
+            formState.country = country;
             countrySelect.value = country;
             
-            // Always populate states for the selected country
+            // If select value didn't stick (option not found), log error
+            if (countrySelect.value !== country) {
+                console.error("Failed to set country to:", country, "- available options:", validCountryOptions.map(o => o.value));
+            }
+            
+            console.log("Using country:", country);
+            
+            // MANDATORY: Populate states immediately (never wait for change event)
             populateStates(country, true);
             console.log("States populated for country:", country);
             
             // Populate resorts if a state is already selected
-            populateResorts(country, formState.state, true);
+            const state = formState.state || stateSelect.value;
+            if (state) {
+                populateResorts(country, state, true);
+            }
+            
+            console.log("=== initializeForm END ===");
         }
         
         function initializeCalendar() {
