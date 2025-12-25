@@ -2588,35 +2588,11 @@ def friend_trip_details(trip_id):
 
     has_overlap = your_overlap_days > 0
     
-    # Find friends with open dates that overlap the trip dates
-    trip_dates = set()
-    current_date = trip.start_date
-    while current_date <= trip.end_date:
-        trip_dates.add(current_date.strftime('%Y-%m-%d'))
-        current_date += timedelta(days=1)
-    
-    # Fetch all friend users in a single query
-    friend_users = (
-        db.session.query(User)
-        .join(Friend, Friend.friend_id == User.id)
-        .filter(Friend.user_id == current_user.id)
-        .all()
-    )
-    
-    friends_open_on_trip = []
-    for friend_user in friend_users:
-        if friend_user.open_dates:
-            friend_open_set = set(friend_user.open_dates)
-            overlap_dates = trip_dates & friend_open_set
-            if overlap_dates:
-                friends_open_on_trip.append({
-                    'id': friend_user.id,
-                    'name': friend_user.first_name,
-                    'pass_type': friend_user.pass_type,
-                    'overlap_count': len(overlap_dates)
-                })
-    
-    friends_open_on_trip.sort(key=lambda x: x['name'])
+    # PRIVACY: Do NOT query or display other friends' availability.
+    # Non-owners should only see their own overlap with this trip.
+    # The friends_open_on_trip feature has been removed to prevent
+    # showing third-party friend data (e.g., "Richard · Epic") when
+    # Jonathan views Charles's trip.
 
     return render_template(
         "friend_trip_details.html",
@@ -2625,7 +2601,7 @@ def friend_trip_details(trip_id):
         has_overlap=has_overlap,
         overlap_days=your_overlap_days,
         your_overlap_ranges=your_overlap_ranges,
-        friends_open_on_trip=friends_open_on_trip
+        friends_open_on_trip=[]  # Always empty - privacy protection
     )
 
 @app.route("/feedback", methods=["GET", "POST"])
