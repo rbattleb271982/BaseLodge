@@ -6370,12 +6370,31 @@ def fix_seeded_users():
 def admin_version():
     """Simple version check endpoint to verify production deployment."""
     return jsonify({
-        "version": "2025-12-25-v3",
+        "version": "2025-12-25-v4",
         "status": "ok",
         "endpoints_available": [
             "/admin/version",
             "/admin/backfill-country-codes",
+            "/admin/resorts-audit",
             "/admin/init-db"
+        ]
+    })
+
+
+@app.route("/admin/resorts-audit", methods=["GET"])
+def resorts_audit():
+    """Read-only endpoint to fetch all resorts for audit comparison."""
+    resorts = Resort.query.all()
+    return jsonify({
+        "total": len(resorts),
+        "resorts": [
+            {
+                "name": r.name,
+                "state_code": r.state_code or r.state,
+                "country_code": r.country_code or r.country,
+                "pass_brands": r.pass_brands or r.brand
+            }
+            for r in resorts
         ]
     })
 
