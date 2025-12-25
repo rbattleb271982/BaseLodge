@@ -125,7 +125,7 @@ def before_request_handlers():
 def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        admin_emails_str = os.environ.get("ALLOWED_ADMIN_EMAILS", "richardbattlebaxter@gmail.com")
+        admin_emails_str = os.environ.get("ALLOWED_ADMIN_EMAILS", "richardbattlebaxter@gmail.com,battle@battle.com")
         admin_emails = [e.strip().lower() for e in admin_emails_str.split(",") if e.strip()]
         if not current_user.is_authenticated or current_user.email.lower() not in admin_emails:
             return "Admin privileges required.", 403
