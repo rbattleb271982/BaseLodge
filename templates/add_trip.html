@@ -800,7 +800,15 @@
         }
 
         function populateStates(country, preserveSelection) {
+            console.log("populateStates called:", country, "statesByCountry:", statesByCountry);
+            if (!statesByCountry) {
+                console.error("statesByCountry is null/undefined!");
+                stateSelect.innerHTML = '<option value="">Error loading states</option>';
+                stateSelect.disabled = true;
+                return;
+            }
             const states = statesByCountry[country] || [];
+            console.log("Found states:", states.length);
             stateSelect.innerHTML = '<option value="">Choose a state...</option>';
             states.forEach(([code, name]) => {
                 const option = document.createElement('option');
