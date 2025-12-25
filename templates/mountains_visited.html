@@ -6,6 +6,16 @@
     <title>Base Lodge - Mountains Visited</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
+        .filter-row {
+            display: flex;
+            gap: var(--bl-space-3);
+            margin-bottom: var(--bl-space-4);
+        }
+        
+        .filter-row select {
+            flex: 1;
+        }
+        
         .mountain-search {
             width: 100%;
             padding: 14px 12px;
@@ -15,6 +25,12 @@
             margin-bottom: var(--bl-space-4);
             min-height: 48px;
             box-sizing: border-box;
+        }
+        
+        .mountain-search:disabled {
+            background: var(--bl-color-bg-secondary);
+            cursor: not-allowed;
+            opacity: 0.6;
         }
         
         .selected-counter {
@@ -130,6 +146,11 @@
         .mountain-row.hidden {
             display: none;
         }
+        
+        .resort-location {
+            color: var(--bl-color-text-muted);
+            margin-left: 4px;
+        }
     </style>
 </head>
 <body>
@@ -143,14 +164,20 @@
         <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0 0 16px 0;">These are mountains you've already skied.</p>
         
         <form method="POST" id="mountains-form">
-            <select id="state-filter" class="mountain-search" style="cursor: pointer;" onchange="filterByState()">
-                <option value="all">All states</option>
-                {% for state in states %}
-                <option value="{{ state }}">{{ state }}</option>
-                {% endfor %}
-            </select>
+            <div class="filter-row">
+                <select id="country-filter" class="mountain-search" style="cursor: pointer;" onchange="filterByCountry()">
+                    <option value="all">All countries</option>
+                    {% for country in countries %}
+                    <option value="{{ country.code }}">{{ country.name }}</option>
+                    {% endfor %}
+                </select>
+                
+                <select id="region-filter" class="mountain-search" style="cursor: pointer;" onchange="filterByRegion()" disabled>
+                    <option value="all">State / Province / Region</option>
+                </select>
+            </div>
             
-            <input type="text" class="mountain-search" id="mountain-search" placeholder="Search mountains..." oninput="filterMountains()">
+            <input type="text" class="mountain-search" id="mountain-search" placeholder="Search mountains..." oninput="filterResorts()">
             
             <div class="selected-counter">
                 <span id="count-display">{{ mountains_visited_count }} selected</span>
@@ -158,25 +185,30 @@
             
             <div class="selected-mountains-wrapper" id="selected-wrapper">
                 <div class="selected-mountains" id="selected-pills">
-                    {% for m in selected_mountains %}
-                    <span class="mountain-pill" data-mountain="{{ m }}">
-                        {{ m }}
-                        <button type="button" class="remove-btn" onclick="removeMountain('{{ m }}')" aria-label="Remove {{ m }}">✕</button>
+                    {% for resort in selected_resorts %}
+                    <span class="mountain-pill" data-id="{{ resort.id }}">
+                        {{ resort.name }}
+                        <button type="button" class="remove-btn" onclick="removeResort({{ resort.id }})" aria-label="Remove {{ resort.name }}">✕</button>
                     </span>
                     {% endfor %}
                 </div>
                 <div class="selected-mountains-fade" id="selected-fade"></div>
                 <button type="button" class="expand-toggle" id="expand-toggle" style="display: none;" onclick="toggleExpand()">
-                    View all selected (<span id="expand-count">0</span>)
+                    View all selected (<span id="expand-count">{{ mountains_visited_count }}</span>)
                 </button>
             </div>
             
             <div class="mountain-list" id="mountain-list">
-                {% for mountain in all_mountains %}
-                <label class="mountain-row" data-mountain="{{ mountain.lower() }}" data-state="{{ mountains_with_state.get(mountain, '') }}">
-                    <input type="checkbox" name="mountains" value="{{ mountain }}"
-                           {% if mountain in selected_mountains %}checked{% endif %} onchange="updatePills()">
-                    {{ mountain }}
+                {% for resort in resorts %}
+                <label class="mountain-row" 
+                       data-id="{{ resort.id }}"
+                       data-name="{{ resort.name|lower }}"
+                       data-display-name="{{ resort.name }}"
+                       data-country="{{ resort.country_code }}"
+                       data-region="{{ resort.state_code }}">
+                    <input type="checkbox" name="resort_ids" value="{{ resort.id }}"
+                           {% if resort.id in selected_resort_ids %}checked{% endif %} onchange="updatePills()">
+                    {{ resort.name }} <span class="resort-location">{{ resort.state_code }}</span>
                 </label>
                 {% endfor %}
             </div>
@@ -187,25 +219,67 @@
     {% include 'components/bottom_nav.html' %}
     
     <script>
-        const selectedMountains = {{ selected_mountains | tojson }};
-        let currentStateFilter = 'all';
+        const selectedResortIds = new Set({{ selected_resort_ids | tojson }});
+        let currentCountryFilter = 'all';
+        let currentRegionFilter = 'all';
         
-        function filterByState() {
-            currentStateFilter = document.getElementById('state-filter').value;
-            filterMountains();
+        // Initialize expand toggle on load (pills are server-rendered)
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => updateExpandToggle(selectedResortIds.size), 100);
+        });
+        
+        async function filterByCountry() {
+            currentCountryFilter = document.getElementById('country-filter').value;
+            const regionSelect = document.getElementById('region-filter');
+            
+            // Reset region filter
+            currentRegionFilter = 'all';
+            regionSelect.innerHTML = '<option value="all">State / Province / Region</option>';
+            
+            if (currentCountryFilter === 'all') {
+                regionSelect.disabled = true;
+            } else {
+                // Fetch regions for this country
+                try {
+                    const response = await fetch(`/api/resort-regions/${currentCountryFilter}`);
+                    const regions = await response.json();
+                    
+                    regions.forEach(region => {
+                        const option = document.createElement('option');
+                        option.value = region;
+                        option.textContent = region;
+                        regionSelect.appendChild(option);
+                    });
+                    
+                    regionSelect.disabled = false;
+                } catch (error) {
+                    console.error('Failed to load regions:', error);
+                    regionSelect.disabled = true;
+                }
+            }
+            
+            filterResorts();
         }
         
-        function filterMountains() {
+        function filterByRegion() {
+            currentRegionFilter = document.getElementById('region-filter').value;
+            filterResorts();
+        }
+        
+        function filterResorts() {
             const searchTerm = document.getElementById('mountain-search').value.toLowerCase();
             const rows = document.querySelectorAll('.mountain-row');
             
             rows.forEach(row => {
-                const mountain = row.getAttribute('data-mountain');
-                const state = row.getAttribute('data-state');
-                const matchesSearch = mountain.includes(searchTerm);
-                const matchesState = currentStateFilter === 'all' || state === currentStateFilter;
+                const name = row.dataset.name;
+                const country = row.dataset.country;
+                const region = row.dataset.region;
                 
-                if (matchesSearch && matchesState) {
+                const matchesSearch = name.includes(searchTerm);
+                const matchesCountry = currentCountryFilter === 'all' || country === currentCountryFilter;
+                const matchesRegion = currentRegionFilter === 'all' || region === currentRegionFilter;
+                
+                if (matchesSearch && matchesCountry && matchesRegion) {
                     row.classList.remove('hidden');
                 } else {
                     row.classList.add('hidden');
@@ -213,49 +287,51 @@
             });
         }
         
-        function removeMountain(mountainName) {
-            // Find and uncheck the checkbox
-            const checkboxes = document.querySelectorAll('input[name="mountains"]');
-            checkboxes.forEach(cb => {
-                if (cb.value === mountainName) {
-                    cb.checked = false;
-                }
-            });
-            // Refresh pills
+        function removeResort(id) {
+            selectedResortIds.delete(id);
+            const checkbox = document.querySelector(`input[value="${id}"]`);
+            if (checkbox) checkbox.checked = false;
             updatePills();
         }
         
         let isExpanded = false;
         
         function updatePills() {
-            const checks = document.querySelectorAll('input[name="mountains"]:checked');
+            const checks = document.querySelectorAll('input[name="resort_ids"]:checked');
             const pillsContainer = document.getElementById('selected-pills');
             const countDisplay = document.getElementById('count-display');
             
-            const selected = Array.from(checks).map(c => c.value);
-            countDisplay.textContent = selected.length + ' selected';
+            // Sync selectedResortIds with checkboxes
+            selectedResortIds.clear();
+            checks.forEach(cb => selectedResortIds.add(parseInt(cb.value)));
+            
+            countDisplay.textContent = selectedResortIds.size + ' selected';
             
             pillsContainer.innerHTML = '';
-            selected.forEach(m => {
+            checks.forEach(cb => {
+                const row = cb.closest('.mountain-row');
+                const displayName = row.dataset.displayName;
+                const id = parseInt(cb.value);
+                
                 const pill = document.createElement('span');
                 pill.className = 'mountain-pill';
-                pill.setAttribute('data-mountain', m);
+                pill.setAttribute('data-id', id);
                 
-                const text = document.createTextNode(m + ' ');
+                const text = document.createTextNode(displayName + ' ');
                 pill.appendChild(text);
                 
                 const removeBtn = document.createElement('button');
                 removeBtn.type = 'button';
                 removeBtn.className = 'remove-btn';
-                removeBtn.setAttribute('aria-label', 'Remove ' + m);
+                removeBtn.setAttribute('aria-label', 'Remove ' + displayName);
                 removeBtn.textContent = '✕';
-                removeBtn.onclick = function() { removeMountain(m); };
+                removeBtn.onclick = function() { removeResort(id); };
                 pill.appendChild(removeBtn);
                 
                 pillsContainer.appendChild(pill);
             });
             
-            updateExpandToggle(selected.length);
+            updateExpandToggle(selectedResortIds.size);
         }
         
         function updateExpandToggle(count) {
@@ -264,7 +340,6 @@
             const expandCount = document.getElementById('expand-count');
             const fade = document.getElementById('selected-fade');
             
-            // Check if content overflows
             const isOverflowing = pillsContainer.scrollHeight > pillsContainer.clientHeight;
             
             if (count > 0 && (isOverflowing || isExpanded)) {
@@ -293,29 +368,11 @@
             } else {
                 wrapper.classList.remove('expanded');
                 pillsContainer.classList.remove('expanded');
-                const count = document.querySelectorAll('input[name="mountains"]:checked').length;
+                const count = selectedResortIds.size;
                 expandToggle.innerHTML = 'View all selected (<span id="expand-count">' + count + '</span>)';
                 fade.style.display = 'block';
             }
         }
-        
-        // Check overflow on initial load
-        document.addEventListener('DOMContentLoaded', function() {
-            const count = document.querySelectorAll('input[name="mountains"]:checked').length;
-            setTimeout(() => updateExpandToggle(count), 100);
-            
-            // Handle anchor scroll with offset for fixed header
-            if (window.location.hash) {
-                const target = document.querySelector(window.location.hash);
-                if (target) {
-                    setTimeout(function() {
-                        const offset = 80;
-                        const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
-                        window.scrollTo({ top: top, behavior: 'smooth' });
-                    }, 100);
-                }
-            }
-        });
     </script>
 </body>
 </html>

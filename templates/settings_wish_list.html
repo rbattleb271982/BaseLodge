@@ -6,6 +6,16 @@
     <title>Base Lodge - Wish List</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
+        .filter-row {
+            display: flex;
+            gap: var(--bl-space-3);
+            margin-bottom: var(--bl-space-4);
+        }
+        
+        .filter-row select {
+            flex: 1;
+        }
+        
         .mountain-search {
             width: 100%;
             padding: 14px 12px;
@@ -20,6 +30,12 @@
         .mountain-search:focus {
             outline: none;
             border-color: var(--bl-color-primary);
+        }
+        
+        .mountain-search:disabled {
+            background: var(--bl-color-bg-secondary);
+            cursor: not-allowed;
+            opacity: 0.6;
         }
         
         .selected-counter {
@@ -135,6 +151,11 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        
+        .resort-location {
+            color: var(--bl-color-text-muted);
+            margin-left: 4px;
+        }
     </style>
 </head>
 <body>
@@ -164,13 +185,18 @@
             Maximum 3 resorts reached
         </div>
         
-        <select id="state-filter" class="mountain-search" style="cursor: pointer;" onchange="filterByState()">
-            <option value="all">All states</option>
-            {% set states = resorts|map(attribute='state')|unique|sort|list %}
-            {% for state in states %}
-            <option value="{{ state }}">{{ state }}</option>
-            {% endfor %}
-        </select>
+        <div class="filter-row">
+            <select id="country-filter" class="mountain-search" style="cursor: pointer;" onchange="filterByCountry()">
+                <option value="all">All countries</option>
+                {% for country in countries %}
+                <option value="{{ country.code }}">{{ country.name }}</option>
+                {% endfor %}
+            </select>
+            
+            <select id="region-filter" class="mountain-search" style="cursor: pointer;" onchange="filterByRegion()" disabled>
+                <option value="all">State / Province / Region</option>
+            </select>
+        </div>
         
         <input type="text" class="mountain-search" id="mountain-search" placeholder="Search resorts..." oninput="filterResorts()">
         
@@ -180,11 +206,12 @@
                    data-id="{{ resort.id }}"
                    data-name="{{ resort.name|lower }}"
                    data-display-name="{{ resort.name }}"
-                   data-state="{{ resort.state }}">
+                   data-country="{{ resort.country_code }}"
+                   data-region="{{ resort.state_code }}">
                 <input type="checkbox" name="resorts" value="{{ resort.id }}"
                        {% if resort.id in wish_list_ids %}checked{% endif %} 
                        onchange="updateSelection({{ resort.id }})">
-                {{ resort.name }} <span style="color: var(--bl-color-text-muted); margin-left: 4px;">{{ resort.state }}</span>
+                {{ resort.name }} <span class="resort-location">{{ resort.state_code }}</span>
             </label>
             {% endfor %}
         </div>
@@ -197,7 +224,8 @@
         const originalIds = {{ wish_list_ids | tojson }};
         let selectedIds = [...originalIds];
         const maxResorts = 3;
-        let currentStateFilter = 'all';
+        let currentCountryFilter = 'all';
+        let currentRegionFilter = 'all';
         
         function hasChanges() {
             if (originalIds.length !== selectedIds.length) return true;
@@ -211,8 +239,41 @@
             saveBtn.disabled = !hasChanges();
         }
         
-        function filterByState() {
-            currentStateFilter = document.getElementById('state-filter').value;
+        async function filterByCountry() {
+            currentCountryFilter = document.getElementById('country-filter').value;
+            const regionSelect = document.getElementById('region-filter');
+            
+            // Reset region filter
+            currentRegionFilter = 'all';
+            regionSelect.innerHTML = '<option value="all">State / Province / Region</option>';
+            
+            if (currentCountryFilter === 'all') {
+                regionSelect.disabled = true;
+            } else {
+                // Fetch regions for this country
+                try {
+                    const response = await fetch(`/api/resort-regions/${currentCountryFilter}`);
+                    const regions = await response.json();
+                    
+                    regions.forEach(region => {
+                        const option = document.createElement('option');
+                        option.value = region;
+                        option.textContent = region;
+                        regionSelect.appendChild(option);
+                    });
+                    
+                    regionSelect.disabled = false;
+                } catch (error) {
+                    console.error('Failed to load regions:', error);
+                    regionSelect.disabled = true;
+                }
+            }
+            
+            filterResorts();
+        }
+        
+        function filterByRegion() {
+            currentRegionFilter = document.getElementById('region-filter').value;
             filterResorts();
         }
         
@@ -222,11 +283,14 @@
             
             rows.forEach(row => {
                 const name = row.dataset.name;
-                const state = row.dataset.state;
-                const matchesSearch = name.includes(searchTerm);
-                const matchesState = currentStateFilter === 'all' || state === currentStateFilter;
+                const country = row.dataset.country;
+                const region = row.dataset.region;
                 
-                if (matchesSearch && matchesState) {
+                const matchesSearch = name.includes(searchTerm);
+                const matchesCountry = currentCountryFilter === 'all' || country === currentCountryFilter;
+                const matchesRegion = currentRegionFilter === 'all' || region === currentRegionFilter;
+                
+                if (matchesSearch && matchesCountry && matchesRegion) {
                     row.classList.remove('hidden');
                 } else {
                     row.classList.add('hidden');

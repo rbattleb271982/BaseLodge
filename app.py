@@ -2697,8 +2697,10 @@ def settings_password():
 @app.route("/settings/wish-list")
 @login_required
 def settings_wish_list():
-    # Get all resorts for selection
-    resorts = Resort.query.filter_by(is_active=True).order_by(Resort.state, Resort.name).all()
+    # Get all resorts for selection, ordered by country, state, name
+    resorts = Resort.query.filter_by(is_active=True).order_by(
+        Resort.country_code, Resort.state_code, Resort.name
+    ).all()
     
     # Get current wish list resort IDs
     wish_list_ids = current_user.wish_list_resorts or []
@@ -2706,10 +2708,27 @@ def settings_wish_list():
     # Get full resort objects for display
     wish_list_resorts = Resort.query.filter(Resort.id.in_(wish_list_ids)).all() if wish_list_ids else []
     
+    # Get distinct countries for dropdown
+    countries = db.session.query(Resort.country_code).distinct().filter(
+        Resort.country_code.isnot(None),
+        Resort.country_code != ''
+    ).all()
+    country_names = {
+        'US': 'United States', 'CA': 'Canada', 'JP': 'Japan',
+        'FR': 'France', 'CH': 'Switzerland', 'AT': 'Austria', 'IT': 'Italy'
+    }
+    countries_list = []
+    for (code,) in countries:
+        if code:
+            countries_list.append({'code': code, 'name': country_names.get(code, code)})
+    # Sort: US first, then CA, then others alphabetically
+    countries_list.sort(key=lambda c: (0 if c['code'] == 'US' else 1 if c['code'] == 'CA' else 2, c['name']))
+    
     return render_template("settings_wish_list.html",
                            resorts=resorts,
                            wish_list_resorts=wish_list_resorts,
-                           wish_list_ids=wish_list_ids)
+                           wish_list_ids=wish_list_ids,
+                           countries=countries_list)
 
 
 @app.route("/settings/wish-list/save", methods=["POST"])
@@ -2733,6 +2752,65 @@ def settings_wish_list_save():
     db.session.commit()
     
     return jsonify({"success": True, "count": len(valid_ids)})
+
+
+# =====================================================================
+# SHARED RESORT FILTERING API (for Wishlist & Mountains Visited only)
+# =====================================================================
+
+@app.route("/api/resort-countries")
+@login_required
+def api_resort_countries():
+    """Get all countries that have resorts in the database."""
+    countries = db.session.query(Resort.country_code).distinct().filter(
+        Resort.country_code.isnot(None),
+        Resort.country_code != ''
+    ).all()
+    
+    # Map country codes to display names
+    country_names = {
+        'US': 'United States',
+        'CA': 'Canada',
+        'JP': 'Japan',
+        'FR': 'France',
+        'CH': 'Switzerland',
+        'AT': 'Austria',
+        'IT': 'Italy'
+    }
+    
+    result = []
+    for (code,) in countries:
+        if code:
+            result.append({
+                'code': code,
+                'name': country_names.get(code, code)
+            })
+    
+    # Sort by name, with US and CA first
+    def sort_key(c):
+        if c['code'] == 'US':
+            return (0, c['name'])
+        elif c['code'] == 'CA':
+            return (1, c['name'])
+        else:
+            return (2, c['name'])
+    
+    result.sort(key=sort_key)
+    return jsonify(result)
+
+
+@app.route("/api/resort-regions/<country_code>")
+@login_required
+def api_resort_regions(country_code):
+    """Get all regions/states for a specific country."""
+    regions = db.session.query(Resort.state_code).distinct().filter(
+        Resort.country_code == country_code.upper(),
+        Resort.state_code.isnot(None),
+        Resort.state_code != ''
+    ).all()
+    
+    result = sorted([r[0] for r in regions if r[0]])
+    return jsonify(result)
 
 
 @app.route("/add-open-dates", methods=["GET", "POST"])
@@ -3291,29 +3369,33 @@ def delete_trip_form(trip_id):
 def mountains_visited():
     user = current_user
     
-    all_mountains = []
-    mountains_with_state = {}
-    for state, state_mountains in MOUNTAINS_BY_STATE.items():
-        for mtn in state_mountains:
-            all_mountains.append(mtn)
-            mountains_with_state[mtn] = state
-    all_mountains_set = set(all_mountains)
-    all_mountains = sorted(list(all_mountains_set))
+    # Get all resorts from database (source of truth)
+    all_resorts = Resort.query.filter_by(is_active=True).order_by(
+        Resort.country_code, Resort.state_code, Resort.name
+    ).all()
     
     if request.method == "POST":
-        selected_mountains = request.form.getlist("mountains")
+        # Get selected resort IDs from form
+        selected_resort_ids = request.form.getlist("resort_ids")
         
         resort_ids = []
+        mountain_names = []
         seen_ids = set()
-        for mountain_name in selected_mountains:
-            state_code = mountains_with_state.get(mountain_name)
-            resort = find_resort_by_name(mountain_name, state_code)
-            if resort and resort.id not in seen_ids:
-                resort_ids.append(resort.id)
-                seen_ids.add(resort.id)
+        
+        for rid_str in selected_resort_ids:
+            try:
+                rid = int(rid_str)
+                if rid not in seen_ids:
+                    resort = Resort.query.get(rid)
+                    if resort:
+                        resort_ids.append(rid)
+                        mountain_names.append(resort.name)
+                        seen_ids.add(rid)
+            except (ValueError, TypeError):
+                pass
         
         user.visited_resort_ids = resort_ids
-        user.mountains_visited = selected_mountains
+        user.mountains_visited = mountain_names
         
         try:
             db.session.commit()
@@ -3324,32 +3406,50 @@ def mountains_visited():
             flash("Something went wrong while saving. Please try again.", "error")
             return redirect(url_for("mountains_visited"))
     
-    selected_mountains = []
-    seen_names = set()
+    # Build set of selected resort IDs
+    selected_resort_ids = set()
     
-    legacy_mountains = user.mountains_visited or []
-    for name in legacy_mountains:
-        if name not in seen_names:
-            selected_mountains.append(name)
-            seen_names.add(name)
+    # Include resort IDs from visited_resort_ids
+    if user.visited_resort_ids:
+        selected_resort_ids.update(user.visited_resort_ids)
     
-    if user.visited_resort_ids and len(user.visited_resort_ids) > 0:
-        visited_resorts = Resort.query.filter(Resort.id.in_(user.visited_resort_ids)).all()
-        for resort in visited_resorts:
-            if resort.name not in seen_names:
-                selected_mountains.append(resort.name)
-                seen_names.add(resort.name)
+    # Also try to match legacy mountains_visited names to resort IDs
+    if user.mountains_visited:
+        for name in user.mountains_visited:
+            for resort in all_resorts:
+                if resort.name.lower() == name.lower() and resort.id not in selected_resort_ids:
+                    selected_resort_ids.add(resort.id)
+                    break
     
-    mountains_visited_count = len(selected_mountains)
-    states = sorted(MOUNTAINS_BY_STATE.keys())
+    mountains_visited_count = len(selected_resort_ids)
+    
+    # Get selected resort objects for server-side pill rendering
+    selected_resorts = []
+    if selected_resort_ids:
+        selected_resorts = Resort.query.filter(Resort.id.in_(selected_resort_ids)).all()
+    
+    # Get distinct countries for dropdown
+    countries = db.session.query(Resort.country_code).distinct().filter(
+        Resort.country_code.isnot(None),
+        Resort.country_code != ''
+    ).all()
+    country_names = {
+        'US': 'United States', 'CA': 'Canada', 'JP': 'Japan',
+        'FR': 'France', 'CH': 'Switzerland', 'AT': 'Austria', 'IT': 'Italy'
+    }
+    countries_list = []
+    for (code,) in countries:
+        if code:
+            countries_list.append({'code': code, 'name': country_names.get(code, code)})
+    countries_list.sort(key=lambda c: (0 if c['code'] == 'US' else 1 if c['code'] == 'CA' else 2, c['name']))
     
     return render_template(
         "mountains_visited.html",
-        all_mountains=all_mountains,
-        selected_mountains=selected_mountains,
+        resorts=all_resorts,
+        selected_resort_ids=list(selected_resort_ids),
+        selected_resorts=selected_resorts,
         mountains_visited_count=mountains_visited_count,
-        mountains_with_state=mountains_with_state,
-        states=states,
+        countries=countries_list,
     )
 
 @app.route("/logout")
