@@ -41,6 +41,9 @@
             -moz-appearance: menulist;
             appearance: menulist;
             cursor: pointer;
+            position: relative;
+            z-index: 10;
+            pointer-events: auto;
         }
         
         .form-group input:disabled,
@@ -272,11 +275,15 @@
             right: 0;
             bottom: 0;
             background: rgba(0, 0, 0, 0.5);
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: center;
             z-index: 1000;
             padding: 16px;
+        }
+        
+        .overlap-modal.visible {
+            display: flex;
         }
         
         .overlap-modal-content {
@@ -424,7 +431,7 @@
         {% endwith %}
         
         {% if overlap_trip %}
-        <div class="overlap-modal" id="overlap-modal">
+        <div class="overlap-modal visible" id="overlap-modal">
             <div class="overlap-modal-content">
                 <p class="overlap-modal-text">You already have a trip to {{ overlap_resort_name }} that overlaps these dates. Want to update that trip instead?</p>
                 <div class="overlap-modal-actions">
@@ -972,6 +979,11 @@
             initializeForm();
             initializeCalendar();
             toggleAccommodationLink();
+            
+            // Diagnostic: verify selects are clickable (remove after debugging)
+            countrySelect.addEventListener('click', () => console.log('Country select CLICKED'));
+            stateSelect.addEventListener('click', () => console.log('State select CLICKED'));
+            resortSelect.addEventListener('click', () => console.log('Resort select CLICKED'));
             
             console.log("=== INIT COMPLETE ===");
         });

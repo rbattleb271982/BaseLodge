@@ -1,0 +1,47 @@
+PUT THIS IN AGENT
+The Country / State / Resort dropdowns on the Create Trip page render correctly and have valid options, but cannot be clicked or opened.
+This indicates a CSS layering or event-interception issue, not a data or JavaScript logic problem.
+Your task is to guarantee that all native <select> elements on the Create Trip page are physically clickable and interactive.
+1️⃣ Identify and remove blocking overlays (CRITICAL)
+Inspect the Create Trip page layout for any elements that may be sitting on top of form controls, including:
+Absolute / fixed positioned containers
+Calendar overlays
+Mobile wrappers
+Full-width divs used for layout or animation
+Pay special attention to:
+position: absolute or fixed
+z-index values
+Transparent containers
+Any element that visually overlaps form controls but is not interactive must have:
+pointer-events: none;
+2️⃣ Ensure form controls are on top of the stacking context
+Explicitly ensure that form inputs are above decorative/layout layers:
+select,
+input,
+textarea {
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
+}
+Do not rely on browser defaults.
+3️⃣ Remove any JS click interception
+Audit Create Trip page JavaScript for:
+event.preventDefault()
+event.stopPropagation()
+Touch or click handlers on parent containers
+Ensure no parent element intercepts clicks intended for form controls.
+4️⃣ Explicitly verify select interactivity (defensive check)
+Add a temporary diagnostic (remove after verification):
+document.getElementById('country')?.addEventListener('click', () =>
+  console.log('Country select clicked')
+);
+If this does not fire, something is blocking interaction — continue debugging until it does.
+5️⃣ Verification (MUST PASS)
+The fix is complete only when:
+Country dropdown opens when clicked
+State dropdown opens when clicked
+Resort dropdown opens when clicked
+No z-index hacks remain that break layout elsewhere
+Trip can be created end-to-end
+This is a physical interaction bug. Do not change backend data, templates, or business logic.
+Fix the layout and event layer until the dropdowns are clickable.
