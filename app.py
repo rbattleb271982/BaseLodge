@@ -2771,8 +2771,10 @@ def add_open_dates():
 def add_trip():
     # Single source of truth: Resort table
     resorts = get_resorts_for_trip_form()
+    print(f"[add_trip] Loaded {len(resorts)} resorts")
     
     user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
+    print(f"[add_trip] User passes: {user_passes}")
     
     # Get prefill parameters for "Propose a trip" flow
     prefill_friend_id = request.args.get('friend_id', type=int)
