@@ -568,6 +568,13 @@
         const userPasses = {{ (user_passes or [])|tojson }};
         const isEditMode = {{ 'true' if trip else 'false' }};
         
+        // DIAGNOSTIC: Show data loading status immediately
+        console.log("DIAGNOSTIC: resorts loaded =", resorts ? resorts.length : 'null/undefined');
+        if (!resorts || resorts.length === 0) {
+            console.error("CRITICAL: No resorts data loaded!");
+            alert("Debug: No resort data loaded. Count: " + (resorts ? resorts.length : 'null'));
+        }
+        
         // Existing trip data for edit mode
         const existingTrip = {
             countryCode: {{ (trip.resort.country_code if trip and trip.resort else none)|tojson }},
@@ -677,6 +684,7 @@
         // ===========================================
         function populateCountries() {
             const countries = deriveCountries();
+            console.log("DIAGNOSTIC: populateCountries called, derived", countries.length, "countries:", countries);
             countrySelect.innerHTML = '<option value="">Choose country</option>';
             countries.forEach(code => {
                 const option = document.createElement('option');
@@ -684,6 +692,7 @@
                 option.textContent = COUNTRY_NAMES[code] || code;
                 countrySelect.appendChild(option);
             });
+            console.log("DIAGNOSTIC: Country options count:", countrySelect.options.length);
         }
         
         function populateStates(countryCode) {
