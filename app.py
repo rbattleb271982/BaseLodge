@@ -2735,6 +2735,11 @@ def add_trip():
     # Convert to dicts for JSON serialization (include pass_brands and country for smart sorting and filtering)
     resorts = [{"id": r.id, "name": r.name, "state": r.state, "country": r.country, "brand": r.brand, "pass_brands": r.pass_brands or r.brand or ""} for r in resorts_objs]
     
+    # Define user_passes early so it's available for all render_template calls
+    user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
+    default_country = getattr(current_user, 'country', None) or "US"
+    default_state = current_user.home_state if current_user.home_state else None
+    
     # Get prefill parameters for "Propose a trip" flow
     prefill_friend_id = request.args.get('friend_id', type=int)
     prefill_start_date = request.args.get('start_date')
@@ -2806,7 +2811,13 @@ def add_trip():
                 states_by_country=get_states_by_country(),
                 user=current_user,
                 form_action=url_for("add_trip"),
-                default_country="US",
+                default_country=default_country,
+                default_state=default_state,
+                user_passes=user_passes,
+                prefill_friend=prefill_friend,
+                prefill_start_date=prefill_start_date,
+                prefill_end_date=prefill_end_date,
+                is_group=is_group,
             )
         
         # Check for overlapping active trips at the same resort
@@ -2830,7 +2841,13 @@ def add_trip():
                 form_action=url_for("add_trip"),
                 overlap_trip=overlapping,
                 overlap_resort_name=resort.name,
-                default_country="US",
+                default_country=default_country,
+                default_state=default_state,
+                user_passes=user_passes,
+                prefill_friend=prefill_friend,
+                prefill_start_date=prefill_start_date,
+                prefill_end_date=prefill_end_date,
+                is_group=is_group,
             )
 
         # Auto-calculate trip duration from dates
@@ -2880,14 +2897,16 @@ def add_trip():
                 states_by_country=get_states_by_country(),
                 user=current_user,
                 form_action=url_for("add_trip"),
-                default_country="US",
+                default_country=default_country,
+                default_state=default_state,
+                user_passes=user_passes,
+                prefill_friend=prefill_friend,
+                prefill_start_date=prefill_start_date,
+                prefill_end_date=prefill_end_date,
+                is_group=is_group,
             )
 
-    # GET - Smart defaults for new trips
-    user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
-    default_state = current_user.home_state if current_user.home_state else None
-    # Default country from user profile or US
-    default_country = getattr(current_user, 'country', None) or "US"
+    # GET - render the add trip form
     
     return render_template(
         "add_trip.html",
