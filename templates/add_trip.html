@@ -452,13 +452,9 @@
                 <div class="form-group">
                     <label for="country">Country</label>
                     <select id="country" name="country" required>
-                        <option value="US" {% if (trip and trip.resort and trip.resort.country == 'US') or (not trip and (default_country == 'US' or not default_country)) %}selected{% endif %}>United States</option>
-                        <option value="CA" {% if (trip and trip.resort and trip.resort.country == 'CA') or (not trip and default_country == 'CA') %}selected{% endif %}>Canada</option>
-                        <option value="AT" {% if (trip and trip.resort and trip.resort.country == 'AT') or (not trip and default_country == 'AT') %}selected{% endif %}>Austria</option>
-                        <option value="CH" {% if (trip and trip.resort and trip.resort.country == 'CH') or (not trip and default_country == 'CH') %}selected{% endif %}>Switzerland</option>
-                        <option value="FR" {% if (trip and trip.resort and trip.resort.country == 'FR') or (not trip and default_country == 'FR') %}selected{% endif %}>France</option>
-                        <option value="IT" {% if (trip and trip.resort and trip.resort.country == 'IT') or (not trip and default_country == 'IT') %}selected{% endif %}>Italy</option>
-                        <option value="JP" {% if (trip and trip.resort and trip.resort.country == 'JP') or (not trip and default_country == 'JP') %}selected{% endif %}>Japan</option>
+                        {% for country_code, country_name in countries_with_resorts %}
+                        <option value="{{ country_code }}" {% if (trip and trip.resort and trip.resort.country == country_code) or (not trip and ((default_country and default_country == country_code) or (not default_country and country_code == 'US'))) %}selected{% endif %}>{{ country_name }}</option>
+                        {% endfor %}
                     </select>
                 </div>
 
