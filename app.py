@@ -450,39 +450,55 @@ def get_grouped_locations():
     }
 
 def get_states_with_resorts():
-    """Get list of (state_abbr, state_name) tuples for states that have resorts, sorted by name."""
-    states = db.session.query(Resort.state).filter(Resort.is_active == True).distinct().all()
-    state_codes = sorted([s[0] for s in states if s[0]])
-    return [(code, STATE_NAMES.get(code, code)) for code in state_codes]
+    """Get list of (state_code, state_name) tuples for states that have resorts, sorted by name.
+    Uses canonical Resort table columns - SINGLE SOURCE OF TRUTH for Add Trip flow.
+    """
+    states = db.session.query(Resort.state_code, Resort.state_name).filter(
+        Resort.is_active == True,
+        Resort.state_code != None
+    ).distinct().all()
+    # Sort by state name
+    return sorted([(s.state_code, s.state_name or s.state_code) for s in states if s.state_code], key=lambda x: x[1])
 
 def get_countries_with_resorts():
-    """Get list of (country_code, country_name) tuples for countries that have resorts."""
-    countries = db.session.query(Resort.country).filter(Resort.is_active == True, Resort.country != None).distinct().all()
-    country_codes = [c[0] for c in countries if c[0]]
-    # Sort with US first, then alphabetically by name
-    def sort_key(code):
-        if code == "US":
+    """Get list of (country_code, country_name) tuples for countries that have resorts.
+    Uses canonical Resort table columns - SINGLE SOURCE OF TRUTH for Add Trip flow.
+    """
+    countries = db.session.query(Resort.country_code, Resort.country_name).filter(
+        Resort.is_active == True,
+        Resort.country_code != None
+    ).distinct().all()
+    
+    # Build list and sort: US first, then alphabetically by name
+    country_list = [(c.country_code, c.country_name or c.country_code) for c in countries if c.country_code]
+    def sort_key(item):
+        if item[0] == "US":
             return (0, "")
-        return (1, COUNTRY_NAMES.get(code, code))
-    country_codes = sorted(country_codes, key=sort_key)
-    return [(code, COUNTRY_NAMES.get(code, code)) for code in country_codes]
+        return (1, item[1])
+    return sorted(country_list, key=sort_key)
 
 def get_states_by_country():
-    """Get dictionary mapping country_code to list of (state_code, state_name) tuples."""
-    result = db.session.query(Resort.country, Resort.state, Resort.state_full).filter(
-        Resort.is_active == True, Resort.country != None
+    """Get dictionary mapping country_code to list of (state_code, state_name) tuples.
+    Uses canonical Resort table columns - SINGLE SOURCE OF TRUTH for Add Trip flow.
+    Only returns states that have resorts.
+    """
+    result = db.session.query(Resort.country_code, Resort.state_code, Resort.state_name).filter(
+        Resort.is_active == True,
+        Resort.country_code != None,
+        Resort.state_code != None
     ).distinct().all()
     
     country_states = {}
-    for country, state, state_full in result:
-        if country and state:
+    for row in result:
+        country, state_code, state_name = row.country_code, row.state_code, row.state_name
+        if country and state_code:
             if country not in country_states:
                 country_states[country] = []
-            display_name = state_full or STATE_NAMES.get(state, state)
-            if (state, display_name) not in country_states[country]:
-                country_states[country].append((state, display_name))
+            display_name = state_name or state_code
+            if (state_code, display_name) not in country_states[country]:
+                country_states[country].append((state_code, display_name))
     
-    # Sort states within each country
+    # Sort states within each country by display name
     for country in country_states:
         country_states[country] = sorted(country_states[country], key=lambda x: x[1])
     
@@ -2789,9 +2805,10 @@ def add_open_dates():
 @app.route("/add_trip", methods=["GET", "POST"])
 @login_required
 def add_trip():
-    resorts_objs = Resort.query.filter_by(is_active=True).order_by(Resort.state, Resort.name).all()
+    resorts_objs = Resort.query.filter_by(is_active=True).order_by(Resort.state_code, Resort.name).all()
     # Convert to dicts for JSON serialization (include pass_brands and country for smart sorting and filtering)
-    resorts = [{"id": r.id, "name": r.name, "state": r.state, "country": r.country, "brand": r.brand, "pass_brands": r.pass_brands or r.brand or ""} for r in resorts_objs]
+    # Uses canonical columns: state_code, country_code
+    resorts = [{"id": r.id, "name": r.name, "state": r.state_code or r.state, "country": r.country_code or r.country, "brand": r.brand, "pass_brands": r.pass_brands or r.brand or ""} for r in resorts_objs]
     
     # Define user_passes early so it's available for all render_template calls
     user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
@@ -2865,8 +2882,8 @@ def add_trip():
                 trip=None,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
-                countries_with_resorts=get_all_countries(),
-                states_by_country=get_all_states_by_country(),
+                countries_with_resorts=get_countries_with_resorts(),
+                states_by_country=get_states_by_country(),
                 user=current_user,
                 form_action=url_for("add_trip"),
                 default_country=default_country,
@@ -2893,8 +2910,8 @@ def add_trip():
                 trip=None,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
-                countries_with_resorts=get_all_countries(),
-                states_by_country=get_all_states_by_country(),
+                countries_with_resorts=get_countries_with_resorts(),
+                states_by_country=get_states_by_country(),
                 user=current_user,
                 form_action=url_for("add_trip"),
                 overlap_trip=overlapping,
@@ -2951,8 +2968,8 @@ def add_trip():
                 trip=None,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
-                countries_with_resorts=get_all_countries(),
-                states_by_country=get_all_states_by_country(),
+                countries_with_resorts=get_countries_with_resorts(),
+                states_by_country=get_states_by_country(),
                 user=current_user,
                 form_action=url_for("add_trip"),
                 default_country=default_country,
@@ -2965,19 +2982,16 @@ def add_trip():
             )
 
     # GET - render the add trip form
-    # Use CANONICAL data sources (not derived from resorts)
-    countries_data = get_all_countries()
-    states_data = get_all_states_by_country()
+    # Use RESORT-DERIVED data sources (single source of truth)
+    countries_data = get_countries_with_resorts()
+    states_data = get_states_by_country()
     
     # Debug logging
-    print(f"[add_trip GET] Using canonical data: {len(countries_data)} countries, {len(states_data)} country mappings")
+    print(f"[add_trip GET] Using Resort-derived data: {len(countries_data)} countries, {len(states_data)} country mappings")
     print(f"[add_trip GET] Countries: {[c[0] for c in countries_data]}")
     print(f"[add_trip GET] US states count: {len(states_data.get('US', []))}")
+    print(f"[add_trip GET] CA provinces count: {len(states_data.get('CA', []))}")
     print(f"[add_trip GET] Resorts count: {len(resorts)}")
-    
-    # Log distinct country/state pairs from resorts for alignment verification
-    resort_pairs = set((r['country'], r['state']) for r in resorts if r['country'] and r['state'])
-    print(f"[add_trip GET] Resort country/state pairs (sample): {list(resort_pairs)[:10]}")
     
     return render_template(
         "add_trip.html",
@@ -3004,9 +3018,10 @@ def edit_trip_form(trip_id):
     if trip.user_id != current_user.id:
         abort(403)
     
-    resorts_objs = Resort.query.filter_by(is_active=True).order_by(Resort.state, Resort.name).all()
+    resorts_objs = Resort.query.filter_by(is_active=True).order_by(Resort.state_code, Resort.name).all()
     # Convert to dicts for JSON serialization (include pass_brands and country)
-    resorts = [{"id": r.id, "name": r.name, "state": r.state, "country": r.country, "brand": r.brand, "pass_brands": r.pass_brands or r.brand or ""} for r in resorts_objs]
+    # Uses canonical columns: state_code, country_code
+    resorts = [{"id": r.id, "name": r.name, "state": r.state_code or r.state, "country": r.country_code or r.country, "brand": r.brand, "pass_brands": r.pass_brands or r.brand or ""} for r in resorts_objs]
     
     # Store original dates to detect if they were changed
     original_start = trip.start_date
@@ -3059,8 +3074,8 @@ def edit_trip_form(trip_id):
             except ValueError:
                 errors.append("Invalid date format.")
 
-        # Determine default country for error re-render
-        default_country = trip.resort.country if trip.resort else "US"
+        # Determine default country for error re-render (use canonical column)
+        default_country = (trip.resort.country_code if trip.resort else None) or "US"
 
         if errors:
             for e in errors:
@@ -3070,8 +3085,8 @@ def edit_trip_form(trip_id):
                 trip=trip,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
-                countries_with_resorts=get_all_countries(),
-                states_by_country=get_all_states_by_country(),
+                countries_with_resorts=get_countries_with_resorts(),
+                states_by_country=get_states_by_country(),
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
                 default_country=default_country,
@@ -3093,8 +3108,8 @@ def edit_trip_form(trip_id):
                 trip=trip,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
-                countries_with_resorts=get_all_countries(),
-                states_by_country=get_all_states_by_country(),
+                countries_with_resorts=get_countries_with_resorts(),
+                states_by_country=get_states_by_country(),
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
                 overlap_trip=overlapping,
@@ -3103,7 +3118,7 @@ def edit_trip_form(trip_id):
             )
 
         trip.resort_id = resort.id
-        trip.state = resort.state
+        trip.state = resort.state_code or resort.state  # Use canonical column
         trip.mountain = resort.name
         trip.start_date = start_date
         trip.end_date = end_date
@@ -3128,15 +3143,15 @@ def edit_trip_form(trip_id):
                 trip=trip,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
-                countries_with_resorts=get_all_countries(),
-                states_by_country=get_all_states_by_country(),
+                countries_with_resorts=get_countries_with_resorts(),
+                states_by_country=get_states_by_country(),
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
                 default_country=default_country,
             )
 
-    # GET - determine default country from existing trip's resort
-    default_country = trip.resort.country if trip.resort else "US"
+    # GET - determine default country from existing trip's resort (use canonical column)
+    default_country = (trip.resort.country_code if trip.resort else None) or "US"
     user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
     
     return render_template(
@@ -3144,8 +3159,8 @@ def edit_trip_form(trip_id):
         trip=trip,
         resorts=resorts,
         states_with_resorts=get_states_with_resorts(),
-        countries_with_resorts=get_all_countries(),
-        states_by_country=get_all_states_by_country(),
+        countries_with_resorts=get_countries_with_resorts(),
+        states_by_country=get_states_by_country(),
         user=current_user,
         form_action=url_for("edit_trip_form", trip_id=trip.id),
         default_country=default_country,
