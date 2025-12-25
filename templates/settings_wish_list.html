@@ -127,6 +127,31 @@
             display: none;
         }
         
+        .selected-group {
+            margin-bottom: var(--bl-space-4);
+        }
+        
+        .selected-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        .selected-group-header {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--bl-color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: var(--bl-space-2);
+            padding-bottom: var(--bl-space-1);
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+        
+        .selected-group-resorts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--bl-space-2);
+        }
+        
         .mountain-list {
             max-height: 400px;
             overflow-y: auto;
@@ -213,11 +238,18 @@
         </div>
         
         <div class="selected-mountains" id="selected-pills">
-            {% for resort in wish_list_resorts %}
-            <span class="mountain-pill" data-id="{{ resort.id }}">
-                {{ resort.name }}
-                <button type="button" class="remove-btn" onclick="removeResort({{ resort.id }})" aria-label="Remove {{ resort.name }}">✕</button>
-            </span>
+            {% for group in grouped_wish_list %}
+            <div class="selected-group">
+                <div class="selected-group-header">{{ group.label }}</div>
+                <div class="selected-group-resorts">
+                    {% for resort in group.resorts %}
+                    <span class="mountain-pill" data-id="{{ resort.id }}">
+                        {{ resort.name }}
+                        <button type="button" class="remove-btn" onclick="removeResort({{ resort.id }})" aria-label="Remove {{ resort.name }}">✕</button>
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
             {% endfor %}
         </div>
         
@@ -266,6 +298,31 @@
         const maxResorts = 3;
         let currentCountryFilter = 'all';
         let currentRegionFilter = 'all';
+        
+        // State name mappings
+        const stateNames = {
+            'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+            'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+            'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+            'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+            'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
+            'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
+            'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
+            'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+            'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
+            'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming',
+            'DC': 'District of Columbia'
+        };
+        
+        const countryNames = {
+            'US': 'United States', 'CA': 'Canada', 'JP': 'Japan',
+            'FR': 'France', 'CH': 'Switzerland', 'AT': 'Austria', 'IT': 'Italy'
+        };
+        
+        // Initialize on load - render grouped display
+        document.addEventListener('DOMContentLoaded', function() {
+            updateUI();
+        });
         
         function hasChanges() {
             if (originalIds.length !== selectedIds.length) return true;
@@ -375,19 +432,74 @@
             limitMsg.style.display = selectedIds.length >= maxResorts ? 'block' : 'none';
             
             const pillsContainer = document.getElementById('selected-pills');
-            pillsContainer.innerHTML = '';
             
+            // Collect resort data for grouping
+            const resorts = [];
             selectedIds.forEach(id => {
                 const row = document.querySelector(`.mountain-row[data-id="${id}"]`);
                 if (row) {
-                    const displayName = row.getAttribute('data-display-name');
-                    
+                    resorts.push({
+                        id: id,
+                        name: row.getAttribute('data-display-name'),
+                        country: row.dataset.country,
+                        region: row.dataset.region
+                    });
+                }
+            });
+            
+            // Group resorts: US by state, non-US by country
+            const groups = {};
+            resorts.forEach(r => {
+                let groupKey, groupLabel;
+                if (r.country === 'US') {
+                    groupKey = 'US-' + r.region;
+                    groupLabel = stateNames[r.region] || r.region;
+                } else {
+                    groupKey = r.country;
+                    groupLabel = countryNames[r.country] || r.country;
+                }
+                if (!groups[groupKey]) {
+                    groups[groupKey] = { label: groupLabel, resorts: [] };
+                }
+                groups[groupKey].resorts.push(r);
+            });
+            
+            // Sort groups alphabetically by label
+            const sortedGroupKeys = Object.keys(groups).sort((a, b) => 
+                groups[a].label.localeCompare(groups[b].label)
+            );
+            
+            // Sort resorts within each group alphabetically by name
+            sortedGroupKeys.forEach(key => {
+                groups[key].resorts.sort((a, b) => a.name.localeCompare(b.name));
+            });
+            
+            // Render grouped display
+            pillsContainer.innerHTML = '';
+            sortedGroupKeys.forEach(key => {
+                const group = groups[key];
+                
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'selected-group';
+                
+                const header = document.createElement('div');
+                header.className = 'selected-group-header';
+                header.textContent = group.label;
+                groupDiv.appendChild(header);
+                
+                const resortsDiv = document.createElement('div');
+                resortsDiv.className = 'selected-group-resorts';
+                
+                group.resorts.forEach(r => {
                     const pill = document.createElement('span');
                     pill.className = 'mountain-pill';
-                    pill.setAttribute('data-id', id);
-                    pill.innerHTML = displayName + ' <button type="button" class="remove-btn" onclick="removeResort(' + id + ')" aria-label="Remove">✕</button>';
-                    pillsContainer.appendChild(pill);
-                }
+                    pill.setAttribute('data-id', r.id);
+                    pill.innerHTML = r.name + ' <button type="button" class="remove-btn" onclick="removeResort(' + r.id + ')" aria-label="Remove">✕</button>';
+                    resortsDiv.appendChild(pill);
+                });
+                
+                groupDiv.appendChild(resortsDiv);
+                pillsContainer.appendChild(groupDiv);
             });
             
             document.querySelectorAll('.mountain-row input').forEach(checkbox => {

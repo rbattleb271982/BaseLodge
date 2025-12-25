@@ -550,6 +550,56 @@ def get_seasonal_empty_state(context_type='trip'):
     
     return ""
 
+# State name mappings for display
+STATE_NAMES = {
+    'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+    'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+    'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+    'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+    'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
+    'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
+    'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
+    'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+    'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
+    'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming',
+    'DC': 'District of Columbia', 'BC': 'British Columbia', 'AB': 'Alberta', 'ON': 'Ontario', 'QC': 'Quebec'
+}
+
+COUNTRY_NAMES = {
+    'US': 'United States', 'CA': 'Canada', 'JP': 'Japan',
+    'FR': 'France', 'CH': 'Switzerland', 'AT': 'Austria', 'IT': 'Italy'
+}
+
+def group_resorts_for_display(resorts):
+    """
+    Group and sort resorts for display.
+    US resorts grouped by state name, non-US resorts grouped by country name.
+    Groups sorted alphabetically, resorts within groups sorted alphabetically.
+    Returns list of dicts: [{'label': 'Colorado', 'resorts': [resort, ...]}, ...]
+    """
+    groups = {}
+    
+    for resort in resorts:
+        if resort.country_code == 'US':
+            group_key = 'US-' + (resort.state_code or 'Unknown')
+            group_label = STATE_NAMES.get(resort.state_code, resort.state_code or 'Unknown')
+        else:
+            group_key = resort.country_code or 'Unknown'
+            group_label = COUNTRY_NAMES.get(resort.country_code, resort.country_code or 'Unknown')
+        
+        if group_key not in groups:
+            groups[group_key] = {'label': group_label, 'resorts': []}
+        groups[group_key]['resorts'].append(resort)
+    
+    # Sort groups alphabetically by label
+    sorted_groups = sorted(groups.values(), key=lambda g: g['label'])
+    
+    # Sort resorts within each group alphabetically by name
+    for group in sorted_groups:
+        group['resorts'] = sorted(group['resorts'], key=lambda r: r.name.lower())
+    
+    return sorted_groups
+
 # Make functions available to Jinja2 templates
 app.jinja_env.globals['normalize_rider_type'] = normalize_rider_type
 app.jinja_env.globals['get_sorted_passes'] = get_sorted_passes
@@ -2756,6 +2806,9 @@ def settings_wish_list():
     # Get full resort objects for display
     wish_list_resorts = Resort.query.filter(Resort.id.in_(wish_list_ids)).all() if wish_list_ids else []
     
+    # Group and sort wish list resorts for display
+    grouped_wish_list = group_resorts_for_display(wish_list_resorts)
+    
     # Get distinct countries for dropdown
     countries = db.session.query(Resort.country_code).distinct().filter(
         Resort.country_code.isnot(None),
@@ -2775,6 +2828,7 @@ def settings_wish_list():
     return render_template("settings_wish_list.html",
                            resorts=resorts,
                            wish_list_resorts=wish_list_resorts,
+                           grouped_wish_list=grouped_wish_list,
                            wish_list_ids=wish_list_ids,
                            countries=countries_list)
 
@@ -3476,6 +3530,9 @@ def mountains_visited():
     if selected_resort_ids:
         selected_resorts = Resort.query.filter(Resort.id.in_(selected_resort_ids)).all()
     
+    # Group and sort selected resorts for display
+    grouped_selected = group_resorts_for_display(selected_resorts)
+    
     # Get distinct countries for dropdown
     countries = db.session.query(Resort.country_code).distinct().filter(
         Resort.country_code.isnot(None),
@@ -3496,6 +3553,7 @@ def mountains_visited():
         resorts=all_resorts,
         selected_resort_ids=list(selected_resort_ids),
         selected_resorts=selected_resorts,
+        grouped_selected=grouped_selected,
         mountains_visited_count=mountains_visited_count,
         countries=countries_list,
     )
