@@ -73,6 +73,18 @@ The `Resort` table is the single source of truth for resort data. All resort sel
 - **Visited Mountains:** `User.visited_resort_ids` (JSON array of Resort IDs) with `User.mountains_visited` legacy fallback
 - **Home Mountain:** `User.home_resort_id` (FK to Resort) with `User.home_mountain` legacy fallback
 
+**Geography Columns (Dec 2025):** Resort model now has canonical geography columns for Add Trip flow:
+- `country_code` (String 10) - ISO-2 country code: US, CA, JP, FR, CH, AT, IT
+- `country_name` (String 100) - Display name: United States, Canada, Japan, etc.
+- `state_code` (String 50) - Region code: CO, BC, Hokkaido, etc.
+- `state_name` (String 100) - Display name: Colorado, British Columbia, etc.
+
+**Add Trip Geography:** The Add Trip flow uses Resort-derived functions (not hardcoded constants):
+- `get_countries_with_resorts()` - Returns countries from Resort table
+- `get_states_by_country()` - Returns states/provinces from Resort table grouped by country
+- `get_states_with_resorts()` - Returns all states that have resorts
+Only states/countries with actual resorts are shown in dropdowns.
+
 **Migration Pattern:** Dual-write strategy maintains backward compatibility. All write operations update both new ID fields and legacy string fields. GET operations prioritize legacy data then merge Resort IDs. Admin backfill endpoint: `/admin/backfill-resort-ids`.
 
 **Helper Methods:**
@@ -81,7 +93,7 @@ The `Resort` table is the single source of truth for resort data. All resort sel
 - `User.get_home_resort()` - Returns Resort object for home mountain
 - `find_resort_by_name(name, state_code)` - Case-insensitive resort lookup with alias support
 
-**Future Work:** UI should transition from `MOUNTAINS_BY_STATE` constant to Resort table queries for checkboxes.
+**Future Work:** Profile location selectors could also transition from constants to Resort table queries.
 
 ### Lifecycle Signals
 Canonical User States (`is_core_profile_complete`, `has_started_planning`, `is_active_user`) are computed properties on the User model. Lifecycle signal fields like `login_count`, `first_planning_timestamp`, and `planning_completed_timestamp` track user progress. These signals suppress nudges and adapt UI copy based on 4 narrative states.
