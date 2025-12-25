@@ -7242,10 +7242,11 @@ def sync_resorts_from_canonical():
         details = {"inserted": [], "updated": [], "skipped": []}
         
         for canonical in canonical_resorts:
-            name = canonical["name"]
-            state_code = canonical["state_code"]
-            country_code = canonical["country_code"]
-            pass_brands = canonical.get("pass_brands", "Other")
+            name = (canonical.get("name") or "").strip()
+            state_code = (canonical.get("state_code") or "").strip()
+            country_code = (canonical.get("country_code") or "US").strip()
+            pass_brands = (canonical.get("pass_brands") or "").strip()
+            is_region = canonical.get("is_region", False)
             
             key = normalize_key(name, state_code, country_code)
             matched_keys.add(key)
@@ -7388,15 +7389,15 @@ def admin_update_resort(resort_id):
     
     # Only allow updating specific fields
     if 'name' in data:
-        resort.name = data['name'].strip()
+        resort.name = (data.get('name') or '').strip()
     if 'country_code' in data:
-        resort.country_code = data['country_code'].strip().upper()
+        resort.country_code = (data.get('country_code') or '').strip().upper()
         resort.country = resort.country_code
     if 'state_code' in data:
-        resort.state_code = data['state_code'].strip()
+        resort.state_code = (data.get('state_code') or '').strip()
         resort.state = resort.state_code
     if 'pass_brands' in data:
-        resort.pass_brands = data['pass_brands'].strip() if data['pass_brands'] else None
+        resort.pass_brands = (data.get('pass_brands') or '').strip() or None
         resort.brand = resort.pass_brands.split(',')[0] if resort.pass_brands else 'Other'
     if 'is_active' in data:
         resort.is_active = bool(data['is_active'])
