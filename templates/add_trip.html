@@ -976,8 +976,14 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log("Add Trip: Initializing with", resorts.length, "resorts");
             
+            // CRITICAL: Force enable country select immediately (iOS Safari fix)
+            countrySelect.disabled = false;
+            
             // Populate countries from resorts
             populateCountries();
+            
+            // CRITICAL: Ensure country stays enabled after population
+            countrySelect.disabled = false;
             
             // Calendar navigation
             document.getElementById('prev-month').addEventListener('click', () => navigateMonth(-1));
@@ -1027,11 +1033,6 @@
             });
             
             console.log("Add Trip: Initialization complete");
-            
-            // TEMP DEBUG: Verify iOS touch reaches select
-            document.getElementById('country').addEventListener('touchstart', function() {
-                console.log('iOS touch reached country select');
-            });
         });
     </script>
 </body>
