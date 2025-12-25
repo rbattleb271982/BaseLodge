@@ -125,8 +125,9 @@ def before_request_handlers():
 def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        admin_email = "richardbattlebaxter@gmail.com"
-        if not current_user.is_authenticated or current_user.email != admin_email:
+        admin_emails_str = os.environ.get("ALLOWED_ADMIN_EMAILS", "richardbattlebaxter@gmail.com")
+        admin_emails = [e.strip().lower() for e in admin_emails_str.split(",") if e.strip()]
+        if not current_user.is_authenticated or current_user.email.lower() not in admin_emails:
             return "Admin privileges required.", 403
         return f(*args, **kwargs)
     return wrapper
@@ -7182,6 +7183,214 @@ def sync_resorts_from_canonical():
             "traceback": traceback.format_exc(),
             "dry_run": dry_run
         }), 500
+
+
+# ============================================================================
+# ADMIN RESORTS CURATION PAGE
+# ============================================================================
+
+@app.route("/admin/resorts")
+@login_required
+@admin_required
+def admin_resorts():
+    """
+    Admin page for curating resort data.
+    DEV is the source of truth. PROD sync via canonical JSON export.
+    """
+    import os
+    import json
+    
+    # Get all resorts sorted by country, state, name
+    resorts = Resort.query.order_by(Resort.country_code, Resort.state_code, Resort.name).all()
+    
+    # Get unique countries and states for filters
+    countries = db.session.query(Resort.country_code).distinct().order_by(Resort.country_code).all()
+    countries = [c[0] for c in countries if c[0]]
+    
+    # Check last canonical export timestamp
+    canonical_file = os.path.join(os.path.dirname(__file__), 'data', 'canonical_resorts.json')
+    last_export_info = None
+    if os.path.exists(canonical_file):
+        try:
+            with open(canonical_file, 'r') as f:
+                canonical_data = json.load(f)
+            last_export_info = {
+                'version': canonical_data.get('version', 'unknown'),
+                'exported_at': canonical_data.get('exported_at', 'unknown'),
+                'count': len(canonical_data.get('resorts', []))
+            }
+        except Exception:
+            pass
+    
+    return render_template('admin_resorts.html',
+                         resorts=resorts,
+                         countries=countries,
+                         last_export_info=last_export_info,
+                         total_count=len(resorts))
+
+
+@app.route("/api/admin/resorts/<int:resort_id>", methods=["PUT"])
+@login_required
+@admin_required
+def admin_update_resort(resort_id):
+    """Update a single resort's editable fields."""
+    resort = Resort.query.get_or_404(resort_id)
+    data = request.get_json()
+    
+    # Only allow updating specific fields
+    if 'name' in data:
+        resort.name = data['name'].strip()
+    if 'country_code' in data:
+        resort.country_code = data['country_code'].strip().upper()
+        resort.country = resort.country_code
+    if 'state_code' in data:
+        resort.state_code = data['state_code'].strip()
+        resort.state = resort.state_code
+    if 'pass_brands' in data:
+        resort.pass_brands = data['pass_brands'].strip() if data['pass_brands'] else None
+        resort.brand = resort.pass_brands.split(',')[0] if resort.pass_brands else 'Other'
+    if 'is_active' in data:
+        resort.is_active = bool(data['is_active'])
+    
+    db.session.commit()
+    return jsonify({'status': 'success', 'resort_id': resort_id})
+
+
+@app.route("/api/admin/resorts/merge", methods=["POST"])
+@login_required
+@admin_required
+def admin_merge_resorts():
+    """
+    Merge duplicate resorts into a canonical resort.
+    Repoints all FK references atomically, then marks non-canonical resorts as inactive.
+    """
+    data = request.get_json()
+    canonical_id = data.get('canonical_id')
+    duplicate_ids = data.get('duplicate_ids', [])
+    
+    if not canonical_id or not duplicate_ids:
+        return jsonify({'status': 'error', 'message': 'Missing canonical_id or duplicate_ids'}), 400
+    
+    if canonical_id in duplicate_ids:
+        return jsonify({'status': 'error', 'message': 'Canonical resort cannot be in duplicate list'}), 400
+    
+    canonical = Resort.query.get(canonical_id)
+    if not canonical:
+        return jsonify({'status': 'error', 'message': 'Canonical resort not found'}), 404
+    
+    duplicates = Resort.query.filter(Resort.id.in_(duplicate_ids)).all()
+    if len(duplicates) != len(duplicate_ids):
+        return jsonify({'status': 'error', 'message': 'Some duplicate resorts not found'}), 404
+    
+    try:
+        stats = {
+            'trips_updated': 0,
+            'home_resorts_updated': 0,
+            'visited_lists_updated': 0,
+            'wishlist_updated': 0,
+            'resorts_deactivated': 0
+        }
+        
+        for dup in duplicates:
+            dup_id = dup.id
+            
+            # 1. Update SkiTrip.resort_id
+            trips_updated = SkiTrip.query.filter_by(resort_id=dup_id).update({'resort_id': canonical_id})
+            stats['trips_updated'] += trips_updated
+            
+            # 2. Update User.home_resort_id
+            home_updated = User.query.filter_by(home_resort_id=dup_id).update({'home_resort_id': canonical_id})
+            stats['home_resorts_updated'] += home_updated
+            
+            # 3. Update User.visited_resort_ids (JSON array)
+            # Must use flag_modified to ensure SQLAlchemy detects JSON changes
+            from sqlalchemy.orm.attributes import flag_modified
+            users_with_visited = User.query.filter(User.visited_resort_ids.isnot(None)).all()
+            for user in users_with_visited:
+                if user.visited_resort_ids and dup_id in user.visited_resort_ids:
+                    new_list = list(user.visited_resort_ids)  # Copy to new list
+                    new_list = [rid for rid in new_list if rid != dup_id]
+                    if canonical_id not in new_list:
+                        new_list.append(canonical_id)
+                    user.visited_resort_ids = new_list
+                    flag_modified(user, 'visited_resort_ids')
+                    stats['visited_lists_updated'] += 1
+            
+            # 4. Update User.wish_list_resorts (JSON array)
+            users_with_wishlist = User.query.filter(User.wish_list_resorts.isnot(None)).all()
+            for user in users_with_wishlist:
+                if user.wish_list_resorts and dup_id in user.wish_list_resorts:
+                    new_list = list(user.wish_list_resorts)  # Copy to new list
+                    new_list = [rid for rid in new_list if rid != dup_id]
+                    if canonical_id not in new_list:
+                        new_list.append(canonical_id)
+                    user.wish_list_resorts = new_list
+                    flag_modified(user, 'wish_list_resorts')
+                    stats['wishlist_updated'] += 1
+            
+            # 5. Mark duplicate as inactive
+            dup.is_active = False
+            stats['resorts_deactivated'] += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'canonical_resort': canonical.name,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route("/api/admin/resorts/export-canonical", methods=["POST"])
+@login_required
+@admin_required
+def admin_export_canonical():
+    """
+    Export active resorts to canonical_resorts.json.
+    This is the source of truth for PROD sync.
+    """
+    import os
+    import json
+    from datetime import datetime
+    
+    # Get all active resorts
+    resorts = Resort.query.filter_by(is_active=True).order_by(Resort.country_code, Resort.state_code, Resort.name).all()
+    
+    canonical_data = {
+        'version': datetime.utcnow().strftime('%Y%m%d_%H%M%S'),
+        'exported_at': datetime.utcnow().isoformat() + 'Z',
+        'exported_by': current_user.email,
+        'total_count': len(resorts),
+        'resorts': []
+    }
+    
+    for r in resorts:
+        canonical_data['resorts'].append({
+            'name': r.name,
+            'state_code': r.state_code or r.state,
+            'country_code': r.country_code or r.country or 'US',
+            'pass_brands': r.pass_brands or r.brand or ''
+        })
+    
+    canonical_file = os.path.join(os.path.dirname(__file__), 'data', 'canonical_resorts.json')
+    
+    try:
+        with open(canonical_file, 'w') as f:
+            json.dump(canonical_data, f, indent=2)
+        
+        return jsonify({
+            'status': 'success',
+            'version': canonical_data['version'],
+            'exported_at': canonical_data['exported_at'],
+            'count': len(resorts),
+            'message': f'Exported {len(resorts)} resorts to canonical_resorts.json'
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 if __name__ == "__main__":

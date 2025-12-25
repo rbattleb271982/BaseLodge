@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Resort Curation</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            padding: 20px;
+        }
+        
+        .admin-header {
+            background: #1a1a2e;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .admin-header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .admin-header p {
+            color: #aaa;
+            font-size: 14px;
+        }
+        
+        .sync-status {
+            background: #2d3748;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .sync-status h3 {
+            color: #68d391;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+        
+        .sync-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+        
+        .sync-item {
+            background: #1a202c;
+            padding: 12px;
+            border-radius: 6px;
+        }
+        
+        .sync-item label {
+            display: block;
+            font-size: 11px;
+            color: #718096;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        
+        .sync-item span {
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .toolbar input[type="text"] {
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .toolbar select {
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #4a5568;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2d3748;
+        }
+        
+        .btn-danger {
+            background: #e53e3e;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c53030;
+        }
+        
+        .btn-success {
+            background: #38a169;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #2f855a;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: #edf2f7;
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #4a5568;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        th.checkbox-col {
+            width: 40px;
+        }
+        
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #edf2f7;
+            font-size: 14px;
+        }
+        
+        tr:hover {
+            background: #f7fafc;
+        }
+        
+        tr.inactive {
+            background: #fff5f5;
+            color: #999;
+        }
+        
+        .editable-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            font-size: 14px;
+            background: transparent;
+        }
+        
+        .editable-input:hover {
+            border-color: #e2e8f0;
+            background: #f7fafc;
+        }
+        
+        .editable-input:focus {
+            outline: none;
+            border-color: #4299e1;
+            background: white;
+        }
+        
+        .id-cell {
+            color: #a0aec0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-active {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .status-inactive {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        
+        .merge-panel {
+            background: #ebf8ff;
+            border: 1px solid #90cdf4;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .merge-panel.visible {
+            display: block;
+        }
+        
+        .merge-panel h3 {
+            color: #2b6cb0;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+        
+        .merge-controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .merge-controls select {
+            padding: 8px 12px;
+            border: 1px solid #90cdf4;
+            border-radius: 6px;
+            background: white;
+        }
+        
+        .selected-count {
+            font-size: 13px;
+            color: #4a5568;
+        }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-overlay.visible {
+            display: flex;
+        }
+        
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .modal h3 {
+            margin-bottom: 16px;
+        }
+        
+        .modal p {
+            margin-bottom: 16px;
+            color: #4a5568;
+        }
+        
+        .modal input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2d3748;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 1001;
+        }
+        
+        .toast.visible {
+            display: block;
+        }
+        
+        .toast.success {
+            background: #38a169;
+        }
+        
+        .toast.error {
+            background: #e53e3e;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-header">
+        <h1>Resort Data Curation</h1>
+        <p>DEV is the source of truth. Export to canonical JSON for PROD sync.</p>
+    </div>
+    
+    <div class="sync-status">
+        <h3>Last Canonical Export</h3>
+        <div class="sync-info">
+            {% if last_export_info %}
+            <div class="sync-item">
+                <label>Version</label>
+                <span>{{ last_export_info.version }}</span>
+            </div>
+            <div class="sync-item">
+                <label>Exported At</label>
+                <span>{{ last_export_info.exported_at[:19] if last_export_info.exported_at != 'unknown' else 'Unknown' }}</span>
+            </div>
+            <div class="sync-item">
+                <label>Resort Count</label>
+                <span>{{ last_export_info.count }}</span>
+            </div>
+            {% else %}
+            <div class="sync-item">
+                <label>Status</label>
+                <span>No export yet</span>
+            </div>
+            {% endif %}
+            <div class="sync-item">
+                <label>Current DB Count</label>
+                <span>{{ total_count }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="toolbar">
+        <input type="text" id="search" placeholder="Search resorts..." oninput="filterResorts()">
+        <select id="country-filter" onchange="filterResorts()">
+            <option value="">All Countries</option>
+            {% for country in countries %}
+            <option value="{{ country }}">{{ country }}</option>
+            {% endfor %}
+        </select>
+        <select id="status-filter" onchange="filterResorts()">
+            <option value="">All Status</option>
+            <option value="active">Active Only</option>
+            <option value="inactive">Inactive Only</option>
+        </select>
+        <button class="btn btn-primary" onclick="exportCanonical()">Export to Canonical JSON</button>
+    </div>
+    
+    <div class="merge-panel" id="merge-panel">
+        <h3>Merge Selected Resorts</h3>
+        <div class="merge-controls">
+            <span class="selected-count"><span id="selected-count">0</span> resorts selected</span>
+            <select id="canonical-select">
+                <option value="">Select canonical resort...</option>
+            </select>
+            <button class="btn btn-danger" onclick="executeMerge()">Merge Duplicates</button>
+            <button class="btn" onclick="clearSelection()">Clear Selection</button>
+        </div>
+    </div>
+    
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th class="checkbox-col"><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Country</th>
+                    <th>State/Region</th>
+                    <th>Pass Brands</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="resort-table">
+                {% for resort in resorts %}
+                <tr data-id="{{ resort.id }}" 
+                    data-name="{{ resort.name|lower }}"
+                    data-country="{{ resort.country_code or '' }}"
+                    data-active="{{ 'true' if resort.is_active else 'false' }}"
+                    class="{{ '' if resort.is_active else 'inactive' }}">
+                    <td><input type="checkbox" class="resort-checkbox" value="{{ resort.id }}" onchange="updateSelection()"></td>
+                    <td class="id-cell">{{ resort.id }}</td>
+                    <td>
+                        <input type="text" class="editable-input" 
+                               data-field="name"
+                               data-id="{{ resort.id }}"
+                               value="{{ resort.name }}"
+                               onblur="saveField(this)">
+                    </td>
+                    <td>
+                        <input type="text" class="editable-input" 
+                               data-field="country_code"
+                               data-id="{{ resort.id }}"
+                               value="{{ resort.country_code or resort.country or '' }}"
+                               onblur="saveField(this)"
+                               style="width: 60px;">
+                    </td>
+                    <td>
+                        <input type="text" class="editable-input" 
+                               data-field="state_code"
+                               data-id="{{ resort.id }}"
+                               value="{{ resort.state_code or resort.state or '' }}"
+                               onblur="saveField(this)"
+                               style="width: 80px;">
+                    </td>
+                    <td>
+                        <input type="text" class="editable-input" 
+                               data-field="pass_brands"
+                               data-id="{{ resort.id }}"
+                               value="{{ resort.pass_brands or resort.brand or '' }}"
+                               onblur="saveField(this)">
+                    </td>
+                    <td>
+                        <span class="status-badge {{ 'status-active' if resort.is_active else 'status-inactive' }}">
+                            {{ 'Active' if resort.is_active else 'Inactive' }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if resort.is_active %}
+                        <button class="btn btn-danger" onclick="toggleActive({{ resort.id }}, false)" style="padding: 4px 8px; font-size: 12px;">Deactivate</button>
+                        {% else %}
+                        <button class="btn btn-success" onclick="toggleActive({{ resort.id }}, true)" style="padding: 4px 8px; font-size: 12px;">Activate</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="modal-overlay" id="export-modal">
+        <div class="modal">
+            <h3>Export to Canonical JSON</h3>
+            <p>This will export all active resorts to <code>canonical_resorts.json</code>. This file is used by PROD to sync resort data.</p>
+            <p><strong>Type EXPORT to confirm:</strong></p>
+            <input type="text" id="export-confirm" placeholder="EXPORT">
+            <div class="modal-actions">
+                <button class="btn" onclick="closeExportModal()">Cancel</button>
+                <button class="btn btn-success" onclick="confirmExport()">Export</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="merge-modal">
+        <div class="modal">
+            <h3>Confirm Merge</h3>
+            <p id="merge-message"></p>
+            <p><strong>Type MERGE to confirm:</strong></p>
+            <input type="text" id="merge-confirm" placeholder="MERGE">
+            <div class="modal-actions">
+                <button class="btn" onclick="closeMergeModal()">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmMerge()">Merge</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        let selectedResorts = new Set();
+        let pendingMerge = null;
+        
+        function showToast(message, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast visible ' + type;
+            setTimeout(() => toast.classList.remove('visible'), 3000);
+        }
+        
+        function filterResorts() {
+            const search = document.getElementById('search').value.toLowerCase();
+            const country = document.getElementById('country-filter').value;
+            const status = document.getElementById('status-filter').value;
+            
+            document.querySelectorAll('#resort-table tr').forEach(row => {
+                const name = row.dataset.name;
+                const rowCountry = row.dataset.country;
+                const isActive = row.dataset.active === 'true';
+                
+                let show = true;
+                if (search && !name.includes(search)) show = false;
+                if (country && rowCountry !== country) show = false;
+                if (status === 'active' && !isActive) show = false;
+                if (status === 'inactive' && isActive) show = false;
+                
+                row.style.display = show ? '' : 'none';
+            });
+        }
+        
+        function saveField(input) {
+            const id = input.dataset.id;
+            const field = input.dataset.field;
+            const value = input.value;
+            
+            fetch(`/api/admin/resorts/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ [field]: value })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    input.style.borderColor = '#68d391';
+                    setTimeout(() => input.style.borderColor = 'transparent', 1000);
+                } else {
+                    showToast('Error saving: ' + data.message, 'error');
+                }
+            })
+            .catch(e => showToast('Error: ' + e.message, 'error'));
+        }
+        
+        function toggleActive(id, active) {
+            fetch(`/api/admin/resorts/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_active: active })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    showToast('Error: ' + data.message, 'error');
+                }
+            });
+        }
+        
+        function toggleSelectAll() {
+            const checked = document.getElementById('select-all').checked;
+            document.querySelectorAll('.resort-checkbox').forEach(cb => {
+                const row = cb.closest('tr');
+                if (row.style.display !== 'none') {
+                    cb.checked = checked;
+                }
+            });
+            updateSelection();
+        }
+        
+        function updateSelection() {
+            selectedResorts.clear();
+            document.querySelectorAll('.resort-checkbox:checked').forEach(cb => {
+                selectedResorts.add(parseInt(cb.value));
+            });
+            
+            const panel = document.getElementById('merge-panel');
+            const countEl = document.getElementById('selected-count');
+            const canonicalSelect = document.getElementById('canonical-select');
+            
+            countEl.textContent = selectedResorts.size;
+            
+            if (selectedResorts.size >= 2) {
+                panel.classList.add('visible');
+                
+                canonicalSelect.innerHTML = '<option value="">Select canonical resort...</option>';
+                selectedResorts.forEach(id => {
+                    const row = document.querySelector(`tr[data-id="${id}"]`);
+                    const name = row.querySelector('input[data-field="name"]').value;
+                    canonicalSelect.innerHTML += `<option value="${id}">${name} (ID: ${id})</option>`;
+                });
+            } else {
+                panel.classList.remove('visible');
+            }
+        }
+        
+        function clearSelection() {
+            document.querySelectorAll('.resort-checkbox').forEach(cb => cb.checked = false);
+            document.getElementById('select-all').checked = false;
+            updateSelection();
+        }
+        
+        function executeMerge() {
+            const canonicalId = parseInt(document.getElementById('canonical-select').value);
+            if (!canonicalId) {
+                showToast('Please select a canonical resort', 'error');
+                return;
+            }
+            
+            const duplicateIds = Array.from(selectedResorts).filter(id => id !== canonicalId);
+            if (duplicateIds.length === 0) {
+                showToast('No duplicates to merge', 'error');
+                return;
+            }
+            
+            const canonicalName = document.querySelector(`tr[data-id="${canonicalId}"] input[data-field="name"]`).value;
+            const mergeMsg = `This will merge ${duplicateIds.length} resort(s) into "${canonicalName}" (ID: ${canonicalId}). All trips, wishlists, and visited lists will be updated. This cannot be undone.`;
+            
+            document.getElementById('merge-message').textContent = mergeMsg;
+            document.getElementById('merge-modal').classList.add('visible');
+            document.getElementById('merge-confirm').value = '';
+            
+            pendingMerge = { canonical_id: canonicalId, duplicate_ids: duplicateIds };
+        }
+        
+        function closeMergeModal() {
+            document.getElementById('merge-modal').classList.remove('visible');
+            pendingMerge = null;
+        }
+        
+        function confirmMerge() {
+            if (document.getElementById('merge-confirm').value !== 'MERGE') {
+                showToast('Please type MERGE to confirm', 'error');
+                return;
+            }
+            
+            fetch('/api/admin/resorts/merge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pendingMerge)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showToast(`Merged into ${data.canonical_resort}. Trips: ${data.stats.trips_updated}, Visited: ${data.stats.visited_lists_updated}`, 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showToast('Error: ' + data.message, 'error');
+                }
+                closeMergeModal();
+            });
+        }
+        
+        function exportCanonical() {
+            document.getElementById('export-modal').classList.add('visible');
+            document.getElementById('export-confirm').value = '';
+        }
+        
+        function closeExportModal() {
+            document.getElementById('export-modal').classList.remove('visible');
+        }
+        
+        function confirmExport() {
+            if (document.getElementById('export-confirm').value !== 'EXPORT') {
+                showToast('Please type EXPORT to confirm', 'error');
+                return;
+            }
+            
+            fetch('/api/admin/resorts/export-canonical', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showToast(`Exported ${data.count} resorts (v${data.version})`, 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showToast('Error: ' + data.message, 'error');
+                }
+                closeExportModal();
+            });
+        }
+    </script>
+</body>
+</html>
