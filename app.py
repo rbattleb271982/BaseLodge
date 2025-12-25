@@ -6366,6 +6366,20 @@ def fix_seeded_users():
     print("=" * 70)
 
 
+@app.route("/admin/version", methods=["GET"])
+def admin_version():
+    """Simple version check endpoint to verify production deployment."""
+    return jsonify({
+        "version": "2025-12-25-v3",
+        "status": "ok",
+        "endpoints_available": [
+            "/admin/version",
+            "/admin/backfill-country-codes",
+            "/admin/init-db"
+        ]
+    })
+
+
 @app.route("/admin/backfill-country-codes", methods=["GET", "POST"])
 def backfill_country_codes():
     """
