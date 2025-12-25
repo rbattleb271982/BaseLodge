@@ -140,7 +140,7 @@
         .calendar-days {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 2px;
+            gap: 0;
         }
 
         .calendar-day {
@@ -149,12 +149,13 @@
             background: none;
             font-size: 14px;
             cursor: pointer;
-            border-radius: var(--bl-radius-sm);
+            border-radius: 0;
             color: var(--bl-color-text);
         }
 
-        .calendar-day:hover:not(:disabled) {
+        .calendar-day:hover:not(:disabled):not(.selected-start):not(.selected-end):not(.in-range) {
             background: var(--bl-color-surface);
+            border-radius: 50%;
         }
 
         .calendar-day.disabled {
@@ -163,19 +164,35 @@
             cursor: not-allowed;
         }
 
-        .calendar-day.today {
+        .calendar-day.today:not(.selected-start):not(.selected-end):not(.in-range) {
             font-weight: 600;
-            border: 1px solid var(--bl-color-primary);
+            box-shadow: inset 0 0 0 1px var(--bl-color-primary);
+            border-radius: 50%;
         }
 
         .calendar-day.selected-start,
         .calendar-day.selected-end {
             background: var(--bl-color-primary);
             color: white;
+            font-weight: 600;
+        }
+
+        .calendar-day.selected-start {
+            border-radius: 50% 0 0 50%;
+        }
+
+        .calendar-day.selected-end {
+            border-radius: 0 50% 50% 0;
+        }
+
+        .calendar-day.selected-start.selected-end {
+            border-radius: 50%;
         }
 
         .calendar-day.in-range {
-            background: rgba(143, 1, 27, 0.1);
+            background: rgba(143, 1, 27, 0.25);
+            color: var(--bl-color-text);
+            border-radius: 0;
         }
 
         .calendar-day.other-month {
