@@ -1,0 +1,85 @@
+PUT THIS IN AGENT
+
+We need to IMPLEMENT a standard user-facing password recovery flow.
+This is a HIGH-PRIORITY feature now that real users exist.
+
+================================
+GOAL
+================================
+
+Allow users who forget their password to securely regain access.
+This should follow common web app best practices.
+
+================================
+REQUIRED FEATURES (V1)
+================================
+
+1. Forgot password request
+- Add /forgot-password route (GET + POST)
+- User enters email address
+- Always show a generic success message:
+  “If an account exists, you’ll receive an email.”
+
+2. Reset token
+- Generate a cryptographically secure token
+  (e.g., secrets.token_urlsafe(32))
+- Store ONLY a hash of the token
+- Associate token with user
+- Set expiration timestamp (1 hour)
+
+You may:
+- Add a password_reset_token table
+OR
+- Add token_hash + expires_at to User
+
+Choose the cleaner approach for the existing codebase.
+
+3. Reset email
+- Send email via existing SendGrid setup
+- Include reset link:
+  /reset-password/<token>
+- Token must be single-use
+
+4. Reset password form
+- Add /reset-password/<token> route (GET + POST)
+- Validate token:
+  - exists
+  - not expired
+- Allow user to set new password
+- Use the SAME hashing logic as signup
+- Invalidate token after successful reset
+
+5. UX updates
+- Add “Forgot password?” link to login page
+- After successful reset:
+  - redirect to login
+  - show success message
+
+================================
+SECURITY REQUIREMENTS
+================================
+
+- Token must expire (1 hour)
+- Token must be invalidated after use
+- Error messages must not reveal whether an email exists
+- No plaintext token storage
+
+================================
+NON-GOALS
+================================
+
+- Do NOT add email verification
+- Do NOT auto-login after reset
+- Do NOT add rate limiting yet
+- Do NOT refactor auth broadly
+
+================================
+OUTPUT REQUIRED
+================================
+
+After implementation, report back with:
+- New routes added (files + lines)
+- Token storage approach chosen
+- Token expiration duration
+- Email template content
+- Any assumptions made
