@@ -42,6 +42,12 @@ The backend uses Flask, SQLAlchemy for ORM, and Werkzeug for password hashing. J
 - **User Profile:** Comprehensive profiles (multi-select rider types, pass, skill, home state, equipment, visited mountains) within a "Settings" page.
 - **Trip Management:** Create trips with country-first location, dates via inline date-range calendar, public toggles, ride intent. Displayed in 3 tabs (My Trips, Friends' Trips, Overlaps). Auto-calculates duration as inclusive days. Date validation enforces future dates for new trips. Prevents duplicate active trips at the same resort. Includes resort search and filters. Group trip creation via "Propose a trip" flow with URL prefill params (friend_id, start_date, end_date, is_group). Trip Detail page at `/trips/<id>` serves as the primary trip hub with owner invite CTA and participant list.
 - **Date Range Calendar:** Single inline calendar replaces separate date inputs. First tap selects start date, second tap selects end date. Tapping earlier than start resets the range. Same-day trips allowed. Duration calculated as `(end - start) + 1` days and stored automatically. Confirmation helper shows "Dec 25–27 · 3 days" below calendar. Past dates disabled for new trips but allowed when editing.
+- **Unified Trip Date Display (Dec 2025):** All trip date displays use `format_trip_dates(trip)` Jinja2 global. Display-only logic (no database storage):
+  - Single-day: "Today" or "Dec 28"
+  - Multi-day starting today: "Today–Dec 28"
+  - Multi-day in progress (started in past, ends today or later): "Today–Dec 28"
+  - Future multi-day: "Dec 25–Dec 28"
+  Applied consistently across home screen, profile, friend profiles, trip details, and all trip list surfaces.
 - **Trip Invites:** Trip owners can invite connected friends from Trip Detail page. Invites use SkiTripParticipant model with INVITED/ACCEPTED/DECLINED status. Invited users can view trip details before accepting. Home page shows pending invites with Accept/Decline actions.
 - **Friends System:** Invitation-based, bidirectional friendships with dedicated profiles supporting token-based invites.
 - **Pass Selection:** Quick-select for Epic/Ikon, "Other passes" dropdown, or "I don't have a pass."

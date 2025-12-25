@@ -600,11 +600,54 @@ def group_resorts_for_display(resorts):
     
     return sorted_groups
 
+def format_trip_dates(trip):
+    """
+    Unified trip date display logic.
+    
+    Rules:
+    - SINGLE-DAY (start == end):
+      - If today: "Today"
+      - If future: "Dec 28"
+    
+    - MULTI-DAY (start != end):
+      - If start == today: "Today–Dec 28"
+      - If start < today AND end >= today (in progress): "Today–Dec 28"
+      - If start > today: "Dec 25–Dec 28"
+    
+    Returns formatted date string.
+    """
+    today = date.today()
+    start = trip.start_date if isinstance(trip.start_date, date) else trip.start_date.date() if hasattr(trip.start_date, 'date') else trip.start_date
+    end = trip.end_date if isinstance(trip.end_date, date) else trip.end_date.date() if hasattr(trip.end_date, 'date') else trip.end_date
+    
+    # Handle None cases
+    if not start or not end:
+        return ""
+    
+    is_single_day = (start == end)
+    
+    if is_single_day:
+        if start == today:
+            return "Today"
+        else:
+            return start.strftime('%b %-d')
+    else:
+        # Multi-day trip
+        if start == today:
+            return f"Today–{end.strftime('%b %-d')}"
+        elif start < today and end >= today:
+            # Trip in progress - show Today as start
+            return f"Today–{end.strftime('%b %-d')}"
+        else:
+            # Future trip
+            return f"{start.strftime('%b %-d')}–{end.strftime('%b %-d')}"
+
 # Make functions available to Jinja2 templates
 app.jinja_env.globals['normalize_rider_type'] = normalize_rider_type
 app.jinja_env.globals['get_sorted_passes'] = get_sorted_passes
 app.jinja_env.globals['get_gear_term'] = get_gear_term
 app.jinja_env.globals['get_ride_term'] = get_ride_term
+app.jinja_env.globals['format_trip_dates'] = format_trip_dates
 app.jinja_env.globals['get_season_context'] = get_season_context
 app.jinja_env.globals['get_seasonal_empty_state'] = get_seasonal_empty_state
 

@@ -193,7 +193,7 @@
         
         {% if overlap_context %}
         <div class="context-banner">
-            You overlap on {{ overlap_context.resort_name }} · {{ overlap_context.start_date.strftime('%b %d') }}{% if overlap_context.start_date != overlap_context.end_date %}–{{ overlap_context.end_date.strftime('%b %d') }}{% endif %}
+            You overlap on {{ overlap_context.resort_name }} · {{ format_trip_dates(overlap_context) }}
         </div>
         {% endif %}
         
@@ -207,7 +207,7 @@
         <div class="section-header" style="margin-top: 0;">Trip Overlaps</div>
         {% for overlap in trip_overlaps %}
         <div class="overlap-callout">
-            <p class="overlap-callout-text">You'll both be at {{ overlap.mountain }} · {{ overlap.start_date.strftime('%b %d') }}{% if overlap.start_date != overlap.end_date %}–{{ overlap.end_date.strftime('%b %d') }}{% endif %}</p>
+            <p class="overlap-callout-text">You'll both be at {{ overlap.mountain }} · {{ format_trip_dates(overlap) }}</p>
         </div>
         {% endfor %}
         {% endif %}
@@ -219,7 +219,7 @@
                 <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
                     <div class="trip-card" style="padding: 14px 16px;">
                         <p class="trip-card-line1" style="margin: 0; font-size: 15px;">
-                            {{ trip.start_date.strftime('%b %d') }}–{{ trip.end_date.strftime('%b %d') }} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %} · {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}
+                            {{ format_trip_dates(trip) }} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %} · {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}
                         </p>
                         {% if trip.has_trip_overlap %}
                         <p class="trip-overlap-indicator" style="margin: 4px 0 0 0; font-size: 13px;">You're both attending</p>

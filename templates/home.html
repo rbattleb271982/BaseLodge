@@ -478,7 +478,7 @@
                         {% if invite.trip.resort %}{{ invite.trip.resort.name }}{% else %}{{ invite.trip.mountain }}{% endif %}
                     </p>
                     <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0 0 2px 0;">
-                        {{ invite.trip.start_date.strftime('%b %d') }}–{{ invite.trip.end_date.strftime('%b %d, %Y') }}
+                        {{ format_trip_dates(invite.trip) }}
                     </p>
                     <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">
                         Invited by {{ invite.inviter.first_name }}{% if invite.inviter.last_name %} {{ invite.inviter.last_name }}{% endif %}
@@ -507,7 +507,7 @@
                     <div class="bl-trip-card">
                         <div class="bl-trip-card-header">
                             <div class="bl-trip-card-content">
-                                <p class="bl-trip-card-dates">{% if trip.start_date == trip.end_date %}{{ trip.start_date.strftime('%a, %b %d') }}{% else %}{{ trip.start_date.strftime('%a, %b %d') }} – {{ trip.end_date.strftime('%a, %b %d') }}{% endif %}</p>
+                                <p class="bl-trip-card-dates">{{ format_trip_dates(trip) }}</p>
                                 <p class="bl-trip-card-resort">{% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</p>
                                 <p class="bl-trip-card-pass">{% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.invite_summary %} · {{ trip.invite_summary }}{% endif %}</p>
                             </div>
@@ -538,7 +538,7 @@
                 {% for trip in friend_trips %}
                 <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="friend-trip-row">
                     <div class="friend-trip-line1">{{ trip.user.first_name }}{% if trip.user.last_name %} {{ trip.user.last_name }}{% endif %} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state_code or trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</div>
-                    <div class="friend-trip-line2">{% if trip.start_date == trip.end_date %}{{ trip.start_date.strftime('%b %-d') }}{% else %}{{ trip.start_date.strftime('%b %-d') }}–{{ trip.end_date.strftime('%-d') if trip.start_date.month == trip.end_date.month else trip.end_date.strftime('%b %-d') }}{% endif %} · {% if trip.resort and trip.resort.pass_brands %}{{ trip.resort.pass_brands.split(',')[0]|replace(' Pass', '') }}{% elif trip.resort and trip.resort.brand %}{{ trip.resort.brand|replace(' Pass', '') }}{% else %}Other{% endif %}</div>
+                    <div class="friend-trip-line2">{{ format_trip_dates(trip) }} · {% if trip.resort and trip.resort.pass_brands %}{{ trip.resort.pass_brands.split(',')[0]|replace(' Pass', '') }}{% elif trip.resort and trip.resort.brand %}{{ trip.resort.brand|replace(' Pass', '') }}{% else %}Other{% endif %}</div>
                 </a>
                 {% endfor %}
             {% else %}
@@ -556,7 +556,7 @@
                 <a href="{{ url_for('friend_profile', friend_id=o.friend_id, resort_id=o.resort_id, overlap_start=o.start_date.strftime('%Y-%m-%d'), overlap_end=o.end_date.strftime('%Y-%m-%d')) }}" style="text-decoration: none; color: inherit;">
                     <div class="bl-trip-card">
                         <p class="bl-trip-card-dates">You and {{ o.friend_first_name }} overlap at {{ o.mountain }}</p>
-                        <p class="bl-trip-card-resort">{% if o.start_date == o.end_date %}{{ o.start_date.strftime('%a, %b %d') }}{% else %}{{ o.start_date.strftime('%a, %b %d') }} – {{ o.end_date.strftime('%a, %b %d') }}{% endif %}</p>
+                        <p class="bl-trip-card-resort">{{ format_trip_dates(o) }}</p>
                         <p class="bl-trip-card-pass">Same resort, {% if o.start_date == o.end_date %}same date{% else %}overlapping dates{% endif %}</p>
                     </div>
                 </a>
