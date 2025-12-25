@@ -1,0 +1,103 @@
+PUT THIS IN AGENT
+
+We have confirmed a bug in the friend invite flow where connections are sometimes one-directional due to session loss during signup. This is NOT a UI issue and NOT a feed query issue.
+
+ROOT CAUSE (CONFIRMED)
+- The Friend model is directional (user_id → friend_id) and requires TWO rows.
+- The function _connect_pending_inviter() correctly creates both rows.
+- However, this function depends on session state (pending_inviter_id).
+- If session state is lost during the invite → signup flow, the function never runs.
+- Result: the inviter may see the invitee, but the invitee does not see the inviter.
+
+GOAL
+Make friend connections created via invites DURABLE and GUARANTEED, even if session state is lost during signup or login.
+
+DO NOT change the Friend feed query.
+DO NOT change the Friend model structure.
+
+========================
+IMPLEMENTATION STRATEGY
+========================
+
+Persist invite linkage in the database instead of relying solely on session state.
+
+========================
+REQUIRED CHANGES
+========================
+
+1. Make invite → inviter relationship durable
+
+When a user lands on an invite link (/r/<token>):
+- Resolve the inviter from the token
+- Persist the inviter_id in a durable way that survives signup
+
+Use ONE of the following (choose the cleanest existing option):
+- Store inviter_id on the User record at signup (e.g., invited_by_user_id)
+- OR persist it on an Invite / InviteToken model if one exists
+
+DO NOT rely on Flask session alone.
+
+2. Update _connect_pending_inviter()
+
+Refactor _connect_pending_inviter() to:
+- First check the durable inviter reference (e.g., user.invited_by_user_id)
+- Fall back to session pending_inviter_id only if needed
+- If an inviter is found, create BOTH Friend rows:
+  - user → inviter
+  - inviter → user
+
+Ensure this function is idempotent:
+- Do not create duplicate rows if they already exist
+- Use existence checks before inserting
+
+3. Ensure execution timing is correct
+
+Call _connect_pending_inviter():
+- After successful signup
+- After first login (safety net)
+- Ensure it runs exactly once per user
+
+4. Add minimal logging (temporary)
+
+Add a debug log (can be removed later) when:
+- _connect_pending_inviter() runs
+- No inviter is found
+- Friend rows are successfully created
+
+This is for verification during live testing.
+
+========================
+VALIDATION REQUIREMENTS
+========================
+
+After the fix:
+
+- If User A invites User B and User B signs up:
+  - TWO Friend rows exist (A→B and B→A)
+  - User A sees User B in Friends feed
+  - User B sees User A in Friends feed
+
+- If session is lost mid-signup:
+  - Connection still succeeds
+
+- Re-inviting an already-connected user:
+  - Does NOT create duplicate Friend rows
+  - Does NOT error
+
+========================
+DO NOT
+========================
+
+- Do NOT modify Friends feed queries
+- Do NOT change the Friend table schema
+- Do NOT introduce UI work
+- Do NOT auto-connect users outside the invite flow
+
+========================
+OUTPUT
+========================
+
+After implementing:
+- List files and line numbers changed
+- Describe where inviter_id is now stored durably
+- Confirm the flow is no longer session-dependent
