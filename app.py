@@ -382,6 +382,64 @@ ALL_CANADA_PROVINCES = [
     ("PE", "Prince Edward Island"), ("QC", "Quebec"), ("SK", "Saskatchewan"), ("YT", "Yukon")
 ]
 
+ALL_JAPAN_REGIONS = [
+    ("Hokkaido", "Hokkaido"), ("Nagano", "Nagano"), ("Niigata", "Niigata"),
+    ("Gunma", "Gunma"), ("Yamagata", "Yamagata"), ("Iwate", "Iwate")
+]
+
+ALL_FRANCE_REGIONS = [
+    ("Auvergne-Rhône-Alpes", "Auvergne-Rhône-Alpes"), ("Provence-Alpes-Côte d'Azur", "Provence-Alpes-Côte d'Azur"),
+    ("Occitanie", "Occitanie"), ("Nouvelle-Aquitaine", "Nouvelle-Aquitaine")
+]
+
+ALL_SWITZERLAND_REGIONS = [
+    ("Valais", "Valais"), ("Graubünden", "Graubünden"), ("Bern", "Bern"),
+    ("Vaud", "Vaud"), ("Uri", "Uri"), ("Obwalden", "Obwalden")
+]
+
+ALL_AUSTRIA_REGIONS = [
+    ("Tyrol", "Tyrol"), ("Salzburg", "Salzburg"), ("Vorarlberg", "Vorarlberg"),
+    ("Styria", "Styria"), ("Carinthia", "Carinthia")
+]
+
+ALL_ITALY_REGIONS = [
+    ("Trentino-Alto Adige", "Trentino-Alto Adige"), ("Valle d'Aosta", "Valle d'Aosta"),
+    ("Lombardy", "Lombardy"), ("Piedmont", "Piedmont"), ("Veneto", "Veneto")
+]
+
+# Canonical states/regions by country code
+CANONICAL_STATES_BY_COUNTRY = {
+    "US": ALL_US_STATES,
+    "CA": ALL_CANADA_PROVINCES,
+    "JP": ALL_JAPAN_REGIONS,
+    "FR": ALL_FRANCE_REGIONS,
+    "CH": ALL_SWITZERLAND_REGIONS,
+    "AT": ALL_AUSTRIA_REGIONS,
+    "IT": ALL_ITALY_REGIONS,
+}
+
+def get_all_countries():
+    """Get canonical list of all countries (not derived from resorts).
+    Returns list of (country_code, country_name) tuples, sorted with US first.
+    """
+    countries = list(COUNTRY_NAMES.items())
+    # Sort: US first, then alphabetically by name
+    def sort_key(item):
+        code, name = item
+        if code == "US":
+            return (0, "")
+        return (1, name)
+    return sorted(countries, key=sort_key)
+
+def get_all_states_by_country():
+    """Get canonical states/regions for all countries (not derived from resorts).
+    Returns dict mapping country_code to list of (state_code, state_name) tuples.
+    """
+    result = {}
+    for country_code, states in CANONICAL_STATES_BY_COUNTRY.items():
+        result[country_code] = sorted(states, key=lambda x: x[1])
+    return result
+
 def get_grouped_locations():
     """Get locations grouped by country for the unified location selector.
     Returns dict with country names as keys and sorted list of (code, name) tuples as values.
@@ -2807,8 +2865,8 @@ def add_trip():
                 trip=None,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
-                countries_with_resorts=get_countries_with_resorts(),
-                states_by_country=get_states_by_country(),
+                countries_with_resorts=get_all_countries(),
+                states_by_country=get_all_states_by_country(),
                 user=current_user,
                 form_action=url_for("add_trip"),
                 default_country=default_country,
@@ -2835,8 +2893,8 @@ def add_trip():
                 trip=None,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
-                countries_with_resorts=get_countries_with_resorts(),
-                states_by_country=get_states_by_country(),
+                countries_with_resorts=get_all_countries(),
+                states_by_country=get_all_states_by_country(),
                 user=current_user,
                 form_action=url_for("add_trip"),
                 overlap_trip=overlapping,
@@ -2893,8 +2951,8 @@ def add_trip():
                 trip=None,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
-                countries_with_resorts=get_countries_with_resorts(),
-                states_by_country=get_states_by_country(),
+                countries_with_resorts=get_all_countries(),
+                states_by_country=get_all_states_by_country(),
                 user=current_user,
                 form_action=url_for("add_trip"),
                 default_country=default_country,
@@ -2907,33 +2965,15 @@ def add_trip():
             )
 
     # GET - render the add trip form
-    countries_data = get_countries_with_resorts()
-    states_data = get_states_by_country()
+    # Use CANONICAL data sources (not derived from resorts)
+    countries_data = get_all_countries()
+    states_data = get_all_states_by_country()
     
-    # CRITICAL DEBUG: Log data before render
-    print(f"[CRITICAL add_trip GET] Template: templates/add_trip.html")
-    print(f"[CRITICAL add_trip GET] countries_with_resorts: {countries_data}")
-    print(f"[CRITICAL add_trip GET] states_by_country keys: {list(states_data.keys()) if states_data else 'EMPTY'}")
-    print(f"[CRITICAL add_trip GET] resorts count: {len(resorts)}")
-    
-    # HARD FAIL: If critical data is missing, raise exception
-    if not countries_data:
-        print("[CRITICAL ERROR] countries_with_resorts is EMPTY - applying fallback")
-        # Fallback: Minimal hardcoded data to keep app usable
-        countries_data = [("US", "United States"), ("CA", "Canada")]
-        print(f"[FALLBACK] Using hardcoded countries: {countries_data}")
-    
-    if not states_data:
-        print("[CRITICAL ERROR] states_by_country is EMPTY - applying fallback")
-        # Fallback: Minimal hardcoded data
-        states_data = {
-            "US": [("CO", "Colorado"), ("UT", "Utah"), ("CA", "California"), ("VT", "Vermont")],
-            "CA": [("BC", "British Columbia"), ("AB", "Alberta")]
-        }
-        print(f"[FALLBACK] Using hardcoded states: {list(states_data.keys())}")
-    
-    # Final verification
-    print(f"[FINAL] Rendering with {len(countries_data)} countries, {len(states_data)} country-state mappings")
+    # Debug logging
+    print(f"[add_trip GET] Using canonical data: {len(countries_data)} countries, {len(states_data)} country mappings")
+    print(f"[add_trip GET] Countries: {[c[0] for c in countries_data]}")
+    print(f"[add_trip GET] US states count: {len(states_data.get('US', []))}")
+    print(f"[add_trip GET] Resorts count: {len(resorts)}")
     
     return render_template(
         "add_trip.html",
@@ -3026,8 +3066,8 @@ def edit_trip_form(trip_id):
                 trip=trip,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
-                countries_with_resorts=get_countries_with_resorts(),
-                states_by_country=get_states_by_country(),
+                countries_with_resorts=get_all_countries(),
+                states_by_country=get_all_states_by_country(),
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
                 default_country=default_country,
@@ -3049,8 +3089,8 @@ def edit_trip_form(trip_id):
                 trip=trip,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
-                countries_with_resorts=get_countries_with_resorts(),
-                states_by_country=get_states_by_country(),
+                countries_with_resorts=get_all_countries(),
+                states_by_country=get_all_states_by_country(),
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
                 overlap_trip=overlapping,
@@ -3084,8 +3124,8 @@ def edit_trip_form(trip_id):
                 trip=trip,
                 resorts=resorts,
                 states_with_resorts=get_states_with_resorts(),
-                countries_with_resorts=get_countries_with_resorts(),
-                states_by_country=get_states_by_country(),
+                countries_with_resorts=get_all_countries(),
+                states_by_country=get_all_states_by_country(),
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
                 default_country=default_country,
@@ -3100,8 +3140,8 @@ def edit_trip_form(trip_id):
         trip=trip,
         resorts=resorts,
         states_with_resorts=get_states_with_resorts(),
-        countries_with_resorts=get_countries_with_resorts(),
-        states_by_country=get_states_by_country(),
+        countries_with_resorts=get_all_countries(),
+        states_by_country=get_all_states_by_country(),
         user=current_user,
         form_action=url_for("edit_trip_form", trip_id=trip.id),
         default_country=default_country,
@@ -4079,15 +4119,18 @@ def force_create_base_users():
 @app.route("/debug/trip-form-data")
 def debug_trip_form_data():
     """Debug endpoint to verify trip form data."""
-    countries = get_countries_with_resorts()
-    states = get_states_by_country()
+    countries = get_all_countries()
+    states = get_all_states_by_country()
     resorts_objs = Resort.query.filter_by(is_active=True).limit(10).all()
     resorts_sample = [{"id": r.id, "name": r.name, "state": r.state, "country": r.country} for r in resorts_objs]
     return {
-        "countries_with_resorts": countries,
+        "data_source": "CANONICAL (not resort-derived)",
+        "countries": countries,
         "countries_count": len(countries),
         "states_by_country_keys": list(states.keys()) if states else [],
-        "states_by_country_US": states.get("US", [])[:5] if states else [],
+        "US_states_count": len(states.get("US", [])),
+        "US_states_sample": states.get("US", [])[:10] if states else [],
+        "CA_provinces_count": len(states.get("CA", [])),
         "resorts_sample": resorts_sample,
         "resort_count": Resort.query.filter_by(is_active=True).count()
     }
