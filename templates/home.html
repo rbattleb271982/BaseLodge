@@ -335,6 +335,40 @@
         .bl-segment-small:not(.active):hover {
             background: rgba(143, 1, 27, 0.08);
         }
+        
+        /* Compact Friends' Trips rows */
+        .friend-trip-row {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            padding: 10px 12px;
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .friend-trip-row:active {
+            background: var(--bl-color-bg-secondary);
+        }
+        .friend-trip-line1 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            line-height: 1.3;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .friend-trip-line2 {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--bl-color-text-muted);
+            line-height: 1.3;
+            margin-top: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     </style>
 </head>
 <body>
@@ -502,15 +536,9 @@
         <div id="tab-friends" class="bl-trip-list" role="tabpanel" {% if active_tab != 'friends' %}style="display: none;"{% endif %}>
             {% if friend_trips %}
                 {% for trip in friend_trips %}
-                <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                    <div class="bl-trip-card">
-                        <div class="bl-trip-card-content">
-                            <p class="bl-trip-card-dates">{% if trip.start_date == trip.end_date %}{{ trip.start_date.strftime('%a, %b %d') }}{% else %}{{ trip.start_date.strftime('%a, %b %d') }} – {{ trip.end_date.strftime('%a, %b %d') }}{% endif %}</p>
-                            <p class="bl-trip-card-resort">{% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</p>
-                            <p class="bl-trip-card-pass">{% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}</p>
-                            <p class="bl-trip-card-friend">{{ trip.user.first_name }}{% if trip.user.last_name %} {{ trip.user.last_name }}{% endif %}</p>
-                        </div>
-                    </div>
+                <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="friend-trip-row">
+                    <div class="friend-trip-line1">{{ trip.user.first_name }}{% if trip.user.last_name %} {{ trip.user.last_name }}{% endif %} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state_code or trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</div>
+                    <div class="friend-trip-line2">{% if trip.start_date == trip.end_date %}{{ trip.start_date.strftime('%b %-d') }}{% else %}{{ trip.start_date.strftime('%b %-d') }}–{{ trip.end_date.strftime('%-d') if trip.start_date.month == trip.end_date.month else trip.end_date.strftime('%b %-d') }}{% endif %} · {% if trip.resort and trip.resort.pass_brands %}{{ trip.resort.pass_brands.split(',')[0]|replace(' Pass', '') }}{% elif trip.resort and trip.resort.brand %}{{ trip.resort.brand|replace(' Pass', '') }}{% else %}Other{% endif %}</div>
                 </a>
                 {% endfor %}
             {% else %}
