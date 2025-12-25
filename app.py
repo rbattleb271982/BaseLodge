@@ -2931,7 +2931,7 @@ def add_trip():
         trip = SkiTrip(
             user_id=current_user.id,
             resort_id=resort.id,
-            state=resort.state,
+            state=resort.state_code or resort.state,  # Use canonical column
             mountain=resort.name,
             start_date=start_date,
             end_date=end_date,
