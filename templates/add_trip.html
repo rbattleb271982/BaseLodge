@@ -54,7 +54,6 @@
             margin-bottom: var(--bl-space-2);
         }
 
-        .form-group select,
         .form-group input[type="text"] {
             width: 100%;
             padding: 12px;
@@ -63,21 +62,44 @@
             font-size: 16px;
             background: var(--bl-color-background);
             color: var(--bl-color-text);
-            -webkit-appearance: none;
-            appearance: none;
+        }
+
+        /* ===== Mobile Select Hardening (iOS + Android) ===== */
+        .native-select-wrapper {
+            position: relative;
+            z-index: 20;
+        }
+
+        .native-select-wrapper * {
+            pointer-events: auto;
         }
 
         .form-group select {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
-            padding-right: 36px;
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--bl-color-border);
+            border-radius: var(--bl-radius-md);
+            font-size: 16px;
+            background: var(--bl-color-background);
+            color: var(--bl-color-text);
+            appearance: auto;
+            -webkit-appearance: menulist;
+            pointer-events: auto;
+            touch-action: manipulation;
+        }
+
+        /* Prevent clipping that breaks iOS selects */
+        .form-card {
+            overflow: visible !important;
+            -webkit-backdrop-filter: none !important;
+            backdrop-filter: none !important;
         }
 
         .resort-search-wrapper {
             display: flex;
             flex-direction: column;
             gap: 8px;
+            overflow: visible !important;
         }
 
         .resort-search {
@@ -419,25 +441,31 @@
                 
                 <div class="form-group">
                     <label for="country">Country</label>
-                    <select id="country" name="country" required>
-                        <option value="">Loading...</option>
-                    </select>
+                    <div class="native-select-wrapper">
+                        <select id="country" name="country" required>
+                            <option value="">Loading...</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="form-group">
                     <label for="state">State / Region</label>
-                    <select id="state" name="state" required>
-                        <option value="">Select a country first</option>
-                    </select>
+                    <div class="native-select-wrapper">
+                        <select id="state" name="state" required>
+                            <option value="">Select a country first</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="form-group">
                     <label for="resort_id">Resort</label>
                     <div class="resort-search-wrapper">
                         <input type="text" id="resort_search" class="resort-search" placeholder="Search resorts..." disabled>
-                        <select id="resort_id" name="resort_id" required>
-                            <option value="">Select a state first</option>
-                        </select>
+                        <div class="native-select-wrapper">
+                            <select id="resort_id" name="resort_id" required>
+                                <option value="">Select a state first</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
