@@ -7698,10 +7698,11 @@ def admin_sync_from_canonical():
             existing_by_key[key] = r
         
         for r_data in canonical_data.get('resorts', []):
-            name = r_data['name'].strip()
-            state_code = r_data.get('state_code', '').strip()
-            country_code = r_data.get('country_code', 'US').strip()
-            pass_brands = r_data.get('pass_brands', '').strip()
+            name = (r_data.get('name') or '').strip()
+            state_code = (r_data.get('state_code') or '').strip()
+            country_code = (r_data.get('country_code') or 'US').strip()
+            pass_brands = (r_data.get('pass_brands') or '').strip()
+            is_region = r_data.get('is_region', False)
             
             canonical_key = f"{name}|{state_code}|{country_code}".lower()
             canonical_keys.add(canonical_key)
@@ -7717,6 +7718,7 @@ def admin_sync_from_canonical():
                 existing.pass_brands = pass_brands
                 existing.brand = pass_brands.split(',')[0] if pass_brands else 'Other'
                 existing.is_active = True
+                existing.is_region = is_region
                 stats['updated'] += 1
             else:
                 import re
@@ -7736,7 +7738,8 @@ def admin_sync_from_canonical():
                     pass_brands=pass_brands,
                     brand=pass_brands.split(',')[0] if pass_brands else 'Other',
                     slug=slug,
-                    is_active=True
+                    is_active=True,
+                    is_region=is_region
                 )
                 db.session.add(new_resort)
                 stats['added'] += 1
