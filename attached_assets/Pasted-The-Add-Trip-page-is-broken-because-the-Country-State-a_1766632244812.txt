@@ -1,0 +1,50 @@
+The Add Trip page is broken because the Country, State, and Resort <select> elements are rendered without guaranteed <option> data, causing a permanent deadlock.
+This task is to guarantee all three selectors are selectable and trip creation works, regardless of prior assumptions.
+1️⃣ Fix the COUNTRY selector at the source (NON-NEGOTIABLE)
+In templates/add_trip.html, update the Country <select> so it ALWAYS has options rendered server-side.
+Do not rely on JavaScript to create Country options.
+Replace the Country select with:
+<select id="country" name="country" required>
+  <option value="US">United States</option>
+  <option value="CA">Canada</option>
+</select>
+This must exist in the HTML at render time.
+2️⃣ Normalize COUNTRY KEYS between backend and frontend
+Audit and fix the Flask route that renders Add Trip:
+states_by_country must be keyed by ISO country codes ("US", "CA").
+Resort objects passed in resorts must include .country using the same codes.
+Example required structure:
+states_by_country = {
+  "US": [("CO", "Colorado"), ("UT", "Utah")],
+  "CA": [("BC", "British Columbia")]
+}
+If the current data uses "United States" or "Canada" as keys, convert them to "US" / "CA" before passing to the template.
+3️⃣ Guarantee STATE selector population
+Ensure populateStates(country) always runs on page load using the default country.
+Ensure State <select> is enabled if states exist.
+Remove any logic that disables State when Country has a valid value.
+State must be selectable immediately after page load.
+4️⃣ Guarantee RESORT selector population
+Ensure Resort <select> options are populated when a State is selected.
+Ensure Resort <select> is never disabled due to missing Country if a State exists.
+Ensure Resort search input is enabled when resorts exist.
+5️⃣ Wire the missing JS event listeners (CRITICAL)
+In the Add Trip JS, attach these listeners after DOM load:
+countrySelect.addEventListener('change', updateStates);
+stateSelect.addEventListener('change', updateResorts);
+resortSearchInput.addEventListener('input', filterResorts);
+Without these, the UI will appear dead even with correct data.
+6️⃣ Add hard diagnostics so this can never silently fail again
+Add console assertions:
+console.assert(countrySelect.options.length > 0, "Country select has no options");
+console.assert(statesByCountry[formState.country], "No states for country:", formState.country);
+If these fail, log and stop execution visibly.
+7️⃣ Verification (MUST PASS ALL)
+The fix is only complete when:
+Country dropdown shows United States and Canada
+Country can be changed by the user
+State dropdown populates and is selectable
+Resort dropdown populates and is selectable
+User can save a trip successfully
+If any step fails, continue debugging until it passes.
+This is the core workflow of the app. Do not stop early. Do not partial-fix.

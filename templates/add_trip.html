@@ -451,10 +451,14 @@
                 
                 <div class="form-group">
                     <label for="country">Country</label>
-                    <select id="country" name="country" onchange="updateStates()">
-                        {% for country_code, country_name in countries_with_resorts %}
-                            <option value="{{ country_code }}" {% if trip and trip.resort and trip.resort.country == country_code %}selected{% elif not trip and default_country == country_code %}selected{% endif %}>{{ country_name }}</option>
-                        {% endfor %}
+                    <select id="country" name="country" required>
+                        <option value="US" {% if (trip and trip.resort and trip.resort.country == 'US') or (not trip and (default_country == 'US' or not default_country)) %}selected{% endif %}>United States</option>
+                        <option value="CA" {% if (trip and trip.resort and trip.resort.country == 'CA') or (not trip and default_country == 'CA') %}selected{% endif %}>Canada</option>
+                        <option value="AT" {% if (trip and trip.resort and trip.resort.country == 'AT') or (not trip and default_country == 'AT') %}selected{% endif %}>Austria</option>
+                        <option value="CH" {% if (trip and trip.resort and trip.resort.country == 'CH') or (not trip and default_country == 'CH') %}selected{% endif %}>Switzerland</option>
+                        <option value="FR" {% if (trip and trip.resort and trip.resort.country == 'FR') or (not trip and default_country == 'FR') %}selected{% endif %}>France</option>
+                        <option value="IT" {% if (trip and trip.resort and trip.resort.country == 'IT') or (not trip and default_country == 'IT') %}selected{% endif %}>Italy</option>
+                        <option value="JP" {% if (trip and trip.resort and trip.resort.country == 'JP') or (not trip and default_country == 'JP') %}selected{% endif %}>Japan</option>
                     </select>
                 </div>
 
@@ -935,26 +939,41 @@
         }
         
         document.addEventListener('DOMContentLoaded', function() {
-            console.log("DOM ready");
+            console.log("=== ADD TRIP PAGE INIT ===");
+            
+            // Hard assertions - stop if critical elements missing
+            console.assert(countrySelect, "FATAL: Country select not found");
+            console.assert(stateSelect, "FATAL: State select not found");
+            console.assert(resortSelect, "FATAL: Resort select not found");
+            console.assert(countrySelect && countrySelect.options.length > 0, "FATAL: Country select has no options");
+            console.assert(statesByCountry, "FATAL: statesByCountry is null/undefined");
+            console.assert(resorts && resorts.length > 0, "FATAL: resorts array is empty");
+            
             if (!countrySelect || !stateSelect || !resortSelect) {
-                console.error("Trip form elements missing", {countrySelect, stateSelect, resortSelect});
+                console.error("Trip form elements missing - ABORTING", {countrySelect, stateSelect, resortSelect});
                 return;
             }
             
-            // Wire up event listeners explicitly (belt-and-suspenders with inline handlers)
+            // Wire up event listeners explicitly
             countrySelect.addEventListener('change', updateStates);
             stateSelect.addEventListener('change', updateResorts);
             resortSearchInput.addEventListener('input', filterResorts);
-            console.log("Event listeners attached");
             
-            // Log available data for debugging
+            // Log diagnostic data
+            console.log("Country options:", Array.from(countrySelect.options).map(o => o.value));
             console.log("statesByCountry keys:", statesByCountry ? Object.keys(statesByCountry) : "NULL");
-            console.log("resorts sample:", resorts ? resorts.slice(0, 3) : "NULL");
-            console.log("Country options in dropdown:", Array.from(countrySelect.options).map(o => o.value));
+            console.log("Total resorts:", resorts ? resorts.length : 0);
+            console.log("formState:", formState);
+            
+            // Validate country has states
+            const country = formState.country || countrySelect.value || 'US';
+            console.assert(statesByCountry && statesByCountry[country], "No states for country: " + country + ", available: " + (statesByCountry ? Object.keys(statesByCountry).join(", ") : "none"));
             
             initializeForm();
             initializeCalendar();
             toggleAccommodationLink();
+            
+            console.log("=== INIT COMPLETE ===");
         });
         
         function initializeForm() {
