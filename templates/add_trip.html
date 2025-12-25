@@ -67,11 +67,7 @@
         /* ===== Mobile Select Hardening (iOS + Android) ===== */
         .native-select-wrapper {
             position: relative;
-            z-index: 20;
-        }
-
-        .native-select-wrapper * {
-            pointer-events: auto;
+            z-index: 30;
         }
 
         .form-group select {
@@ -84,7 +80,9 @@
             color: var(--bl-color-text);
             appearance: auto;
             -webkit-appearance: menulist;
-            pointer-events: auto;
+            pointer-events: auto !important;
+            position: relative !important;
+            z-index: 31 !important;
             touch-action: manipulation;
         }
 
@@ -93,6 +91,21 @@
             overflow: visible !important;
             -webkit-backdrop-filter: none !important;
             backdrop-filter: none !important;
+        }
+
+        .form-card::before,
+        .form-card::after {
+            display: none !important;
+        }
+
+        /* Mobile-only: kill all overlays above selects */
+        @media (hover: none) and (pointer: coarse) {
+            .form-card::before,
+            .form-card::after,
+            .select-arrow,
+            .dropdown-icon {
+                display: none !important;
+            }
         }
 
         .resort-search-wrapper {
@@ -1014,6 +1027,11 @@
             });
             
             console.log("Add Trip: Initialization complete");
+            
+            // TEMP DEBUG: Verify iOS touch reaches select
+            document.getElementById('country').addEventListener('touchstart', function() {
+                console.log('iOS touch reached country select');
+            });
         });
     </script>
 </body>
