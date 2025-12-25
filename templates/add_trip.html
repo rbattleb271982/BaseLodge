@@ -744,6 +744,10 @@
         let selectedStartDate = startDateInput.value ? new Date(startDateInput.value + 'T00:00:00') : null;
         let selectedEndDate = endDateInput.value ? new Date(endDateInput.value + 'T00:00:00') : null;
         
+        // FIX: Explicit range selection flag - prevents relying on hidden input inference
+        // true = waiting for end date, false = waiting for start date
+        let isSelectingRange = selectedStartDate && !selectedEndDate;
+        
         function formatDateShort(date) {
             return monthNames[date.getMonth()].slice(0, 3) + ' ' + date.getDate();
         }
@@ -825,19 +829,26 @@
         function selectDate(dateStr) {
             const date = new Date(dateStr + 'T00:00:00');
             
-            if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
+            // FIX: Use explicit flag instead of inferring from hidden inputs
+            if (!isSelectingRange) {
+                // First click OR reset: set start date, enter range selection mode
                 selectedStartDate = date;
                 selectedEndDate = null;
                 startDateInput.value = dateStr;
                 endDateInput.value = '';
+                isSelectingRange = true;
             } else if (date < selectedStartDate) {
+                // Clicked before start: reset start, stay in range selection mode
                 selectedStartDate = date;
                 selectedEndDate = null;
                 startDateInput.value = dateStr;
                 endDateInput.value = '';
+                // isSelectingRange stays true
             } else {
+                // Second click (>= start): set end date, exit range selection mode
                 selectedEndDate = date;
                 endDateInput.value = dateStr;
+                isSelectingRange = false;
             }
             
             renderCalendar();
