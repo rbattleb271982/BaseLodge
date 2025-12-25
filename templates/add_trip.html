@@ -6,16 +6,26 @@
     <title>Base Lodge - {% if trip %}Edit{% else %}Add{% endif %} Trip</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
+        /* Ensure page container doesn't block interactions */
+        .page-container {
+            position: relative;
+            z-index: 1;
+        }
+        
         .form-card {
             background: var(--bl-color-surface);
             border-radius: var(--bl-radius-lg);
             border: 1px solid var(--bl-color-border-soft);
             padding: var(--bl-space-6);
             margin-bottom: var(--bl-space-8);
+            position: relative;
+            z-index: 5;
         }
         
         .form-group {
             margin-bottom: var(--bl-space-6);
+            position: relative;
+            z-index: 10;
         }
         
         .form-group label {
@@ -42,8 +52,8 @@
             appearance: menulist;
             cursor: pointer;
             position: relative;
-            z-index: 10;
-            pointer-events: auto;
+            z-index: 20;
+            pointer-events: auto !important;
         }
         
         .form-group input:disabled,
@@ -984,6 +994,15 @@
             countrySelect.addEventListener('click', () => console.log('Country select CLICKED'));
             stateSelect.addEventListener('click', () => console.log('State select CLICKED'));
             resortSelect.addEventListener('click', () => console.log('Resort select CLICKED'));
+            
+            // CLICK INTERCEPTION DEBUG: Log what element receives clicks
+            document.addEventListener('click', function(e) {
+                const target = e.target;
+                const rect = target.getBoundingClientRect();
+                console.log('CLICK on:', target.tagName, target.id || target.className, 
+                           'at (', e.clientX, ',', e.clientY, ')',
+                           'element rect:', Math.round(rect.top), '-', Math.round(rect.bottom));
+            }, true); // capture phase
             
             console.log("=== INIT COMPLETE ===");
         });
