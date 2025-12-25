@@ -372,7 +372,7 @@ class Resort(db.Model):
     pass_brands = db.Column(db.String(150), nullable=True)  # Comma-separated: 'Epic', 'Ikon,MountainCollective', etc.
     slug = db.Column(db.String(120), unique=True, nullable=False)
     is_active = db.Column(db.Boolean, default=True)
-    is_region = db.Column(db.Boolean, default=False)  # True for region-level entities (e.g., Aosta Valley, Ski Arlberg)
+    is_region = db.Column(db.Boolean, nullable=False, default=False, server_default='false')  # True for region-level entities (e.g., Aosta Valley, Ski Arlberg)
 
     trips = db.relationship('SkiTrip', backref='resort', lazy=True)
 
