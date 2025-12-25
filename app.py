@@ -7571,8 +7571,13 @@ def admin_sync_from_canonical():
                 stats['updated'] += 1
             else:
                 import re
-                slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
-                slug = f"{slug}-{state_code.lower()}" if state_code else slug
+                base_slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+                base_slug = f"{base_slug}-{state_code.lower()}" if state_code else base_slug
+                slug = base_slug
+                counter = 1
+                while Resort.query.filter_by(slug=slug).first():
+                    slug = f"{base_slug}-{counter}"
+                    counter += 1
                 new_resort = Resort(
                     name=name,
                     state=state_code,
