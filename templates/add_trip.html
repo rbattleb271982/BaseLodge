@@ -800,7 +800,7 @@
         }
 
         function populateStates(country, preserveSelection) {
-            console.log("populateStates called:", country, "statesByCountry:", statesByCountry);
+            console.log("populateStates called:", country);
             if (!statesByCountry) {
                 console.error("statesByCountry is null/undefined!");
                 stateSelect.innerHTML = '<option value="">Error loading states</option>';
@@ -808,7 +808,11 @@
                 return;
             }
             const states = statesByCountry[country] || [];
-            console.log("Found states:", states.length);
+            if (states.length === 0) {
+                console.warn("No states found for country:", country, "Available keys:", Object.keys(statesByCountry));
+            } else {
+                console.log("Found", states.length, "states for", country);
+            }
             stateSelect.innerHTML = '<option value="">Choose a state...</option>';
             states.forEach(([code, name]) => {
                 const option = document.createElement('option');
@@ -824,6 +828,7 @@
         }
         
         function populateResorts(country, state, preserveSelection) {
+            console.log("populateResorts called:", country, state);
             if (!state) {
                 resortSelect.innerHTML = '<option value="">Select a state first</option>';
                 resortSelect.disabled = true;
@@ -834,6 +839,11 @@
             }
             
             currentStateResorts = resorts.filter(r => r.state === state && r.country === country);
+            if (currentStateResorts.length === 0) {
+                console.warn("No resorts found for", country, state, "Sample resorts:", resorts.slice(0, 3).map(r => ({name: r.name, country: r.country, state: r.state})));
+            } else {
+                console.log("Found", currentStateResorts.length, "resorts for", country, state);
+            }
             currentStateResorts.sort((a, b) => {
                 const aCompat = isPassCompatible(a) ? 0 : 1;
                 const bCompat = isPassCompatible(b) ? 0 : 1;
@@ -930,6 +940,18 @@
                 console.error("Trip form elements missing", {countrySelect, stateSelect, resortSelect});
                 return;
             }
+            
+            // Wire up event listeners explicitly (belt-and-suspenders with inline handlers)
+            countrySelect.addEventListener('change', updateStates);
+            stateSelect.addEventListener('change', updateResorts);
+            resortSearchInput.addEventListener('input', filterResorts);
+            console.log("Event listeners attached");
+            
+            // Log available data for debugging
+            console.log("statesByCountry keys:", statesByCountry ? Object.keys(statesByCountry) : "NULL");
+            console.log("resorts sample:", resorts ? resorts.slice(0, 3) : "NULL");
+            console.log("Country options in dropdown:", Array.from(countrySelect.options).map(o => o.value));
+            
             initializeForm();
             initializeCalendar();
             toggleAccommodationLink();
