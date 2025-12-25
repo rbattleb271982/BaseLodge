@@ -1,0 +1,124 @@
+PUT THIS IN AGENT
+
+You are updating the canonical Resort table. Apply all changes identically to DEV and PROD.
+
+RULES:
+- Do NOT delete or rename existing resorts
+- Do NOT overwrite pass_brands unless explicitly stated
+- Insert missing resorts only
+- Update existing resorts in place if names match
+- Use transactions
+- Make changes idempotent (safe to re-run)
+- Do NOT add checkpoints unless explicitly requested
+
+PHASE 1 — PASS-RELEVANT RESORTS
+
+ITALY
+Ikon only:
+Alta Badia
+Cervinia (Cervino Ski Paradise)
+Cortina d’Ampezzo
+Courmayeur
+Kronplatz / Plan de Corones
+La Thuile
+Monterosa Ski
+Val di Fassa
+Val di Fiemme
+Val Gardena
+
+Epic only:
+Madonna di Campiglio
+Passo Tonale (Pontedilegno–Tonale)
+
+Region-level (NOT a resort):
+Aosta Valley
+- country: Italy
+- pass_brands: ["Ikon","Indy"]
+- notes: Region-level entity; includes Courmayeur, Cervinia, La Thuile, Monterosa
+
+AUSTRIA
+Ikon only:
+Kitzbühel
+St. Anton am Arlberg
+
+Region-level:
+Ski Arlberg
+- country: Austria
+- pass_brands: ["Indy"]
+- notes: Region-level entity; includes St. Anton, Lech, Zürs, Stuben
+Do NOT tag St. Anton with Indy.
+
+SWITZERLAND
+Ikon only:
+Zermatt (Matterhorn Ski Paradise)
+St. Moritz
+Davos–Klosters
+
+Ikon + Epic:
+Andermatt–Sedrun–Disentis
+
+NORWAY
+Epic only:
+Trysil
+Hemsedal
+
+CHILE
+Ikon only:
+Portillo
+Valle Nevado
+La Parva
+
+PHASE 2 — GLOBAL POPULAR RESORTS (NO PASSES)
+All entries below must have pass_brands = []
+
+SPAIN:
+Baqueira-Beret
+Sierra Nevada
+Formigal–Panticosa
+Astún
+Candanchú
+
+ITALY:
+Arabba
+Selva di Val Gardena
+Canazei
+Pejo
+Pinzolo
+San Martino di Castrozza
+
+AUSTRIA:
+Ischgl
+Sölden
+Saalbach-Hinterglemm
+Mayrhofen
+Zell am See–Kaprun
+
+SWITZERLAND:
+Verbier (4 Vallées)
+Jungfrau Region (Wengen / Grindelwald)
+Crans-Montana
+Engelberg
+
+SWEDEN:
+Åre
+Sälen
+Vemdalen
+
+CHILE:
+El Colorado
+Nevados de Chillán
+Corralco
+
+VALIDATION (REQUIRED):
+After applying changes, output:
+- Total resort count
+- Resort count by country
+- Count with Ikon, Epic, Indy
+- Confirm ONLY region-level entities are:
+  - Aosta Valley
+  - Ski Arlberg
+
+If any conflicts occur, STOP and report before committing.
+
+Commit message:
+chore: add global ski resorts and pass coverage (phase 1 + phase 2)
