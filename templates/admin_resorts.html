@@ -167,6 +167,30 @@
             border-bottom: 1px solid #e2e8f0;
         }
         
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        th.sortable:hover {
+            background: #e2e8f0;
+        }
+        
+        th.sortable::after {
+            content: ' ⇅';
+            opacity: 0.3;
+        }
+        
+        th.sortable.asc::after {
+            content: ' ↑';
+            opacity: 1;
+        }
+        
+        th.sortable.desc::after {
+            content: ' ↓';
+            opacity: 1;
+        }
+        
         th.checkbox-col {
             width: 40px;
         }
@@ -412,11 +436,11 @@
             <thead>
                 <tr>
                     <th class="checkbox-col"><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Country</th>
-                    <th>State/Region</th>
-                    <th>Pass Brands</th>
+                    <th class="sortable" data-sort="id" onclick="sortTable('id')">ID</th>
+                    <th class="sortable" data-sort="name" onclick="sortTable('name')">Name</th>
+                    <th class="sortable" data-sort="country" onclick="sortTable('country')">Country</th>
+                    <th class="sortable" data-sort="state" onclick="sortTable('state')">State/Region</th>
+                    <th class="sortable" data-sort="pass" onclick="sortTable('pass')">Pass Brands</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
@@ -426,6 +450,8 @@
                 <tr data-id="{{ resort.id }}" 
                     data-name="{{ resort.name|lower }}"
                     data-country="{{ resort.country_code or '' }}"
+                    data-state="{{ resort.state_code or resort.state or '' }}"
+                    data-pass="{{ resort.pass_brands or resort.brand or '' }}"
                     data-active="{{ 'true' if resort.is_active else 'false' }}"
                     class="{{ '' if resort.is_active else 'inactive' }}">
                     <td><input type="checkbox" class="resort-checkbox" value="{{ resort.id }}" onchange="updateSelection()"></td>
@@ -509,6 +535,61 @@
     <script>
         let selectedResorts = new Set();
         let pendingMerge = null;
+        let currentSort = { column: null, direction: 'asc' };
+        
+        function sortTable(column) {
+            const tbody = document.getElementById('resort-table');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            // Toggle direction if same column
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+            
+            // Update header styles
+            document.querySelectorAll('th.sortable').forEach(th => {
+                th.classList.remove('asc', 'desc');
+                if (th.dataset.sort === column) {
+                    th.classList.add(currentSort.direction);
+                }
+            });
+            
+            // Sort rows
+            rows.sort((a, b) => {
+                let aVal, bVal;
+                
+                if (column === 'id') {
+                    aVal = parseInt(a.dataset.id);
+                    bVal = parseInt(b.dataset.id);
+                } else if (column === 'name') {
+                    aVal = a.dataset.name;
+                    bVal = b.dataset.name;
+                } else if (column === 'country') {
+                    aVal = a.dataset.country.toLowerCase();
+                    bVal = b.dataset.country.toLowerCase();
+                } else if (column === 'state') {
+                    aVal = a.dataset.state.toLowerCase();
+                    bVal = b.dataset.state.toLowerCase();
+                } else if (column === 'pass') {
+                    aVal = a.dataset.pass.toLowerCase();
+                    bVal = b.dataset.pass.toLowerCase();
+                }
+                
+                if (column === 'id') {
+                    return currentSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                } else {
+                    if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                    if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                    return 0;
+                }
+            });
+            
+            // Reorder DOM
+            rows.forEach(row => tbody.appendChild(row));
+        }
         
         function showToast(message, type = '') {
             const toast = document.getElementById('toast');
