@@ -1,0 +1,116 @@
+We are re-establishing a SINGLE SOURCE OF TRUTH for geography.
+
+This app MUST reference ONE table only for:
+- country
+- state / province
+- resort
+- pass associations
+
+That table is the Resort table.
+
+This worked before and is now broken due to drift.
+We are fixing it permanently.
+
+DO ALL STEPS BELOW.
+
+--------------------------------------------------
+STEP 1 — Resort Table Canonical Contract
+--------------------------------------------------
+
+Enforce the following schema contract on Resort:
+
+- country_code   (ISO-2, e.g. US, CA)
+- country_name   (display, e.g. United States, Canada)
+- state_code     (e.g. CO, BC)
+- state_name     (display, e.g. Colorado, British Columbia)
+- name           (resort name)
+- is_active
+- pass_brands
+
+If any of these columns do not exist:
+→ ADD THEM via migration.
+
+If data exists in legacy columns:
+→ MAP it into the canonical columns.
+→ DO NOT drop old columns yet.
+→ LOG any rows that cannot be mapped cleanly.
+
+--------------------------------------------------
+STEP 2 — Normalize Existing Data
+--------------------------------------------------
+
+Write a migration or script that:
+
+- Normalizes ALL resorts so:
+  - country_code is consistent (US, CA, etc.)
+  - state_code is consistent (CO, BC, etc.)
+  - country_name/state_name are filled
+
+- Explicitly confirm these exist after migration:
+  - Colorado resorts (Vail, Breckenridge, etc.)
+  - British Columbia resorts (Whistler Blackcomb)
+
+Return a BEFORE/AFTER row example for each.
+
+--------------------------------------------------
+STEP 3 — Dropdowns Must Query Resort Directly
+--------------------------------------------------
+
+Delete or bypass:
+- get_countries_with_resorts()
+- states_by_country dicts
+- ANY geography helpers not querying Resort
+
+Replace with:
+
+- Country dropdown:
+  SELECT DISTINCT country_code, country_name
+  FROM resort
+  WHERE is_active = true
+  ORDER BY country_name;
+
+- State dropdown:
+  SELECT DISTINCT state_code, state_name
+  FROM resort
+  WHERE country_code = :selected_country
+    AND is_active = true
+  ORDER BY state_name;
+
+These queries feed the template DIRECTLY.
+
+--------------------------------------------------
+STEP 4 — Resort Query (NO FILTERING GUESSWORK)
+--------------------------------------------------
+
+Resort dropdown MUST be populated from:
+
+SELECT id, name
+FROM resort
+WHERE country_code = :country
+  AND state_code = :state
+  AND is_active = true
+ORDER BY name;
+
+JS must NOT guess, normalize, or translate geography.
+It ONLY passes codes through.
+
+--------------------------------------------------
+STEP 5 — Hard Verification (MANDATORY)
+--------------------------------------------------
+
+After implementation, verify ALL of the following:
+
+- US → CO shows multiple resorts
+- CA → BC shows Whistler Blackcomb
+- No "No resorts found" message for valid states
+- All dropdowns populate without JS warnings
+
+Return:
+- Migration code
+- Queries used
+- Files changed
+- Screenshot or console log proving Whistler appears
+
+NO PARTIAL FIXES.
+NO FALLBACK LOGIC.
+NO PARALLEL SOURCES.
