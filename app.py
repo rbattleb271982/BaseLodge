@@ -358,6 +358,10 @@ COUNTRY_NAMES = {
     "CH": "Switzerland",
     "AT": "Austria",
     "IT": "Italy",
+    "CL": "Chile",
+    "ES": "Spain",
+    "NO": "Norway",
+    "SE": "Sweden",
 }
 
 ALL_US_STATES = [
@@ -566,10 +570,7 @@ STATE_NAMES = {
     'DC': 'District of Columbia', 'BC': 'British Columbia', 'AB': 'Alberta', 'ON': 'Ontario', 'QC': 'Quebec'
 }
 
-COUNTRY_NAMES = {
-    'US': 'United States', 'CA': 'Canada', 'JP': 'Japan',
-    'FR': 'France', 'CH': 'Switzerland', 'AT': 'Austria', 'IT': 'Italy'
-}
+# Note: COUNTRY_NAMES defined above at line ~353
 
 def group_resorts_for_display(resorts):
     """
@@ -2853,21 +2854,18 @@ def settings_wish_list():
     # Group and sort wish list resorts for display
     grouped_wish_list = group_resorts_for_display(wish_list_resorts)
     
-    # Get distinct countries for dropdown
+    # Get distinct countries for dropdown (only from resorts, excluding regions)
     countries = db.session.query(Resort.country_code).distinct().filter(
         Resort.country_code.isnot(None),
-        Resort.country_code != ''
+        Resort.country_code != '',
+        Resort.is_region == False
     ).all()
-    country_names = {
-        'US': 'United States', 'CA': 'Canada', 'JP': 'Japan',
-        'FR': 'France', 'CH': 'Switzerland', 'AT': 'Austria', 'IT': 'Italy'
-    }
     countries_list = []
     for (code,) in countries:
         if code:
-            countries_list.append({'code': code, 'name': country_names.get(code, code)})
-    # Sort: US first, then CA, then others alphabetically
-    countries_list.sort(key=lambda c: (0 if c['code'] == 'US' else 1 if c['code'] == 'CA' else 2, c['name']))
+            countries_list.append({'code': code, 'name': COUNTRY_NAMES.get(code, code)})
+    # Sort: US first, then alphabetically by display name
+    countries_list.sort(key=lambda c: (c['name'] != 'United States', c['name']))
     
     return render_template("settings_wish_list.html",
                            resorts=resorts,
@@ -3577,20 +3575,18 @@ def mountains_visited():
     # Group and sort selected resorts for display
     grouped_selected = group_resorts_for_display(selected_resorts)
     
-    # Get distinct countries for dropdown
+    # Get distinct countries for dropdown (only from resorts, excluding regions)
     countries = db.session.query(Resort.country_code).distinct().filter(
         Resort.country_code.isnot(None),
-        Resort.country_code != ''
+        Resort.country_code != '',
+        Resort.is_region == False
     ).all()
-    country_names = {
-        'US': 'United States', 'CA': 'Canada', 'JP': 'Japan',
-        'FR': 'France', 'CH': 'Switzerland', 'AT': 'Austria', 'IT': 'Italy'
-    }
     countries_list = []
     for (code,) in countries:
         if code:
-            countries_list.append({'code': code, 'name': country_names.get(code, code)})
-    countries_list.sort(key=lambda c: (0 if c['code'] == 'US' else 1 if c['code'] == 'CA' else 2, c['name']))
+            countries_list.append({'code': code, 'name': COUNTRY_NAMES.get(code, code)})
+    # Sort: US first, then alphabetically by display name
+    countries_list.sort(key=lambda c: (c['name'] != 'United States', c['name']))
     
     return render_template(
         "mountains_visited.html",
