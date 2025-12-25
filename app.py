@@ -7082,10 +7082,10 @@ def sync_resorts_from_dev():
         details = {"inserted": [], "updated": [], "skipped": []}
         
         for canonical in CANONICAL_RESORTS:
-            name = canonical["name"]
-            state_code = canonical["state_code"]
-            country_code = canonical["country_code"]
-            pass_brands = canonical["pass_brands"]
+            name = (canonical.get("name") or "").strip()
+            state_code = (canonical.get("state_code") or "").strip()
+            country_code = (canonical.get("country_code") or "US").strip()
+            pass_brands = (canonical.get("pass_brands") or "").strip()
             
             key = normalize_key(name, state_code, country_code)
             
