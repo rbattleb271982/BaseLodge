@@ -1,0 +1,55 @@
+You can reply with this (verbatim if you want):
+Thanks — this matches what I intended.
+Let’s do a quick walkthrough + verification focused on edge cases (session loss, idempotency, and duplicate prevention). No new features needed unless something is off.
+What I’d want them to walk through (specific, bounded)
+Ask them to confirm these 5 things only — this keeps it tight and avoids refactors.
+1. Migration correctness (Step 1)
+Confirm:
+invited_by_user_id is:
+nullable
+FK → user.id
+indexed (nice-to-have, not mandatory)
+No cascade deletes that could surprise us later
+👉 This ensures the column is safe long-term.
+2. Signup capture path (Step 2)
+Confirm explicitly:
+If a user signs up via invite and session survives:
+invited_by_user_id is set
+If a user signs up via invite and session is lost mid-flow:
+invited_by_user_id is still set (e.g., via token resolution)
+This is the core durability guarantee.
+3. _connect_pending_inviter() priority order (Step 3)
+Have them confirm the exact order is:
+user.invited_by_user_id
+session['pending_inviter_id']
+no-op
+And that:
+The function exits early if no inviter is found
+It checks for both directional Friend rows before inserting
+It never creates duplicates
+This is what makes retries safe.
+4. Call timing safety (Step 4)
+Confirm:
+The function is called:
+after signup
+after login
+It is safe if called multiple times
+It does nothing if the user is already connected
+This guarantees recovery without side effects.
+5. One real-world verification (recommended)
+Ask them to verify one concrete scenario (can be manual):
+Create an invite → open it in an incognito window → kill the session mid-signup → complete signup → log in → confirm mutual friendship is created.
+If that passes, the bug class is dead.
+What you don’t need to change
+Just to be explicit — no action required on:
+Friend feed queries
+Friend model
+Existing connections
+Production data (already cleaned)
+My take as your “second set of eyes”
+Based on what you shared:
+✅ Architecture is correct
+✅ Sequencing is correct
+✅ Risk is contained
+✅ This prevents silent failures permanently
+This is a textbook hardening fix: minimal surface area, maximum reliability.
