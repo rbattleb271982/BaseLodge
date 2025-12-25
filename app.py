@@ -7256,6 +7256,42 @@ def admin_update_resort(resort_id):
     return jsonify({'status': 'success', 'resort_id': resort_id})
 
 
+@app.route("/api/admin/resorts/<int:resort_id>", methods=["DELETE"])
+@login_required
+@admin_required
+def admin_delete_resort(resort_id):
+    """Hard delete a resort. Checks for FK references first."""
+    resort = Resort.query.get_or_404(resort_id)
+    
+    # Check for existing references
+    trip_count = SkiTrip.query.filter_by(resort_id=resort_id).count()
+    home_count = User.query.filter_by(home_resort_id=resort_id).count()
+    
+    # Check JSON arrays for references
+    visited_count = 0
+    wishlist_count = 0
+    users = User.query.all()
+    for user in users:
+        if user.visited_resort_ids and resort_id in user.visited_resort_ids:
+            visited_count += 1
+        if user.wish_list_resorts and resort_id in user.wish_list_resorts:
+            wishlist_count += 1
+    
+    total_refs = trip_count + home_count + visited_count + wishlist_count
+    
+    if total_refs > 0:
+        return jsonify({
+            'status': 'error',
+            'message': f'Cannot delete: resort has {total_refs} references (trips: {trip_count}, home: {home_count}, visited: {visited_count}, wishlist: {wishlist_count}). Deactivate instead or merge first.'
+        }), 400
+    
+    resort_name = resort.name
+    db.session.delete(resort)
+    db.session.commit()
+    
+    return jsonify({'status': 'success', 'message': f'Deleted resort: {resort_name}'})
+
+
 @app.route("/api/admin/resorts/merge", methods=["POST"])
 @login_required
 @admin_required

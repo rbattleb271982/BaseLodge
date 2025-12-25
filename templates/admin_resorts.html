@@ -497,6 +497,7 @@
                         {% else %}
                         <button class="btn btn-success" onclick="toggleActive({{ resort.id }}, true)" style="padding: 4px 8px; font-size: 12px;">Activate</button>
                         {% endif %}
+                        <button class="btn" onclick="deleteResort({{ resort.id }}, '{{ resort.name|e }}')" style="padding: 4px 8px; font-size: 12px; background: #718096; color: white; margin-left: 4px;">Delete</button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -654,6 +655,27 @@
                     showToast('Error: ' + data.message, 'error');
                 }
             });
+        }
+        
+        function deleteResort(id, name) {
+            if (!confirm(`Permanently delete "${name}" (ID: ${id})?\n\nThis cannot be undone. If this resort has any trips, wishlists, or visited lists referencing it, the delete will fail.`)) {
+                return;
+            }
+            
+            fetch(`/api/admin/resorts/${id}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showToast(data.message, 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('Error: ' + data.message, 'error');
+                }
+            })
+            .catch(e => showToast('Error: ' + e.message, 'error'));
         }
         
         function toggleSelectAll() {
