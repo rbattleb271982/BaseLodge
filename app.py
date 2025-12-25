@@ -7570,6 +7570,9 @@ def admin_sync_from_canonical():
                 existing.is_active = True
                 stats['updated'] += 1
             else:
+                import re
+                slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+                slug = f"{slug}-{state_code.lower()}" if state_code else slug
                 new_resort = Resort(
                     name=name,
                     state=state_code,
@@ -7578,6 +7581,7 @@ def admin_sync_from_canonical():
                     country_code=country_code,
                     pass_brands=pass_brands,
                     brand=pass_brands.split(',')[0] if pass_brands else 'Other',
+                    slug=slug,
                     is_active=True
                 )
                 db.session.add(new_resort)
