@@ -947,10 +947,36 @@
         }
         
         // ===========================================
+        // SAFE SELECT HELPER (guards against invalid values)
+        // ===========================================
+        function safeSetSelect(select, value) {
+            if (!value) {
+                select.value = "";
+                return false;
+            }
+            const exists = [...select.options].some(o => o.value === String(value));
+            if (exists) {
+                select.value = value;
+                return true;
+            } else {
+                console.warn("Invalid dropdown value ignored:", value, "Available:", [...select.options].map(o => o.value));
+                select.value = "";
+                return false;
+            }
+        }
+        
+        // ===========================================
         // INITIALIZATION
         // ===========================================
         document.addEventListener('DOMContentLoaded', function() {
             console.log("Add Trip: Initializing with", resorts.length, "resorts");
+            
+            // DEBUG: Log incoming user data for production debugging
+            console.log("USER DATA", {
+                country: existingTrip.countryCode,
+                state: existingTrip.stateCode,
+                resort: existingTrip.resortId
+            });
             
             // CRITICAL: Force enable country select immediately (iOS Safari fix)
             countrySelect.disabled = false;
@@ -975,26 +1001,43 @@
             updateDateRangeHelper();
             toggleAccommodationLink();
             
-            // If editing, restore selections
+            // If editing, restore selections with validation
             if (isEditMode && existingTrip.countryCode) {
-                countrySelect.value = existingTrip.countryCode;
-                populateStates(existingTrip.countryCode);
+                const countryValid = safeSetSelect(countrySelect, existingTrip.countryCode);
                 
-                if (existingTrip.stateCode) {
-                    stateSelect.value = existingTrip.stateCode;
-                    populateResorts(existingTrip.countryCode, existingTrip.stateCode);
+                if (countryValid) {
+                    populateStates(existingTrip.countryCode);
+                    console.log("AVAILABLE STATES", deriveStates(existingTrip.countryCode));
                     
-                    if (existingTrip.resortId) {
-                        resortSelect.value = existingTrip.resortId;
-                        const selected = resortSelect.options[resortSelect.selectedIndex];
-                        if (selected && selected.value) {
-                            resortSearchInput.value = selected.textContent.replace(' ✓', '');
+                    const stateValid = safeSetSelect(stateSelect, existingTrip.stateCode);
+                    
+                    if (stateValid) {
+                        populateResorts(existingTrip.countryCode, existingTrip.stateCode);
+                        
+                        const resortValid = safeSetSelect(resortSelect, existingTrip.resortId);
+                        if (resortValid) {
+                            const selected = resortSelect.options[resortSelect.selectedIndex];
+                            if (selected && selected.value) {
+                                resortSearchInput.value = selected.textContent.replace(' ✓', '');
+                            }
                         }
+                    } else {
+                        // Invalid state: clear resort dropdown
+                        resortSelect.innerHTML = '<option value="">Select a state first</option>';
+                        resortSelect.disabled = true;
+                        resortSearchInput.disabled = true;
                     }
+                } else {
+                    // Invalid country: clear state + resort dropdowns
+                    stateSelect.innerHTML = '<option value="">Select a country first</option>';
+                    stateSelect.disabled = true;
+                    resortSelect.innerHTML = '<option value="">Select a state first</option>';
+                    resortSelect.disabled = true;
+                    resortSearchInput.disabled = true;
                 }
             } else {
                 // Default to US for new trips
-                countrySelect.value = 'US';
+                safeSetSelect(countrySelect, 'US');
                 populateStates('US');
             }
             

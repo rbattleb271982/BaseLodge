@@ -1,0 +1,89 @@
+Goal:
+Permanently fix the production-only dropdown failure (Country → State → Resort) that works in dev but fails for some production users.
+This is not a Safari issue. It is caused by invalid / legacy production user data and unsafe dropdown hydration logic.
+Tasks
+1️⃣ Add frontend guards so invalid values can never break dropdowns
+Create a helper function and use it everywhere dropdowns are hydrated.
+function safeSetSelect(select, value) {
+  if (!value) {
+    select.value = "";
+    return;
+  }
+
+  const exists = [...select.options].some(o => o.value === value);
+  if (exists) {
+    select.value = value;
+  } else {
+    console.warn("Invalid dropdown value ignored:", value);
+    select.value = "";
+  }
+}
+Replace all direct assignments like:
+select.value = userValue;
+With:
+safeSetSelect(select, userValue);
+This must be applied to:
+country
+state
+resort
+pass (if applicable)
+2️⃣ Enforce dependent resets
+If a parent value is invalid, automatically clear children.
+if (!statesByCountry[userCountry]) {
+  countrySelect.value = "";
+  stateSelect.innerHTML = "";
+  resortSelect.innerHTML = "";
+}
+Same rule:
+Invalid country → clear state + resort
+Invalid state → clear resort
+3️⃣ Add production-safe debug logging (temporary)
+Add this near dropdown initialization:
+console.log("USER DATA", {
+  country: userCountry,
+  state: userState,
+  resort: userResort
+});
+
+console.log("AVAILABLE STATES", statesByCountry[userCountry] || []);
+console.log(
+  "STATE OPTIONS",
+  [...stateSelect.options].map(o => o.value)
+);
+This confirms exactly which value is invalid for broken users.
+4️⃣ Create a one-time production audit script
+Add a new file:
+audit_invalid_user_locations.py
+from app import app, db
+from models import User, Resort
+
+with app.app_context():
+    valid_states = {r.state for r in Resort.query.all() if r.state}
+    valid_countries = {"US", "CA"}
+
+    bad_users = User.query.filter(
+        (User.country.isnot(None)) & (~User.country.in_(valid_countries)) |
+        ((User.state.isnot(None)) & (~User.state.in_(valid_states)))
+    ).all()
+
+    print(f"Found {len(bad_users)} invalid users\n")
+
+    for u in bad_users:
+        print(u.id, u.email, u.country, u.state)
+5️⃣ Normalize bad data (safe fix)
+After reviewing output, run:
+for u in bad_users:
+    u.country = None
+    u.state = None
+    u.resort_id = None
+
+db.session.commit()
+This resets broken accounts once, permanently.
+Acceptance Criteria
+Dropdowns open and populate correctly for all production users
+No silent failures when user data is invalid
+Legacy users no longer break the UI
+Future schema changes cannot cause this bug again
+Important:
+Do not skip frontend guards.
+Cleaning production data alone is not sufficient.
