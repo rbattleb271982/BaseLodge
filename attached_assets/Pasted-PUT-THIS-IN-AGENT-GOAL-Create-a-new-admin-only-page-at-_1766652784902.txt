@@ -1,0 +1,109 @@
+PUT THIS IN AGENT
+
+GOAL
+Create a new admin-only page at `/admin/resorts` that allows manual curation
+of the Resort database with a safe DEV → PROD workflow.
+
+This page is for DATA HYGIENE and CANONICAL NAMING.
+It is intentionally not a full admin dashboard.
+
+CRITICAL PRINCIPLES
+- DEV is the source of truth
+- PROD is read-only
+- Sync is ONE-DIRECTIONAL (DEV → PROD only)
+- No automation, no heuristics, no UI hacks
+- This page exists to let a human fix the data correctly
+
+ROUTE & ACCESS
+- Route: `/admin/resorts`
+- Admin-only access (current_user.is_admin required)
+- One page, environment-aware
+
+PAGE STRUCTURE
+
+1) Environment Toggle (Top of Page)
+- Toggle or selector:
+  - DEV
+  - PROD
+- Switching environments reloads the table data
+- Clear visual indicator:
+  - DEV = safe color (green/blue)
+  - PROD = danger/locked color (red/amber)
+
+2) Resort Table
+
+Columns (minimum viable):
+- ID (visible, non-editable)
+- Name (editable ONLY in DEV)
+- Country (editable ONLY in DEV)
+- State / Province / Region (editable ONLY in DEV)
+- Pass Brand (Epic / Ikon / Other / None)
+- Active Status (checkbox or toggle, DEV only)
+- Actions column
+
+PROD MODE RULES
+- Entire table is READ-ONLY
+- Inputs are disabled
+- No edit, delete, merge, or save actions
+- Used for inspection and comparison only
+
+DEV MODE RULES
+- Inline editing enabled
+- Changes saved explicitly (no autosave)
+- No edits allowed in PROD mode
+
+3) Merge Tool (DEV ONLY)
+Purpose: consolidate duplicate resorts cleanly (e.g. Aspen variants)
+
+Behavior:
+- Select multiple resorts via checkbox
+- Choose ONE canonical resort as the target
+- On merge:
+  - All references (visited, wishlist, trips, etc.) are repointed to canonical ID
+  - Non-canonical resorts are marked inactive or deleted safely
+- No hard deletes unless explicitly confirmed
+- Clear confirmation modal before executing
+
+4) Sync DEV → PROD (CRITICAL FEATURE)
+- Button: “Sync DEV → PROD”
+- One-direction only
+- Copies canonical Resort data from DEV into PROD
+- Requires confirmation:
+  - Modal warning
+  - User must type “SYNC” to proceed
+- Display:
+  - Last sync timestamp
+  - Number of resorts affected
+- No automatic or background syncing
+
+DATA & SAFETY CONSTRAINTS
+- DO NOT modify:
+  - My Trips tab
+  - Trip creation or editing logic
+  - UserTrip / Trip relationships
+- DO NOT break foreign keys
+- Resort table is the ONLY scope
+- No bidirectional sync
+- No PROD editing under any circumstance
+
+DESIGN & UX
+- Functional, minimal, boring
+- No animations
+- No analytics
+- No role management
+- Inline edits preferred over modals
+- Clear visual difference between DEV and PROD
+
+VALIDATION CHECKLIST (MUST PASS)
+- Page accessible at /admin/resorts
+- DEV resorts editable
+- PROD resorts read-only
+- Aspen-style duplicates can be merged safely
+- No state/province suffixes required in names
+- Sync DEV → PROD works intentionally and safely
+- No changes to My Trips or trip flows
+- Works identically in dev and prod environments
+
+DO NOT overbuild.
+DO NOT add unrelated admin features.
+This page exists to let a human curate the source of truth cleanly.
