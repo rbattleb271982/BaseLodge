@@ -7292,6 +7292,60 @@ def admin_delete_resort(resort_id):
     return jsonify({'status': 'success', 'message': f'Deleted resort: {resort_name}'})
 
 
+@app.route("/api/admin/resorts/bulk-delete", methods=["POST"])
+@login_required
+@admin_required
+def admin_bulk_delete_resorts():
+    """Bulk delete resorts. Returns partial success if some have FK references."""
+    data = request.get_json()
+    ids = data.get('ids', [])
+    
+    if not ids:
+        return jsonify({'status': 'error', 'message': 'No resorts selected'}), 400
+    
+    deleted = []
+    blocked = []
+    
+    for resort_id in ids:
+        resort = Resort.query.get(resort_id)
+        if not resort:
+            blocked.append({'id': resort_id, 'name': 'Unknown', 'reason': 'Not found'})
+            continue
+        
+        # Check FK references
+        trip_count = SkiTrip.query.filter_by(resort_id=resort_id).count()
+        home_count = User.query.filter_by(home_resort_id=resort_id).count()
+        
+        visited_count = 0
+        wishlist_count = 0
+        users = User.query.all()
+        for user in users:
+            if user.visited_resort_ids and resort_id in user.visited_resort_ids:
+                visited_count += 1
+            if user.wish_list_resorts and resort_id in user.wish_list_resorts:
+                wishlist_count += 1
+        
+        total_refs = trip_count + home_count + visited_count + wishlist_count
+        
+        if total_refs > 0:
+            blocked.append({
+                'id': resort_id,
+                'name': resort.name,
+                'reason': f'Has {total_refs} references (trips: {trip_count}, home: {home_count}, visited: {visited_count}, wishlist: {wishlist_count})'
+            })
+        else:
+            deleted.append({'id': resort_id, 'name': resort.name})
+            db.session.delete(resort)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success',
+        'deleted': deleted,
+        'blocked': blocked
+    })
+
+
 @app.route("/api/admin/resorts/merge", methods=["POST"])
 @login_required
 @admin_required

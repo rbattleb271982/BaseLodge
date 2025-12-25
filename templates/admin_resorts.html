@@ -420,14 +420,14 @@
     </div>
     
     <div class="merge-panel" id="merge-panel">
-        <h3>Merge Selected Resorts</h3>
+        <h3>Bulk Actions (<span id="selected-count">0</span> selected)</h3>
         <div class="merge-controls">
-            <span class="selected-count"><span id="selected-count">0</span> resorts selected</span>
             <select id="canonical-select">
                 <option value="">Select canonical resort...</option>
             </select>
-            <button class="btn btn-danger" onclick="executeMerge()">Merge Duplicates</button>
-            <button class="btn" onclick="clearSelection()">Clear Selection</button>
+            <button class="btn btn-danger" onclick="executeMerge()">Merge into Selected</button>
+            <button class="btn" onclick="bulkDelete()" style="background: #718096; color: white;">Delete Selected</button>
+            <button class="btn" onclick="clearSelection()">Clear</button>
         </div>
     </div>
     
@@ -527,6 +527,19 @@
             <div class="modal-actions">
                 <button class="btn" onclick="closeMergeModal()">Cancel</button>
                 <button class="btn btn-danger" onclick="confirmMerge()">Merge</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal">
+            <h3>Confirm Bulk Delete</h3>
+            <p id="delete-message"></p>
+            <p><strong>Type DELETE to confirm:</strong></p>
+            <input type="text" id="delete-confirm" placeholder="DELETE">
+            <div class="modal-actions">
+                <button class="btn" onclick="closeDeleteModal()">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmBulkDelete()">Delete</button>
             </div>
         </div>
     </div>
@@ -839,6 +852,58 @@
                     showToast('Error: ' + data.message, 'error');
                 }
                 closeMergeModal();
+            });
+        }
+        
+        function bulkDelete() {
+            if (selectedResorts.size === 0) {
+                showToast('No resorts selected', 'error');
+                return;
+            }
+            
+            const names = Array.from(selectedResorts).map(id => {
+                const row = document.querySelector(`tr[data-id="${id}"]`);
+                return row ? row.querySelector('input[data-field="name"]').value : `ID ${id}`;
+            }).join(', ');
+            
+            document.getElementById('delete-message').textContent = 
+                `Permanently delete ${selectedResorts.size} resort(s): ${names}? Resorts with existing trips, wishlists, or visited lists will be skipped.`;
+            document.getElementById('delete-modal').classList.add('visible');
+            document.getElementById('delete-confirm').value = '';
+        }
+        
+        function closeDeleteModal() {
+            document.getElementById('delete-modal').classList.remove('visible');
+        }
+        
+        function confirmBulkDelete() {
+            if (document.getElementById('delete-confirm').value !== 'DELETE') {
+                showToast('Please type DELETE to confirm', 'error');
+                return;
+            }
+            
+            fetch('/api/admin/resorts/bulk-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: Array.from(selectedResorts) })
+            })
+            .then(r => r.json())
+            .then(data => {
+                closeDeleteModal();
+                if (data.status === 'success') {
+                    let msg = `Deleted ${data.deleted.length} resort(s)`;
+                    if (data.blocked.length > 0) {
+                        msg += `. Skipped ${data.blocked.length} (have references)`;
+                    }
+                    showToast(msg, 'success');
+                    setTimeout(() => reloadWithSort(), 1500);
+                } else {
+                    showToast('Error: ' + data.message, 'error');
+                }
+            })
+            .catch(e => {
+                closeDeleteModal();
+                showToast('Error: ' + e.message, 'error');
             });
         }
         
