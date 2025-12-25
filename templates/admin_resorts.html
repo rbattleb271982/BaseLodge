@@ -538,6 +538,19 @@
         let pendingMerge = null;
         let currentSort = { column: null, direction: 'asc' };
         
+        function getUrlParams() {
+            return new URLSearchParams(window.location.search);
+        }
+        
+        function reloadWithSort() {
+            const params = getUrlParams();
+            if (currentSort.column) {
+                params.set('sort', currentSort.column);
+                params.set('dir', currentSort.direction);
+            }
+            window.location.search = params.toString();
+        }
+        
         function sortTable(column) {
             const tbody = document.getElementById('resort-table');
             const rows = Array.from(tbody.querySelectorAll('tr'));
@@ -549,6 +562,12 @@
                 currentSort.column = column;
                 currentSort.direction = 'asc';
             }
+            
+            // Update URL params
+            const params = getUrlParams();
+            params.set('sort', currentSort.column);
+            params.set('dir', currentSort.direction);
+            history.replaceState(null, '', '?' + params.toString());
             
             // Update header styles
             document.querySelectorAll('th.sortable').forEach(th => {
@@ -591,6 +610,57 @@
             // Reorder DOM
             rows.forEach(row => tbody.appendChild(row));
         }
+        
+        // Apply sort from URL on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const params = getUrlParams();
+            const sortCol = params.get('sort');
+            const sortDir = params.get('dir');
+            if (sortCol) {
+                currentSort.column = sortCol;
+                currentSort.direction = sortDir || 'asc';
+                // Re-apply sort without toggling
+                const tbody = document.getElementById('resort-table');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                
+                document.querySelectorAll('th.sortable').forEach(th => {
+                    th.classList.remove('asc', 'desc');
+                    if (th.dataset.sort === sortCol) {
+                        th.classList.add(currentSort.direction);
+                    }
+                });
+                
+                rows.sort((a, b) => {
+                    let aVal, bVal;
+                    if (sortCol === 'id') {
+                        aVal = parseInt(a.dataset.id);
+                        bVal = parseInt(b.dataset.id);
+                    } else if (sortCol === 'name') {
+                        aVal = a.dataset.name;
+                        bVal = b.dataset.name;
+                    } else if (sortCol === 'country') {
+                        aVal = a.dataset.country.toLowerCase();
+                        bVal = b.dataset.country.toLowerCase();
+                    } else if (sortCol === 'state') {
+                        aVal = a.dataset.state.toLowerCase();
+                        bVal = b.dataset.state.toLowerCase();
+                    } else if (sortCol === 'pass') {
+                        aVal = a.dataset.pass.toLowerCase();
+                        bVal = b.dataset.pass.toLowerCase();
+                    }
+                    
+                    if (sortCol === 'id') {
+                        return currentSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                    } else {
+                        if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                        if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                        return 0;
+                    }
+                });
+                
+                rows.forEach(row => tbody.appendChild(row));
+            }
+        });
         
         function showToast(message, type = '') {
             const toast = document.getElementById('toast');
@@ -650,7 +720,7 @@
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'success') {
-                    location.reload();
+                    reloadWithSort();
                 } else {
                     showToast('Error: ' + data.message, 'error');
                 }
@@ -670,7 +740,7 @@
             .then(data => {
                 if (data.status === 'success') {
                     showToast(data.message, 'success');
-                    setTimeout(() => location.reload(), 1000);
+                    setTimeout(() => reloadWithSort(), 1000);
                 } else {
                     showToast('Error: ' + data.message, 'error');
                 }
@@ -764,7 +834,7 @@
             .then(data => {
                 if (data.status === 'success') {
                     showToast(`Merged into ${data.canonical_resort}. Trips: ${data.stats.trips_updated}, Visited: ${data.stats.visited_lists_updated}`, 'success');
-                    setTimeout(() => location.reload(), 1500);
+                    setTimeout(() => reloadWithSort(), 1500);
                 } else {
                     showToast('Error: ' + data.message, 'error');
                 }
@@ -795,7 +865,7 @@
             .then(data => {
                 if (data.status === 'success') {
                     showToast(`Exported ${data.count} resorts (v${data.version})`, 'success');
-                    setTimeout(() => location.reload(), 1500);
+                    setTimeout(() => reloadWithSort(), 1500);
                 } else {
                     showToast('Error: ' + data.message, 'error');
                 }
