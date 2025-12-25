@@ -7483,5 +7483,118 @@ def admin_export_canonical():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+@app.route("/admin/sync-from-canonical", methods=["GET", "POST"])
+@login_required
+@admin_required
+def admin_sync_from_canonical():
+    """
+    Sync resorts from canonical_resorts.json into the database.
+    Used in production after deploying updated JSON.
+    """
+    import os
+    import json
+    
+    canonical_file = os.path.join(os.path.dirname(__file__), 'data', 'canonical_resorts.json')
+    
+    if not os.path.exists(canonical_file):
+        if request.method == 'POST':
+            return jsonify({'status': 'error', 'message': 'canonical_resorts.json not found'}), 404
+        return "No canonical_resorts.json found", 404
+    
+    with open(canonical_file, 'r') as f:
+        canonical_data = json.load(f)
+    
+    if request.method == 'GET':
+        current_count = Resort.query.filter_by(is_active=True).count()
+        return f'''
+        <html>
+        <head><title>Sync Resorts</title>
+        <style>
+            body {{ font-family: system-ui; padding: 40px; max-width: 600px; margin: 0 auto; }}
+            .info {{ background: #f0f0f0; padding: 20px; border-radius: 8px; margin-bottom: 20px; }}
+            button {{ background: #8F011B; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }}
+            button:hover {{ background: #7a0117; }}
+            .warning {{ color: #856404; background: #fff3cd; padding: 15px; border-radius: 6px; margin-bottom: 20px; }}
+        </style>
+        </head>
+        <body>
+            <h1>Sync Resorts from Canonical JSON</h1>
+            <div class="info">
+                <p><strong>JSON Version:</strong> {canonical_data.get('version', 'unknown')}</p>
+                <p><strong>Exported:</strong> {canonical_data.get('exported_at', 'unknown')}</p>
+                <p><strong>Resorts in JSON:</strong> {canonical_data.get('total_count', len(canonical_data.get('resorts', [])))}</p>
+                <p><strong>Current DB Count:</strong> {current_count}</p>
+            </div>
+            <div class="warning">
+                This will update/insert resorts from the canonical JSON. Existing resorts not in the JSON will be deactivated.
+            </div>
+            <form method="POST">
+                <button type="submit">Sync Now</button>
+            </form>
+        </body>
+        </html>
+        '''
+    
+    # POST - do the sync
+    stats = {'added': 0, 'updated': 0, 'deactivated': 0}
+    
+    canonical_keys = set()
+    for r_data in canonical_data.get('resorts', []):
+        name = r_data['name'].strip()
+        state_code = r_data.get('state_code', '').strip()
+        country_code = r_data.get('country_code', 'US').strip()
+        pass_brands = r_data.get('pass_brands', '').strip()
+        
+        canonical_key = f"{name}|{state_code}|{country_code}".lower()
+        canonical_keys.add(canonical_key)
+        
+        existing = Resort.query.filter(
+            db.func.lower(Resort.name) == name.lower(),
+            db.func.lower(db.func.coalesce(Resort.state_code, Resort.state, '')) == state_code.lower(),
+            db.func.lower(db.func.coalesce(Resort.country_code, Resort.country, 'US')) == country_code.lower()
+        ).first()
+        
+        if existing:
+            existing.name = name
+            existing.state_code = state_code
+            existing.state = state_code
+            existing.country_code = country_code
+            existing.country = country_code
+            existing.pass_brands = pass_brands
+            existing.brand = pass_brands.split(',')[0] if pass_brands else 'Other'
+            existing.is_active = True
+            stats['updated'] += 1
+        else:
+            new_resort = Resort(
+                name=name,
+                state=state_code,
+                state_code=state_code,
+                country=country_code,
+                country_code=country_code,
+                pass_brands=pass_brands,
+                brand=pass_brands.split(',')[0] if pass_brands else 'Other',
+                is_active=True
+            )
+            db.session.add(new_resort)
+            stats['added'] += 1
+    
+    # Deactivate resorts not in canonical
+    all_resorts = Resort.query.filter_by(is_active=True).all()
+    for resort in all_resorts:
+        key = f"{resort.name}|{resort.state_code or resort.state or ''}|{resort.country_code or resort.country or 'US'}".lower()
+        if key not in canonical_keys:
+            resort.is_active = False
+            stats['deactivated'] += 1
+    
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success',
+        'version': canonical_data.get('version'),
+        'stats': stats,
+        'message': f"Sync complete: {stats['added']} added, {stats['updated']} updated, {stats['deactivated']} deactivated"
+    })
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
