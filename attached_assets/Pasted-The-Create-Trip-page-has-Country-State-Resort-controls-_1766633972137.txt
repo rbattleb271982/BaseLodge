@@ -1,0 +1,63 @@
+The Create Trip page has Country / State / Resort controls that render correctly but are not clickable.
+Your task is NOT to fix the issue yet.
+Your task is to collect definitive evidence about why pointer events are not reaching the controls.
+1️⃣ Verify whether clicks reach the DOM at all
+Add temporary diagnostics to the Create Trip page:
+document.addEventListener('click', e => {
+  console.log('DOCUMENT CLICK:', e.target);
+});
+Also add:
+const country = document.getElementById('country');
+country?.addEventListener('click', () => console.log('COUNTRY CLICK'));
+Report:
+Does DOCUMENT CLICK fire when clicking the country dropdown?
+Does COUNTRY CLICK ever fire?
+2️⃣ Identify the topmost element at click coordinates
+Add a diagnostic that logs what element is actually receiving the click:
+const rect = country.getBoundingClientRect();
+console.log(
+  'ELEMENT FROM POINT:',
+  document.elementFromPoint(rect.left + 5, rect.top + 5)
+);
+Report:
+What element is returned?
+Is it the <select> or another container?
+3️⃣ Inspect pointer-events and stacking context
+In DevTools (Elements tab), inspect:
+All parents of the Country control up to <body>
+For each ancestor, record:
+position
+z-index
+pointer-events
+Whether it establishes a stacking context
+Report:
+Which ancestor (if any) overlaps the dropdown visually
+Which ancestor receives pointer events instead
+4️⃣ Confirm environment behavior
+Test the Create Trip page in:
+Replit Preview
+Replit “Open in new tab”
+Published URL (if available)
+Report for each:
+Are dropdowns clickable? yes / no
+5️⃣ CSS isolation test (critical)
+Temporarily add:
+* {
+  outline: 1px solid red;
+}
+And then:
+.form-group {
+  position: relative;
+  z-index: 99999;
+}
+Report:
+Does the dropdown become clickable?
+Which element visually overlaps it?
+6️⃣ Deliverable
+Produce a short report answering:
+Do clicks reach the document?
+What element is intercepting clicks?
+Is this app-level CSS or Replit shell behavior?
+Can this be fixed by disabling pointer-events on a specific container?
+Do not implement fixes yet.
+This task is purely diagnostic and must end with concrete evidence, not guesses.

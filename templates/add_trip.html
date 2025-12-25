@@ -991,21 +991,73 @@
             initializeCalendar();
             toggleAccommodationLink();
             
-            // Diagnostic: verify selects are clickable (remove after debugging)
-            countrySelect.addEventListener('click', () => console.log('Country select CLICKED'));
-            stateSelect.addEventListener('click', () => console.log('State select CLICKED'));
-            resortSelect.addEventListener('click', () => console.log('Resort select CLICKED'));
+            // ========================================
+            // DIAGNOSTIC SUITE - DO NOT REMOVE
+            // ========================================
             
-            // CLICK INTERCEPTION DEBUG: Log what element receives clicks
+            // 1. Document-level click listener (capture phase)
             document.addEventListener('click', function(e) {
-                const target = e.target;
-                const rect = target.getBoundingClientRect();
-                console.log('CLICK on:', target.tagName, target.id || target.className, 
-                           'at (', e.clientX, ',', e.clientY, ')',
-                           'element rect:', Math.round(rect.top), '-', Math.round(rect.bottom));
-            }, true); // capture phase
+                console.log('📍 DOCUMENT CLICK:', e.target.tagName, e.target.id || e.target.className);
+            }, true);
             
-            console.log("=== INIT COMPLETE ===");
+            // 2. Country select click listener
+            countrySelect.addEventListener('click', () => console.log('✅ COUNTRY CLICK RECEIVED'));
+            stateSelect.addEventListener('click', () => console.log('✅ STATE CLICK RECEIVED'));
+            resortSelect.addEventListener('click', () => console.log('✅ RESORT CLICK RECEIVED'));
+            
+            // 3. Element from point diagnostic
+            const countryRect = countrySelect.getBoundingClientRect();
+            const elementAtCountry = document.elementFromPoint(countryRect.left + 5, countryRect.top + 5);
+            console.log('🔍 ELEMENT FROM POINT at country dropdown:', elementAtCountry?.tagName, elementAtCountry?.id || elementAtCountry?.className);
+            if (elementAtCountry !== countrySelect) {
+                console.warn('⚠️ BLOCKING ELEMENT DETECTED:', elementAtCountry);
+            }
+            
+            // 4. Ancestor stacking context analysis
+            console.log('📊 ANCESTOR ANALYSIS for country select:');
+            let ancestor = countrySelect.parentElement;
+            let depth = 0;
+            while (ancestor && depth < 15) {
+                const style = getComputedStyle(ancestor);
+                const hasStackingContext = 
+                    style.position !== 'static' ||
+                    style.zIndex !== 'auto' ||
+                    style.opacity !== '1' ||
+                    style.transform !== 'none';
+                if (hasStackingContext || style.pointerEvents !== 'auto') {
+                    console.log(`  L${depth}: <${ancestor.tagName}> .${ancestor.className.split(' ')[0] || 'no-class'}`,
+                        '| pos:', style.position,
+                        '| z:', style.zIndex,
+                        '| pointer:', style.pointerEvents,
+                        '| stacking:', hasStackingContext ? 'YES' : 'no');
+                }
+                ancestor = ancestor.parentElement;
+                depth++;
+            }
+            
+            // 5. Country select computed styles
+            const countryStyle = getComputedStyle(countrySelect);
+            console.log('🎨 COUNTRY SELECT STYLES:',
+                'display:', countryStyle.display,
+                '| visibility:', countryStyle.visibility,
+                '| pointer-events:', countryStyle.pointerEvents,
+                '| z-index:', countryStyle.zIndex,
+                '| position:', countryStyle.position);
+            
+            // 6. Check for overlapping fixed/absolute elements
+            const allFixed = document.querySelectorAll('[style*="position: fixed"], [style*="position:fixed"]');
+            const allAbsolute = document.querySelectorAll('[style*="position: absolute"], [style*="position:absolute"]');
+            console.log('📌 Fixed elements:', allFixed.length, '| Absolute elements:', allAbsolute.length);
+            
+            // 7. Check bottom nav
+            const bottomNav = document.querySelector('.bl-bottom-nav');
+            if (bottomNav) {
+                const navStyle = getComputedStyle(bottomNav);
+                const navRect = bottomNav.getBoundingClientRect();
+                console.log('🧭 BOTTOM NAV:', 'top:', navRect.top, 'bottom:', navRect.bottom, 'z-index:', navStyle.zIndex, 'position:', navStyle.position);
+            }
+            
+            console.log("=== DIAGNOSTIC INIT COMPLETE ===");
         });
         
         function initializeForm() {
