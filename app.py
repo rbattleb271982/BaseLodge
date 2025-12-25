@@ -6366,5 +6366,73 @@ def fix_seeded_users():
     print("=" * 70)
 
 
+@app.route("/admin/backfill-country-codes", methods=["GET", "POST"])
+def backfill_country_codes():
+    """
+    Backfill country_code and state_code for resorts based on state field.
+    
+    Usage: GET https://yourapp.replit.dev/admin/backfill-country-codes
+    
+    This is idempotent - safe to call multiple times.
+    """
+    US_STATES = {
+        'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+        'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+        'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+        'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+        'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+    }
+    
+    CA_PROVINCES = {
+        'AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'
+    }
+    
+    try:
+        resorts = Resort.query.all()
+        updated = []
+        skipped = []
+        
+        for r in resorts:
+            state = r.state_code or r.state
+            if not state:
+                skipped.append(f"{r.name}: no state")
+                continue
+            
+            state_upper = state.upper().strip()
+            
+            if state_upper in US_STATES:
+                if r.country_code != 'US' or r.state_code != state_upper:
+                    r.country_code = 'US'
+                    r.country = 'US'
+                    r.state_code = state_upper
+                    updated.append(f"{r.name} -> US/{state_upper}")
+            elif state_upper in CA_PROVINCES:
+                if r.country_code != 'CA' or r.state_code != state_upper:
+                    r.country_code = 'CA'
+                    r.country = 'CA'
+                    r.state_code = state_upper
+                    updated.append(f"{r.name} -> CA/{state_upper}")
+            else:
+                skipped.append(f"{r.name}: unknown state '{state}'")
+        
+        db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Updated {len(updated)} resorts, skipped {len(skipped)}",
+            "updated": updated[:50],
+            "skipped": skipped[:20],
+            "total_resorts": len(resorts)
+        }), 200
+    except Exception as e:
+        import traceback
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
