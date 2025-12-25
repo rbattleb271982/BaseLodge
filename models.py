@@ -110,7 +110,10 @@ class User(UserMixin, db.Model):
     first_connection_at = db.Column(db.DateTime, nullable=True)
     first_trip_created_at = db.Column(db.DateTime, nullable=True)
     is_seeded = db.Column(db.Boolean, default=False)
-    invited_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Durable inviter reference for signup flow
+    # HISTORICAL METADATA: invited_by_user_id records who invited this user.
+    # This field is intentionally retained permanently and must NOT be cleared.
+    # It enables referral tracking, analytics, and inviter lineage queries.
+    invited_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     
     # Notification preferences
     email_opt_in = db.Column(db.Boolean, default=True)

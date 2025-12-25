@@ -1,0 +1,74 @@
+PUT THIS IN AGENT
+
+We have already hardened the invite flow and friend connection logic.
+One remaining requirement needs to be explicitly implemented and/or verified:
+
+Persist “who invited whom” as HISTORICAL DATA.
+
+This is NOT about fixing friend connections.
+This is about ensuring inviter lineage is permanently saved and not treated as temporary state.
+
+================================
+REQUIREMENT (NEW, EXPLICIT)
+================================
+
+The field User.invited_by_user_id must be treated as a historical record.
+
+Meaning:
+- It records who invited this user
+- It must persist AFTER friend connections are created
+- It must NOT be cleared or nulled as part of any flow
+- It must NOT be treated as one-time or transitional state
+
+================================
+TASK
+================================
+
+1. Verify persistence behavior
+   - Confirm that invited_by_user_id is NOT cleared anywhere:
+     - After signup
+     - After login
+     - After _connect_pending_inviter()
+     - After friend rows are created
+
+2. If any logic currently clears or overwrites invited_by_user_id:
+   - REMOVE that behavior
+   - invited_by_user_id should remain populated indefinitely once set
+
+3. Add explicit documentation in code
+   - Add a short inline comment near:
+     - The User model field definition
+     - The _connect_pending_inviter() logic
+   - Comment should state clearly that:
+     “invited_by_user_id is intentionally retained as historical metadata and must not be cleared”
+
+================================
+NON-GOALS (IMPORTANT)
+================================
+
+- Do NOT add new migrations
+- Do NOT change friend creation logic
+- Do NOT change feed queries
+- Do NOT add analytics or UI
+- Do NOT refactor invite flows
+
+This is a confirmation + guardrail task only.
+
+================================
+VALIDATION
+================================
+
+After this task:
+
+- Users who sign up via invite retain invited_by_user_id permanently
+- Friend connections continue to behave exactly as they do today
+- invited_by_user_id can be queried later to determine who invited whom
+
+================================
+OUTPUT REQUIRED
+================================
+
+Report back with:
+- Confirmation that invited_by_user_id is never cleared
+- Exact file(s) and line(s) where comments were added
+- Confirmation that no behavior changed outside documentation/guardrails

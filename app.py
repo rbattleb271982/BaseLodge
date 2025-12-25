@@ -761,6 +761,10 @@ def _connect_pending_inviter(user):
     2. Fall back to session pending_inviter_id
     
     Idempotent: Does not create duplicate Friend rows if they already exist.
+    
+    NOTE: user.invited_by_user_id is intentionally retained as historical metadata
+    and must NOT be cleared after friend connections are created. It enables
+    referral tracking and inviter lineage queries.
     """
     # Priority 1: Durable inviter reference on User record
     inviter_id = user.invited_by_user_id
