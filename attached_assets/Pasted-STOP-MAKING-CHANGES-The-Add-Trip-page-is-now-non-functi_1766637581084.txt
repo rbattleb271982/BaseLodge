@@ -1,0 +1,123 @@
+STOP MAKING CHANGES.
+
+The Add Trip page is now non-functional:
+- Country dropdown empty
+- State dropdown empty
+- Resort dropdown empty
+- Calendar not rendering / not interactive
+
+Before any fixes, I need a COMPLETE DIAGNOSTIC SNAPSHOT.
+
+DO NOT modify code.
+ONLY RETURN INFORMATION.
+
+--------------------------------------------------
+SECTION 0 — DATABASE PROVENANCE (CRITICAL)
+--------------------------------------------------
+
+1) Identify EXACTLY which database the app is connected to:
+- Database engine (Postgres / SQLite / etc.)
+- Database name
+- Connection string source (env var name)
+- Whether this is:
+  - local dev DB
+  - staging DB
+  - production DB
+
+2) Confirm this database is the SAME one used when Add Trip previously worked.
+
+3) Confirm which database the following read from:
+- Resort model
+- Trip model
+- Any admin / seed scripts
+
+--------------------------------------------------
+SECTION 1 — DATABASE STATE (HARD FACTS)
+--------------------------------------------------
+
+Run and return results from THE ACTIVE DATABASE:
+
+1) Resort row count
+SELECT COUNT(*) FROM resort;
+
+2) Sample resort rows (>=10)
+SELECT id, name, country, state, country_code, state_code, is_active
+FROM resort
+LIMIT 10;
+
+3) Distinct geography
+SELECT DISTINCT country, country_code FROM resort ORDER BY country_code;
+SELECT DISTINCT state, state_code FROM resort ORDER BY state_code;
+
+--------------------------------------------------
+SECTION 2 — ADD TRIP ROUTE
+--------------------------------------------------
+
+Paste the FULL Flask route for /add_trip including:
+- all queries
+- all variables passed to render_template
+- default values
+
+Explicitly list:
+- which database session is used
+- which models are queried
+- whether any filters are applied
+
+--------------------------------------------------
+SECTION 3 — TEMPLATE STATE
+--------------------------------------------------
+
+From add_trip.html, paste:
+- Country <select>
+- State <select>
+- Resort <select>
+- Calendar HTML container
+- Any conditional logic hiding or disabling these sections
+
+--------------------------------------------------
+SECTION 4 — JAVASCRIPT STATE
+--------------------------------------------------
+
+Paste the FULL inline JS for Add Trip.
+
+Then answer:
+- Are any JS errors thrown on page load?
+- Is DOMContentLoaded firing?
+- Are event listeners attached?
+- Are calendar functions executing?
+
+--------------------------------------------------
+SECTION 5 — BROWSER CONSOLE OUTPUT
+--------------------------------------------------
+
+Paste COMPLETE console output from page load:
+- logs
+- warnings
+- errors
+
+No summarizing. Raw output only.
+
+--------------------------------------------------
+SECTION 6 — RECENT CHANGES
+--------------------------------------------------
+
+List every file changed recently related to:
+- Resort
+- Geography
+- Add Trip
+- Calendar
+- Database / migrations
+
+--------------------------------------------------
+IMPORTANT
+--------------------------------------------------
+
+DO NOT:
+- normalize data
+- refactor code
+- add defaults
+- add hardcoded values
+- attempt fixes
+
+Return INFORMATION ONLY.
+I will decide next steps after reviewing.
