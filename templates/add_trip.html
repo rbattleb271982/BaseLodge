@@ -826,33 +826,51 @@
             console.log("=== populateStates START ===");
             console.log("Country arg:", country);
             
-            // FAIL-LOUD: Check statesByCountry exists
-            if (!statesByCountry) {
-                console.error("FATAL: statesByCountry is null/undefined!");
-                stateSelect.innerHTML = '<option value="">Error: No state data</option>';
+            // Handle missing statesByCountry gracefully
+            if (!statesByCountry || Object.keys(statesByCountry).length === 0) {
+                console.error("statesByCountry is null/empty - showing error to user");
+                stateSelect.innerHTML = '<option value="">No state data available</option>';
                 stateSelect.disabled = true;
                 return;
             }
             
-            // FAIL-LOUD: Check country has states, fallback to US if not
+            // Find states for this country, with cascading fallback
             let states = statesByCountry[country];
+            let effectiveCountry = country;
+            
             if (!states || states.length === 0) {
-                console.error("No states for country:", country, "- Available:", Object.keys(statesByCountry).join(", "));
-                // Fallback to US
-                if (country !== 'US' && statesByCountry['US']) {
-                    console.warn("Falling back to US states");
+                console.warn("No states for country:", country, "- trying fallbacks");
+                
+                // Fallback 1: Try US
+                if (statesByCountry['US'] && statesByCountry['US'].length > 0) {
+                    console.warn("Using US states as fallback");
                     states = statesByCountry['US'];
-                    country = 'US';
+                    effectiveCountry = 'US';
                 } else {
-                    stateSelect.innerHTML = '<option value="">No options available</option>';
-                    stateSelect.disabled = true;
-                    return;
+                    // Fallback 2: Try first available country
+                    const availableCountries = Object.keys(statesByCountry).filter(k => statesByCountry[k].length > 0);
+                    if (availableCountries.length > 0) {
+                        effectiveCountry = availableCountries[0];
+                        states = statesByCountry[effectiveCountry];
+                        console.warn("Using", effectiveCountry, "as fallback");
+                    } else {
+                        console.error("No countries have states!");
+                        stateSelect.innerHTML = '<option value="">No states available</option>';
+                        stateSelect.disabled = true;
+                        return;
+                    }
+                }
+                
+                // Update country select to match fallback
+                if (effectiveCountry !== country) {
+                    countrySelect.value = effectiveCountry;
+                    formState.country = effectiveCountry;
                 }
             }
             
-            console.log("Found", states.length, "states for", country);
+            console.log("Found", states.length, "states for", effectiveCountry);
             
-            // Clear and repopulate safely
+            // Clear and repopulate
             stateSelect.innerHTML = '<option value="">Choose a state...</option>';
             states.forEach(([code, name]) => {
                 const option = document.createElement('option');
@@ -1030,30 +1048,23 @@
                 return;
             }
             
-            // CRITICAL: Validate statesByCountry is populated
+            // WARN but don't abort if statesByCountry is empty - initializeForm has fallback logic
             if (!statesByCountry || Object.keys(statesByCountry).length === 0) {
-                console.error("FATAL: statesByCountry is empty or null!");
-                console.error("statesByCountry value:", statesByCountry);
-                return;
+                console.warn("WARNING: statesByCountry is empty or null - will attempt fallback");
+                console.warn("Backend data:", {{ countries_with_resorts|tojson }});
+            } else {
+                console.log("statesByCountry keys:", Object.keys(statesByCountry));
             }
             
-            console.log("statesByCountry keys:", Object.keys(statesByCountry));
             console.log("Total resorts:", resorts ? resorts.length : 0);
             console.log("formState at init:", JSON.stringify(formState));
             
-            // DEFENSIVE: If country select value is empty, force to US
-            if (!countrySelect.value || countrySelect.value === '') {
-                console.warn("Country select has no value, forcing to US");
-                countrySelect.value = 'US';
-                formState.country = 'US';
-            }
-            
-            // Wire up event listeners
+            // Wire up event listeners FIRST
             countrySelect.addEventListener('change', updateStates);
             stateSelect.addEventListener('change', updateResorts);
             resortSearchInput.addEventListener('input', filterResorts);
             
-            // MANDATORY: Initialize form (populates states immediately)
+            // MANDATORY: Initialize form (handles all fallbacks and populates states)
             initializeForm();
             initializeCalendar();
             toggleAccommodationLink();
@@ -1131,47 +1142,28 @@
             console.log("=== initializeForm START ===");
             console.log("formState.country:", formState.country);
             console.log("countrySelect.value:", countrySelect.value);
-            console.log("countrySelect.options.length:", countrySelect.options.length);
             
-            // DEFENSIVE: Check if country dropdown has valid options (besides placeholder)
-            const validCountryOptions = Array.from(countrySelect.options).filter(o => o.value !== '');
-            if (validCountryOptions.length === 0) {
-                console.error("FATAL: Country dropdown has no valid options!");
-                return;
-            }
+            // Determine initial country: formState > select value > 'US'
+            let country = formState.country || countrySelect.value || 'US';
+            if (country === '') country = 'US';
             
-            // DEFENSIVE: Determine country - formState > select value > first valid option > US
-            let country = formState.country || countrySelect.value;
-            if (!country || country === '' || !statesByCountry[country]) {
-                console.warn("Country invalid or has no states, falling back to US");
-                country = 'US';
-                // If US doesn't have states either, try first available
-                if (!statesByCountry[country]) {
-                    const fallbackCountry = Object.keys(statesByCountry)[0];
-                    console.warn("US not available, falling back to:", fallbackCountry);
-                    country = fallbackCountry || 'US';
-                }
-            }
-            
-            // DEFENSIVE: Force-set country in both formState and select
-            formState.country = country;
+            // Set country in select (populateStates may override if invalid)
             countrySelect.value = country;
+            formState.country = country;
             
-            // If select value didn't stick (option not found), log error
-            if (countrySelect.value !== country) {
-                console.error("Failed to set country to:", country, "- available options:", validCountryOptions.map(o => o.value));
-            }
+            console.log("Initial country:", country);
             
-            console.log("Using country:", country);
-            
-            // MANDATORY: Populate states immediately (never wait for change event)
+            // MANDATORY: Populate states immediately - handles all fallback logic internally
             populateStates(country, true);
-            console.log("States populated for country:", country);
+            
+            // After populateStates, formState.country may have been updated if fallback occurred
+            const effectiveCountry = formState.country;
+            console.log("Effective country after populateStates:", effectiveCountry);
             
             // Populate resorts if a state is already selected
             const state = formState.state || stateSelect.value;
-            if (state) {
-                populateResorts(country, state, true);
+            if (state && state !== '') {
+                populateResorts(effectiveCountry, state, true);
             }
             
             console.log("=== initializeForm END ===");
