@@ -2766,6 +2766,11 @@ def add_open_dates():
     existing_dates = current_user.open_dates or []
     return render_template("add_open_dates.html", existing_dates=existing_dates)
 
+@app.route("/select-test")
+def select_test():
+    """Minimal reproduction page for iOS select debugging"""
+    return render_template("select_test.html")
+
 @app.route("/add_trip", methods=["GET", "POST"])
 @login_required
 def add_trip():
