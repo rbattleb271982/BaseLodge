@@ -7536,64 +7536,70 @@ def admin_sync_from_canonical():
         '''
     
     # POST - do the sync
-    stats = {'added': 0, 'updated': 0, 'deactivated': 0}
-    
-    canonical_keys = set()
-    for r_data in canonical_data.get('resorts', []):
-        name = r_data['name'].strip()
-        state_code = r_data.get('state_code', '').strip()
-        country_code = r_data.get('country_code', 'US').strip()
-        pass_brands = r_data.get('pass_brands', '').strip()
+    try:
+        stats = {'added': 0, 'updated': 0, 'deactivated': 0}
         
-        canonical_key = f"{name}|{state_code}|{country_code}".lower()
-        canonical_keys.add(canonical_key)
+        canonical_keys = set()
         
-        existing = Resort.query.filter(
-            db.func.lower(Resort.name) == name.lower(),
-            db.func.lower(db.func.coalesce(Resort.state_code, Resort.state, '')) == state_code.lower(),
-            db.func.lower(db.func.coalesce(Resort.country_code, Resort.country, 'US')) == country_code.lower()
-        ).first()
+        # Build a lookup of existing resorts by normalized key
+        all_existing = Resort.query.all()
+        existing_by_key = {}
+        for r in all_existing:
+            key = f"{r.name}|{r.state_code or r.state or ''}|{r.country_code or r.country or 'US'}".lower()
+            existing_by_key[key] = r
         
-        if existing:
-            existing.name = name
-            existing.state_code = state_code
-            existing.state = state_code
-            existing.country_code = country_code
-            existing.country = country_code
-            existing.pass_brands = pass_brands
-            existing.brand = pass_brands.split(',')[0] if pass_brands else 'Other'
-            existing.is_active = True
-            stats['updated'] += 1
-        else:
-            new_resort = Resort(
-                name=name,
-                state=state_code,
-                state_code=state_code,
-                country=country_code,
-                country_code=country_code,
-                pass_brands=pass_brands,
-                brand=pass_brands.split(',')[0] if pass_brands else 'Other',
-                is_active=True
-            )
-            db.session.add(new_resort)
-            stats['added'] += 1
-    
-    # Deactivate resorts not in canonical
-    all_resorts = Resort.query.filter_by(is_active=True).all()
-    for resort in all_resorts:
-        key = f"{resort.name}|{resort.state_code or resort.state or ''}|{resort.country_code or resort.country or 'US'}".lower()
-        if key not in canonical_keys:
-            resort.is_active = False
-            stats['deactivated'] += 1
-    
-    db.session.commit()
-    
-    return jsonify({
-        'status': 'success',
-        'version': canonical_data.get('version'),
-        'stats': stats,
-        'message': f"Sync complete: {stats['added']} added, {stats['updated']} updated, {stats['deactivated']} deactivated"
-    })
+        for r_data in canonical_data.get('resorts', []):
+            name = r_data['name'].strip()
+            state_code = r_data.get('state_code', '').strip()
+            country_code = r_data.get('country_code', 'US').strip()
+            pass_brands = r_data.get('pass_brands', '').strip()
+            
+            canonical_key = f"{name}|{state_code}|{country_code}".lower()
+            canonical_keys.add(canonical_key)
+            
+            existing = existing_by_key.get(canonical_key)
+            
+            if existing:
+                existing.name = name
+                existing.state_code = state_code
+                existing.state = state_code
+                existing.country_code = country_code
+                existing.country = country_code
+                existing.pass_brands = pass_brands
+                existing.brand = pass_brands.split(',')[0] if pass_brands else 'Other'
+                existing.is_active = True
+                stats['updated'] += 1
+            else:
+                new_resort = Resort(
+                    name=name,
+                    state=state_code,
+                    state_code=state_code,
+                    country=country_code,
+                    country_code=country_code,
+                    pass_brands=pass_brands,
+                    brand=pass_brands.split(',')[0] if pass_brands else 'Other',
+                    is_active=True
+                )
+                db.session.add(new_resort)
+                stats['added'] += 1
+        
+        # Deactivate resorts not in canonical
+        for key, resort in existing_by_key.items():
+            if key not in canonical_keys and resort.is_active:
+                resort.is_active = False
+                stats['deactivated'] += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'version': canonical_data.get('version'),
+            'stats': stats,
+            'message': f"Sync complete: {stats['added']} added, {stats['updated']} updated, {stats['deactivated']} deactivated"
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 if __name__ == "__main__":
