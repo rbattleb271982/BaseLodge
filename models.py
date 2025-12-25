@@ -352,9 +352,18 @@ class User(UserMixin, db.Model):
 class Resort(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
+    
+    # Legacy columns (kept for backward compatibility)
     state = db.Column(db.String(50), nullable=False)  # Region code: CO, CA, Hokkaido, etc.
     state_full = db.Column(db.String(50), nullable=True)  # Full name: Colorado, California, etc.
     country = db.Column(db.String(2), nullable=True)  # ISO-2 country code: US, CA, FR, etc.
+    
+    # Canonical geography columns (SINGLE SOURCE OF TRUTH)
+    country_code = db.Column(db.String(10), nullable=True)  # ISO-2 code: US, CA, JP, etc.
+    country_name = db.Column(db.String(100), nullable=True)  # Display: United States, Canada, etc.
+    state_code = db.Column(db.String(50), nullable=True)  # Region code: CO, BC, Hokkaido, etc.
+    state_name = db.Column(db.String(100), nullable=True)  # Display: Colorado, British Columbia, etc.
+    
     brand = db.Column(db.String(20), nullable=True)  # 'Epic', 'Ikon', 'Indy', 'Other'
     pass_brands = db.Column(db.String(150), nullable=True)  # Comma-separated: 'Epic', 'Ikon,MountainCollective', etc.
     slug = db.Column(db.String(120), unique=True, nullable=False)
@@ -363,7 +372,7 @@ class Resort(db.Model):
     trips = db.relationship('SkiTrip', backref='resort', lazy=True)
 
     def __repr__(self):
-        return f'<Resort {self.name} ({self.state})>'
+        return f'<Resort {self.name} ({self.state_code or self.state})>'
 
 
 class SkiTrip(db.Model):
