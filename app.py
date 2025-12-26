@@ -1586,12 +1586,22 @@ def friends():
     user = current_user
     today = date.today()
     
+    # Get tab parameter (updates or friends)
+    active_tab = request.args.get("tab", "updates")
     filter_type = request.args.get("filter", "All")
     
     # Load friend relationships
     friend_links = Friend.query.filter_by(user_id=user.id).all()
     friend_ids = [f.friend_id for f in friend_links]
     all_friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
+    
+    # Load activities for Updates tab
+    activities = []
+    if active_tab == "updates":
+        activities = Activity.query.filter(
+            Activity.recipient_user_id == user.id,
+            Activity.actor_user_id.in_(friend_ids) if friend_ids else False
+        ).order_by(Activity.created_at.desc()).limit(50).all()
     
     # Get user's upcoming trips for overlap detection
     user_trips = SkiTrip.query.filter(
@@ -1700,7 +1710,9 @@ def friends():
         selected_riders=selected_riders,
         selected_skills=selected_skills,
         selected_passes=selected_passes,
-        rider_types=RIDER_TYPES
+        rider_types=RIDER_TYPES,
+        active_tab=active_tab,
+        activities=activities
     )
 
 @app.route("/friends/<int:friend_id>")
