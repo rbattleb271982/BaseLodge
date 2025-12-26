@@ -154,6 +154,138 @@ def emit_event(event_name, user, payload=None):
     db.session.add(event)
     db.session.commit()
 
+
+def get_friend_ids(user_id):
+    """Get all direct friend IDs for a user."""
+    friends = Friend.query.filter_by(user_id=user_id).all()
+    return [f.friend_id for f in friends]
+
+
+def create_activity(actor_user_id, recipient_user_id, activity_type, object_type, object_id):
+    """Create an activity record."""
+    if actor_user_id == recipient_user_id:
+        return
+    activity = Activity(
+        actor_user_id=actor_user_id,
+        recipient_user_id=recipient_user_id,
+        type=activity_type.value if hasattr(activity_type, 'value') else activity_type,
+        object_type=object_type,
+        object_id=object_id,
+        created_at=datetime.utcnow()
+    )
+    db.session.add(activity)
+
+
+def emit_trip_created_activities(trip, actor_user_id):
+    """Create TRIP_CREATED activities for all friends of the actor."""
+    friend_ids = get_friend_ids(actor_user_id)
+    for friend_id in friend_ids:
+        create_activity(
+            actor_user_id=actor_user_id,
+            recipient_user_id=friend_id,
+            activity_type=ActivityType.TRIP_CREATED,
+            object_type='trip',
+            object_id=trip.id
+        )
+    check_and_emit_trip_overlap_activities(trip, actor_user_id)
+
+
+def emit_trip_updated_activities(trip, actor_user_id, dates_changed=False):
+    """Create TRIP_UPDATED activities for all friends if dates changed."""
+    if not dates_changed:
+        return
+    friend_ids = get_friend_ids(actor_user_id)
+    for friend_id in friend_ids:
+        create_activity(
+            actor_user_id=actor_user_id,
+            recipient_user_id=friend_id,
+            activity_type=ActivityType.TRIP_UPDATED,
+            object_type='trip',
+            object_id=trip.id
+        )
+    check_and_emit_trip_overlap_activities(trip, actor_user_id)
+
+
+def check_and_emit_trip_overlap_activities(trip, actor_user_id):
+    """Check for overlapping trips with friends and emit TRIP_OVERLAP activities."""
+    friend_ids = get_friend_ids(actor_user_id)
+    if not friend_ids:
+        return
+    
+    overlapping_trips = SkiTrip.query.filter(
+        SkiTrip.user_id.in_(friend_ids),
+        SkiTrip.start_date <= trip.end_date,
+        SkiTrip.end_date >= trip.start_date,
+        db.or_(
+            SkiTrip.resort_id == trip.resort_id,
+            SkiTrip.mountain == trip.mountain
+        )
+    ).all()
+    
+    notified_users = set()
+    for overlap_trip in overlapping_trips:
+        if overlap_trip.user_id not in notified_users:
+            create_activity(
+                actor_user_id=actor_user_id,
+                recipient_user_id=overlap_trip.user_id,
+                activity_type=ActivityType.TRIP_OVERLAP,
+                object_type='trip',
+                object_id=trip.id
+            )
+            notified_users.add(overlap_trip.user_id)
+
+
+def emit_connection_accepted_activity(actor_user_id, other_user_id):
+    """Create CONNECTION_ACCEPTED activity when a friend request is accepted."""
+    create_activity(
+        actor_user_id=actor_user_id,
+        recipient_user_id=other_user_id,
+        activity_type=ActivityType.CONNECTION_ACCEPTED,
+        object_type='user',
+        object_id=actor_user_id
+    )
+
+
+def emit_trip_invite_accepted_activity(trip, acceptor_user_id, trip_owner_id):
+    """Create TRIP_INVITE_ACCEPTED activity for the trip owner."""
+    create_activity(
+        actor_user_id=acceptor_user_id,
+        recipient_user_id=trip_owner_id,
+        activity_type=ActivityType.TRIP_INVITE_ACCEPTED,
+        object_type='trip',
+        object_id=trip.id
+    )
+
+
+def emit_friend_joined_trip_activities(trip, joiner_user_id):
+    """Create FRIEND_JOINED_TRIP activities for other participants on the trip."""
+    participants = SkiTripParticipant.query.filter(
+        SkiTripParticipant.trip_id == trip.id,
+        SkiTripParticipant.user_id != joiner_user_id,
+        SkiTripParticipant.status == GuestStatus.ACCEPTED
+    ).all()
+    
+    joiner_friend_ids = set(get_friend_ids(joiner_user_id))
+    
+    for participant in participants:
+        if participant.user_id in joiner_friend_ids:
+            create_activity(
+                actor_user_id=joiner_user_id,
+                recipient_user_id=participant.user_id,
+                activity_type=ActivityType.FRIEND_JOINED_TRIP,
+                object_type='trip',
+                object_id=trip.id
+            )
+
+
+def delete_activities_for_trip(trip_id):
+    """Delete all activities related to a trip (application-level cleanup)."""
+    Activity.query.filter(
+        Activity.object_type == 'trip',
+        Activity.object_id == trip_id
+    ).delete()
+
+
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///baselodge.db")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
