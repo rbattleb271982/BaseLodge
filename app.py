@@ -113,7 +113,7 @@ def before_request_handlers():
     session.permanent = True
     
     # Require profile setup for authenticated users
-    excluded_endpoints = {'auth', 'identity_setup', 'setup_profile', 'logout', 'static', 'invite_token_landing', 'test_login_direct', 'forgot_password'}
+    excluded_endpoints = {'auth', 'identity_setup', 'setup_profile', 'logout', 'static', 'invite_token_landing', 'test_login_direct', 'forgot_password', 'reset_password'}
     if request.endpoint in excluded_endpoints:
         return None
     if current_user.is_authenticated:
@@ -710,10 +710,39 @@ def forgot_password():
         
     return render_template("forgot_password.html")
 
-@app.route("/reset-password")
+@app.route("/reset-password", methods=["GET", "POST"])
 def reset_password():
-    # Placeholder for Step 3
-    return "Password reset functionality coming soon."
+    token = request.args.get("token") or request.form.get("token")
+    if not token:
+        return render_template("reset_password_invalid.html")
+        
+    user = User.query.filter_by(password_reset_token=token).first()
+    
+    if not user or not user.password_reset_expires_at or user.password_reset_expires_at < datetime.utcnow():
+        return render_template("reset_password_invalid.html")
+        
+    if request.method == "POST":
+        password = request.form.get("password")
+        confirm_password = request.form.get("confirm_password")
+        
+        if not password or len(password) < 8:
+            flash("Password must be at least 8 characters.", "error")
+            return render_template("reset_password.html", token=token)
+            
+        if password != confirm_password:
+            flash("Passwords do not match.", "error")
+            return render_template("reset_password.html", token=token)
+            
+        # Update password
+        user.set_password(password)
+        # Clear token
+        user.password_reset_token = None
+        user.password_reset_expires_at = None
+        db.session.commit()
+        
+        return render_template("reset_password_success.html")
+        
+    return render_template("reset_password.html", token=token)
 
 @app.route("/")
 def index():
