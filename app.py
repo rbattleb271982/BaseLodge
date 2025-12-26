@@ -701,8 +701,11 @@ def forgot_password():
                 )
                 
                 try:
-                    sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
-                    sg.send(message)
+                    key = os.environ.get('SENDGRID_API_KEY', '')
+                    sg = SendGridAPIClient(key)
+                    app.logger.info(f"SendGrid initialized with key starting with: {key[:4] if key else 'NONE'}")
+                    response = sg.send(message)
+                    app.logger.info(f"SendGrid response status code: {response.status_code}")
                     app.logger.info(f"Password reset email sent to {user.email}")
                 except Exception as e:
                     app.logger.error(f"Error sending password reset email: {e}")
