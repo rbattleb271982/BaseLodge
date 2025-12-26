@@ -251,12 +251,36 @@
             {% endwith %}
             
             <div class="auth-tabs">
-                <button class="auth-tab-btn active" id="tab-signup">Sign Up</button>
-                <button class="auth-tab-btn" id="tab-login">Log In</button>
+                <button class="auth-tab-btn active" id="tab-login">Log In</button>
+                <button class="auth-tab-btn" id="tab-signup">Sign Up</button>
             </div>
             
+            <!-- Login Form -->
+            <form class="auth-form active" id="login-form" method="POST" action="{{ url_for('auth') }}">
+                <input type="hidden" name="form_type" value="login">
+                
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-input" required placeholder="you@example.com" autocomplete="email">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" name="password" class="form-input" required placeholder="Your password" autocomplete="current-password" id="login-password">
+                        <button type="button" class="password-toggle" data-target="login-password">Show</button>
+                    </div>
+                </div>
+                
+                <button type="submit" class="bl-btn-primary form-submit">Log In</button>
+            </form>
+
+            <div id="forgot-password-link" style="text-align: right; margin-top: -12px; margin-bottom: 24px; display: block;">
+                <a href="{{ url_for('forgot_password') }}" style="color: var(--bl-color-primary); text-decoration: none; font-size: 13px;">Forgot password?</a>
+            </div>
+
             <!-- Signup Form -->
-            <form class="auth-form active" id="signup-form" method="POST" action="{{ url_for('auth') }}">
+            <form class="auth-form" id="signup-form" method="POST" action="{{ url_for('auth') }}">
                 <input type="hidden" name="form_type" value="signup">
                 
                 <div class="form-group">
@@ -285,29 +309,6 @@
                 
                 <button type="submit" class="bl-btn-primary form-submit">Create Account</button>
             </form>
-            
-            <!-- Login Form -->
-            <form class="auth-form" id="login-form" method="POST" action="{{ url_for('auth') }}">
-                <input type="hidden" name="form_type" value="login">
-                
-                <div class="form-group">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-input" required placeholder="you@example.com" autocomplete="email">
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Password</label>
-                    <div class="password-wrapper">
-                        <input type="password" name="password" class="form-input" required placeholder="Your password" autocomplete="current-password" id="login-password">
-                        <button type="button" class="password-toggle" data-target="login-password">Show</button>
-                    </div>
-                </div>
-                
-                <button type="submit" class="bl-btn-primary form-submit">Log In</button>
-            </form>
-            <div id="forgot-password-link" style="text-align: right; margin-top: -12px; margin-bottom: 24px; display: none;">
-                <a href="{{ url_for('forgot_password') }}" style="color: var(--bl-color-primary); text-decoration: none; font-size: 13px;">Forgot password?</a>
-            </div>
             <p class="auth-footer" id="auth-footer-text">You're joining an early test version of Base Lodge.</p>
         </div>
     </div>
