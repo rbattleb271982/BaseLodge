@@ -361,12 +361,126 @@
             color: var(--bl-color-text-muted);
             margin: 0 0 20px 0;
         }
+        
+        .tab-segmented-control {
+            display: flex;
+            background: var(--bl-color-border-soft);
+            border-radius: 8px;
+            padding: 3px;
+            margin-bottom: 16px;
+        }
+        .tab-segment {
+            flex: 1;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+            color: var(--bl-color-text-muted);
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.15s ease;
+        }
+        .tab-segment.active {
+            background: var(--bl-color-surface);
+            color: var(--bl-color-text);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        .tab-segment:hover:not(.active) {
+            color: var(--bl-color-text);
+        }
+        
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+        }
+        .activity-item {
+            display: block;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            text-decoration: none;
+            color: inherit;
+        }
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        .activity-item:active {
+            background: rgba(0, 0, 0, 0.02);
+        }
+        @media (prefers-color-scheme: dark) {
+            .activity-item:active {
+                background: rgba(255, 255, 255, 0.04);
+            }
+        }
+        .activity-actor {
+            font-weight: 600;
+            color: var(--bl-color-text);
+        }
+        .activity-action {
+            color: var(--bl-color-text-muted);
+        }
+        .activity-context {
+            color: var(--bl-color-text);
+        }
+        .activity-time {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            margin-top: 2px;
+        }
     </style>
 </head>
 <body>
     <div class="page-container">
         <div class="bl-header">Friends</div>
         
+        <div class="tab-segmented-control">
+            <a href="{{ url_for('friends', tab='updates') }}" class="tab-segment {% if active_tab == 'updates' %}active{% endif %}">Updates</a>
+            <a href="{{ url_for('friends', tab='friends') }}" class="tab-segment {% if active_tab == 'friends' %}active{% endif %}">Friends</a>
+        </div>
+        
+        {% if active_tab == 'updates' %}
+        <!-- Updates Tab Content -->
+        {% if activities|length > 0 %}
+        <div class="activity-list">
+            {% for activity in activities %}
+            {% set actor = activity.get_actor_user() %}
+            {% set trip = activity.get_trip() %}
+            <a href="{% if activity.object_type == 'trip' and trip %}{{ url_for('trip_detail', trip_id=activity.object_id) }}{% elif activity.object_type == 'user' %}{{ url_for('friend_profile', friend_id=activity.object_id) }}{% else %}#{% endif %}" class="activity-item">
+                <div>
+                    <span class="activity-actor">{{ actor.first_name if actor else 'Someone' }}</span>
+                    <span class="activity-action">
+                        {% if activity.type == 'trip_created' %}
+                            added a trip{% if trip %} to <span class="activity-context">{{ trip.mountain }}</span>{% endif %}
+                        {% elif activity.type == 'trip_updated' %}
+                            updated trip dates{% if trip %} for <span class="activity-context">{{ trip.mountain }}</span>{% endif %}
+                        {% elif activity.type == 'friend_joined_trip' %}
+                            joined{% if trip %} <span class="activity-context">{{ trip.mountain }}</span>{% endif %}
+                        {% elif activity.type == 'trip_invite_accepted' %}
+                            accepted your trip invite{% if trip %} to <span class="activity-context">{{ trip.mountain }}</span>{% endif %}
+                        {% elif activity.type == 'connection_accepted' %}
+                            accepted your connection request
+                        {% elif activity.type == 'trip_overlap' %}
+                            has a trip that overlaps with yours{% if trip %} at <span class="activity-context">{{ trip.mountain }}</span>{% endif %}
+                        {% else %}
+                            did something
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="activity-time">{{ activity.created_at|relative_time }}</div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-card">
+            <h3>No updates yet</h3>
+            <p>When friends add or update trips, you'll see it here.</p>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <!-- Friends Tab Content -->
         {% if count_all > 0 %}
         <div class="filter-bar">
             <div class="filter-bar-left" onclick="openFilterSheet()">
@@ -437,6 +551,7 @@
             {% endif %}
             <a href="{{ url_for('invite') }}" class="bl-btn-secondary" style="display: inline-block; text-decoration: none;">Invite a Friend</a>
         </div>
+        {% endif %}
         {% endif %}
     </div>
     

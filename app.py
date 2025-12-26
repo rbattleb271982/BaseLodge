@@ -113,6 +113,40 @@ def pass_display_filter(pass_type):
         return ' · '.join(passes) if passes else ''
     return pass_str if pass_str.lower() != 'both' else ''
 
+
+@app.template_filter('relative_time')
+def relative_time_filter(dt):
+    """
+    Convert datetime to relative time string (e.g., "2h ago", "Yesterday").
+    """
+    if not dt:
+        return ''
+    
+    now = datetime.utcnow()
+    diff = now - dt
+    
+    seconds = diff.total_seconds()
+    minutes = seconds / 60
+    hours = minutes / 60
+    days = hours / 24
+    
+    if seconds < 60:
+        return 'Just now'
+    elif minutes < 60:
+        m = int(minutes)
+        return f'{m}m ago'
+    elif hours < 24:
+        h = int(hours)
+        return f'{h}h ago'
+    elif days < 2:
+        return 'Yesterday'
+    elif days < 7:
+        d = int(days)
+        return f'{d}d ago'
+    else:
+        return dt.strftime('%b %d')
+
+
 @app.before_request
 def before_request_handlers():
     # Make sessions permanent for Replit iframe compatibility
