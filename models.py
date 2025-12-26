@@ -135,6 +135,10 @@ class User(UserMixin, db.Model):
     primary_riding_style = db.Column(db.String(50), nullable=True)  # Groomers, Powder, All-Mountain, Park, Mixed
     welcome_modal_seen_at = db.Column(db.DateTime, nullable=True)  # Set when welcome modal dismissed (once only)
     
+    # Password Reset Support
+    password_reset_token = db.Column(sa.String(128), index=True, nullable=True)
+    password_reset_expires_at = db.Column(db.DateTime, nullable=True)
+    
     trips = db.relationship('SkiTrip', foreign_keys='SkiTrip.user_id', backref='user', lazy=True)
     friend_requests_sent = db.relationship('Invitation', foreign_keys='Invitation.sender_id', backref='sender', lazy=True)
     friend_requests_received = db.relationship('Invitation', foreign_keys='Invitation.receiver_id', backref='receiver', lazy=True)
