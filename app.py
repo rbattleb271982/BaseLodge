@@ -915,42 +915,6 @@ def invite_token_landing(token):
                            inviter=inviter, 
                            inviter_trips_count=inviter_trips_count)
 
-    # If user is already logged in, connect immediately
-    if current_user.is_authenticated and current_user.id != inviter.id:
-        # Check if already friends
-        existing = Friend.query.filter(
-            db.or_(
-                db.and_(Friend.user_id == current_user.id, Friend.friend_id == inviter.id),
-                db.and_(Friend.user_id == inviter.id, Friend.friend_id == current_user.id),
-            )
-        ).first()
-        if existing:
-            session.pop("pending_inviter_id", None)
-            session.pop("pending_invite_token_id", None)
-            return render_template("already_friends.html", friend=inviter)
-        
-        # Create bidirectional connection
-        f1 = Friend(user_id=current_user.id, friend_id=inviter.id)
-        f2 = Friend(user_id=inviter.id, friend_id=current_user.id)
-        db.session.add_all([f1, f2])
-        
-        # Mark token as used (single-use enforcement)
-        invite.used_at = datetime.utcnow()
-        
-        db.session.commit()
-        session.pop("pending_inviter_id", None)
-        session.pop("pending_invite_token_id", None)
-        return redirect(url_for("friends"))
-
-    # Otherwise render the landing page for signup / login
-    # Get inviter's upcoming trips count
-    today = date.today()
-    inviter_trips_count = SkiTrip.query.filter(
-        SkiTrip.user_id == inviter.id,
-        SkiTrip.start_date >= today
-    ).count()
-    return render_template("invite_landing.html", inviter=inviter, inviter_trips_count=inviter_trips_count)
-
 
 @app.route("/setup-profile", methods=["GET", "POST"])
 @login_required
