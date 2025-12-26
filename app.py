@@ -1526,6 +1526,7 @@ def accept_invitation(invitation_id):
     
     db.session.add(friend_relationship)
     db.session.add(reverse_friend)
+    emit_connection_accepted_activity(current_user.id, invitation.sender_id)
     db.session.commit()
     
     return jsonify({"success": True, "message": "Friend added"}), 200
@@ -3226,6 +3227,7 @@ def add_trip():
             trip.add_owner_as_participant()
             if friend_id:
                 trip.add_participant(friend_id, GuestStatus.INVITED)
+            emit_trip_created_activities(trip, current_user.id)
             db.session.commit()
             flash("Trip added.", "trip")
             return redirect(url_for("trip_detail", trip_id=trip.id))
@@ -3352,6 +3354,8 @@ def edit_trip_form(trip_id):
                 user_passes=user_passes,
             )
 
+        dates_changed = (start_date != original_start or end_date != original_end)
+        
         trip.resort_id = resort.id
         trip.state = resort.state_code or resort.state
         trip.mountain = resort.name
@@ -3365,6 +3369,7 @@ def edit_trip_form(trip_id):
         trip.trip_duration = SkiTrip.calculate_duration(start_date, end_date)
         
         try:
+            emit_trip_updated_activities(trip, current_user.id, dates_changed=dates_changed)
             db.session.commit()
             return redirect(url_for("my_trips"))
         except Exception as e:
@@ -3547,6 +3552,8 @@ def respond_to_trip_invite(trip_id):
     
     if action == "accept":
         participant.status = GuestStatus.ACCEPTED
+        emit_trip_invite_accepted_activity(trip, current_user.id, trip.user_id)
+        emit_friend_joined_trip_activities(trip, current_user.id)
         db.session.commit()
         flash("You've joined the trip!", "success")
         return redirect(url_for("trip_detail", trip_id=trip_id))
