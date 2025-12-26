@@ -2565,8 +2565,18 @@ def friend_trip_details(trip_id):
         if not is_friend:
             return "Unauthorized", 403
 
-    # Calculate overlapping days with current user's trips
+    # Calculate overlapping days with current user's trips at the same resort
     your_trips = SkiTrip.query.filter_by(user_id=current_user.id).all()
+    
+    # Filter for same mountain/resort
+    # Note: Resort ID is preferred if both trips have it, otherwise fallback to mountain string
+    matching_trips = []
+    for yt in your_trips:
+        if trip.resort_id and yt.resort_id:
+            if trip.resort_id == yt.resort_id:
+                matching_trips.append(yt)
+        elif yt.mountain == trip.mountain:
+            matching_trips.append(yt)
 
     def overlapping_days(a_start, a_end, b_start, b_end):
         latest_start = max(a_start, b_start)
@@ -2577,7 +2587,7 @@ def friend_trip_details(trip_id):
     your_overlap_days = 0
     your_overlap_ranges = []
 
-    for yt in your_trips:
+    for yt in matching_trips:
         days = overlapping_days(
             trip.start_date,
             trip.end_date,
