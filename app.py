@@ -53,6 +53,10 @@ def load_user(user_id):
 # Never shows "Both" - all passes listed individually.
 # ============================================================================
 
+@app.route("/")
+def root():
+    return redirect(url_for("auth"))
+
 @app.template_filter('identity_line')
 def identity_line_filter(user):
     """
