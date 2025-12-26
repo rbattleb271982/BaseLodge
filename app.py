@@ -1426,6 +1426,7 @@ def delete_trip(trip_id):
     if trip.user_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
     
+    delete_activities_for_trip(trip_id)
     db.session.delete(trip)
     db.session.commit()
     
@@ -3618,6 +3619,7 @@ def delete_trip_form(trip_id):
     if trip.user_id != current_user.id:
         abort(403)
 
+    delete_activities_for_trip(trip_id)
     db.session.delete(trip)
     db.session.commit()
     flash("Trip deleted.", "trip")
