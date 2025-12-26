@@ -30,7 +30,8 @@
     <div class="tile-hero">{{ identity }}</div>
     {% endif %}
 
-    {# 3. Trip summary #}
+    {# 3. Trip summary (only shown when viewing others' profiles) #}
+    {% if not is_owner %}
     <div class="tile-trips">
         {% if upcoming_trips_count == 0 %}
             No upcoming trips
@@ -40,6 +41,7 @@
             {{ upcoming_trips_count }} upcoming trips
         {% endif %}
     </div>
+    {% endif %}
 
     {# 4. Equipment + Boots #}
     <div class="tile-equipment-section">
