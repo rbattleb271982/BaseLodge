@@ -844,6 +844,45 @@ class EmailLog(db.Model):
         return f'<EmailLog {self.email_type} to user={self.user_id}>'
 
 
+class ActivityType(PyEnum):
+    """Types of activity for the friends feed."""
+    TRIP_CREATED = "trip_created"
+    TRIP_UPDATED = "trip_updated"
+    FRIEND_JOINED_TRIP = "friend_joined_trip"
+    TRIP_INVITE_ACCEPTED = "trip_invite_accepted"
+    CONNECTION_ACCEPTED = "connection_accepted"
+    TRIP_OVERLAP = "trip_overlap"
+
+
+class Activity(db.Model):
+    """Activity feed entries for friends updates."""
+    __tablename__ = 'activity'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    actor_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    recipient_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    type = db.Column(db.String(50), nullable=False)  # ActivityType value
+    object_type = db.Column(db.String(20), nullable=False)  # "trip" | "user"
+    object_id = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    actor = db.relationship('User', foreign_keys=[actor_user_id], backref='activities_performed')
+    recipient = db.relationship('User', foreign_keys=[recipient_user_id], backref='activities_received')
+    
+    def __repr__(self):
+        return f'<Activity {self.type} actor={self.actor_user_id} recipient={self.recipient_user_id}>'
+    
+    def get_trip(self):
+        """Get the associated trip if object_type is 'trip'."""
+        if self.object_type == 'trip':
+            return SkiTrip.query.get(self.object_id)
+        return None
+    
+    def get_actor_user(self):
+        """Get the actor User object."""
+        return User.query.get(self.actor_user_id)
+
+
 def check_shared_upcoming_trip(user_a_id: int, user_b_id: int) -> bool:
     """
     Check if two users share at least one accepted, upcoming group trip.
