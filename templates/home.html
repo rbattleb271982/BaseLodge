@@ -381,8 +381,6 @@
             {% include 'components/profile_card.html' %}
         {% endwith %}
 
-        <p class="helper-text" style="margin: -8px 0 16px 0; font-size: 13px; color: var(--bl-color-text-muted);">Add trips you're planning so friends can see where you're skiing.</p>
-
         <!-- Availability Card (only show if open date matches exist) -->
         {% if open_date_matches and open_date_matches|length > 0 %}
         {% set unique_friends = [] %}
@@ -456,12 +454,16 @@
         <div class="my-trips-section">
             <div class="my-trips-header" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
                 <span>My Trips</span>
-                <span class="my-trips-chevron">{% if my_trips and my_trips|length > 1 %}▸{% else %}▾{% endif %}</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    {% if my_trips and my_trips|length > 0 %}
+                    <a href="{{ url_for('add_trip') }}" class="my-trips-add-btn" style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500; text-decoration: none; pointer-events: auto;" onclick="event.stopPropagation();">
+                        + Create a trip
+                    </a>
+                    {% endif %}
+                    <span class="my-trips-chevron">{% if my_trips and my_trips|length > 1 %}▸{% else %}▾{% endif %}</span>
+                </div>
             </div>
-            <div class="my-trips-content" {% if my_trips and my_trips|length > 1 %}style="display: none;"{% endif %}
-                <a href="{{ url_for('add_trip') }}" id="create-trip-btn" class="{% if has_trips %}bl-btn-outline{% else %}bl-btn-primary{% endif %}" style="width: 100%; display: block; text-align: center; text-decoration: none; margin-top: 16px; margin-bottom: 16px;">
-                    Create a trip
-                </a>
+            <div class="my-trips-content" {% if my_trips and my_trips|length > 1 %}style="display: none;"{% endif %}>
 
                 {% if pending_invites and pending_invites|length > 0 %}
                 <div class="bl-invites-section" style="margin-bottom: 20px;">
