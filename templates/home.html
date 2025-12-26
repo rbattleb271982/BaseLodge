@@ -454,8 +454,11 @@
 
         <!-- My Trips Section -->
         <div class="my-trips-section">
-            <div class="section-header">My Trips</div>
-            <div class="my-trips-content">
+            <div class="my-trips-header" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span>My Trips</span>
+                <span class="my-trips-chevron">{% if my_trips and my_trips|length > 1 %}▸{% else %}▾{% endif %}</span>
+            </div>
+            <div class="my-trips-content" {% if my_trips and my_trips|length > 1 %}style="display: none;"{% endif %}
                 <a href="{{ url_for('add_trip') }}" id="create-trip-btn" class="{% if has_trips %}bl-btn-outline{% else %}bl-btn-primary{% endif %}" style="width: 100%; display: block; text-align: center; text-decoration: none; margin-top: 16px; margin-bottom: 16px;">
                     Create a trip
                 </a>
@@ -796,6 +799,21 @@
 
                     window.history.replaceState({}, '', '{{ url_for("home") }}?tab=' + tabName);
                 });
+            });
+        });
+
+        // My Trips expand/collapse
+        document.addEventListener('DOMContentLoaded', function () {
+            const header = document.querySelector('.my-trips-header');
+            const content = document.querySelector('.my-trips-content');
+            const chevron = document.querySelector('.my-trips-chevron');
+
+            if (!header || !content) return;
+
+            header.addEventListener('click', function () {
+                const isHidden = content.style.display === 'none';
+                content.style.display = isHidden ? 'block' : 'none';
+                chevron.textContent = isHidden ? '▾' : '▸';
             });
         });
 
