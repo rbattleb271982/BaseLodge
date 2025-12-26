@@ -23,7 +23,7 @@
             color: var(--bl-color-primary);
             font-weight: 500;
         }
-        
+
         /* Row 1: Header - horizontal name + status */
         .card-header-row {
             display: flex;
@@ -31,7 +31,7 @@
             align-items: center;
             margin-bottom: 6px;
         }
-        
+
         /* Row 2: Identity line */
         .card-identity-row {
             font-size: 0.95rem;
@@ -39,7 +39,7 @@
             margin-bottom: 6px;
             line-height: 1.4;
         }
-        
+
         /* Row 2b: Terrain Preferences */
         .card-terrain-row {
             font-size: 0.9rem;
@@ -47,7 +47,7 @@
             margin-bottom: 6px;
             line-height: 1.4;
         }
-        
+
         /* Row 3: Equipment (conditional) */
         .card-equipment-row {
             font-size: 0.9rem;
@@ -55,7 +55,7 @@
             margin-bottom: 6px;
             line-height: 1.4;
         }
-        
+
         /* Row 4: Stats with vertical dividers */
         .card-stats-row {
             display: flex;
@@ -105,7 +105,7 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         /* Expandable accordion for stats */
         .stat-accordion {
             display: none;
@@ -130,7 +130,7 @@
             color: var(--bl-color-primary);
             margin-top: 2px;
         }
-        
+
         /* Visited Resorts Modal */
         .visited-modal-overlay {
             display: none;
@@ -196,7 +196,7 @@
         .visited-modal-item:last-child {
             border-bottom: none;
         }
-        
+
         .availability-card {
             background: rgba(143, 1, 27, 0.06);
             border-radius: 10px;
@@ -335,7 +335,7 @@
         .bl-segment-small:not(.active):hover {
             background: rgba(143, 1, 27, 0.08);
         }
-        
+
         /* Compact Friends' Trips rows */
         .friend-trip-row {
             display: block;
@@ -374,15 +374,15 @@
 <body>
     <div class="page-container" style="padding: 16px 16px 88px;">
         <div class="bl-header">Trips</div>
-        
+
         <!-- Profile Card -->
         {% set eq = primary_equipment if (primary_equipment and (primary_equipment.brand or primary_equipment.boot_brand)) else (secondary_equipment if (secondary_equipment and (secondary_equipment.brand or secondary_equipment.boot_brand)) else none) %}
         {% with profile_user=user, is_owner=true, upcoming_trips_count=upcoming_trips|length, equipment=eq, visited_resorts=visited_resorts, wishlist_resorts=wishlist_resorts %}
             {% include 'components/profile_card.html' %}
         {% endwith %}
-        
+
         <p class="helper-text" style="margin: -8px 0 16px 0; font-size: 13px; color: var(--bl-color-text-muted);">Add trips you're planning so friends can see where you're skiing.</p>
-        
+
         <!-- Availability Card (only show if open date matches exist) -->
         {% if open_date_matches and open_date_matches|length > 0 %}
         {% set unique_friends = [] %}
@@ -402,14 +402,14 @@
             </div>
         </a>
         {% endif %}
-        
+
         <!-- Weekend Day-Trip Signal Card -->
         {% if weekend_daytrip_signal %}
         <div class="daytrip-signal-card">
             <p class="daytrip-signal-text">{{ weekend_daytrip_signal.count }} friend{% if weekend_daytrip_signal.count != 1 %}s{% endif %} {% if weekend_daytrip_signal.count == 1 %}is{% else %}are{% endif %} day-tripping {{ weekend_daytrip_signal.resort }} this weekend</p>
         </div>
         {% endif %}
-        
+
         <!-- Shared Interest Card (only show if user has shared interests) -->
         {% if shared_interests and shared_interests|length > 0 %}
         <div class="shared-interest-card" id="shared-interest-card" onclick="toggleSharedInterests()">
@@ -430,7 +430,7 @@
             </div>
         </div>
         {% endif %}
-        
+
         {% if (user.pass_type is none or user.pass_type == "") and not session.get('pass_prompt_skipped') %}
         <div class="bl-onboarding-card">
             <div class="bl-onboarding-header">
@@ -448,18 +448,18 @@
             </div>
         </div>
         {% endif %}
-        
+
         {% set active_tab = request.args.get('tab', 'friends') %}
         {% set has_trips = my_trips and my_trips|length > 0 %}
-        
+
         <!-- My Trips Section -->
         <div class="my-trips-section">
-            <div class="my-trips-header">My Trips</div>
+            <div class="section-header">My Trips</div>
             <div class="my-trips-content">
                 <a href="{{ url_for('add_trip') }}" id="create-trip-btn" class="{% if has_trips %}bl-btn-outline{% else %}bl-btn-primary{% endif %}" style="width: 100%; display: block; text-align: center; text-decoration: none; margin-top: 16px; margin-bottom: 16px;">
                     Create a trip
                 </a>
-                
+
                 {% if pending_invites and pending_invites|length > 0 %}
                 <div class="bl-invites-section" style="margin-bottom: 20px;">
                     <h3 style="font-size: 1rem; font-weight: 600; margin: 0 0 12px 0; color: var(--bl-color-text);">Trip Invites</h3>
@@ -490,7 +490,7 @@
                     {% endfor %}
                 </div>
                 {% endif %}
-                
+
                 <div class="bl-trip-list">
                     {% if my_trips %}
                         {% for trip in my_trips %}
@@ -523,7 +523,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div style="margin-bottom:12px;" role="tablist">
             <div class="bl-tabs-wrapper">
                 <button class="bl-tab-button {% if active_tab == 'friends' %}active{% endif %}" data-tab="friends" role="tab" aria-selected="{% if active_tab == 'friends' %}true{% else %}false{% endif %}"><span>Friends'</span><span>Trips</span></button>
@@ -533,7 +533,7 @@
                 <button class="bl-tab-button {% if active_tab == 'open' %}active{% endif %}" data-tab="open" role="tab" aria-selected="{% if active_tab == 'open' %}true{% else %}false{% endif %}"><span>Open</span><span>Avail.</span></button>
             </div>
         </div>
-        
+
         <!-- Friends' Trips Tab -->
         <div id="tab-friends" class="bl-trip-list" role="tabpanel" {% if active_tab != 'friends' %}style="display: none;"{% endif %}>
             {% if friend_trips %}
@@ -550,7 +550,7 @@
                 </div>
             {% endif %}
         </div>
-        
+
         <!-- Trip Overlaps Tab (read-only) -->
         <div id="tab-overlaps" class="bl-trip-list" role="tabpanel" {% if active_tab != 'overlaps' %}style="display: none;"{% endif %}>
             {% if overlaps and overlaps|length > 0 %}
@@ -570,7 +570,7 @@
                 </div>
             {% endif %}
         </div>
-        
+
         <!-- Open Availability Tab -->
         <div id="tab-open" class="bl-trip-list" role="tabpanel" {% if active_tab != 'open' %}style="display: none;"{% endif %}>
             {% if open_date_matches and open_date_matches|length > 0 %}
@@ -591,7 +591,7 @@
                 </p>
             </div>
             {% endif %}
-            
+
             {% if user_open_dates and user_open_dates|length > 0 %}
             <a href="{{ url_for('add_open_dates') }}" style="text-decoration: none; color: inherit; display: block; margin-bottom: 16px; padding: 12px; background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; cursor: pointer; transition: background-color 0.2s ease, box-shadow 0.2s ease;" onmouseover="this.style.backgroundColor='var(--bl-color-border-soft)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.04)';" onmouseout="this.style.backgroundColor='var(--bl-color-surface)'; this.style.boxShadow='none';">
                 <p style="font-size: 0.9rem; margin: 0;">
@@ -602,7 +602,7 @@
                 {% endif %}
             </a>
             {% endif %}
-            
+
             {% if open_date_matches and open_date_matches|length > 0 %}
                 {% for match in open_date_matches %}
                     {% set same_pass_count = match.friends | selectattr('pass_type', 'equalto', user.pass_type) | list | length %}
@@ -624,12 +624,12 @@
                                 <p style="font-size: 0.8rem; color: var(--bl-color-primary); font-weight: 500; margin: 0; white-space: nowrap;">View who's open →</p>
                             </div>
                         </div>
-                        
+
                         <div class="open-day-friends" style="display: none; width: 100%; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft);">
                             {% set sorted_friends = match.friends | sort(attribute='name') | list %}
                             {% set same_pass_friends = sorted_friends | selectattr('pass_type', 'equalto', user.pass_type) | list %}
                             {% set diff_pass_friends = sorted_friends | rejectattr('pass_type', 'equalto', user.pass_type) | list %}
-                            
+
                             {% for friend in same_pass_friends | sort(attribute='name') | sort(attribute='skill_level', reverse=False) %}
                                 <div style="display: flex; flex-direction: column; margin-bottom: 10px; padding: 8px 0;">
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -644,7 +644,7 @@
                                     {% endif %}
                                 </div>
                             {% endfor %}
-                            
+
                             {% for friend in diff_pass_friends | sort(attribute='name') %}
                                 <div style="display: flex; flex-direction: column; margin-bottom: 10px; padding: 8px 0;">
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -659,14 +659,14 @@
                                     {% endif %}
                                 </div>
                             {% endfor %}
-                            
+
                             <div style="display: flex; justify-content: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft);">
                                 <button onclick="toggleDay(event, {{ loop.index0 }})" style="background: none; border: none; color: var(--bl-color-primary); font-size: 0.85rem; font-weight: 500; cursor: pointer;">Hide</button>
                             </div>
                         </div>
                     </div>
                 {% endfor %}
-                
+
                 <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--bl-color-border-soft);">
                     <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">You'll be able to suggest a trip here soon.</p>
                 </div>
@@ -685,7 +685,7 @@
             {% endif %}
         </div>
     </div>
-    
+
     <!-- Visited Resorts Modal -->
     {% if user_mountains and user_mountains|length > 3 %}
     <div class="visited-modal-overlay" id="visited-modal-overlay" onclick="closeVisitedModal(event)">
@@ -702,14 +702,14 @@
         </div>
     </div>
     {% endif %}
-    
+
     {% include 'components/bottom_nav.html' %}
-    
+
     <script>
         let expandedDayIndex = null;
         let equipmentExpanded = false;
         let sharedInterestsExpanded = false;
-        
+
         function toggleSharedInterests() {
             const collapsed = document.getElementById('shared-interest-collapsed');
             const expanded = document.getElementById('shared-interest-expanded');
@@ -717,7 +717,7 @@
             collapsed.style.display = sharedInterestsExpanded ? 'none' : 'block';
             expanded.style.display = sharedInterestsExpanded ? 'block' : 'none';
         }
-        
+
         function toggleEquipment() {
             const collapsed = document.getElementById('equipment-collapsed');
             const expanded = document.getElementById('equipment-expanded');
@@ -725,7 +725,7 @@
             collapsed.style.display = equipmentExpanded ? 'none' : 'inline';
             expanded.style.display = equipmentExpanded ? 'inline' : 'none';
         }
-        
+
         function openVisitedModal() {
             const overlay = document.getElementById('visited-modal-overlay');
             if (overlay) {
@@ -733,7 +733,7 @@
                 document.body.style.overflow = 'hidden';
             }
         }
-        
+
         function closeVisitedModal(event) {
             if (event && event.target !== event.currentTarget) return;
             const overlay = document.getElementById('visited-modal-overlay');
@@ -742,13 +742,13 @@
                 document.body.style.overflow = '';
             }
         }
-        
+
         function toggleDay(event, dayIndex) {
             event.stopPropagation();
             const card = document.querySelector(`[data-day-index="${dayIndex}"]`);
             const friendsList = card.querySelector('.open-day-friends');
             const header = card.querySelector('.open-day-header');
-            
+
             if (expandedDayIndex === dayIndex) {
                 friendsList.style.display = 'none';
                 header.querySelector('p:last-child').textContent = 'View who\'s open →';
@@ -761,47 +761,47 @@
                     prevFriendsList.style.display = 'none';
                     prevHeader.querySelector('p:last-child').textContent = 'View who\'s open →';
                 }
-                
+
                 friendsList.style.display = 'block';
                 header.querySelector('p:last-child').textContent = 'Hide';
                 expandedDayIndex = dayIndex;
             }
         }
-        
+
         document.addEventListener('DOMContentLoaded', function() {
             const tabs = document.querySelectorAll('.bl-tab-button');
             const panels = document.querySelectorAll('.bl-trip-list');
-            
+
             tabs.forEach(tab => {
                 tab.addEventListener('click', function() {
                     const tabName = this.getAttribute('data-tab');
-                    
+
                     tabs.forEach(t => {
                         t.classList.remove('active');
                         t.setAttribute('aria-selected', 'false');
                     });
                     this.classList.add('active');
                     this.setAttribute('aria-selected', 'true');
-                    
+
                     panels.forEach(panel => {
                         panel.style.display = 'none';
                     });
                     document.getElementById('tab-' + tabName).style.display = 'flex';
-                    
+
                     // Show/hide Create Trip button based on active tab
                     const createTripBtn = document.getElementById('create-trip-btn');
                     if (createTripBtn) {
                         createTripBtn.style.display = tabName === 'my' ? 'block' : 'none';
                     }
-                    
+
                     window.history.replaceState({}, '', '{{ url_for("home") }}?tab=' + tabName);
                 });
             });
         });
-        
+
         let currentDurationFilter = 'all';
         let currentEquipmentFilter = 'all';
-        
+
         function filterTrips(filterType, value) {
             if (filterType === 'duration') {
                 currentDurationFilter = value;
@@ -814,43 +814,43 @@
                     btn.classList.toggle('active', btn.getAttribute('data-filter') === 'equip-' + value);
                 });
             }
-            
+
             const trips = document.querySelectorAll('.my-trip-item');
             let visibleCount = 0;
-            
+
             trips.forEach(trip => {
                 const tripDuration = trip.getAttribute('data-duration');
                 const tripEquipment = trip.getAttribute('data-equipment');
-                
+
                 const durationMatch = (currentDurationFilter === 'all' || tripDuration === currentDurationFilter);
                 const equipmentMatch = (currentEquipmentFilter === 'all' || tripEquipment === currentEquipmentFilter);
-                
+
                 const shouldShow = durationMatch && equipmentMatch;
                 trip.style.display = shouldShow ? 'block' : 'none';
                 if (shouldShow) visibleCount++;
             });
-            
+
             const noResults = document.getElementById('no-filter-results');
             if (noResults) {
                 noResults.style.display = (visibleCount === 0) ? 'block' : 'none';
             }
         }
     </script>
-    
+
     {% if show_welcome_screen %}
     <!-- Welcome to BaseLodge Screen - Simple orientation modal -->
     <div class="onboarding-modal-overlay" id="welcome-modal">
         <div class="onboarding-modal welcome-modal">
             <h2 class="modal-title">Welcome to BaseLodge</h2>
             <p class="modal-subtitle">You're all set. Start by adding a trip, or explore when you're ready.</p>
-            
+
             <form method="POST" action="{{ url_for('mark_welcome_shown') }}" style="margin-top: 24px;">
                 <button type="submit" class="bl-btn-primary" style="width: 100%; padding: 14px;">Done</button>
             </form>
         </div>
     </div>
     {% endif %}
-    
+
     <style>
         .onboarding-modal-overlay {
             position: fixed;
@@ -865,7 +865,7 @@
             z-index: 1000;
             padding: 16px;
         }
-        
+
         .onboarding-modal {
             background: var(--bl-color-surface);
             border-radius: var(--bl-radius-lg);
@@ -875,11 +875,11 @@
             max-height: 90vh;
             overflow-y: auto;
         }
-        
+
         .welcome-modal {
             max-width: 500px;
         }
-        
+
         .modal-progress {
             font-size: 12px;
             color: var(--bl-color-text-muted);
@@ -887,24 +887,24 @@
             letter-spacing: 0.5px;
             margin-bottom: 12px;
         }
-        
+
         .modal-title {
             font-size: 22px;
             font-weight: 600;
             color: var(--bl-color-text);
             margin: 0 0 8px 0;
         }
-        
+
         .modal-subtitle {
             font-size: 14px;
             color: var(--bl-color-text-muted);
             margin: 0 0 24px 0;
         }
-        
+
         .onboarding-modal .form-group {
             margin-bottom: 20px;
         }
-        
+
         .onboarding-modal .form-label {
             display: block;
             font-size: 14px;
@@ -912,13 +912,13 @@
             color: var(--bl-color-text);
             margin-bottom: 12px;
         }
-        
+
         .onboarding-modal .radio-group {
             display: flex;
             flex-direction: column;
             gap: 8px;
         }
-        
+
         .onboarding-modal .radio-card {
             display: flex;
             align-items: center;
@@ -929,16 +929,16 @@
             cursor: pointer;
             transition: all 0.2s ease;
         }
-        
+
         .onboarding-modal .radio-card:hover {
             border-color: var(--bl-color-primary);
         }
-        
+
         .onboarding-modal .radio-card:has(input:checked) {
             border-color: var(--bl-color-primary);
             background: rgba(143, 1, 27, 0.05);
         }
-        
+
         .onboarding-modal .form-input {
             width: 100%;
             padding: 10px 12px;
@@ -947,28 +947,28 @@
             border-radius: var(--bl-radius-md);
             background: var(--bl-color-surface);
         }
-        
+
         .onboarding-modal .form-input:focus {
             outline: none;
             border-color: var(--bl-color-primary);
         }
-        
+
         .onboarding-modal .form-helper {
             font-size: 12px;
             color: var(--bl-color-text-muted);
             margin-top: 8px;
         }
-        
+
         .onboarding-modal .form-submit {
             width: 100%;
             margin-top: 8px;
         }
-        
+
         .onboarding-modal .optional-label {
             font-weight: 400;
             color: var(--bl-color-text-muted);
         }
-        
+
         .helper-note {
             background: #F0F9FF;
             border: 1px solid #BAE6FD;
@@ -978,27 +978,27 @@
             color: #0369A1;
             margin-bottom: 16px;
         }
-        
+
         .welcome-options {
             display: flex;
             flex-direction: column;
             gap: 20px;
             margin-bottom: 24px;
         }
-        
+
         .welcome-option h3 {
             font-size: 15px;
             font-weight: 600;
             color: var(--bl-color-text);
             margin: 0 0 4px 0;
         }
-        
+
         .welcome-option p {
             font-size: 13px;
             color: var(--bl-color-text-muted);
             margin: 0 0 12px 0;
         }
-        
+
         .welcome-option .bl-btn-primary,
         .welcome-option .bl-btn-secondary,
         .welcome-btn {
@@ -1007,7 +1007,7 @@
             text-align: center;
             text-decoration: none;
         }
-        
+
         .welcome-footer {
             font-size: 12px;
             color: var(--bl-color-text-muted);
