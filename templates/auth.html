@@ -284,8 +284,6 @@
                 </div>
                 
                 <button type="submit" class="bl-btn-primary form-submit">Create Account</button>
-                
-                <p class="auth-footer">You're joining an early test version of Base Lodge.</p>
             </form>
             
             <!-- Login Form -->
@@ -303,15 +301,14 @@
                         <input type="password" name="password" class="form-input" required placeholder="Your password" autocomplete="current-password" id="login-password">
                         <button type="button" class="password-toggle" data-target="login-password">Show</button>
                     </div>
-                    <div style="text-align: right; margin-top: 8px;">
-                        <a href="{{ url_for('forgot_password') }}" style="color: var(--bl-color-primary); text-decoration: none; font-size: 13px;">Forgot password?</a>
-                    </div>
                 </div>
                 
                 <button type="submit" class="bl-btn-primary form-submit">Log In</button>
-                
-                <p class="auth-footer">You're joining an early test version of Base Lodge.</p>
             </form>
+            <div id="forgot-password-link" style="text-align: right; margin-top: -12px; margin-bottom: 24px; display: none;">
+                <a href="{{ url_for('forgot_password') }}" style="color: var(--bl-color-primary); text-decoration: none; font-size: 13px;">Forgot password?</a>
+            </div>
+            <p class="auth-footer" id="auth-footer-text">You're joining an early test version of Base Lodge.</p>
         </div>
     </div>
     
@@ -320,12 +317,14 @@
         const tabLogin = document.getElementById('tab-login');
         const formSignup = document.getElementById('signup-form');
         const formLogin = document.getElementById('login-form');
+        const forgotPasswordLink = document.getElementById('forgot-password-link');
         
         tabSignup.addEventListener('click', () => {
             tabSignup.classList.add('active');
             tabLogin.classList.remove('active');
             formSignup.classList.add('active');
             formLogin.classList.remove('active');
+            forgotPasswordLink.style.display = 'none';
         });
         
         tabLogin.addEventListener('click', () => {
@@ -333,6 +332,7 @@
             tabSignup.classList.remove('active');
             formLogin.classList.add('active');
             formSignup.classList.remove('active');
+            forgotPasswordLink.style.display = 'block';
         });
         
         document.querySelectorAll('.password-toggle').forEach(btn => {
