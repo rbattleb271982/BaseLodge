@@ -667,15 +667,26 @@ class Invitation(db.Model):
         return f'<Invitation {self.sender_id} -> {self.receiver_id}>'
 
 
+INVITE_EXPIRY_HOURS = 48
+
 class InviteToken(db.Model):
-    """Single-use invite token. Validity determined by used_at only."""
+    """Invite token with 48-hour expiration."""
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(64), unique=True, nullable=False, index=True)
     inviter_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=True)
     used_at = db.Column(db.DateTime, nullable=True)
 
     inviter = db.relationship("User", backref="invite_tokens")
+
+    def is_expired(self):
+        """Check if invite link has expired (48-hour window)."""
+        if not self.expires_at:
+            # Fallback for legacy tokens without explicit expires_at
+            from datetime import timedelta
+            return datetime.utcnow() > (self.created_at + timedelta(hours=INVITE_EXPIRY_HOURS))
+        return datetime.utcnow() > self.expires_at
 
     def is_used(self):
         """Check if token has been used (single-use enforcement via used_at)."""

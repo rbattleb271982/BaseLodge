@@ -276,9 +276,10 @@ def get_or_create_invite_token(user):
         if not token_obj.is_used():
             return token_obj
     
-    # Create new single-use token
+    # Create new token with 48-hour expiration
     token = secrets.token_urlsafe(16)
-    invite = InviteToken(token=token, inviter_id=user.id)
+    expires_at = datetime.utcnow() + timedelta(hours=48)
+    invite = InviteToken(token=token, inviter_id=user.id, expires_at=expires_at)
     db.session.add(invite)
     db.session.commit()
     return invite
@@ -723,13 +724,17 @@ def auth():
             
             login_user(user)
             
-            # Connect with inviter if pending_inviter_id exists in session
-            _connect_pending_inviter(user)
+            # Connect with inviter if invite_token exists in session
+            connected = _connect_pending_inviter(user)
             
             next_url = request.args.get("next")
             if next_url:
                 session["next_after_setup"] = next_url
             
+            if connected:
+                # If connected via invite, we'll redirect to my-trips after profile setup
+                session["next_after_setup"] = url_for("my_trips", tab="friends", connected="true")
+
             # Route to identity setup screen (required step after signup)
             return redirect(url_for("identity_setup"))
         
@@ -750,9 +755,12 @@ def auth():
                     user.login_count = (user.login_count or 0) + 1
                     db.session.commit()
                     
-                    # Connect with inviter if pending_inviter_id exists in session
-                    _connect_pending_inviter(user)
+                    # Connect with inviter if invite_token exists in session
+                    connected = _connect_pending_inviter(user)
                     
+                    if connected:
+                        return redirect(url_for("my_trips", tab="friends", connected="true"))
+
                     next_url = request.args.get("next")
                     if next_url:
                         return redirect(next_url)
@@ -848,128 +856,64 @@ def location_setup():
 
 
 def _connect_pending_inviter(user):
-    """
-    Helper to connect user with pending inviter.
+    """Helper to connect user with pending inviter from session invite_token."""
+    invite_token_str = session.get("invite_token")
+    if not invite_token_str:
+        # Legacy fallback
+        legacy_inviter_id = session.get("pending_inviter_id")
+        if legacy_inviter_id:
+            inviter = User.query.get(legacy_inviter_id)
+            if inviter and inviter.id != user.id:
+                existing = Friend.query.filter_by(user_id=user.id, friend_id=inviter.id).first()
+                if not existing:
+                    f1 = Friend(user_id=user.id, friend_id=inviter.id)
+                    f2 = Friend(user_id=inviter.id, friend_id=user.id)
+                    db.session.add_all([f1, f2])
+                    user.invited_by_user_id = inviter.id
+                    db.session.commit()
+            session.pop("pending_inviter_id", None)
+        return False
+
+    invite = InviteToken.query.filter_by(token=invite_token_str).first()
+    if not invite or invite.is_expired():
+        session.pop("invite_token", None)
+        return False
+
+    inviter = User.query.get(invite.inviter_id)
+    connected = False
+    if inviter and inviter.id != user.id:
+        existing = Friend.query.filter_by(user_id=user.id, friend_id=inviter.id).first()
+        if not existing:
+            f1 = Friend(user_id=user.id, friend_id=inviter.id)
+            f2 = Friend(user_id=inviter.id, friend_id=user.id)
+            db.session.add_all([f1, f2])
+            user.invited_by_user_id = inviter.id
+            db.session.commit()
+            connected = True
+            app.logger.info(f"Connected {user.id} with inviter {inviter.id} via token {invite_token_str}")
     
-    Priority:
-    1. Check user.invited_by_user_id (durable, survives session loss)
-    2. Fall back to session pending_inviter_id
-    
-    Idempotent: Does not create duplicate Friend rows if they already exist.
-    
-    NOTE: user.invited_by_user_id is intentionally retained as historical metadata
-    and must NOT be cleared after friend connections are created. It enables
-    referral tracking and inviter lineage queries.
-    """
-    # Priority 1: Durable inviter reference on User record
-    inviter_id = user.invited_by_user_id
-    source = "durable"
-    
-    # Priority 2: Fall back to session (legacy path)
-    if not inviter_id:
-        inviter_id = session.get("pending_inviter_id")
-        source = "session"
-    
-    invite_token_id = session.get("pending_invite_token_id")
-    
-    # Debug logging for verification
-    app.logger.info(f"[_connect_pending_inviter] user_id={user.id}, inviter_id={inviter_id}, source={source}")
-    
-    if not inviter_id or inviter_id == user.id:
-        app.logger.info(f"[_connect_pending_inviter] No valid inviter found for user_id={user.id}")
-        session.pop("pending_inviter_id", None)
-        session.pop("pending_invite_token_id", None)
-        return
-    
-    inviter = User.query.get(inviter_id)
-    invite_token = InviteToken.query.get(invite_token_id) if invite_token_id else None
-    
-    if not inviter:
-        app.logger.warning(f"[_connect_pending_inviter] Inviter user_id={inviter_id} not found")
-        session.pop("pending_inviter_id", None)
-        session.pop("pending_invite_token_id", None)
-        return
-    
-    # Check sender limits
-    if not can_sender_accept_more_invites(inviter):
-        app.logger.info(f"[_connect_pending_inviter] Inviter user_id={inviter_id} has reached invite limit")
-        session.pop("pending_inviter_id", None)
-        session.pop("pending_invite_token_id", None)
-        return
-    
-    # Check token is not already used (single-use enforcement)
-    if invite_token and invite_token.is_used():
-        app.logger.info(f"[_connect_pending_inviter] Token already used for user_id={user.id}")
-        session.pop("pending_inviter_id", None)
-        session.pop("pending_invite_token_id", None)
-        return
-    
-    # Idempotent check: Do not create duplicate rows if already friends
-    existing = Friend.query.filter(
-        db.or_(
-            db.and_(Friend.user_id == user.id, Friend.friend_id == inviter.id),
-            db.and_(Friend.user_id == inviter.id, Friend.friend_id == user.id),
-        )
-    ).first()
-    
-    if existing:
-        app.logger.info(f"[_connect_pending_inviter] Connection already exists between user_id={user.id} and inviter_id={inviter_id}")
-        session.pop("pending_inviter_id", None)
-        session.pop("pending_invite_token_id", None)
-        return
-    
-    # Create bidirectional connection
-    f1 = Friend(user_id=user.id, friend_id=inviter.id)
-    f2 = Friend(user_id=inviter.id, friend_id=user.id)
-    db.session.add_all([f1, f2])
-    
-    # Track first connection if not already set
-    if not user.first_connection_at:
-        user.first_connection_at = datetime.utcnow()
-    if not inviter.first_connection_at:
-        inviter.first_connection_at = datetime.utcnow()
-    
-    # Mark token as used (single-use enforcement)
-    if invite_token:
-        invite_token.used_at = datetime.utcnow()
-    
-    db.session.commit()
-    
-    app.logger.info(f"[_connect_pending_inviter] SUCCESS: Created bidirectional connection user_id={user.id} <-> inviter_id={inviter_id}")
-    
-    # Emit connection_created events for both users
-    emit_event('connection_created', user, {'friend_id': inviter.id})
-    emit_event('connection_created', inviter, {'friend_id': user.id})
-    
-    # Clean up session
-    session.pop("pending_inviter_id", None)
-    session.pop("pending_invite_token_id", None)
+    session.pop("invite_token", None)
+    return connected
 
 
-@app.route("/r/<token>")
+@app.route("/invite/<token>")
 def invite_token_landing(token):
-    """Landing page for invite token links."""
+    """Time-limited invite landing page."""
     invite = InviteToken.query.filter_by(token=token).first()
-
-    # Token doesn't exist
-    if not invite:
-        return render_template("invite_invalid.html", message="This invite is no longer valid.")
-
-    # Token already used (single-use enforcement)
-    if invite.is_used():
-        return render_template("invite_invalid.html", message="This invite link has already been used.")
-
-    inviter = invite.inviter
-    if not inviter:
-        return render_template("invite_invalid.html", message="This invite is no longer valid.")
-
-    # Sender has reached max invite accepts (10 total)
-    if not can_sender_accept_more_invites(inviter):
-        return render_template("invite_invalid.html", message="This user has reached their invite limit for now.")
-
-    # Store inviter and token in session so auth flow can use it
-    session["pending_inviter_id"] = inviter.id
-    session["pending_invite_token_id"] = invite.id
+    
+    if not invite or invite.is_expired():
+        return render_template("invite_expired.html")
+        
+    # Store token in session for post-auth connection
+    session["invite_token"] = token
+    
+    # Get inviter for landing page display
+    inviter = User.query.get(invite.inviter_id)
+    inviter_trips_count = SkiTrip.query.filter_by(user_id=inviter.id).count()
+    
+    return render_template("invite_landing.html", 
+                           inviter=inviter, 
+                           inviter_trips_count=inviter_trips_count)
 
     # If user is already logged in, connect immediately
     if current_user.is_authenticated and current_user.id != inviter.id:
@@ -1113,6 +1057,8 @@ def edit_profile():
 @login_required
 def my_trips():
     today = date.today()
+    active_tab = request.args.get("tab", "my_trips")
+    show_connected_banner = request.args.get("connected") == "true"
 
     # Get trips where user is an accepted participant (not owner)
     accepted_participation_trip_ids = db.session.query(SkiTripParticipant.trip_id).filter(
@@ -1146,10 +1092,21 @@ def my_trips():
         .all()
     )
 
+    # Get friends list if friends tab is active
+    friends = []
+    if active_tab == "friends":
+        friend_links = Friend.query.filter_by(user_id=current_user.id).all()
+        friend_ids = [f.friend_id for f in friend_links]
+        if friend_ids:
+            friends = User.query.filter(User.id.in_(friend_ids)).all()
+
     return render_template(
         "my_trips.html",
         upcoming_trips=upcoming_trips,
         past_trips=past_trips,
+        active_tab=active_tab,
+        show_connected_banner=show_connected_banner,
+        friends=friends
     )
 
 @app.route("/api/mountains/<state>")
