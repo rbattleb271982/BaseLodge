@@ -679,32 +679,36 @@ MOUNTAINS_BY_STATE = {
 @app.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
     if request.method == "POST":
-        email = request.form.get("email", "").lower().strip()
-        user = User.query.filter(sa.func.lower(User.email) == email).first()
-        
-        if user:
-            # Generate token
-            token = secrets.token_urlsafe(32)
-            user.password_reset_token = token
-            user.password_reset_expires_at = datetime.utcnow() + timedelta(minutes=30)
-            db.session.commit()
+        try:
+            email = request.form.get("email", "").lower().strip()
+            user = User.query.filter(sa.func.lower(User.email) == email).first()
             
-            # Send Email via SendGrid
-            reset_url = url_for("reset_password", token=token, _external=True)
-            
-            message = Mail(
-                from_email='noreply@baselodgeapp.com',
-                to_emails=user.email,
-                subject='Reset your BaseLodge password',
-                plain_text_content=f'Please use the following link to reset your password: {reset_url}\n\nThis link will expire in 30 minutes.'
-            )
-            
-            try:
-                sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
-                sg.send(message)
-                app.logger.info(f"Password reset email sent to {user.email}")
-            except Exception as e:
-                app.logger.error(f"Error sending password reset email: {e}")
+            if user:
+                # Generate token
+                token = secrets.token_urlsafe(32)
+                user.password_reset_token = token
+                user.password_reset_expires_at = datetime.utcnow() + timedelta(minutes=30)
+                db.session.commit()
+                
+                # Send Email via SendGrid
+                reset_url = url_for("reset_password", token=token, _external=True)
+                
+                message = Mail(
+                    from_email='noreply@baselodgeapp.com',
+                    to_emails=user.email,
+                    subject='Reset your BaseLodge password',
+                    plain_text_content=f'Please use the following link to reset your password: {reset_url}\n\nThis link will expire in 30 minutes.'
+                )
+                
+                try:
+                    sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
+                    sg.send(message)
+                    app.logger.info(f"Password reset email sent to {user.email}")
+                except Exception as e:
+                    app.logger.error(f"Error sending password reset email: {e}")
+        except Exception as e:
+            app.logger.error(f"Error in forgot_password POST handler: {e}")
+            db.session.rollback()
         
         # Always show same message
         flash("If an account exists with that email, you’ll receive a password reset link.", "info")
