@@ -1,7 +1,7 @@
 # Base Lodge
 
 ## Overview
-Base Lodge is a Flask-based ski/snowboard trip planning application designed to help users track ski days, manage resort passes, and connect with friends. It offers a modern, mobile-first experience with a focus on user profiles, an invitation-based friends system, and a centralized trip management hub, aiming to be a seamless platform for snow sports enthusiasts. The business vision is to create a primary platform for snow sports enthusiasts to plan, track, and socialize their winter mountain experiences.
+Base Lodge is a Flask-based ski/snowboard trip planning application. It helps users track ski days, manage resort passes, and connect with friends. The application provides a modern, mobile-first experience focused on user profiles, an invitation-based friends system, and a centralized trip management hub. The vision is to be the primary platform for snow sports enthusiasts to plan, track, and socialize their winter mountain experiences.
 
 ## User Preferences
 - Mobile-first design approach (now supporting both web & mobile)
@@ -18,108 +18,44 @@ Base Lodge is a Flask-based ski/snowboard trip planning application designed to 
 ## System Architecture
 
 ### UI/UX Decisions
-The application uses a mobile-first responsive design with a unified "BaseLodge" design system and CSS variables. Key UI elements include segmented controls, a 5-tab bottom navigation with SVG icons (Trips, Friends, Invite, Profile, Feedback), and a home-first navigation paradigm. Brand colors are a deep red (#8F011B for light, #FF6B7A for dark) with clean backgrounds and surfaces. Component partials ensure reusability. Profile forms are optimized for mobile with a max-width of 500px. Settings screens utilize a card-based layout. Flash messages are context-specific.
-
-**Dark Mode Support (Dec 2025):** System-based dark mode via `@media (prefers-color-scheme: dark)`. All colors use CSS variables (`--bl-color-*`) with automatic overrides for dark mode. Alpine-inspired dark palette with subtle slate backgrounds (#0E1114, #1C2127) and adjusted accent colors. No manual toggle required - follows OS preference. Admin pages are excluded from dark mode styling.
-
-Card designs for Home and Friend Profiles use a shared `components/profile_card.html` component with an `is_owner` flag. The card displays Name, Identity line (via `identity_line` filter), Riding Style, Terrain Preferences, and Equipment. Stats row shows 3 columns: "Trips Created", "Visited Mountains", "Bucket List Mountains" with labels above numbers. For owners, stats are tappable links to respective edit pages; for friends, stats are read-only. Equipment displays brand/model or boot-only data with fallback logic. Profile cards are read-only identity snapshots; settings are the source of truth for editable fields. Terrain preferences allow max 2 selections from Groomers, Trees, Steeps, Park. When selecting a 3rd option, the oldest selection is automatically replaced (no blocking). Legacy "First Chair" and "Après" values are preserved but not selectable.
-
-Friends List uses a 2-row structure for Name, Status, Rider Type, Passes, and Skill Level.
-
-### Centralized Identity Formatter
-All identity lines use a `{{ user|identity_line }}` Jinja2 filter. The format is `Rider Types · Pass1 · Pass2 · Skill Level`. Rules include:
-- **Rider Types:** Multi-select display, all types joined with " & " (e.g., "Skier & Snowboarder")
-- **Passes:** All passes listed individually, never "Both"
-- **Skill Level:** Last if present
-- Home state excluded from identity line
-- Typography scales are increased for card contexts
+The application employs a mobile-first responsive design with a unified "BaseLodge" design system and CSS variables. Key UI elements include segmented controls, a 5-tab bottom navigation with SVG icons (Trips, Friends, Invite, Profile, Feedback), and a home-first navigation paradigm. The color scheme features a deep red accent (`#8F011B` light, `#FF6B7A` dark) with clean backgrounds. Dark mode is system-based via `@media (prefers-color-scheme: dark)`, using an Alpine-inspired palette. Card designs for Home and Friend Profiles use a shared `profile_card.html` component. Profile forms are optimized for mobile, and settings use a card-based layout.
 
 ### Technical Implementations
-The backend uses Flask, SQLAlchemy for ORM, and Werkzeug for password hashing. Jinja2 handles templating with custom CSS and Vanilla JS for interactivity and AJAX. Flask-Login provides session-based authentication. An event system captures high-signal user actions for notifications. User lifecycle stages (`new`, `onboarding`, `active`) and canonical user states (`is_core_profile_complete`, `has_started_planning`, `is_active_user`) dictate UI and feature availability.
+The backend is built with Flask, utilizing SQLAlchemy for ORM and Werkzeug for password hashing. Jinja2 is used for templating, complemented by custom CSS and Vanilla JS for interactivity and AJAX. Flask-Login handles session-based authentication. An event system captures user actions for notifications. User lifecycle stages (`new`, `onboarding`, `active`) and canonical states (`is_core_profile_complete`, `has_started_planning`, `is_active_user`) dictate UI and feature availability.
 
 ### Feature Specifications
-- **Authentication & Onboarding:** Two-step onboarding flow after signup: (1) Identity Setup collects rider_types (multi-select), skill_level (radio), and pass_type (multi-select chips). (2) Location Setup collects home_state only. Welcome modal appears ONLY after both steps complete. Stop condition: `welcome_modal_seen_at` set. User model computed properties: `is_core_profile_complete`, `is_equipment_complete`, `is_profile_complete`. Equipment is optional and managed in Settings > Equipment. Home Mountain may be set later via Profile or inferred from trips. Follows prompt-on-intent principle: no auto-prompts for optional data.
-- **User Profile:** Comprehensive profiles (multi-select rider types, pass, skill, home state, equipment, visited mountains) within a "Settings" page.
-- **Trip Management:** Create trips with country-first location, dates via inline date-range calendar, public toggles, ride intent. Displayed in 3 tabs (My Trips, Friends' Trips, Overlaps). Auto-calculates duration as inclusive days. Date validation enforces future dates for new trips. Prevents duplicate active trips at the same resort. Includes resort search and filters. Group trip creation via "Propose a trip" flow with URL prefill params (friend_id, start_date, end_date, is_group). Trip Detail page at `/trips/<id>` serves as the primary trip hub with owner invite CTA and participant list.
-- **Date Range Calendar:** Single inline calendar replaces separate date inputs. First tap selects start date, second tap selects end date. Tapping earlier than start resets the range. Same-day trips allowed. Duration calculated as `(end - start) + 1` days and stored automatically. Confirmation helper shows "Dec 25–27 · 3 days" below calendar. Past dates disabled for new trips but allowed when editing.
-- **Unified Trip Date Display (Dec 2025):** All trip date displays use `format_trip_dates(trip)` Jinja2 global. Display-only logic (no database storage):
-  - Single-day: "Today" or "Dec 28"
-  - Multi-day starting today: "Today–Dec 28"
-  - Multi-day in progress (started in past, ends today or later): "Today–Dec 28"
-  - Future multi-day: "Dec 25–Dec 28"
-  Applied consistently across home screen, profile, friend profiles, trip details, and all trip list surfaces.
-- **Trip Invites:** Trip owners can invite connected friends from Trip Detail page. Invites use SkiTripParticipant model with INVITED/ACCEPTED/DECLINED status. Invited users can view trip details before accepting. Home page shows pending invites with Accept/Decline actions.
-- **Friends System:** Invitation-based, bidirectional friendships with dedicated profiles supporting token-based invites.
-- **Activity Feed (Dec 2025):** Friends screen includes an "Updates" tab showing real-time friend activities. Uses segmented control to toggle between Updates (default) and Friends tabs. Activity types: trip_created, trip_updated, friend_joined_trip, trip_invite_accepted, connection_accepted, trip_overlap. Activities limited to 50 most recent per user, no read/unread state in v1. `Activity` model stores recipient_id, actor_id, activity_type, trip_id (optional), and metadata JSON. Helper function `create_activity_for_friends()` broadcasts to all connected friends. Application-level cleanup deletes activities when trips are deleted. Uses `relative_time` Jinja2 filter for timestamps (e.g., "2h ago", "Yesterday").
-- **Pass Selection:** Quick-select for Epic/Ikon, "Other passes" dropdown, or "I don't have a pass."
-- **Navigation:** Consistent 4-tab bottom navigation (Trips, Friends, Invite, Profile) with flexbox layout.
-- **Location Selector:** Unified typeahead component for all state/province selection. Options grouped by country (United States, Canada), alphabetically sorted. Supports keyboard navigation, mouse, and touch. Shared via `components/location_selector.html`.
-- **Open Dates:** Users mark available ski dates for friend matching.
-- **Multi-Pass & International Resort Support:** `Resort` model includes `pass_brands`, `country`, and expanded `state` for international regions.
-- **Shared Interest Discovery:** Home screen card for overlapping wishlist resorts.
-- **Social Trip Models (`GroupTrip`):** Supports multi-user trips with host and guest management.
-- **Equipment Management:** Users add/edit Primary and Secondary equipment setups via settings. Displays as "Brand Model". Allows global and per-trip `equipment_status`.
-- **Trip Accommodations:** Trip form now includes accommodation_status (none_yet, hotel, airbnb, other) and optional accommodation_link fields. Link input shown conditionally based on status.
-- **Group Coordination Signals:** SkiTripParticipant includes transportation_status and equipment_status for per-participant trip coordination. Trip Detail page shows aggregated Group Signals summary card. Organizer is always a participant (auto-created on trip creation). Who's Going section uses tappable badges that open bottom sheet pickers for editing. Organizer sees inline reminder on invite intent if signals unset. Backfill endpoint: `/admin/backfill-organizers-as-participants`.
-- **Wish List Destinations:** Users save up to 3 aspirational resorts, displayed on profiles with overlap features.
-- **Friend Profile Features:** Full-page profiles showing header card, equipment, upcoming trips, pass compatibility, trip/availability overlaps, and wish lists.
-- **Personalization Features:** Terrain preferences, smart resort defaults, countdown to next trip, availability match nudges, relevance-based friend ordering, rider-aware copy, and seasonal awareness.
+-   **Authentication & Onboarding:** A two-step onboarding process (Identity Setup, Location Setup) follows signup. Welcome modal appears after both steps are complete.
+-   **User Profile:** Comprehensive profiles managed via a "Settings" page, including rider types, skill level, pass types, home state, equipment, and visited mountains.
+-   **Trip Management:** Users can create trips with location, dates (via inline calendar), public toggles, and ride intent. Trips are displayed in "My Trips", "Friends' Trips", and "Overlaps" tabs. Date validation enforces future dates for new trips and prevents duplicate active trips at the same resort.
+-   **Date Range Calendar:** An inline calendar allows selecting start and end dates, calculating trip duration automatically. Past dates are disabled for new trips.
+-   **Unified Trip Date Display:** All trip dates are consistently formatted using `format_trip_dates(trip)` based on their duration and relation to the current date (e.g., "Today", "Dec 25–Dec 28").
+-   **Trip Invites:** Trip owners can invite friends, managing participant status (INVITED/ACCEPTED/DECLINED). Invited users can view trip details before accepting.
+-   **Friends System:** An invitation-based, bidirectional friendship system with dedicated profiles and token-based invites.
+-   **Activity Feed:** A "Updates" tab on the Friends screen displays real-time friend activities (e.g., trip created, friend joined trip, connection accepted). Activities are limited to 50 most recent per user.
+-   **Pass Selection:** Quick-select options for major passes, with a dropdown for "Other passes" or "I don't have a pass."
+-   **Navigation:** Consistent 4-tab bottom navigation (Trips, Friends, Invite, Profile).
+-   **Location Selector:** A unified typeahead component for state/province selection, grouped by country and alphabetically sorted.
+-   **Multi-Pass & International Resort Support:** The `Resort` model includes `pass_brands`, `country`, and expanded `state` fields.
+-   **Group Coordination Signals:** `SkiTripParticipant` includes `transportation_status` and `equipment_status` for per-participant coordination, summarized in a Group Signals card on the Trip Detail page.
+-   **Wish List Destinations:** Users can save up to 3 aspirational resorts, displayed on profiles with overlap features.
+-   **Personalization Features:** Terrain preferences, smart resort defaults, next trip countdown, availability match nudges, and relevance-based friend ordering.
 
 ### System Design Choices
-- **Database:** SQLite for development, PostgreSQL for production, managed via SQLAlchemy.
-- **File Structure:** Organized separation of application logic, models, templates, and static assets.
-- **API Endpoints:** Dedicated routes for authentication, trip, friend, profile, and equipment management.
-- **Models:** Core models include `User`, `SkiTrip`, `Resort`, `Friend`, `Invitation`, `InviteToken`, `GroupTrip`, `TripGuest`, `SkiTripParticipant`, and `EquipmentSetup`.
-- **Database Initialization:** Idempotent via `flask init-db` or `/admin/init-db`.
-- **Test Data Seeding:** `/admin/seed-test-users` provides demo data.
-
-### Resort Architecture (Dec 2025)
-The `Resort` table is the single source of truth for resort data. All resort selections now store Resort IDs:
-- **Trips:** `SkiTrip.resort_id` (FK to Resort)
-- **Wishlist:** `User.wishlist_resort_ids` (JSON array of Resort IDs)
-- **Visited Mountains:** `User.visited_resort_ids` (JSON array of Resort IDs) with `User.mountains_visited` legacy fallback
-- **Home Mountain:** `User.home_resort_id` (FK to Resort) with `User.home_mountain` legacy fallback
-
-**Geography Columns (Dec 2025):** Resort model now has canonical geography columns for Add Trip flow:
-- `country_code` (String 10) - ISO-2 country code: US, CA, JP, FR, CH, AT, IT
-- `country_name` (String 100) - Display name: United States, Canada, Japan, etc.
-- `state_code` (String 50) - Region code: CO, BC, Hokkaido, etc.
-- `state_name` (String 100) - Display name: Colorado, British Columbia, etc.
-
-**Add Trip Geography:** The Add Trip flow uses Resort-derived functions (not hardcoded constants):
-- `get_countries_with_resorts()` - Returns countries from Resort table
-- `get_states_by_country()` - Returns states/provinces from Resort table grouped by country
-- `get_states_with_resorts()` - Returns all states that have resorts
-Only states/countries with actual resorts are shown in dropdowns.
-
-**Migration Pattern:** Dual-write strategy maintains backward compatibility. All write operations update both new ID fields and legacy string fields. GET operations prioritize legacy data then merge Resort IDs. Admin backfill endpoint: `/admin/backfill-resort-ids`.
-
-**Helper Methods:**
-- `User.get_visited_resorts()` - Returns Resort objects for visited mountains
-- `User.visited_resorts_count` - Property returning count
-- `User.get_home_resort()` - Returns Resort object for home mountain
-- `find_resort_by_name(name, state_code)` - Case-insensitive resort lookup with alias support
-
-**Future Work:** Profile location selectors could also transition from constants to Resort table queries.
-
-### Lifecycle Signals
-Canonical User States (`is_core_profile_complete`, `has_started_planning`, `is_active_user`) are computed properties on the User model. Lifecycle signal fields like `login_count`, `first_planning_timestamp`, and `planning_completed_timestamp` track user progress. These signals suppress nudges and adapt UI copy based on 4 narrative states.
-
-### Narrative Continuity
-Four narrative states (Early Onboarding, Profile Complete/Not Planning, Planning Started, Active User) dynamically adjust UI copy on Home, Friends, and Edit Profile screens based on user's progress.
-
-### Next Best Action (NBA) System
-At most one primary CTA (`.bl-btn-primary`) per screen. NBA is expressed via button styling, CTA copy, and headline alignment, without adding new UI components or reordering navigation.
-
-### Production Readiness
-Includes a backfill script for `first_planning_timestamp` and test users for narrative state validation. Deprecated fields are noted for backward compatibility.
+-   **Database:** SQLite for development, PostgreSQL for production, managed with SQLAlchemy.
+-   **File Structure:** Standardized separation of application logic, models, templates, and static assets.
+-   **API Endpoints:** Dedicated routes for core functionalities like authentication, trips, friends, and profiles.
+-   **Models:** Key models include `User`, `SkiTrip`, `Resort`, `Friend`, `Invitation`, `SkiTripParticipant`, and `EquipmentSetup`.
+-   **Resort Architecture:** The `Resort` table is the single source of truth for all resort data, with all resort selections (trips, wishlist, visited mountains, home mountain) referencing `Resort` IDs. Geography columns (`country_code`, `country_name`, `state_code`, `state_name`) are canonical, and resort selection flows dynamically query the `Resort` table.
+-   **Lifecycle Signals:** Canonical User States and tracking fields (`login_count`, `first_planning_timestamp`) enable dynamic UI adjustments and suppress nudges.
+-   **Narrative Continuity:** Four narrative states (Early Onboarding, Profile Complete/Not Planning, Planning Started, Active User) dynamically adjust UI copy.
+-   **Next Best Action (NBA) System:** Prioritizes a single primary CTA per screen using styling and copy.
 
 ## External Dependencies
-- **Flask:** Python web framework.
-- **Flask-Login:** User session management.
-- **SQLAlchemy:** SQL toolkit and Object-Relational Mapper.
-- **Werkzeug:** WSGI utility library for password hashing.
-- **Jinja2:** Templating engine.
-- **SQLite:** Default development database.
-- **PostgreSQL:** Production-ready database.
-- **Alembic:** Database migration tool (via Flask-Migrate).
+-   **Flask:** Python web framework.
+-   **Flask-Login:** User session management.
+-   **SQLAlchemy:** SQL toolkit and ORM.
+-   **Werkzeug:** WSGI utility library for password hashing.
+-   **Jinja2:** Templating engine.
+-   **SQLite:** Default development database.
+-   **PostgreSQL:** Production-ready database.
+-   **Alembic:** Database migration tool (via Flask-Migrate).
