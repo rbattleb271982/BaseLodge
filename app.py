@@ -836,11 +836,8 @@ def forgot_password():
             user = User.query.filter(sa.func.lower(User.email) == email).first()
             
             if user:
-                # Generate token
-                token = secrets.token_urlsafe(32)
-                user.password_reset_token = token
-                user.password_reset_expires_at = datetime.utcnow() + timedelta(minutes=30)
-                db.session.commit()
+                # Generate token using itsdangerous
+                token = user.get_reset_token()
                 
                 # Send Email via SendGrid
                 # Force absolute URL for Replit dev environment
@@ -903,9 +900,6 @@ def reset_password(token=None):
             return render_template("reset_password.html", token=token)
 
         user.set_password(password)
-        # Clear token to prevent reuse
-        user.password_reset_token = None
-        user.password_reset_expires_at = None
         db.session.commit()
 
         return render_template("reset_password_success.html")

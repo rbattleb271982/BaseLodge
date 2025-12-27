@@ -135,10 +135,6 @@ class User(UserMixin, db.Model):
     primary_riding_style = db.Column(db.String(50), nullable=True)  # Groomers, Powder, All-Mountain, Park, Mixed
     welcome_modal_seen_at = db.Column(db.DateTime, nullable=True)  # Set when welcome modal dismissed (once only)
     
-    # Password Reset Support
-    password_reset_token = db.Column(sa.String(128), index=True, nullable=True)
-    password_reset_expires_at = db.Column(db.DateTime, nullable=True)
-    
     trips = db.relationship('SkiTrip', foreign_keys='SkiTrip.user_id', backref='user', lazy=True)
     friend_requests_sent = db.relationship('Invitation', foreign_keys='Invitation.sender_id', backref='sender', lazy=True)
     friend_requests_received = db.relationship('Invitation', foreign_keys='Invitation.receiver_id', backref='receiver', lazy=True)
@@ -153,19 +149,29 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
     
+    def get_reset_token(self):
+        """Generate a time-limited password reset token."""
+        from itsdangerous import URLSafeTimedSerializer
+        from flask import current_app
+        s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+        return s.dumps(self.id, salt='password-reset')
+    
     @staticmethod
-    def verify_reset_token(token):
-        """Verify password reset token and return user if valid."""
+    def verify_reset_token(token, max_age=1800):
+        """Verify password reset token and return user if valid (30 min expiry)."""
+        from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+        from flask import current_app
+        
         if not token:
             return None
-        user = User.query.filter_by(password_reset_token=token).first()
-        if not user:
+        
+        s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+        try:
+            user_id = s.loads(token, salt='password-reset', max_age=max_age)
+        except (SignatureExpired, BadSignature):
             return None
-        if not user.password_reset_expires_at:
-            return None
-        if datetime.utcnow() > user.password_reset_expires_at:
-            return None
-        return user
+        
+        return User.query.get(user_id)
 
     def __repr__(self):
         return f'<User {self.email}>'
