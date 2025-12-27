@@ -1202,37 +1202,21 @@ def my_trips():
         active_tab = request.args.get("tab", "my_trips")
         show_connected_banner = request.args.get("connected") == "true"
 
-        # Get trips where user is an accepted participant (not owner)
-        accepted_participation_trip_ids = db.session.query(SkiTripParticipant.trip_id).filter(
-            SkiTripParticipant.user_id == user.id,
-            SkiTripParticipant.status == GuestStatus.ACCEPTED
-        ).subquery()
-
         upcoming_trips = (
             SkiTrip.query
-            .filter(
-                db.or_(
-                    SkiTrip.user_id == user.id,
-                    SkiTrip.id.in_(accepted_participation_trip_ids)
-                )
-            )
+            .filter(SkiTrip.user_id == current_user.id)
             .filter(SkiTrip.end_date >= today)
             .order_by(SkiTrip.start_date.asc())
             .all()
-        ) or []
+        )
 
         past_trips = (
             SkiTrip.query
-            .filter(
-                db.or_(
-                    SkiTrip.user_id == user.id,
-                    SkiTrip.id.in_(accepted_participation_trip_ids)
-                )
-            )
+            .filter(SkiTrip.user_id == current_user.id)
             .filter(SkiTrip.end_date < today)
             .order_by(SkiTrip.start_date.desc())
             .all()
-        ) or []
+        )
 
         # Get friends
         friend_links = Friend.query.filter_by(user_id=user.id).all()
