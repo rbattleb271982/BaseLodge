@@ -1203,32 +1203,35 @@ def my_trips():
         show_connected_banner = request.args.get("connected") == "true"
 
         # Get trips where user is an accepted participant (not owner)
-        accepted_participation_trip_ids = db.session.query(SkiTripParticipant.trip_id).filter(
-            SkiTripParticipant.user_id == user.id,
-            SkiTripParticipant.status == GuestStatus.ACCEPTED
-        ).subquery()
+        accepted_participation_trip_ids = []
+        try:
+            participation_results = db.session.query(SkiTripParticipant.trip_id).filter(
+                SkiTripParticipant.user_id == user.id,
+                SkiTripParticipant.status == GuestStatus.ACCEPTED
+            ).all()
+            accepted_participation_trip_ids = [p.trip_id for p in participation_results]
+        except Exception:
+            accepted_participation_trip_ids = []
+
+        upcoming_filter = SkiTrip.user_id == user.id
+        if accepted_participation_trip_ids:
+            upcoming_filter = db.or_(upcoming_filter, SkiTrip.id.in_(accepted_participation_trip_ids))
 
         upcoming_trips = (
             SkiTrip.query
-            .filter(
-                db.or_(
-                    SkiTrip.user_id == user.id,
-                    SkiTrip.id.in_(accepted_participation_trip_ids)
-                )
-            )
+            .filter(upcoming_filter)
             .filter(SkiTrip.end_date >= today)
             .order_by(SkiTrip.start_date.asc())
             .all()
         ) or []
 
+        past_filter = SkiTrip.user_id == user.id
+        if accepted_participation_trip_ids:
+            past_filter = db.or_(past_filter, SkiTrip.id.in_(accepted_participation_trip_ids))
+
         past_trips = (
             SkiTrip.query
-            .filter(
-                db.or_(
-                    SkiTrip.user_id == user.id,
-                    SkiTrip.id.in_(accepted_participation_trip_ids)
-                )
-            )
+            .filter(past_filter)
             .filter(SkiTrip.end_date < today)
             .order_by(SkiTrip.start_date.desc())
             .all()
