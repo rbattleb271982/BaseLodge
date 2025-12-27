@@ -2240,24 +2240,7 @@ def format_availability_ranges(ranges):
 @app.route("/home")
 @login_required
 def home():
-    user = current_user
-    
-    today = date.today()
-    
-    # Get trips where user is an accepted participant (not owner)
-    accepted_participation_trip_ids = db.session.query(SkiTripParticipant.trip_id).filter(
-        SkiTripParticipant.user_id == user.id,
-        SkiTripParticipant.status == GuestStatus.ACCEPTED
-    ).subquery()
-    
-    # Upcoming trips for intro card (owned + accepted participations)
-    upcoming_trips = SkiTrip.query.filter(
-        db.or_(
-            SkiTrip.user_id == user.id,
-            SkiTrip.id.in_(accepted_participation_trip_ids)
-        ),
-        SkiTrip.end_date >= today
-    ).order_by(SkiTrip.start_date.asc()).all()
+    return redirect("/my-trips")
     
     # My upcoming trips (owned + accepted participations)
     my_trips = SkiTrip.query.filter(
