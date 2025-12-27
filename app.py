@@ -976,7 +976,7 @@ def auth():
         
         elif form_type == "login":
             email = request.form.get("email", "").lower().strip()
-            password = request.form.get("password", "").strip()
+            password = request.form.get("password", "")
             
             user = User.query.filter_by(email=email).first()
             if user:
