@@ -843,9 +843,9 @@ def forgot_password():
                 db.session.commit()
                 
                 # Send Email via SendGrid
-                # Force absolute, production-safe URL for Replit environment
-                base_url = "https://baselodgeapp.com"
-                reset_url = f"{base_url}/reset-password?token={token}"
+                # Force absolute URL for Replit dev environment
+                DEV_BASE_URL = "https://d30be38a-c64e-43ad-991b-bae73239b9c9-00-1yhhs38gvf00o.worf.replit.dev"
+                reset_url = f"{DEV_BASE_URL}/reset-password/{token}"
                 
                 message = Mail(
                     from_email='noreply@baselodgeapp.com',
