@@ -1232,44 +1232,59 @@ def edit_profile():
 @app.route("/my-trips")
 @login_required
 def my_trips():
-    try:
-        user = current_user
-        today = date.today()
-        active_tab = request.args.get("tab", "my_trips")
-        show_connected_banner = request.args.get("connected") == "true"
+    user = current_user
+    today = date.today()
+    active_tab = request.args.get("tab", "my_trips")
+    show_connected_banner = request.args.get("connected") == "true"
 
+    # Trip queries (wrapped for production safety)
+    try:
         upcoming_trips = (
             SkiTrip.query
             .filter(SkiTrip.user_id == current_user.id)
             .filter(SkiTrip.end_date >= today)
             .order_by(SkiTrip.start_date.asc())
             .all()
-        )
+        ) or []
+    except Exception:
+        upcoming_trips = []
 
+    try:
         past_trips = (
             SkiTrip.query
             .filter(SkiTrip.user_id == current_user.id)
             .filter(SkiTrip.end_date < today)
             .order_by(SkiTrip.start_date.desc())
             .all()
-        )
+        ) or []
+    except Exception:
+        past_trips = []
 
-        # Get friends
+    # Get friends (wrapped for production safety)
+    try:
         friend_links = Friend.query.filter_by(user_id=user.id).all()
         friend_ids = [f.friend_id for f in friend_links] if friend_links else []
         friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
+    except Exception:
+        friend_links = []
+        friend_ids = []
+        friends = []
 
-        # Friends' upcoming trips
-        friend_trips = []
+    # Friends' upcoming trips (wrapped for production safety)
+    friend_trips = []
+    try:
         if friend_ids:
             friend_trips = SkiTrip.query.filter(
                 SkiTrip.user_id.in_(friend_ids),
                 SkiTrip.end_date >= today,
                 SkiTrip.is_public == True
             ).order_by(SkiTrip.start_date.asc()).all() or []
+    except Exception:
+        friend_trips = []
 
-        # Build overlaps list
-        overlaps = []
+    # Build overlaps list (wrapped for production safety)
+    overlaps = []
+    try:
         for my in upcoming_trips:
             for friend_trip in friend_trips:
                 if my.user_id != friend_trip.user_id:
@@ -1292,14 +1307,22 @@ def my_trips():
                                     "start_date": max(my.start_date, friend_trip.start_date),
                                     "end_date": min(my.end_date, friend_trip.end_date)
                                 })
+    except Exception:
+        overlaps = []
 
-        # Open dates from JSON field
+    # Open dates from JSON field (wrapped for production safety)
+    user_open_dates = []
+    try:
         my_open_dates = set(user.open_dates or [])
         my_open_dates = {d for d in my_open_dates if d >= today.strftime('%Y-%m-%d')}
         user_open_dates = sorted(my_open_dates) if my_open_dates else []
+    except Exception:
+        my_open_dates = set()
+        user_open_dates = []
 
-        # Build open date matches
-        open_date_matches = []
+    # Build open date matches (wrapped for production safety)
+    open_date_matches = []
+    try:
         if my_open_dates and friend_ids:
             friends_with_open = User.query.filter(User.id.in_(friend_ids)).all()
             for date_str in sorted(my_open_dates):
@@ -1325,59 +1348,61 @@ def my_trips():
                         })
                     except ValueError:
                         pass
+    except Exception:
+        open_date_matches = []
 
-        # Format user's open dates for display
+    # Format user's open dates for display
+    try:
         user_open_dates_display = format_open_dates_summary(user_open_dates) if user_open_dates else None
+    except Exception:
+        user_open_dates_display = None
 
-        # Get equipment for profile card (wrapped for production safety)
-        try:
-            primary_equipment = EquipmentSetup.query.filter_by(
-                user_id=current_user.id,
-                slot=EquipmentSlot.PRIMARY
-            ).first()
-        except Exception:
-            primary_equipment = None
+    # Get equipment for profile card (wrapped for production safety)
+    try:
+        primary_equipment = EquipmentSetup.query.filter_by(
+            user_id=current_user.id,
+            slot=EquipmentSlot.PRIMARY
+        ).first()
+    except Exception:
+        primary_equipment = None
 
-        try:
-            secondary_equipment = EquipmentSetup.query.filter_by(
-                user_id=current_user.id,
-                slot=EquipmentSlot.SECONDARY
-            ).first()
-        except Exception:
-            secondary_equipment = None
+    try:
+        secondary_equipment = EquipmentSetup.query.filter_by(
+            user_id=current_user.id,
+            slot=EquipmentSlot.SECONDARY
+        ).first()
+    except Exception:
+        secondary_equipment = None
 
-        # Get Resort objects for profile card (wrapped for production safety)
-        try:
-            visited_resorts = current_user.get_visited_resorts()
-        except Exception:
-            visited_resorts = []
+    # Get Resort objects for profile card (wrapped for production safety)
+    try:
+        visited_resorts = current_user.get_visited_resorts()
+    except Exception:
+        visited_resorts = []
 
-        try:
-            wishlist_resorts = current_user.get_wishlist_resorts()
-        except Exception:
-            wishlist_resorts = []
+    try:
+        wishlist_resorts = current_user.get_wishlist_resorts()
+    except Exception:
+        wishlist_resorts = []
 
-        return render_template(
-            "my_trips.html",
-            user=user,
-            upcoming_trips=upcoming_trips or [],
-            past_trips=past_trips or [],
-            active_tab=active_tab,
-            show_connected_banner=show_connected_banner,
-            friends=friends or [],
-            friend_trips=friend_trips or [],
-            overlaps=overlaps or [],
-            open_date_matches=open_date_matches or [],
-            user_open_dates=user_open_dates or [],
-            user_open_dates_display=user_open_dates_display,
-            primary_equipment=primary_equipment,
-            secondary_equipment=secondary_equipment,
-            visited_resorts=visited_resorts or [],
-            wishlist_resorts=wishlist_resorts or []
-        )
-    except Exception as e:
-        app.logger.exception(f"Error in my_trips route: {e}")
-        raise
+    return render_template(
+        "my_trips.html",
+        user=user,
+        upcoming_trips=upcoming_trips or [],
+        past_trips=past_trips or [],
+        active_tab=active_tab,
+        show_connected_banner=show_connected_banner,
+        friends=friends or [],
+        friend_trips=friend_trips or [],
+        overlaps=overlaps or [],
+        open_date_matches=open_date_matches or [],
+        user_open_dates=user_open_dates or [],
+        user_open_dates_display=user_open_dates_display,
+        primary_equipment=primary_equipment,
+        secondary_equipment=secondary_equipment,
+        visited_resorts=visited_resorts or [],
+        wishlist_resorts=wishlist_resorts or []
+    )
 
 @app.route("/api/mountains/<state>")
 def get_mountains(state):
