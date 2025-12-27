@@ -152,6 +152,20 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    @staticmethod
+    def verify_reset_token(token):
+        """Verify password reset token and return user if valid."""
+        if not token:
+            return None
+        user = User.query.filter_by(password_reset_token=token).first()
+        if not user:
+            return None
+        if not user.password_reset_expires_at:
+            return None
+        if datetime.utcnow() > user.password_reset_expires_at:
+            return None
+        return user
 
     def __repr__(self):
         return f'<User {self.email}>'

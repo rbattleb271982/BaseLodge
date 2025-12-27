@@ -890,6 +890,10 @@ def reset_password(token=None):
         password = request.form.get("password")
         confirm_password = request.form.get("confirm_password")
         
+        if not password:
+            flash("Password cannot be empty.", "error")
+            return redirect(request.url)
+        
         if not password or len(password) < 8:
             flash("Password must be at least 8 characters.", "error")
             return render_template("reset_password.html", token=token)
