@@ -55,6 +55,8 @@ def load_user(user_id):
 
 @app.route("/")
 def root():
+    if current_user.is_authenticated:
+        return redirect("/my-trips")
     return redirect(url_for("auth"))
 
 @app.template_filter('identity_line')
