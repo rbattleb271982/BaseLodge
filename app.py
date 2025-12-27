@@ -902,8 +902,9 @@ def reset_password(token=None):
         user.set_password(password)
         db.session.commit()
 
-        flash("Your password has been reset. Please log in.", "success")
-        return redirect("/auth")
+        login_user(user)
+        flash("Your password has been reset.", "success")
+        return redirect("/")
 
     return render_template("reset_password.html", token=token)
 
