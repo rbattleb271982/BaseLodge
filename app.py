@@ -934,18 +934,54 @@ def index():
 @app.route("/auth", methods=["GET", "POST"])
 def auth():
     if request.method == "POST":
-        email = request.form.get("email", "").lower().strip()
-        password = request.form.get("password", "").strip()
-
-        user = User.query.filter_by(email=email).first()
-
-        if user and user.check_password(password):
-            login_user(user, remember=True)
-            session.modified = True
+        form_type = request.form.get("form_type", "login")
+        
+        if form_type == "signup":
+            first_name = request.form.get("first_name", "").strip()
+            last_name = request.form.get("last_name", "").strip()
+            email = request.form.get("email", "").lower().strip()
+            password = request.form.get("password", "")
+            
+            if not first_name or not last_name or not email or not password:
+                flash("Please fill in all fields.", "error")
+                return render_template("auth.html")
+            
+            if len(password) < 8:
+                flash("Password must be at least 8 characters.", "error")
+                return render_template("auth.html")
+            
+            existing_user = User.query.filter_by(email=email).first()
+            if existing_user:
+                flash("An account with this email already exists.", "error")
+                return render_template("auth.html")
+            
+            new_user = User(
+                first_name=first_name,
+                last_name=last_name,
+                email=email
+            )
+            new_user.set_password(password)
+            
+            db.session.add(new_user)
             db.session.commit()
-            return redirect("/my-trips")
-
-        flash("Invalid email or password.", "error")
+            
+            login_user(new_user, remember=True)
+            session.modified = True
+            
+            return redirect(url_for("identity_setup"))
+        
+        elif form_type == "login":
+            email = request.form.get("email", "").lower().strip()
+            password = request.form.get("password", "")
+            
+            user = User.query.filter_by(email=email).first()
+            if user and user.check_password(password):
+                login_user(user, remember=True)
+                session.modified = True
+                db.session.commit()
+                return redirect("/my-trips")
+            
+            flash("Invalid email or password.", "error")
 
     return render_template("auth.html")
 
