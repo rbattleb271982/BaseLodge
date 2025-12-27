@@ -934,126 +934,19 @@ def index():
 @app.route("/auth", methods=["GET", "POST"])
 def auth():
     if request.method == "POST":
-        import sys
-        
-        # DIAGNOSTIC 1: Request data
-        print("=== AUTH DIAGNOSTIC ===", file=sys.stderr)
-        print("request.method:", request.method, file=sys.stderr)
-        print("request.form:", dict(request.form), file=sys.stderr)
-        print("request.headers:", dict(request.headers), file=sys.stderr)
-        print("request.cookies:", dict(request.cookies), file=sys.stderr)
-        
-        form_type = request.form.get("form_type")
-        print("form_type:", form_type, file=sys.stderr)
-        
-        if form_type == "signup":
-            first_name = request.form.get("first_name", "").strip()
-            last_name = request.form.get("last_name", "").strip()
-            email = request.form.get("email", "").lower().strip()
-            password = request.form.get("password", "")
-            
-            # Validate required fields (account creation only - identity collected on next screen)
-            if not first_name or not last_name or not email or not password:
-                flash("All fields are required.", "error")
-                return render_template("auth.html")
-            
-            # Validate password length
-            if len(password) < 8:
-                flash("Password must be at least 8 characters.", "error")
-                return render_template("auth.html")
-            
-            existing_user = User.query.filter_by(email=email).first()
-            if existing_user:
-                flash("An account with this email already exists.", "error")
-                return render_template("auth.html")
-            
-            # Capture inviter from session BEFORE any commits (durable linkage)
-            pending_inviter_id = session.get("pending_inviter_id")
-            
-            user = User(
-                first_name=first_name,
-                last_name=last_name,
-                email=email,
-                created_at=datetime.utcnow(),
-                login_count=1,  # First login happens on signup
-                invited_by_user_id=pending_inviter_id  # Persist inviter durably
-            )
-            user.set_password(password)
-            db.session.add(user)
-            db.session.commit()
-            
-            # Emit account_created event
-            emit_event('account_created', user)
-            
-            login_user(user)
-            
-            # Connect with inviter if invite_token exists in session
-            connected = _connect_pending_inviter(user)
-            
-            next_url = request.args.get("next")
-            if next_url:
-                session["next_after_setup"] = next_url
-            
-            if connected:
-                # If connected via invite, we'll redirect to my-trips after profile setup
-                session["next_after_setup"] = url_for("my_trips", tab="friends", connected="true")
+        email = request.form.get("email", "").lower().strip()
+        password = request.form.get("password", "").strip()
 
-            # Route to identity setup screen (required step after signup)
-            return redirect(url_for("identity_setup"))
-        
-        elif form_type == "login":
-            email = request.form.get("email", "").lower().strip()
-            password = request.form.get("password", "")
-            
-            user = User.query.filter_by(email=email).first()
-            if user:
-                pwd_ok = user.check_password(password)
-                
-                if pwd_ok:
-                    import sys
-                    print("=== LOGIN BRANCH HIT ===", file=sys.stderr)
-                    print("About to call login_user()", file=sys.stderr)
-                    
-                    login_user(user, remember=True)
-                    
-                    print("=== POST LOGIN_USER ===", file=sys.stderr)
-                    print("current_user.is_authenticated:", current_user.is_authenticated, file=sys.stderr)
-                    print("current_user.id:", current_user.id if current_user.is_authenticated else None, file=sys.stderr)
-                    print("session (before commit):", dict(session), file=sys.stderr)
-                    print("session.permanent:", session.permanent, file=sys.stderr)
-                    
-                    # Update last_active_at on login (activity hygiene)
-                    user.last_active_at = datetime.utcnow()
-                    # Increment login_count for planning flow tracking
-                    user.login_count = (user.login_count or 0) + 1
-                    db.session.commit()
-                    
-                    print("=== POST DB COMMIT ===", file=sys.stderr)
-                    print("session (after commit):", dict(session), file=sys.stderr)
-                    
-                    # Connect with inviter if invite_token exists in session
-                    connected = _connect_pending_inviter(user)
-                    
-                    redirect_url = "/"
-                    if connected:
-                        redirect_url = "/my-trips?tab=friends&connected=true"
-                    else:
-                        next_url = request.args.get("next")
-                        if next_url:
-                            redirect_url = next_url
-                    
-                    print("=== REDIRECT ===", file=sys.stderr)
-                    print("redirect_url:", redirect_url, file=sys.stderr)
-                    
-                    response = redirect(redirect_url)
-                    print("response.headers:", dict(response.headers), file=sys.stderr)
-                    print("============================", file=sys.stderr)
-                    
-                    return response
-            
-            flash("Invalid email or password.", "error")
-            return render_template("auth.html")
-    
+        user = User.query.filter_by(email=email).first()
+
+        if user and user.check_password(password):
+            login_user(user, remember=True)
+            session.modified = True
+            db.session.commit()
+            return redirect("/my-trips")
+
+        flash("Invalid email or password.", "error")
+
     return render_template("auth.html")
 
 
