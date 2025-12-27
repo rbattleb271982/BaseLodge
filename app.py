@@ -73,37 +73,44 @@ def identity_line_filter(user):
     - Skill level: Last if present
     - If no passes, omit pass segment entirely
     """
-    if not user:
-        return ''
-    
-    parts = []
-    
-    # Rider type (first type only for hero line brevity)
-    if user.rider_types and len(user.rider_types) > 0:
-        parts.append(user.rider_types[0])
-    else:
-        # Legacy fallback
-        primary = user.primary_rider_type or getattr(user, 'rider_type', None)
-        if primary:
-            parts.append(primary)
-    
-    # Passes (up to 2, joined with " + " as single segment)
-    if user.pass_type:
-        pass_str = user.pass_type.strip()
-        if ',' in pass_str:
-            passes = [p.strip() for p in pass_str.split(',') if p.strip() and p.strip().lower() not in ('both', 'no pass')]
+    try:
+        if not user:
+            return ''
+        
+        parts = []
+        
+        # Rider type (first type only for hero line brevity)
+        rider_types = getattr(user, 'rider_types', None)
+        if rider_types and len(rider_types) > 0:
+            parts.append(rider_types[0])
         else:
-            passes = [pass_str] if pass_str.lower() not in ('both', 'no pass') else []
+            # Legacy fallback
+            primary = getattr(user, 'primary_rider_type', None) or getattr(user, 'rider_type', None)
+            if primary:
+                parts.append(primary)
+        
+        # Passes (up to 2, joined with " + " as single segment)
+        passes = []
+        pass_type = getattr(user, 'pass_type', None)
+        if pass_type:
+            pass_str = pass_type.strip()
+            if ',' in pass_str:
+                passes = [p.strip() for p in pass_str.split(',') if p.strip() and p.strip().lower() not in ('both', 'no pass')]
+            else:
+                passes = [pass_str] if pass_str.lower() not in ('both', 'no pass') else []
         # Limit to 2 passes, preserve stored order
         passes = passes[:2]
         if passes:
             parts.append(' + '.join(passes))
-    
-    # Skill level (last)
-    if user.skill_level:
-        parts.append(user.skill_level)
-    
-    return ' · '.join(parts) if parts else ''
+        
+        # Skill level (last)
+        skill_level = getattr(user, 'skill_level', None)
+        if skill_level:
+            parts.append(skill_level)
+        
+        return ' · '.join(parts) if parts else ''
+    except Exception:
+        return ''
 
 @app.template_filter('pass_display')
 def pass_display_filter(pass_type):
@@ -805,18 +812,29 @@ def format_trip_dates(trip):
     
     No year included.
     """
-    start = trip.start_date if isinstance(trip.start_date, date) else trip.start_date.date() if hasattr(trip.start_date, 'date') else trip.start_date
-    end = trip.end_date if isinstance(trip.end_date, date) else trip.end_date.date() if hasattr(trip.end_date, 'date') else trip.end_date
-    
-    if not start or not end:
+    try:
+        if not trip:
+            return ""
+        
+        start = getattr(trip, 'start_date', None)
+        end = getattr(trip, 'end_date', None)
+        
+        if start and hasattr(start, 'date'):
+            start = start.date()
+        if end and hasattr(end, 'date'):
+            end = end.date()
+        
+        if not start or not end:
+            return ""
+        
+        if start == end:
+            return start.strftime('%b %-d')
+        elif start.month == end.month:
+            return f"{start.strftime('%b %-d')}–{end.strftime('%-d')}"
+        else:
+            return f"{start.strftime('%b %-d')}–{end.strftime('%b %-d')}"
+    except Exception:
         return ""
-    
-    if start == end:
-        return start.strftime('%b %-d')
-    elif start.month == end.month:
-        return f"{start.strftime('%b %-d')}–{end.strftime('%-d')}"
-    else:
-        return f"{start.strftime('%b %-d')}–{end.strftime('%b %-d')}"
 
 # Make functions available to Jinja2 templates
 app.jinja_env.globals['normalize_rider_type'] = normalize_rider_type
