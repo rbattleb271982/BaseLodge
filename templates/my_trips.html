@@ -131,10 +131,12 @@
 <body>
     <div class="page-container" style="padding: 16px 16px 88px;">
         <!-- Profile Card -->
+        {% if user %}
         {% set eq = primary_equipment if (primary_equipment and (primary_equipment.brand or primary_equipment.boot_brand)) else (secondary_equipment if (secondary_equipment and (secondary_equipment.brand or secondary_equipment.boot_brand)) else none) %}
-        {% with profile_user=user, is_owner=true, upcoming_trips_count=upcoming_trips|length, equipment=eq, visited_resorts=visited_resorts, wishlist_resorts=wishlist_resorts %}
+        {% with profile_user=user, is_owner=true, upcoming_trips_count=(upcoming_trips|length if upcoming_trips else 0), equipment=eq, visited_resorts=(visited_resorts if visited_resorts else []), wishlist_resorts=(wishlist_resorts if wishlist_resorts else []) %}
             {% include 'components/profile_card.html' %}
         {% endwith %}
+        {% endif %}
 
         {% if show_connected_banner %}
         <div style="background: #E8F5E9; color: #2E7D32; padding: 12px; border-radius: var(--bl-radius-md); margin-bottom: 20px; font-weight: 600; text-align: center;">
@@ -160,20 +162,22 @@
 
         <!-- My Trips Tab -->
         <div id="tab-my_trips" class="bl-trip-list" role="tabpanel" {% if active_tab != 'my_trips' %}style="display: none;"{% endif %}>
-            {% if upcoming_trips %}
+            {% if upcoming_trips and upcoming_trips|length > 0 %}
                 {% for trip in upcoming_trips %}
+                {% if trip and trip.id %}
                 <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
                     <div class="bl-trip-card">
                         <div class="bl-trip-card-header">
                             <div class="bl-trip-card-content">
-                                <p class="bl-trip-card-dates">{{ format_trip_dates(trip) }}</p>
-                                <p class="bl-trip-card-resort">{% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</p>
+                                <p class="bl-trip-card-dates">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
+                                <p class="bl-trip-card-resort">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% elif trip.mountain %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% else %}Resort TBD{% endif %}</p>
                                 <p class="bl-trip-card-pass">{% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.invite_summary %} · {{ trip.invite_summary }}{% endif %}</p>
                             </div>
                             <span class="bl-trip-edit">View</span>
                         </div>
                     </div>
                 </a>
+                {% endif %}
                 {% endfor %}
             {% else %}
                 <div class="empty-state-container">
@@ -185,12 +189,14 @@
 
         <!-- Friends' Trips Tab -->
         <div id="tab-friends" class="bl-trip-list" role="tabpanel" {% if active_tab != 'friends' %}style="display: none;"{% endif %}>
-            {% if friend_trips %}
+            {% if friend_trips and friend_trips|length > 0 %}
                 {% for trip in friend_trips %}
+                {% if trip and trip.id and trip.user %}
                 <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="friend-trip-row">
-                    <div class="friend-trip-line1">{{ trip.user.first_name }}{% if trip.user.last_name %} {{ trip.user.last_name }}{% endif %} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state_code or trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</div>
-                    <div class="friend-trip-line2">{{ format_trip_dates(trip) }} · {% if trip.resort and trip.resort.pass_brands %}{{ trip.resort.pass_brands.split(',')[0]|replace(' Pass', '') }}{% elif trip.resort and trip.resort.brand %}{{ trip.resort.brand|replace(' Pass', '') }}{% else %}Other{% endif %}</div>
+                    <div class="friend-trip-line1">{{ trip.user.first_name or 'Friend' }}{% if trip.user.last_name %} {{ trip.user.last_name }}{% endif %} · {% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state_code %}, {{ trip.resort.state_code }}{% elif trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% elif trip.mountain %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% else %}Resort TBD{% endif %}</div>
+                    <div class="friend-trip-line2">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %} · {% if trip.resort and trip.resort.pass_brands %}{{ trip.resort.pass_brands.split(',')[0]|replace(' Pass', '') }}{% elif trip.resort and trip.resort.brand %}{{ trip.resort.brand|replace(' Pass', '') }}{% else %}Other{% endif %}</div>
                 </a>
+                {% endif %}
                 {% endfor %}
             {% else %}
                 <div class="empty-state-container">
@@ -204,13 +210,15 @@
         <div id="tab-overlaps" class="bl-trip-list" role="tabpanel" {% if active_tab != 'overlaps' %}style="display: none;"{% endif %}>
             {% if overlaps and overlaps|length > 0 %}
                 {% for o in overlaps %}
+                {% if o and o.friend_id and o.start_date and o.end_date %}
                 <a href="{{ url_for('friend_profile', friend_id=o.friend_id, resort_id=o.resort_id, overlap_start=o.start_date.strftime('%Y-%m-%d'), overlap_end=o.end_date.strftime('%Y-%m-%d')) }}" style="text-decoration: none; color: inherit;">
                     <div class="bl-trip-card">
-                        <p class="bl-trip-card-dates">You and {{ o.friend_first_name }} overlap at {{ o.mountain }}</p>
+                        <p class="bl-trip-card-dates">You and {{ o.friend_first_name or 'a friend' }} overlap at {{ o.mountain or 'a resort' }}</p>
                         <p class="bl-trip-card-resort">{{ format_trip_dates(o) }}</p>
                         <p class="bl-trip-card-pass">Same resort, {% if o.start_date == o.end_date %}same date{% else %}overlapping dates{% endif %}</p>
                     </div>
                 </a>
+                {% endif %}
                 {% endfor %}
             {% else %}
                 <div class="empty-state-container">
@@ -253,20 +261,22 @@
             {% endif %}
 
             {% if open_date_matches and open_date_matches|length > 0 %}
+                {% set user_pass = user.pass_type if user and user.pass_type else '' %}
                 {% for match in open_date_matches %}
-                    {% set same_pass_count = match.friends | selectattr('pass_type', 'equalto', user.pass_type) | list | length %}
-                    {% set diff_pass_count = match.friends | length - same_pass_count %}
+                    {% if match and match.friends %}
+                    {% set same_pass_count = match.friends | selectattr('pass_type', 'equalto', user_pass) | list | length if user_pass else 0 %}
+                    {% set diff_pass_count = (match.friends | length) - same_pass_count %}
                     <div class="bl-trip-card open-day-card" style="flex-direction: column; align-items: flex-start; padding: 14px; cursor: pointer;" data-day-index="{{ loop.index0 }}" onclick="toggleDay(event, {{ loop.index0 }})">
                         <div class="open-day-header" style="width: 100%; display: flex; justify-content: space-between; align-items: flex-start;">
                             <div style="flex: 1;">
                                 <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 6px 0;">
-                                    {{ match.day_name }}, {{ match.display_date }}
+                                    {{ match.day_name or '' }}, {{ match.display_date or '' }}
                                 </p>
                                 <p style="font-size: 0.85rem; margin: 0 0 4px 0;">
                                     <strong>You + {{ match.friends|length }} friend{% if match.friends|length != 1 %}s{% endif %} are open</strong>
                                 </p>
                                 <p style="font-size: 0.8rem; color: var(--bl-color-text-muted); margin: 0;">
-                                    {% if user.pass_type %}{{ user.pass_type }}{% endif %}{% if same_pass_count > 0 %} passes: {{ same_pass_count }}{% endif %}{% if diff_pass_count > 0 %} · {% endif %}{% if diff_pass_count > 0 %}Other passes: {{ diff_pass_count }}{% endif %}
+                                    {% if user_pass %}{{ user_pass }}{% endif %}{% if same_pass_count > 0 %} passes: {{ same_pass_count }}{% endif %}{% if diff_pass_count > 0 %} · {% endif %}{% if diff_pass_count > 0 %}Other passes: {{ diff_pass_count }}{% endif %}
                                 </p>
                             </div>
                             <div style="text-align: right; padding-left: 8px;">
@@ -276,32 +286,41 @@
 
                         <div class="open-day-friends" style="display: none; width: 100%; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft);">
                             {% set sorted_friends = match.friends | sort(attribute='name') | list %}
-                            {% set same_pass_friends = sorted_friends | selectattr('pass_type', 'equalto', user.pass_type) | list %}
-                            {% set diff_pass_friends = sorted_friends | rejectattr('pass_type', 'equalto', user.pass_type) | list %}
+                            {% set same_pass_friends = sorted_friends | selectattr('pass_type', 'equalto', user_pass) | list if user_pass else [] %}
+                            {% set diff_pass_friends = sorted_friends | rejectattr('pass_type', 'equalto', user_pass) | list if user_pass else sorted_friends %}
 
+                            {% if same_pass_friends %}
                             {% for friend in same_pass_friends | sort(attribute='name') | sort(attribute='skill_level', reverse=False) %}
+                                {% if friend and friend.id %}
                                 <div style="display: flex; flex-direction: column; margin-bottom: 10px; padding: 8px 0;">
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; font-weight: 500; flex: 1;">{{ friend.name }}</a>
-                                        <span style="font-size: 0.85rem; color: var(--bl-color-text-muted);">{{ friend.pass_type }}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
+                                        <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; font-weight: 500; flex: 1;">{{ friend.name or 'Friend' }}</a>
+                                        <span style="font-size: 0.85rem; color: var(--bl-color-text-muted);">{{ friend.pass_type or '' }}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
                                     </div>
                                 </div>
+                                {% endif %}
                             {% endfor %}
+                            {% endif %}
 
+                            {% if diff_pass_friends %}
                             {% for friend in diff_pass_friends | sort(attribute='name') %}
+                                {% if friend and friend.id %}
                                 <div style="display: flex; flex-direction: column; margin-bottom: 10px; padding: 8px 0;">
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; font-weight: 500; flex: 1;">{{ friend.name }}</a>
-                                        <span style="font-size: 0.85rem; color: var(--bl-color-text-muted);">{{ friend.pass_type }}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
+                                        <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; font-weight: 500; flex: 1;">{{ friend.name or 'Friend' }}</a>
+                                        <span style="font-size: 0.85rem; color: var(--bl-color-text-muted);">{{ friend.pass_type or '' }}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
                                     </div>
                                 </div>
+                                {% endif %}
                             {% endfor %}
+                            {% endif %}
 
                             <div style="display: flex; justify-content: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft);">
                                 <button onclick="toggleDay(event, {{ loop.index0 }})" style="background: none; border: none; color: var(--bl-color-primary); font-size: 0.85rem; font-weight: 500; cursor: pointer;">Hide</button>
                             </div>
                         </div>
                     </div>
+                    {% endif %}
                 {% endfor %}
             {% elif user_open_dates and user_open_dates|length > 0 %}
                 <div class="empty-state-container">

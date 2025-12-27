@@ -1256,58 +1256,148 @@ def edit_profile():
 @app.route("/my-trips")
 @login_required
 def my_trips():
-    today = date.today()
-    active_tab = request.args.get("tab", "my_trips")
-    show_connected_banner = request.args.get("connected") == "true"
+    try:
+        user = current_user
+        today = date.today()
+        active_tab = request.args.get("tab", "my_trips")
+        show_connected_banner = request.args.get("connected") == "true"
 
-    # Get trips where user is an accepted participant (not owner)
-    accepted_participation_trip_ids = db.session.query(SkiTripParticipant.trip_id).filter(
-        SkiTripParticipant.user_id == current_user.id,
-        SkiTripParticipant.status == GuestStatus.ACCEPTED
-    ).subquery()
+        # Get trips where user is an accepted participant (not owner)
+        accepted_participation_trip_ids = db.session.query(SkiTripParticipant.trip_id).filter(
+            SkiTripParticipant.user_id == user.id,
+            SkiTripParticipant.status == GuestStatus.ACCEPTED
+        ).subquery()
 
-    upcoming_trips = (
-        SkiTrip.query
-        .filter(
-            db.or_(
-                SkiTrip.user_id == current_user.id,
-                SkiTrip.id.in_(accepted_participation_trip_ids)
+        upcoming_trips = (
+            SkiTrip.query
+            .filter(
+                db.or_(
+                    SkiTrip.user_id == user.id,
+                    SkiTrip.id.in_(accepted_participation_trip_ids)
+                )
             )
-        )
-        .filter(SkiTrip.end_date >= today)
-        .order_by(SkiTrip.start_date.asc())
-        .all()
-    )
+            .filter(SkiTrip.end_date >= today)
+            .order_by(SkiTrip.start_date.asc())
+            .all()
+        ) or []
 
-    past_trips = (
-        SkiTrip.query
-        .filter(
-            db.or_(
-                SkiTrip.user_id == current_user.id,
-                SkiTrip.id.in_(accepted_participation_trip_ids)
+        past_trips = (
+            SkiTrip.query
+            .filter(
+                db.or_(
+                    SkiTrip.user_id == user.id,
+                    SkiTrip.id.in_(accepted_participation_trip_ids)
+                )
             )
-        )
-        .filter(SkiTrip.end_date < today)
-        .order_by(SkiTrip.start_date.desc())
-        .all()
-    )
+            .filter(SkiTrip.end_date < today)
+            .order_by(SkiTrip.start_date.desc())
+            .all()
+        ) or []
 
-    # Get friends list if friends tab is active
-    friends = []
-    if active_tab == "friends":
-        friend_links = Friend.query.filter_by(user_id=current_user.id).all()
-        friend_ids = [f.friend_id for f in friend_links]
+        # Get friends
+        friend_links = Friend.query.filter_by(user_id=user.id).all()
+        friend_ids = [f.friend_id for f in friend_links] if friend_links else []
+        friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
+
+        # Friends' upcoming trips
+        friend_trips = []
         if friend_ids:
-            friends = User.query.filter(User.id.in_(friend_ids)).all()
+            friend_trips = SkiTrip.query.filter(
+                SkiTrip.user_id.in_(friend_ids),
+                SkiTrip.end_date >= today,
+                SkiTrip.is_public == True
+            ).order_by(SkiTrip.start_date.asc()).all() or []
 
-    return render_template(
-        "my_trips.html",
-        upcoming_trips=upcoming_trips,
-        past_trips=past_trips,
-        active_tab=active_tab,
-        show_connected_banner=show_connected_banner,
-        friends=friends
-    )
+        # Build overlaps list
+        overlaps = []
+        for my in upcoming_trips:
+            for friend_trip in friend_trips:
+                if my.user_id != friend_trip.user_id:
+                    my_mountain = my.mountain if my.mountain else (my.resort.name if my.resort else None)
+                    friend_mountain = friend_trip.mountain if friend_trip.mountain else (friend_trip.resort.name if friend_trip.resort else None)
+                    if my_mountain and friend_mountain and my_mountain == friend_mountain:
+                        if my.start_date and my.end_date and friend_trip.start_date and friend_trip.end_date:
+                            if date_ranges_overlap(my.start_date, my.end_date, friend_trip.start_date, friend_trip.end_date):
+                                resort = my.resort or friend_trip.resort
+                                friend_first_name = friend_trip.user.first_name if friend_trip.user else "Friend"
+                                overlaps.append({
+                                    "my_trip_id": my.id,
+                                    "friend_name": friend_first_name,
+                                    "friend_first_name": friend_first_name,
+                                    "friend_id": friend_trip.user_id,
+                                    "mountain": resort.name if resort else my_mountain,
+                                    "state": resort.state if resort else (my.state or ""),
+                                    "brand": resort.brand if resort else None,
+                                    "resort_id": resort.id if resort else None,
+                                    "start_date": max(my.start_date, friend_trip.start_date),
+                                    "end_date": min(my.end_date, friend_trip.end_date)
+                                })
+
+        # Open dates from JSON field
+        my_open_dates = set(user.open_dates or [])
+        my_open_dates = {d for d in my_open_dates if d >= today.strftime('%Y-%m-%d')}
+        user_open_dates = sorted(my_open_dates) if my_open_dates else []
+
+        # Build open date matches
+        open_date_matches = []
+        if my_open_dates and friend_ids:
+            friends_with_open = User.query.filter(User.id.in_(friend_ids)).all()
+            for date_str in sorted(my_open_dates):
+                matching_friends = []
+                for friend in friends_with_open:
+                    friend_dates = set(friend.open_dates or [])
+                    if date_str in friend_dates:
+                        matching_friends.append({
+                            "name": friend.first_name or "Friend",
+                            "id": friend.id,
+                            "pass_type": friend.pass_type or "",
+                            "skill_level": friend.skill_level or ""
+                        })
+                if matching_friends:
+                    try:
+                        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+                        open_date_matches.append({
+                            "date_str": date_str,
+                            "date_obj": date_obj,
+                            "day_name": date_obj.strftime('%A'),
+                            "display_date": date_obj.strftime('%b %d'),
+                            "friends": matching_friends
+                        })
+                    except ValueError:
+                        pass
+
+        # Format user's open dates for display
+        user_open_dates_display = format_open_dates_summary(user_open_dates) if user_open_dates else None
+
+        # Get equipment for profile card
+        primary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.PRIMARY).first()
+        secondary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.SECONDARY).first()
+
+        # Get Resort objects for profile card
+        visited_resorts = user.get_visited_resorts() if hasattr(user, 'get_visited_resorts') else []
+        wishlist_resorts = user.get_wishlist_resorts() if hasattr(user, 'get_wishlist_resorts') else []
+
+        return render_template(
+            "my_trips.html",
+            user=user,
+            upcoming_trips=upcoming_trips or [],
+            past_trips=past_trips or [],
+            active_tab=active_tab,
+            show_connected_banner=show_connected_banner,
+            friends=friends or [],
+            friend_trips=friend_trips or [],
+            overlaps=overlaps or [],
+            open_date_matches=open_date_matches or [],
+            user_open_dates=user_open_dates or [],
+            user_open_dates_display=user_open_dates_display,
+            primary_equipment=primary_equipment,
+            secondary_equipment=secondary_equipment,
+            visited_resorts=visited_resorts or [],
+            wishlist_resorts=wishlist_resorts or []
+        )
+    except Exception as e:
+        app.logger.exception(f"Error in my_trips route: {e}")
+        raise
 
 @app.route("/api/mountains/<state>")
 def get_mountains(state):
