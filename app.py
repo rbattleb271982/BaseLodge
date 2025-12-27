@@ -923,15 +923,12 @@ def index():
 @app.route("/auth", methods=["GET", "POST"])
 def auth():
     if request.method == "POST":
-        import sys
-        print("=== AUTH POST DIAGNOSTIC ===", file=sys.stderr)
-        print(f"request.method: {request.method}", file=sys.stderr)
-        print(f"request.form: {dict(request.form)}", file=sys.stderr)
-        print(f"form_type value: {request.form.get('form_type')}", file=sys.stderr)
-        print(f"current_user.is_authenticated (BEFORE): {current_user.is_authenticated}", file=sys.stderr)
-        print("============================", file=sys.stderr)
-        
         form_type = request.form.get("form_type")
+        
+        print("=== AUTH DIAGNOSTIC ===")
+        print("request.method:", request.method)
+        print("request.form:", dict(request.form))
+        print("form_type:", form_type)
         
         if form_type == "signup":
             first_name = request.form.get("first_name", "").strip()
@@ -997,24 +994,15 @@ def auth():
                 pwd_ok = user.check_password(password)
                 
                 if pwd_ok:
+                    print("LOGIN BRANCH HIT: about to call login_user")
                     login_user(user)
-                    
-                    import sys
-                    print("=== LOGIN SUCCESS DIAGNOSTIC ===", file=sys.stderr)
-                    print(f"login_user() executed for user_id: {user.id}", file=sys.stderr)
-                    print(f"current_user.is_authenticated (AFTER): {current_user.is_authenticated}", file=sys.stderr)
-                    print("================================", file=sys.stderr)
+                    print("LOGIN_USER CALLED. current_user.is_authenticated:", current_user.is_authenticated)
                     
                     # Update last_active_at on login (activity hygiene)
                     user.last_active_at = datetime.utcnow()
                     # Increment login_count for planning flow tracking
                     user.login_count = (user.login_count or 0) + 1
                     db.session.commit()
-                    
-                    print("=== DB COMMIT DIAGNOSTIC ===", file=sys.stderr)
-                    print(f"db.session.commit() executed", file=sys.stderr)
-                    print(f"Redirect destination: /", file=sys.stderr)
-                    print("============================", file=sys.stderr)
                     
                     # Connect with inviter if invite_token exists in session
                     connected = _connect_pending_inviter(user)
