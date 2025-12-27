@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Base Lodge - My Trips</title>
+    <title>Base Lodge - Trips</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
         .add-trip-container {
@@ -77,87 +77,300 @@
             padding: var(--bl-space-8);
             color: var(--bl-color-text-muted);
         }
+
+        .empty-state-container {
+            text-align: center;
+            padding: 24px 16px;
+        }
+        .empty-state-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            margin: 0 0 8px 0;
+        }
+        .empty-state-desc {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 16px 0;
+        }
+
+        .friend-trip-row {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            padding: 10px 12px;
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .friend-trip-row:active {
+            background: var(--bl-color-bg-secondary);
+        }
+        .friend-trip-line1 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            line-height: 1.3;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .friend-trip-line2 {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--bl-color-text-muted);
+            line-height: 1.3;
+            margin-top: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     </style>
 </head>
 <body>
-    <div class="page-container">
+    <div class="page-container" style="padding: 16px 16px 88px;">
+        <!-- Profile Card -->
+        {% set eq = primary_equipment if (primary_equipment and (primary_equipment.brand or primary_equipment.boot_brand)) else (secondary_equipment if (secondary_equipment and (secondary_equipment.brand or secondary_equipment.boot_brand)) else none) %}
+        {% with profile_user=user, is_owner=true, upcoming_trips_count=upcoming_trips|length, equipment=eq, visited_resorts=visited_resorts, wishlist_resorts=wishlist_resorts %}
+            {% include 'components/profile_card.html' %}
+        {% endwith %}
+
         {% if show_connected_banner %}
         <div style="background: #E8F5E9; color: #2E7D32; padding: 12px; border-radius: var(--bl-radius-md); margin-bottom: 20px; font-weight: 600; text-align: center;">
             🤝 You’re now connected
         </div>
         {% endif %}
 
-        <div style="display: flex; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--bl-color-border-soft);">
-            <button class="tab-btn {% if active_tab == 'my_trips' %}active{% endif %}" onclick="switchTab('my_trips')" style="background: none; border: none; padding: 10px 0; font-weight: 600; color: {% if active_tab == 'my_trips' %}var(--bl-color-primary){% else %}var(--bl-color-text-muted){% endif %}; border-bottom: 2px solid {% if active_tab == 'my_trips' %}var(--bl-color-primary){% else %}transparent{% endif %}; cursor: pointer;">My Trips</button>
-            <button class="tab-btn {% if active_tab == 'friends' %}active{% endif %}" onclick="switchTab('friends')" style="background: none; border: none; padding: 10px 0; font-weight: 600; color: {% if active_tab == 'friends' %}var(--bl-color-primary){% else %}var(--bl-color-text-muted){% endif %}; border-bottom: 2px solid {% if active_tab == 'friends' %}var(--bl-color-primary){% else %}transparent{% endif %}; cursor: pointer;">Friends</button>
+        <div class="add-trip-container">
+            <a href="{{ url_for('add_trip') }}" class="add-trip-button">+ Add trip</a>
         </div>
 
-        <div id="tab-my_trips" class="tab-content" style="display: {% if active_tab == 'my_trips' %}block{% else %}none{% endif %};">
-            <h1 class="page-title">My trips</h1>
-            <div class="add-trip-container">
-                <a href="{{ url_for('add_trip') }}" class="add-trip-button">+ Add trip</a>
+        <div style="margin-bottom:12px;" role="tablist">
+            <div class="bl-tabs-wrapper">
+                <button class="bl-tab-button {% if active_tab == 'my_trips' %}active{% endif %}" data-tab="my_trips" role="tab" aria-selected="{% if active_tab == 'my_trips' %}true{% else %}false{% endif %}"><span>My</span><span>Trips</span></button>
+                <div class="bl-tab-divider"></div>
+                <button class="bl-tab-button {% if active_tab == 'friends' %}active{% endif %}" data-tab="friends" role="tab" aria-selected="{% if active_tab == 'friends' %}true{% else %}false{% endif %}"><span>Friends'</span><span>Trips</span></button>
+                <div class="bl-tab-divider"></div>
+                <button class="bl-tab-button {% if active_tab == 'overlaps' %}active{% endif %}" data-tab="overlaps" role="tab" aria-selected="{% if active_tab == 'overlaps' %}true{% else %}false{% endif %}"><span>Trip</span><span>Overlaps</span></button>
+                <div class="bl-tab-divider"></div>
+                <button class="bl-tab-button {% if active_tab == 'open' %}active{% endif %}" data-tab="open" role="tab" aria-selected="{% if active_tab == 'open' %}true{% else %}false{% endif %}"><span>Open</span><span>Avail.</span></button>
             </div>
-            <section class="trips-section">
-                <h2 class="section-title">Upcoming trips</h2>
-                {% if upcoming_trips %}
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                        {% for trip in upcoming_trips %}
-                        <div class="bl-trip-card" style="flex-direction: row; align-items: center;">
-                            <div style="flex: 1;">
-                                <p class="trip-card-line1">
-                                    {{ format_trip_dates(trip) }} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}
-                                </p>
-                                <p class="trip-card-line2">
-                                    Pass: {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.ride_intent == 'can_offer' %} · Can offer a ride{% elif trip.ride_intent == 'need_ride' %} · Needs a ride{% endif %}
-                                </p>
-                            </div>
-                            <div class="trip-actions">
-                                <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="trip-action-link">Edit</a>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="empty-state">You don't have any upcoming trips yet.</div>
-                {% endif %}
-            </section>
         </div>
 
-        <div id="tab-friends" class="tab-content" style="display: {% if active_tab == 'friends' %}block{% else %}none{% endif %};">
-            <h1 class="page-title">Friends</h1>
-            {% if friends %}
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    {% for friend in friends %}
-                    <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit;">
-                        <div class="bl-trip-card" style="padding: 16px;">
-                            <div style="font-weight: 600; margin-bottom: 4px;">{{ friend.first_name }} {{ friend.last_name or '' }}</div>
-                            <div style="font-size: 0.85rem; color: var(--bl-color-text-muted);">{{ friend|identity_line }}</div>
+        <!-- My Trips Tab -->
+        <div id="tab-my_trips" class="bl-trip-list" role="tabpanel" {% if active_tab != 'my_trips' %}style="display: none;"{% endif %}>
+            {% if upcoming_trips %}
+                {% for trip in upcoming_trips %}
+                <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                    <div class="bl-trip-card">
+                        <div class="bl-trip-card-header">
+                            <div class="bl-trip-card-content">
+                                <p class="bl-trip-card-dates">{{ format_trip_dates(trip) }}</p>
+                                <p class="bl-trip-card-resort">{% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</p>
+                                <p class="bl-trip-card-pass">{% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.invite_summary %} · {{ trip.invite_summary }}{% endif %}</p>
+                            </div>
+                            <span class="bl-trip-edit">View</span>
                         </div>
-                    </a>
+                    </div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state-container">
+                    <p class="empty-state-title">No trips yet</p>
+                    <p class="empty-state-desc">Add trips you're planning so friends can see where you're skiing.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Friends' Trips Tab -->
+        <div id="tab-friends" class="bl-trip-list" role="tabpanel" {% if active_tab != 'friends' %}style="display: none;"{% endif %}>
+            {% if friend_trips %}
+                {% for trip in friend_trips %}
+                <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="friend-trip-row">
+                    <div class="friend-trip-line1">{{ trip.user.first_name }}{% if trip.user.last_name %} {{ trip.user.last_name }}{% endif %} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state_code or trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</div>
+                    <div class="friend-trip-line2">{{ format_trip_dates(trip) }} · {% if trip.resort and trip.resort.pass_brands %}{{ trip.resort.pass_brands.split(',')[0]|replace(' Pass', '') }}{% elif trip.resort and trip.resort.brand %}{{ trip.resort.brand|replace(' Pass', '') }}{% else %}Other{% endif %}</div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state-container">
+                    <p class="empty-state-title">No friends' trips yet</p>
+                    <p class="empty-state-desc">When friends add trips, you'll see them here.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Trip Overlaps Tab -->
+        <div id="tab-overlaps" class="bl-trip-list" role="tabpanel" {% if active_tab != 'overlaps' %}style="display: none;"{% endif %}>
+            {% if overlaps and overlaps|length > 0 %}
+                {% for o in overlaps %}
+                <a href="{{ url_for('friend_profile', friend_id=o.friend_id, resort_id=o.resort_id, overlap_start=o.start_date.strftime('%Y-%m-%d'), overlap_end=o.end_date.strftime('%Y-%m-%d')) }}" style="text-decoration: none; color: inherit;">
+                    <div class="bl-trip-card">
+                        <p class="bl-trip-card-dates">You and {{ o.friend_first_name }} overlap at {{ o.mountain }}</p>
+                        <p class="bl-trip-card-resort">{{ format_trip_dates(o) }}</p>
+                        <p class="bl-trip-card-pass">Same resort, {% if o.start_date == o.end_date %}same date{% else %}overlapping dates{% endif %}</p>
+                    </div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state-container">
+                    <p class="empty-state-title">No overlaps found</p>
+                    <p class="empty-state-desc">When you and friends are skiing at the same place or time, it'll show up here.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Open Availability Tab -->
+        <div id="tab-open" class="bl-trip-list" role="tabpanel" {% if active_tab != 'open' %}style="display: none;"{% endif %}>
+            {% if open_date_matches and open_date_matches|length > 0 %}
+            <div style="background: linear-gradient(135deg, rgba(143, 1, 27, 0.08), rgba(143, 1, 27, 0.04)); border: 1px solid rgba(143, 1, 27, 0.2); border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+                {% set total_friends = [] %}
+                {% for match in open_date_matches %}
+                    {% for f in match.friends %}
+                        {% if f.id not in total_friends %}
+                            {% set _ = total_friends.append(f.id) %}
+                        {% endif %}
                     {% endfor %}
+                {% endfor %}
+                <p style="font-size: 0.95rem; font-weight: 600; margin: 0; color: #8F011B;">
+                    {{ total_friends|length }} friend{% if total_friends|length != 1 %}s{% endif %} open on your dates
+                </p>
+                <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">
+                    Tap a day below to see who's available
+                </p>
+            </div>
+            {% endif %}
+
+            {% if user_open_dates and user_open_dates|length > 0 %}
+            <a href="{{ url_for('add_open_dates') }}" style="text-decoration: none; color: inherit; display: block; margin-bottom: 16px; padding: 12px; background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; cursor: pointer;">
+                <p style="font-size: 0.9rem; margin: 0;">
+                    <strong>You're open on {{ user_open_dates|length }} day{% if user_open_dates|length != 1 %}s{% endif %}</strong>
+                </p>
+                {% if user_open_dates_display %}
+                <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">{{ user_open_dates_display }}</p>
+                {% endif %}
+            </a>
+            {% endif %}
+
+            {% if open_date_matches and open_date_matches|length > 0 %}
+                {% for match in open_date_matches %}
+                    {% set same_pass_count = match.friends | selectattr('pass_type', 'equalto', user.pass_type) | list | length %}
+                    {% set diff_pass_count = match.friends | length - same_pass_count %}
+                    <div class="bl-trip-card open-day-card" style="flex-direction: column; align-items: flex-start; padding: 14px; cursor: pointer;" data-day-index="{{ loop.index0 }}" onclick="toggleDay(event, {{ loop.index0 }})">
+                        <div class="open-day-header" style="width: 100%; display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="flex: 1;">
+                                <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 6px 0;">
+                                    {{ match.day_name }}, {{ match.display_date }}
+                                </p>
+                                <p style="font-size: 0.85rem; margin: 0 0 4px 0;">
+                                    <strong>You + {{ match.friends|length }} friend{% if match.friends|length != 1 %}s{% endif %} are open</strong>
+                                </p>
+                                <p style="font-size: 0.8rem; color: var(--bl-color-text-muted); margin: 0;">
+                                    {% if user.pass_type %}{{ user.pass_type }}{% endif %}{% if same_pass_count > 0 %} passes: {{ same_pass_count }}{% endif %}{% if diff_pass_count > 0 %} · {% endif %}{% if diff_pass_count > 0 %}Other passes: {{ diff_pass_count }}{% endif %}
+                                </p>
+                            </div>
+                            <div style="text-align: right; padding-left: 8px;">
+                                <p style="font-size: 0.8rem; color: var(--bl-color-primary); font-weight: 500; margin: 0; white-space: nowrap;">View who's open →</p>
+                            </div>
+                        </div>
+
+                        <div class="open-day-friends" style="display: none; width: 100%; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft);">
+                            {% set sorted_friends = match.friends | sort(attribute='name') | list %}
+                            {% set same_pass_friends = sorted_friends | selectattr('pass_type', 'equalto', user.pass_type) | list %}
+                            {% set diff_pass_friends = sorted_friends | rejectattr('pass_type', 'equalto', user.pass_type) | list %}
+
+                            {% for friend in same_pass_friends | sort(attribute='name') | sort(attribute='skill_level', reverse=False) %}
+                                <div style="display: flex; flex-direction: column; margin-bottom: 10px; padding: 8px 0;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; font-weight: 500; flex: 1;">{{ friend.name }}</a>
+                                        <span style="font-size: 0.85rem; color: var(--bl-color-text-muted);">{{ friend.pass_type }}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+
+                            {% for friend in diff_pass_friends | sort(attribute='name') %}
+                                <div style="display: flex; flex-direction: column; margin-bottom: 10px; padding: 8px 0;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; font-weight: 500; flex: 1;">{{ friend.name }}</a>
+                                        <span style="font-size: 0.85rem; color: var(--bl-color-text-muted);">{{ friend.pass_type }}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+
+                            <div style="display: flex; justify-content: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft);">
+                                <button onclick="toggleDay(event, {{ loop.index0 }})" style="background: none; border: none; color: var(--bl-color-primary); font-size: 0.85rem; font-weight: 500; cursor: pointer;">Hide</button>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% elif user_open_dates and user_open_dates|length > 0 %}
+                <div class="empty-state-container">
+                    <p class="empty-state-title">No friends are open on these dates yet.</p>
+                    <p class="empty-state-desc">Try adding more dates or inviting friends.</p>
+                    <a href="{{ url_for('add_open_dates') }}" class="bl-btn-outline" style="text-decoration: none; text-align: center; display: inline-block; margin: 12px 0;">Edit open dates</a>
                 </div>
             {% else %}
-                <div class="empty-state">You haven't connected with any friends yet.</div>
+                <div class="empty-state-container">
+                    <p class="empty-state-title">No open availability yet</p>
+                    <p class="empty-state-desc">Mark days you're open to ski to help friends plan trips with you.</p>
+                    <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="text-decoration: none; text-align: center; display: inline-block; margin: 12px 0; padding: 12px 24px; font-size: 15px;">Add Open Dates</a>
+                </div>
             {% endif %}
         </div>
     </div>
 
     <script>
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
-            document.getElementById('tab-' + tabName).style.display = 'block';
-            
-            document.querySelectorAll('.tab-btn').forEach(el => {
-                el.style.color = 'var(--bl-color-text-muted)';
-                el.style.borderBottomColor = 'transparent';
-            });
-            
-            const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(el => el.textContent.toLowerCase() === (tabName === 'my_trips' ? 'my trips' : 'friends'));
-            if (activeBtn) {
-                activeBtn.style.color = 'var(--bl-color-primary)';
-                activeBtn.style.borderBottomColor = 'var(--bl-color-primary)';
+        let expandedDayIndex = null;
+
+        function toggleDay(event, dayIndex) {
+            event.stopPropagation();
+            const card = document.querySelector(`[data-day-index="${dayIndex}"]`);
+            const friendsList = card.querySelector('.open-day-friends');
+            const header = card.querySelector('.open-day-header');
+
+            if (expandedDayIndex === dayIndex) {
+                friendsList.style.display = 'none';
+                header.querySelector('p:last-child').textContent = 'View who\'s open →';
+                expandedDayIndex = null;
+            } else {
+                if (expandedDayIndex !== null) {
+                    const prevCard = document.querySelector(`[data-day-index="${expandedDayIndex}"]`);
+                    const prevFriendsList = prevCard.querySelector('.open-day-friends');
+                    const prevHeader = prevCard.querySelector('.open-day-header');
+                    prevFriendsList.style.display = 'none';
+                    prevHeader.querySelector('p:last-child').textContent = 'View who\'s open →';
+                }
+
+                friendsList.style.display = 'block';
+                header.querySelector('p:last-child').textContent = 'Hide';
+                expandedDayIndex = dayIndex;
             }
         }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabs = document.querySelectorAll('.bl-tab-button');
+            const panels = document.querySelectorAll('.bl-trip-list');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabName = this.getAttribute('data-tab');
+
+                    tabs.forEach(t => {
+                        t.classList.remove('active');
+                        t.setAttribute('aria-selected', 'false');
+                    });
+                    this.classList.add('active');
+                    this.setAttribute('aria-selected', 'true');
+
+                    panels.forEach(panel => {
+                        panel.style.display = 'none';
+                    });
+                    document.getElementById('tab-' + tabName).style.display = 'flex';
+
+                    window.history.replaceState({}, '', '{{ url_for("my_trips") }}?tab=' + tabName);
+                });
+            });
+        });
     </script>
 
     {% include 'components/bottom_nav.html' %}
