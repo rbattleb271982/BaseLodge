@@ -155,8 +155,19 @@ def relative_time_filter(dt):
 
 @app.before_request
 def before_request_handlers():
+    import sys
+    
     # Make sessions permanent for Replit iframe compatibility
     session.permanent = True
+    
+    # DIAGNOSTIC: before_request
+    if request.endpoint and request.endpoint not in ['static']:
+        print("=== BEFORE_REQUEST ===", file=sys.stderr)
+        print("endpoint:", request.endpoint, file=sys.stderr)
+        print("current_user.is_authenticated:", current_user.is_authenticated, file=sys.stderr)
+        print("session:", dict(session), file=sys.stderr)
+        print("cookies:", dict(request.cookies), file=sys.stderr)
+        print("=====================", file=sys.stderr)
     
     # Require profile setup for authenticated users
     excluded_endpoints = {'auth', 'identity_setup', 'setup_profile', 'logout', 'static', 'invite_token_landing', 'test_login_direct', 'forgot_password', 'reset_password'}
@@ -923,12 +934,17 @@ def index():
 @app.route("/auth", methods=["GET", "POST"])
 def auth():
     if request.method == "POST":
-        form_type = request.form.get("form_type")
+        import sys
         
-        print("=== AUTH DIAGNOSTIC ===")
-        print("request.method:", request.method)
-        print("request.form:", dict(request.form))
-        print("form_type:", form_type)
+        # DIAGNOSTIC 1: Request data
+        print("=== AUTH DIAGNOSTIC ===", file=sys.stderr)
+        print("request.method:", request.method, file=sys.stderr)
+        print("request.form:", dict(request.form), file=sys.stderr)
+        print("request.headers:", dict(request.headers), file=sys.stderr)
+        print("request.cookies:", dict(request.cookies), file=sys.stderr)
+        
+        form_type = request.form.get("form_type")
+        print("form_type:", form_type, file=sys.stderr)
         
         if form_type == "signup":
             first_name = request.form.get("first_name", "").strip()
@@ -994,9 +1010,17 @@ def auth():
                 pwd_ok = user.check_password(password)
                 
                 if pwd_ok:
-                    print("LOGIN BRANCH HIT: about to call login_user")
-                    login_user(user)
-                    print("LOGIN_USER CALLED. current_user.is_authenticated:", current_user.is_authenticated)
+                    import sys
+                    print("=== LOGIN BRANCH HIT ===", file=sys.stderr)
+                    print("About to call login_user()", file=sys.stderr)
+                    
+                    login_user(user, remember=True)
+                    
+                    print("=== POST LOGIN_USER ===", file=sys.stderr)
+                    print("current_user.is_authenticated:", current_user.is_authenticated, file=sys.stderr)
+                    print("current_user.id:", current_user.id if current_user.is_authenticated else None, file=sys.stderr)
+                    print("session (before commit):", dict(session), file=sys.stderr)
+                    print("session.permanent:", session.permanent, file=sys.stderr)
                     
                     # Update last_active_at on login (activity hygiene)
                     user.last_active_at = datetime.utcnow()
@@ -1004,18 +1028,28 @@ def auth():
                     user.login_count = (user.login_count or 0) + 1
                     db.session.commit()
                     
+                    print("=== POST DB COMMIT ===", file=sys.stderr)
+                    print("session (after commit):", dict(session), file=sys.stderr)
+                    
                     # Connect with inviter if invite_token exists in session
                     connected = _connect_pending_inviter(user)
                     
+                    redirect_url = "/"
                     if connected:
-                        return redirect("/my-trips?tab=friends&connected=true")
-
-                    next_url = request.args.get("next")
-                    if next_url:
-                        return redirect(next_url)
+                        redirect_url = "/my-trips?tab=friends&connected=true"
+                    else:
+                        next_url = request.args.get("next")
+                        if next_url:
+                            redirect_url = next_url
                     
-                    # Always go to root - modals will handle progressive completion
-                    return redirect("/")
+                    print("=== REDIRECT ===", file=sys.stderr)
+                    print("redirect_url:", redirect_url, file=sys.stderr)
+                    
+                    response = redirect(redirect_url)
+                    print("response.headers:", dict(response.headers), file=sys.stderr)
+                    print("============================", file=sys.stderr)
+                    
+                    return response
             
             flash("Invalid email or password.", "error")
             return render_template("auth.html")
