@@ -995,14 +995,14 @@ def auth():
                     connected = _connect_pending_inviter(user)
                     
                     if connected:
-                        return redirect(url_for("my_trips", tab="friends", connected="true"))
+                        return redirect("/my-trips?tab=friends&connected=true")
 
                     next_url = request.args.get("next")
                     if next_url:
                         return redirect(next_url)
                     
                     # Always go to home - modals will handle progressive completion
-                    return redirect(url_for("home"))
+                    return redirect("/")
             
             flash("Invalid email or password.", "error")
             return render_template("auth.html")
