@@ -1001,7 +1001,7 @@ def auth():
                     if next_url:
                         return redirect(next_url)
                     
-                    # Always go to home - modals will handle progressive completion
+                    # Always go to root - modals will handle progressive completion
                     return redirect("/")
             
             flash("Invalid email or password.", "error")
