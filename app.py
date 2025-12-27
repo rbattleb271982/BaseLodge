@@ -55,6 +55,14 @@ def load_user(user_id):
 
 @app.route("/")
 def root():
+    import sys
+    print("=== ROOT DIAGNOSTIC ===", file=sys.stderr)
+    print(f"authenticated: {current_user.is_authenticated}", file=sys.stderr)
+    print(f"user_id: {getattr(current_user, 'id', None)}", file=sys.stderr)
+    print(f"session: {dict(session)}", file=sys.stderr)
+    print(f"cookies: {request.cookies}", file=sys.stderr)
+    print("=======================", file=sys.stderr)
+
     if current_user.is_authenticated:
         return redirect("/my-trips")
     return redirect(url_for("auth"))
