@@ -1329,13 +1329,33 @@ def my_trips():
         # Format user's open dates for display
         user_open_dates_display = format_open_dates_summary(user_open_dates) if user_open_dates else None
 
-        # Get equipment for profile card
-        primary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.PRIMARY).first()
-        secondary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.SECONDARY).first()
+        # Get equipment for profile card (wrapped for production safety)
+        try:
+            primary_equipment = EquipmentSetup.query.filter_by(
+                user_id=current_user.id,
+                slot=EquipmentSlot.PRIMARY
+            ).first()
+        except Exception:
+            primary_equipment = None
 
-        # Get Resort objects for profile card
-        visited_resorts = user.get_visited_resorts() if hasattr(user, 'get_visited_resorts') else []
-        wishlist_resorts = user.get_wishlist_resorts() if hasattr(user, 'get_wishlist_resorts') else []
+        try:
+            secondary_equipment = EquipmentSetup.query.filter_by(
+                user_id=current_user.id,
+                slot=EquipmentSlot.SECONDARY
+            ).first()
+        except Exception:
+            secondary_equipment = None
+
+        # Get Resort objects for profile card (wrapped for production safety)
+        try:
+            visited_resorts = current_user.get_visited_resorts()
+        except Exception:
+            visited_resorts = []
+
+        try:
+            wishlist_resorts = current_user.get_wishlist_resorts()
+        except Exception:
+            wishlist_resorts = []
 
         return render_template(
             "my_trips.html",
