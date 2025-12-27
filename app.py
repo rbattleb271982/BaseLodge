@@ -874,16 +874,18 @@ def forgot_password():
     return render_template("forgot_password.html")
 
 @app.route("/reset-password", methods=["GET", "POST"])
-def reset_password():
-    token = request.args.get("token") or request.form.get("token")
-    if not token:
-        return render_template("reset_password_invalid.html")
-        
-    user = User.query.filter_by(password_reset_token=token).first()
-    
-    if not user or not user.password_reset_expires_at or user.password_reset_expires_at < datetime.utcnow():
-        return render_template("reset_password_invalid.html")
-        
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token=None):
+    # Support both /reset-password?token=... and /reset-password/<token>
+    if token is None:
+        token = request.args.get("token")
+
+    user = User.verify_reset_token(token)
+
+    if not user:
+        flash("This reset link is invalid or has expired.", "error")
+        return redirect(url_for("auth"))
+
     if request.method == "POST":
         password = request.form.get("password")
         confirm_password = request.form.get("confirm_password")
@@ -895,16 +897,15 @@ def reset_password():
         if password != confirm_password:
             flash("Passwords do not match.", "error")
             return render_template("reset_password.html", token=token)
-            
-        # Update password
+
         user.set_password(password)
-        # Clear token
+        # Clear token to prevent reuse
         user.password_reset_token = None
         user.password_reset_expires_at = None
         db.session.commit()
-        
+
         return render_template("reset_password_success.html")
-        
+
     return render_template("reset_password.html", token=token)
 
 @app.route("/")
