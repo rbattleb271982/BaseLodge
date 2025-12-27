@@ -1203,47 +1203,36 @@ def my_trips():
         show_connected_banner = request.args.get("connected") == "true"
 
         # Get trips where user is an accepted participant (not owner)
-        accepted_participation_trip_ids = []
-        try:
-            participation_results = db.session.query(SkiTripParticipant.trip_id).filter(
-                SkiTripParticipant.user_id == user.id,
-                SkiTripParticipant.status == GuestStatus.ACCEPTED
-            ).all()
-            accepted_participation_trip_ids = [p.trip_id for p in participation_results]
-        except Exception as e:
-            app.logger.error(f"SQL_DIAGNOSTIC: Path: {request.path}, Endpoint: {request.endpoint}")
-            app.logger.error(f"SQL_DIAGNOSTIC: Error querying participation: {str(e)}")
-            import traceback
-            app.logger.error(f"SQL_DIAGNOSTIC: Stack trace:\n{traceback.format_exc()}")
-            accepted_participation_trip_ids = []
+        accepted_participation_trip_ids = db.session.query(SkiTripParticipant.trip_id).filter(
+            SkiTripParticipant.user_id == user.id,
+            SkiTripParticipant.status == GuestStatus.ACCEPTED
+        ).subquery()
 
-        try:
-            upcoming_filter = SkiTrip.user_id == user.id
-            if accepted_participation_trip_ids:
-                upcoming_filter = db.or_(upcoming_filter, SkiTrip.id.in_(accepted_participation_trip_ids))
+        upcoming_trips = (
+            SkiTrip.query
+            .filter(
+                db.or_(
+                    SkiTrip.user_id == user.id,
+                    SkiTrip.id.in_(accepted_participation_trip_ids)
+                )
+            )
+            .filter(SkiTrip.end_date >= today)
+            .order_by(SkiTrip.start_date.asc())
+            .all()
+        ) or []
 
-            upcoming_trips_query = SkiTrip.query.filter(upcoming_filter).filter(SkiTrip.end_date >= today).order_by(SkiTrip.start_date.asc())
-            app.logger.info(f"SQL_DIAGNOSTIC: Upcoming query: {upcoming_trips_query}")
-            upcoming_trips = upcoming_trips_query.all() or []
-        except Exception as e:
-            app.logger.error(f"SQL_DIAGNOSTIC: Error querying upcoming trips: {str(e)}")
-            import traceback
-            app.logger.error(f"SQL_DIAGNOSTIC: Stack trace:\n{traceback.format_exc()}")
-            upcoming_trips = []
-
-        try:
-            past_filter = SkiTrip.user_id == user.id
-            if accepted_participation_trip_ids:
-                past_filter = db.or_(past_filter, SkiTrip.id.in_(accepted_participation_trip_ids))
-
-            past_trips_query = SkiTrip.query.filter(past_filter).filter(SkiTrip.end_date < today).order_by(SkiTrip.start_date.desc())
-            app.logger.info(f"SQL_DIAGNOSTIC: Past query: {past_trips_query}")
-            past_trips = past_trips_query.all() or []
-        except Exception as e:
-            app.logger.error(f"SQL_DIAGNOSTIC: Error querying past trips: {str(e)}")
-            import traceback
-            app.logger.error(f"SQL_DIAGNOSTIC: Stack trace:\n{traceback.format_exc()}")
-            past_trips = []
+        past_trips = (
+            SkiTrip.query
+            .filter(
+                db.or_(
+                    SkiTrip.user_id == user.id,
+                    SkiTrip.id.in_(accepted_participation_trip_ids)
+                )
+            )
+            .filter(SkiTrip.end_date < today)
+            .order_by(SkiTrip.start_date.desc())
+            .all()
+        ) or []
 
         # Get friends
         friend_links = Friend.query.filter_by(user_id=user.id).all()
