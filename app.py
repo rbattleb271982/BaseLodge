@@ -1780,8 +1780,8 @@ def friends():
     user = current_user
     today = date.today()
     
-    # Get tab parameter (updates or friends)
-    active_tab = request.args.get("tab", "updates")
+    # Get tab parameter (friends or updates) - friends is default
+    active_tab = request.args.get("tab", "friends")
     filter_type = request.args.get("filter", "All")
     
     # Load friend relationships
