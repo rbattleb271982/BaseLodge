@@ -1,0 +1,97 @@
+Stop providing code excerpts or explanations.
+The features are STILL BROKEN in the running app.
+
+We are switching to behavior-driven fixes only.
+
+Do NOT say “verified” unless it works in the deployed UI.
+Do NOT reference code blocks as proof.
+Do NOT proceed until all items below work in the browser.
+
+================================
+NON-NEGOTIABLE REQUIRED BEHAVIOR
+================================
+
+These THREE things MUST work in the live admin UI:
+
+--------------------------------
+1. “+ Add New Resort” (BLOCKER)
+--------------------------------
+
+REQUIRED:
+• Clicking “+ Add New Resort” visibly opens the form
+• Inputs are interactive
+• Submitting creates a new resort
+• New resort appears immediately in the table
+• No refresh required
+• No console errors
+
+If this does not work, STOP and fix ONLY this first.
+
+--------------------------------
+2. State / Region Filter (BLOCKER)
+--------------------------------
+
+REQUIRED:
+• Country = All → State dropdown disabled
+• Country = US → State dropdown ENABLES
+• Dropdown is clickable
+• Dropdown is populated
+• Selecting a state filters rows immediately
+
+If the dropdown is still greyed out, it is BROKEN.
+
+--------------------------------
+3. Select All (BLOCKER)
+--------------------------------
+
+REQUIRED:
+• Apply filters so N rows are visible
+• Click “Select All”
+• EXACTLY N checkboxes are checked
+• selected count matches N
+• Unchecking one row unchecks “Select All”
+• No hidden rows are selected
+
+If ANY visible row is not selected → FAIL.
+
+================================
+MANDATED IMPLEMENTATION APPROACH
+================================
+
+To avoid further regressions:
+
+• Remove ALL remaining duplicate JS logic
+• Ensure there is EXACTLY ONE definition for:
+  - toggleSelectAll
+  - syncSelectAllState
+  - updateSelection
+  - toggleAddResort
+  - updateStateFilter
+
+• Bind ALL event listeners AFTER DOMContentLoaded
+• Do NOT rely on style*="display:none" alone — use a helper isRowVisible(row)
+
+================================
+PROOF REQUIREMENT (MANDATORY)
+================================
+
+For EACH of the 3 items above, provide:
+
+• A screenshot OR short screen recording
+• Showing the action being performed
+• Showing the correct result in the UI
+
+No screenshots = not fixed.
+No recordings = not fixed.
+Code excerpts alone are NOT acceptable proof.
+
+================================
+STOP CONDITIONS
+================================
+
+• Do NOT add new features
+• Do NOT refactor unrelated code
+• Do NOT say “resolved” until proof is provided
+
+Fix these three behaviors.
+Then STOP.

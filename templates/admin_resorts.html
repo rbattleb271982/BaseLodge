@@ -1282,96 +1282,6 @@
             });
         }
 
-        function exportExcel() {
-                    panel.classList.add('visible');
-                } else {
-                    panel.style.display = 'none';
-                    panel.classList.remove('visible');
-                }
-            }
-        }
-
-        function clearSelection() {
-            document.querySelectorAll('.resort-checkbox').forEach(cb => cb.checked = false);
-            const selectAll = document.getElementById('select-all');
-            if (selectAll) selectAll.checked = false;
-            updateSelection();
-        }
-
-        async function bulkAction(action) {
-            if (selectedResorts.size === 0) return;
-            
-            const resortIds = Array.from(selectedResorts);
-            let confirmMsg = `Are you sure you want to ${action} ${resortIds.length} resort(s)?`;
-            if (action === 'delete') confirmMsg += " This cannot be undone.";
-            
-            if (!confirm(confirmMsg)) return;
-            
-            showToast(`Processing bulk ${action}...`, 'info');
-            
-            const payload = action === 'delete' ? { ids: resortIds } : { resort_ids: resortIds };
-            
-            fetch(`/api/admin/resorts/bulk-${action}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'success' || data.updated_count !== undefined || data.deleted_count !== undefined || (data.deleted && data.deleted.length > 0)) {
-                    showToast(`Successfully ${action}d resorts`, 'success');
-                    
-                    // Remove affected IDs from selectedResorts
-                    resortIds.forEach(id => selectedResorts.delete(id));
-                    
-                    if (action === 'delete') {
-                        resortIds.forEach(id => {
-                            const row = document.querySelector(`tr[data-id="${id}"]`);
-                            if (row) row.remove();
-                        });
-                    } else {
-                        const isActive = action === 'activate';
-                        resortIds.forEach(id => {
-                            const row = document.querySelector(`tr[data-id="${id}"]`);
-                            if (row) {
-                                row.dataset.active = isActive ? 'true' : 'false';
-                                if (isActive) {
-                                    row.classList.remove('inactive');
-                                } else {
-                                    row.classList.add('inactive');
-                                }
-                            }
-                        });
-                    }
-                    
-                    selectedResorts.clear();
-                    // Clear all checkboxes
-                    document.querySelectorAll('.resort-checkbox').forEach(cb => cb.checked = false);
-                    syncSelectAllState();
-                    updateSelectionDisplay();
-                    filterResorts();
-                } else {
-                    showToast(data.message || `${action} failed`, 'error');
-                }
-            } catch (err) {
-                showToast('Error: ' + err.message, 'error');
-            }
-        }
-
-        function exportExcel() {
-            const search = document.getElementById('search').value;
-            const country = document.getElementById('country-filter').value;
-            const status = document.getElementById('status-filter').value;
-            
-            // Construct dynamic URL
-            const params = new URLSearchParams();
-            if (search) params.append('search', search);
-            if (country) params.append('country', country);
-            if (status) params.append('status', status);
-            
-            window.location.href = `/admin/resorts/export-excel?${params.toString()}`;
-        }
-
         async function updatePassBrand(select) {
             const resortId = select.dataset.id;
             const passBrand = select.value;
@@ -1497,25 +1407,7 @@
                 }
             });
         }
-        
-        
-        function exportExcel() {
-            const search = document.getElementById('search').value;
-            const country = document.getElementById('country-filter').value;
-            const state = document.getElementById('state-filter').value;
-            const status = document.getElementById('status-filter').value;
-            const passBrand = document.getElementById('pass-brand-filter').value;
-            
-            const params = new URLSearchParams();
-            if (search) params.append('search', search);
-            if (country) params.append('country', country);
-            if (state) params.append('state', state);
-            if (status) params.append('status', status);
-            if (passBrand) params.append('pass_brand', passBrand);
-            
-            window.location.href = `/admin/resorts/export-excel?${params.toString()}`;
-        }
-        
+
         function importExcel(input) {
             if (!input.files || !input.files[0]) return;
             
@@ -1554,64 +1446,6 @@
                 input.value = '';
                 showToast('Import failed: ' + e.message, 'error');
             });
-        }
-
-        async function updatePassBrand(select) {
-            const resortId = select.dataset.id;
-            const passBrand = select.value;
-            
-            try {
-                const response = await fetch('/api/admin/resorts/update-pass-brand', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ resort_id: parseInt(resortId), pass_brand: passBrand })
-                });
-                const data = await response.json();
-                if (data.success) {
-                    showToast('Pass brand updated', 'success');
-                    // Update data-pass for sorting/filtering
-                    const row = select.closest('tr');
-                    row.dataset.pass = passBrand.toLowerCase();
-                } else {
-                    showToast(data.message || 'Update failed', 'error');
-                }
-            } catch (err) {
-                showToast('Error: ' + err.message, 'error');
-            }
-        }
-
-        async function applyBulkPassBrand() {
-            if (selectedResorts.size === 0) return;
-            
-            const passBrand = document.getElementById('bulk-pass-brand').value;
-            const resortIds = Array.from(selectedResorts);
-            
-            showToast('Applying bulk update...', 'info');
-            
-            try {
-                const response = await fetch('/api/admin/resorts/bulk-update-pass-brand', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ resort_ids: resortIds, pass_brand: passBrand })
-                });
-                const data = await response.json();
-                if (data.updated_count !== undefined) {
-                    showToast(`Updated ${data.updated_count} resorts`, 'success');
-                    // Update UI for all selected rows
-                    resortIds.forEach(id => {
-                        const row = document.querySelector(`tr[data-id="${id}"]`);
-                        if (row) {
-                            const select = row.querySelector('.pass-brand-select');
-                            if (select) select.value = passBrand;
-                            row.dataset.pass = passBrand.toLowerCase();
-                        }
-                    });
-                } else {
-                    showToast(data.message || 'Bulk update failed', 'error');
-                }
-            } catch (err) {
-                showToast('Error: ' + err.message, 'error');
-            }
         }
         
         function exportCanonical() {
