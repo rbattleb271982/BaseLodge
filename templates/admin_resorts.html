@@ -366,6 +366,128 @@
         .toast.error {
             background: #e53e3e;
         }
+        
+        .add-resort-section {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .add-resort-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: #edf2f7;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .add-resort-header:hover {
+            background: #e2e8f0;
+        }
+        
+        .add-resort-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+            margin: 0;
+        }
+        
+        .add-resort-toggle {
+            font-size: 20px;
+            color: #718096;
+            transition: transform 0.2s;
+        }
+        
+        .add-resort-section.open .add-resort-toggle {
+            transform: rotate(180deg);
+        }
+        
+        .add-resort-form {
+            display: none;
+            padding: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .add-resort-section.open .add-resort-form {
+            display: block;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .form-group label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #4a5568;
+        }
+        
+        .form-group input,
+        .form-group select {
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4a5568;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding-top: 6px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+        
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .checkbox-item span {
+            font-size: 14px;
+            color: #2d3748;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            padding-top: 8px;
+        }
+        
+        .btn-add {
+            background: #38a169;
+            color: white;
+        }
+        
+        .btn-add:hover {
+            background: #2f855a;
+        }
     </style>
 </head>
 <body>
@@ -399,6 +521,74 @@
             <div class="sync-item">
                 <label>Current DB Count</label>
                 <span>{{ total_count }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="add-resort-section" id="add-resort-section">
+        <div class="add-resort-header" onclick="toggleAddResort()">
+            <h3>+ Add New Resort</h3>
+            <span class="add-resort-toggle">▼</span>
+        </div>
+        <div class="add-resort-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="new-resort-name">Resort Name *</label>
+                    <input type="text" id="new-resort-name" placeholder="Enter resort name" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-resort-country">Country *</label>
+                    <select id="new-resort-country" required>
+                        <option value="">Select country...</option>
+                        <option value="US">United States</option>
+                        <option value="CA">Canada</option>
+                        <option value="FR">France</option>
+                        <option value="CH">Switzerland</option>
+                        <option value="AT">Austria</option>
+                        <option value="IT">Italy</option>
+                        <option value="JP">Japan</option>
+                        <option value="NZ">New Zealand</option>
+                        <option value="AU">Australia</option>
+                        <option value="CL">Chile</option>
+                        <option value="AR">Argentina</option>
+                        <option value="NO">Norway</option>
+                        <option value="SE">Sweden</option>
+                        <option value="ES">Spain</option>
+                        <option value="AD">Andorra</option>
+                        <option value="DE">Germany</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="new-resort-state">State / Region (optional)</label>
+                    <input type="text" id="new-resort-state" placeholder="e.g., Colorado, British Columbia">
+                </div>
+                <div class="form-group">
+                    <label>Pass Brands (optional)</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="pass-epic" value="Epic">
+                            <span>Epic</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="pass-ikon" value="Ikon">
+                            <span>Ikon</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="pass-other" value="Other">
+                            <span>Other</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="pass-none" value="">
+                            <span>None</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-add" onclick="submitNewResort()">Add Resort</button>
+                <button class="btn" onclick="clearAddForm()" style="background: #718096; color: white;">Clear</button>
             </div>
         </div>
     </div>
@@ -550,6 +740,72 @@
         let selectedResorts = new Set();
         let pendingMerge = null;
         let currentSort = { column: null, direction: 'asc' };
+        
+        function toggleAddResort() {
+            document.getElementById('add-resort-section').classList.toggle('open');
+        }
+        
+        function clearAddForm() {
+            document.getElementById('new-resort-name').value = '';
+            document.getElementById('new-resort-country').value = '';
+            document.getElementById('new-resort-state').value = '';
+            document.getElementById('pass-epic').checked = false;
+            document.getElementById('pass-ikon').checked = false;
+            document.getElementById('pass-other').checked = false;
+            document.getElementById('pass-none').checked = false;
+        }
+        
+        async function submitNewResort() {
+            const name = document.getElementById('new-resort-name').value.trim();
+            const countryCode = document.getElementById('new-resort-country').value;
+            const stateCode = document.getElementById('new-resort-state').value.trim();
+            
+            if (!name) {
+                showToast('Resort name is required', 'error');
+                return;
+            }
+            if (name.length < 2) {
+                showToast('Name must be at least 2 characters', 'error');
+                return;
+            }
+            if (!countryCode) {
+                showToast('Please select a country', 'error');
+                return;
+            }
+            
+            const passBrands = [];
+            if (document.getElementById('pass-epic').checked) passBrands.push('Epic');
+            if (document.getElementById('pass-ikon').checked) passBrands.push('Ikon');
+            if (document.getElementById('pass-other').checked) passBrands.push('Other');
+            
+            const payload = {
+                name: name,
+                country_code: countryCode,
+                state_code: stateCode || null,
+                pass_brands: passBrands.join(',') || null
+            };
+            
+            try {
+                const response = await fetch('/api/admin/resorts/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showToast(data.message, 'success');
+                    clearAddForm();
+                    document.getElementById('add-resort-section').classList.remove('open');
+                    setTimeout(() => reloadWithSort(), 1000);
+                } else {
+                    showToast(data.message || 'Error adding resort', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
         
         function getUrlParams() {
             return new URLSearchParams(window.location.search);

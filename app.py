@@ -7841,6 +7841,103 @@ def admin_merge_resorts():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+@app.route("/api/admin/resorts/add", methods=["POST"])
+@login_required
+@admin_required
+def admin_add_resort():
+    """
+    Add a new resort via free-form entry.
+    No tier logic, no canonical writes, no auto-merge.
+    """
+    import re
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'status': 'error', 'message': 'No data provided'}), 400
+    
+    name = (data.get('name') or '').strip()
+    country_code = (data.get('country_code') or '').strip().upper()
+    state_code = (data.get('state_code') or '').strip() or None
+    pass_brands = (data.get('pass_brands') or '').strip() or None
+    
+    errors = []
+    if not name:
+        errors.append('Resort name is required')
+    elif len(name) < 2:
+        errors.append('Name must be at least 2 characters')
+    
+    if not country_code:
+        errors.append('Please select a country')
+    elif len(country_code) != 2:
+        errors.append('Invalid country code')
+    
+    if errors:
+        return jsonify({'status': 'error', 'message': '; '.join(errors)}), 400
+    
+    normalized_name = name.lower()
+    existing = Resort.query.filter(
+        db.func.lower(Resort.name) == normalized_name,
+        db.func.upper(Resort.country_code) == country_code
+    ).first()
+    
+    if existing:
+        return jsonify({
+            'status': 'error',
+            'message': f'Resort "{name}" already exists in {country_code} (ID: {existing.id})'
+        }), 409
+    
+    slug_base = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+    slug = f"{slug_base}-{country_code.lower()}"
+    
+    slug_exists = Resort.query.filter_by(slug=slug).first()
+    if slug_exists:
+        slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
+    
+    country_names = {
+        'US': 'United States', 'CA': 'Canada', 'FR': 'France',
+        'CH': 'Switzerland', 'AT': 'Austria', 'IT': 'Italy',
+        'JP': 'Japan', 'NZ': 'New Zealand', 'AU': 'Australia',
+        'CL': 'Chile', 'AR': 'Argentina', 'NO': 'Norway',
+        'SE': 'Sweden', 'ES': 'Spain', 'AD': 'Andorra', 'DE': 'Germany'
+    }
+    
+    new_resort = Resort(
+        name=name,
+        country=country_code,
+        country_code=country_code,
+        country_name=country_names.get(country_code, country_code),
+        state=state_code,
+        state_code=state_code,
+        state_name=state_code,
+        state_full=state_code,
+        brand=None,
+        pass_brands=pass_brands,
+        slug=slug,
+        is_active=True,
+        is_region=False
+    )
+    
+    try:
+        db.session.add(new_resort)
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Resort "{name}" added successfully',
+            'resort': {
+                'id': new_resort.id,
+                'name': new_resort.name,
+                'country_code': new_resort.country_code,
+                'state_code': new_resort.state_code,
+                'pass_brands': new_resort.pass_brands,
+                'slug': new_resort.slug
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
 @app.route("/api/admin/resorts/export-canonical", methods=["POST"])
 @login_required
 @admin_required
