@@ -1090,9 +1090,29 @@
             rows.forEach(row => tbody.appendChild(row));
         }
         
-        // Apply sort from URL on page load
+        // Apply sort and filters from URL on page load
         document.addEventListener('DOMContentLoaded', function() {
             const params = getUrlParams();
+            
+            // Restore filter values from URL
+            const countryParam = params.get('country');
+            const stateParam = params.get('state');
+            const statusParam = params.get('status');
+            const passParam = params.get('pass');
+            const searchParam = params.get('search');
+            
+            if (countryParam) document.getElementById('country-filter').value = countryParam;
+            if (stateParam) document.getElementById('state-filter').value = stateParam;
+            if (statusParam) document.getElementById('status-filter').value = statusParam;
+            if (passParam) document.getElementById('pass-brand-filter').value = passParam;
+            if (searchParam) document.getElementById('search').value = searchParam;
+            
+            // Apply filters if any were set
+            if (countryParam || stateParam || statusParam || passParam || searchParam) {
+                filterResorts();
+            }
+            
+            // Apply sort from URL
             const sortCol = params.get('sort');
             const sortDir = params.get('dir');
             if (sortCol) {
@@ -1528,9 +1548,17 @@
                     // Close modal immediately
                     closeMergeModal();
                     
-                    // Reload page after brief delay to show toast and refresh data from server
+                    // Preserve filter state in URL before reload
+                    const params = new URLSearchParams(window.location.search);
+                    params.set('country', document.getElementById('country-filter').value || '');
+                    params.set('state', document.getElementById('state-filter').value || '');
+                    params.set('status', document.getElementById('status-filter').value || '');
+                    params.set('pass', document.getElementById('pass-brand-filter').value || '');
+                    params.set('search', document.getElementById('search').value || '');
+                    
+                    // Reload page with preserved filters
                     setTimeout(() => {
-                        window.location.reload();
+                        window.location.href = window.location.pathname + '?' + params.toString();
                     }, 1500);
                 } else {
                     showToast('Error: ' + data.message, 'error');
