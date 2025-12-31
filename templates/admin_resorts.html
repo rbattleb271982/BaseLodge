@@ -1003,10 +1003,38 @@
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'success') {
-                    reloadWithSort();
+                    const row = document.querySelector(`tr[data-id="${id}"]`);
+                    if (row) {
+                        row.dataset.active = active ? 'true' : 'false';
+                        if (active) {
+                            row.classList.remove('inactive');
+                        } else {
+                            row.classList.add('inactive');
+                        }
+                        const statusBadge = row.querySelector('.status-badge');
+                        if (statusBadge) {
+                            statusBadge.className = 'status-badge ' + (active ? 'status-active' : 'status-inactive');
+                            statusBadge.textContent = active ? 'Active' : 'Inactive';
+                        }
+                        const actionsCell = row.querySelector('td:last-child');
+                        if (actionsCell) {
+                            const deleteBtn = actionsCell.querySelector('button:last-child');
+                            const deleteHtml = deleteBtn ? deleteBtn.outerHTML : '';
+                            if (active) {
+                                actionsCell.innerHTML = `<button class="btn btn-danger" onclick="toggleActive(${id}, false)" style="padding: 4px 8px; font-size: 12px;">Deactivate</button>${deleteHtml}`;
+                            } else {
+                                actionsCell.innerHTML = `<button class="btn btn-success" onclick="toggleActive(${id}, true)" style="padding: 4px 8px; font-size: 12px;">Activate</button>${deleteHtml}`;
+                            }
+                        }
+                        filterResorts();
+                    }
+                    showToast(active ? 'Resort activated' : 'Resort deactivated', 'success');
                 } else {
                     showToast('Error: ' + data.message, 'error');
                 }
+            })
+            .catch(e => {
+                showToast('Error: ' + e.message, 'error');
             });
         }
         
