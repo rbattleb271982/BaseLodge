@@ -1393,21 +1393,32 @@ def _connect_pending_inviter(user):
 @app.route("/invite/<token>")
 def invite_token_landing(token):
     """Time-limited invite landing page."""
-    invite = InviteToken.query.filter_by(token=token).first()
-    
-    if not invite or invite.is_expired():
-        return render_template("invite_expired.html")
-        
-    # Store token in session for post-auth connection
-    session["invite_token"] = token
-    
-    # Get inviter for landing page display
-    inviter = User.query.get(invite.inviter_id)
-    inviter_trips_count = SkiTrip.query.filter_by(user_id=inviter.id).count()
-    
-    return render_template("invite_landing.html", 
-                           inviter=inviter, 
-                           inviter_trips_count=inviter_trips_count)
+    try:
+        app.logger.info(f"Invite token hit: {token}")
+
+        invite = InviteToken.query.filter_by(token=token).first()
+        if not invite or invite.is_expired():
+            app.logger.warning("Invite not found or expired")
+            return render_template("invite_expired.html")
+
+        session["invite_token"] = token
+
+        inviter = User.query.get(invite.inviter_id)
+        if not inviter:
+            app.logger.error(f"Inviter not found for invite token {token}")
+            return render_template("invite_expired.html")
+
+        inviter_trips_count = SkiTrip.query.filter_by(user_id=inviter.id).count()
+
+        return render_template(
+            "invite_landing.html",
+            inviter=inviter,
+            inviter_trips_count=inviter_trips_count
+        )
+
+    except Exception as e:
+        app.logger.exception("Invite route crashed")
+        return render_template("invite_expired.html"), 500
 
 
 @app.route("/setup-profile", methods=["GET", "POST"])
