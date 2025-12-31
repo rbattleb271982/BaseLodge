@@ -368,12 +368,12 @@
             <div class="checkbox-row">
                 <input type="checkbox" name="rider_types" value="{{ rt }}" id="rider_type_{{ loop.index }}" 
                        {% if rt in user_riders %}checked{% endif %}>
-                <label for="rider_type_{{ loop.index }}">{{ rt }}</label>
+                <label for="rider_type_{{ loop.index }}">{% if rt == 'Social' %}Social (Along for the experience){% else %}{{ rt }}{% endif %}</label>
             </div>
             {% endfor %}
         </div>
         
-        <div class="form-row">
+        <div class="form-row" id="skill-level-row">
             <label>Skill Level</label>
             <div class="radio-group" id="skill-level-group">
                 {% for lvl in ["Beginner", "Intermediate", "Advanced", "Expert"] %}
@@ -446,10 +446,27 @@
 const riderTypesInput = document.getElementById('rider_types_hidden');
 const skillLevelInput = document.getElementById('skill_level');
 const riderTypeCheckboxes = document.querySelectorAll('input[name="rider_types"]');
+const skillLevelRow = document.getElementById('skill-level-row');
+const skillRadios = document.querySelectorAll('input[name="skill_level_radio"]');
 
 function updateRiderTypesHidden() {
     const checked = Array.from(riderTypeCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
     riderTypesInput.value = checked.join(',');
+    updateSkillLevelVisibility();
+}
+
+function updateSkillLevelVisibility() {
+    const checked = Array.from(riderTypeCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+    const hasSocial = checked.includes('Social');
+    
+    if (hasSocial) {
+        skillLevelRow.style.display = 'none';
+        // Clear skill level when Social is selected
+        skillRadios.forEach(r => r.checked = false);
+        skillLevelInput.value = '';
+    } else {
+        skillLevelRow.style.display = '';
+    }
 }
 
 riderTypeCheckboxes.forEach(cb => {
