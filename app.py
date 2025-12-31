@@ -181,6 +181,10 @@ def before_request_handlers():
         print("cookies:", dict(request.cookies), file=sys.stderr)
         print("=====================", file=sys.stderr)
     
+    # Bypass for root health check
+    if request.endpoint == 'root':
+        return None
+    
     # Require profile setup for authenticated users
     excluded_endpoints = {'auth', 'identity_setup', 'setup_profile', 'logout', 'static', 'invite_token_landing', 'test_login_direct', 'forgot_password', 'reset_password'}
     if request.endpoint in excluded_endpoints:
