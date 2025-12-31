@@ -16,6 +16,35 @@
   - Trip guests / invites
 #}
 
+{# Compute wishlist overlap indicators (only for friend profiles) #}
+{% if not is_owner and current_user.is_authenticated %}
+    {% set viewer_wishlist_ids = current_user.wish_list_resorts or [] %}
+    
+    {# Overlap: friend's visited ∩ viewer's wishlist #}
+    {% set visited_on_viewer_wishlist = [] %}
+    {% for resort in visited_resorts %}
+        {% if resort.id in viewer_wishlist_ids %}
+            {% set _ = visited_on_viewer_wishlist.append(resort.id) %}
+        {% endif %}
+    {% endfor %}
+    {% set visited_overlap_count = visited_on_viewer_wishlist|length %}
+    
+    {# Overlap: friend's wishlist ∩ viewer's wishlist #}
+    {% set wishlist_on_viewer_wishlist = [] %}
+    {% for resort in wishlist_resorts %}
+        {% if resort.id in viewer_wishlist_ids %}
+            {% set _ = wishlist_on_viewer_wishlist.append(resort.id) %}
+        {% endif %}
+    {% endfor %}
+    {% set wishlist_overlap_count = wishlist_on_viewer_wishlist|length %}
+{% else %}
+    {% set visited_overlap_count = 0 %}
+    {% set wishlist_overlap_count = 0 %}
+    {% set visited_on_viewer_wishlist = [] %}
+    {% set wishlist_on_viewer_wishlist = [] %}
+    {% set viewer_wishlist_ids = [] %}
+{% endif %}
+
 <div class="bl-profile-tile">
     {# 1. Identity: Name only (state removed per spec) #}
     <div class="tile-identity">
@@ -74,11 +103,21 @@
     {# 5. Mountain rows with chevrons #}
     <div class="tile-mountain-rows">
         <button type="button" class="tile-mountain-row" data-modal-target="visited-modal-{{ profile_user.id }}">
-            <span>Mountains I've visited ({{ visited_resorts|length }})</span>
+            <span class="tile-mountain-label">
+                Mountains I've visited ({{ visited_resorts|length }})
+                {% if visited_overlap_count > 0 %}
+                <span class="tile-overlap-hint">{{ visited_overlap_count }} on your wishlist</span>
+                {% endif %}
+            </span>
             <span class="tile-chevron">›</span>
         </button>
         <button type="button" class="tile-mountain-row" data-modal-target="wishlist-modal-{{ profile_user.id }}">
-            <span>Mountains I want to visit ({{ wishlist_resorts|length }})</span>
+            <span class="tile-mountain-label">
+                Mountains I want to visit ({{ wishlist_resorts|length }})
+                {% if wishlist_overlap_count > 0 %}
+                <span class="tile-overlap-hint">{{ wishlist_overlap_count }} also on your wishlist</span>
+                {% endif %}
+            </span>
             <span class="tile-chevron">›</span>
         </button>
     </div>
@@ -96,7 +135,7 @@
             {% if visited_resorts|length > 0 %}
             <div class="mountain-list">
                 {% for resort in visited_resorts|sort(attribute='name') %}
-                <div class="mountain-item">{{ resort.name }}</div>
+                <div class="mountain-item">{{ resort.name }}{% if resort.id in visited_on_viewer_wishlist %} <span class="mountain-overlap-indicator">· on your wishlist</span>{% endif %}</div>
                 {% endfor %}
             </div>
             {% else %}
@@ -121,7 +160,7 @@
             {% if wishlist_resorts|length > 0 %}
             <div class="mountain-list">
                 {% for resort in wishlist_resorts|sort(attribute='name') %}
-                <div class="mountain-item">{{ resort.name }}</div>
+                <div class="mountain-item">{{ resort.name }}{% if resort.id in wishlist_on_viewer_wishlist %} <span class="mountain-overlap-indicator">· on your wishlist</span>{% endif %}</div>
                 {% endfor %}
             </div>
             {% else %}
@@ -242,6 +281,26 @@
         font-size: 1.25rem;
         color: var(--bl-color-text-muted, #666666);
         font-weight: 300;
+    }
+    
+    .tile-mountain-label {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+    
+    .tile-overlap-hint {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--bl-color-text-muted, #666666);
+        font-weight: 400;
+    }
+    
+    .mountain-overlap-indicator {
+        font-size: 0.8125rem;
+        color: var(--bl-color-text-muted, #666666);
+        font-weight: 400;
     }
     
     /* Modal styles */
