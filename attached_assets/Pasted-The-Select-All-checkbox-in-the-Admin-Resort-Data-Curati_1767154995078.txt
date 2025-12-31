@@ -1,0 +1,77 @@
+The “Select All” checkbox in the Admin → Resort Data Curation table is still not selecting all visible rows.
+
+This must be fixed.
+
+Do NOT redesign the UI.
+Do NOT change selection semantics.
+This is a correctness + sync fix only.
+
+================================
+ISSUE — SELECT ALL STILL BROKEN
+================================
+
+Required behavior (authoritative):
+
+• “Select All” selects ALL rows that are currently visible
+• Visible = rows NOT filtered out (not display:none)
+• Hidden rows must NOT be selected
+• selectedResorts JS Set must exactly match checkbox state
+
+================================
+REQUIRED FIX
+================================
+
+Frontend logic must be corrected as follows:
+
+1. When “Select All” is checked:
+   • Iterate over ALL visible table rows:
+     document.querySelectorAll('tbody tr:not([style*="display: none"])')
+   • For each visible row:
+     - Check the row checkbox
+     - Add the resort ID to selectedResorts
+
+2. When “Select All” is unchecked:
+   • Uncheck ALL row checkboxes
+   • Clear selectedResorts entirely
+
+3. When filters/search change:
+   • Do NOT auto-select newly visible rows
+   • Do NOT auto-deselect previously selected rows
+   • Selection is modified ONLY by:
+     - Row checkbox clicks
+     - Select All toggle
+     - Bulk action completion
+
+4. After any bulk action:
+   • Remove affected IDs from selectedResorts
+   • Re-run filterResorts()
+   • Re-sync Select All checkbox state
+
+================================
+SELECT ALL STATE SYNC
+================================
+
+• If ALL visible rows are selected → Select All is checked
+• If ANY visible row is unselected → Select All is unchecked
+• This must update dynamically as rows are selected/deselected
+
+================================
+VERIFICATION (MANDATORY)
+================================
+
+Manually confirm:
+
+1. Apply filters (Country + Status + State + Pass Brand)
+2. Count visible rows (e.g., 17)
+3. Click “Select All”
+   → Exactly 17 rows are selected
+4. Uncheck one row
+   → Select All becomes unchecked
+5. Re-check Select All
+   → All visible rows are selected again
+6. Run a bulk action
+   → Rows update/disappear correctly
+   → Select All state resets correctly
+
+List files changed.
+Stop after fixing this issue.

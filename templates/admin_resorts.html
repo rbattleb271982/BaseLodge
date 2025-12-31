@@ -1074,62 +1074,75 @@
                 }
                 
                 row.style.display = show ? '' : 'none';
-                
-                // Deselect if row is now hidden
-                if (!show) {
-                    const cb = row.querySelector('.resort-checkbox');
-                    if (cb && cb.checked) {
-                        cb.checked = false;
-                        selectedResorts.delete(parseInt(cb.value));
-                    }
-                }
             });
-            updateSelection();
-        }
-
-        function updateStateFilter() {
-            const country = document.getElementById('country-filter').value;
-            const stateFilter = document.getElementById('state-filter');
-            
-            if (!country) {
-                stateFilter.disabled = true;
-                stateFilter.innerHTML = '<option value="">All States / Regions</option>';
-                return;
-            }
-            
-            const states = new Set();
-            document.querySelectorAll('#resort-table tr').forEach(row => {
-                if (row.dataset.country === country && row.dataset.state) {
-                    states.add(row.dataset.state);
-                }
-            });
-            
-            stateFilter.disabled = false;
-            stateFilter.innerHTML = '<option value="">All States / Regions</option>';
-            Array.from(states).sort().forEach(state => {
-                const option = document.createElement('option');
-                option.value = state;
-                option.textContent = state;
-                stateFilter.appendChild(option);
-            });
+            syncSelectAllState();
         }
 
         function toggleSelectAll() {
             const checked = document.getElementById('select-all').checked;
-            document.querySelectorAll('#resort-table tr').forEach(row => {
-                if (row.style.display !== 'none') {
+            if (checked) {
+                // Select ALL visible rows
+                document.querySelectorAll('#resort-table tr:not([style*="display: none"])').forEach(row => {
                     const cb = row.querySelector('.resort-checkbox');
                     if (cb) {
-                        cb.checked = checked;
-                        if (checked) {
-                            selectedResorts.add(parseInt(cb.value));
-                        } else {
-                            selectedResorts.delete(parseInt(cb.value));
-                        }
+                        cb.checked = true;
+                        selectedResorts.add(parseInt(cb.value));
                     }
-                }
+                });
+            } else {
+                // Uncheck ALL and clear
+                document.querySelectorAll('.resort-checkbox').forEach(cb => cb.checked = false);
+                selectedResorts.clear();
+            }
+            updateSelectionDisplay();
+        }
+
+        function updateSelection() {
+            // Called by individual row checkbox onchange
+            const cb = event.target;
+            const id = parseInt(cb.value);
+            if (cb.checked) {
+                selectedResorts.add(id);
+            } else {
+                selectedResorts.delete(id);
+            }
+            syncSelectAllState();
+            updateSelectionDisplay();
+        }
+
+        function syncSelectAllState() {
+            const visibleRows = document.querySelectorAll('#resort-table tr:not([style*="display: none"])');
+            const selectAll = document.getElementById('select-all');
+            
+            if (visibleRows.length === 0) {
+                selectAll.checked = false;
+                return;
+            }
+            
+            let allSelected = true;
+            visibleRows.forEach(row => {
+                const cb = row.querySelector('.resort-checkbox');
+                if (cb && !cb.checked) allSelected = false;
             });
-            updateSelection();
+            
+            selectAll.checked = allSelected;
+        }
+
+        function updateSelectionDisplay() {
+            const count = selectedResorts.size;
+            const countDisplay = document.getElementById('selected-count');
+            if (countDisplay) countDisplay.textContent = count;
+            
+            const panel = document.getElementById('merge-panel');
+            if (panel) {
+                if (count > 0) {
+                    panel.style.display = 'block';
+                    panel.classList.add('visible');
+                } else {
+                    panel.style.display = 'none';
+                    panel.classList.remove('visible');
+                }
+            }
         }
 
         function exportExcel() {
@@ -1193,6 +1206,9 @@
             .then(data => {
                 if (data.status === 'success' || data.updated_count !== undefined || data.deleted_count !== undefined || (data.deleted && data.deleted.length > 0)) {
                     showToast(`Successfully ${action}d resorts`, 'success');
+                    
+                    // Remove affected IDs from selectedResorts
+                    resortIds.forEach(id => selectedResorts.delete(id));
                     
                     if (action === 'delete') {
                         resortIds.forEach(id => {
@@ -1350,6 +1366,9 @@
                 if (data.status === 'success' || data.updated_count !== undefined || data.deleted_count !== undefined || (data.deleted && data.deleted.length > 0)) {
                     showToast(`Successfully ${action}d resorts`, 'success');
                     
+                    // Remove affected IDs from selectedResorts
+                    resortIds.forEach(id => selectedResorts.delete(id));
+                    
                     if (action === 'delete') {
                         resortIds.forEach(id => {
                             const row = document.querySelector(`tr[data-id="${id}"]`);
@@ -1445,7 +1464,10 @@
                         }
                     });
                     selectedResorts.clear();
-                    clearSelection();
+                    // Clear all checkboxes
+                    document.querySelectorAll('.resort-checkbox').forEach(cb => cb.checked = false);
+                    syncSelectAllState();
+                    updateSelectionDisplay();
                     filterResorts();
                 } else {
                     showToast(data.message || 'Bulk update failed', 'error');
@@ -1500,11 +1522,21 @@
             .then(data => {
                 if (data.status === 'success') {
                     showToast(`Merged into ${data.canonical_resort}. Trips: ${data.stats.trips_updated}, Visited: ${data.stats.visited_lists_updated}`, 'success');
-                    setTimeout(() => reloadWithSort(), 1500);
+                    
+                    // Remove duplicate IDs from selection
+                    if (pendingMerge && pendingMerge.duplicate_ids) {
+                        pendingMerge.duplicate_ids.forEach(id => selectedResorts.delete(id));
+                    }
+                    
+                    // Clear all checkboxes
+                    document.querySelectorAll('.resort-checkbox').forEach(cb => cb.checked = false);
+                    syncSelectAllState();
+                    updateSelectionDisplay();
+                    filterResorts();
+                    closeMergeModal();
                 } else {
                     showToast('Error: ' + data.message, 'error');
                 }
-                closeMergeModal();
             });
         }
         
@@ -1512,13 +1544,16 @@
         function exportExcel() {
             const search = document.getElementById('search').value;
             const country = document.getElementById('country-filter').value;
+            const state = document.getElementById('state-filter').value;
             const status = document.getElementById('status-filter').value;
+            const passBrand = document.getElementById('pass-brand-filter').value;
             
-            const params = new URLSearchParams({
-                search: search,
-                country: country,
-                status: status
-            });
+            const params = new URLSearchParams();
+            if (search) params.append('search', search);
+            if (country) params.append('country', country);
+            if (state) params.append('state', state);
+            if (status) params.append('status', status);
+            if (passBrand) params.append('pass_brand', passBrand);
             
             window.location.href = `/admin/resorts/export-excel?${params.toString()}`;
         }
