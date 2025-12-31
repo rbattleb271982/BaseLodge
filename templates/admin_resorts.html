@@ -1523,18 +1523,48 @@
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'success') {
-                    showToast(`Merged into ${data.canonical_resort}. Trips: ${data.stats.trips_updated}, Visited: ${data.stats.visited_lists_updated}`, 'success');
+                    showToast(`Merged into ${data.canonical_resort}. Trips: ${data.stats.trips_updated}, Visited: ${data.stats.visited_lists_updated}, Deactivated: ${data.stats.resorts_deactivated}`, 'success');
                     
-                    // Remove duplicate IDs from selection
+                    // Update UI to reflect deactivated source resorts
                     if (pendingMerge && pendingMerge.duplicate_ids) {
-                        pendingMerge.duplicate_ids.forEach(id => selectedResorts.delete(id));
+                        pendingMerge.duplicate_ids.forEach(id => {
+                            const row = document.querySelector(`tr[data-id="${id}"]`);
+                            if (row) {
+                                row.classList.add('inactive');
+                                row.dataset.active = 'false';
+                                const actionBtn = row.querySelector('button[onclick*="toggleActive"]');
+                                if (actionBtn) {
+                                    actionBtn.textContent = 'Activate';
+                                    actionBtn.classList.remove('btn-danger');
+                                    actionBtn.classList.add('btn-success');
+                                    actionBtn.setAttribute('onclick', `toggleActive(${id}, true)`);
+                                }
+                            }
+                        });
                     }
+                    
+                    // Clear ALL selections completely
+                    selectedResorts.clear();
                     
                     // Clear all checkboxes
                     document.querySelectorAll('.resort-checkbox').forEach(cb => cb.checked = false);
+                    
+                    // Reset merge target dropdown
+                    const mergeTargetSelect = document.getElementById('merge-target-select');
+                    if (mergeTargetSelect) {
+                        mergeTargetSelect.innerHTML = '<option value="">-- Select Target Resort --</option>';
+                    }
+                    
+                    // Reset select-all checkbox
                     syncSelectAllState();
+                    
+                    // Update selection display (will hide merge panel since count is 0)
                     updateSelectionDisplay();
+                    
+                    // Re-apply filters to reflect inactive status
                     filterResorts();
+                    
+                    // Close modal
                     closeMergeModal();
                 } else {
                     showToast('Error: ' + data.message, 'error');
