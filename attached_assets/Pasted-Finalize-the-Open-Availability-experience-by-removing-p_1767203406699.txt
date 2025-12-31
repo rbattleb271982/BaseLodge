@@ -1,0 +1,72 @@
+Finalize the Open Availability experience by removing pass-overlap judgment entirely and displaying passes as neutral information only. The UI should inform, not decide.
+1. Core Principle (Authoritative)
+Do NOT label or judge pass overlap.
+Remove “No pass overlap” everywhere
+Do NOT compute or display compatibility states
+Do NOT show warnings or conditional language
+Simply show what passes people have
+If a user has Epic and a friend has Ikon, that is already self-evident.
+2. Scope (Strict)
+Update ONLY the Open Availability tab and its bottom-sheet detail view
+Do NOT modify Trips, Overlaps, or Friend Trips
+Do NOT change database schema
+Do NOT introduce new logic flags or booleans
+3. Date Formatting
+Use short list format in Open Availability:
+Sat, Feb 7
+Apply only within this view
+4. Collapsed Card UI (List View)
+Structure (2 lines max):
+Sat, Feb 7
+You + 1 friend                       View who’s open →
+Rules:
+Do NOT show pass names
+Do NOT show compatibility or overlap language
+Show CTA once, aligned far right
+Remove all legacy text like:
+“No pass overlap”
+“Compatible / incompatible”
+“Other passes”
+5. Interaction Model
+Tapping the card or CTA opens a bottom-sheet modal
+No inline expand/collapse
+No “Hide” buttons
+Modal dismisses via tap-outside or swipe
+6. Expanded / Detail View (Bottom Sheet)
+Content Rules
+Show friends only (do NOT include current user)
+Each friend renders as one single, left-aligned inline row
+No multi-column layouts
+No right-aligned metadata
+No judgment labels
+Exact Row Format (Required):
+First Last · Rider Type · Pass(es) · Level
+Pass Display Rules
+Show exactly what the friend has
+If multiple passes, display comma-separated
+If no pass selected, display:
+No pass
+Examples
+Taylor Mercer · Skier · Epic, Ikon · Advanced
+Jamie Chen · Snowboarder · Ikon · Intermediate
+Alex Ruiz · Skier · No pass · Beginner
+7. Copy Rules
+Replace “You + 1 friend are open” → “You + 1 friend”
+Use · separators consistently
+Keep all copy factual and neutral
+8. Remove Legacy Logic (Important)
+Delete any pass-overlap comparison logic
+Delete any is_compatible, no_pass_overlap, or similar flags
+Do NOT infer, score, or rank pass relationships
+9. Empty State
+If no friends are open on a day, show:
+No friends are open on this day.
+10. Acceptance Criteria
+No “No pass overlap” text exists anywhere
+Open Availability list is calm and scannable
+Expanded view shows inline, left-aligned rows only
+Passes are displayed as raw facts
+No conditional pass logic remains
+Do not introduce checkpoints unless explicitly requested.
+Do not refactor unrelated code.
+Do not reintroduce pass-overlap logic in any form.

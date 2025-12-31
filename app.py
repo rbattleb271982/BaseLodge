@@ -1386,7 +1386,6 @@ def my_trips():
 
     # Build open date matches (wrapped for production safety)
     open_date_matches = []
-    user_pass_brands = set(user.get_pass_brands_list()) if hasattr(user, 'get_pass_brands_list') else set()
     try:
         if my_open_dates and friend_ids:
             friends_with_open = User.query.filter(User.id.in_(friend_ids)).all()
@@ -1395,44 +1394,33 @@ def my_trips():
                 for friend in friends_with_open:
                     friend_dates = set(friend.open_dates or [])
                     if date_str in friend_dates:
-                        # Get friend's pass brands
-                        friend_pass_brands = set(friend.get_pass_brands_list()) if hasattr(friend, 'get_pass_brands_list') else set()
-                        # Calculate overlap
-                        overlapping_passes = user_pass_brands & friend_pass_brands
-                        is_compatible = len(overlapping_passes) > 0
-                        # Pick one overlapping pass or friend's primary
-                        if overlapping_passes:
-                            display_pass = list(overlapping_passes)[0]
-                        elif friend_pass_brands:
-                            display_pass = list(friend_pass_brands)[0]
+                        # Get friend's pass brands as comma-separated string
+                        friend_pass_brands = friend.get_pass_brands_list() if hasattr(friend, 'get_pass_brands_list') else []
+                        # Filter out None/empty, join with comma
+                        if friend_pass_brands and friend_pass_brands != ['None']:
+                            display_passes = ', '.join(friend_pass_brands)
                         else:
-                            display_pass = friend.pass_type or ""
+                            display_passes = "No pass"
                         
                         # Build full name
                         full_name = f"{friend.first_name or ''} {friend.last_name or ''}".strip() or "Friend"
                         
                         matching_friends.append({
                             "name": full_name,
-                            "first_name": friend.first_name or "Friend",
                             "id": friend.id,
-                            "pass_type": friend.pass_type or "",
-                            "pass_brands": list(friend_pass_brands),
-                            "display_pass": display_pass,
-                            "is_compatible": is_compatible,
+                            "display_passes": display_passes,
                             "rider_type": friend.rider_type or "",
                             "skill_level": friend.skill_level or ""
                         })
                 if matching_friends:
                     try:
                         date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-                        compatible_count = sum(1 for f in matching_friends if f['is_compatible'])
                         open_date_matches.append({
                             "date_str": date_str,
                             "date_obj": date_obj,
                             "day_name": date_obj.strftime('%a'),  # Short format: Sat
                             "display_date": date_obj.strftime('%b %-d'),  # Feb 7 (no leading zero)
                             "friends": matching_friends,
-                            "compatible_count": compatible_count,
                             "total_count": len(matching_friends)
                         })
                     except ValueError:

@@ -250,8 +250,7 @@
                                 {{ match.day_name }}, {{ match.display_date }}
                             </p>
                             <p style="font-size: 0.85rem; margin: 0; color: var(--bl-color-text-muted);">
-                                You + {{ match.total_count }} friend{% if match.total_count != 1 %}s{% endif %} · 
-                                {% if match.compatible_count == match.total_count %}All compatible{% elif match.compatible_count == 0 %}No pass overlap{% else %}{{ match.compatible_count }} compatible{% endif %}
+                                You + {{ match.total_count }} friend{% if match.total_count != 1 %}s{% endif %}
                             </p>
                         </div>
                         <span style="font-size: 0.8rem; color: var(--bl-color-primary); font-weight: 500; white-space: nowrap; margin-left: 12px;">View who's open →</span>
@@ -288,7 +287,7 @@
                 {% if match.friends %}
                     {% for friend in match.friends | sort(attribute='name') %}
                     <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="display: block; text-decoration: none; color: var(--bl-color-text); padding: 10px 0; border-bottom: 1px solid var(--bl-color-border-soft);">
-                        <span style="font-size: 0.9rem;">{{ friend.name }}{% if friend.rider_type %} · {{ friend.rider_type }}{% endif %}{% if friend.display_pass %} · {{ friend.display_pass }}{% if not friend.is_compatible %} <span style="color: var(--bl-color-text-muted);">(no pass overlap)</span>{% endif %}{% endif %}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
+                        <span style="font-size: 0.9rem;">{{ friend.name }}{% if friend.rider_type %} · {{ friend.rider_type }}{% endif %} · {{ friend.display_passes }}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
                     </a>
                     {% endfor %}
                 {% else %}
