@@ -1,0 +1,85 @@
+Goal
+Refactor and clean up the Open Availability tab so it is consistent, dense, and pass-aware, while remaining easy to scan as friend counts grow.
+1. Scope (Important)
+ONLY update the Open Availability tab
+Do NOT modify Trips, Overlaps, or Friend Trips in this task
+Do NOT refactor data models
+Reuse existing components where possible
+2. Date Formatting
+Standardize dates in Open Availability to:
+Sat, Feb 7
+Do not use full weekday names in list/card views
+Apply this format only to Open Availability for now
+3. Grouping & Intent
+This view is date-first (“Which days work”)
+Each card represents one date
+Friends are associated within that date
+4. Pass Compatibility Logic (Critical)
+For each date:
+Compare current_user.pass_brands with friend.pass_brands
+If any overlap exists, the friend is compatible
+If no overlap exists, the friend is incompatible but still visible
+Rules:
+If the user has multiple passes, any overlapping pass counts
+Days with zero compatible friends still appear
+Do not hide incompatible friends
+5. Collapsed Card UI (Default State)
+Structure (max 2 lines):
+Sat, Feb 7
+You + 3 friends · 2 compatible            View who’s open →
+Rules:
+Do NOT show individual pass names
+Do NOT show raw pass counts
+Show only:
+Total open friends
+Compatibility summary
+Compatibility copy:
+All compatible → All compatible
+None compatible → No pass overlap
+CTA:
+Show “View who’s open →” once, aligned on the far right
+Remove all duplicate CTAs or inline expand controls
+6. Interaction Model
+Tapping the card OR the CTA performs the same action
+Opens a bottom-sheet modal (reuse existing modal patterns)
+No inline expand/collapse behavior in the list
+7. Expanded / Detail View (Bottom Sheet)
+Content rules
+Show friends only (do NOT include the current user)
+Each friend must appear on one single inline row (no multi-line stacking)
+Row format (strict):
+First Last · Rider Type · Pass · Level
+Pass display rules
+If friend has ≥1 overlapping pass → show one overlapping pass only
+If no overlap → show friend’s primary pass and append:
+(no pass overlap)
+Examples:
+Alex Morgan · Skier · Epic · Advanced
+Jamie Chen · Snowboarder · Epic · Intermediate
+Taylor Ruiz · Skier · Ikon (no pass overlap) · Expert
+Do NOT:
+Show multiple overlapping passes
+Show raw pass arrays
+Wrap rows onto multiple lines
+8. Copy Rules
+Replace “You + 1 friend are open” → “You + 1 friend”
+Use separators (·) instead of dashes or extra rows
+Keep copy short and scannable
+9. Empty State
+If no friends are open on a given day, show:
+No friends are open on this day.
+(Optional secondary line only if needed for spacing):
+Check other dates to find overlaps.
+10. Non-Goals (Do NOT Implement)
+No friend-first grouping
+No inline expand animations
+No hiding incompatible friends
+No global pass filtering UI
+No updates outside Open Availability
+11. Acceptance Criteria
+Cards are 2 lines max
+CTA appears once per card
+Detail view uses bottom-sheet modal
+Friend rows are single-line, inline
+Pass compatibility is accurate and clearly labeled
+Date format matches Sat, Feb 7
