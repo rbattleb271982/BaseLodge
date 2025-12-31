@@ -1229,6 +1229,10 @@ def auth():
             login_user(new_user, remember=True)
             session.modified = True
             
+            # Connect with inviter if coming from invite link
+            if "invite_token" in session:
+                _connect_pending_inviter(new_user)
+            
             return redirect(url_for("identity_setup"))
         
         elif form_type == "login":
@@ -1240,6 +1244,14 @@ def auth():
                 login_user(user, remember=True)
                 session.modified = True
                 db.session.commit()
+                
+                # Connect with inviter if coming from invite link
+                if "invite_token" in session:
+                    connected = _connect_pending_inviter(user)
+                    if connected:
+                        # Redirect to friends page to show the new connection
+                        return redirect(url_for("friends"))
+                
                 return redirect("/my-trips")
             
             flash("Invalid email or password.", "error")
@@ -1351,22 +1363,28 @@ def _connect_pending_inviter(user):
         return False
 
     invite = InviteToken.query.filter_by(token=invite_token_str).first()
-    if not invite or invite.is_expired():
+    # Check if token is invalid, already used, or expired
+    if not invite or invite.is_used() or invite.is_expired():
         session.pop("invite_token", None)
         return False
 
     inviter = User.query.get(invite.inviter_id)
     connected = False
     if inviter and inviter.id != user.id:
+        # Idempotent: check if friend connection already exists
         existing = Friend.query.filter_by(user_id=user.id, friend_id=inviter.id).first()
         if not existing:
             f1 = Friend(user_id=user.id, friend_id=inviter.id)
             f2 = Friend(user_id=inviter.id, friend_id=user.id)
             db.session.add_all([f1, f2])
             user.invited_by_user_id = inviter.id
-            db.session.commit()
             connected = True
             app.logger.info(f"Connected {user.id} with inviter {inviter.id} via token {invite_token_str}")
+        
+        # Mark token as used (even if already friends, prevent reuse)
+        invite.used_at = datetime.utcnow()
+        db.session.commit()
+        connected = True
     
     session.pop("invite_token", None)
     return connected
