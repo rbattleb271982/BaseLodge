@@ -7752,6 +7752,29 @@ def admin_bulk_delete_resorts():
     })
 
 
+@app.route("/api/admin/resorts/bulk-activate", methods=["POST"])
+@login_required
+@admin_required
+def admin_bulk_activate_resorts():
+    """Bulk activate resorts."""
+    data = request.get_json()
+    resort_ids = data.get('resort_ids', [])
+    
+    if not resort_ids:
+        return jsonify({'status': 'error', 'message': 'No resorts selected'}), 400
+    
+    updated_count = Resort.query.filter(Resort.id.in_(resort_ids)).update(
+        {'status': 'ACTIVE'},
+        synchronize_session=False
+    )
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success',
+        'updated_count': updated_count
+    })
+
+
 @app.route("/api/admin/resorts/merge", methods=["POST"])
 @login_required
 @admin_required
