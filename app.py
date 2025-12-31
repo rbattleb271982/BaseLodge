@@ -7651,93 +7651,100 @@ def admin_export_resorts_excel():
     from openpyxl import Workbook
     from datetime import datetime
     
-    # Get filters
-    search_query = request.args.get('search', '').lower()
-    country_filter = request.args.get('country', '')
-    status_filter = request.args.get('status', '')
-    
-    # Base query
-    query = Resort.query
-    
-    # Apply country filter
-    if country_filter:
-        query = query.filter(Resort.country_code == country_filter)
+    try:
+        # Get filters with safe defaults
+        search_query = request.args.get('search', '').lower().strip()
+        country_filter = request.args.get('country', '').strip()
+        status_filter = request.args.get('status', '').lower().strip()
         
-    # Apply status filter
-    if status_filter == 'active':
-        query = query.filter(Resort.is_active == True)
-    elif status_filter == 'inactive':
-        query = query.filter(Resort.is_active == False)
+        # Base query
+        query = Resort.query
         
-    resorts = query.all()
-    
-    # Apply search filter (in-memory to match frontend behavior if needed, 
-    # but let's do it correctly for the export)
-    if search_query:
-        resorts = [r for r in resorts if search_query in r.name.lower() or 
-                   (r.state_code and search_query in r.state_code.lower()) or
-                   (r.state and search_query in r.state.lower())]
+        # Apply country filter
+        if country_filter:
+            query = query.filter(Resort.country_code == country_filter)
+            
+        # Apply status filter
+        if status_filter == 'active':
+            query = query.filter(Resort.is_active == True)
+        elif status_filter == 'inactive':
+            query = query.filter(Resort.is_active == False)
+            
+        resorts = query.all()
+        
+        # Apply search filter in-memory
+        if search_query:
+            resorts = [r for r in resorts if 
+                       (r.name and search_query in r.name.lower()) or 
+                       (r.state_code and search_query in r.state_code.lower()) or
+                       (r.state and search_query in r.state.lower())]
 
-    # Create workbook
-    wb = Workbook()
-    ws = wb.active
-    if ws is None:
-        return "Failed to create workbook", 500
-    ws.title = "Resorts Export"
-    
-    # Header Note
-    ws.append(["Do not edit Resort ID. Only editable columns will be applied."])
-    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=6)
-    
-    # Headers
-    headers = ["Resort ID", "Name", "Country", "State / Region", "Pass Brands", "Status"]
-    ws.append(headers)
-    
-    # Data
-    for r in resorts:
-        ws.append([
-            r.id,
-            r.name,
-            r.country_code or r.country or '',
-            r.state_code or r.state or '',
-            r.pass_brands or r.brand or '',
-            "ACTIVE" if r.is_active else "INACTIVE"
-        ])
-    
-    # Style headers
-    from openpyxl.styles import Font
-    ws['A1'].font = Font(bold=True, italic=True)
-    for cell in ws[2]:
-        cell.font = Font(bold=True)
+        # Create workbook
+        wb = Workbook()
+        ws = wb.active
+        if ws is None:
+            return jsonify({'status': 'error', 'message': 'Failed to initialize Excel worksheet'}), 500
+            
+        ws.title = "Resorts Export"
         
-    # Adjust column widths
-    for column_cells in ws.columns:
-        # column_cells is a tuple of cells in the column
-        column_letter = column_cells[0].column_letter
-        max_length = 0
-        for i, cell in enumerate(column_cells):
-            if i == 0: continue # Skip note row
-            try:
-                if cell.value:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-            except:
-                pass
-        ws.column_dimensions[column_letter].width = max_length + 2
+        # Header Note
+        ws.append(["Do not edit Resort ID. Only editable columns will be applied."])
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=6)
+        
+        # Headers
+        headers = ["Resort ID", "Name", "Country", "State / Region", "Pass Brands", "Status"]
+        ws.append(headers)
+        
+        # Data
+        for r in resorts:
+            ws.append([
+                r.id,
+                r.name or '',
+                r.country_code or r.country or '',
+                r.state_code or r.state or '',
+                r.pass_brands or r.brand or '',
+                "ACTIVE" if r.is_active else "INACTIVE"
+            ])
+        
+        # Style headers
+        from openpyxl.styles import Font
+        ws['A1'].font = Font(bold=True, italic=True)
+        for cell in ws[2]:
+            cell.font = Font(bold=True)
+            
+        # Adjust column widths
+        for column_cells in ws.columns:
+            column_letter = column_cells[0].column_letter
+            max_length = 0
+            for i, cell in enumerate(column_cells):
+                if i == 0: continue # Skip note row
+                try:
+                    val = str(cell.value) if cell.value is not None else ""
+                    if len(val) > max_length:
+                        max_length = len(val)
+                except:
+                    pass
+            ws.column_dimensions[column_letter].width = min(max_length + 2, 50) # Cap width
 
-    # Save to memory
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
-    
-    filename = f"resorts_export_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
-    
-    return send_file(
-        output,
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        as_attachment=True,
-        download_name=filename
-    )
+        # Save to memory
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        filename = f"resorts_export_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+        
+        return send_file(
+            output,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        # Log the error for admin debugging
+        print(f"Excel Export Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'status': 'error', 'message': f'Export failed: {str(e)}'}), 500
 
 
 @app.route("/admin/resorts/import-excel", methods=["POST"])
