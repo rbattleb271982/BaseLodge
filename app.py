@@ -24,6 +24,8 @@ from sendgrid.helpers.mail import Mail
 # Do NOT reintroduce profile routes or templates.
 # ============================================================================
 
+is_production = os.environ.get("DATABASE_URL") is not None and "postgresql" in os.environ.get("DATABASE_URL", "")
+
 app = Flask(__name__)
 
 # ============================================================================
