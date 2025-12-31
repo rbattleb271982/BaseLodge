@@ -7803,22 +7803,33 @@ def admin_export_resorts_excel():
 @login_required
 @admin_required
 def admin_update_pass_brand():
-    """Update a single resort's pass brand."""
+    """Update a single resort's pass brands (supports array)."""
     data = request.get_json()
     resort_id = data.get('resort_id')
-    pass_brand = data.get('pass_brand')
+    pass_brands = data.get('pass_brands')
     
-    allowed_values = ['Epic', 'Ikon', 'Indy', 'Other', 'None']
-    if pass_brand not in allowed_values:
-        return jsonify({'status': 'error', 'message': 'Invalid pass brand'}), 400
+    # Handle legacy single value format
+    if pass_brands is None:
+        pass_brands = data.get('pass_brand')
+    if isinstance(pass_brands, str):
+        pass_brands = [pass_brands] if pass_brands else []
+    
+    allowed_values = ['Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other', 'None']
+    for brand in pass_brands:
+        if brand not in allowed_values:
+            return jsonify({'status': 'error', 'message': f'Invalid pass brand: {brand}'}), 400
+    
+    # Handle "None" semantics - mutually exclusive
+    if 'None' in pass_brands:
+        pass_brands = []
         
     resort = Resort.query.get(resort_id)
     if not resort:
         return jsonify({'status': 'error', 'message': 'Resort not found'}), 404
-        
-    resort.pass_brands = pass_brand
+    
+    resort.pass_brands_json = pass_brands
     db.session.commit()
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'pass_brands': resort.get_pass_brands_list()})
 
 
 @app.route("/api/admin/resorts/update-field", methods=["POST"])
@@ -7913,24 +7924,36 @@ def admin_delete_resort_post():
 @login_required
 @admin_required
 def admin_bulk_update_pass_brand():
-    """Bulk update resorts' pass brand."""
+    """Bulk update resorts' pass brands (supports array)."""
     data = request.get_json()
     resort_ids = data.get('resort_ids', [])
-    pass_brand = data.get('pass_brand')
+    pass_brands = data.get('pass_brands')
     
-    allowed_values = ['Epic', 'Ikon', 'Indy', 'Other', 'None']
-    if pass_brand not in allowed_values:
-        return jsonify({'status': 'error', 'message': 'Invalid pass brand'}), 400
+    # Handle legacy single value format
+    if pass_brands is None:
+        pass_brands = data.get('pass_brand')
+    if isinstance(pass_brands, str):
+        pass_brands = [pass_brands] if pass_brands else []
+    
+    allowed_values = ['Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other', 'None']
+    for brand in pass_brands:
+        if brand not in allowed_values:
+            return jsonify({'status': 'error', 'message': f'Invalid pass brand: {brand}'}), 400
         
     if not resort_ids:
         return jsonify({'status': 'error', 'message': 'No resorts selected'}), 400
-        
-    updated_count = Resort.query.filter(Resort.id.in_(resort_ids)).update(
-        {Resort.pass_brands: pass_brand},
-        synchronize_session=False
-    )
+    
+    # Handle "None" semantics - mutually exclusive
+    if 'None' in pass_brands:
+        pass_brands = []
+    
+    # Update each resort (bulk update for JSON column)
+    resorts = Resort.query.filter(Resort.id.in_(resort_ids)).all()
+    for resort in resorts:
+        resort.pass_brands_json = pass_brands
+    
     db.session.commit()
-    return jsonify({'updated_count': updated_count})
+    return jsonify({'updated_count': len(resorts)})
 
 
 @app.route("/admin/resorts/import-excel", methods=["POST"])
@@ -8363,7 +8386,19 @@ def admin_add_resort():
     name = (data.get('name') or '').strip()
     country_code = (data.get('country_code') or '').strip().upper()
     state_code = (data.get('state_code') or '').strip() or None
-    pass_brands = (data.get('pass_brands') or '').strip() or None
+    pass_brands_input = data.get('pass_brands')
+    
+    # Handle pass_brands as array or comma-separated string
+    if isinstance(pass_brands_input, list):
+        pass_brands_list = pass_brands_input
+    elif isinstance(pass_brands_input, str):
+        pass_brands_list = [p.strip() for p in pass_brands_input.split(',') if p.strip()]
+    else:
+        pass_brands_list = []
+    
+    # Handle "None" semantics
+    if 'None' in pass_brands_list:
+        pass_brands_list = []
     
     errors = []
     if not name:
@@ -8416,7 +8451,7 @@ def admin_add_resort():
         state_name=state_code,
         state_full=state_code,
         brand=None,
-        pass_brands=pass_brands,
+        pass_brands_json=pass_brands_list,
         slug=slug,
         is_active=True,
         is_region=False
@@ -8434,7 +8469,8 @@ def admin_add_resort():
                 'name': new_resort.name,
                 'country_code': new_resort.country_code,
                 'state_code': new_resort.state_code,
-                'pass_brands': new_resort.pass_brands,
+                'pass_brands': new_resort.get_pass_brands_list(),
+                'pass_brands_json': new_resort.pass_brands_json,
                 'slug': new_resort.slug
             }
         })

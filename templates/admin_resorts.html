@@ -474,6 +474,70 @@
             color: #2d3748;
         }
         
+        .checkbox-group.compact {
+            gap: 8px;
+        }
+        .checkbox-group.compact .checkbox-item span {
+            font-size: 12px;
+        }
+        
+        /* Pass tags */
+        .pass-cell {
+            min-width: 100px;
+        }
+        .pass-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background 0.15s;
+        }
+        .pass-tags:hover {
+            background: #f7fafc;
+        }
+        .pass-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        .pass-tag.pass-epic { background: #e3f2fd; color: #1565c0; }
+        .pass-tag.pass-ikon { background: #fce4ec; color: #c62828; }
+        .pass-tag.pass-mountain-collective { background: #f3e5f5; color: #7b1fa2; }
+        .pass-tag.pass-indy { background: #e8f5e9; color: #2e7d32; }
+        .pass-tag.pass-other { background: #fff3e0; color: #e65100; }
+        .pass-tag.pass-none { background: #eceff1; color: #546e7a; }
+        
+        /* Pass editor popup */
+        .pass-editor-popup {
+            position: absolute;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 12px;
+            z-index: 100;
+            min-width: 200px;
+        }
+        .pass-editor-popup .checkbox-group {
+            flex-direction: column;
+            gap: 8px;
+        }
+        .pass-editor-popup .checkbox-item {
+            padding: 4px 0;
+        }
+        .pass-editor-popup .editor-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+        }
+        
         .form-actions {
             display: flex;
             gap: 12px;
@@ -566,21 +630,29 @@
                 </div>
                 <div class="form-group">
                     <label>Pass Brands (optional)</label>
-                    <div class="checkbox-group">
+                    <div class="checkbox-group pass-checkboxes" id="new-resort-passes">
                         <label class="checkbox-item">
-                            <input type="checkbox" id="pass-epic" value="Epic">
+                            <input type="checkbox" name="new-pass" value="Epic" onchange="handlePassCheckboxChange(this, 'new-resort-passes')">
                             <span>Epic</span>
                         </label>
                         <label class="checkbox-item">
-                            <input type="checkbox" id="pass-ikon" value="Ikon">
+                            <input type="checkbox" name="new-pass" value="Ikon" onchange="handlePassCheckboxChange(this, 'new-resort-passes')">
                             <span>Ikon</span>
                         </label>
                         <label class="checkbox-item">
-                            <input type="checkbox" id="pass-other" value="Other">
+                            <input type="checkbox" name="new-pass" value="Mountain Collective" onchange="handlePassCheckboxChange(this, 'new-resort-passes')">
+                            <span>Mtn Collective</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="new-pass" value="Indy" onchange="handlePassCheckboxChange(this, 'new-resort-passes')">
+                            <span>Indy</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="new-pass" value="Other" onchange="handlePassCheckboxChange(this, 'new-resort-passes')">
                             <span>Other</span>
                         </label>
                         <label class="checkbox-item">
-                            <input type="checkbox" id="pass-none" value="">
+                            <input type="checkbox" name="new-pass" value="None" onchange="handlePassCheckboxChange(this, 'new-resort-passes')">
                             <span>None</span>
                         </label>
                     </div>
@@ -613,6 +685,7 @@
             <option value="">All Pass Brands</option>
             <option value="Epic">Epic</option>
             <option value="Ikon">Ikon</option>
+            <option value="Mountain Collective">Mtn Collective</option>
             <option value="Indy">Indy</option>
             <option value="Other">Other</option>
             <option value="None">None</option>
@@ -631,16 +704,17 @@
         
         <div style="display: flex; flex-direction: column; gap: 16px;">
             <div>
-                <p style="font-size: 13px; color: #666; margin: 0 0 8px 0;">Update Pass Brand:</p>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <select id="bulk-pass-brand" class="form-control" style="width: auto;">
-                        <option value="Epic">Epic</option>
-                        <option value="Ikon">Ikon</option>
-                        <option value="Indy">Indy</option>
-                        <option value="Other">Other</option>
-                        <option value="None">None</option>
-                    </select>
-                    <button class="btn btn-primary" onclick="applyBulkPassBrand()">Apply Pass Brand</button>
+                <p style="font-size: 13px; color: #666; margin: 0 0 8px 0;">Set Pass Brands:</p>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <div class="checkbox-group pass-checkboxes compact" id="bulk-pass-brands">
+                        <label class="checkbox-item"><input type="checkbox" name="bulk-pass" value="Epic"><span>Epic</span></label>
+                        <label class="checkbox-item"><input type="checkbox" name="bulk-pass" value="Ikon"><span>Ikon</span></label>
+                        <label class="checkbox-item"><input type="checkbox" name="bulk-pass" value="Mountain Collective"><span>MC</span></label>
+                        <label class="checkbox-item"><input type="checkbox" name="bulk-pass" value="Indy"><span>Indy</span></label>
+                        <label class="checkbox-item"><input type="checkbox" name="bulk-pass" value="Other"><span>Other</span></label>
+                        <label class="checkbox-item"><input type="checkbox" name="bulk-pass" value="None" onchange="handlePassCheckboxChange(this, 'bulk-pass-brands')"><span>None</span></label>
+                    </div>
+                    <button class="btn btn-primary" onclick="applyBulkPassBrand()">Apply</button>
                 </div>
             </div>
             
@@ -689,7 +763,7 @@
                     data-name="{{ resort.name|lower }}"
                     data-country="{{ resort.country_code or '' }}"
                     data-state="{{ resort.state_code or resort.state or '' }}"
-                    data-pass="{{ resort.pass_brands or resort.brand or '' }}"
+                    data-pass="{{ resort.get_pass_brands_list()|join(',') or 'None' }}"
                     data-active="{{ 'true' if resort.is_active else 'false' }}"
                     class="{{ '' if resort.is_active else 'inactive' }}">
                     <td><input type="checkbox" class="resort-checkbox" value="{{ resort.id }}" onchange="updateSelection()"></td>
@@ -717,14 +791,17 @@
                                onblur="saveField(this)"
                                style="width: 80px;">
                     </td>
-                    <td>
-                        <select class="pass-brand-select" data-id="{{ resort.id }}" onchange="updatePassBrand(this)">
-                            <option value="Epic" {% if (resort.pass_brands or resort.brand) == 'Epic' %}selected{% endif %}>Epic</option>
-                            <option value="Ikon" {% if (resort.pass_brands or resort.brand) == 'Ikon' %}selected{% endif %}>Ikon</option>
-                            <option value="Indy" {% if (resort.pass_brands or resort.brand) == 'Indy' %}selected{% endif %}>Indy</option>
-                            <option value="Other" {% if (resort.pass_brands or resort.brand) == 'Other' %}selected{% endif %}>Other</option>
-                            <option value="None" {% if not (resort.pass_brands or resort.brand) or (resort.pass_brands or resort.brand) == 'None' %}selected{% endif %}>None</option>
-                        </select>
+                    <td class="pass-cell">
+                        <div class="pass-tags" data-id="{{ resort.id }}" onclick="openPassEditor(this)">
+                            {% set brands = resort.get_pass_brands_list() %}
+                            {% if brands %}
+                                {% for brand in resort.get_pass_brands_display() %}
+                                <span class="pass-tag pass-{{ brand|lower|replace(' ', '-') }}">{{ brand[:4] if brand == 'Mountain Collective' else brand }}</span>
+                                {% endfor %}
+                            {% else %}
+                            <span class="pass-tag pass-none">None</span>
+                            {% endif %}
+                        </div>
                     </td>
                     <td>
                         <span class="status-badge {{ 'status-active' if resort.is_active else 'status-inactive' }}">
@@ -801,10 +878,8 @@
             document.getElementById('new-resort-name').value = '';
             document.getElementById('new-resort-country').value = '';
             document.getElementById('new-resort-state').value = '';
-            document.getElementById('pass-epic').checked = false;
-            document.getElementById('pass-ikon').checked = false;
-            document.getElementById('pass-other').checked = false;
-            document.getElementById('pass-none').checked = false;
+            // Clear all pass checkboxes
+            document.querySelectorAll('#new-resort-passes input[type="checkbox"]').forEach(cb => cb.checked = false);
         }
         
         async function submitNewResort() {
@@ -826,15 +901,20 @@
             }
             
             const passBrands = [];
-            if (document.getElementById('pass-epic').checked) passBrands.push('Epic');
-            if (document.getElementById('pass-ikon').checked) passBrands.push('Ikon');
-            if (document.getElementById('pass-other').checked) passBrands.push('Other');
+            document.querySelectorAll('#new-resort-passes input[type="checkbox"]:checked').forEach(cb => {
+                if (cb.value && cb.value !== 'None') passBrands.push(cb.value);
+            });
+            // Check if None is selected
+            const noneCheckbox = document.querySelector('#new-resort-passes input[value="None"]');
+            if (noneCheckbox && noneCheckbox.checked) {
+                passBrands.length = 0; // Clear all - None means no pass
+            }
             
             const payload = {
                 name: name,
                 country_code: countryCode,
                 state_code: stateCode || null,
-                pass_brands: passBrands.join(',') || null
+                pass_brands: passBrands
             };
             
             try {
@@ -859,6 +939,11 @@
                     row.dataset.state = (resort.state_code || resort.state || '').toLowerCase();
                     row.dataset.pass = (resort.pass_brands || resort.brand || '').toLowerCase();
                     row.dataset.active = resort.is_active ? 'true' : 'false';
+                    
+                    const passBrandsList = Array.isArray(resort.pass_brands_json) ? resort.pass_brands_json : [];
+                    const passTagsHtml = passBrandsList.length > 0 
+                        ? passBrandsList.map(b => `<span class="pass-tag pass-${b.toLowerCase().replace(' ', '-')}">${b === 'Mountain Collective' ? 'MC' : b}</span>`).join('')
+                        : '<span class="pass-tag pass-none">None</span>';
                     
                     row.innerHTML = `
                         <td><input type="checkbox" class="resort-checkbox" value="${resort.id}" onchange="updateSelection()"></td>
@@ -886,14 +971,10 @@
                                    onblur="saveField(this)"
                                    style="width: 80px;">
                         </td>
-                        <td>
-                            <select class="pass-brand-select" data-id="${resort.id}" onchange="updatePassBrand(this)">
-                                <option value="Epic" ${resort.pass_brands === 'Epic' ? 'selected' : ''}>Epic</option>
-                                <option value="Ikon" ${resort.pass_brands === 'Ikon' ? 'selected' : ''}>Ikon</option>
-                                <option value="Indy" ${resort.pass_brands === 'Indy' ? 'selected' : ''}>Indy</option>
-                                <option value="Other" ${resort.pass_brands === 'Other' ? 'selected' : ''}>Other</option>
-                                <option value="None" ${!resort.pass_brands || resort.pass_brands === 'None' ? 'selected' : ''}>None</option>
-                            </select>
+                        <td class="pass-cell">
+                            <div class="pass-tags" data-id="${resort.id}" onclick="openPassEditor(this)">
+                                ${passTagsHtml}
+                            </div>
                         </td>
                         <td>
                             <span class="status-badge status-active">Active</span>
@@ -1435,22 +1516,129 @@
             });
         }
 
-        async function updatePassBrand(select) {
-            const resortId = select.dataset.id;
-            const passBrand = select.value;
+        // Canonical pass brands in display order
+        const VALID_PASS_BRANDS = ['Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other', 'None'];
+        
+        // Handle mutual exclusion for "None" checkbox
+        function handlePassCheckboxChange(checkbox, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const allCheckboxes = container.querySelectorAll('input[type="checkbox"]');
+            
+            if (checkbox.value === 'None' && checkbox.checked) {
+                // If "None" is checked, uncheck all others
+                allCheckboxes.forEach(cb => {
+                    if (cb.value !== 'None') cb.checked = false;
+                });
+            } else if (checkbox.value !== 'None' && checkbox.checked) {
+                // If any other is checked, uncheck "None"
+                allCheckboxes.forEach(cb => {
+                    if (cb.value === 'None') cb.checked = false;
+                });
+            }
+        }
+        
+        // Open pass editor popup
+        let currentPassEditor = null;
+        function openPassEditor(passTags) {
+            closePassEditor(); // Close any existing editor
+            
+            const resortId = passTags.dataset.id;
+            const row = passTags.closest('tr');
+            const currentPasses = (row.dataset.pass || '').split(',').map(p => p.trim()).filter(p => p && p !== 'none');
+            
+            const popup = document.createElement('div');
+            popup.className = 'pass-editor-popup';
+            popup.id = 'pass-editor-' + resortId;
+            
+            popup.innerHTML = `
+                <div class="checkbox-group" id="pass-editor-checkboxes-${resortId}">
+                    ${VALID_PASS_BRANDS.map(brand => `
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="${brand}" 
+                                   ${currentPasses.some(p => p.toLowerCase() === brand.toLowerCase()) ? 'checked' : ''}
+                                   onchange="handlePassCheckboxChange(this, 'pass-editor-checkboxes-${resortId}')">
+                            <span>${brand}</span>
+                        </label>
+                    `).join('')}
+                </div>
+                <div class="editor-actions">
+                    <button class="btn btn-primary" onclick="savePassBrands(${resortId})" style="padding: 4px 12px; font-size: 12px;">Save</button>
+                    <button class="btn" onclick="closePassEditor()" style="padding: 4px 12px; font-size: 12px; background: #718096; color: white;">Cancel</button>
+                </div>
+            `;
+            
+            const rect = passTags.getBoundingClientRect();
+            popup.style.position = 'fixed';
+            popup.style.left = rect.left + 'px';
+            popup.style.top = (rect.bottom + 4) + 'px';
+            
+            document.body.appendChild(popup);
+            currentPassEditor = popup;
+            
+            // Close on click outside
+            setTimeout(() => {
+                document.addEventListener('click', handlePassEditorClickOutside);
+            }, 10);
+        }
+        
+        function handlePassEditorClickOutside(e) {
+            if (currentPassEditor && !currentPassEditor.contains(e.target) && !e.target.closest('.pass-tags')) {
+                closePassEditor();
+            }
+        }
+        
+        function closePassEditor() {
+            if (currentPassEditor) {
+                currentPassEditor.remove();
+                currentPassEditor = null;
+            }
+            document.removeEventListener('click', handlePassEditorClickOutside);
+        }
+        
+        async function savePassBrands(resortId) {
+            const container = document.getElementById('pass-editor-checkboxes-' + resortId);
+            const passBrands = [];
+            container.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+                passBrands.push(cb.value);
+            });
+            
+            // Handle "None" semantics
+            if (passBrands.includes('None')) {
+                passBrands.length = 0;
+                passBrands.push('None');
+            }
             
             try {
                 const response = await fetch('/api/admin/resorts/update-pass-brand', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ resort_id: parseInt(resortId), pass_brand: passBrand })
+                    body: JSON.stringify({ resort_id: resortId, pass_brands: passBrands })
                 });
                 const data = await response.json();
                 if (data.success) {
-                    showToast('Pass brand updated', 'success');
-                    const row = select.closest('tr');
-                    row.dataset.pass = passBrand.toLowerCase();
-                    filterResorts(); // Re-run filter in case they filtered by pass brand
+                    showToast('Pass brands updated', 'success');
+                    
+                    // Update the row
+                    const row = document.querySelector(`tr[data-id="${resortId}"]`);
+                    if (row) {
+                        row.dataset.pass = passBrands.join(',').toLowerCase() || 'none';
+                        
+                        // Update pass tags display
+                        const passTagsContainer = row.querySelector('.pass-tags');
+                        if (passTagsContainer) {
+                            const displayBrands = passBrands.length > 0 && !passBrands.includes('None') ? passBrands : ['None'];
+                            // Sort by canonical order
+                            displayBrands.sort((a, b) => VALID_PASS_BRANDS.indexOf(a) - VALID_PASS_BRANDS.indexOf(b));
+                            passTagsContainer.innerHTML = displayBrands.map(b => 
+                                `<span class="pass-tag pass-${b.toLowerCase().replace(' ', '-')}">${b === 'Mountain Collective' ? 'MC' : b}</span>`
+                            ).join('');
+                        }
+                    }
+                    
+                    closePassEditor();
+                    filterResorts();
                 } else {
                     showToast(data.message || 'Update failed', 'error');
                 }
@@ -1462,7 +1650,21 @@
         async function applyBulkPassBrand() {
             if (selectedResorts.size === 0) return;
             
-            const passBrand = document.getElementById('bulk-pass-brand').value;
+            const passBrands = [];
+            document.querySelectorAll('#bulk-pass-brands input[type="checkbox"]:checked').forEach(cb => {
+                passBrands.push(cb.value);
+            });
+            
+            if (passBrands.length === 0) {
+                showToast('Please select at least one pass brand', 'error');
+                return;
+            }
+            
+            // Handle "None" semantics
+            if (passBrands.includes('None')) {
+                passBrands.length = 0;
+                passBrands.push('None');
+            }
             const resortIds = Array.from(selectedResorts);
             
             showToast('Applying bulk update...', 'info');
@@ -1471,22 +1673,30 @@
                 const response = await fetch('/api/admin/resorts/bulk-update-pass-brand', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ resort_ids: resortIds, pass_brand: passBrand })
+                    body: JSON.stringify({ resort_ids: resortIds, pass_brands: passBrands })
                 });
                 const data = await response.json();
                 if (data.updated_count !== undefined) {
                     showToast(`Updated ${data.updated_count} resorts`, 'success');
+                    const displayBrands = passBrands.includes('None') ? ['None'] : passBrands;
+                    displayBrands.sort((a, b) => VALID_PASS_BRANDS.indexOf(a) - VALID_PASS_BRANDS.indexOf(b));
+                    
                     resortIds.forEach(id => {
                         const row = document.querySelector(`tr[data-id="${id}"]`);
                         if (row) {
-                            const select = row.querySelector('.pass-brand-select');
-                            if (select) select.value = passBrand;
-                            row.dataset.pass = passBrand.toLowerCase();
+                            row.dataset.pass = passBrands.join(',').toLowerCase() || 'none';
+                            const passTagsContainer = row.querySelector('.pass-tags');
+                            if (passTagsContainer) {
+                                passTagsContainer.innerHTML = displayBrands.map(b => 
+                                    `<span class="pass-tag pass-${b.toLowerCase().replace(' ', '-')}">${b === 'Mountain Collective' ? 'MC' : b}</span>`
+                                ).join('');
+                            }
                         }
                     });
                     selectedResorts.clear();
                     // Clear all checkboxes
                     document.querySelectorAll('.resort-checkbox').forEach(cb => cb.checked = false);
+                    document.querySelectorAll('#bulk-pass-brands input[type="checkbox"]').forEach(cb => cb.checked = false);
                     syncSelectAllState();
                     updateSelectionDisplay();
                     filterResorts();
