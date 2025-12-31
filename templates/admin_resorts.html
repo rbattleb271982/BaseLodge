@@ -780,7 +780,9 @@
         let currentSort = { column: null, direction: 'asc' };
         
         function toggleAddResort() {
-            document.getElementById('add-resort-section').classList.toggle('open');
+            const section = document.getElementById('add-resort-section');
+            section.classList.toggle('open');
+            // Ensure inputs are focusable by ensuring they aren't hidden by anything other than height/opacity
         }
         
         function clearAddForm() {
@@ -1074,8 +1076,47 @@
                 }
                 
                 row.style.display = show ? '' : 'none';
+                
+                // Deselect if row is now hidden
+                if (!show) {
+                    const cb = row.querySelector('.resort-checkbox');
+                    if (cb && cb.checked) {
+                        cb.checked = false;
+                        selectedResorts.delete(parseInt(cb.value));
+                    }
+                }
             });
             syncSelectAllState();
+            updateSelectionDisplay();
+        }
+
+        function updateStateFilter() {
+            const country = document.getElementById('country-filter').value;
+            const stateFilter = document.getElementById('state-filter');
+            
+            if (!country) {
+                stateFilter.disabled = true;
+                stateFilter.value = "";
+                stateFilter.innerHTML = '<option value="">All States / Regions</option>';
+                return;
+            }
+            
+            // Get unique states for this country from all table rows
+            const states = new Set();
+            document.querySelectorAll('#resort-table tr').forEach(row => {
+                if (row.dataset.country === country && row.dataset.state) {
+                    states.add(row.dataset.state);
+                }
+            });
+            
+            stateFilter.disabled = false;
+            stateFilter.innerHTML = '<option value="">All States / Regions</option>';
+            Array.from(states).sort().forEach(state => {
+                const option = document.createElement('option');
+                option.value = state;
+                option.textContent = state;
+                stateFilter.appendChild(option);
+            });
         }
 
         function toggleSelectAll() {
@@ -1090,9 +1131,14 @@
                     }
                 });
             } else {
-                // Uncheck ALL and clear
-                document.querySelectorAll('.resort-checkbox').forEach(cb => cb.checked = false);
-                selectedResorts.clear();
+                // Uncheck ALL visible and clear them from selectedResorts
+                document.querySelectorAll('#resort-table tr:not([style*="display: none"])').forEach(row => {
+                    const cb = row.querySelector('.resort-checkbox');
+                    if (cb) {
+                        cb.checked = false;
+                        selectedResorts.delete(parseInt(cb.value));
+                    }
+                });
             }
             updateSelectionDisplay();
         }
@@ -1114,6 +1160,7 @@
             const visibleRows = document.querySelectorAll('#resort-table tr:not([style*="display: none"])');
             const selectAll = document.getElementById('select-all');
             
+            if (!selectAll) return;
             if (visibleRows.length === 0) {
                 selectAll.checked = false;
                 return;
@@ -1236,7 +1283,10 @@
                     }
                     
                     selectedResorts.clear();
-                    clearSelection();
+                    // Clear all checkboxes
+                    document.querySelectorAll('.resort-checkbox').forEach(cb => cb.checked = false);
+                    syncSelectAllState();
+                    updateSelectionDisplay();
                     filterResorts();
                 } else {
                     showToast(data.message || `${action} failed`, 'error');
@@ -1390,7 +1440,10 @@
                     }
                     
                     selectedResorts.clear();
-                    clearSelection();
+                    // Clear all checkboxes
+                    document.querySelectorAll('.resort-checkbox').forEach(cb => cb.checked = false);
+                    syncSelectAllState();
+                    updateSelectionDisplay();
                     filterResorts();
                 } else {
                     showToast(data.message || `${action} failed`, 'error');
