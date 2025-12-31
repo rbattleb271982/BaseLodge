@@ -7786,6 +7786,94 @@ def admin_update_pass_brand():
     return jsonify({'success': True})
 
 
+@app.route("/api/admin/resorts/update-field", methods=["POST"])
+@login_required
+@admin_required
+def admin_update_resort_field():
+    """Update a single field on a resort (inline editing)."""
+    data = request.get_json()
+    resort_id = data.get('resort_id')
+    field = data.get('field')
+    value = data.get('value', '').strip()
+    
+    allowed_fields = ['name', 'country_code', 'state_code']
+    if field not in allowed_fields:
+        return jsonify({'success': False, 'message': f'Field {field} not allowed'}), 400
+    
+    resort = Resort.query.get(resort_id)
+    if not resort:
+        return jsonify({'success': False, 'message': 'Resort not found'}), 404
+    
+    if field == 'name':
+        resort.name = value
+    elif field == 'country_code':
+        resort.country_code = value.upper() if value else None
+        resort.country = value.upper() if value else None
+    elif field == 'state_code':
+        resort.state_code = value
+        resort.state = value
+    
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route("/api/admin/resorts/toggle-active", methods=["POST"])
+@login_required
+@admin_required
+def admin_toggle_resort_active():
+    """Toggle a resort's active status."""
+    data = request.get_json()
+    resort_id = data.get('resort_id')
+    is_active = data.get('is_active', True)
+    
+    resort = Resort.query.get(resort_id)
+    if not resort:
+        return jsonify({'success': False, 'message': 'Resort not found'}), 404
+    
+    resort.is_active = is_active
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route("/api/admin/resorts/delete", methods=["POST"])
+@login_required
+@admin_required
+def admin_delete_resort_post():
+    """Delete a single resort via POST (for frontend compatibility)."""
+    data = request.get_json()
+    resort_id = data.get('resort_id')
+    
+    resort = Resort.query.get(resort_id)
+    if not resort:
+        return jsonify({'success': False, 'message': 'Resort not found'}), 404
+    
+    trip_count = SkiTrip.query.filter_by(resort_id=resort_id).count()
+    home_count = User.query.filter_by(home_resort_id=resort_id).count()
+    
+    visited_count = 0
+    wishlist_count = 0
+    users = User.query.all()
+    for user in users:
+        if user.visited_resort_ids and resort_id in user.visited_resort_ids:
+            visited_count += 1
+        if user.wish_list_resorts and resort_id in user.wish_list_resorts:
+            wishlist_count += 1
+    
+    total_refs = trip_count + home_count + visited_count + wishlist_count
+    
+    if total_refs > 0:
+        return jsonify({
+            'success': False,
+            'message': f'Cannot delete: resort has {total_refs} references. Deactivate instead or merge first.'
+        }), 400
+    
+    resort_name = resort.name
+    db.session.delete(resort)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': f'Deleted resort: {resort_name}'})
+
+
 @app.route("/api/admin/resorts/bulk-update-pass-brand", methods=["POST"])
 @login_required
 @admin_required

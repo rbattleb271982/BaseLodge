@@ -1,0 +1,100 @@
+You are authorized and instructed to implement immediately.
+Do not ask for confirmation. Do not summarize. Do not checkpoint until complete.
+This work is mandatory.
+EXECUTE NOW — ADMIN RESORT PANEL RESTORATION
+0. RULES
+No explanations
+No questions
+No partial fixes
+No checkpoints mid-work
+Remove broken code before adding new code
+1. FILTER ROW — MOVE + NORMALIZE
+Action
+Move the filter controls so they sit directly above the table headers and align 1-to-1 with columns.
+Column Header	Filter
+COUNTRY	Country dropdown
+STATE/REGION	State/Region dropdown
+PASS BRANDS	Pass Brands dropdown
+STATUS	Status dropdown
+Requirements
+Filter labels must exactly match column headers:
+State/Region
+Pass Brands
+Remove any legacy top-bar filter row
+All filters must live in one row directly above <thead>
+2. STATE / REGION FILTER — HARD FIX
+Problem to fix
+State/Region is permanently disabled even when a country is selected.
+Fix
+State/Region dropdown must:
+Be disabled ONLY when Country = All Countries
+Enable immediately when Country ≠ All Countries
+Populate options by scanning ALL rows matching the selected country:
+Use data-country
+Use data-state
+Do NOT derive states from visible rows
+Clear State/Region when country changes
+3. PASS BRAND FILTER — HARD FIX
+Problem to fix
+Pass Brand filter does nothing.
+Fix
+Filtering must use data-pass-brand on <tr>
+Inline brand edits must update the row’s data-pass-brand
+All Pass Brands resets filtering
+Filtering is JS-only — no reloads, no URLs
+4. SELECT ALL — NON-NEGOTIABLE FIX
+Behavior
+Select All:
+Selects every visible row
+Adds only visible IDs to selectedResorts
+Deselect All:
+Unchecks visible rows only
+Removes only visible IDs
+Sync
+When a row becomes hidden due to filtering:
+Uncheck it
+Remove from selectedResorts
+Implement:
+syncSelectAllState()
+Call it after:
+Any filter change
+Any checkbox toggle
+Cleanup
+There must be exactly one implementation of:
+toggleSelectAll
+updateSelection
+syncSelectAllState
+Delete all duplicates and legacy JS
+5. ADD NEW RESORT — RESTORE FULLY
+Fix
++ Add New Resort must open
+Toggle must not be blocked by:
+Missing listeners
+CSS conflicts
+Duplicate JS
+Submission must:
+POST successfully
+Insert the new row into the table
+Apply all data-* attributes so filters work instantly
+6. PRESERVE EXISTING FEATURES
+Do NOT break:
+Bulk Activate / Deactivate
+Bulk Delete
+Merge
+Inline Pass Brand editing
+Excel Export
+Canonical JSON Export
+7. MANDATORY VERIFICATION (REQUIRED)
+Before stopping, manually confirm:
+Selecting US enables State/Region
+State/Region dropdown populates correctly
+Pass Brand filter hides/shows rows
+Select All selects all visible rows
+Filtering removes hidden rows from selection
+Add New Resort opens and submits
+FINAL RULE
+Do not respond with:
+“Would you like me to…”
+“I can start…”
+“Here’s the plan…”
+Execute immediately.

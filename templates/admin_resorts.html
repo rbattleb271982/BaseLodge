@@ -900,16 +900,105 @@
                 showToast('Error: ' + err.message, 'error');
             }
         }
-                
+        
+        async function saveField(input) {
+            const field = input.dataset.field;
+            const id = input.dataset.id;
+            const value = input.value.trim();
+            
+            try {
+                const response = await fetch('/api/admin/resorts/update-field', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ resort_id: parseInt(id), field: field, value: value })
+                });
                 const data = await response.json();
-                
-                if (data.status === 'success') {
-                    showToast(data.message, 'success');
-                    clearAddForm();
-                    document.getElementById('add-resort-section').classList.remove('open');
-                    setTimeout(() => reloadWithSort(), 1000);
+                if (data.success) {
+                    showToast('Field updated', 'success');
+                    // Update data attributes for filtering
+                    const row = input.closest('tr');
+                    if (field === 'name') row.dataset.name = value.toLowerCase();
+                    if (field === 'country_code') row.dataset.country = value;
+                    if (field === 'state_code') row.dataset.state = value;
                 } else {
-                    showToast(data.message || 'Error adding resort', 'error');
+                    showToast(data.message || 'Update failed', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
+        
+        async function toggleActive(resortId, makeActive) {
+            try {
+                const response = await fetch('/api/admin/resorts/toggle-active', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ resort_id: resortId, is_active: makeActive })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showToast(makeActive ? 'Resort activated' : 'Resort deactivated', 'success');
+                    const row = document.querySelector(`tr[data-id="${resortId}"]`);
+                    if (row) {
+                        row.dataset.active = makeActive ? 'true' : 'false';
+                        if (makeActive) {
+                            row.classList.remove('inactive');
+                        } else {
+                            row.classList.add('inactive');
+                        }
+                        // Update status badge
+                        const badge = row.querySelector('.status-badge');
+                        if (badge) {
+                            badge.className = 'status-badge ' + (makeActive ? 'status-active' : 'status-inactive');
+                            badge.textContent = makeActive ? 'Active' : 'Inactive';
+                        }
+                        // Update action button
+                        const actionsCell = row.querySelector('td:last-child');
+                        if (actionsCell) {
+                            const name = row.querySelector('input[data-field="name"]').value;
+                            if (makeActive) {
+                                actionsCell.innerHTML = `
+                                    <button class="btn btn-danger" onclick="toggleActive(${resortId}, false)" style="padding: 4px 8px; font-size: 12px;">Deactivate</button>
+                                    <button class="btn" onclick="deleteResort(${resortId}, '${name}')" style="padding: 4px 8px; font-size: 12px; background: #718096; color: white; margin-left: 4px;">Delete</button>
+                                `;
+                            } else {
+                                actionsCell.innerHTML = `
+                                    <button class="btn btn-success" onclick="toggleActive(${resortId}, true)" style="padding: 4px 8px; font-size: 12px;">Activate</button>
+                                    <button class="btn" onclick="deleteResort(${resortId}, '${name}')" style="padding: 4px 8px; font-size: 12px; background: #718096; color: white; margin-left: 4px;">Delete</button>
+                                `;
+                            }
+                        }
+                    }
+                    filterResorts();
+                } else {
+                    showToast(data.message || 'Toggle failed', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
+        
+        async function deleteResort(resortId, resortName) {
+            if (!confirm(`Are you sure you want to delete "${resortName}"? This cannot be undone.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/resorts/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ resort_id: resortId })
+                });
+                const data = await response.json();
+                if (data.success || data.status === 'success') {
+                    showToast('Resort deleted', 'success');
+                    const row = document.querySelector(`tr[data-id="${resortId}"]`);
+                    if (row) row.remove();
+                    selectedResorts.delete(resortId);
+                    syncSelectAllState();
+                    updateSelectionDisplay();
+                } else {
+                    showToast(data.message || 'Delete failed', 'error');
                 }
             } catch (err) {
                 showToast('Error: ' + err.message, 'error');
