@@ -1172,7 +1172,9 @@
                 return;
             }
             
-            const canonicalName = document.querySelector(`tr[data-id="${canonicalId}"] input[data-field="name"]`).value;
+            const row = document.querySelector(`tr[data-id="${canonicalId}"]`);
+            const nameInput = row ? row.querySelector('input[data-field="name"]') : null;
+            const canonicalName = nameInput ? nameInput.value : "Selected Resort";
             const mergeMsg = `This will merge ${duplicateIds.length} resort(s) into "${canonicalName}" (ID: ${canonicalId}). All trips, wishlists, and visited lists will be updated. This cannot be undone.`;
             
             document.getElementById('merge-message').textContent = mergeMsg;

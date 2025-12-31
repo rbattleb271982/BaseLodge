@@ -7766,7 +7766,7 @@ def admin_update_pass_brand():
         
     resort.pass_brands = pass_brand
     db.session.commit()
-    return jsonify({'success': true})
+    return jsonify({'success': True})
 
 
 @app.route("/api/admin/resorts/bulk-update-pass-brand", methods=["POST"])
