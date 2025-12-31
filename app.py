@@ -7651,34 +7651,34 @@ def admin_export_resorts_excel():
     from openpyxl import Workbook
     from datetime import datetime
     
-    try:
-        # Get filters with safe defaults
-        search_query = request.args.get('search', '').lower().strip()
-        country_filter = request.args.get('country', '').strip()
-        status_filter = request.args.get('status', '').lower().strip()
+    # Trust query params ONLY for Excel export
+    search_query = request.args.get('search', '').lower().strip()
+    country_filter = request.args.get('country', '').strip()
+    status_filter = request.args.get('status', '').lower().strip()
+    
+    # Base query
+    query = Resort.query
+    
+    # Apply country filter
+    if country_filter:
+        query = query.filter(Resort.country_code == country_filter)
         
-        # Base query
-        query = Resort.query
+    # Apply status filter
+    if status_filter == 'active':
+        query = query.filter(Resort.is_active == True)
+    elif status_filter == 'inactive':
+        query = query.filter(Resort.is_active == False)
         
-        # Apply country filter
-        if country_filter:
-            query = query.filter(Resort.country_code == country_filter)
-            
-        # Apply status filter
-        if status_filter == 'active':
-            query = query.filter(Resort.is_active == True)
-        elif status_filter == 'inactive':
-            query = query.filter(Resort.is_active == False)
-            
-        resorts = query.all()
-        
-        # Apply search filter in-memory
-        if search_query:
-            resorts = [r for r in resorts if 
-                       (r.name and search_query in r.name.lower()) or 
-                       (r.state_code and search_query in r.state_code.lower()) or
-                       (r.state and search_query in r.state.lower())]
+    resorts = query.all()
+    
+    # Apply search filter in-memory to match JS logic
+    if search_query:
+        resorts = [r for r in resorts if 
+                   (r.name and search_query in r.name.lower()) or 
+                   (r.state_code and search_query in r.state_code.lower()) or
+                   (r.state and search_query in r.state.lower())]
 
+    try:
         # Create workbook
         wb = Workbook()
         ws = wb.active

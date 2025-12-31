@@ -617,18 +617,27 @@
     
     <div class="merge-panel" id="merge-panel" style="display: none;">
         <h3>Bulk Actions (<span id="selected-count">0</span> selected)</h3>
-        <p style="font-size: 13px; color: #666; margin: 0 0 12px 0; line-height: 1.5;">
-            Update the pass brand for all selected resorts.
-        </p>
-        <div style="display: flex; gap: 8px; align-items: center;">
-            <select id="bulk-pass-brand" class="form-control" style="width: auto;">
-                <option value="Epic">Epic</option>
-                <option value="Ikon">Ikon</option>
-                <option value="Indy">Indy</option>
-                <option value="Other">Other</option>
-                <option value="None">None</option>
-            </select>
-            <button class="btn btn-primary" onclick="applyBulkPassBrand()">Apply Pass Brand</button>
+        
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div>
+                <p style="font-size: 13px; color: #666; margin: 0 0 8px 0;">Update Pass Brand:</p>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <select id="bulk-pass-brand" class="form-control" style="width: auto;">
+                        <option value="Epic">Epic</option>
+                        <option value="Ikon">Ikon</option>
+                        <option value="Indy">Indy</option>
+                        <option value="Other">Other</option>
+                        <option value="None">None</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="applyBulkPassBrand()">Apply Pass Brand</button>
+                </div>
+            </div>
+            
+            <div style="border-top: 1px solid #e2e8f0; pt-12; display: flex; gap: 12px; padding-top: 12px;">
+                <button class="btn btn-success" id="btn-bulk-activate" onclick="bulkAction('activate')">Activate Selected</button>
+                <button class="btn" style="background: #718096; color: white;" id="btn-bulk-deactivate" onclick="bulkAction('deactivate')">Deactivate Selected</button>
+                <button class="btn btn-danger" id="btn-bulk-delete" onclick="bulkAction('delete')">Delete Selected</button>
+            </div>
         </div>
     </div>
     
@@ -964,61 +973,131 @@
             document.querySelectorAll('#resort-table tr').forEach(row => {
                 const name = row.dataset.name;
                 const rowCountry = row.dataset.country;
+                const rowState = (row.dataset.state || '').toLowerCase();
                 const isActive = row.dataset.active === 'true';
                 
                 let show = true;
-                if (search && !name.includes(search)) show = false;
+                if (search && !name.includes(search) && !rowState.includes(search)) show = false;
                 if (country && rowCountry !== country) show = false;
                 if (status === 'active' && !isActive) show = false;
                 if (status === 'inactive' && isActive) show = false;
                 
                 row.style.display = show ? '' : 'none';
+                
+                // Deselect if row is now hidden
+                if (!show) {
+                    const cb = row.querySelector('.resort-checkbox');
+                    if (cb) cb.checked = false;
+                }
             });
+            updateSelection();
         }
-        
-        function saveField(input) {
-            const id = input.dataset.id;
-            const field = input.dataset.field;
-            const value = input.value;
+
+        function toggleSelectAll() {
+            const checked = document.getElementById('select-all').checked;
+            document.querySelectorAll('#resort-table tr').forEach(row => {
+                if (row.style.display !== 'none') {
+                    const cb = row.querySelector('.resort-checkbox');
+                    if (cb) cb.checked = checked;
+                }
+            });
+            updateSelection();
+        }
+
+        function updateSelection() {
+            selectedResorts.clear();
+            document.querySelectorAll('.resort-checkbox:checked').forEach(cb => {
+                selectedResorts.add(parseInt(cb.value));
+            });
             
-            fetch(`/api/admin/resorts/${id}`, {
-                method: 'PUT',
+            const count = selectedResorts.size;
+            const countDisplay = document.getElementById('selected-count');
+            if (countDisplay) countDisplay.textContent = count;
+            
+            const panel = document.getElementById('merge-panel');
+            if (panel) {
+                if (count > 0) {
+                    panel.style.display = 'block';
+                    panel.classList.add('visible');
+                } else {
+                    panel.style.display = 'none';
+                    panel.classList.remove('visible');
+                }
+            }
+        }
+
+        function bulkAction(action) {
+            if (selectedResorts.size === 0) return;
+            
+            const resortIds = Array.from(selectedResorts);
+            let confirmMsg = `Are you sure you want to ${action} ${resortIds.length} resort(s)?`;
+            if (action === 'delete') confirmMsg += " This cannot be undone.";
+            
+            if (!confirm(confirmMsg)) return;
+            
+            showToast(`Processing bulk ${action}...`, 'info');
+            
+            const payload = action === 'delete' ? { ids: resortIds } : { resort_ids: resortIds };
+            
+            fetch(`/api/admin/resorts/bulk-${action}`, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ [field]: value })
+                body: JSON.stringify(payload)
             })
             .then(r => r.json())
             .then(data => {
-                if (data.status === 'success') {
-                    input.style.borderColor = '#68d391';
-                    setTimeout(() => input.style.borderColor = 'transparent', 1000);
+                if (data.status === 'success' || data.updated_count !== undefined || data.deleted_count !== undefined || (data.deleted && data.deleted.length > 0)) {
+                    showToast(`Successfully ${action}d resorts`, 'success');
+                    
+                    if (action === 'delete') {
+                        resortIds.forEach(id => {
+                            const row = document.querySelector(`tr[data-id="${id}"]`);
+                            if (row) row.remove();
+                        });
+                    } else {
+                        const isActive = action === 'activate';
+                        resortIds.forEach(id => {
+                            const row = document.querySelector(`tr[data-id="${id}"]`);
+                            if (row) {
+                                row.dataset.active = isActive ? 'true' : 'false';
+                                if (isActive) {
+                                    row.classList.remove('inactive');
+                                } else {
+                                    row.classList.add('inactive');
+                                }
+                                const statusBadge = row.querySelector('.status-badge');
+                                if (statusBadge) {
+                                    statusBadge.className = 'status-badge ' + (isActive ? 'status-active' : 'status-inactive');
+                                    statusBadge.textContent = isActive ? 'Active' : 'Inactive';
+                                }
+                            }
+                        });
+                    }
+                    
+                    selectedResorts.clear();
+                    clearSelection();
+                    filterResorts();
                 } else {
-                    showToast('Error saving: ' + data.message, 'error');
+                    showToast(data.message || `${action} failed`, 'error');
                 }
             })
-            .catch(e => showToast('Error: ' + e.message, 'error'));
+            .catch(err => {
+                showToast('Error: ' + err.message, 'error');
+            });
         }
-        
-        function toggleActive(id, active) {
-            fetch(`/api/admin/resorts/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ is_active: active })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    const row = document.querySelector(`tr[data-id="${id}"]`);
-                    if (row) {
-                        row.dataset.active = active ? 'true' : 'false';
-                        if (active) {
-                            row.classList.remove('inactive');
-                        } else {
-                            row.classList.add('inactive');
-                        }
-                        const statusBadge = row.querySelector('.status-badge');
-                        if (statusBadge) {
-                            statusBadge.className = 'status-badge ' + (active ? 'status-active' : 'status-inactive');
-                            statusBadge.textContent = active ? 'Active' : 'Inactive';
+
+        function exportExcel() {
+            const search = document.getElementById('search').value;
+            const country = document.getElementById('country-filter').value;
+            const status = document.getElementById('status-filter').value;
+            
+            const params = new URLSearchParams();
+            if (search) params.append('search', search);
+            if (country) params.append('country', country);
+            if (status) params.append('status', status);
+            
+            window.location.href = `/admin/resorts/export-excel?${params.toString()}`;
+        }
                         }
                         const actionsCell = row.querySelector('td:last-child');
                         if (actionsCell) {
@@ -1065,15 +1144,15 @@
         
         function toggleSelectAll() {
             const checked = document.getElementById('select-all').checked;
-            document.querySelectorAll('.resort-checkbox').forEach(cb => {
-                const row = cb.closest('tr');
+            document.querySelectorAll('#resort-table tr').forEach(row => {
                 if (row.style.display !== 'none') {
-                    cb.checked = checked;
+                    const cb = row.querySelector('.resort-checkbox');
+                    if (cb) cb.checked = checked;
                 }
             });
             updateSelection();
         }
-        
+
         function updateSelection() {
             selectedResorts.clear();
             document.querySelectorAll('.resort-checkbox:checked').forEach(cb => {
@@ -1103,6 +1182,74 @@
             updateSelection();
         }
 
+        async function bulkAction(action) {
+            if (selectedResorts.size === 0) return;
+            
+            const resortIds = Array.from(selectedResorts);
+            let confirmMsg = `Are you sure you want to ${action} ${resortIds.length} resort(s)?`;
+            if (action === 'delete') confirmMsg += " This cannot be undone.";
+            
+            if (!confirm(confirmMsg)) return;
+            
+            showToast(`Processing bulk ${action}...`, 'info');
+            
+            try {
+                const response = await fetch(`/api/admin/resorts/bulk-${action}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ resort_ids: resortIds })
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success' || data.updated_count !== undefined || data.deleted_count !== undefined) {
+                    const count = data.updated_count || data.deleted_count || resortIds.length;
+                    showToast(`Successfully ${action}d ${count} resort(s)`, 'success');
+                    
+                    if (action === 'delete') {
+                        resortIds.forEach(id => {
+                            const row = document.querySelector(`tr[data-id="${id}"]`);
+                            if (row) row.remove();
+                        });
+                    } else {
+                        const isActive = action === 'activate';
+                        resortIds.forEach(id => {
+                            const row = document.querySelector(`tr[data-id="${id}"]`);
+                            if (row) {
+                                row.dataset.active = isActive ? 'true' : 'false';
+                                if (isActive) {
+                                    row.classList.remove('inactive');
+                                } else {
+                                    row.classList.add('inactive');
+                                }
+                            }
+                        });
+                    }
+                    
+                    selectedResorts.clear();
+                    clearSelection();
+                    filterResorts();
+                } else {
+                    showToast(data.message || `${action} failed`, 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
+
+        function exportExcel() {
+            const search = document.getElementById('search').value;
+            const country = document.getElementById('country-filter').value;
+            const status = document.getElementById('status-filter').value;
+            
+            // Construct dynamic URL
+            const params = new URLSearchParams();
+            if (search) params.append('search', search);
+            if (country) params.append('country', country);
+            if (status) params.append('status', status);
+            
+            window.location.href = `/admin/resorts/export-excel?${params.toString()}`;
+        }
+
         async function updatePassBrand(select) {
             const resortId = select.dataset.id;
             const passBrand = select.value;
@@ -1118,6 +1265,7 @@
                     showToast('Pass brand updated', 'success');
                     const row = select.closest('tr');
                     row.dataset.pass = passBrand.toLowerCase();
+                    filterResorts(); // Re-run filter in case they filtered by pass brand
                 } else {
                     showToast(data.message || 'Update failed', 'error');
                 }
@@ -1151,6 +1299,9 @@
                             row.dataset.pass = passBrand.toLowerCase();
                         }
                     });
+                    selectedResorts.clear();
+                    clearSelection();
+                    filterResorts();
                 } else {
                     showToast(data.message || 'Bulk update failed', 'error');
                 }
@@ -1212,107 +1363,6 @@
             });
         }
         
-        function bulkActivate() {
-            if (selectedResorts.size === 0) {
-                showToast('No resorts selected', 'error');
-                return;
-            }
-            
-            fetch('/api/admin/resorts/bulk-activate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ resort_ids: Array.from(selectedResorts) })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showToast(`Activated ${data.updated_count} resort(s)`, 'success');
-                    setTimeout(() => reloadWithSort(), 1500);
-                } else {
-                    showToast('Error: ' + data.message, 'error');
-                }
-            })
-            .catch(e => {
-                showToast('Error: ' + e.message, 'error');
-            });
-        }
-        
-        function bulkDeactivate() {
-            if (selectedResorts.size === 0) {
-                showToast('No resorts selected', 'error');
-                return;
-            }
-            
-            fetch('/api/admin/resorts/bulk-deactivate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ resort_ids: Array.from(selectedResorts) })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showToast(`Deactivated ${data.updated_count} resort(s)`, 'success');
-                    setTimeout(() => reloadWithSort(), 1500);
-                } else {
-                    showToast('Error: ' + data.message, 'error');
-                }
-            })
-            .catch(e => {
-                showToast('Error: ' + e.message, 'error');
-            });
-        }
-        
-        function bulkDelete() {
-            if (selectedResorts.size === 0) {
-                showToast('No resorts selected', 'error');
-                return;
-            }
-            
-            const names = Array.from(selectedResorts).map(id => {
-                const row = document.querySelector(`tr[data-id="${id}"]`);
-                return row ? row.querySelector('input[data-field="name"]').value : `ID ${id}`;
-            }).join(', ');
-            
-            document.getElementById('delete-message').textContent = 
-                `Permanently delete ${selectedResorts.size} resort(s): ${names}? Resorts with existing trips, wishlists, or visited lists will be skipped.`;
-            document.getElementById('delete-modal').classList.add('visible');
-            document.getElementById('delete-confirm').value = '';
-        }
-        
-        function closeDeleteModal() {
-            document.getElementById('delete-modal').classList.remove('visible');
-        }
-        
-        function confirmBulkDelete() {
-            if (document.getElementById('delete-confirm').value !== 'DELETE') {
-                showToast('Please type DELETE to confirm', 'error');
-                return;
-            }
-            
-            fetch('/api/admin/resorts/bulk-delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids: Array.from(selectedResorts) })
-            })
-            .then(r => r.json())
-            .then(data => {
-                closeDeleteModal();
-                if (data.status === 'success') {
-                    let msg = `Deleted ${data.deleted.length} resort(s)`;
-                    if (data.blocked.length > 0) {
-                        msg += `. Skipped ${data.blocked.length} (have references)`;
-                    }
-                    showToast(msg, 'success');
-                    setTimeout(() => reloadWithSort(), 1500);
-                } else {
-                    showToast('Error: ' + data.message, 'error');
-                }
-            })
-            .catch(e => {
-                closeDeleteModal();
-                showToast('Error: ' + e.message, 'error');
-            });
-        }
         
         function exportExcel() {
             const search = document.getElementById('search').value;
