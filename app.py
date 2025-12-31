@@ -25,17 +25,25 @@ from sendgrid.helpers.mail import Mail
 # ============================================================================
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
+
+# ============================================================================
+# SESSION & SECURITY CONFIGURATION
+# ============================================================================
+app.config["SECRET_KEY"] = os.environ.get("SESSION_SECRET")
+if not app.config["SECRET_KEY"]:
+    if not is_production:
+        app.config["SECRET_KEY"] = "dev-secret-key-fallback"
+    else:
+        raise RuntimeError("SESSION_SECRET environment variable is NOT SET in production.")
 
 # Session configuration for Replit iframe environment
-# In production, Replit proxies through HTTPS even if backend is HTTP
-is_production = os.environ.get("DATABASE_URL") is not None and "postgresql" in os.environ.get("DATABASE_URL", "")
-app.config['SESSION_COOKIE_SECURE'] = is_production  # HTTPS in production, HTTP in dev
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Works with HTTP/HTTPS and allows iframe context
-app.config['SESSION_COOKIE_DOMAIN'] = None  # Let the browser handle domain
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
-app.config['SESSION_REFRESH_EACH_REQUEST'] = True  # Refresh session on each request
+app.config.update(
+    SESSION_COOKIE_SECURE=is_production,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=timedelta(days=7),
+    SESSION_REFRESH_EACH_REQUEST=True
+)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -55,13 +63,8 @@ def load_user(user_id):
 
 @app.route("/")
 def root():
-    import sys
-    print("=== ROOT REDIRECT DIAGNOSTIC ===", file=sys.stderr)
-    print(f"current_user.is_authenticated: {current_user.is_authenticated}", file=sys.stderr)
-    print(f"session contents: {dict(session)}", file=sys.stderr)
-    print(f"cookies: {dict(request.cookies)}", file=sys.stderr)
-    print("================================", file=sys.stderr)
-    return redirect(url_for("auth"))
+    """Health check endpoint. Returns 200 OK immediately for production probes."""
+    return "OK", 200
 
 @app.template_filter('identity_line')
 def identity_line_filter(user):
