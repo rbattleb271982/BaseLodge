@@ -63,9 +63,9 @@ def load_user(user_id):
 # Never shows "Both" - all passes listed individually.
 # ============================================================================
 
-@app.route("/")
-def root():
-    """Health check endpoint. Returns 200 OK immediately for production probes."""
+@app.route("/health")
+def health_check():
+    """Health check endpoint for production probes. Returns 200 OK immediately."""
     return "OK", 200
 
 @app.template_filter('identity_line')
@@ -181,12 +181,12 @@ def before_request_handlers():
         print("cookies:", dict(request.cookies), file=sys.stderr)
         print("=====================", file=sys.stderr)
     
-    # Bypass for root health check
-    if request.endpoint == 'root':
+    # Bypass for health check endpoint
+    if request.endpoint == 'health_check':
         return None
     
     # Require profile setup for authenticated users
-    excluded_endpoints = {'auth', 'identity_setup', 'setup_profile', 'logout', 'static', 'invite_token_landing', 'test_login_direct', 'forgot_password', 'reset_password'}
+    excluded_endpoints = {'auth', 'identity_setup', 'setup_profile', 'logout', 'static', 'invite_token_landing', 'test_login_direct', 'forgot_password', 'reset_password', 'index'}
     if request.endpoint in excluded_endpoints:
         return None
     if current_user.is_authenticated:
