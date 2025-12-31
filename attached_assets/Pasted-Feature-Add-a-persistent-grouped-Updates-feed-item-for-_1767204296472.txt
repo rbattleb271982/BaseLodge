@@ -1,0 +1,112 @@
+Feature
+Add a persistent, grouped Updates feed item for “Friend skiing while you’re free” events.
+This surfaces high-intent moments when a friend has an existing trip that overlaps the current user’s open availability. Updates persist and are reviewable; past updates are retained but read-only.
+1. Scope (Strict)
+Update ONLY the Updates / Activity system and its rendering
+Do NOT modify:
+Open Availability UI
+Friends’ Trips UI
+Do NOT add filters, toggles, or relevance logic yet
+Do NOT add pass compatibility logic
+Database changes are allowed only if required to support grouped updates
+2. Core Concept
+This update answers:
+“Is a friend already skiing on a day I’m free?”
+Properties:
+Event-based (not state-based)
+Persistent (does not disappear after viewing)
+Grouped by date range
+Reviewable later
+Scales cleanly with 50+ friends
+3. Triggers (Symmetric)
+Create updates when either of the following occurs:
+A friend creates or edits a trip AND any part of the trip date range overlaps the current user’s open availability
+The current user adds or edits open availability AND one or more friends already have trips overlapping those dates
+4. Grouping Rules (Critical)
+Overlap granularity
+One update per continuous overlapping date range
+Do NOT create one update per day
+Example:
+Friend trip: Jan 14–16
+User availability: Jan 14–16
+→ Create ONE update covering Jan 14–16
+Multi-friend grouping
+If multiple friends have trips overlapping the same date range:
+Create ONE grouped update
+Do NOT create separate updates per friend
+Deduplication key
+One update per:
+(user_id, overlap_start_date, overlap_end_date, set_of_trip_ids)
+5. Update Lifecycle (Edits)
+When a friend edits a trip:
+Delete ALL existing overlap updates that reference that trip_id
+Recompute overlaps
+Create new update(s) if overlap still exists
+This applies even if only part of the date range changed.
+6. Activity / Update Model (Schema)
+Use the existing Activity/Update model if possible, but extend it as needed.
+Required fields / metadata
+The update must be able to store:
+activity_type = "friend_trip_overlaps_availability"
+user_id (viewer)
+friend_ids (array)
+trip_ids (array)
+overlap_start_date
+overlap_end_date
+resort_ids (array)
+state (optional, for future relevance)
+country (optional, for future relevance)
+created_at
+If the current schema only supports a single trip_id, either:
+Add JSON/array fields, or
+Store grouping info in a metadata blob
+Do NOT force grouped updates into a single-trip schema without metadata.
+7. Updates Feed Rendering (Collapsed)
+Copy rules (exact)
+Single friend
+Taylor is skiing while you’re free
+Jan 14 – Jan 16
+Multiple friends
+2 friends are skiing while you’re free
+Jan 14 – Jan 16
+Rules:
+Do NOT show friend names in grouped feed rows
+Do NOT show location in the feed
+Do NOT show pass info
+Same visual weight as other updates
+Sorted by created_at DESC
+8. Tap Behavior (Expanded)
+Tapping the update opens a modal (or detail view) showing who and where.
+Modal content example
+Jan 14 – Jan 16
+
+Taylor · Breckenridge
+Maya · Copper Mountain
+Rules:
+One row per friend trip
+Rows are tappable → navigate to that friend’s trip detail page
+This modal is the only place locations are shown
+9. Past Updates Handling
+Updates do not disappear
+Once the overlap date range has fully passed:
+Move the update into a “Past Updates” section
+Apply muted / de-emphasized styling
+Make it read-only (no navigation on tap)
+10. Explicit Non-Goals (Do NOT Implement)
+No relevance filtering (geography, home state, wishlist, distance)
+No pass overlap or compatibility logic
+No auto-dismiss
+No “mark as read”
+No grouping by friend
+No changes to Open Availability or Friends’ Trips
+11. Acceptance Criteria
+One update per continuous overlap range
+Multi-friend overlaps are grouped
+Updates persist and are reviewable
+Past updates are visually separated and non-interactive
+Tapping active updates reveals who + where
+Works cleanly with 50+ friends
+No duplicate or stale updates after trip edits
+Do not introduce checkpoints unless explicitly requested.
+Do not refactor unrelated code.
+Prioritize correctness, idempotency, and grouping over UI polish.
