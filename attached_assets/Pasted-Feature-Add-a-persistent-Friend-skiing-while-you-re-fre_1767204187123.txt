@@ -1,0 +1,94 @@
+Feature
+Add a persistent “Friend skiing while you’re free” update type to the Updates tab.
+This surfaces high-intent moments when a friend has a trip that overlaps the current user’s open availability.
+1. Scope (Strict)
+Update ONLY the Updates system and feed rendering
+Do NOT modify Open Availability UI
+Do NOT modify Friends’ Trips UI
+Do NOT add filters, toggles, or relevance rules yet
+Do NOT change database schema unless required for Updates
+2. Core Concept
+This update answers the question:
+“Is a friend already skiing on a day I’m free?”
+It is:
+Event-based
+Persistent (does not disappear after viewing)
+Reviewable later in the Updates tab
+Grouped by date, not by friend
+3. When to Create an Update (Triggers)
+Create this update when either condition becomes true:
+A friend creates or edits a trip AND one or more trip dates overlap the current user’s open availability
+The current user adds or edits open availability AND one or more friends already have trips overlapping those dates
+This must be symmetric.
+4. Grouping & Deduplication Rules (Critical)
+Group updates by date
+One update per:
+(date, set_of_friend_trip_ids)
+If a friend edits their trip dates:
+Delete the old update
+Create a new one if overlap still exists
+Do NOT create one update per day of a multi-day trip
+Do NOT create duplicate updates for the same overlap
+5. Update Feed Display (Collapsed State)
+Copy format (exact):
+If one friend:
+Taylor is skiing while you’re free
+Sat, Jan 14
+If multiple friends:
+2 friends are skiing while you’re free
+Sat, Jan 14
+Rules:
+Do NOT show names in the feed when grouped
+Do NOT show location in the feed
+Do NOT show pass info
+Same visual weight as other updates (no icons, no pins)
+Sort by created_at DESC
+6. Tap Behavior (Expanded State)
+Tapping the update opens a modal (or detail view) that shows who and where.
+Modal content (example):
+Sat, Jan 14
+
+Taylor · Breckenridge
+Maya · Copper Mountain
+Rules:
+One row per friend trip
+Rows are tappable → navigate to that friend’s trip detail page
+This modal is the only place location is shown
+7. Past Updates Handling
+Updates do not disappear
+Once the overlapping date has passed:
+Move the update into a “Past Updates” section
+Visually de-emphasize (muted text)
+Make it read-only (no navigation on tap)
+8. Relevance (Explicitly Deferred)
+Do NOT filter by:
+Geography
+Home state
+Wishlist
+Distance
+All overlaps are shown for now
+However:
+Store metadata on the update object:
+friend_id(s)
+trip_id(s)
+resort_id
+state
+country
+This allows future relevance ranking without refactor.
+9. Non-Goals (Do NOT Implement)
+No auto-dismiss
+No “mark as read”
+No relevance toggles
+No hiding “irrelevant” updates
+No pass compatibility logic
+No changes to Open Availability or Friends’ Trips
+10. Acceptance Criteria
+Updates appear when friend trips overlap user availability
+Updates persist and are reviewable later
+Grouped copy is calm and uncluttered
+Tap reveals who + where in a modal
+Past updates are visible but non-interactive
+Works cleanly with 50+ friends
+Do not introduce checkpoints unless explicitly requested.
+Do not refactor unrelated code.
+Prioritize correctness and idempotency over UI polish.
