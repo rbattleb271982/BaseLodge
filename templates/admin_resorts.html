@@ -1543,23 +1543,78 @@
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'success') {
-                    showToast(`Merged into ${data.canonical_resort}. Trips: ${data.stats.trips_updated}, Visited: ${data.stats.visited_lists_updated}, Deactivated: ${data.stats.resorts_deactivated}. Reloading...`, 'success');
+                    showToast(`Merged into ${data.canonical_resort}. Trips: ${data.stats.trips_updated}, Visited: ${data.stats.visited_lists_updated}, Deactivated: ${data.stats.resorts_deactivated}`, 'success');
                     
-                    // Close modal immediately
+                    // Capture current filter state BEFORE any changes
+                    const currentCountry = document.getElementById('country-filter').value;
+                    const currentState = document.getElementById('state-filter').value;
+                    const currentStatus = document.getElementById('status-filter').value;
+                    const currentPassBrand = document.getElementById('pass-brand-filter').value;
+                    const currentSearch = document.getElementById('search').value;
+                    
+                    // Update DOM: mark source resorts as inactive
+                    if (pendingMerge && pendingMerge.duplicate_ids) {
+                        pendingMerge.duplicate_ids.forEach(id => {
+                            const row = document.querySelector(`tr[data-id="${id}"]`);
+                            if (row) {
+                                // Update data attribute
+                                row.dataset.active = 'false';
+                                row.classList.add('inactive');
+                                
+                                // Update status badge
+                                const statusBadge = row.querySelector('.status-badge');
+                                if (statusBadge) {
+                                    statusBadge.textContent = 'INACTIVE';
+                                    statusBadge.classList.remove('active');
+                                    statusBadge.classList.add('inactive');
+                                }
+                                
+                                // Update action button
+                                const actionBtn = row.querySelector('button[onclick*="toggleActive"]');
+                                if (actionBtn) {
+                                    actionBtn.textContent = 'Activate';
+                                    actionBtn.classList.remove('btn-danger');
+                                    actionBtn.classList.add('btn-success');
+                                    actionBtn.setAttribute('onclick', `toggleActive(${id}, true)`);
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Clear ALL selections (action state only)
+                    selectedResorts.clear();
+                    document.querySelectorAll('.resort-checkbox').forEach(cb => cb.checked = false);
+                    
+                    // Reset merge target dropdown
+                    const mergeTargetSelect = document.getElementById('merge-target-select');
+                    if (mergeTargetSelect) {
+                        mergeTargetSelect.innerHTML = '<option value="">-- Select Target Resort --</option>';
+                    }
+                    
+                    // Reset select-all checkbox
+                    syncSelectAllState();
+                    
+                    // Update selection display (hides merge panel)
+                    updateSelectionDisplay();
+                    
+                    // Rehydrate State/Region dropdown based on current Country
+                    // Preserve the selected state value
+                    updateStateFilter();
+                    
+                    // Restore state filter value if still valid
+                    const stateFilter = document.getElementById('state-filter');
+                    if (currentState) {
+                        const stateOption = stateFilter.querySelector(`option[value="${currentState}"]`);
+                        if (stateOption) {
+                            stateFilter.value = currentState;
+                        }
+                    }
+                    
+                    // Re-apply filters to reflect new inactive status
+                    filterResorts();
+                    
+                    // Close modal
                     closeMergeModal();
-                    
-                    // Preserve filter state in URL before reload
-                    const params = new URLSearchParams(window.location.search);
-                    params.set('country', document.getElementById('country-filter').value || '');
-                    params.set('state', document.getElementById('state-filter').value || '');
-                    params.set('status', document.getElementById('status-filter').value || '');
-                    params.set('pass', document.getElementById('pass-brand-filter').value || '');
-                    params.set('search', document.getElementById('search').value || '');
-                    
-                    // Reload page with preserved filters
-                    setTimeout(() => {
-                        window.location.href = window.location.pathname + '?' + params.toString();
-                    }, 1500);
                 } else {
                     showToast('Error: ' + data.message, 'error');
                 }
