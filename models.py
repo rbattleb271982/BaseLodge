@@ -392,13 +392,43 @@ class Resort(db.Model):
     state_code = db.Column(db.String(50), nullable=True)  # Region code: CO, BC, Hokkaido, etc.
     state_name = db.Column(db.String(100), nullable=True)  # Display: Colorado, British Columbia, etc.
     
-    brand = db.Column(db.String(20), nullable=True)  # 'Epic', 'Ikon', 'Indy', 'Other'
-    pass_brands = db.Column(db.String(150), nullable=True)  # Comma-separated: 'Epic', 'Ikon,MountainCollective', etc.
+    brand = db.Column(db.String(20), nullable=True)  # DEPRECATED: legacy single pass
+    pass_brands_str = db.Column('pass_brands', db.String(150), nullable=True)  # DEPRECATED: Old comma-separated column, kept for rollback
+    pass_brands_json = db.Column(db.JSON, nullable=True, default=list)  # NEW: JSON array ['Epic', 'Ikon']
     slug = db.Column(db.String(120), unique=True, nullable=False)
     is_active = db.Column(db.Boolean, default=True)
-    is_region = db.Column(db.Boolean, nullable=False, default=False, server_default='false')  # True for region-level entities (e.g., Aosta Valley, Ski Arlberg)
-
+    is_region = db.Column(db.Boolean, nullable=False, default=False, server_default='false')
+    
     trips = db.relationship('SkiTrip', backref='resort', lazy=True)
+    
+    # Canonical pass brands (display order)
+    VALID_PASS_BRANDS = ['Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other', 'None']
+    
+    @property
+    def pass_brands(self):
+        """Returns pass brands as a list, preferring JSON column, falling back to legacy."""
+        if self.pass_brands_json:
+            return self.pass_brands_json if isinstance(self.pass_brands_json, list) else []
+        if self.pass_brands_str:
+            return [p.strip() for p in self.pass_brands_str.split(',') if p.strip()]
+        return []
+    
+    @pass_brands.setter
+    def pass_brands(self, value):
+        """Sets pass brands - accepts list or comma-separated string."""
+        if isinstance(value, list):
+            self.pass_brands_json = value
+        elif isinstance(value, str):
+            self.pass_brands_json = [p.strip() for p in value.split(',') if p.strip()]
+        else:
+            self.pass_brands_json = []
+    
+    @property
+    def pass_brands_display(self):
+        """Returns pass brands in canonical display order."""
+        brands = self.pass_brands
+        order = {b: i for i, b in enumerate(self.VALID_PASS_BRANDS)}
+        return sorted(brands, key=lambda x: order.get(x, 999))
 
     def __repr__(self):
         return f'<Resort {self.name} ({self.state_code or self.state})>'

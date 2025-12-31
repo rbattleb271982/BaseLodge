@@ -1,0 +1,48 @@
+We need to refactor how pass brands are stored for resorts so that a resort can belong to multiple pass brands.
+This is a lightweight change — do NOT introduce join tables.
+1) Model Change
+Replace the existing single-value pass_brand field on Resort with a new field:
+pass_brands = db.Column(db.JSON)
+pass_brands will store an array of strings, e.g.:
+["Ikon", "Indy"]
+2) Allowed Values (Canonical List)
+pass_brands must only contain values from this fixed set:
+Epic
+Ikon
+Mountain Collective
+Indy
+Other
+None
+No free-text values.
+3) Semantics / Rules
+"None" means no pass coverage at all and must be mutually exclusive
+(i.e. ["None"] only).
+"Other" represents regional / non-major passes and may coexist with major passes.
+Major passes (Epic, Ikon, Mountain Collective, Indy) may coexist where applicable.
+These rules should be enforced in the admin UI, not via database constraints.
+4) Data Migration
+Add the new pass_brands column.
+Backfill existing data:
+If pass_brand = 'Epic' → pass_brands = ['Epic']
+Same for all existing values.
+Leave the old pass_brand column temporarily for rollback safety.
+Update all code paths to read from pass_brands instead of pass_brand.
+5) Admin UI Update
+Replace the single pass dropdown with checkboxes for each allowed value.
+Checkbox behavior:
+Selecting None disables and clears all other options.
+Selecting any other option automatically unchecks None.
+Other can be checked independently.
+Admin should be able to select multiple passes easily and clearly.
+6) Display Ordering (UI Only)
+When rendering pass brands anywhere in the UI, always display them in this order:
+Epic → Ikon → Mountain Collective → Indy → Other → None
+Storage order does not matter.
+7) What Should NOT Change
+User onboarding flow
+User pass selection/storage
+Friend matching logic (unless it explicitly references resort pass data)
+No join tables
+No “primary” vs “secondary” pass logic
+Goal
+This change should make it easy to correctly represent resorts that belong to multiple passes (e.g. Ikon + Indy, Ikon + Mountain Collective) while keeping the system simple, safe, and easy to manage in the admin panel.
