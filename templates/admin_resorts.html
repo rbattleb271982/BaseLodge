@@ -617,6 +617,7 @@
             </select>
             <button class="btn btn-danger" onclick="executeMerge()">Merge into Selected</button>
             <button class="btn" id="btn-bulk-activate" onclick="bulkActivate()" style="background: #38a169; color: white;" disabled>Activate Selected</button>
+            <button class="btn" id="btn-bulk-deactivate" onclick="bulkDeactivate()" style="background: #e53e3e; color: white;" disabled>Deactivate Selected</button>
             <button class="btn" id="btn-bulk-delete" onclick="bulkDelete()" style="background: #718096; color: white;" disabled>Delete Selected</button>
             <button class="btn" onclick="clearSelection()">Clear</button>
         </div>
@@ -1042,11 +1043,13 @@
             countEl.textContent = selectedResorts.size;
             
             const activateBtn = document.getElementById('btn-bulk-activate');
+            const deactivateBtn = document.getElementById('btn-bulk-deactivate');
             const deleteBtn = document.getElementById('btn-bulk-delete');
             
             if (selectedResorts.size >= 1) {
                 panel.classList.add('visible');
                 activateBtn.disabled = false;
+                deactivateBtn.disabled = false;
                 deleteBtn.disabled = false;
                 
                 canonicalSelect.innerHTML = '<option value="">Select canonical resort...</option>';
@@ -1058,6 +1061,7 @@
             } else {
                 panel.classList.remove('visible');
                 activateBtn.disabled = true;
+                deactivateBtn.disabled = true;
                 deleteBtn.disabled = true;
             }
         }
@@ -1134,6 +1138,31 @@
             .then(data => {
                 if (data.status === 'success') {
                     showToast(`Activated ${data.updated_count} resort(s)`, 'success');
+                    setTimeout(() => reloadWithSort(), 1500);
+                } else {
+                    showToast('Error: ' + data.message, 'error');
+                }
+            })
+            .catch(e => {
+                showToast('Error: ' + e.message, 'error');
+            });
+        }
+        
+        function bulkDeactivate() {
+            if (selectedResorts.size === 0) {
+                showToast('No resorts selected', 'error');
+                return;
+            }
+            
+            fetch('/api/admin/resorts/bulk-deactivate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ resort_ids: Array.from(selectedResorts) })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showToast(`Deactivated ${data.updated_count} resort(s)`, 'success');
                     setTimeout(() => reloadWithSort(), 1500);
                 } else {
                     showToast('Error: ' + data.message, 'error');
