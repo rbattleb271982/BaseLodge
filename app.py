@@ -7819,9 +7819,9 @@ def admin_update_pass_brand():
         if brand not in allowed_values:
             return jsonify({'status': 'error', 'message': f'Invalid pass brand: {brand}'}), 400
     
-    # Handle "None" semantics - mutually exclusive
+    # Handle "None" semantics - mutually exclusive with all other passes
     if 'None' in pass_brands:
-        pass_brands = []
+        pass_brands = ['None']  # Preserve as explicit marker, not empty list
         
     resort = Resort.query.get(resort_id)
     if not resort:
@@ -7943,9 +7943,9 @@ def admin_bulk_update_pass_brand():
     if not resort_ids:
         return jsonify({'status': 'error', 'message': 'No resorts selected'}), 400
     
-    # Handle "None" semantics - mutually exclusive
+    # Handle "None" semantics - mutually exclusive with all other passes
     if 'None' in pass_brands:
-        pass_brands = []
+        pass_brands = ['None']  # Preserve as explicit marker, not empty list
     
     # Update each resort (bulk update for JSON column)
     resorts = Resort.query.filter(Resort.id.in_(resort_ids)).all()
@@ -8396,9 +8396,9 @@ def admin_add_resort():
     else:
         pass_brands_list = []
     
-    # Handle "None" semantics
+    # Handle "None" semantics - mutually exclusive with all other passes
     if 'None' in pass_brands_list:
-        pass_brands_list = []
+        pass_brands_list = ['None']  # Preserve as explicit marker, not empty list
     
     errors = []
     if not name:
