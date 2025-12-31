@@ -608,6 +608,11 @@
         </select>
         <button class="btn btn-primary" onclick="exportCanonical()">Export to Canonical JSON</button>
         <button class="btn btn-success" onclick="exportExcel()">Export Filtered to Excel</button>
+        
+        <div style="display: inline-flex; align-items: center; gap: 8px; margin-left: 12px; padding-left: 12px; border-left: 1px solid #ddd;">
+            <label for="import-excel" class="btn btn-primary" style="background: #718096;">Upload Excel Updates</label>
+            <input type="file" id="import-excel" accept=".xlsx" style="display: none;" onchange="importExcel(this)">
+        </div>
     </div>
     
     <div class="merge-panel" id="merge-panel">
@@ -1278,6 +1283,46 @@
             });
             
             window.location.href = `/admin/resorts/export-excel?${params.toString()}`;
+        }
+        
+        function importExcel(input) {
+            if (!input.files || !input.files[0]) return;
+            
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            showToast('Uploading Excel updates...', 'info');
+            
+            fetch('/admin/resorts/import-excel', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                input.value = ''; // Reset input
+                
+                if (data.status === 'error') {
+                    showToast('Import failed: ' + data.message, 'error');
+                    return;
+                }
+                
+                let message = `Import Complete: ${data.rows_updated} updated, ${data.rows_skipped} skipped.`;
+                if (data.errors && data.errors.length > 0) {
+                    message += ` (${data.errors.length} errors)`;
+                    console.error('Import errors:', data.errors);
+                }
+                
+                showToast(message, data.errors && data.errors.length > 0 ? 'error' : 'success');
+                
+                // We don't reload the page as requested, but user might want to see updates.
+                // Since it's a bulk update, we might eventually want a refresh, 
+                // but for now we follow the instruction "Do not reload page".
+            })
+            .catch(e => {
+                input.value = '';
+                showToast('Import failed: ' + e.message, 'error');
+            });
         }
         
         function exportCanonical() {

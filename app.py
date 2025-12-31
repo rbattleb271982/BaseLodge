@@ -7685,8 +7685,12 @@ def admin_export_resorts_excel():
         return "Failed to create workbook", 500
     ws.title = "Resorts Export"
     
+    # Header Note
+    ws.append(["Do not edit Resort ID. Only editable columns will be applied."])
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=6)
+    
     # Headers
-    headers = ["ID", "Name", "Country", "State / Region", "Pass Brands", "Status"]
+    headers = ["Resort ID", "Name", "Country", "State / Region", "Pass Brands", "Status"]
     ws.append(headers)
     
     # Data
@@ -7702,7 +7706,8 @@ def admin_export_resorts_excel():
     
     # Style headers
     from openpyxl.styles import Font
-    for cell in ws[1]:
+    ws['A1'].font = Font(bold=True, italic=True)
+    for cell in ws[2]:
         cell.font = Font(bold=True)
         
     # Adjust column widths
@@ -7710,7 +7715,8 @@ def admin_export_resorts_excel():
         # column_cells is a tuple of cells in the column
         column_letter = column_cells[0].column_letter
         max_length = 0
-        for cell in column_cells:
+        for i, cell in enumerate(column_cells):
+            if i == 0: continue # Skip note row
             try:
                 if cell.value:
                     if len(str(cell.value)) > max_length:
@@ -7732,6 +7738,104 @@ def admin_export_resorts_excel():
         as_attachment=True,
         download_name=filename
     )
+
+
+@app.route("/admin/resorts/import-excel", methods=["POST"])
+@login_required
+@admin_required
+def admin_import_resorts_excel():
+    """Import resort updates from Excel."""
+    from openpyxl import load_workbook
+    from io import BytesIO
+    
+    if 'file' not in request.files:
+        return jsonify({'status': 'error', 'message': 'No file uploaded'}), 400
+        
+    file = request.files['file']
+    if not file.filename.endswith('.xlsx'):
+        return jsonify({'status': 'error', 'message': 'Invalid file format. Please upload .xlsx'}), 400
+        
+    try:
+        wb = load_workbook(BytesIO(file.read()))
+        ws = wb.active
+        
+        rows_processed = 0
+        rows_updated = 0
+        rows_skipped = 0
+        errors = []
+        
+        # Header row is 2 (Note is 1)
+        # Data starts at row 3
+        for row_idx, row in enumerate(ws.iter_rows(min_row=3, values_only=True), start=3):
+            if not row or not any(row):
+                continue
+                
+            rows_processed += 1
+            resort_id = row[0]
+            name = row[1]
+            # row[2] is country (ignored for now)
+            state_region = row[3]
+            pass_brands = row[4]
+            status = str(row[5]).upper() if row[5] else None
+            
+            if not resort_id:
+                rows_skipped += 1
+                continue
+                
+            resort = Resort.query.get(resort_id)
+            if not resort:
+                rows_skipped += 1
+                errors.append({'row': row_idx, 'reason': f'Resort ID {resort_id} not found'})
+                continue
+                
+            # Validation
+            if status and status not in ['ACTIVE', 'INACTIVE']:
+                rows_skipped += 1
+                errors.append({'row': row_idx, 'reason': f'Invalid status: {status}'})
+                continue
+                
+            # Apply updates
+            updated = False
+            if name and str(name).strip() != resort.name:
+                resort.name = str(name).strip()
+                updated = True
+                
+            if state_region is not None:
+                new_state = str(state_region).strip()
+                if new_state != resort.state_code:
+                    resort.state_code = new_state
+                    resort.state = new_state # Update legacy field too
+                    updated = True
+                    
+            if pass_brands is not None:
+                new_passes = str(pass_brands).strip()
+                if new_passes != resort.pass_brands:
+                    resort.pass_brands = new_passes
+                    # Update legacy brand if applicable
+                    resort.brand = new_passes.split(',')[0] if new_passes else 'Other'
+                    updated = True
+                    
+            if status:
+                new_active = (status == 'ACTIVE')
+                if new_active != resort.is_active:
+                    resort.is_active = new_active
+                    updated = True
+                    
+            if updated:
+                rows_updated += 1
+                
+        db.session.commit()
+        
+        return jsonify({
+            'rows_processed': rows_processed,
+            'rows_updated': rows_updated,
+            'rows_skipped': rows_skipped,
+            'errors': errors
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 @app.route("/api/admin/resorts/<int:resort_id>", methods=["PUT"])
