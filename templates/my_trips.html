@@ -230,16 +230,16 @@
 
         <!-- Open Availability Tab -->
         <div id="tab-open" class="bl-trip-list" role="tabpanel" {% if active_tab != 'open' %}style="display: none;"{% endif %}>
-            {% if user_open_dates and user_open_dates|length > 0 %}
-            <a href="{{ url_for('add_open_dates') }}" style="text-decoration: none; color: inherit; display: block; margin-bottom: 16px; padding: 12px; background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; cursor: pointer;">
-                <p style="font-size: 0.9rem; margin: 0;">
-                    <strong>You're open on {{ user_open_dates|length }} day{% if user_open_dates|length != 1 %}s{% endif %}</strong>
-                </p>
-                {% if user_open_dates_display %}
-                <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">{{ user_open_dates_display }}</p>
+            <!-- Open Availability Summary Card -->
+            <div class="open-availability-card">
+                {% if user_open_dates and user_open_dates|length > 0 %}
+                <span class="open-title">You're open on {{ user_open_dates|length }} day{% if user_open_dates|length != 1 %}s{% endif %}</span>
+                <a href="{{ url_for('add_open_dates') }}" class="open-edit">Edit</a>
+                {% else %}
+                <span class="open-title">You haven't marked any open days yet</span>
+                <a href="{{ url_for('add_open_dates') }}" class="open-edit">Add</a>
                 {% endif %}
-            </a>
-            {% endif %}
+            </div>
 
             {% if open_date_matches and open_date_matches|length > 0 %}
                 {% for match in open_date_matches %}
@@ -258,16 +258,9 @@
                     {% endif %}
                 {% endfor %}
             {% elif user_open_dates and user_open_dates|length > 0 %}
-                <div class="empty-state-container">
-                    <p class="empty-state-title">No friends are open on this day.</p>
-                    <p class="empty-state-desc">Check other dates to find overlaps.</p>
-                    <a href="{{ url_for('add_open_dates') }}" class="bl-btn-outline" style="text-decoration: none; text-align: center; display: inline-block; margin: 12px 0;">Edit open dates</a>
-                </div>
-            {% else %}
-                <div class="empty-state-container">
-                    <p class="empty-state-title">No open availability yet</p>
-                    <p class="empty-state-desc">Mark days you're open to ski to help friends plan trips with you.</p>
-                    <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="text-decoration: none; text-align: center; display: inline-block; margin: 12px 0; padding: 12px 24px; font-size: 15px;">Add Open Dates</a>
+                <div class="empty-state-container" style="margin-top: 16px;">
+                    <p class="empty-state-title">No friends are open on your dates yet</p>
+                    <p class="empty-state-desc">When friends mark overlapping dates, they'll show up here.</p>
                 </div>
             {% endif %}
         </div>
