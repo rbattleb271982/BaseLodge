@@ -1,0 +1,96 @@
+We still have regressions in the Admin → Resort Data Curation dashboard that must be fixed.
+
+Do NOT redesign the UI.
+Do NOT add new features.
+This is restoration + wiring correction only.
+
+================================
+ISSUE 1 — ADD NEW RESORT DROPDOWN BROKEN
+================================
+
+Current:
+• “+ Add New Resort” control is visible
+• Clicking it does nothing
+• Form cannot be opened
+
+Required fix:
+• Restore click/toggle behavior for “+ Add New Resort”
+• Ensure:
+  - Click opens the form
+  - Click again collapses it
+  - Inputs are focusable
+  - Submit works
+• Submitting creates a Resort via existing backend route
+• New resort appears immediately in the table (respecting filters)
+
+================================
+ISSUE 2 — STATE / REGION FILTER STILL DISABLED
+================================
+
+Current:
+• “All States / Regions” dropdown remains permanently greyed out
+• This occurs even after selecting a Country
+
+Required behavior:
+• State / Region dropdown is:
+  - Disabled ONLY when Country = “All Countries”
+  - Enabled immediately when a specific Country is selected
+
+Frontend fix:
+• Listen for Country filter change events
+• When Country != “All Countries”:
+  - Enable State / Region dropdown
+  - Populate options dynamically
+• When Country = “All Countries”:
+  - Disable State / Region dropdown
+  - Reset value to “All States / Regions”
+
+Population rules:
+• Populate State / Region options from distinct state_region values
+  where Resort.country == selected Country
+• Do NOT hardcode state lists
+
+Filtering behavior:
+• Selecting a State / Region filters visible rows immediately
+• Stacks with Search, Country, Status, Pass Brand
+• Persists after inline edits, bulk actions, activate/deactivate, export
+
+================================
+ISSUE 3 — SELECT ALL STILL BROKEN
+================================
+
+Required behavior:
+• “Select All” selects ALL currently visible rows
+• Visible = rows not filtered out (not display:none)
+• Hidden rows must NOT be selected
+• selectedResorts JS Set must exactly match checkbox state
+
+Fix:
+• On Select All checked:
+  - Iterate over all visible rows
+  - Check row checkbox
+  - Add ID to selectedResorts
+• On Select All unchecked:
+  - Uncheck all row checkboxes
+  - Clear selectedResorts
+
+• Filters/search must NOT implicitly change selection
+• Selection only changes via:
+  - Row checkbox clicks
+  - Select All toggle
+  - Bulk action completion
+
+================================
+VERIFICATION (REQUIRED)
+================================
+
+Manually confirm:
+1. Country selected → State/Region dropdown enables
+2. State selection filters rows correctly
+3. “+ Add New Resort” opens and submits successfully
+4. Select All selects all visible rows
+5. Bulk actions still work
+6. Filters persist after actions
+
+List files changed.
+Stop after fixing these issues.
