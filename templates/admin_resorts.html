@@ -615,24 +615,20 @@
         </div>
     </div>
     
-    <div class="merge-panel" id="merge-panel">
+    <div class="merge-panel" id="merge-panel" style="display: none;">
         <h3>Bulk Actions (<span id="selected-count">0</span> selected)</h3>
         <p style="font-size: 13px; color: #666; margin: 0 0 12px 0; line-height: 1.5;">
-            Bulk Actions apply to all selected resorts:<br>
-            Activate / Deactivate = show or hide resorts in the product |
-            Merge = combine duplicate resorts into one canonical record |
-            Delete = permanently remove resorts (irreversible)
+            Update the pass brand for all selected resorts.
         </p>
-        <div class="merge-controls">
-            <select id="canonical-select">
-                <option value="">Select canonical resort...</option>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <select id="bulk-pass-brand" class="form-control" style="width: auto;">
+                <option value="Epic">Epic</option>
+                <option value="Ikon">Ikon</option>
+                <option value="Indy">Indy</option>
+                <option value="Other">Other</option>
+                <option value="None">None</option>
             </select>
-            <button class="btn btn-danger" onclick="executeMerge()" title="Combine duplicates into one resort">Merge into Selected</button>
-            <span style="font-size: 11px; color: #888; margin-right: 8px;">Use merge only for duplicate resorts representing the same real-world location.</span>
-            <button class="btn" id="btn-bulk-activate" onclick="bulkActivate()" style="background: #38a169; color: white;" disabled title="Make selected resorts visible to users">Activate Selected</button>
-            <button class="btn" id="btn-bulk-deactivate" onclick="bulkDeactivate()" style="background: #e53e3e; color: white;" disabled title="Hide selected resorts from users">Deactivate Selected</button>
-            <button class="btn" id="btn-bulk-delete" onclick="bulkDelete()" style="background: #718096; color: white;" disabled title="Permanently delete selected resorts">Delete Selected</button>
-            <button class="btn" onclick="clearSelection()">Clear</button>
+            <button class="btn btn-primary" onclick="applyBulkPassBrand()">Apply Pass Brand</button>
         </div>
     </div>
     
@@ -690,11 +686,13 @@
                                style="width: 80px;">
                     </td>
                     <td>
-                        <input type="text" class="editable-input" 
-                               data-field="pass_brands"
-                               data-id="{{ resort.id }}"
-                               value="{{ resort.pass_brands or resort.brand or '' }}"
-                               onblur="saveField(this)">
+                        <select class="pass-brand-select" data-id="{{ resort.id }}" onchange="updatePassBrand(this)">
+                            <option value="Epic" {% if (resort.pass_brands or resort.brand) == 'Epic' %}selected{% endif %}>Epic</option>
+                            <option value="Ikon" {% if (resort.pass_brands or resort.brand) == 'Ikon' %}selected{% endif %}>Ikon</option>
+                            <option value="Indy" {% if (resort.pass_brands or resort.brand) == 'Indy' %}selected{% endif %}>Indy</option>
+                            <option value="Other" {% if (resort.pass_brands or resort.brand) == 'Other' %}selected{% endif %}>Other</option>
+                            <option value="None" {% if not (resort.pass_brands or resort.brand) or (resort.pass_brands or resort.brand) == 'None' %}selected{% endif %}>None</option>
+                        </select>
                     </td>
                     <td>
                         <span class="status-badge {{ 'status-active' if resort.is_active else 'status-inactive' }}">
@@ -1082,40 +1080,83 @@
                 selectedResorts.add(parseInt(cb.value));
             });
             
+            const count = selectedResorts.size;
+            const countDisplay = document.getElementById('selected-count');
+            if (countDisplay) countDisplay.textContent = count;
+            
             const panel = document.getElementById('merge-panel');
-            const countEl = document.getElementById('selected-count');
-            const canonicalSelect = document.getElementById('canonical-select');
-            
-            countEl.textContent = selectedResorts.size;
-            
-            const activateBtn = document.getElementById('btn-bulk-activate');
-            const deactivateBtn = document.getElementById('btn-bulk-deactivate');
-            const deleteBtn = document.getElementById('btn-bulk-delete');
-            
-            if (selectedResorts.size >= 1) {
-                panel.classList.add('visible');
-                activateBtn.disabled = false;
-                deactivateBtn.disabled = false;
-                deleteBtn.disabled = false;
-                
-                canonicalSelect.innerHTML = '<option value="">Select canonical resort...</option>';
-                selectedResorts.forEach(id => {
-                    const row = document.querySelector(`tr[data-id="${id}"]`);
-                    const name = row.querySelector('input[data-field="name"]').value;
-                    canonicalSelect.innerHTML += `<option value="${id}">${name} (ID: ${id})</option>`;
-                });
-            } else {
-                panel.classList.remove('visible');
-                activateBtn.disabled = true;
-                deactivateBtn.disabled = true;
-                deleteBtn.disabled = true;
+            if (panel) {
+                if (count > 0) {
+                    panel.style.display = 'block';
+                    panel.classList.add('visible');
+                } else {
+                    panel.style.display = 'none';
+                    panel.classList.remove('visible');
+                }
             }
         }
-        
+
         function clearSelection() {
             document.querySelectorAll('.resort-checkbox').forEach(cb => cb.checked = false);
-            document.getElementById('select-all').checked = false;
+            const selectAll = document.getElementById('select-all');
+            if (selectAll) selectAll.checked = false;
             updateSelection();
+        }
+
+        async function updatePassBrand(select) {
+            const resortId = select.dataset.id;
+            const passBrand = select.value;
+            
+            try {
+                const response = await fetch('/api/admin/resorts/update-pass-brand', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ resort_id: parseInt(resortId), pass_brand: passBrand })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showToast('Pass brand updated', 'success');
+                    const row = select.closest('tr');
+                    row.dataset.pass = passBrand.toLowerCase();
+                } else {
+                    showToast(data.message || 'Update failed', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
+
+        async function applyBulkPassBrand() {
+            if (selectedResorts.size === 0) return;
+            
+            const passBrand = document.getElementById('bulk-pass-brand').value;
+            const resortIds = Array.from(selectedResorts);
+            
+            showToast('Applying bulk update...', 'info');
+            
+            try {
+                const response = await fetch('/api/admin/resorts/bulk-update-pass-brand', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ resort_ids: resortIds, pass_brand: passBrand })
+                });
+                const data = await response.json();
+                if (data.updated_count !== undefined) {
+                    showToast(`Updated ${data.updated_count} resorts`, 'success');
+                    resortIds.forEach(id => {
+                        const row = document.querySelector(`tr[data-id="${id}"]`);
+                        if (row) {
+                            const select = row.querySelector('.pass-brand-select');
+                            if (select) select.value = passBrand;
+                            row.dataset.pass = passBrand.toLowerCase();
+                        }
+                    });
+                } else {
+                    showToast(data.message || 'Bulk update failed', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
         }
         
         function executeMerge() {
@@ -1323,6 +1364,64 @@
                 input.value = '';
                 showToast('Import failed: ' + e.message, 'error');
             });
+        }
+
+        async function updatePassBrand(select) {
+            const resortId = select.dataset.id;
+            const passBrand = select.value;
+            
+            try {
+                const response = await fetch('/api/admin/resorts/update-pass-brand', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ resort_id: parseInt(resortId), pass_brand: passBrand })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showToast('Pass brand updated', 'success');
+                    // Update data-pass for sorting/filtering
+                    const row = select.closest('tr');
+                    row.dataset.pass = passBrand.toLowerCase();
+                } else {
+                    showToast(data.message || 'Update failed', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
+
+        async function applyBulkPassBrand() {
+            if (selectedResorts.size === 0) return;
+            
+            const passBrand = document.getElementById('bulk-pass-brand').value;
+            const resortIds = Array.from(selectedResorts);
+            
+            showToast('Applying bulk update...', 'info');
+            
+            try {
+                const response = await fetch('/api/admin/resorts/bulk-update-pass-brand', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ resort_ids: resortIds, pass_brand: passBrand })
+                });
+                const data = await response.json();
+                if (data.updated_count !== undefined) {
+                    showToast(`Updated ${data.updated_count} resorts`, 'success');
+                    // Update UI for all selected rows
+                    resortIds.forEach(id => {
+                        const row = document.querySelector(`tr[data-id="${id}"]`);
+                        if (row) {
+                            const select = row.querySelector('.pass-brand-select');
+                            if (select) select.value = passBrand;
+                            row.dataset.pass = passBrand.toLowerCase();
+                        }
+                    });
+                } else {
+                    showToast(data.message || 'Bulk update failed', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
         }
         
         function exportCanonical() {

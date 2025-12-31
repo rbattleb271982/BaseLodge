@@ -7687,44 +7687,44 @@ def admin_export_resorts_excel():
             
         ws.title = "Resorts Export"
         
-        # Header Note
-        ws.append(["Do not edit Resort ID. Only editable columns will be applied."])
-        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=6)
+        # Headers explicitly defined
+        headers = [
+            "ID",
+            "Name",
+            "Country",
+            "State / Region",
+            "Pass Brands",
+            "Status"
+        ]
         
-        # Headers
-        headers = ["Resort ID", "Name", "Country", "State / Region", "Pass Brands", "Status"]
-        ws.append(headers)
-        
-        # Data
-        for r in resorts:
-            ws.append([
-                r.id,
-                r.name or '',
-                r.country_code or r.country or '',
-                r.state_code or r.state or '',
-                r.pass_brands or r.brand or '',
-                "ACTIVE" if r.is_active else "INACTIVE"
-            ])
-        
-        # Style headers
-        from openpyxl.styles import Font
-        ws['A1'].font = Font(bold=True, italic=True)
-        for cell in ws[2]:
+        # Write headers by numeric index ONLY
+        for col_idx, header in enumerate(headers, start=1):
+            cell = ws.cell(row=1, column=col_idx, value=header)
+            from openpyxl.styles import Font
             cell.font = Font(bold=True)
+        
+        # Data starts at row 2
+        for row_idx, r in enumerate(resorts, start=2):
+            ws.cell(row=row_idx, column=1, value=r.id)
+            ws.cell(row=row_idx, column=2, value=r.name or '')
+            ws.cell(row=row_idx, column=3, value=r.country_code or r.country or '')
+            ws.cell(row=row_idx, column=4, value=r.state_code or r.state or '')
+            ws.cell(row=row_idx, column=5, value=r.pass_brands or r.brand or '')
+            ws.cell(row=row_idx, column=6, value="ACTIVE" if r.is_active else "INACTIVE")
             
         # Adjust column widths
-        for column_cells in ws.columns:
-            column_letter = column_cells[0].column_letter
+        for col_idx in range(1, len(headers) + 1):
+            column_letter = ws.cell(row=1, column=col_idx).column_letter
             max_length = 0
-            for i, cell in enumerate(column_cells):
-                if i == 0: continue # Skip note row
-                try:
-                    val = str(cell.value) if cell.value is not None else ""
-                    if len(val) > max_length:
-                        max_length = len(val)
-                except:
-                    pass
-            ws.column_dimensions[column_letter].width = min(max_length + 2, 50) # Cap width
+            for row in ws.iter_rows(min_col=col_idx, max_col=col_idx):
+                for cell in row:
+                    try:
+                        val = str(cell.value) if cell.value is not None else ""
+                        if len(val) > max_length:
+                            max_length = len(val)
+                    except:
+                        pass
+            ws.column_dimensions[column_letter].width = min(max_length + 2, 50)
 
         # Save to memory
         output = BytesIO()
@@ -7745,6 +7745,52 @@ def admin_export_resorts_excel():
         import traceback
         traceback.print_exc()
         return jsonify({'status': 'error', 'message': f'Export failed: {str(e)}'}), 500
+
+
+@app.route("/api/admin/resorts/update-pass-brand", methods=["POST"])
+@login_required
+@admin_required
+def admin_update_pass_brand():
+    """Update a single resort's pass brand."""
+    data = request.get_json()
+    resort_id = data.get('resort_id')
+    pass_brand = data.get('pass_brand')
+    
+    allowed_values = ['Epic', 'Ikon', 'Indy', 'Other', 'None']
+    if pass_brand not in allowed_values:
+        return jsonify({'status': 'error', 'message': 'Invalid pass brand'}), 400
+        
+    resort = Resort.query.get(resort_id)
+    if not resort:
+        return jsonify({'status': 'error', 'message': 'Resort not found'}), 404
+        
+    resort.pass_brands = pass_brand
+    db.session.commit()
+    return jsonify({'success': true})
+
+
+@app.route("/api/admin/resorts/bulk-update-pass-brand", methods=["POST"])
+@login_required
+@admin_required
+def admin_bulk_update_pass_brand():
+    """Bulk update resorts' pass brand."""
+    data = request.get_json()
+    resort_ids = data.get('resort_ids', [])
+    pass_brand = data.get('pass_brand')
+    
+    allowed_values = ['Epic', 'Ikon', 'Indy', 'Other', 'None']
+    if pass_brand not in allowed_values:
+        return jsonify({'status': 'error', 'message': 'Invalid pass brand'}), 400
+        
+    if not resort_ids:
+        return jsonify({'status': 'error', 'message': 'No resorts selected'}), 400
+        
+    updated_count = Resort.query.filter(Resort.id.in_(resort_ids)).update(
+        {Resort.pass_brands: pass_brand},
+        synchronize_session=False
+    )
+    db.session.commit()
+    return jsonify({'updated_count': updated_count})
 
 
 @app.route("/admin/resorts/import-excel", methods=["POST"])
