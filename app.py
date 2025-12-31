@@ -7770,7 +7770,7 @@ def admin_bulk_activate_resorts():
             return jsonify({'status': 'error', 'message': 'No resorts selected'}), 400
         
         updated_count = Resort.query.filter(Resort.id.in_(resort_ids)).update(
-            {'status': 'ACTIVE'},
+            {Resort.is_active: True},
             synchronize_session=False
         )
         db.session.commit()
@@ -7800,7 +7800,7 @@ def admin_bulk_deactivate_resorts():
             return jsonify({'status': 'error', 'message': 'No resorts selected'}), 400
         
         updated_count = Resort.query.filter(Resort.id.in_(resort_ids)).update(
-            {'status': 'INACTIVE'},
+            {Resort.is_active: False},
             synchronize_session=False
         )
         db.session.commit()
