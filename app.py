@@ -292,6 +292,7 @@ def emit_trip_created_activities(trip, actor_user_id):
             object_id=trip.id
         )
     check_and_emit_trip_overlap_activities(trip, actor_user_id)
+    emit_availability_overlap_activities_for_trip(trip)
 
 
 def emit_trip_updated_activities(trip, actor_user_id, dates_changed=False):
@@ -308,6 +309,7 @@ def emit_trip_updated_activities(trip, actor_user_id, dates_changed=False):
             object_id=trip.id
         )
     check_and_emit_trip_overlap_activities(trip, actor_user_id)
+    emit_availability_overlap_activities_for_trip(trip)
 
 
 def check_and_emit_trip_overlap_activities(trip, actor_user_id):
@@ -388,6 +390,201 @@ def delete_activities_for_trip(trip_id):
         Activity.object_type == 'trip',
         Activity.object_id == trip_id
     ).delete()
+
+
+def coalesce_date_ranges(date_ranges):
+    """Merge contiguous or overlapping date ranges into continuous ranges.
+    
+    Args:
+        date_ranges: List of (start_date, end_date) tuples
+        
+    Returns:
+        List of merged (start_date, end_date) tuples
+    """
+    if not date_ranges:
+        return []
+    
+    sorted_ranges = sorted(date_ranges, key=lambda x: x[0])
+    merged = [sorted_ranges[0]]
+    
+    for start, end in sorted_ranges[1:]:
+        last_start, last_end = merged[-1]
+        if start <= last_end + timedelta(days=1):
+            merged[-1] = (last_start, max(last_end, end))
+        else:
+            merged.append((start, end))
+    
+    return merged
+
+
+def compute_friend_trip_availability_overlaps(user):
+    """Compute overlaps between user's open availability and friends' trips.
+    
+    Returns a list of overlap groups, each containing:
+    - overlap_start_date, overlap_end_date
+    - list of (friend_id, trip_id, resort_id, resort_name, state, country)
+    """
+    if not user.open_dates:
+        return []
+    
+    user_open_dates = set()
+    for d in user.open_dates:
+        try:
+            if isinstance(d, str):
+                user_open_dates.add(datetime.strptime(d, '%Y-%m-%d').date())
+            else:
+                user_open_dates.add(d)
+        except (ValueError, TypeError):
+            continue
+    
+    if not user_open_dates:
+        return []
+    
+    friend_ids = get_friend_ids(user.id)
+    if not friend_ids:
+        return []
+    
+    friend_trips = SkiTrip.query.filter(
+        SkiTrip.user_id.in_(friend_ids),
+        SkiTrip.end_date >= date.today()
+    ).all()
+    
+    overlap_by_range = {}
+    
+    for trip in friend_trips:
+        trip_dates = set()
+        current = trip.start_date
+        while current <= trip.end_date:
+            trip_dates.add(current)
+            current += timedelta(days=1)
+        
+        overlapping_dates = user_open_dates & trip_dates
+        if not overlapping_dates:
+            continue
+        
+        sorted_dates = sorted(overlapping_dates)
+        ranges = []
+        range_start = sorted_dates[0]
+        range_end = sorted_dates[0]
+        
+        for d in sorted_dates[1:]:
+            if d == range_end + timedelta(days=1):
+                range_end = d
+            else:
+                ranges.append((range_start, range_end))
+                range_start = d
+                range_end = d
+        ranges.append((range_start, range_end))
+        
+        resort = Resort.query.get(trip.resort_id) if trip.resort_id else None
+        resort_name = resort.name if resort else (trip.mountain or "Unknown")
+        state = resort.state_code if resort else None
+        country = resort.country_code if resort else None
+        
+        for range_start, range_end in ranges:
+            key = (range_start, range_end)
+            if key not in overlap_by_range:
+                overlap_by_range[key] = []
+            overlap_by_range[key].append({
+                'friend_id': trip.user_id,
+                'trip_id': trip.id,
+                'resort_id': trip.resort_id,
+                'resort_name': resort_name,
+                'state': state,
+                'country': country
+            })
+    
+    coalesced = coalesce_date_ranges(list(overlap_by_range.keys()))
+    
+    result = []
+    for start, end in coalesced:
+        friends_data = []
+        for (r_start, r_end), data_list in overlap_by_range.items():
+            if r_start >= start and r_end <= end:
+                friends_data.extend(data_list)
+        
+        seen_trips = set()
+        unique_friends_data = []
+        for d in friends_data:
+            if d['trip_id'] not in seen_trips:
+                unique_friends_data.append(d)
+                seen_trips.add(d['trip_id'])
+        
+        if unique_friends_data:
+            result.append({
+                'overlap_start_date': start,
+                'overlap_end_date': end,
+                'friends': unique_friends_data
+            })
+    
+    return result
+
+
+def delete_availability_overlap_activities_for_trip(trip_id):
+    """Delete all FRIEND_TRIP_OVERLAPS_AVAILABILITY activities that reference a specific trip."""
+    activities = Activity.query.filter(
+        Activity.type == ActivityType.FRIEND_TRIP_OVERLAPS_AVAILABILITY.value
+    ).all()
+    
+    for activity in activities:
+        if activity.extra_data and trip_id in activity.extra_data.get('trip_ids', []):
+            db.session.delete(activity)
+
+
+def emit_availability_overlap_activities_for_user(user):
+    """Create or update FRIEND_TRIP_OVERLAPS_AVAILABILITY activities for a user.
+    
+    Called when:
+    - User updates their open availability dates
+    - A friend creates or edits a trip
+    """
+    Activity.query.filter(
+        Activity.recipient_user_id == user.id,
+        Activity.type == ActivityType.FRIEND_TRIP_OVERLAPS_AVAILABILITY.value
+    ).delete()
+    
+    overlaps = compute_friend_trip_availability_overlaps(user)
+    
+    for overlap in overlaps:
+        friend_ids = list(set(f['friend_id'] for f in overlap['friends']))
+        trip_ids = list(set(f['trip_id'] for f in overlap['friends']))
+        resort_ids = list(set(f['resort_id'] for f in overlap['friends'] if f['resort_id']))
+        states = list(set(f['state'] for f in overlap['friends'] if f['state']))
+        countries = list(set(f['country'] for f in overlap['friends'] if f['country']))
+        
+        actor_id = friend_ids[0] if friend_ids else user.id
+        
+        extra_data = {
+            'friend_ids': friend_ids,
+            'trip_ids': trip_ids,
+            'overlap_start_date': overlap['overlap_start_date'].isoformat(),
+            'overlap_end_date': overlap['overlap_end_date'].isoformat(),
+            'resort_ids': resort_ids,
+            'friends_data': overlap['friends'],
+            'state': states,
+            'country': countries
+        }
+        
+        activity = Activity(
+            actor_user_id=actor_id,
+            recipient_user_id=user.id,
+            type=ActivityType.FRIEND_TRIP_OVERLAPS_AVAILABILITY.value,
+            object_type='availability',
+            object_id=user.id,
+            created_at=datetime.utcnow(),
+            extra_data=extra_data
+        )
+        db.session.add(activity)
+
+
+def emit_availability_overlap_activities_for_trip(trip):
+    """Recompute availability overlaps for all friends when a trip is created/edited."""
+    friend_ids = get_friend_ids(trip.user_id)
+    
+    for friend_id in friend_ids:
+        friend = User.query.get(friend_id)
+        if friend and friend.open_dates:
+            emit_availability_overlap_activities_for_user(friend)
 
 
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///baselodge.db")
@@ -3294,6 +3491,11 @@ def add_open_dates():
             current_user.open_dates = []
         
         db.session.commit()
+        
+        # Recompute availability overlap activities for this user
+        emit_availability_overlap_activities_for_user(current_user)
+        db.session.commit()
+        
         return redirect(url_for("home", tab="open"))
     
     # Pre-populate with existing dates

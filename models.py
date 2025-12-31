@@ -899,6 +899,7 @@ class ActivityType(PyEnum):
     TRIP_INVITE_ACCEPTED = "trip_invite_accepted"
     CONNECTION_ACCEPTED = "connection_accepted"
     TRIP_OVERLAP = "trip_overlap"
+    FRIEND_TRIP_OVERLAPS_AVAILABILITY = "friend_trip_overlaps_availability"
 
 
 class Activity(db.Model):
@@ -912,6 +913,7 @@ class Activity(db.Model):
     object_type = db.Column(db.String(20), nullable=False)  # "trip" | "user"
     object_id = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    extra_data = db.Column(db.JSON, nullable=True)  # For grouped updates (friend_ids, trip_ids, dates, etc.)
     
     actor = db.relationship('User', foreign_keys=[actor_user_id], backref='activities_performed')
     recipient = db.relationship('User', foreign_keys=[recipient_user_id], backref='activities_received')
