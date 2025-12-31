@@ -194,6 +194,8 @@ def admin_required(f):
         admin_emails_str = os.environ.get("ALLOWED_ADMIN_EMAILS", "richardbattlebaxter@gmail.com,battle@battle.com")
         admin_emails = [e.strip().lower() for e in admin_emails_str.split(",") if e.strip()]
         if not current_user.is_authenticated or current_user.email.lower() not in admin_emails:
+            if request.path.startswith('/api/'):
+                return jsonify({'status': 'error', 'message': 'Admin privileges required'}), 403
             return "Admin privileges required.", 403
         return f(*args, **kwargs)
     return wrapper
@@ -7757,22 +7759,29 @@ def admin_bulk_delete_resorts():
 @admin_required
 def admin_bulk_activate_resorts():
     """Bulk activate resorts."""
-    data = request.get_json()
-    resort_ids = data.get('resort_ids', [])
-    
-    if not resort_ids:
-        return jsonify({'status': 'error', 'message': 'No resorts selected'}), 400
-    
-    updated_count = Resort.query.filter(Resort.id.in_(resort_ids)).update(
-        {'status': 'ACTIVE'},
-        synchronize_session=False
-    )
-    db.session.commit()
-    
-    return jsonify({
-        'status': 'success',
-        'updated_count': updated_count
-    })
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'status': 'error', 'message': 'Invalid request body'}), 400
+        
+        resort_ids = data.get('resort_ids', [])
+        
+        if not resort_ids:
+            return jsonify({'status': 'error', 'message': 'No resorts selected'}), 400
+        
+        updated_count = Resort.query.filter(Resort.id.in_(resort_ids)).update(
+            {'status': 'ACTIVE'},
+            synchronize_session=False
+        )
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'updated_count': updated_count
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 @app.route("/api/admin/resorts/bulk-deactivate", methods=["POST"])
@@ -7780,22 +7789,29 @@ def admin_bulk_activate_resorts():
 @admin_required
 def admin_bulk_deactivate_resorts():
     """Bulk deactivate resorts."""
-    data = request.get_json()
-    resort_ids = data.get('resort_ids', [])
-    
-    if not resort_ids:
-        return jsonify({'status': 'error', 'message': 'No resorts selected'}), 400
-    
-    updated_count = Resort.query.filter(Resort.id.in_(resort_ids)).update(
-        {'status': 'INACTIVE'},
-        synchronize_session=False
-    )
-    db.session.commit()
-    
-    return jsonify({
-        'status': 'success',
-        'updated_count': updated_count
-    })
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'status': 'error', 'message': 'Invalid request body'}), 400
+        
+        resort_ids = data.get('resort_ids', [])
+        
+        if not resort_ids:
+            return jsonify({'status': 'error', 'message': 'No resorts selected'}), 400
+        
+        updated_count = Resort.query.filter(Resort.id.in_(resort_ids)).update(
+            {'status': 'INACTIVE'},
+            synchronize_session=False
+        )
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'updated_count': updated_count
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 @app.route("/api/admin/resorts/merge", methods=["POST"])
