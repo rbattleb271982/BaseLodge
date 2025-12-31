@@ -1,0 +1,63 @@
+mplement wishlist overlap indicators on the Friend Profile experience only.
+Scope constraints (strict):
+Applies only when viewing another user’s profile
+Do NOT change anything on the current user’s own profile
+No backend schema changes
+No database writes
+No notifications, tracking, or CTAs
+1) Profile summary (counts only)
+On a friend’s profile page, enhance existing section headers with contextual overlap counts.
+A) “Mountains I’ve visited”
+When rendering:
+Mountains I’ve visited (N)
+If there is overlap between:
+friend.visited_resorts
+current_user.wishlist_resorts
+then render:
+Mountains I’ve visited (N)
+• X on your wishlist
+Rules:
+Show the line only if X ≥ 1
+Count only (do not list names here)
+Visually subtle (secondary text)
+B) “Mountains I want to visit”
+When rendering:
+Mountains I want to visit (M)
+If there is overlap between:
+friend.wishlist_resorts
+current_user.wishlist_resorts
+then render:
+Mountains I want to visit (M)
+• Y also on your wishlist
+Rules:
+Show the line only if Y ≥ 1
+Count only
+Same visual weight as the visited overlap
+2) Expanded list highlighting
+When the user expands either section (modal or full page):
+A) Expanded “Visited mountains” list
+For each mountain:
+If it exists in:
+friend.visited_resorts ∩ current_user.wishlist_resorts
+Add a small inline indicator:
+• on your wishlist
+B) Expanded “Wishlist mountains” list
+For each mountain:
+If it exists in:
+friend.wishlist_resorts ∩ current_user.wishlist_resorts
+Add the same inline indicator:
+• on your wishlist
+Explicit exclusions (must NOT happen)
+Do NOT show any overlap indicators on the current user’s own profile
+Do NOT add new sections, banners, cards, or CTAs
+Do NOT repeat counts inside expanded lists
+Do NOT change sorting or ordering
+Logic notes:
+Read-only, render-time set intersection
+No persistence required
+Verification:
+Own profile → no indicators
+Friend with 0 overlaps → no indicators
+Friend with overlaps → counts in headers + inline highlights in expanded lists
+No other profile UI changes
+Only use checkpoints if I explicitly ask for them.
