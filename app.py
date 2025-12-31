@@ -38,14 +38,14 @@ if not app.config["SECRET_KEY"]:
     else:
         raise RuntimeError("SESSION_SECRET environment variable is NOT SET in production.")
 
-# Session configuration for Replit iframe environment
-app.config.update(
-    SESSION_COOKIE_SECURE=is_production,
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
-    PERMANENT_SESSION_LIFETIME=timedelta(days=7),
-    SESSION_REFRESH_EACH_REQUEST=True
-)
+    # Session configuration for Replit iframe environment
+    app.config.update(
+        SESSION_COOKIE_SECURE=is_production,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE=os.environ.get("SESSION_COOKIE_SAMESITE", "Lax"),
+        PERMANENT_SESSION_LIFETIME=timedelta(days=7),
+        SESSION_REFRESH_EACH_REQUEST=True
+    )
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -173,7 +173,7 @@ def before_request_handlers():
     session.permanent = True
     
     # DIAGNOSTIC: before_request
-    if request.endpoint and request.endpoint not in ['static']:
+    if request.endpoint and request.endpoint not in ['static', 'root']:
         print("=== BEFORE_REQUEST ===", file=sys.stderr)
         print("endpoint:", request.endpoint, file=sys.stderr)
         print("current_user.is_authenticated:", current_user.is_authenticated, file=sys.stderr)
