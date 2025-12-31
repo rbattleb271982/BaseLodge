@@ -16,6 +16,41 @@ import random
 import click
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
+import unicodedata
+import re
+
+def generate_resort_slug(name):
+    """Generate a URL-safe slug from resort name.
+    
+    - Lowercase
+    - Hyphen-separated
+    - ASCII-safe (unicode normalized)
+    - Deterministic (same name -> same slug)
+    - Never null or empty
+    """
+    if not name:
+        raise ValueError("Resort name is required for slug generation")
+    
+    # Normalize unicode to ASCII
+    slug = unicodedata.normalize('NFKD', str(name))
+    slug = slug.encode('ascii', 'ignore').decode('ascii')
+    
+    # Lowercase
+    slug = slug.lower()
+    
+    # Replace non-alphanumeric with hyphens
+    slug = re.sub(r'[^a-z0-9]+', '-', slug)
+    
+    # Collapse multiple hyphens
+    slug = re.sub(r'-+', '-', slug)
+    
+    # Strip leading/trailing hyphens
+    slug = slug.strip('-')
+    
+    if not slug:
+        raise ValueError(f"Could not generate valid slug from name: {name}")
+    
+    return slug
 
 # ============================================================================
 # PROFILE CONSOLIDATION NOTE:
@@ -7955,9 +7990,26 @@ def admin_import_resorts_excel():
                     errors.append({'row': row_idx, 'reason': 'Missing required field: country'})
                     continue
                 
+                # Generate slug from name
+                resort_name = str(name).strip()
+                try:
+                    base_slug = generate_resort_slug(resort_name)
+                except ValueError as e:
+                    rows_skipped += 1
+                    errors.append({'row': row_idx, 'reason': str(e)})
+                    continue
+                
+                # Ensure slug is unique by appending suffix if needed
+                slug = base_slug
+                suffix = 1
+                while Resort.query.filter_by(slug=slug).first():
+                    slug = f"{base_slug}-{suffix}"
+                    suffix += 1
+                
                 # Create new resort
                 new_resort = Resort(
-                    name=str(name).strip(),
+                    name=resort_name,
+                    slug=slug,
                     country_code=str(country).strip().upper(),
                     country=str(country).strip().upper(),
                     state_code=str(state_region).strip() if state_region else None,
