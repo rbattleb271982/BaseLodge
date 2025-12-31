@@ -7902,7 +7902,7 @@ def admin_bulk_update_pass_brand():
 @login_required
 @admin_required
 def admin_import_resorts_excel():
-    """Import resort updates from Excel."""
+    """Import resort updates from Excel. Supports CREATE (blank ID) and UPDATE (existing ID)."""
     from openpyxl import load_workbook
     from io import BytesIO
     
@@ -7918,6 +7918,7 @@ def admin_import_resorts_excel():
         ws = wb.active
         
         rows_processed = 0
+        rows_created = 0
         rows_updated = 0
         rows_skipped = 0
         errors = []
@@ -7931,25 +7932,49 @@ def admin_import_resorts_excel():
             rows_processed += 1
             resort_id = row[0]
             name = row[1]
-            # row[2] is country (ignored for now)
+            country = row[2]  # Country code (e.g., US, CA)
             state_region = row[3]
             pass_brands = row[4]
             status = str(row[5]).upper() if row[5] else None
             
-            if not resort_id:
+            # Validation for status
+            if status and status not in ['ACTIVE', 'INACTIVE']:
                 rows_skipped += 1
+                errors.append({'row': row_idx, 'reason': f'Invalid status: {status}'})
                 continue
+            
+            # CREATE MODE: ID is blank/null
+            if not resort_id:
+                # Required fields for creation
+                if not name or not str(name).strip():
+                    rows_skipped += 1
+                    errors.append({'row': row_idx, 'reason': 'Missing required field: name'})
+                    continue
+                if not country or not str(country).strip():
+                    rows_skipped += 1
+                    errors.append({'row': row_idx, 'reason': 'Missing required field: country'})
+                    continue
                 
+                # Create new resort
+                new_resort = Resort(
+                    name=str(name).strip(),
+                    country_code=str(country).strip().upper(),
+                    country=str(country).strip().upper(),
+                    state_code=str(state_region).strip() if state_region else None,
+                    state=str(state_region).strip() if state_region else None,
+                    pass_brands=str(pass_brands).strip() if pass_brands else None,
+                    brand=str(pass_brands).strip().split(',')[0] if pass_brands else 'Other',
+                    is_active=True if not status else (status == 'ACTIVE')
+                )
+                db.session.add(new_resort)
+                rows_created += 1
+                continue
+            
+            # UPDATE MODE: ID is present
             resort = Resort.query.get(resort_id)
             if not resort:
                 rows_skipped += 1
                 errors.append({'row': row_idx, 'reason': f'Resort ID {resort_id} not found'})
-                continue
-                
-            # Validation
-            if status and status not in ['ACTIVE', 'INACTIVE']:
-                rows_skipped += 1
-                errors.append({'row': row_idx, 'reason': f'Invalid status: {status}'})
                 continue
                 
             # Apply updates
@@ -7957,19 +7982,25 @@ def admin_import_resorts_excel():
             if name and str(name).strip() != resort.name:
                 resort.name = str(name).strip()
                 updated = True
+            
+            if country and str(country).strip():
+                new_country = str(country).strip().upper()
+                if new_country != resort.country_code:
+                    resort.country_code = new_country
+                    resort.country = new_country
+                    updated = True
                 
             if state_region is not None:
                 new_state = str(state_region).strip()
                 if new_state != resort.state_code:
                     resort.state_code = new_state
-                    resort.state = new_state # Update legacy field too
+                    resort.state = new_state
                     updated = True
                     
             if pass_brands is not None:
                 new_passes = str(pass_brands).strip()
                 if new_passes != resort.pass_brands:
                     resort.pass_brands = new_passes
-                    # Update legacy brand if applicable
                     resort.brand = new_passes.split(',')[0] if new_passes else 'Other'
                     updated = True
                     
@@ -7986,6 +8017,7 @@ def admin_import_resorts_excel():
         
         return jsonify({
             'rows_processed': rows_processed,
+            'rows_created': rows_created,
             'rows_updated': rows_updated,
             'rows_skipped': rows_skipped,
             'errors': errors

@@ -1519,7 +1519,11 @@
                     return;
                 }
                 
-                let message = `Import Complete: ${data.rows_updated} updated, ${data.rows_skipped} skipped.`;
+                const created = data.rows_created || 0;
+                const updated = data.rows_updated || 0;
+                const skipped = data.rows_skipped || 0;
+                
+                let message = `Import Complete: ${created} created, ${updated} updated, ${skipped} skipped.`;
                 if (data.errors && data.errors.length > 0) {
                     message += ` (${data.errors.length} errors)`;
                     console.error('Import errors:', data.errors);
@@ -1527,9 +1531,10 @@
                 
                 showToast(message, data.errors && data.errors.length > 0 ? 'error' : 'success');
                 
-                // We don't reload the page as requested, but user might want to see updates.
-                // Since it's a bulk update, we might eventually want a refresh, 
-                // but for now we follow the instruction "Do not reload page".
+                // Reload page to show newly created resorts
+                if (created > 0) {
+                    setTimeout(() => reloadWithSort(), 1500);
+                }
             })
             .catch(e => {
                 input.value = '';
