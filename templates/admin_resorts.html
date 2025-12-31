@@ -611,18 +611,30 @@
     
     <div class="merge-panel" id="merge-panel">
         <h3>Bulk Actions (<span id="selected-count">0</span> selected)</h3>
+        <p style="font-size: 13px; color: #666; margin: 0 0 12px 0; line-height: 1.5;">
+            Bulk Actions apply to all selected resorts:<br>
+            Activate / Deactivate = show or hide resorts in the product |
+            Merge = combine duplicate resorts into one canonical record |
+            Delete = permanently remove resorts (irreversible)
+        </p>
         <div class="merge-controls">
             <select id="canonical-select">
                 <option value="">Select canonical resort...</option>
             </select>
-            <button class="btn btn-danger" onclick="executeMerge()">Merge into Selected</button>
-            <button class="btn" id="btn-bulk-activate" onclick="bulkActivate()" style="background: #38a169; color: white;" disabled>Activate Selected</button>
-            <button class="btn" id="btn-bulk-deactivate" onclick="bulkDeactivate()" style="background: #e53e3e; color: white;" disabled>Deactivate Selected</button>
-            <button class="btn" id="btn-bulk-delete" onclick="bulkDelete()" style="background: #718096; color: white;" disabled>Delete Selected</button>
+            <button class="btn btn-danger" onclick="executeMerge()" title="Combine duplicates into one resort">Merge into Selected</button>
+            <span style="font-size: 11px; color: #888; margin-right: 8px;">Use merge only for duplicate resorts representing the same real-world location.</span>
+            <button class="btn" id="btn-bulk-activate" onclick="bulkActivate()" style="background: #38a169; color: white;" disabled title="Make selected resorts visible to users">Activate Selected</button>
+            <button class="btn" id="btn-bulk-deactivate" onclick="bulkDeactivate()" style="background: #e53e3e; color: white;" disabled title="Hide selected resorts from users">Deactivate Selected</button>
+            <button class="btn" id="btn-bulk-delete" onclick="bulkDelete()" style="background: #718096; color: white;" disabled title="Permanently delete selected resorts">Delete Selected</button>
             <button class="btn" onclick="clearSelection()">Clear</button>
         </div>
     </div>
     
+    <div style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; color: #4a5568;">
+        <strong>Status:</strong> Controls whether a resort is visible to users.
+        <span style="margin-left: 12px;"><strong>ACTIVE</strong> = visible in the product</span>
+        <span style="margin-left: 12px;"><strong>INACTIVE</strong> = hidden but not deleted</span>
+    </div>
     <div class="table-container">
         <table>
             <thead>
