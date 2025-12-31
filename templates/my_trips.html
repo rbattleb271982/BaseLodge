@@ -230,25 +230,6 @@
 
         <!-- Open Availability Tab -->
         <div id="tab-open" class="bl-trip-list" role="tabpanel" {% if active_tab != 'open' %}style="display: none;"{% endif %}>
-            {% if open_date_matches and open_date_matches|length > 0 %}
-            <div style="background: linear-gradient(135deg, rgba(143, 1, 27, 0.08), rgba(143, 1, 27, 0.04)); border: 1px solid rgba(143, 1, 27, 0.2); border-radius: 12px; padding: 14px; margin-bottom: 16px;">
-                {% set total_friends = [] %}
-                {% for match in open_date_matches %}
-                    {% for f in match.friends %}
-                        {% if f.id not in total_friends %}
-                            {% set _ = total_friends.append(f.id) %}
-                        {% endif %}
-                    {% endfor %}
-                {% endfor %}
-                <p style="font-size: 0.95rem; font-weight: 600; margin: 0; color: #8F011B;">
-                    {{ total_friends|length }} friend{% if total_friends|length != 1 %}s{% endif %} open on your dates
-                </p>
-                <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">
-                    Tap a day below to see who's available
-                </p>
-            </div>
-            {% endif %}
-
             {% if user_open_dates and user_open_dates|length > 0 %}
             <a href="{{ url_for('add_open_dates') }}" style="text-decoration: none; color: inherit; display: block; margin-bottom: 16px; padding: 12px; background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; cursor: pointer;">
                 <p style="font-size: 0.9rem; margin: 0;">
@@ -261,71 +242,26 @@
             {% endif %}
 
             {% if open_date_matches and open_date_matches|length > 0 %}
-                {% set user_pass = user.pass_type if user and user.pass_type else '' %}
                 {% for match in open_date_matches %}
                     {% if match and match.friends %}
-                    {% set same_pass_count = match.friends | selectattr('pass_type', 'equalto', user_pass) | list | length if user_pass else 0 %}
-                    {% set diff_pass_count = (match.friends | length) - same_pass_count %}
-                    <div class="bl-trip-card open-day-card" style="flex-direction: column; align-items: flex-start; padding: 14px; cursor: pointer;" data-day-index="{{ loop.index0 }}" onclick="toggleDay(event, {{ loop.index0 }})">
-                        <div class="open-day-header" style="width: 100%; display: flex; justify-content: space-between; align-items: flex-start;">
-                            <div style="flex: 1;">
-                                <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 6px 0;">
-                                    {{ match.day_name or '' }}, {{ match.display_date or '' }}
-                                </p>
-                                <p style="font-size: 0.85rem; margin: 0 0 4px 0;">
-                                    <strong>You + {{ match.friends|length }} friend{% if match.friends|length != 1 %}s{% endif %} are open</strong>
-                                </p>
-                                <p style="font-size: 0.8rem; color: var(--bl-color-text-muted); margin: 0;">
-                                    {% if user_pass %}{{ user_pass }}{% endif %}{% if same_pass_count > 0 %} passes: {{ same_pass_count }}{% endif %}{% if diff_pass_count > 0 %} · {% endif %}{% if diff_pass_count > 0 %}Other passes: {{ diff_pass_count }}{% endif %}
-                                </p>
-                            </div>
-                            <div style="text-align: right; padding-left: 8px;">
-                                <p style="font-size: 0.8rem; color: var(--bl-color-primary); font-weight: 500; margin: 0; white-space: nowrap;">View who's open →</p>
-                            </div>
+                    <div class="open-avail-card" data-modal-target="open-modal-{{ loop.index0 }}" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 12px; margin-bottom: 10px; cursor: pointer;">
+                        <div style="flex: 1; min-width: 0;">
+                            <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 4px 0; color: var(--bl-color-text);">
+                                {{ match.day_name }}, {{ match.display_date }}
+                            </p>
+                            <p style="font-size: 0.85rem; margin: 0; color: var(--bl-color-text-muted);">
+                                You + {{ match.total_count }} friend{% if match.total_count != 1 %}s{% endif %} · 
+                                {% if match.compatible_count == match.total_count %}All compatible{% elif match.compatible_count == 0 %}No pass overlap{% else %}{{ match.compatible_count }} compatible{% endif %}
+                            </p>
                         </div>
-
-                        <div class="open-day-friends" style="display: none; width: 100%; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft);">
-                            {% set sorted_friends = match.friends | sort(attribute='name') | list %}
-                            {% set same_pass_friends = sorted_friends | selectattr('pass_type', 'equalto', user_pass) | list if user_pass else [] %}
-                            {% set diff_pass_friends = sorted_friends | rejectattr('pass_type', 'equalto', user_pass) | list if user_pass else sorted_friends %}
-
-                            {% if same_pass_friends %}
-                            {% for friend in same_pass_friends | sort(attribute='name') | sort(attribute='skill_level', reverse=False) %}
-                                {% if friend and friend.id %}
-                                <div style="display: flex; flex-direction: column; margin-bottom: 10px; padding: 8px 0;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; font-weight: 500; flex: 1;">{{ friend.name or 'Friend' }}</a>
-                                        <span style="font-size: 0.85rem; color: var(--bl-color-text-muted);">{{ friend.pass_type or '' }}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
-                                    </div>
-                                </div>
-                                {% endif %}
-                            {% endfor %}
-                            {% endif %}
-
-                            {% if diff_pass_friends %}
-                            {% for friend in diff_pass_friends | sort(attribute='name') %}
-                                {% if friend and friend.id %}
-                                <div style="display: flex; flex-direction: column; margin-bottom: 10px; padding: 8px 0;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="text-decoration: none; color: inherit; font-weight: 500; flex: 1;">{{ friend.name or 'Friend' }}</a>
-                                        <span style="font-size: 0.85rem; color: var(--bl-color-text-muted);">{{ friend.pass_type or '' }}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
-                                    </div>
-                                </div>
-                                {% endif %}
-                            {% endfor %}
-                            {% endif %}
-
-                            <div style="display: flex; justify-content: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft);">
-                                <button onclick="toggleDay(event, {{ loop.index0 }})" style="background: none; border: none; color: var(--bl-color-primary); font-size: 0.85rem; font-weight: 500; cursor: pointer;">Hide</button>
-                            </div>
-                        </div>
+                        <span style="font-size: 0.8rem; color: var(--bl-color-primary); font-weight: 500; white-space: nowrap; margin-left: 12px;">View who's open →</span>
                     </div>
                     {% endif %}
                 {% endfor %}
             {% elif user_open_dates and user_open_dates|length > 0 %}
                 <div class="empty-state-container">
-                    <p class="empty-state-title">No friends are open on these dates yet.</p>
-                    <p class="empty-state-desc">Try adding more dates or inviting friends.</p>
+                    <p class="empty-state-title">No friends are open on this day.</p>
+                    <p class="empty-state-desc">Check other dates to find overlaps.</p>
                     <a href="{{ url_for('add_open_dates') }}" class="bl-btn-outline" style="text-decoration: none; text-align: center; display: inline-block; margin: 12px 0;">Edit open dates</a>
                 </div>
             {% else %}
@@ -338,35 +274,62 @@
         </div>
     </div>
 
+    <!-- Open Availability Bottom Sheet Modals -->
+    {% if open_date_matches %}
+    {% for match in open_date_matches %}
+    <div class="bl-modal-overlay" id="open-modal-{{ loop.index0 }}" aria-hidden="true">
+        <div class="bl-modal" role="dialog" aria-labelledby="open-title-{{ loop.index0 }}" style="max-height: 70vh;">
+            <div class="bl-modal-header">
+                <h2 id="open-title-{{ loop.index0 }}" class="bl-modal-title">{{ match.day_name }}, {{ match.display_date }}</h2>
+                <button type="button" class="bl-modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="bl-modal-subhead">{{ match.total_count }} friend{% if match.total_count != 1 %}s{% endif %} open</div>
+            <div class="bl-modal-body" style="padding: 0 16px 16px;">
+                {% if match.friends %}
+                    {% for friend in match.friends | sort(attribute='name') %}
+                    <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="display: block; text-decoration: none; color: var(--bl-color-text); padding: 10px 0; border-bottom: 1px solid var(--bl-color-border-soft);">
+                        <span style="font-size: 0.9rem;">{{ friend.name }}{% if friend.rider_type %} · {{ friend.rider_type }}{% endif %}{% if friend.display_pass %} · {{ friend.display_pass }}{% if not friend.is_compatible %} <span style="color: var(--bl-color-text-muted);">(no pass overlap)</span>{% endif %}{% endif %}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <p style="font-size: 0.9rem; color: var(--bl-color-text-muted); text-align: center; padding: 24px 0;">No friends are open on this day.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
     <script>
-        let expandedDayIndex = null;
-
-        function toggleDay(event, dayIndex) {
-            event.stopPropagation();
-            const card = document.querySelector(`[data-day-index="${dayIndex}"]`);
-            const friendsList = card.querySelector('.open-day-friends');
-            const header = card.querySelector('.open-day-header');
-
-            if (expandedDayIndex === dayIndex) {
-                friendsList.style.display = 'none';
-                header.querySelector('p:last-child').textContent = 'View who\'s open →';
-                expandedDayIndex = null;
-            } else {
-                if (expandedDayIndex !== null) {
-                    const prevCard = document.querySelector(`[data-day-index="${expandedDayIndex}"]`);
-                    const prevFriendsList = prevCard.querySelector('.open-day-friends');
-                    const prevHeader = prevCard.querySelector('.open-day-header');
-                    prevFriendsList.style.display = 'none';
-                    prevHeader.querySelector('p:last-child').textContent = 'View who\'s open →';
-                }
-
-                friendsList.style.display = 'block';
-                header.querySelector('p:last-child').textContent = 'Hide';
-                expandedDayIndex = dayIndex;
-            }
-        }
-
         document.addEventListener('DOMContentLoaded', function() {
+            // Open Availability modal handlers
+            document.querySelectorAll('.open-avail-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    const modalId = this.getAttribute('data-modal-target');
+                    const modal = document.getElementById(modalId);
+                    if (modal) {
+                        modal.classList.add('active');
+                        modal.setAttribute('aria-hidden', 'false');
+                    }
+                });
+            });
+
+            // Modal close handlers (overlay click + close button)
+            document.querySelectorAll('.bl-modal-overlay').forEach(overlay => {
+                overlay.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        this.classList.remove('active');
+                        this.setAttribute('aria-hidden', 'true');
+                    }
+                });
+                const closeBtn = overlay.querySelector('.bl-modal-close');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function() {
+                        overlay.classList.remove('active');
+                        overlay.setAttribute('aria-hidden', 'true');
+                    });
+                }
+            });
             const tabs = document.querySelectorAll('.bl-tab-button');
             const panels = document.querySelectorAll('.bl-trip-list');
 

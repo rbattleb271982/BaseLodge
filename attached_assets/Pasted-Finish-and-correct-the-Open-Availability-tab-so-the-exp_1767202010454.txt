@@ -1,0 +1,82 @@
+Finish and correct the Open Availability tab so the expanded view is fully inline, left-aligned, dense, and consistent with the agreed spec. The current implementation is partial and still using legacy layout patterns.
+1. Scope (Strict)
+Update ONLY the Open Availability tab
+Do NOT change Trips, Overlaps, Friend Trips
+Do NOT refactor database models
+Do NOT introduce new controls or buttons
+Reuse existing modal / bottom-sheet patterns
+2. Date Formatting
+Use short list format everywhere in Open Availability:
+Sat, Feb 7
+Do not use full weekday names in list cards
+Do not update date formatting outside this view
+3. Grouping & Intent
+View is date-first (“Which days work”)
+One card per date
+Friends are nested under the date (in the expanded view only)
+4. Pass Compatibility Logic (Critical)
+For each date:
+Compare current_user.pass_brands with friend.pass_brands
+If any overlap exists, friend is compatible
+If no overlap, friend is incompatible but still shown
+Rules:
+Any overlapping pass counts (no primary pass logic)
+Dates with zero compatible friends still appear
+Incompatible friends are never hidden
+5. Collapsed Card UI (List View)
+Max 2 lines only:
+Sat, Feb 7
+You + 3 friends · 2 compatible            View who’s open →
+Rules:
+Do NOT show pass names here
+Do NOT show raw pass counts
+Compatibility copy rules:
+All compatible → All compatible
+None compatible → No pass overlap
+Show “View who’s open →” once, aligned far right
+Remove all other CTAs or inline expand controls
+6. Interaction Model
+Clicking the card OR the CTA opens a bottom-sheet modal
+No inline expand/collapse in the list
+No “Hide” button anywhere
+Modal dismisses via tap-outside or scroll
+7. Expanded / Detail View (Bottom Sheet)
+Content Rules
+Show friends only (do NOT include the current user)
+Each friend must render as one single, left-aligned inline row
+Do NOT use multi-column layouts
+Do NOT right-align pass or level
+Do NOT stack fields on multiple lines
+Exact Row Format (Required)
+First Last · Rider Type · Pass · Level
+Pass Display Rules
+If ≥1 overlapping pass → show one overlapping pass only
+If no overlap → show primary pass and append:
+(no pass overlap)
+Examples
+Taylor Ruiz · Skier · Epic · Advanced
+Alex Morgan · Snowboarder · Ikon (no pass overlap) · Intermediate
+8. Controls & Cleanup (Important Fixes)
+❌ Remove all “Hide” buttons
+❌ Remove left/right split layouts
+❌ Remove legacy pass displays like “Epic · Other passes: 1”
+✅ Everything in expanded view is inline, left-aligned text only
+9. Copy Rules
+Replace “You + 1 friend are open” → “You + 1 friend”
+Use · separators consistently
+Keep copy minimal and scannable
+10. Empty State
+If no friends are open on a day, show:
+No friends are open on this day.
+Optional secondary (only if needed):
+Check other dates to find overlaps.
+11. Acceptance Criteria
+Collapsed cards are 2 lines max
+CTA appears once per card
+Expanded view uses bottom-sheet modal
+Friend rows are single-line, left-aligned, inline
+No “Hide” buttons exist
+Pass compatibility is accurate and clearly labeled
+Do not introduce checkpoints unless explicitly requested.
+Do not refactor unrelated code.
+Do not change database schema.
