@@ -1209,29 +1209,14 @@
             window.location.href = `/admin/resorts/export-excel?${params.toString()}`;
         }
 
-        function updateSelection() {
-            selectedResorts.clear();
-            document.querySelectorAll('.resort-checkbox:checked').forEach(cb => {
-                selectedResorts.add(parseInt(cb.value));
-            });
-            
-            const count = selectedResorts.size;
-            const countDisplay = document.getElementById('selected-count');
-            if (countDisplay) countDisplay.textContent = count;
-            
-            const panel = document.getElementById('merge-panel');
-            if (panel) {
-                if (count > 0) {
-                    panel.style.display = 'block';
-                    panel.classList.add('visible');
-                } else {
-                    panel.style.display = 'none';
-                    panel.classList.remove('visible');
-                }
-            }
+        function clearSelection() {
+            document.querySelectorAll('.resort-checkbox').forEach(cb => cb.checked = false);
+            const selectAll = document.getElementById('select-all');
+            if (selectAll) selectAll.checked = false;
+            updateSelectionDisplay();
         }
 
-        function bulkAction(action) {
+        async function bulkAction(action) {
             if (selectedResorts.size === 0) return;
             
             const resortIds = Array.from(selectedResorts);
