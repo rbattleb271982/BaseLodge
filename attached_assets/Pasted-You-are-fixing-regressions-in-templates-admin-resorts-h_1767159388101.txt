@@ -1,0 +1,72 @@
+You are fixing regressions in templates/admin_resorts.html and related admin JavaScript.
+Do not add new features. Restore broken functionality exactly as specified. Do not explain. Do not ask questions. Implement directly.
+A. FILTERS — MOVE + FIX (CRITICAL)
+1. Move filters to align with table columns
+Move filters so they appear directly above their corresponding table columns (same horizontal row as the <th> labels or immediately above them):
+Country → above COUNTRY
+State/Region → above STATE/REGION
+Pass Brands → above PASS BRANDS
+Status → above STATUS
+Filter labels must exactly match column headers:
+Use State/Region (not “States / Regions”)
+Use Pass Brands
+2. Fix State/Region filter enablement
+State/Region dropdown must:
+Be disabled only when Country = “All Countries”
+Enable immediately when a specific country (e.g. US, CA) is selected
+Populate State/Region options by reading data-state from all rows matching the selected country, not just visible rows
+Remove any logic that scrapes only visible rows
+3. Fix Pass Brand filtering
+Filtering by Pass Brand must hide/show rows using each row’s data-pass-brand
+Ensure updatePassBrand() updates the row’s data-pass-brand attribute after inline edits
+“All Pass Brands” must reset the filter correctly
+4. Filters must be JS-only
+No page reloads
+No URL param dependency
+All filtering must be handled inside filterResorts()
+B. SELECT ALL — FIX COMPLETELY
+1. Select All behavior
+When checked:
+Every visible row checkbox is checked
+selectedResorts contains only visible row IDs
+When unchecked:
+Only visible rows are unchecked and removed from selectedResorts
+2. Selection + filtering sync
+When a row becomes hidden due to filtering:
+Its checkbox is unchecked
+Its ID is removed from selectedResorts
+Add syncSelectAllState() and call it after:
+Any filter change
+Any individual checkbox change
+3. Remove duplicate JS
+There must be exactly one definition of each:
+toggleSelectAll
+updateSelection
+syncSelectAllState
+Delete all legacy / duplicated implementations
+C. ADD NEW RESORT — RESTORE
++ Add New Resort must:
+Reliably toggle the add-resort form
+Not be blocked by CSS, missing listeners, or overridden JS
+Submitting the form must:
+Call the existing backend endpoint
+Insert the new row into the table dynamically
+Apply all required data-* attributes so filtering works immediately
+D. DO NOT BREAK EXISTING FEATURES
+Preserve all existing functionality:
+Bulk Activate / Deactivate
+Bulk Delete
+Merge
+Inline Pass Brand editing
+Excel export
+Canonical JSON export
+Do not refactor backend routes unless required to unblock UI behavior.
+E. REQUIRED SELF-VERIFICATION (DO NOT SKIP)
+Before finishing, verify in the browser:
+Selecting US enables State/Region filter
+State/Region filter populates and filters rows
+Pass Brand filter works
+Select All selects all visible rows
+Filtering removes hidden rows from selection
++ Add New Resort opens and submits successfully
+Do not checkpoint until all items above work.
