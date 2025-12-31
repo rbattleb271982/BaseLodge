@@ -179,37 +179,40 @@
                         <label class="form-label">I am a... <span class="required-asterisk">*</span></label>
                         <div class="checkbox-group compact">
                             <label class="checkbox-label">
-                                <input type="checkbox" name="rider_types" value="Skier"> Skier
+                                <input type="checkbox" name="rider_types" value="Skier" id="rider_skier"> Skier
                             </label>
                             <label class="checkbox-label">
-                                <input type="checkbox" name="rider_types" value="Snowboarder"> Snowboarder
+                                <input type="checkbox" name="rider_types" value="Snowboarder" id="rider_snowboarder"> Snowboarder
                             </label>
                             <label class="checkbox-label">
-                                <input type="checkbox" name="rider_types" value="Telemark"> Telemark
+                                <input type="checkbox" name="rider_types" value="Telemark" id="rider_telemark"> Telemark
                             </label>
                             <label class="checkbox-label">
-                                <input type="checkbox" name="rider_types" value="Cross-Country"> Cross-Country
+                                <input type="checkbox" name="rider_types" value="Cross-Country" id="rider_crosscountry"> Cross-Country
                             </label>
                             <label class="checkbox-label">
-                                <input type="checkbox" name="rider_types" value="Adaptive"> Adaptive
+                                <input type="checkbox" name="rider_types" value="Adaptive" id="rider_adaptive"> Adaptive
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="rider_types" value="Social" id="rider_social"> Social (Along for the experience)
                             </label>
                         </div>
                     </div>
                     
-                    <div class="form-group">
+                    <div class="form-group" id="skill-level-group">
                         <label class="form-label">Skill Level <span class="required-asterisk">*</span></label>
                         <div class="radio-group compact">
                             <label class="radio-label">
-                                <input type="radio" name="skill_level" value="Beginner" required> Beginner
+                                <input type="radio" name="skill_level" value="Beginner" id="skill_beginner"> Beginner
                             </label>
                             <label class="radio-label">
-                                <input type="radio" name="skill_level" value="Intermediate"> Intermediate
+                                <input type="radio" name="skill_level" value="Intermediate" id="skill_intermediate"> Intermediate
                             </label>
                             <label class="radio-label">
-                                <input type="radio" name="skill_level" value="Advanced"> Advanced
+                                <input type="radio" name="skill_level" value="Advanced" id="skill_advanced"> Advanced
                             </label>
                             <label class="radio-label">
-                                <input type="radio" name="skill_level" value="Expert"> Expert
+                                <input type="radio" name="skill_level" value="Expert" id="skill_expert"> Expert
                             </label>
                         </div>
                     </div>
@@ -282,6 +285,42 @@
                 }
             });
         });
+        
+        // Social rider type handling: hide skill level when Social is selected alone
+        const riderCheckboxes = document.querySelectorAll('input[name="rider_types"]');
+        const skillLevelGroup = document.getElementById('skill-level-group');
+        const skillRadios = document.querySelectorAll('input[name="skill_level"]');
+        
+        function updateSkillLevelVisibility() {
+            const checked = Array.from(riderCheckboxes).filter(cb => cb.checked);
+            const checkedValues = checked.map(cb => cb.value);
+            
+            // Hide skill level if ONLY Social is selected (or Social is among selections)
+            const isSocialOnly = checkedValues.length === 1 && checkedValues[0] === 'Social';
+            const hasSocial = checkedValues.includes('Social');
+            
+            if (hasSocial) {
+                skillLevelGroup.style.display = 'none';
+                // Clear any skill level selection and remove required
+                skillRadios.forEach(r => {
+                    r.checked = false;
+                    r.removeAttribute('required');
+                });
+            } else {
+                skillLevelGroup.style.display = '';
+                // Restore required on first radio if skill level is visible
+                if (skillRadios.length > 0) {
+                    skillRadios[0].setAttribute('required', 'required');
+                }
+            }
+        }
+        
+        riderCheckboxes.forEach(cb => {
+            cb.addEventListener('change', updateSkillLevelVisibility);
+        });
+        
+        // Initial check on page load
+        updateSkillLevelVisibility();
     </script>
 </body>
 </html>
