@@ -457,11 +457,12 @@ function updateRiderTypesHidden() {
 
 function updateSkillLevelVisibility() {
     const checked = Array.from(riderTypeCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
-    const hasSocial = checked.includes('Social');
+    // Hide skill level ONLY if Social is the sole selection
+    const isSocialOnly = checked.length === 1 && checked[0] === 'Social';
     
-    if (hasSocial) {
+    if (isSocialOnly) {
         skillLevelRow.style.display = 'none';
-        // Clear skill level when Social is selected
+        // Clear skill level when Social-only is selected
         skillRadios.forEach(r => r.checked = false);
         skillLevelInput.value = '';
     } else {

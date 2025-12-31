@@ -295,11 +295,10 @@
             const checked = Array.from(riderCheckboxes).filter(cb => cb.checked);
             const checkedValues = checked.map(cb => cb.value);
             
-            // Hide skill level if ONLY Social is selected (or Social is among selections)
+            // Hide skill level ONLY if Social is the sole selection
             const isSocialOnly = checkedValues.length === 1 && checkedValues[0] === 'Social';
-            const hasSocial = checkedValues.includes('Social');
             
-            if (hasSocial) {
+            if (isSocialOnly) {
                 skillLevelGroup.style.display = 'none';
                 // Clear any skill level selection and remove required
                 skillRadios.forEach(r => {

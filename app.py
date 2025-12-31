@@ -1265,9 +1265,9 @@ def identity_setup():
             flash("Please select at least one rider type.", "error")
             return render_template("identity_setup.html")
         
-        # Skill level is only required if Social is NOT selected
-        is_social = "Social" in rider_types
-        if not is_social and not skill_level:
+        # Skill level is only optional if Social is the ONLY rider type
+        is_social_only = rider_types == ["Social"]
+        if not is_social_only and not skill_level:
             flash("Please select your skill level.", "error")
             return render_template("identity_setup.html")
         
@@ -1277,8 +1277,8 @@ def identity_setup():
         
         # Save identity data
         current_user.rider_types = rider_types
-        # Clear skill_level for Social users
-        current_user.skill_level = None if is_social else skill_level
+        # Clear skill_level only for Social-only users
+        current_user.skill_level = None if is_social_only else skill_level
         # Store pass_type as comma-separated for backward compatibility, or first pass if single
         if len(pass_types) == 1:
             current_user.pass_type = pass_types[0]
@@ -1445,9 +1445,9 @@ def edit_profile():
         passes = [p.strip() for p in passes_raw.split(",") if p.strip()]
         user.pass_type = ",".join(sorted(set(passes))) if passes else "None"
         user.home_state = request.form.get("home_state") or None
-        # Clear skill_level for Social users, otherwise use form value
-        is_social = "Social" in rider_types
-        user.skill_level = None if is_social else (request.form.get("skill_level") or None)
+        # Clear skill_level only for Social-only users, otherwise use form value
+        is_social_only = rider_types == ["Social"]
+        user.skill_level = None if is_social_only else (request.form.get("skill_level") or None)
         user.gear = request.form.get("gear") or None
         home_resort_id_raw = request.form.get("home_resort_id") or None
         if home_resort_id_raw:

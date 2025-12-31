@@ -185,14 +185,16 @@ class User(UserMixin, db.Model):
     def is_core_profile_complete(self):
         """
         A user is core-profile-complete if rider_types (non-empty), pass_type, and skill_level are set.
-        EXCEPTION: If rider_types includes "Social", skill_level is NOT required.
+        EXCEPTION: If rider_types is ONLY ["Social"], skill_level is NOT required.
+        If Social is combined with other rider types, skill_level IS required.
         home_state is optional. Equipment is always optional and never blocks completion.
         Falls back to legacy fields for backward compatibility.
         """
         # New path: rider_types array
         if self.rider_types and len(self.rider_types) > 0:
-            # Social users don't need skill_level
-            if "Social" in self.rider_types:
+            # Social-ONLY users don't need skill_level
+            is_social_only = self.rider_types == ["Social"]
+            if is_social_only:
                 return bool(self.pass_type)
             return bool(self.pass_type and self.skill_level)
         # Legacy path: primary_rider_type or rider_type
