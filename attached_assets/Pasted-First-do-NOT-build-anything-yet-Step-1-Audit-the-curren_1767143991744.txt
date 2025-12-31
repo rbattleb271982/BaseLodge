@@ -1,0 +1,68 @@
+First, do NOT build anything yet.
+
+Step 1 — Audit the current admin panel and admin authentication as it exists today.
+
+A) Admin Panel Structure
+• Enumerate all existing admin-related routes, templates, and forms.
+• Identify:
+  - Admin blueprint or route namespace
+  - Templates used
+  - What admin functionality exists today (read-only vs write)
+  - Any resort-related admin functionality
+• Output a concise table:
+  - Route
+  - Template
+  - Purpose
+  - Data source (DB table, canonical JSON, etc.)
+
+B) Admin Authentication
+• Identify exactly how admin access is enforced today.
+• Determine:
+  - Where admin users are defined (User table, config file, env vars, seed script, hardcoded check, etc.)
+  - How admin status is determined (role field, email whitelist, username match, decorator, etc.)
+  - Whether admin credentials are static or user-based
+• Explicitly report:
+  - Admin username(s) (or identifying field, e.g. email)
+  - Where the password is stored or configured
+  - Whether the password is hashed
+  - How login works end-to-end for admin users
+• If credentials are NOT explicitly stored in code, state clearly where and how they are expected to be set.
+
+Step 2 — Based on the current structure, propose (do not implement) a clean design for adding a “Free-Form Resort Entry” section to the admin panel.
+
+Goal:
+• Allow an admin to manually enter a new resort via a simple form
+• Fields (minimum):
+  - Resort name
+  - Country
+  - State / region (nullable)
+  - Pass brand(s): Epic, Ikon, Other, None
+
+Behavior:
+• On submit:
+  - Validate required fields
+  - Normalize name for duplicate detection
+  - Write directly to the primary Resort table in the product database
+  - Prevent duplicates using name + country/state logic
+• No tier logic
+• No pass inference
+• No auto-merging
+
+Step 3 — Describe the exact implementation plan (still no code):
+• Routes to add or reuse
+• Template changes
+• Form validation rules
+• Duplicate handling strategy
+• How this interacts with canonical_resorts.json (if it exists)
+• Whether this functionality is DEV-only or PROD-safe
+• Required admin protections
+
+Constraints:
+• Flask + SQLAlchemy
+• Admin-only access
+• Do not introduce new tables unless strictly necessary
+• Do not break existing resort sync / audit tooling
+• Do not invent credentials — only report what exists
+
+Stop after delivering the audit and proposal.
+Wait for explicit approval before writing code.
