@@ -7681,6 +7681,8 @@ def admin_export_resorts_excel():
     # Create workbook
     wb = Workbook()
     ws = wb.active
+    if ws is None:
+        return "Failed to create workbook", 500
     ws.title = "Resorts Export"
     
     # Headers
@@ -7705,8 +7707,17 @@ def admin_export_resorts_excel():
         
     # Adjust column widths
     for column_cells in ws.columns:
-        length = max(len(str(cell.value)) for cell in column_cells)
-        ws.column_dimensions[column_cells[0].column_letter].width = length + 2
+        # column_cells is a tuple of cells in the column
+        column_letter = column_cells[0].column_letter
+        max_length = 0
+        for cell in column_cells:
+            try:
+                if cell.value:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+            except:
+                pass
+        ws.column_dimensions[column_letter].width = max_length + 2
 
     # Save to memory
     output = BytesIO()
