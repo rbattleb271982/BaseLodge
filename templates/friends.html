@@ -402,11 +402,55 @@
         
         {% if active_tab == 'updates' %}
         <!-- Updates Tab Content -->
-        {% if activities|length > 0 %}
+        {% set today = now().date() if now else none %}
+        {% set active_activities = [] %}
+        {% set past_activities = [] %}
+        {% for activity in activities %}
+            {% if activity.type == 'friend_trip_overlaps_availability' and activity.extra_data %}
+                {% set end_date_str = activity.extra_data.get('overlap_end_date', '') %}
+                {% if end_date_str and end_date_str < today|string %}
+                    {% set _ = past_activities.append(activity) %}
+                {% else %}
+                    {% set _ = active_activities.append(activity) %}
+                {% endif %}
+            {% else %}
+                {% set _ = active_activities.append(activity) %}
+            {% endif %}
+        {% endfor %}
+        
+        {% if active_activities|length > 0 or past_activities|length > 0 %}
         <div class="activity-list">
-            {% for activity in activities %}
+            {% for activity in active_activities %}
             {% set actor = activity.get_actor_user() %}
             {% set trip = activity.get_trip() %}
+            
+            {% if activity.type == 'friend_trip_overlaps_availability' and activity.extra_data %}
+                {% set friend_ids = activity.extra_data.get('friend_ids', []) %}
+                {% set friend_count = friend_ids|length %}
+                {% set start_date = activity.extra_data.get('overlap_start_date', '') %}
+                {% set end_date = activity.extra_data.get('overlap_end_date', '') %}
+                <div class="activity-item overlap-activity" data-modal-target="overlap-modal-{{ loop.index0 }}" style="cursor: pointer;">
+                    <div>
+                        <span class="activity-actor">
+                            {% if friend_count == 1 %}
+                                {{ actor.first_name if actor else 'A friend' }}
+                            {% else %}
+                                {{ friend_count }} friends
+                            {% endif %}
+                        </span>
+                        <span class="activity-action">
+                            {% if friend_count == 1 %}is{% else %}are{% endif %} skiing while you're free
+                        </span>
+                    </div>
+                    <div class="activity-time">
+                        {% if start_date == end_date %}
+                            {{ start_date }}
+                        {% else %}
+                            {{ start_date }} – {{ end_date }}
+                        {% endif %}
+                    </div>
+                </div>
+            {% else %}
             <a href="{% if activity.object_type == 'trip' and trip %}{{ url_for('trip_detail', trip_id=activity.object_id) }}{% elif activity.object_type == 'user' %}{{ url_for('friend_profile', friend_id=activity.object_id) }}{% else %}#{% endif %}" class="activity-item">
                 <div>
                     <span class="activity-actor">{{ actor.first_name if actor else 'Someone' }}</span>
@@ -430,8 +474,47 @@
                 </div>
                 <div class="activity-time">{{ activity.created_at|relative_time }}</div>
             </a>
+            {% endif %}
             {% endfor %}
         </div>
+        
+        {% if past_activities|length > 0 %}
+        <div style="margin-top: 24px;">
+            <h3 style="font-size: 0.9rem; color: var(--bl-color-text-muted); margin: 0 0 12px 0; font-weight: 500;">Past Updates</h3>
+            <div class="activity-list">
+                {% for activity in past_activities %}
+                {% set actor = activity.get_actor_user() %}
+                {% if activity.type == 'friend_trip_overlaps_availability' and activity.extra_data %}
+                    {% set friend_ids = activity.extra_data.get('friend_ids', []) %}
+                    {% set friend_count = friend_ids|length %}
+                    {% set start_date = activity.extra_data.get('overlap_start_date', '') %}
+                    {% set end_date = activity.extra_data.get('overlap_end_date', '') %}
+                    <div class="activity-item" style="opacity: 0.6; cursor: default;">
+                        <div>
+                            <span class="activity-actor">
+                                {% if friend_count == 1 %}
+                                    {{ actor.first_name if actor else 'A friend' }}
+                                {% else %}
+                                    {{ friend_count }} friends
+                                {% endif %}
+                            </span>
+                            <span class="activity-action">
+                                {% if friend_count == 1 %}was{% else %}were{% endif %} skiing while you were free
+                            </span>
+                        </div>
+                        <div class="activity-time">
+                            {% if start_date == end_date %}
+                                {{ start_date }}
+                            {% else %}
+                                {{ start_date }} – {{ end_date }}
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
         {% else %}
         <div class="empty-card">
             <h3>No updates yet</h3>
@@ -499,6 +582,44 @@
         {% endif %}
         {% endif %}
     </div>
+    
+    <!-- Overlap Activity Modals -->
+    {% if active_tab == 'updates' %}
+    {% for activity in active_activities %}
+    {% if activity.type == 'friend_trip_overlaps_availability' and activity.extra_data %}
+    {% set start_date = activity.extra_data.get('overlap_start_date', '') %}
+    {% set end_date = activity.extra_data.get('overlap_end_date', '') %}
+    {% set friends_data = activity.extra_data.get('friends_data', []) %}
+    <div class="bl-modal-overlay" id="overlap-modal-{{ loop.index0 }}" aria-hidden="true">
+        <div class="bl-modal" role="dialog" style="max-height: 70vh;">
+            <div class="bl-modal-header">
+                <h2 class="bl-modal-title">
+                    {% if start_date == end_date %}
+                        {{ start_date }}
+                    {% else %}
+                        {{ start_date }} – {{ end_date }}
+                    {% endif %}
+                </h2>
+                <button type="button" class="bl-modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="bl-modal-body" style="padding: 0 16px 16px;">
+                {% for friend_info in friends_data %}
+                <a href="{{ url_for('trip_detail', trip_id=friend_info.trip_id) }}" style="display: block; text-decoration: none; color: var(--bl-color-text); padding: 10px 0; border-bottom: 1px solid var(--bl-color-border-soft);">
+                    <span style="font-size: 0.9rem;">
+                        {% set friend_user = none %}
+                        {% for u in all_users if u.id == friend_info.friend_id %}
+                            {% set friend_user = u %}
+                        {% endfor %}
+                        {{ friend_user.first_name if friend_user else 'Friend' }} · {{ friend_info.resort_name }}
+                    </span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% endif %}
     
     <!-- Filter Bottom Sheet -->
     <div class="sheet-overlay" id="sheetOverlay" onclick="closeFilterSheet()"></div>
@@ -704,6 +825,35 @@
                 closeFilterSheet();
             }
         }, { passive: true });
+        
+        // Overlap activity modal handlers
+        document.querySelectorAll('.overlap-activity').forEach(card => {
+            card.addEventListener('click', function() {
+                const modalId = this.getAttribute('data-modal-target');
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.classList.add('active');
+                    modal.setAttribute('aria-hidden', 'false');
+                }
+            });
+        });
+        
+        // Modal close handlers (overlay click + close button)
+        document.querySelectorAll('.bl-modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('active');
+                    this.setAttribute('aria-hidden', 'true');
+                }
+            });
+            const closeBtn = overlay.querySelector('.bl-modal-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function() {
+                    overlay.classList.remove('active');
+                    overlay.setAttribute('aria-hidden', 'true');
+                });
+            }
+        });
     </script>
     
     {% include 'components/bottom_nav.html' %}

@@ -2004,7 +2004,10 @@ def friends():
     if active_tab == "updates":
         activities = Activity.query.filter(
             Activity.recipient_user_id == user.id,
-            Activity.actor_user_id.in_(friend_ids) if friend_ids else False
+            db.or_(
+                Activity.actor_user_id.in_(friend_ids) if friend_ids else False,
+                Activity.type == ActivityType.FRIEND_TRIP_OVERLAPS_AVAILABILITY.value
+            )
         ).order_by(Activity.created_at.desc()).limit(50).all()
     
     # Get user's upcoming trips for overlap detection
@@ -2116,7 +2119,9 @@ def friends():
         selected_passes=selected_passes,
         rider_types=RIDER_TYPES,
         active_tab=active_tab,
-        activities=activities
+        activities=activities,
+        now=datetime.now,
+        all_users=all_friends
     )
 
 @app.route("/friends/<int:friend_id>")
