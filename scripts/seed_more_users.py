@@ -42,7 +42,7 @@ NEW_USERS = [
     ("Brooke", "Whitfield"),
 ]
 
-RIDER_TYPES = ["Skier", "Snowboarder", "Telemarking", "Adaptive"]
+RIDER_TYPES = ["Skier", "Snowboarder", "Telemarking", "Adaptive", "Social"]
 PASS_TYPES = ["Epic", "Ikon", "Indy Pass", "Mountain Collective", "Powder Alliance", "Freedom Pass", "Ski California Pass", "Other", "None"]
 SKILL_LEVELS = ["Beginner", "Intermediate", "Advanced", "Expert"]
 HOME_STATES = ["CO", "UT", "CA", "WA", "MT", "VT", "NY", "WY", "OR", "ID", "NM", "NH", "ME", "MI", "AK"]

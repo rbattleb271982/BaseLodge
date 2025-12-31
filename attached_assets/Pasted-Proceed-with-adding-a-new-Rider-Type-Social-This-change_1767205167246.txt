@@ -1,0 +1,94 @@
+Proceed with adding a new Rider Type: "Social".
+
+This change must be applied consistently across the full surface area
+outlined below, with special handling for Skill Level.
+
+========================
+RIDER TYPE — ADD "SOCIAL"
+========================
+
+1) CONSTANTS / ENUMS
+- Add "Social" to RIDER_TYPES in app.py (line ~919)
+- Update seed scripts to include "Social":
+  - scripts/create_demo_network.py
+  - scripts/seed_more_users.py
+- Do NOT remove existing values
+
+2) ONBOARDING UI (templates/identity_setup.html)
+- Add a new checkbox option:
+  "Social (Along for the experience)"
+- The parenthetical must be INLINE and shown ONLY here
+- If "Social" is selected:
+  - Hide the Skill Level radios entirely
+  - Remove the required constraint on Skill Level
+  - Allow form submission without a skill_level value
+
+3) PROFILE EDIT UI (templates/edit_profile.html)
+- Include "Social" in the Rider Type selector (already dynamic)
+- When "Social" is selected:
+  - Hide Skill Level radios
+  - Clear any existing skill_level value on save
+- When switching FROM "Social" to a riding type:
+  - Require the user to select a Skill Level
+
+4) BACKEND FORM HANDLING
+- identity_setup POST (app.py ~1280):
+  - Accept "Social" as a valid rider_types value
+  - If rider_types includes "Social":
+    - Ignore / clear skill_level
+- edit_profile POST (app.py ~1437–1445):
+  - Same conditional logic as above
+
+5) VALIDATION LOGIC (CRITICAL)
+- Update is_core_profile_complete (models.py ~187–196):
+  - skill_level is REQUIRED only if rider_types does NOT include "Social"
+  - If rider_types == ["Social"], profile is considered complete without skill_level
+
+6) DISPLAY RULES (NO CHANGES NEEDED)
+- Everywhere outside selection UIs:
+  - Display Rider Type as "Social"
+  - Do NOT show "(Along for the experience)"
+  - Do NOT show Skill Level
+- This includes:
+  - Stats cards
+  - Friend cards
+  - Updates
+  - My Trips
+  - Filters
+
+7) FILTERING / JS
+- Friends filter JS should continue to work without changes
+- Ensure "Social" is passed through rider_types arrays correctly
+- Do NOT special-case filtering behavior yet
+
+========================
+SKILL LEVEL — CONDITIONAL
+========================
+
+- Skill Level applies ONLY to riding Rider Types
+- If rider_types includes "Social":
+  - Do not render Skill Level
+  - Do not validate Skill Level
+  - Persist skill_level as NULL
+
+========================
+NON-GOALS
+========================
+
+- Do NOT add clarifier text anywhere except selection UIs
+- Do NOT introduce placeholder values like "N/A"
+- Do NOT refactor legacy rider_type fields (deprecated)
+- Do NOT change display helper logic
+- Do NOT add new Rider Types beyond "Social"
+
+========================
+ACCEPTANCE CRITERIA
+========================
+
+- "Social (Along for the experience)" appears in onboarding and profile edit only
+- Skill Level is hidden and not required for Social users
+- Switching between Social ↔ riding types behaves cleanly
+- No regressions in filters, cards, or validation
+- Existing users remain unaffected
+
+Implement across all files listed in the surface-area audit.

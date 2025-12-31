@@ -43,7 +43,7 @@ LAST_NAMES = [
 ]
 
 STATES = ["CO", "UT", "CA", "VT", "MT", "WY", "NM", "OR", "WA", "ID", "NH", "ME", "NY"]
-RIDER_TYPES = ["Skier", "Snowboarder", "Both"]
+RIDER_TYPES = ["Skier", "Snowboarder", "Both", "Social"]
 PASS_TYPES = ["Epic", "Ikon", "Epic,Ikon", "Indy", "I don't have a pass"]
 SKILL_LEVELS = ["Beginner", "Intermediate", "Advanced", "Expert"]
 TERRAIN_OPTIONS = ["Groomers", "Trees", "Steeps", "Park", "First Chair", "Après"]

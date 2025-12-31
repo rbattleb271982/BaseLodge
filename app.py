@@ -916,7 +916,7 @@ def get_resorts_for_trip_form():
         for r in resorts
     ]
 
-RIDER_TYPES = ["Skier", "Snowboarder", "Telemark", "Cross-Country", "Adaptive"]
+RIDER_TYPES = ["Skier", "Snowboarder", "Telemark", "Cross-Country", "Adaptive", "Social"]
 
 def normalize_rider_type(rider_type):
     """Map 'Both' to 'Skier' for display. All other values pass through."""
