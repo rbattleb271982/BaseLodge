@@ -1101,13 +1101,21 @@
             const passParam = params.get('pass');
             const searchParam = params.get('search');
             
+            // 1. Set Country filter value first
             if (countryParam) document.getElementById('country-filter').value = countryParam;
+            
+            // 2. Populate State/Region options based on selected Country
+            if (countryParam) updateStateFilter();
+            
+            // 3. Now set State/Region value (options are now populated)
             if (stateParam) document.getElementById('state-filter').value = stateParam;
+            
+            // 4. Set remaining filter values
             if (statusParam) document.getElementById('status-filter').value = statusParam;
             if (passParam) document.getElementById('pass-brand-filter').value = passParam;
             if (searchParam) document.getElementById('search').value = searchParam;
             
-            // Apply filters if any were set
+            // 5. Apply filters
             if (countryParam || stateParam || statusParam || passParam || searchParam) {
                 filterResorts();
             }
