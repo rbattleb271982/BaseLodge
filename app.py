@@ -7642,6 +7642,87 @@ def admin_resorts():
                          total_count=len(resorts))
 
 
+@app.route("/admin/resorts/export-excel")
+@login_required
+@admin_required
+def admin_export_resorts_excel():
+    """Export filtered resort list to Excel."""
+    from io import BytesIO
+    from openpyxl import Workbook
+    from datetime import datetime
+    
+    # Get filters
+    search_query = request.args.get('search', '').lower()
+    country_filter = request.args.get('country', '')
+    status_filter = request.args.get('status', '')
+    
+    # Base query
+    query = Resort.query
+    
+    # Apply country filter
+    if country_filter:
+        query = query.filter(Resort.country_code == country_filter)
+        
+    # Apply status filter
+    if status_filter == 'active':
+        query = query.filter(Resort.is_active == True)
+    elif status_filter == 'inactive':
+        query = query.filter(Resort.is_active == False)
+        
+    resorts = query.all()
+    
+    # Apply search filter (in-memory to match frontend behavior if needed, 
+    # but let's do it correctly for the export)
+    if search_query:
+        resorts = [r for r in resorts if search_query in r.name.lower() or 
+                   (r.state_code and search_query in r.state_code.lower()) or
+                   (r.state and search_query in r.state.lower())]
+
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Resorts Export"
+    
+    # Headers
+    headers = ["ID", "Name", "Country", "State / Region", "Pass Brands", "Status"]
+    ws.append(headers)
+    
+    # Data
+    for r in resorts:
+        ws.append([
+            r.id,
+            r.name,
+            r.country_code or r.country or '',
+            r.state_code or r.state or '',
+            r.pass_brands or r.brand or '',
+            "ACTIVE" if r.is_active else "INACTIVE"
+        ])
+    
+    # Style headers
+    from openpyxl.styles import Font
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+        
+    # Adjust column widths
+    for column_cells in ws.columns:
+        length = max(len(str(cell.value)) for cell in column_cells)
+        ws.column_dimensions[column_cells[0].column_letter].width = length + 2
+
+    # Save to memory
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    filename = f"resorts_export_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+    
+    return send_file(
+        output,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=filename
+    )
+
+
 @app.route("/api/admin/resorts/<int:resort_id>", methods=["PUT"])
 @login_required
 @admin_required

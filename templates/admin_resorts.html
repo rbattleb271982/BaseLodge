@@ -607,6 +607,7 @@
             <option value="inactive">Inactive Only</option>
         </select>
         <button class="btn btn-primary" onclick="exportCanonical()">Export to Canonical JSON</button>
+        <button class="btn btn-success" onclick="exportExcel()">Export Filtered to Excel</button>
     </div>
     
     <div class="merge-panel" id="merge-panel">
@@ -1263,6 +1264,20 @@
                 closeDeleteModal();
                 showToast('Error: ' + e.message, 'error');
             });
+        }
+        
+        function exportExcel() {
+            const search = document.getElementById('search').value;
+            const country = document.getElementById('country-filter').value;
+            const status = document.getElementById('status-filter').value;
+            
+            const params = new URLSearchParams({
+                search: search,
+                country: country,
+                status: status
+            });
+            
+            window.location.href = `/admin/resorts/export-excel?${params.toString()}`;
         }
         
         function exportCanonical() {
