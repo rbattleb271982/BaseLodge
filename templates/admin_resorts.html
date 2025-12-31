@@ -595,16 +595,27 @@
     
     <div class="toolbar">
         <input type="text" id="search" placeholder="Search resorts..." oninput="filterResorts()">
-        <select id="country-filter" onchange="filterResorts()">
+        <select id="country-filter" onchange="updateStateFilter(); filterResorts();">
             <option value="">All Countries</option>
             {% for country in countries %}
             <option value="{{ country }}">{{ country }}</option>
             {% endfor %}
         </select>
+        <select id="state-filter" onchange="filterResorts()" disabled>
+            <option value="">All States / Regions</option>
+        </select>
         <select id="status-filter" onchange="filterResorts()">
             <option value="">All Status</option>
             <option value="active">Active Only</option>
             <option value="inactive">Inactive Only</option>
+        </select>
+        <select id="pass-brand-filter" onchange="filterResorts()">
+            <option value="">All Pass Brands</option>
+            <option value="Epic">Epic</option>
+            <option value="Ikon">Ikon</option>
+            <option value="Indy">Indy</option>
+            <option value="Other">Other</option>
+            <option value="None">None</option>
         </select>
         <button class="btn btn-primary" onclick="exportCanonical()">Export to Canonical JSON</button>
         <button class="btn btn-success" onclick="exportExcel()">Export Filtered to Excel</button>
@@ -818,6 +829,75 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showToast('Resort added successfully', 'success');
+                    clearAddForm();
+                    toggleAddResort();
+                    
+                    // Add to table dynamically
+                    const resort = data.resort;
+                    const tbody = document.getElementById('resort-table');
+                    const row = document.createElement('tr');
+                    row.dataset.id = resort.id;
+                    row.dataset.name = resort.name.toLowerCase();
+                    row.dataset.country = resort.country_code || '';
+                    row.dataset.state = (resort.state_code || resort.state || '').toLowerCase();
+                    row.dataset.pass = (resort.pass_brands || resort.brand || '').toLowerCase();
+                    row.dataset.active = resort.is_active ? 'true' : 'false';
+                    
+                    row.innerHTML = `
+                        <td><input type="checkbox" class="resort-checkbox" value="${resort.id}" onchange="updateSelection()"></td>
+                        <td class="id-cell">${resort.id}</td>
+                        <td>
+                            <input type="text" class="editable-input" 
+                                   data-field="name"
+                                   data-id="${resort.id}"
+                                   value="${resort.name}"
+                                   onblur="saveField(this)">
+                        </td>
+                        <td>
+                            <input type="text" class="editable-input" 
+                                   data-field="country_code"
+                                   data-id="${resort.id}"
+                                   value="${resort.country_code || ''}"
+                                   onblur="saveField(this)"
+                                   style="width: 60px;">
+                        </td>
+                        <td>
+                            <input type="text" class="editable-input" 
+                                   data-field="state_code"
+                                   data-id="${resort.id}"
+                                   value="${resort.state_code || ''}"
+                                   onblur="saveField(this)"
+                                   style="width: 80px;">
+                        </td>
+                        <td>
+                            <select class="pass-brand-select" data-id="${resort.id}" onchange="updatePassBrand(this)">
+                                <option value="Epic" ${resort.pass_brands === 'Epic' ? 'selected' : ''}>Epic</option>
+                                <option value="Ikon" ${resort.pass_brands === 'Ikon' ? 'selected' : ''}>Ikon</option>
+                                <option value="Indy" ${resort.pass_brands === 'Indy' ? 'selected' : ''}>Indy</option>
+                                <option value="Other" ${resort.pass_brands === 'Other' ? 'selected' : ''}>Other</option>
+                                <option value="None" ${!resort.pass_brands || resort.pass_brands === 'None' ? 'selected' : ''}>None</option>
+                            </select>
+                        </td>
+                        <td>
+                            <span class="status-badge status-active">Active</span>
+                        </td>
+                        <td>
+                            <button class="btn btn-danger" onclick="toggleActive(${resort.id}, false)" style="padding: 4px 8px; font-size: 12px;">Deactivate</button>
+                            <button class="btn" onclick="deleteResort(${resort.id}, '${resort.name}')" style="padding: 4px 8px; font-size: 12px; background: #718096; color: white; margin-left: 4px;">Delete</button>
+                        </td>
+                    `;
+                    tbody.prepend(row);
+                    filterResorts();
+                } else {
+                    showToast(data.message || 'Failed to add resort', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
                 
                 const data = await response.json();
                 
@@ -968,29 +1048,70 @@
         function filterResorts() {
             const search = document.getElementById('search').value.toLowerCase();
             const country = document.getElementById('country-filter').value;
+            const state = document.getElementById('state-filter').value.toLowerCase();
             const status = document.getElementById('status-filter').value;
+            const passBrand = document.getElementById('pass-brand-filter').value.toLowerCase();
             
             document.querySelectorAll('#resort-table tr').forEach(row => {
                 const name = row.dataset.name;
                 const rowCountry = row.dataset.country;
                 const rowState = (row.dataset.state || '').toLowerCase();
+                const rowPass = (row.dataset.pass || '').toLowerCase();
                 const isActive = row.dataset.active === 'true';
                 
                 let show = true;
                 if (search && !name.includes(search) && !rowState.includes(search)) show = false;
                 if (country && rowCountry !== country) show = false;
+                if (state && rowState !== state) show = false;
                 if (status === 'active' && !isActive) show = false;
                 if (status === 'inactive' && isActive) show = false;
+                if (passBrand) {
+                    if (passBrand === 'none') {
+                        if (rowPass && rowPass !== 'none') show = false;
+                    } else if (!rowPass.includes(passBrand)) {
+                        show = false;
+                    }
+                }
                 
                 row.style.display = show ? '' : 'none';
                 
                 // Deselect if row is now hidden
                 if (!show) {
                     const cb = row.querySelector('.resort-checkbox');
-                    if (cb) cb.checked = false;
+                    if (cb && cb.checked) {
+                        cb.checked = false;
+                        selectedResorts.delete(parseInt(cb.value));
+                    }
                 }
             });
             updateSelection();
+        }
+
+        function updateStateFilter() {
+            const country = document.getElementById('country-filter').value;
+            const stateFilter = document.getElementById('state-filter');
+            
+            if (!country) {
+                stateFilter.disabled = true;
+                stateFilter.innerHTML = '<option value="">All States / Regions</option>';
+                return;
+            }
+            
+            const states = new Set();
+            document.querySelectorAll('#resort-table tr').forEach(row => {
+                if (row.dataset.country === country && row.dataset.state) {
+                    states.add(row.dataset.state);
+                }
+            });
+            
+            stateFilter.disabled = false;
+            stateFilter.innerHTML = '<option value="">All States / Regions</option>';
+            Array.from(states).sort().forEach(state => {
+                const option = document.createElement('option');
+                option.value = state;
+                option.textContent = state;
+                stateFilter.appendChild(option);
+            });
         }
 
         function toggleSelectAll() {
@@ -998,10 +1119,34 @@
             document.querySelectorAll('#resort-table tr').forEach(row => {
                 if (row.style.display !== 'none') {
                     const cb = row.querySelector('.resort-checkbox');
-                    if (cb) cb.checked = checked;
+                    if (cb) {
+                        cb.checked = checked;
+                        if (checked) {
+                            selectedResorts.add(parseInt(cb.value));
+                        } else {
+                            selectedResorts.delete(parseInt(cb.value));
+                        }
+                    }
                 }
             });
             updateSelection();
+        }
+
+        function exportExcel() {
+            const search = document.getElementById('search').value;
+            const country = document.getElementById('country-filter').value;
+            const state = document.getElementById('state-filter').value;
+            const status = document.getElementById('status-filter').value;
+            const passBrand = document.getElementById('pass-brand-filter').value;
+            
+            const params = new URLSearchParams();
+            if (search) params.append('search', search);
+            if (country) params.append('country', country);
+            if (state) params.append('state', state);
+            if (status) params.append('status', status);
+            if (passBrand) params.append('pass_brand', passBrand);
+            
+            window.location.href = `/admin/resorts/export-excel?${params.toString()}`;
         }
 
         function updateSelection() {
@@ -1193,17 +1338,17 @@
             
             showToast(`Processing bulk ${action}...`, 'info');
             
-            try {
-                const response = await fetch(`/api/admin/resorts/bulk-${action}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ resort_ids: resortIds })
-                });
-                const data = await response.json();
-                
-                if (data.status === 'success' || data.updated_count !== undefined || data.deleted_count !== undefined) {
-                    const count = data.updated_count || data.deleted_count || resortIds.length;
-                    showToast(`Successfully ${action}d ${count} resort(s)`, 'success');
+            const payload = action === 'delete' ? { ids: resortIds } : { resort_ids: resortIds };
+            
+            fetch(`/api/admin/resorts/bulk-${action}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success' || data.updated_count !== undefined || data.deleted_count !== undefined || (data.deleted && data.deleted.length > 0)) {
+                    showToast(`Successfully ${action}d resorts`, 'success');
                     
                     if (action === 'delete') {
                         resortIds.forEach(id => {

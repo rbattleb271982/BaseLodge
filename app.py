@@ -7654,7 +7654,9 @@ def admin_export_resorts_excel():
     # Trust query params ONLY for Excel export
     search_query = request.args.get('search', '').lower().strip()
     country_filter = request.args.get('country', '').strip()
+    state_filter = request.args.get('state', '').strip()
     status_filter = request.args.get('status', '').lower().strip()
+    pass_brand_filter = request.args.get('pass_brand', '').lower().strip()
     
     # Base query
     query = Resort.query
@@ -7663,12 +7665,23 @@ def admin_export_resorts_excel():
     if country_filter:
         query = query.filter(Resort.country_code == country_filter)
         
+    # Apply state filter
+    if state_filter:
+        query = query.filter((Resort.state_code == state_filter) | (Resort.state == state_filter))
+
     # Apply status filter
     if status_filter == 'active':
         query = query.filter(Resort.is_active == True)
     elif status_filter == 'inactive':
         query = query.filter(Resort.is_active == False)
         
+    # Apply pass brand filter
+    if pass_brand_filter:
+        if pass_brand_filter == 'none':
+            query = query.filter((Resort.pass_brands == None) | (Resort.pass_brands == '') | (Resort.pass_brands == 'None'))
+        else:
+            query = query.filter(Resort.pass_brands.ilike(f'%{pass_brand_filter}%'))
+
     resorts = query.all()
     
     # Apply search filter in-memory to match JS logic

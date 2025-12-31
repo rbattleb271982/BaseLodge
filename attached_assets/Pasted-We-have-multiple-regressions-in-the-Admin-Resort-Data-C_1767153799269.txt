@@ -1,0 +1,114 @@
+We have multiple regressions in the Admin → Resort Data Curation dashboard that must be fixed.
+
+Do NOT redesign the UI.
+Do NOT add new features beyond what is listed.
+This is restoration + completion work only.
+
+================================
+ISSUE 1 — ADD NEW RESORT IS BROKEN
+================================
+
+Current:
+The “+ Add New Resort” flow no longer works.
+
+Required fix:
+• Restore the ability to add a new resort via the admin UI
+• Ensure the form:
+  - Submits successfully
+  - Creates a new Resort record via ORM
+  - Defaults status to ACTIVE
+  - Appears immediately in the table without breaking filters
+• No page crash, no silent failure
+
+================================
+ISSUE 2 — MISSING FILTER CONTROLS
+================================
+
+At the top filter bar, ADD the following controls:
+
+1. State / Region filter
+• Dropdown
+• Disabled until Country is selected
+• Default: “All States / Regions”
+• Options populated dynamically based on selected Country
+• Stacks with Search, Country, Status
+
+2. Pass Brand filter
+• Dropdown
+• Options:
+  - All Pass Brands
+  - Epic
+  - Ikon
+  - Indy
+  - Other
+  - None
+
+Behavior:
+• Filters update visible rows immediately
+• Filters persist after inline edits, bulk actions, activate/deactivate
+• Filters are applied to Excel export
+
+================================
+ISSUE 3 — SELECT ALL IS BROKEN
+================================
+
+Required behavior:
+• “Select All” selects ALL currently visible rows
+• Only rows matching active filters/search are selected
+• selectedResorts JS Set must fully sync with checkbox state
+
+Fix:
+• Iterate only over visible rows (not display:none)
+• Ensure selectedResorts is updated correctly
+• Clearing or changing filters must NOT partially break selection
+
+================================
+ISSUE 4 — BULK ACTIONS REGRESSION
+================================
+
+Restore ALL bulk actions in the Bulk Actions panel:
+
+• Activate Selected
+• Deactivate Selected
+• Delete Selected
+• Merge Selected (existing behavior unchanged)
+• Bulk Pass Brand update (already working — do not break)
+
+Requirements:
+• Actions operate ONLY on selectedResorts
+• Filters/search are preserved after actions
+• Rows disappear if they no longer match active filters
+• Use existing backend endpoints (no new routes)
+• ORM updates only
+
+================================
+ISSUE 5 — EXPORT MUST MATCH FILTERS
+================================
+
+Ensure “Export Filtered to Excel”:
+• Reads current filter state from JS:
+  - Search
+  - Country
+  - Status
+  - State / Region
+  - Pass Brand
+• Dynamically builds export URL with query params
+• Backend trusts query params only
+• Exported rows EXACTLY match visible table rows
+
+================================
+VERIFICATION (REQUIRED)
+================================
+
+Confirm all of the following work:
+
+1. Add New Resort successfully
+2. Filter by Country + State + Status + Pass Brand
+3. Select All selects all visible rows
+4. Bulk Activate / Deactivate / Delete works
+5. Filters persist after bulk actions
+6. Exported Excel matches visible rows exactly
+7. No JS console errors
+
+List files changed.
+Stop after fixing these issues.
