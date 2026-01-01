@@ -189,14 +189,9 @@ def before_request_handlers():
     # Make sessions permanent for Replit iframe compatibility
     session.permanent = True
     
-    # DIAGNOSTIC: before_request
-    if request.endpoint and request.endpoint not in ['static', 'root']:
-        print("=== BEFORE_REQUEST ===", file=sys.stderr)
-        print("endpoint:", request.endpoint, file=sys.stderr)
-        print("current_user.is_authenticated:", current_user.is_authenticated, file=sys.stderr)
-        print("session:", dict(session), file=sys.stderr)
-        print("cookies:", dict(request.cookies), file=sys.stderr)
-        print("=====================", file=sys.stderr)
+    # HARD BYPASS: Invite routes must work for anonymous users - skip ALL auth/profile logic
+    if request.path.startswith("/invite/"):
+        return None
     
     # Bypass for health check endpoint
     if request.endpoint == 'health_check':
@@ -206,6 +201,15 @@ def before_request_handlers():
     excluded_endpoints = {'auth', 'identity_setup', 'setup_profile', 'logout', 'static', 'invite_token_landing', 'test_login_direct', 'forgot_password', 'reset_password', 'index'}
     if request.endpoint in excluded_endpoints:
         return None
+    
+    # DIAGNOSTIC: before_request (only for non-bypassed routes)
+    if request.endpoint and request.endpoint not in ['static', 'root']:
+        print("=== BEFORE_REQUEST ===", file=sys.stderr)
+        print("endpoint:", request.endpoint, file=sys.stderr)
+        print("current_user.is_authenticated:", current_user.is_authenticated, file=sys.stderr)
+        print("session:", dict(session), file=sys.stderr)
+        print("cookies:", dict(request.cookies), file=sys.stderr)
+        print("=====================", file=sys.stderr)
     if current_user.is_authenticated:
         # Check for profile completion: rider_types (new) or primary_rider_type/rider_type (legacy) + pass_type
         has_rider_types = current_user.rider_types and len(current_user.rider_types) > 0

@@ -1,0 +1,64 @@
+PUT THIS IN AGENT
+
+Goal:
+Fix the production 500 error on /invite/<token> by bypassing auth / middleware
+that assumes an authenticated user. The invite route must be accessible to
+anonymous users and must not trigger global before_request logic.
+
+Diagnosis:
+The ski-emoji “Something went wrong” page is the GLOBAL 500 handler.
+This means the request is crashing BEFORE the invite route executes.
+This is caused by a @before_request hook (app-level or blueprint-level)
+that touches current_user, profile data, or session assumptions.
+
+--------------------------------------------------
+STEP 1 — Audit before_request hooks
+--------------------------------------------------
+Search the entire codebase for:
+- @app.before_request
+- @<blueprint>.before_request
+
+Inspect each hook for ANY access to:
+- current_user
+- current_user.profile / preferences / passes / equipment
+- g.user / g.profile
+- onboarding enforcement
+- session keys assumed to exist
+
+--------------------------------------------------
+STEP 2 — Add a hard bypass for invite routes
+--------------------------------------------------
+In EVERY before_request hook that runs globally or on public blueprints,
+add an early return so invite links are skipped.
+
+Preferred pattern (path-based, safest):
+
+@app.before_request
+def global_before_request():
+    if request.path.startswith("/invite/"):
+        return
+
+    # existing logic below (unchanged)
+
+If the hook is blueprint-scoped, use endpoint-based bypass:
+
+@some_bp.before_request
+def some_before_request():
+    if request.endpoint == "invite_token_landing":
+        return
+
+    # existing logic below
+
+DO NOT run any auth, profile, or session logic for invite routes.
+
+--------------------------------------------------
+STEP 3 — Deploy and verify
+--------------------------------------------------
+After deploying to PROD, verify:
+
+1. Visiting /invite/<valid_token> shows invite_landing.html
+2. Visiting /invite/<expired_token> shows invite_expired.html
+3. No ski-emoji 500 page appears
+4. Invite route logs appear (route is actually executing)
+
+Stop once all four are confirmed working.
