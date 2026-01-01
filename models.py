@@ -738,12 +738,8 @@ class InviteToken(db.Model):
     inviter = db.relationship("User", backref="invite_tokens")
 
     def is_expired(self):
-        """Check if invite link has expired (48-hour window)."""
-        if not self.expires_at:
-            # Fallback for legacy tokens without explicit expires_at
-            from datetime import timedelta
-            return datetime.utcnow() > (self.created_at + timedelta(hours=INVITE_EXPIRY_HOURS))
-        return datetime.utcnow() > self.expires_at
+        # Temporarily disable expiration for MVP
+        return False
 
     def is_used(self):
         """Check if token has been used (single-use enforcement via used_at)."""
