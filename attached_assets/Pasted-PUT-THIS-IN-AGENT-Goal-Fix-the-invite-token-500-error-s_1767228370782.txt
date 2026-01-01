@@ -1,0 +1,125 @@
+PUT THIS IN AGENT
+
+Goal: Fix the /invite/<token> 500 error so invite links reliably show invite_landing.html or invite_expired.html instead of the global 500 page.
+
+Root cause:
+Exceptions during template rendering (identity_line filter and base.html inheritance) are bypassing the route-level try/except and being caught by the global @app.errorhandler(Exception).
+
+DO THE FOLLOWING STEPS EXACTLY, IN ORDER:
+
+--------------------------------------------------
+STEP 1 — Simplify the invite route (remove try/except)
+--------------------------------------------------
+Replace the existing /invite/<token> route with this version:
+
+@app.route("/invite/<token>")
+def invite_token_landing(token):
+    print("INVITE ROUTE HIT", token)
+
+    invite = InviteToken.query.filter_by(token=token).first()
+    if not invite or invite.is_expired():
+        return render_template("invite_expired.html")
+
+    session["invite_token"] = token
+
+    inviter = User.query.get(invite.inviter_id)
+    if not inviter:
+        return render_template("invite_expired.html")
+
+    inviter_trips_count = SkiTrip.query.filter_by(user_id=inviter.id).count()
+
+    return render_template(
+        "invite_landing.html",
+        inviter=inviter,
+        inviter_trips_count=inviter_trips_count
+    )
+
+Do NOT add try/except here. Let Flask surface real template errors.
+
+--------------------------------------------------
+STEP 2 — Make identity_line filter crash-proof
+--------------------------------------------------
+Replace the existing identity_line filter with this fully defensive version:
+
+@app.template_filter('identity_line')
+def identity_line_filter(user):
+    try:
+        if not user:
+            return ""
+
+        parts = []
+
+        if getattr(user, "rider_type", None):
+            parts.append(str(user.rider_type))
+
+        passes = getattr(user, "pass_brands", None)
+        if passes:
+            if isinstance(passes, list):
+                parts.append(", ".join([str(p) for p in passes]))
+            else:
+                parts.append(str(passes))
+
+        if getattr(user, "skill_level", None):
+            parts.append(str(user.skill_level))
+
+        return " · ".join(parts)
+
+    except Exception:
+        return ""
+
+This filter must NEVER throw an exception.
+
+--------------------------------------------------
+STEP 3 — Guard identity usage in invite_landing.html
+--------------------------------------------------
+Update invite_landing.html so identity is only computed if inviter exists.
+
+Replace:
+{% set identity = inviter|identity_line %}
+
+With:
+{% if inviter is defined %}
+    {% set identity = inviter|identity_line %}
+{% else %}
+    {% set identity = "" %}
+{% endif %}
+
+Keep this guard before rendering identity text:
+{% if identity %}
+<p class="invite-identity">{{ identity }}</p>
+{% endif %}
+
+--------------------------------------------------
+STEP 4 — Make invite_expired.html standalone (NO base.html)
+--------------------------------------------------
+Replace invite_expired.html completely with this standalone template:
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Invite expired</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="page-container" style="text-align: center; padding-top: 60px;">
+    <div style="font-size: 64px; margin-bottom: 24px;">⌛</div>
+    <h1>This invite has expired</h1>
+    <p>Ask your friend to send you a new one — it only takes a second.</p>
+    <a href="{{ url_for('auth') }}" class="bl-btn-primary">Go to Login</a>
+  </div>
+</body>
+</html>
+
+Do NOT extend base.html for invite-related pages.
+
+--------------------------------------------------
+STEP 5 — Verify
+--------------------------------------------------
+1. Click a valid /invite/<token> link → invite_landing.html renders
+2. Click an expired/invalid link → invite_expired.html renders
+3. No 500.html appears
+4. "INVITE ROUTE HIT" prints in logs
+
+Stop once all four are confirmed working.
