@@ -99,7 +99,11 @@
         <div class="invite-card">
             <h1 class="invite-headline">{{ inviter.first_name }}{% if inviter.last_name %} {{ inviter.last_name }}{% endif %} wants to connect</h1>
             
-            {% set identity = inviter|identity_line %}
+            {% if inviter is defined %}
+                {% set identity = inviter|identity_line %}
+            {% else %}
+                {% set identity = "" %}
+            {% endif %}
             {% if identity %}
             <p class="invite-identity">{{ identity }}</p>
             {% endif %}

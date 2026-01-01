@@ -105,52 +105,34 @@ def health_check():
 
 @app.template_filter('identity_line')
 def identity_line_filter(user):
-    """
-    Centralized identity formatter for user profile display.
-    Format: Rider Type · Passes · Skill Level
-    - Rider types: First rider type only (e.g., "Skier")
-    - Passes: Up to 2 passes joined with " + " as single segment (e.g., "Epic + Ikon")
-    - Skill level: Last if present
-    - If no passes, omit pass segment entirely
-    """
     try:
         if not user:
-            return ''
-        
+            return ""
+
         parts = []
-        
-        # Rider type (first type only for hero line brevity)
-        rider_types = getattr(user, 'rider_types', None)
-        if rider_types and len(rider_types) > 0:
-            parts.append(rider_types[0])
-        else:
-            # Legacy fallback
-            primary = getattr(user, 'primary_rider_type', None) or getattr(user, 'rider_type', None)
-            if primary:
-                parts.append(primary)
-        
-        # Passes (up to 2, joined with " + " as single segment)
-        passes = []
-        pass_type = getattr(user, 'pass_type', None)
-        if pass_type:
-            pass_str = pass_type.strip()
-            if ',' in pass_str:
-                passes = [p.strip() for p in pass_str.split(',') if p.strip() and p.strip().lower() not in ('both', 'no pass')]
+
+        # Rider types (stored as list)
+        rider_types = getattr(user, "rider_types", None)
+        if rider_types:
+            if isinstance(rider_types, list):
+                parts.append(", ".join([str(rt) for rt in rider_types]))
             else:
-                passes = [pass_str] if pass_str.lower() not in ('both', 'no pass') else []
-        # Limit to 2 passes, preserve stored order
-        passes = passes[:2]
-        if passes:
-            parts.append(' + '.join(passes))
-        
-        # Skill level (last)
-        skill_level = getattr(user, 'skill_level', None)
+                parts.append(str(rider_types))
+
+        # Passes (stored as comma-separated string)
+        pass_type = getattr(user, "pass_type", None)
+        if pass_type:
+            parts.append(str(pass_type))
+
+        # Skill level
+        skill_level = getattr(user, "skill_level", None)
         if skill_level:
-            parts.append(skill_level)
-        
-        return ' · '.join(parts) if parts else ''
+            parts.append(str(skill_level))
+
+        return " · ".join(parts)
+
     except Exception:
-        return ''
+        return ""
 
 @app.template_filter('pass_display')
 def pass_display_filter(pass_type):
@@ -1393,32 +1375,25 @@ def _connect_pending_inviter(user):
 @app.route("/invite/<token>")
 def invite_token_landing(token):
     """Time-limited invite landing page."""
-    try:
-        app.logger.info(f"Invite token hit: {token}")
+    print("INVITE ROUTE HIT", token)
 
-        invite = InviteToken.query.filter_by(token=token).first()
-        if not invite or invite.is_expired():
-            app.logger.warning("Invite not found or expired")
-            return render_template("invite_expired.html")
+    invite = InviteToken.query.filter_by(token=token).first()
+    if not invite or invite.is_expired():
+        return render_template("invite_expired.html")
 
-        session["invite_token"] = token
+    session["invite_token"] = token
 
-        inviter = User.query.get(invite.inviter_id)
-        if not inviter:
-            app.logger.error(f"Inviter not found for invite token {token}")
-            return render_template("invite_expired.html")
+    inviter = User.query.get(invite.inviter_id)
+    if not inviter:
+        return render_template("invite_expired.html")
 
-        inviter_trips_count = SkiTrip.query.filter_by(user_id=inviter.id).count()
+    inviter_trips_count = SkiTrip.query.filter_by(user_id=inviter.id).count()
 
-        return render_template(
-            "invite_landing.html",
-            inviter=inviter,
-            inviter_trips_count=inviter_trips_count
-        )
-
-    except Exception as e:
-        app.logger.exception("Invite route crashed")
-        return render_template("invite_expired.html"), 500
+    return render_template(
+        "invite_landing.html",
+        inviter=inviter,
+        inviter_trips_count=inviter_trips_count
+    )
 
 
 @app.route("/setup-profile", methods=["GET", "POST"])
