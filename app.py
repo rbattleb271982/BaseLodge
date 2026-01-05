@@ -2237,8 +2237,9 @@ def pass_category(pass_type):
 def friends():
     user = current_user
     today = date.today()
+    today_str = today.strftime('%Y-%m-%d')
     
-    # Get tab parameter (friends or updates) - friends is default
+    # Get tab parameter (friends, trips, or overlaps) - friends is default
     active_tab = request.args.get("tab", "friends")
     filter_type = request.args.get("filter", "All")
     
@@ -2247,24 +2248,113 @@ def friends():
     friend_ids = [f.friend_id for f in friend_links]
     all_friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
     
-    # Load activities for Updates tab
-    activities = []
-    if active_tab == "updates":
-        activities = Activity.query.filter(
-            Activity.recipient_user_id == user.id,
-            db.or_(
-                Activity.actor_user_id.in_(friend_ids) if friend_ids else False,
-                Activity.type == ActivityType.FRIEND_TRIP_OVERLAPS_AVAILABILITY.value
-            )
-        ).order_by(Activity.created_at.desc()).limit(50).all()
+    # Friends' Trips - upcoming trips from friends (for trips tab)
+    friend_trips = []
+    if friend_ids:
+        friend_trips = SkiTrip.query.filter(
+            SkiTrip.user_id.in_(friend_ids),
+            SkiTrip.end_date >= today,
+            SkiTrip.is_public == True
+        ).order_by(SkiTrip.start_date.asc()).all()
     
-    # Get user's upcoming trips for overlap detection
+    # User's upcoming trips for overlap detection
     user_trips = SkiTrip.query.filter(
         SkiTrip.user_id == user.id,
         SkiTrip.end_date >= today
     ).all()
-    today_str = today.strftime('%Y-%m-%d')
+    
+    # Build trip overlaps list (user trips vs friend trips at same location)
+    trip_overlaps = []
+    for my_trip in user_trips:
+        for friend_trip in friend_trips:
+            if my_trip.user_id != friend_trip.user_id:
+                my_mountain = my_trip.mountain if my_trip.mountain else (my_trip.resort.name if my_trip.resort else None)
+                friend_mountain = friend_trip.mountain if friend_trip.mountain else (friend_trip.resort.name if friend_trip.resort else None)
+                if my_mountain and friend_mountain and my_mountain == friend_mountain:
+                    if date_ranges_overlap(my_trip.start_date, my_trip.end_date, friend_trip.start_date, friend_trip.end_date):
+                        resort = my_trip.resort or friend_trip.resort
+                        overlap_start = max(my_trip.start_date, friend_trip.start_date)
+                        overlap_end = min(my_trip.end_date, friend_trip.end_date)
+                        trip_overlaps.append({
+                            "type": "trip",
+                            "mountain": my_mountain,
+                            "resort": resort,
+                            "resort_id": resort.id if resort else None,
+                            "friend_id": friend_trip.user_id,
+                            "friend_first_name": friend_trip.user.first_name,
+                            "friend_trip_id": friend_trip.id,
+                            "my_trip_id": my_trip.id,
+                            "start_date": overlap_start,
+                            "end_date": overlap_end
+                        })
+    
+    # Build open date overlaps (user open dates vs friend open dates)
+    open_date_overlaps = []
     user_open_dates = set(d for d in (user.open_dates or []) if d >= today_str)
+    
+    if user_open_dates and friend_ids:
+        for friend in all_friends:
+            friend_open_dates = set(d for d in (friend.open_dates or []) if d >= today_str)
+            shared_dates = user_open_dates & friend_open_dates
+            for date_str in shared_dates:
+                open_date_overlaps.append({
+                    "type": "open",
+                    "date_str": date_str,
+                    "friend_id": friend.id,
+                    "friend_first_name": friend.first_name
+                })
+    
+    # Group overlaps by destination/date for display
+    grouped_overlaps = []
+    
+    # Group trip overlaps by destination + date
+    trip_overlap_groups = {}
+    for overlap in trip_overlaps:
+        key = (overlap["mountain"], overlap["start_date"].isoformat(), overlap["end_date"].isoformat())
+        if key not in trip_overlap_groups:
+            trip_overlap_groups[key] = {
+                "type": "trip",
+                "mountain": overlap["mountain"],
+                "resort": overlap["resort"],
+                "resort_id": overlap["resort_id"],
+                "start_date": overlap["start_date"],
+                "end_date": overlap["end_date"],
+                "friends": [],
+                "friend_count": 0,
+                "my_trip_id": overlap["my_trip_id"]
+            }
+        trip_overlap_groups[key]["friends"].append({
+            "id": overlap["friend_id"],
+            "first_name": overlap["friend_first_name"]
+        })
+        trip_overlap_groups[key]["friend_count"] = len(trip_overlap_groups[key]["friends"])
+    
+    grouped_overlaps.extend(trip_overlap_groups.values())
+    
+    # Group open date overlaps by date
+    open_overlap_groups = {}
+    for overlap in open_date_overlaps:
+        key = overlap["date_str"]
+        if key not in open_overlap_groups:
+            open_overlap_groups[key] = {
+                "type": "open",
+                "date_str": key,
+                "start_date": datetime.strptime(key, '%Y-%m-%d').date(),
+                "end_date": datetime.strptime(key, '%Y-%m-%d').date(),
+                "friends": [],
+                "friend_count": 0
+            }
+        open_overlap_groups[key]["friends"].append({
+            "id": overlap["friend_id"],
+            "first_name": overlap["friend_first_name"]
+        })
+        open_overlap_groups[key]["friend_count"] = len(open_overlap_groups[key]["friends"])
+    
+    grouped_overlaps.extend(open_overlap_groups.values())
+    
+    # Sort overlaps: soonest date first, then by friend count (higher first)
+    grouped_overlaps.sort(key=lambda x: (x["start_date"], -x["friend_count"]))
+    
     user_passes = set(p.strip() for p in (user.pass_type or "").split(",") if p.strip())
     
     # Calculate relevance score for each friend
@@ -2409,7 +2499,9 @@ def friends():
         selected_passes=selected_passes,
         rider_types=RIDER_TYPES,
         active_tab=active_tab,
-        activities=activities,
+        friend_trips=friend_trips,
+        grouped_overlaps=grouped_overlaps,
+        format_trip_dates=format_trip_dates,
         now=datetime.now,
         all_users=all_friends
     )
