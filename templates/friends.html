@@ -389,6 +389,20 @@
             color: var(--bl-color-text-muted);
             margin-top: 2px;
         }
+        
+        .expanded-friends-list {
+            margin-top: 8px;
+            padding-left: 16px;
+        }
+        .expanded-friend-name {
+            font-size: 0.9rem;
+            color: var(--bl-color-text-muted);
+            padding: 4px 0;
+            line-height: 1.4;
+        }
+        .expandable-activity {
+            position: relative;
+        }
     </style>
 </head>
 <body>
@@ -427,9 +441,13 @@
             {% if activity.type == 'friend_trip_overlaps_availability' and activity.extra_data %}
                 {% set friend_ids = activity.extra_data.get('friend_ids', []) %}
                 {% set friend_count = friend_ids|length %}
+                {% set friends_data = activity.extra_data.get('friends_data', []) %}
                 {% set start_date = activity.extra_data.get('overlap_start_date', '') %}
                 {% set end_date = activity.extra_data.get('overlap_end_date', '') %}
-                <div class="activity-item overlap-activity" data-modal-target="overlap-modal-{{ loop.index0 }}" style="cursor: pointer;">
+                <div class="activity-item overlap-activity {% if friend_count > 1 %}expandable-activity{% endif %}" 
+                     data-modal-target="overlap-modal-{{ loop.index0 }}"
+                     data-activity-id="activity-{{ loop.index0 }}"
+                     style="cursor: pointer;">
                     <div>
                         <span class="activity-actor">
                             {% if friend_count == 1 %}
@@ -449,6 +467,27 @@
                             {{ start_date }} – {{ end_date }}
                         {% endif %}
                     </div>
+                    {% if friend_count > 1 %}
+                    <div class="expanded-friends-list" id="friends-list-{{ loop.index0 }}" style="display: none;">
+                        {% set unique_friends = {} %}
+                        {% for fd in friends_data %}
+                            {% if fd.friend_id not in unique_friends %}
+                                {% set _ = unique_friends.update({fd.friend_id: fd}) %}
+                            {% endif %}
+                        {% endfor %}
+                        {% set friend_list = unique_friends.values()|list %}
+                        {% if friend_list|length <= 10 %}
+                            {% for fd in friend_list %}
+                            <div class="expanded-friend-name">{{ fd.first_name or 'Friend' }} ({{ fd.last_name or '' }})</div>
+                            {% endfor %}
+                        {% else %}
+                            {% for fd in friend_list[:5] %}
+                            <div class="expanded-friend-name">{{ fd.first_name or 'Friend' }} ({{ fd.last_name or '' }})</div>
+                            {% endfor %}
+                            <div class="expanded-friend-name">+ {{ friend_list|length - 5 }} others</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </div>
             {% else %}
             <a href="{% if activity.object_type == 'trip' and trip %}{{ url_for('trip_detail', trip_id=activity.object_id) }}{% elif activity.object_type == 'user' %}{{ url_for('friend_profile', friend_id=activity.object_id) }}{% else %}#{% endif %}" class="activity-item">
@@ -826,8 +865,42 @@
             }
         }, { passive: true });
         
-        // Overlap activity modal handlers
-        document.querySelectorAll('.overlap-activity').forEach(card => {
+        // Expandable activity handlers (for aggregated updates)
+        let currentlyExpandedId = null;
+        
+        document.querySelectorAll('.expandable-activity').forEach(card => {
+            card.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const activityId = this.getAttribute('data-activity-id');
+                const friendsList = this.querySelector('.expanded-friends-list');
+                
+                if (!friendsList) return;
+                
+                // If this item is already expanded, collapse it
+                if (currentlyExpandedId === activityId) {
+                    friendsList.style.display = 'none';
+                    currentlyExpandedId = null;
+                    return;
+                }
+                
+                // Collapse any currently expanded item
+                if (currentlyExpandedId) {
+                    const prevList = document.querySelector(`[data-activity-id="${currentlyExpandedId}"] .expanded-friends-list`);
+                    if (prevList) {
+                        prevList.style.display = 'none';
+                    }
+                }
+                
+                // Expand this item
+                friendsList.style.display = 'block';
+                currentlyExpandedId = activityId;
+            });
+        });
+        
+        // Non-expandable overlap activity modal handlers (single friend)
+        document.querySelectorAll('.overlap-activity:not(.expandable-activity)').forEach(card => {
             card.addEventListener('click', function() {
                 const modalId = this.getAttribute('data-modal-target');
                 const modal = document.getElementById(modalId);

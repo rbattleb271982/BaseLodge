@@ -467,6 +467,11 @@ def compute_friend_trip_availability_overlaps(user):
         state = resort.state_code if resort else None
         country = resort.country_code if resort else None
         
+        # Get friend user data for display
+        friend_user = User.query.get(trip.user_id)
+        friend_first_name = friend_user.first_name if friend_user else "Friend"
+        friend_last_name = friend_user.last_name if friend_user else ""
+        
         for range_start, range_end in ranges:
             key = (range_start, range_end)
             if key not in overlap_by_range:
@@ -477,7 +482,9 @@ def compute_friend_trip_availability_overlaps(user):
                 'resort_id': trip.resort_id,
                 'resort_name': resort_name,
                 'state': state,
-                'country': country
+                'country': country,
+                'first_name': friend_first_name,
+                'last_name': friend_last_name
             })
     
     coalesced = coalesce_date_ranges(list(overlap_by_range.keys()))
