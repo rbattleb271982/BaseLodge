@@ -714,7 +714,7 @@ class SkiTripParticipant(db.Model):
         nullable=True
     )
     taking_lesson = db.Column(
-        db.Enum(LessonChoice, name='lesson_choice_enum', create_constraint=True),
+        db.Enum(LessonChoice, name='lesson_choice_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
         default=LessonChoice.NO,
         nullable=False,
         server_default='no'
