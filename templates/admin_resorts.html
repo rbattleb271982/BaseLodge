@@ -875,6 +875,16 @@
         let pendingMerge = null;
         let currentSort = { column: null, direction: 'asc' };
         
+        // Helper: safely convert pass_brands (array, string, or null) to lowercase string
+        function normalizePassBrands(val) {
+            if (Array.isArray(val)) {
+                return val.join(',').toLowerCase();
+            } else if (typeof val === 'string') {
+                return val.toLowerCase();
+            }
+            return '';
+        }
+        
         // Country dropdown - handle "Add new country" selection
         document.getElementById('new-resort-country').addEventListener('change', function(e) {
             if (e.target.value === '__ADD_NEW__') {
@@ -1006,7 +1016,7 @@
                     row.dataset.name = resort.name.toLowerCase();
                     row.dataset.country = resort.country_code || '';
                     row.dataset.state = (resort.state_code || resort.state || '').toLowerCase();
-                    row.dataset.pass = (resort.pass_brands || resort.brand || '').toLowerCase();
+                    row.dataset.pass = normalizePassBrands(resort.pass_brands || resort.brand || '');
                     row.dataset.active = resort.is_active ? 'true' : 'false';
                     
                     const passBrandsList = Array.isArray(resort.pass_brands_json) ? resort.pass_brands_json : [];
