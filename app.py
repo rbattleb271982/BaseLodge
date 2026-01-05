@@ -7871,6 +7871,40 @@ def sync_resorts_from_canonical():
 
 
 # ============================================================================
+# ADMIN COUNTRIES ENDPOINT
+# ============================================================================
+
+@app.route("/admin/countries", methods=["POST"])
+@login_required
+@admin_required
+def admin_add_country():
+    """Add a new country to the reference table."""
+    from models import Country
+    
+    data = request.get_json()
+    name = (data.get("name") or "").strip()
+    code = (data.get("code") or "").strip().upper()
+    
+    if not name or not code:
+        return jsonify({"status": "error", "message": "Name and code are required"}), 400
+    
+    if len(code) != 2:
+        return jsonify({"status": "error", "message": "Country code must be 2 letters"}), 400
+    
+    existing = Country.query.filter(db.func.lower(Country.code) == code.lower()).first()
+    if existing:
+        return jsonify({"status": "success", "id": existing.id, "code": existing.code, "name": existing.name})
+    
+    country = Country(code=code, name=name, is_active=True)
+    db.session.add(country)
+    db.session.commit()
+    
+    COUNTRY_NAMES[code] = name
+    
+    return jsonify({"status": "success", "id": country.id, "code": country.code, "name": country.name})
+
+
+# ============================================================================
 # ADMIN RESORTS CURATION PAGE
 # ============================================================================
 

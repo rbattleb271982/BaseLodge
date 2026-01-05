@@ -54,6 +54,20 @@ class EquipmentDiscipline(PyEnum):
     SNOWBOARDER = "snowboarder"
 
 
+class Country(db.Model):
+    """Admin-managed country reference table for dropdown options."""
+    __tablename__ = 'country'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(10), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Country {self.code}: {self.name}>'
+
+
 class TripDuration(PyEnum):
     DAY_TRIP = "day_trip"
     ONE_NIGHT = "one_night"
