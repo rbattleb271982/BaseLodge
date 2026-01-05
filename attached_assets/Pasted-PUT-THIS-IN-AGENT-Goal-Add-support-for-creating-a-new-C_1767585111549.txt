@@ -1,0 +1,132 @@
+PUT THIS IN AGENT
+
+Goal:
+Add support for creating a new Country from the Admin → Resort Data Curation page,
+without breaking any existing functionality, exports, or resort flows.
+
+ABSOLUTE RULES (DO NOT VIOLATE):
+- Do NOT modify existing resort behavior unless explicitly stated
+- Do NOT change canonical JSON structure except to ADD countries safely
+- Do NOT remove or rename any existing fields
+- Do NOT change PROD sync logic
+- Do NOT introduce free-text country values on resorts
+- Do NOT break existing country dropdown behavior
+- Use minimal, additive changes only
+- If uncertain, preserve existing behavior and comment why
+
+--------------------------------------------------
+STEP 1: COUNTRY DATA MODEL (SAFE + ADDITIVE)
+--------------------------------------------------
+If a Country model already exists:
+- Use it exactly as-is
+- Do NOT rename fields
+- Do NOT drop or migrate existing data
+
+If no Country model exists:
+- Add a new Country model with:
+    - id (PK)
+    - name (string, unique, required)
+    - iso_code (string, optional)
+    - is_active (boolean, default True)
+
+- Do NOT remove or alter any existing Resort fields
+- Resorts should reference country via foreign key or existing country_id logic
+
+--------------------------------------------------
+STEP 2: ADMIN ENDPOINT (ADD ONLY)
+--------------------------------------------------
+Add a new ADMIN-ONLY endpoint:
+
+POST /admin/countries
+
+Behavior:
+- Accept country name (required)
+- Accept iso_code (optional)
+- Normalize name (trim whitespace)
+- Case-insensitive duplicate check
+- If country already exists:
+    - Return existing country
+    - Do NOT error
+- If new:
+    - Create country
+    - Commit safely
+
+Response:
+- JSON with id + name only
+- No redirects
+- No template rendering
+
+--------------------------------------------------
+STEP 3: ADMIN UI – INLINE “ADD NEW COUNTRY”
+--------------------------------------------------
+On the Resort Data Curation page ONLY:
+
+- Extend the existing country dropdown
+- Add a final option:
+    “➕ Add new country…”
+
+When selected:
+- Open a modal (or inline form if modal system exists)
+- Modal fields:
+    - Country name (required)
+    - ISO code (optional)
+- Buttons:
+    - Save
+    - Cancel
+
+On Save:
+- POST to /admin/countries via fetch/AJAX
+- On success:
+    - Insert new country into dropdown
+    - Auto-select it
+    - Close modal
+    - Preserve all existing form state
+
+--------------------------------------------------
+STEP 4: SAFETY GUARANTEES
+--------------------------------------------------
+- Do NOT alter:
+    - Resort creation logic
+    - Resort filtering
+    - Canonical export format (except adding countries list if missing)
+    - Excel export
+    - Upload Excel flow
+    - Existing country dropdown values
+
+- If canonical export already includes countries:
+    - Append safely
+- If it does not:
+    - Add countries as a NEW top-level key
+    - Do NOT modify resorts payload
+
+--------------------------------------------------
+STEP 5: VALIDATION & FALLBACKS
+--------------------------------------------------
+- If JS fails:
+    - Resort form must still submit normally
+- If modal fails:
+    - Country dropdown still works as before
+- If duplicate country submitted:
+    - Return existing country silently
+
+--------------------------------------------------
+STEP 6: TESTING (REQUIRED)
+--------------------------------------------------
+Manually verify:
+1. Existing resorts still save correctly
+2. Existing country selection still works
+3. New country can be created
+4. New country immediately selectable
+5. Resort saves with new country
+6. Canonical JSON export unchanged except new country presence
+7. No console errors
+8. No admin page regressions
+
+--------------------------------------------------
+FINAL RULE
+--------------------------------------------------
+Do NOT finish until:
+- All existing admin actions still work
+- Resort counts unchanged
+- No data loss
+- No breaking changes
