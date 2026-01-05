@@ -1,0 +1,93 @@
+PUT THIS IN AGENT
+
+Feature: Buddy passes availability (profile-level, per pass)
+
+========================================
+PRODUCT DECISION (DO NOT DEVIATE)
+========================================
+
+- Buddy passes are a PROFILE-LEVEL setting
+- Stored PER PASS BRAND (Epic, Ikon, etc.)
+- Value is binary: Yes / No only
+- No counts
+- No trip-level logic
+- No notifications or actions
+- Visibility only
+
+========================================
+DATA MODEL
+========================================
+
+- Store a boolean per pass brand indicating buddy pass availability
+- Only create/show this for passes the user actually has
+- Default value = No
+- No schema refactors beyond adding these fields
+  (implementation choice is up to you: boolean columns or JSON map)
+
+========================================
+UI – MAIN PROFILE CARD
+========================================
+
+For each pass the user has, display:
+
+Epic Pass
+Buddy passes available: Yes
+
+Rules:
+- On YOUR OWN profile:
+  - “Yes” / “No” is rendered as a STANDARD TEXT LINK
+  - Clicking the link opens a small modal (see below)
+- On a FRIEND’S profile:
+  - “Yes” / “No” is plain text (NOT a link)
+  - No modal, no affordance
+
+Do NOT create a separate “Passes” section.
+This lives directly under each pass on the main profile card.
+
+========================================
+MODAL BEHAVIOR (SMALL, DEDICATED)
+========================================
+
+- Create a small, dedicated modal JUST for this feature
+- No reuse required
+
+Modal content:
+
+Title:
+Buddy passes – [Pass Name]
+
+Body text:
+Do you currently have buddy passes available on your [Pass Name] pass?
+
+Options (radio buttons):
+- Yes
+- No
+
+Actions:
+- Save
+- Cancel
+
+Behavior:
+- Save updates ONLY the current user’s buddy-pass value for that pass
+- Cancel closes modal with no change
+- No validation, no warnings, no extra copy
+
+========================================
+GUARDRAILS (IMPORTANT)
+========================================
+
+- Do NOT add counts or usage tracking
+- Do NOT add “request buddy pass” actions
+- Do NOT tie this to trips
+- Do NOT show this for passes the user does not have
+- Do NOT add explanation text outside the modal
+- Keep profile card visually calm
+
+========================================
+SUCCESS CRITERIA
+========================================
+
+- User can easily edit their own buddy-pass availability via link + modal
+- Friends can see Yes/No for each pass, read-only
+- Defaults are respected
+- No impact to trips, invites, or transportation features
