@@ -80,40 +80,20 @@ is_production = os.environ.get("DATABASE_URL") is not None and "postgresql" in o
 
 app = Flask(__name__)
 
-# ============================================================================
-# SESSION & SECURITY CONFIGURATION
-# ============================================================================
-app.config["SECRET_KEY"] = os.environ.get("SESSION_SECRET")
-if not app.config["SECRET_KEY"]:
-    if not is_production:
-        app.config["SECRET_KEY"] = "dev-secret-key-fallback"
-    else:
-        raise RuntimeError("SESSION_SECRET environment variable is NOT SET in production.")
+from utils.countries import COUNTRIES
 
-    # Session configuration for Replit iframe environment
-    app.config.update(
-        SESSION_COOKIE_SECURE=is_production,
-        SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SAMESITE=os.environ.get("SESSION_COOKIE_SAMESITE", "Lax"),
-        PERMANENT_SESSION_LIFETIME=timedelta(days=7),
-        SESSION_REFRESH_EACH_REQUEST=True
-    )
+@app.context_processor
+def inject_countries():
+    return {'COUNTRIES': COUNTRIES}
 
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = "auth"
-login_manager.login_message = None
-
-@login_manager.user_loader
-def load_user(user_id):
-    return db.session.get(User, int(user_id))
-
-# ============================================================================
-# CENTRALIZED IDENTITY FORMATTER
-# Single source of truth for user identity display across all templates.
-# Format: Rider Type · Passes · Skill Level
-# Never shows "Both" - all passes listed individually.
-# ============================================================================
+# Helper to normalize country code
+def normalize_country_code(code):
+    if not code:
+        return None
+    code = code.strip().upper()
+    if code in COUNTRIES:
+        return code
+    return None
 
 @app.route("/health")
 def health_check():
@@ -8270,9 +8250,12 @@ def admin_update_pass_brand():
     if isinstance(pass_brands, str):
         pass_brands = [pass_brands] if pass_brands else []
     
-    allowed_values = ['Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other', 'None']
+    # Valid values
+    valid_brands = {'Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other', 'None'}
+    
+    # Validation
     for brand in pass_brands:
-        if brand not in allowed_values:
+        if brand not in valid_brands:
             return jsonify({'status': 'error', 'message': f'Invalid pass brand: {brand}'}), 400
     
     # Handle "None" semantics - mutually exclusive with all other passes
@@ -8391,9 +8374,12 @@ def admin_bulk_update_pass_brand():
     if isinstance(pass_brands, str):
         pass_brands = [pass_brands] if pass_brands else []
     
-    allowed_values = ['Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other', 'None']
+    # Valid values
+    valid_brands = {'Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other', 'None'}
+    
+    # Validation
     for brand in pass_brands:
-        if brand not in allowed_values:
+        if brand not in valid_brands:
             return jsonify({'status': 'error', 'message': f'Invalid pass brand: {brand}'}), 400
         
     if not resort_ids:
