@@ -1259,7 +1259,8 @@ def auth():
             new_user = User(
                 first_name=first_name,
                 last_name=last_name,
-                email=email
+                email=email,
+                buddy_passes_available=True
             )
             new_user.set_password(password)
             
@@ -4495,7 +4496,8 @@ def seed_dummy_data():
             skill_level=random.choice(skill_levels),
             home_state=random.choice(states),
             birth_year=random.randint(1975, 2003),
-            mountains_visited=random.sample(all_resorts, random.randint(2, 6))
+            mountains_visited=random.sample(all_resorts, random.randint(2, 6)),
+            buddy_passes_available=True
         )
         user.set_password("password123")
         db.session.add(user)
