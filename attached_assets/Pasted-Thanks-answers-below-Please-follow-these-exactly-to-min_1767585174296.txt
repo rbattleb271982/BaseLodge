@@ -1,0 +1,55 @@
+Thanks — answers below. Please follow these exactly to minimize blast radius.
+
+1) Country model / data storage
+--------------------------------
+Assume the current system is the source of truth.
+
+- If a Country model already exists → use it as-is.
+- If countries are currently stored as strings on the Resort model (e.g. country_name / country_code):
+    • DO NOT refactor resorts to use a foreign key.
+    • Keep the existing string-based storage fully intact.
+    • Add a Country reference table ONLY to manage the admin dropdown options.
+    • When a new country is added via admin, persist it to the Country table AND continue saving the string value on Resort exactly as before.
+
+This is intentionally additive. No migration of existing resorts, no FK enforcement.
+
+2) Current country dropdown behavior
+------------------------------------
+Do NOT change how existing countries are sourced.
+
+- If the dropdown is populated from:
+    • a hardcoded list → extend it safely
+    • distinct resort values → keep that logic
+    • an existing countries table/list → use it
+
+Your job is ONLY to add the ability to append a new country to whatever the current source is — not to redesign it.
+
+3) Modal system
+---------------
+- If an admin modal component/pattern already exists → reuse it.
+- If not → create a very lightweight inline modal scoped ONLY to this page.
+- Do not introduce a global modal framework or shared JS dependency.
+
+4) Canonical JSON export
+------------------------
+Do NOT change the existing canonical structure.
+
+- If canonical JSON already has a top-level "countries" key → append new countries there.
+- If it does NOT:
+    • Do NOT add a new top-level key yet.
+    • Just ensure new countries work correctly through resorts as they do today.
+
+Canonical output must remain backward-compatible.
+
+5) Exploration permission
+-------------------------
+Yes, you may explore the codebase first to confirm:
+- Whether a Country model already exists
+- How the country dropdown is currently populated
+- Whether a modal pattern exists
+
+BUT:
+- Exploration only — do not refactor based on “better architecture”
+- Preserve current behavior unless explicitly told otherwise
+
+Primary goal: enable adding a new country from the admin UI with zero regressions.
