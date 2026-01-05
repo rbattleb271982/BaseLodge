@@ -37,6 +37,8 @@ The backend is built with Flask, utilizing SQLAlchemy for ORM and Werkzeug for p
 -   **Location Selector:** A unified typeahead component for state/province selection, grouped by country and alphabetically sorted.
 -   **Multi-Pass & International Resort Support:** The `Resort` model includes `pass_brands`, `country`, and expanded `state` fields.
 -   **Group Coordination Signals:** `SkiTripParticipant` includes `transportation_status` and `equipment_status` for per-participant coordination, summarized in a Group Signals card on the Trip Detail page.
+-   **Carpool Coordination:** Participants can set their carpool role (driver with available seats, or rider needing a ride) via inline picker on the Trip Detail page. Carpool offers emit activity notifications to friends with overlapping trips at the same location.
+-   **Lesson Tracking:** Participants can indicate if they're taking lessons (yes/maybe/no) for a trip, helping coordinate group activities.
 -   **Wish List Destinations:** Users can save up to 3 aspirational resorts, displayed on profiles with overlap features.
 -   **Personalization Features:** Terrain preferences, smart resort defaults, next trip countdown, availability match nudges, and relevance-based friend ordering.
 
