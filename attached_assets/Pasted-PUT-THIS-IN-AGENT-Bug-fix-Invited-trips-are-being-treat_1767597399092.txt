@@ -1,0 +1,81 @@
+PUT THIS IN AGENT
+
+Bug fix: Invited trips are being treated as accepted.
+
+========================================
+CORRECT TRIP STATES
+========================================
+
+A trip invitation can have three states for a user:
+- INVITED (pending)
+- ACCEPTED
+- DECLINED
+
+These states must be respected consistently across views.
+
+========================================
+1) MY TRIPS TAB – INVITED STATE
+========================================
+
+When a user is INVITED to a trip:
+
+- The trip should appear in My Trips
+- It must be clearly labeled as “Invited”
+- Show Accept and Decline actions
+- It must NOT be treated as an accepted/active trip
+- It should be visually distinct from accepted trips
+
+Do NOT:
+- Include invited trips in “Going” or accepted lists
+- Allow invited users to edit transportation or trip details
+
+========================================
+2) MY TRIPS TAB – ACCEPT / DECLINE
+========================================
+
+When the user ACCEPTS:
+- Update status to ACCEPTED
+- Move trip into normal active trips list
+- Enable per-person transportation editing
+- Add user to “Who’s Going” for the organizer
+- Generate appropriate update event
+
+When the user DECLINES:
+- Update status to DECLINED
+- Remove trip from My Trips list
+- Do NOT treat user as participant
+- Generate appropriate update event
+
+========================================
+3) UPDATES TAB (FRIENDS SCREEN)
+========================================
+
+When an invite is created:
+- Add an update entry for the invited user:
+  “You were invited to a trip to [Resort]”
+
+When an invite is accepted or declined:
+- Add an update entry for the organizer:
+  “[Name] accepted your trip invite”
+  or
+  “[Name] declined your trip invite”
+
+========================================
+4) DATA & FILTERING GUARDRAILS
+========================================
+
+- INVITED users must never be included in:
+  - Accepted participant counts
+  - “Who’s Going” accepted lists
+- ACCEPTED users only appear after acceptance
+- Filtering logic must explicitly check status
+
+========================================
+SUCCESS CRITERIA
+========================================
+
+- Invited trips appear as “Invited” only
+- Accept/Decline works correctly
+- No auto-accept behavior
+- Updates reflect invite, accept, decline events
+- Transportation is editable only after acceptance
