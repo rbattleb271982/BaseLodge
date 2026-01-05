@@ -430,7 +430,7 @@
             {% endif %}
             
             <div class="geography-section">
-                <h3 style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">Trip Basics</h3>
+                <h3 style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">Trip Overview</h3>
                 
                 <div class="form-group">
                     <label for="country">Country</label>
@@ -498,15 +498,16 @@
             </div>
             
             <div class="form-card">
-                <h3 style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">Optional Details</h3>
+                <h3 style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">Trip Planning</h3>
                 
                 <div class="form-group">
-                    <label for="ride_intent">Ride status</label>
+                    <label for="ride_intent">Transportation</label>
                     <select id="ride_intent" name="ride_intent">
-                        <option value="">Not specified</option>
-                        <option value="can_offer" {% if trip and trip.ride_intent == 'can_offer' %}selected{% endif %}>Has space for more</option>
-                        <option value="need_ride" {% if trip and trip.ride_intent == 'need_ride' %}selected{% endif %}>Needs a ride</option>
-                        <option value="not_applicable" {% if trip and trip.ride_intent == 'not_applicable' %}selected{% endif %}>Not applicable</option>
+                        <option value="driving" {% if trip and trip.ride_intent == 'driving' %}selected{% endif %}>Driving</option>
+                        <option value="flying" {% if trip and trip.ride_intent == 'flying' %}selected{% endif %}>Flying</option>
+                        <option value="bus" {% if trip and trip.ride_intent == 'bus' %}selected{% endif %}>Bus</option>
+                        <option value="train" {% if trip and trip.ride_intent == 'train' %}selected{% endif %}>Train</option>
+                        <option value="not_sure" {% if trip and trip.ride_intent == 'not_sure' %}selected{% endif %}>Not sure</option>
                     </select>
                 </div>
 
@@ -523,10 +524,10 @@
                 <div class="form-group">
                     <label for="accommodation_status">Accommodations</label>
                     <select id="accommodation_status" name="accommodation_status" onchange="toggleAccommodationLink()">
-                        <option value="none_yet" {% if not trip or not trip.accommodation_status or trip.accommodation_status == 'none_yet' %}selected{% endif %}>None yet</option>
                         <option value="hotel" {% if trip and trip.accommodation_status == 'hotel' %}selected{% endif %}>Hotel</option>
-                        <option value="airbnb" {% if trip and trip.accommodation_status == 'airbnb' %}selected{% endif %}>Airbnb</option>
-                        <option value="other" {% if trip and trip.accommodation_status == 'other' %}selected{% endif %}>Other</option>
+                        <option value="short_term_rental" {% if trip and trip.accommodation_status == 'short_term_rental' %}selected{% endif %}>Short-term rental</option>
+                        <option value="friends" {% if trip and trip.accommodation_status == 'friends' %}selected{% endif %}>Staying with friends</option>
+                        <option value="not_booked" {% if not trip or trip.accommodation_status == 'not_booked' %}selected{% endif %}>Not booked yet</option>
                     </select>
                 </div>
 

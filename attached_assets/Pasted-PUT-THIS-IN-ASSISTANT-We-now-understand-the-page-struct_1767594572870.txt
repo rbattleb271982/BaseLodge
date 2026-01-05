@@ -1,0 +1,96 @@
+PUT THIS IN ASSISTANT
+
+We now understand the page structure.
+Please implement ONLY the following changes.
+Do NOT change layout, headers, or button placement yet.
+
+========================================
+1) FIX ACCEPTED COUNT LOGIC (Trip Detail)
+========================================
+
+Context:
+- trip_detail.html iterates `all_participants`
+- There is no accepted_count variable
+- Organizer is currently included implicitly
+
+Required fix:
+- Ensure the trip organizer (trip.owner_id) is EXCLUDED
+  from `all_participants` before it is passed to the template.
+- Organizer should still be displayed separately as:
+  “You (Organizer)”
+- If no non-organizer users have accepted:
+  - Do NOT show “1 accepted”
+  - The accepted list should be empty
+
+Scope:
+- Implement this in app.py where participants are queried
+- Do NOT change the template loop itself
+- Do NOT change invite or acceptance behavior
+
+========================================
+2) EDIT TRIP PAGE – COPY-ONLY UPDATES
+========================================
+
+File: templates/add_trip.html
+
+A) Section header renames (copy only)
+-------------------------------------
+- Change <h3>Trip Basics</h3> → <h3>Trip Overview</h3>
+- Change <h3>Optional Details</h3> → <h3>Trip Planning</h3>
+
+Do NOT move sections or fields yet.
+
+========================================
+3) TRANSPORTATION FIELD (label + options)
+========================================
+
+File: templates/add_trip.html
+
+Current:
+- Label: “Ride Status”
+- Select id: ride_intent
+- Options are hardcoded
+
+Update:
+- Change label to: “Transportation”
+- Replace options with:
+  - Driving
+  - Flying
+  - Bus
+  - Train
+  - Not sure
+
+Notes:
+- Keep the same <select> id and name
+- Values can be updated to match labels
+- Backend field can remain unchanged
+
+========================================
+4) ACCOMMODATIONS FIELD (generic options)
+========================================
+
+File: templates/add_trip.html
+
+Current options include brand-specific labels (e.g., Airbnb).
+
+Update options to:
+- Hotel
+- Short-term rental
+- Staying with friends
+- Not booked yet
+
+Keep:
+- Label “Accommodations”
+- Existing accommodation link input + show/hide logic
+
+========================================
+CONSTRAINTS
+========================================
+
+- Do NOT change layout
+- Do NOT move buttons
+- Do NOT alter headers/navigation
+- Do NOT refactor templates
+- Do NOT introduce new fields
+
+These will be handled in a later step.

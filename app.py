@@ -3919,7 +3919,8 @@ def trip_detail(trip_id):
     group_signals = trip.get_group_signals()
     
     # Get all participants (owner + accepted guests) for display
-    all_participants = trip.get_all_participants()
+    # EXCLUDE organizer from all_participants list for the "Who's Going" section
+    all_participants = [p for p in trip.get_all_participants() if p.user_id != trip.user_id]
     
     # Get current user's participant record for inline editing
     current_user_participant = participant
