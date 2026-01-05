@@ -2059,30 +2059,72 @@ def friends():
         
         return score
     
-    # Default sort: same-state friends first, then alphabetical by name
-    user_home_state = user.home_state
-    same_state_friends = [f for f in all_friends if f.home_state == user_home_state]
-    other_state_friends = [f for f in all_friends if f.home_state != user_home_state]
-    
-    same_state_friends.sort(key=lambda f: f.first_name.lower())
-    other_state_friends.sort(key=lambda f: f.first_name.lower())
-    
-    all_friends_sorted = same_state_friends + other_state_friends
-    
-    # Build a lookup for friendship data (including trip_invites_allowed)
+    # Build a lookup for friendship data (including trip_invites_allowed and created_at)
     friendship_lookup = {f.friend_id: f for f in friend_links}
     
-    # Calculate upcoming trip count for each friend and attach friendship data
-    for friend in all_friends_sorted:
-        upcoming_count = SkiTrip.query.filter(
-            SkiTrip.user_id == friend.id,
-            SkiTrip.is_public == True,
-            SkiTrip.end_date >= today
-        ).count()
-        friend._upcoming_trip_count = upcoming_count
-        # Attach friendship permission
+    # Calculate sorting data for each friend
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    
+    for friend in all_friends:
         friendship = friendship_lookup.get(friend.id)
+        
+        # Attach friendship permission
         friend._trip_invites_allowed = friendship.trip_invites_allowed if friendship else False
+        
+        # Is this a new friend (within 7 days)?
+        friend._is_new_friend = False
+        if friendship and friendship.created_at:
+            friend._is_new_friend = friendship.created_at >= seven_days_ago
+        
+        # Get upcoming trips where friend is owner OR participant
+        upcoming_owner_trips = SkiTrip.query.filter(
+            SkiTrip.user_id == friend.id,
+            SkiTrip.start_date >= today
+        ).all()
+        
+        upcoming_participant_trips = (
+            db.session.query(SkiTrip)
+            .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
+            .filter(
+                SkiTripParticipant.user_id == friend.id,
+                SkiTrip.start_date >= today
+            )
+            .all()
+        )
+        
+        # Combine and deduplicate
+        all_upcoming = {t.id: t for t in upcoming_owner_trips}
+        for t in upcoming_participant_trips:
+            all_upcoming[t.id] = t
+        
+        friend._upcoming_trip_count = len(all_upcoming)
+        friend._has_upcoming_trip = len(all_upcoming) > 0
+        
+        # Find most recent upcoming trip created_at (for sorting)
+        if all_upcoming:
+            latest_created = max(t.created_at for t in all_upcoming.values() if t.created_at)
+            friend._latest_upcoming_trip_created_at = latest_created
+        else:
+            friend._latest_upcoming_trip_created_at = None
+    
+    # Sort friends by:
+    # 1. New friends first (is_new_friend DESC)
+    # 2. Has upcoming trip (DESC)
+    # 3. Latest upcoming trip created_at (DESC)
+    # 4. First name alphabetically (ASC)
+    def friend_sort_key(f):
+        is_new = 0 if f._is_new_friend else 1  # 0 sorts before 1
+        has_trip = 0 if f._has_upcoming_trip else 1
+        # Use negative timestamp for DESC sort (more recent = smaller negative = earlier)
+        latest_ts = 0
+        if f._latest_upcoming_trip_created_at:
+            latest_ts = -f._latest_upcoming_trip_created_at.timestamp()
+        else:
+            latest_ts = float('inf')  # No trips sorts last
+        first_name = (f.first_name or '').lower()
+        return (is_new, has_trip, latest_ts, first_name)
+    
+    all_friends_sorted = sorted(all_friends, key=friend_sort_key)
     
     # Get multi-select filter params
     selected_riders = request.args.getlist("rider")
