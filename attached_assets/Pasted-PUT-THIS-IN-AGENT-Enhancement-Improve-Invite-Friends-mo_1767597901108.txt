@@ -1,0 +1,106 @@
+PUT THIS IN AGENT
+
+Enhancement: Improve Invite Friends modal with multi-select, search, sorting, and live selection count
+
+================================================
+CURRENT ISSUE
+================================================
+
+The Invite Friends modal currently behaves like a single-select list
+and does not support searching, multi-select, or efficient bulk inviting.
+
+================================================
+DESIRED BEHAVIOR (AUTHORITATIVE)
+================================================
+
+The Invite Friends modal should support:
+
+------------------------------------------------
+1) MULTI-SELECT
+------------------------------------------------
+- User can select multiple friends via checkboxes
+- Selection state persists while the modal is open
+- Already-invited friends:
+  - Remain visible in the list
+  - Are disabled (checkbox disabled)
+  - Show “Invite sent” label (existing behavior preserved)
+
+------------------------------------------------
+2) SEARCH
+------------------------------------------------
+- Add a search input at the top of the modal
+- Search filters the list by:
+  - First name
+  - Last name
+  - Full name (case-insensitive)
+- Search is client-side only (no backend changes required)
+
+------------------------------------------------
+3) SORTING
+------------------------------------------------
+- Friend list should be alphabetized by **first name**, ascending (A → Z)
+- Sorting should apply:
+  - On initial modal load
+  - After search filtering
+- Sorting is client-side only
+
+------------------------------------------------
+4) LIVE SELECTION COUNT
+------------------------------------------------
+- Display a live count of selected friends
+- Count updates immediately as checkboxes are checked/unchecked
+- Placement:
+  - Near the “Send invites” button
+  - Or as helper text above the button (e.g., “3 selected”)
+- Count should include ONLY newly selectable friends
+  (exclude already-invited/disabled entries)
+
+------------------------------------------------
+5) SEND INVITES ACTION
+------------------------------------------------
+- “Send invites” button remains disabled until:
+  - At least one *new* (not previously invited) friend is selected
+- Clicking “Send invites”:
+  - Sends invites for ALL selected friends in one action
+  - Clears selection state
+  - Updates UI to show “Invite sent” for newly invited users
+  - Closes the modal on success
+
+================================================
+NON-GOALS (DO NOT ADD)
+================================================
+
+- No pagination
+- No async search
+- No friend grouping
+- No auto-select behavior
+- No redesign of invite CTA or modal layout
+
+================================================
+DATA & LOGIC CONSTRAINTS
+================================================
+
+- Invites must remain idempotent:
+  - Do NOT re-send invites to users already invited
+- Backend invite endpoint may be reused:
+  - Loop over selected friend IDs
+- UI state should prevent duplicate submission
+
+================================================
+SUCCESS CRITERIA
+================================================
+
+- User can search for friends
+- User can select multiple friends
+- Friend list is alphabetized by first name
+- Live count of selected friends is visible
+- User can send all invites in one action
+- Previously invited friends are clearly indicated and disabled
+- Modal remains simple, fast, and predictable
+
+================================================
+IMPORTANT
+================================================
+
+This is a UI/UX enhancement only.
+Do NOT modify invite status logic, trip status logic, or Updates behavior.
