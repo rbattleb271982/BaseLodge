@@ -657,8 +657,8 @@
         <input type="text" id="search" placeholder="Search resorts..." oninput="filterResorts()">
         <select id="country-filter" onchange="updateStateFilter(); filterResorts();">
             <option value="">All Countries</option>
-            {% for country in countries %}
-            <option value="{{ country }}">{{ country }}</option>
+            {% for country_code in countries %}
+            <option value="{{ country_code }}">{{ COUNTRIES.get(country_code, country_code) }}</option>
             {% endfor %}
         </select>
         <select id="state-filter" onchange="filterResorts()" disabled>
@@ -764,12 +764,18 @@
                                onblur="saveField(this)">
                     </td>
                     <td>
-                        <input type="text" class="editable-input" 
-                               data-field="country_code"
-                               data-id="{{ resort.id }}"
-                               value="{{ resort.country_code or resort.country or '' }}"
-                               onblur="saveField(this)"
-                               style="width: 60px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="text" class="editable-input" 
+                                   data-field="country_code"
+                                   data-id="{{ resort.id }}"
+                                   value="{{ resort.country_code or resort.country or '' }}"
+                                   onblur="saveField(this)"
+                                   style="width: 45px; text-align: center; font-weight: 600;">
+                            <span style="font-size: 12px; color: #718096; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" 
+                                  title="{{ COUNTRIES.get(resort.country_code or resort.country, resort.country_code or resort.country) }}">
+                                {{ COUNTRIES.get(resort.country_code or resort.country, resort.country_code or resort.country) }}
+                            </span>
+                        </div>
                     </td>
                     <td>
                         <input type="text" class="editable-input" 

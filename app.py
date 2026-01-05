@@ -19,6 +19,23 @@ from sendgrid.helpers.mail import Mail
 import unicodedata
 import re
 
+app = Flask(__name__)
+
+from utils.countries import COUNTRIES
+
+@app.context_processor
+def inject_countries():
+    return {'COUNTRIES': COUNTRIES}
+
+# Helper to normalize country code
+def normalize_country_code(code):
+    if not code:
+        return None
+    code = code.strip().upper()
+    if code in COUNTRIES:
+        return code
+    return None
+
 def generate_resort_slug(name):
     """Generate a URL-safe slug from resort name.
     
@@ -8091,30 +8108,8 @@ def admin_resorts():
     from models import Country
     db_countries = Country.query.filter_by(is_active=True).order_by(Country.name).all()
     
-    # Build unified country list: combine hardcoded defaults + DB countries + resort countries
-    # This ensures all sources are represented
-    default_countries = [
-        ('US', 'United States'), ('CA', 'Canada'), ('FR', 'France'),
-        ('CH', 'Switzerland'), ('AT', 'Austria'), ('IT', 'Italy'),
-        ('JP', 'Japan'), ('NZ', 'New Zealand'), ('AU', 'Australia'),
-        ('CL', 'Chile'), ('AR', 'Argentina'), ('NO', 'Norway'),
-        ('SE', 'Sweden'), ('ES', 'Spain'), ('AD', 'Andorra'), ('DE', 'Germany')
-    ]
-    
-    # Start with defaults as dict
-    all_countries = {code: name for code, name in default_countries}
-    
-    # Add countries from Country table (overrides defaults if present)
-    for c in db_countries:
-        all_countries[c.code] = c.name
-    
-    # Add any resort countries not yet in list (using COUNTRY_NAMES for display)
-    for code in resort_countries:
-        if code not in all_countries:
-            all_countries[code] = COUNTRY_NAMES.get(code, code)
-    
-    # Convert to sorted list of tuples for template
-    dropdown_countries = sorted(all_countries.items(), key=lambda x: x[1])
+    # Build unified country list
+    dropdown_countries = sorted(COUNTRIES.items(), key=lambda x: x[1])
     
     # Keep countries list for filters (just codes from resorts)
     countries = sorted(resort_countries)
@@ -8469,9 +8464,11 @@ def admin_import_resorts_excel():
                     rows_skipped += 1
                     errors.append({'row': row_idx, 'reason': 'Missing required field: name'})
                     continue
-                if not country or not str(country).strip():
+                
+                country_code = str(country).strip().upper()
+                if not country_code or country_code not in COUNTRIES:
                     rows_skipped += 1
-                    errors.append({'row': row_idx, 'reason': 'Missing required field: country'})
+                    errors.append({'row': row_idx, 'reason': f'Invalid or missing country code: {country}'})
                     continue
                 
                 # Generate slug from name
@@ -8521,6 +8518,10 @@ def admin_import_resorts_excel():
             
             if country and str(country).strip():
                 new_country = str(country).strip().upper()
+                if new_country not in COUNTRIES:
+                    rows_skipped += 1
+                    errors.append({'row': row_idx, 'reason': f'Invalid country code: {country}'})
+                    continue
                 if new_country != resort.country_code:
                     resort.country_code = new_country
                     resort.country = new_country
