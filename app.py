@@ -1996,6 +1996,29 @@ def set_trip_invites(friend_id):
     }), 200
 
 
+@app.route("/api/buddy-pass", methods=["POST"])
+@login_required
+def update_buddy_pass():
+    """Update buddy pass availability for a specific pass."""
+    SUPPORTED_PASSES = ['epic', 'ikon', 'mountain_collective']
+    
+    data = request.get_json() or {}
+    pass_key = data.get('pass_key', '').lower()
+    available = data.get('available', False)
+    
+    if pass_key not in SUPPORTED_PASSES:
+        return jsonify({"success": False, "error": "Unsupported pass"}), 400
+    
+    # Create a fresh dict to ensure SQLAlchemy detects the change
+    buddy_passes = dict(current_user.buddy_passes or {})
+    buddy_passes[pass_key] = bool(available)
+    current_user.buddy_passes = buddy_passes
+    
+    db.session.commit()
+    
+    return jsonify({"success": True, "buddy_passes": buddy_passes}), 200
+
+
 def pass_category(pass_type):
     """Categorize pass type into Epic, Ikon, or Other."""
     if pass_type in ["Epic", "Epic Local", "Epic Pass", "Epic 4-day"]:

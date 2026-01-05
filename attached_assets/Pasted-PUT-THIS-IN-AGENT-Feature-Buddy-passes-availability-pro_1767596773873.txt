@@ -1,0 +1,129 @@
+PUT THIS IN AGENT
+
+Feature: Buddy passes availability (profile-level, per pass)
+
+================================================
+FINAL PRODUCT DECISIONS (AUTHORITATIVE)
+================================================
+
+- Buddy passes are a PROFILE-LEVEL setting
+- Stored PER PASS BRAND (Epic, Ikon, etc.)
+- Value is binary: Yes / No only
+- No counts
+- No usage tracking
+- No trip-level logic
+- No notifications
+- Visibility only (social awareness, not obligation)
+
+================================================
+DATA MODEL
+================================================
+
+- Store buddy pass availability as a JSON map on the User model
+  Example:
+    {
+      "epic": true,
+      "ikon": false
+    }
+
+- Only create/read keys for passes the user actually has
+- Default value for any supported pass = false (No)
+- Do NOT add individual boolean columns per pass
+- Do NOT remove or refactor existing pass_type storage
+
+================================================
+SUPPORTED PASSES
+================================================
+
+Buddy pass availability should be shown ONLY for major passes
+that actually support buddy passes.
+
+Supported examples:
+- Epic
+- Ikon
+- Mountain Collective
+
+Do NOT show buddy pass availability for:
+- "Other"
+- Unknown or custom passes
+
+(You may maintain a simple allowlist of supported pass brands.)
+
+================================================
+UI – MAIN PROFILE CARD (NO NEW SECTIONS)
+================================================
+
+For each supported pass the user has, display directly beneath
+the pass name/badge:
+
+Epic Pass
+Buddy passes available: Yes
+
+Rules:
+- This appears on the MAIN profile card
+- Do NOT create a separate “Passes” section
+- Do NOT group buddy passes separately
+- Keep the layout calm and inline
+
+================================================
+EDITING BEHAVIOR (OWN PROFILE ONLY)
+================================================
+
+On the CURRENT USER’S OWN profile:
+- “Yes” / “No” is rendered as a STANDARD TEXT LINK
+- Clicking the link opens a SMALL, DEDICATED MODAL (see below)
+
+On a FRIEND’S profile:
+- “Yes” / “No” is plain text only
+- NOT a link
+- No modal
+- Read-only
+
+================================================
+MODAL (SMALL, DEDICATED — NOT REUSED)
+================================================
+
+Title:
+Buddy passes – [Pass Name]
+
+Body:
+Do you currently have buddy passes available on your [Pass Name] pass?
+
+Options (radio buttons):
+- Yes
+- No
+
+Actions:
+- Save
+- Cancel
+
+Behavior:
+- Save updates ONLY the current user’s buddy-pass value
+  for that specific pass
+- Cancel closes modal with no changes
+- No validation
+- No warnings
+- No explanation text beyond the question
+
+================================================
+IMPORTANT GUARDRAILS (DO NOT VIOLATE)
+================================================
+
+- Do NOT add counts (e.g., “6 remaining”)
+- Do NOT add “request buddy pass” actions
+- Do NOT tie this to trips or invites
+- Do NOT add notifications or prompts
+- Do NOT show this for unsupported passes
+- Do NOT add new profile sections
+- Do NOT change existing profile layout beyond this addition
+
+================================================
+SUCCESS CRITERIA
+================================================
+
+- Users can easily edit their own buddy-pass availability
+  via link + modal
+- Friends can see Yes/No per supported pass (read-only)
+- Defaults are respected (No)
+- Profile card remains visually calm
+- No impact to trips, invites, transportation, or other features

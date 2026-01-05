@@ -59,6 +59,25 @@
     <div class="tile-hero">{{ identity }}</div>
     {% endif %}
 
+    {# 2b. Buddy Pass Availability (per supported pass) #}
+    {% set buddy_pass_supported = ['Epic', 'Ikon', 'Mountain Collective'] %}
+    {% set user_passes = (profile_user.pass_type or '')|replace(' Pass', '')|replace(' pass', '') %}
+    {% set buddy_passes_data = profile_user.buddy_passes or {} %}
+    {% for pass_name in buddy_pass_supported %}
+        {% set pass_key = pass_name|lower|replace(' ', '_') %}
+        {% if pass_name|lower in user_passes|lower %}
+        <div class="tile-buddy-pass-row">
+            <span class="tile-buddy-label">{{ pass_name }} buddy passes:</span>
+            {% set has_buddy = buddy_passes_data.get(pass_key, false) %}
+            {% if is_owner %}
+            <a href="#" class="tile-buddy-value-link" data-buddy-modal-target="buddy-modal-{{ profile_user.id }}-{{ pass_key }}">{{ 'Yes' if has_buddy else 'No' }}</a>
+            {% else %}
+            <span class="tile-buddy-value">{{ 'Yes' if has_buddy else 'No' }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    {% endfor %}
+
     {# 3. Trip summary (only shown when viewing others' profiles) #}
     {% if not is_owner %}
     <div class="tile-trips">
@@ -110,6 +129,44 @@
         </button>
     </div>
 </div>
+
+{# Buddy Pass Modals (owner only) #}
+{% if is_owner %}
+    {% set buddy_pass_supported = ['Epic', 'Ikon', 'Mountain Collective'] %}
+    {% set user_passes = (profile_user.pass_type or '')|replace(' Pass', '')|replace(' pass', '') %}
+    {% set buddy_passes_data = profile_user.buddy_passes or {} %}
+    {% for pass_name in buddy_pass_supported %}
+        {% set pass_key = pass_name|lower|replace(' ', '_') %}
+        {% if pass_name|lower in user_passes|lower %}
+        <div class="bl-modal-overlay bl-buddy-modal" id="buddy-modal-{{ profile_user.id }}-{{ pass_key }}" aria-hidden="true">
+            <div class="bl-modal bl-modal-small" role="dialog" aria-labelledby="buddy-title-{{ pass_key }}">
+                <div class="bl-modal-header">
+                    <h2 id="buddy-title-{{ pass_key }}" class="bl-modal-title">Buddy passes – {{ pass_name }}</h2>
+                    <button type="button" class="bl-modal-close" aria-label="Close">&times;</button>
+                </div>
+                <div class="bl-modal-body">
+                    <p class="buddy-modal-question">Do you currently have buddy passes available on your {{ pass_name }} pass?</p>
+                    <div class="buddy-modal-options">
+                        {% set has_buddy = buddy_passes_data.get(pass_key, false) %}
+                        <label class="buddy-radio-option">
+                            <input type="radio" name="buddy-{{ pass_key }}" value="yes" {% if has_buddy %}checked{% endif %}>
+                            <span>Yes</span>
+                        </label>
+                        <label class="buddy-radio-option">
+                            <input type="radio" name="buddy-{{ pass_key }}" value="no" {% if not has_buddy %}checked{% endif %}>
+                            <span>No</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="bl-modal-footer">
+                    <button type="button" class="bl-btn-secondary buddy-cancel-btn">Cancel</button>
+                    <button type="button" class="bl-btn-primary buddy-save-btn" data-pass-key="{{ pass_key }}">Save</button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+{% endif %}
 
 {# Modal 1: Mountains I've Visited #}
 <div class="bl-modal-overlay" id="visited-modal-{{ profile_user.id }}" aria-hidden="true">
@@ -423,6 +480,107 @@
     .mountain-empty-cta:hover {
         background: var(--bl-color-primary-hover, #7A0117);
     }
+    
+    /* Buddy Pass Styles */
+    .tile-buddy-pass-row {
+        font-size: 0.875rem;
+        color: var(--bl-color-text-muted, #666666);
+        margin-bottom: 4px;
+        display: flex;
+        gap: 6px;
+    }
+    
+    .tile-buddy-label {
+        color: var(--bl-color-text-muted, #666666);
+    }
+    
+    .tile-buddy-value {
+        color: var(--bl-color-text, #1A1A1A);
+    }
+    
+    .tile-buddy-value-link {
+        color: var(--bl-color-primary, #8F011B);
+        cursor: pointer;
+        text-decoration: none;
+    }
+    
+    .tile-buddy-value-link:hover {
+        text-decoration: underline;
+    }
+    
+    /* Small modal variant for buddy pass */
+    .bl-modal-small {
+        max-width: 360px;
+    }
+    
+    .bl-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        padding: 12px 20px 20px;
+        border-top: 1px solid var(--bl-color-border-soft, #E5E5E5);
+    }
+    
+    .buddy-modal-question {
+        font-size: 0.9375rem;
+        color: var(--bl-color-text, #1A1A1A);
+        margin: 0 0 16px 0;
+        line-height: 1.4;
+    }
+    
+    .buddy-modal-options {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .buddy-radio-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.9375rem;
+        color: var(--bl-color-text, #1A1A1A);
+        cursor: pointer;
+    }
+    
+    .buddy-radio-option input[type="radio"] {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--bl-color-primary, #8F011B);
+        cursor: pointer;
+    }
+    
+    .bl-btn-secondary {
+        padding: 10px 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        background: transparent;
+        color: var(--bl-color-text, #1A1A1A);
+        border: 1px solid var(--bl-color-border, #CCCCCC);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    
+    .bl-btn-secondary:hover {
+        background: rgba(0, 0, 0, 0.05);
+    }
+    
+    .bl-btn-primary {
+        padding: 10px 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        background: var(--bl-color-primary, #8F011B);
+        color: #FFFFFF;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    
+    .bl-btn-primary:hover {
+        background: var(--bl-color-primary-hover, #7A0117);
+    }
 </style>
 
 <script>
@@ -496,6 +654,58 @@
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && activeModal) {
             closeModal();
+        }
+    });
+    
+    // Buddy Pass Modal Handlers
+    document.addEventListener('click', function(e) {
+        // Open buddy modal
+        const buddyTrigger = e.target.closest('[data-buddy-modal-target]');
+        if (buddyTrigger) {
+            e.preventDefault();
+            const modalId = buddyTrigger.getAttribute('data-buddy-modal-target');
+            openModal(modalId, buddyTrigger);
+            return;
+        }
+        
+        // Cancel button
+        if (e.target.classList.contains('buddy-cancel-btn')) {
+            closeModal();
+            return;
+        }
+        
+        // Save button
+        if (e.target.classList.contains('buddy-save-btn')) {
+            const passKey = e.target.getAttribute('data-pass-key');
+            const modal = e.target.closest('.bl-buddy-modal');
+            const selectedRadio = modal.querySelector('input[name="buddy-' + passKey + '"]:checked');
+            const hasAvailable = selectedRadio && selectedRadio.value === 'yes';
+            
+            fetch('/api/buddy-pass', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    pass_key: passKey,
+                    available: hasAvailable
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the link text
+                    const link = document.querySelector('[data-buddy-modal-target="' + modal.id + '"]');
+                    if (link) {
+                        link.textContent = hasAvailable ? 'Yes' : 'No';
+                    }
+                    closeModal();
+                }
+            })
+            .catch(err => {
+                console.error('Error saving buddy pass:', err);
+            });
+            return;
         }
     });
 })();
