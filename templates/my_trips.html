@@ -162,8 +162,37 @@
 
         <!-- My Trips Tab -->
         <div id="tab-my_trips" class="bl-trip-list" role="tabpanel" {% if active_tab != 'my_trips' %}style="display: none;"{% endif %}>
-            {% if upcoming_trips and upcoming_trips|length > 0 %}
-                {% for trip in upcoming_trips %}
+            {# Pending Trip Invites - show first, visually distinct #}
+            {% if invited_trips and invited_trips|length > 0 %}
+                <div class="invited-trips-section">
+                    <p class="section-label" style="font-size: 0.75rem; text-transform: uppercase; color: var(--bl-color-text-muted); margin-bottom: 8px; font-weight: 600;">Trip Invites</p>
+                    {% for trip in invited_trips %}
+                    {% if trip and trip.id %}
+                    <div class="bl-trip-card bl-trip-card-invited" style="border: 2px solid var(--bl-color-primary); background: rgba(143, 1, 27, 0.03);">
+                        <div class="bl-trip-card-header" style="flex-direction: column; align-items: flex-start;">
+                            <div class="bl-trip-card-content">
+                                <p class="bl-trip-card-dates">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
+                                <p class="bl-trip-card-resort">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% elif trip.mountain %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% else %}Resort TBD{% endif %}</p>
+                                <p class="bl-trip-card-pass" style="color: var(--bl-color-primary); font-weight: 500;">Invited by {{ trip.user.first_name if trip.user else 'a friend' }}</p>
+                            </div>
+                            <div class="invite-actions" style="display: flex; gap: 12px; margin-top: 12px; width: 100%;">
+                                <button class="invite-accept-btn" data-trip-id="{{ trip.id }}" style="flex: 1; padding: 10px; background: var(--bl-color-primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Accept</button>
+                                <button class="invite-decline-btn" data-trip-id="{{ trip.id }}" style="flex: 1; padding: 10px; background: transparent; color: var(--bl-color-text-muted); border: 1px solid var(--bl-color-border); border-radius: 8px; font-weight: 600; cursor: pointer;">Decline</button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {# User's own trips + accepted guest trips #}
+            {% set all_my_trips = (upcoming_trips or []) + (accepted_guest_trips or []) %}
+            {% if all_my_trips|length > 0 %}
+                {% if invited_trips and invited_trips|length > 0 %}
+                <p class="section-label" style="font-size: 0.75rem; text-transform: uppercase; color: var(--bl-color-text-muted); margin: 16px 0 8px 0; font-weight: 600;">My Trips</p>
+                {% endif %}
+                {% for trip in all_my_trips|sort(attribute='start_date') %}
                 {% if trip and trip.id %}
                 <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
                     <div class="bl-trip-card">
@@ -171,7 +200,7 @@
                             <div class="bl-trip-card-content">
                                 <p class="bl-trip-card-dates">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
                                 <p class="bl-trip-card-resort">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% elif trip.mountain %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% else %}Resort TBD{% endif %}</p>
-                                <p class="bl-trip-card-pass">{% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.invite_summary %} · {{ trip.invite_summary }}{% endif %}</p>
+                                <p class="bl-trip-card-pass">{% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.user_id != user.id %} · Going with {{ trip.user.first_name if trip.user else 'a friend' }}{% elif trip.invite_summary %} · {{ trip.invite_summary }}{% endif %}</p>
                             </div>
                             <span class="bl-trip-edit">View</span>
                         </div>
@@ -179,7 +208,7 @@
                 </a>
                 {% endif %}
                 {% endfor %}
-            {% else %}
+            {% elif not invited_trips or invited_trips|length == 0 %}
                 <div class="empty-state-container">
                     <p class="empty-state-title">No trips yet</p>
                     <p class="empty-state-desc">Add trips you're planning so friends can see where you're skiing.</p>
@@ -342,6 +371,62 @@
                     document.getElementById('tab-' + tabName).style.display = 'flex';
 
                     window.history.replaceState({}, '', '{{ url_for("my_trips") }}?tab=' + tabName);
+                });
+            });
+
+            // Trip Invite Accept/Decline handlers
+            document.querySelectorAll('.invite-accept-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tripId = this.getAttribute('data-trip-id');
+                    const card = this.closest('.bl-trip-card');
+                    
+                    fetch('/trips/' + tripId + '/respond', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ response: 'accept' })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert(data.error || 'Failed to accept invite');
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error accepting invite:', err);
+                        alert('Something went wrong. Please try again.');
+                    });
+                });
+            });
+
+            document.querySelectorAll('.invite-decline-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tripId = this.getAttribute('data-trip-id');
+                    const card = this.closest('.bl-trip-card');
+                    
+                    fetch('/trips/' + tripId + '/respond', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ response: 'decline' })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            card.remove();
+                            // Check if any invites left
+                            const section = document.querySelector('.invited-trips-section');
+                            if (section && section.querySelectorAll('.bl-trip-card').length === 0) {
+                                section.remove();
+                            }
+                        } else {
+                            alert(data.error || 'Failed to decline invite');
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error declining invite:', err);
+                        alert('Something went wrong. Please try again.');
+                    });
                 });
             });
         });

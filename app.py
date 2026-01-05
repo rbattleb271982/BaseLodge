@@ -349,6 +349,28 @@ def emit_trip_invite_accepted_activity(trip, acceptor_user_id, trip_owner_id):
     )
 
 
+def emit_trip_invite_received_activity(trip, inviter_user_id, invitee_user_id):
+    """Create TRIP_INVITE_RECEIVED activity for the invited user."""
+    create_activity(
+        actor_user_id=inviter_user_id,
+        recipient_user_id=invitee_user_id,
+        activity_type=ActivityType.TRIP_INVITE_RECEIVED,
+        object_type='trip',
+        object_id=trip.id
+    )
+
+
+def emit_trip_invite_declined_activity(trip, decliner_user_id, trip_owner_id):
+    """Create TRIP_INVITE_DECLINED activity for the trip owner."""
+    create_activity(
+        actor_user_id=decliner_user_id,
+        recipient_user_id=trip_owner_id,
+        activity_type=ActivityType.TRIP_INVITE_DECLINED,
+        object_type='trip',
+        object_id=trip.id
+    )
+
+
 def emit_friend_joined_trip_activities(trip, joiner_user_id):
     """Create FRIEND_JOINED_TRIP activities for other participants on the trip."""
     participants = SkiTripParticipant.query.filter(
@@ -1541,6 +1563,40 @@ def my_trips():
     except Exception:
         past_trips = []
 
+    # Get trips where user is INVITED (pending invites)
+    invited_trips = []
+    try:
+        invited_participations = SkiTripParticipant.query.filter(
+            SkiTripParticipant.user_id == current_user.id,
+            SkiTripParticipant.status == GuestStatus.INVITED
+        ).all()
+        invited_trip_ids = [p.trip_id for p in invited_participations]
+        if invited_trip_ids:
+            invited_trips = SkiTrip.query.filter(
+                SkiTrip.id.in_(invited_trip_ids),
+                SkiTrip.end_date >= today
+            ).order_by(SkiTrip.start_date.asc()).all() or []
+    except Exception:
+        invited_trips = []
+
+    # Get trips where user is ACCEPTED as guest (not owner)
+    accepted_guest_trips = []
+    try:
+        accepted_participations = SkiTripParticipant.query.filter(
+            SkiTripParticipant.user_id == current_user.id,
+            SkiTripParticipant.status == GuestStatus.ACCEPTED
+        ).all()
+        accepted_trip_ids = [p.trip_id for p in accepted_participations]
+        if accepted_trip_ids:
+            # Exclude trips the user owns (they're already in upcoming_trips)
+            accepted_guest_trips = SkiTrip.query.filter(
+                SkiTrip.id.in_(accepted_trip_ids),
+                SkiTrip.user_id != current_user.id,
+                SkiTrip.end_date >= today
+            ).order_by(SkiTrip.start_date.asc()).all() or []
+    except Exception:
+        accepted_guest_trips = []
+
     # Get friends (wrapped for production safety)
     try:
         friend_links = Friend.query.filter_by(user_id=user.id).all()
@@ -1684,6 +1740,8 @@ def my_trips():
         user=user,
         upcoming_trips=upcoming_trips or [],
         past_trips=past_trips or [],
+        invited_trips=invited_trips or [],
+        accepted_guest_trips=accepted_guest_trips or [],
         active_tab=active_tab,
         show_connected_banner=show_connected_banner,
         friends=friends or [],
@@ -4034,6 +4092,8 @@ def send_trip_invites(trip_id):
                 status=GuestStatus.INVITED
             )
             db.session.add(participant)
+            # Emit activity for the invited user
+            emit_trip_invite_received_activity(trip, current_user.id, friend_id)
             invites_sent += 1
     
     if invites_sent > 0:
@@ -4060,24 +4120,34 @@ def respond_to_trip_invite(trip_id):
     ).first()
     
     if not participant or participant.status != GuestStatus.INVITED:
-        abort(404)
+        return jsonify({"success": False, "error": "No pending invite found"}), 404
     
-    action = request.form.get("action")
+    # Support both form data and JSON
+    if request.is_json:
+        data = request.get_json() or {}
+        action = data.get("response") or data.get("action")
+    else:
+        action = request.form.get("action")
     
     if action == "accept":
         participant.status = GuestStatus.ACCEPTED
         emit_trip_invite_accepted_activity(trip, current_user.id, trip.user_id)
         emit_friend_joined_trip_activities(trip, current_user.id)
         db.session.commit()
+        if request.is_json:
+            return jsonify({"success": True, "message": "You've joined the trip!"})
         flash("You've joined the trip!", "success")
         return redirect(url_for("trip_detail", trip_id=trip_id))
     elif action == "decline":
         participant.status = GuestStatus.DECLINED
+        emit_trip_invite_declined_activity(trip, current_user.id, trip.user_id)
         db.session.commit()
+        if request.is_json:
+            return jsonify({"success": True, "message": "Invite declined"})
         flash("Invite declined.", "info")
-        return redirect(url_for("home"))
+        return redirect(url_for("my_trips"))
     else:
-        abort(400)
+        return jsonify({"success": False, "error": "Invalid action"}), 400
 
 
 @app.route("/api/trips/<int:trip_id>/participant/signals", methods=["POST"])
