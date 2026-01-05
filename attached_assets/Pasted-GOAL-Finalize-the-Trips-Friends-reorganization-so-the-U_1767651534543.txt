@@ -1,0 +1,201 @@
+GOAL
+Finalize the Trips + Friends reorganization so the UI exactly matches the approved mobile designs.
+This is a layout + navigation refactor only. Do NOT invent new features.
+
+========================
+NON-NEGOTIABLE RULES
+========================
+- Do NOT modify the profile summary block at the top of the Trips page
+- Do NOT reintroduce removed toggles anywhere
+- All list cards must be MAX 2 lines of text
+- All actions (“View”, “Start”, “Edit”) must be right-aligned on the card
+- Use existing data + routes wherever possible
+- Mobile-first only
+
+========================
+1. PROFILE SUMMARY (NO CHANGES)
+========================
+On the Trips tab, the following block stays EXACTLY as-is:
+
+- Name
+- Identity line (e.g. “Skier · Ikon · Beginner”)
+- Buddy pass line (e.g. “Ikon buddy passes: Yes”)
+- Equipment line
+- Divider
+- “Mountains I’ve visited”
+- “Mountains I want to visit”
+
+❗ Do not remove, reorder, restyle, or rename anything in this block.
+
+========================
+2. TRIPS TAB — FINAL STRUCTURE
+========================
+Immediately BELOW the profile summary, the Trips tab must appear in this order:
+
+1) Full-width “+ Add trip” button
+2) Open availability row
+3) “See trip ideas →” link
+4) My Trips list
+
+❗ The Trips tab MUST NOT contain any toggles.
+❗ Remove My Trips / Friends’ Trips / Overlaps toggles from this page entirely.
+
+========================
+3. OPEN AVAILABILITY ROW
+========================
+Display as a single row card:
+
+Left:
+- “Open availability · X days”
+
+Right:
+- “Edit”
+
+Below this row:
+- A text link: “See trip ideas →”
+- This link navigates to /trip-ideas
+
+========================
+4. MY TRIPS LIST (TRIPS TAB)
+========================
+Display confirmed trips ONLY.
+
+Each trip card:
+Line 1 (bold):
+- Destination (e.g. “Whistler Blackcomb, BC”)
+
+Line 2 (muted):
+- Date range (e.g. “Feb 23–27”)
+
+Right-aligned action:
+- “View”
+
+❗ Do NOT show:
+- “accepted”
+- friend counts
+- social indicators of any kind
+
+========================
+5. TRIP IDEAS PAGE (/trip-ideas)
+========================
+Create this route if it does not exist.
+
+Purpose:
+- Suggestions based on overlapping open availability
+
+Each card:
+Line 1 (bold):
+- Date range OR destination if known
+  Examples:
+  - “Feb 7–9”
+  - “Feb 23–27 · Whistler”
+
+Line 2 (muted):
+- Social summary
+  Examples:
+  - “2 friends open”
+  - “Alex + 1 other open”
+
+Right-aligned action:
+- “Start →”
+
+Behavior:
+- Clicking “Start” opens Add Trip
+- Prefill dates always
+- Prefill destination ONLY if the overlap includes a specific resort
+- For open-date-only ideas, destination remains empty
+
+========================
+6. FRIENDS TAB — 3-OPTION TOGGLE
+========================
+The Friends tab contains ONE segmented toggle with 3 options:
+
+- Friends
+- Friends’ Trips
+- Overlaps
+
+This toggle COMPLETELY replaces the old Updates/Activity feed.
+The activity feed is removed from the app entirely.
+
+------------------------
+6A. FRIENDS (DEFAULT)
+------------------------
+List of friends.
+
+Each row:
+Line 1:
+- Friend name
+
+Line 2:
+- Identity summary (e.g. “Skier · Epic · Advanced”)
+
+Right-aligned action:
+- “View”
+
+------------------------
+6B. FRIENDS’ TRIPS
+------------------------
+Show UPCOMING trips only.
+
+Each card:
+Line 1:
+- Friend name · Destination
+
+Line 2:
+- Date range · Pass type
+
+Right-aligned action:
+- “View”
+
+Do NOT group trips.
+Each trip is its own card.
+
+------------------------
+6C. OVERLAPS
+------------------------
+Show where the user overlaps with friends.
+
+Two supported types:
+
+A) Destination overlap
+Line 1:
+- Destination name
+
+Line 2:
+- Date range · “You + X friends overlap”
+
+B) Open-day overlap (no destination)
+Line 1:
+- “Open day”
+
+Line 2:
+- Date · “X friends also open”
+
+Right-aligned action:
+- “View”
+
+“View” navigates to a simple details screen showing:
+- Who overlaps
+- Dates
+- CTA: “Start a trip”
+
+========================
+7. NAVIGATION + CLEANUP
+========================
+- Remove any remaining Updates / Activity UI
+- Remove toggles from the Trips tab
+- Ensure Friends tab is the ONLY place with a 3-option toggle
+- Bottom navigation remains unchanged
+
+========================
+8. IMPLEMENTATION NOTE
+========================
+Do NOT do a full redesign.
+Reuse existing components and styles wherever possible.
+This is a structural cleanup + relocation task.
+
+Do not finish until you have manually verified:
+- Trips tab has ZERO toggles
+- Friends tab has EXACTLY one toggle with 3 options
+- Profile summary still includes buddy pass line
+- “See trip ideas” sits BETWEEN open availability and My Trips
