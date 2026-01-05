@@ -80,6 +80,34 @@ is_production = os.environ.get("DATABASE_URL") is not None and "postgresql" in o
 
 app = Flask(__name__)
 
+# ============================================================================
+# SESSION & SECURITY CONFIGURATION
+# ============================================================================
+app.config["SECRET_KEY"] = os.environ.get("SESSION_SECRET")
+if not app.config["SECRET_KEY"]:
+    if not is_production:
+        app.config["SECRET_KEY"] = "dev-secret-key-fallback"
+    else:
+        raise RuntimeError("SESSION_SECRET environment variable is NOT SET in production.")
+
+# Session configuration for Replit iframe environment
+app.config.update(
+    SESSION_COOKIE_SECURE=is_production,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE=os.environ.get("SESSION_COOKIE_SAMESITE", "Lax"),
+    PERMANENT_SESSION_LIFETIME=timedelta(days=7),
+    SESSION_REFRESH_EACH_REQUEST=True
+)
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "auth"
+login_manager.login_message = None
+
+@login_manager.user_loader
+def load_user(user_id):
+    return db.session.get(User, int(user_id))
+
 from utils.countries import COUNTRIES
 
 @app.context_processor
