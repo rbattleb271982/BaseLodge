@@ -1,0 +1,129 @@
+PUT THIS IN AGENT
+
+Goal:
+Improve the Friends → Updates feed so aggregated entries like
+“2 friends are skiing while you're free” become actionable,
+by allowing an inline tap-to-reveal of friend names,
+WITHOUT changing existing grouping logic or making the feed noisy.
+
+STRICT CONSTRAINTS:
+- Do NOT add new screens
+- Do NOT navigate away from the Updates tab
+- Do NOT add avatars, icons, or badges
+- Do NOT change existing aggregation logic
+- Do NOT change filters or sorting elsewhere
+- Presentation + interaction only
+
+--------------------------------------------------
+FEED ORDERING (CRITICAL)
+--------------------------------------------------
+
+All Updates feed items must be ordered by:
+
+created_at DESC
+
+- Newest updates at the top
+- Oldest updates at the bottom
+
+For aggregated updates:
+- created_at MUST be the MAX(created_at) of the underlying
+  grouped activity records
+- Do NOT sort by trip start date
+- Do NOT sort by date range shown in the copy
+- Do NOT sort by friend count
+
+--------------------------------------------------
+BEHAVIOR SPEC (INLINE EXPAND — OPTION 2)
+--------------------------------------------------
+
+When an update represents multiple friends:
+
+Default (collapsed state):
+--------------------------------
+"2 friends are skiing while you're free"
+(date range below, unchanged)
+
+On tap:
+--------------------------------
+Expand inline (directly below the line) to reveal friend names
+in a vertical list using:
+
+First name (Last name)
+
+Example:
+--------------------------------
+Taylor (Nguyen)
+Charles (Brooks)
+
+Rules:
+- Each friend on its own line
+- First name first, last name in parentheses
+- No commas
+- Plain text only
+- Same text color as secondary metadata
+- Slight indentation to show hierarchy
+- No background, no divider, no card
+
+On second tap:
+--------------------------------
+Collapse back to the original aggregate line.
+
+Only ONE update may be expanded at a time.
+Expanding a new item collapses any previously expanded item.
+
+--------------------------------------------------
+COPY RULES
+--------------------------------------------------
+
+- 1 friend → do NOT use this pattern (already shows name)
+- 2–10 friends → list all using the format above
+- >10 friends:
+  - Show first 5
+  - Then show a final line:
+    “+ X others”
+
+--------------------------------------------------
+DATA RULES
+--------------------------------------------------
+
+- Use the same friend records already used to compute the aggregate
+- Full display name = first_name + " (" + last_name + ")"
+- Do NOT add new queries
+- Do NOT recompute grouping client-side
+- If needed, minimally expose first_name and last_name
+  in the existing aggregated activity payload
+
+--------------------------------------------------
+STATE MANAGEMENT
+--------------------------------------------------
+
+- Expanded/collapsed state is client-side only (JavaScript)
+- No persistence
+- Reset expanded state on:
+  - Tab switch
+  - Feed refresh
+  - App background → foreground
+
+--------------------------------------------------
+EXPLICITLY DO NOT DO
+--------------------------------------------------
+
+- Do NOT abbreviate names
+- Do NOT link names
+- Do NOT animate expansion
+- Do NOT add timestamps to expanded rows
+- Do NOT show trip details here
+- Do NOT re-sort the feed on expand/collapse
+
+--------------------------------------------------
+VALIDATION (REQUIRED)
+--------------------------------------------------
+
+- Updates appear in strict created_at DESC order
+- Aggregated updates expand inline with one name per line
+- Long lists remain readable and uncluttered
+- Only one item can be expanded at a time
+- UI remains calm and text-first
+- No regression to Friends list or Trips pages
+
+Do NOT mark complete until all checks pass.
