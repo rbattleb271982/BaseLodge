@@ -1,0 +1,73 @@
+PUT THIS IN AGENT
+
+Goal:
+Implement the final Friends list sorting logic exactly as specified,
+without changing rendering, filters, or data models.
+
+STRICT RULES:
+- Do NOT change UI layout
+- Do NOT change filters
+- Do NOT add badges, headers, or labels
+- Sorting only
+- Deterministic and stable ordering
+
+--------------------------------------------------
+FINAL SORTING LOGIC
+--------------------------------------------------
+
+Sort friends using the following priority, in order:
+
+1) Newly connected friends first
+   - A friend is considered "new" if the friendship was created
+     within the last 7 days.
+   - New friends should float to the top temporarily.
+   - After 7 days, they follow normal sorting.
+
+2) Friends with upcoming trips
+   - Friends who have ≥1 upcoming trip come before friends
+     with no upcoming trips.
+   - Past trips do NOT count here.
+
+3) Most recently added upcoming trip
+   - Among friends with upcoming trips:
+     sort by the most recent upcoming trip creation date (DESC).
+   - This reflects recent activity, not total trip count.
+
+4) Alphabetical by first name (A–Z)
+   - Final tie-breaker for predictability.
+
+--------------------------------------------------
+EXPLICITLY DO NOT DO
+--------------------------------------------------
+
+- Do NOT sort by total trip count
+- Do NOT sort by skill level
+- Do NOT sort by pass type
+- Do NOT re-sort when filters are applied
+- Do NOT change ordering dynamically while scrolling
+
+--------------------------------------------------
+PSEUDOCODE (GUIDANCE ONLY)
+--------------------------------------------------
+
+Sort key should behave like:
+
+(
+  is_new_friend DESC,
+  has_upcoming_trip DESC,
+  latest_upcoming_trip_created_at DESC,
+  first_name ASC
+)
+
+--------------------------------------------------
+VALIDATION (REQUIRED)
+--------------------------------------------------
+
+Manually verify:
+1. Newly added friends appear near the top for 7 days
+2. Friends with upcoming trips appear above friends with none
+3. Recent trip activity affects ordering
+4. Alphabetical order is stable within ties
+5. Filters only hide/show, never re-sort
+
+Do NOT mark complete until all conditions pass.
