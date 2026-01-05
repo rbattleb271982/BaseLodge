@@ -1,0 +1,142 @@
+Goal:
+Add per-user lesson selection and carpool functionality to trips in BaseLodge.
+All logic must be per-user, per-trip, with clean defaults and no scope creep.
+
+--------------------------------
+DATA MODEL
+--------------------------------
+
+Extend the UserTrip (or TripParticipant) model with the following fields:
+
+1) taking_lesson
+- Type: Enum('yes', 'no', 'maybe')
+- Default: 'no'
+- Nullable: false
+
+2) carpool_role
+- Type: Enum('driver', 'rider', null)
+- Default: null
+
+3) carpool_seats
+- Type: Integer
+- Nullable: true
+- Only valid if carpool_role = 'driver'
+
+4) needs_ride
+- Type: Boolean
+- Nullable: true
+- Only valid if carpool_role = 'rider'
+
+Constraints:
+- A user may only have ONE carpool role per trip
+- Switching roles must clear fields from the previous role
+- Neutral default = no carpool role selected
+
+Backfill:
+- Existing UserTrip rows should default to:
+  - taking_lesson = 'no'
+  - carpool_role = null
+
+--------------------------------
+TRIP VISIBILITY RULES
+--------------------------------
+
+- All trips are friends-visible by default
+- Group trips are participant-only
+- Do NOT introduce a new visibility setting
+
+Carpool visibility:
+- Group trips → visible to trip participants only
+- Friends-visible trips → visible to friends (read-only)
+
+Lesson visibility:
+- Visible only to trip participants
+
+--------------------------------
+UI / UX
+--------------------------------
+
+Trip edit screen (for all participants):
+
+Section order (must match exactly):
+1. Transportation
+2. Carpool
+3. Lesson
+
+CARPOOL SECTION:
+- Role selector:
+  - Driver
+  - Needs a ride
+  - Not participating (default)
+
+If Driver:
+- Show required input: "# of seats available"
+
+If Rider:
+- Show checkbox: "Needs a ride" (auto-true)
+
+Switching roles:
+- Must clear previous role data automatically
+
+LESSON SECTION:
+- Label: "Taking a lesson?"
+- Options: Yes / No / Maybe
+- Helper text (optional):
+  "For coordination only."
+
+--------------------------------
+UPDATES / ACTIVITY FEED
+--------------------------------
+
+Trigger an update when:
+- A user selects Driver
+- A driver adds or changes seat count
+
+Audience:
+- Friends with overlapping trip dates only
+
+Do NOT notify:
+- Non-overlapping friends
+- Group-only trips
+- Lesson changes
+
+Standardized copy (use exactly this phrasing):
+"X offering 2 carpool seats to Aspen"
+
+Rules:
+- Use "to", not "at"
+- Keep phrasing short and feed-style
+- No punctuation at the end
+- Replace any existing longer or passive variants
+
+--------------------------------
+PERMISSIONS
+--------------------------------
+
+- Users may edit ONLY their own lesson and carpool data
+- Trip owners have no special edit rights over others
+- Friends can view carpool signals only (no actions)
+
+--------------------------------
+OUT OF SCOPE (DO NOT ADD)
+--------------------------------
+
+- Messaging or chat
+- Cost splitting
+- Scheduling or time windows
+- Lesson timing or instructors
+- Ride requests or approvals
+- Location tracking
+- Any AI or matching logic
+
+--------------------------------
+VALIDATION
+--------------------------------
+
+Confirm:
+- Users can freely switch between driver and rider roles
+- Default state is neutral (no carpool role)
+- Carpool visibility inherits trip visibility
+- Lesson selection is informational only
+- Existing trips do not break
+- Updates feed copy matches spec exactly
