@@ -3747,17 +3747,23 @@ def edit_trip_form(trip_id):
     original_start = trip.start_date
     original_end = trip.end_date
     user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
+    
+    # Get current user's participant record for this trip
+    my_participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, user_id=current_user.id
+    ).first()
+    my_transportation = my_participant.transportation_status.value if my_participant and my_participant.transportation_status else None
 
     if request.method == "POST":
         resort_id = request.form.get("resort_id")
         start_date_str = request.form.get("start_date")
         end_date_str = request.form.get("end_date")
         is_public = request.form.get("is_public") == "on"
-        ride_intent = request.form.get("ride_intent") or None
+        transportation_status = request.form.get("transportation_status") or None
         trip_equipment_status = request.form.get("trip_equipment_status") or "use_default"
         accommodation_status = request.form.get("accommodation_status") or None
         accommodation_link = request.form.get("accommodation_link") or None
-        if accommodation_status == "none_yet":
+        if accommodation_status in ("none_yet", "not_booked"):
             accommodation_link = None
 
         errors = []
@@ -3803,6 +3809,7 @@ def edit_trip_form(trip_id):
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
                 user_passes=user_passes,
+                my_transportation=my_transportation,
             )
         
         overlapping = SkiTrip.query.filter(
@@ -3824,6 +3831,7 @@ def edit_trip_form(trip_id):
                 overlap_trip=overlapping,
                 overlap_resort_name=resort.name,
                 user_passes=user_passes,
+                my_transportation=my_transportation,
             )
 
         dates_changed = (start_date != original_start or end_date != original_end)
@@ -3834,11 +3842,19 @@ def edit_trip_form(trip_id):
         trip.start_date = start_date
         trip.end_date = end_date
         trip.is_public = is_public
-        trip.ride_intent = ride_intent
         trip.trip_equipment_status = trip_equipment_status if trip_equipment_status != 'use_default' else None
-        trip.accommodation_status = accommodation_status if accommodation_status != 'none_yet' else None
+        trip.accommodation_status = accommodation_status if accommodation_status not in ('none_yet', 'not_booked') else None
         trip.accommodation_link = accommodation_link
         trip.trip_duration = SkiTrip.calculate_duration(start_date, end_date)
+        
+        # Update current user's transportation_status on their participant record
+        if my_participant and transportation_status:
+            try:
+                my_participant.transportation_status = ParticipantTransportation(transportation_status)
+            except ValueError:
+                pass  # Invalid value, ignore
+        elif my_participant and not transportation_status:
+            my_participant.transportation_status = None
         
         try:
             emit_trip_updated_activities(trip, current_user.id, dates_changed=dates_changed)
@@ -3855,6 +3871,7 @@ def edit_trip_form(trip_id):
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
                 user_passes=user_passes,
+                my_transportation=my_transportation,
             )
 
     return render_template(
@@ -3864,6 +3881,7 @@ def edit_trip_form(trip_id):
         user=current_user,
         form_action=url_for("edit_trip_form", trip_id=trip.id),
         user_passes=user_passes,
+        my_transportation=my_transportation,
     )
 
 @app.route("/trips/<int:trip_id>")
