@@ -1,0 +1,120 @@
+PUT THIS IN AGENT
+
+Bug fix: Invited trips are being treated as accepted.
+
+================================================
+CURRENT BROKEN BEHAVIOR (CONFIRMED)
+================================================
+
+When a user is INVITED to a trip, it is currently being treated as if the user
+has already ACCEPTED the trip.
+
+Specifically:
+- Invited trips appear immediately as active / “going” trips
+- Invited users may be treated as participants
+- This creates an implicit auto-accept behavior
+
+This is incorrect.
+
+INVITED ≠ ACCEPTED
+
+================================================
+AUTHORITATIVE TRIP STATES
+================================================
+
+Each user’s relationship to a trip must be ONE of:
+
+- INVITED (pending)
+- ACCEPTED (going)
+- DECLINED (not going)
+
+These states must be respected consistently across all views.
+
+================================================
+1) MY TRIPS TAB – INVITED STATE
+================================================
+
+When a user is INVITED to a trip:
+
+- The trip SHOULD appear in My Trips
+- It MUST be clearly labeled as “Invited”
+- It MUST show Accept and Decline actions
+- It MUST NOT be treated as an accepted/active trip
+- It MUST be visually distinct from accepted trips
+
+Do NOT:
+- Include invited trips in “Going” or accepted lists
+- Allow invited users to edit transportation
+- Treat invited users as participants
+
+================================================
+2) ACCEPT / DECLINE BEHAVIOR
+================================================
+
+When the user ACCEPTS an invite:
+- Update status to ACCEPTED
+- Move the trip into the normal active trips list
+- Add the user to “Who’s Going” for the organizer
+- Enable per-person transportation editing
+- Generate an update for the organizer
+
+When the user DECLINES an invite:
+- Update status to DECLINED
+- Remove the trip from My Trips
+- Do NOT treat the user as a participant
+- Generate an update for the organizer
+
+================================================
+3) UPDATES TAB (FRIENDS SCREEN)
+================================================
+
+Activity / update behavior:
+
+When an invite is CREATED:
+- Add an update for the invited user:
+  “You were invited to a trip to [Resort]”
+
+When an invite is ACCEPTED:
+- Add an update for the organizer:
+  “[Name] accepted your trip invite”
+
+When an invite is DECLINED:
+- Add an update for the organizer:
+  “[Name] declined your trip invite”
+
+If activity/update types already exist for these events, reuse them.
+If not, create minimal activity types for:
+- invite_received
+- invite_accepted
+- invite_declined
+
+No notifications outside the Updates tab are required.
+
+================================================
+4) DATA & FILTERING GUARDRAILS
+================================================
+
+- INVITED users must NEVER be included in:
+  - Accepted participant counts
+  - “Who’s Going” accepted lists
+- ACCEPTED users only appear after explicit acceptance
+- Filtering logic must explicitly check invite status
+- Do NOT assume participation based on record existence
+
+================================================
+SUCCESS CRITERIA
+================================================
+
+- Invited trips appear as “Invited” only
+- Accept / Decline works correctly
+- No auto-accept behavior
+- Updates reflect invite, accept, decline events
+- Transportation is editable ONLY after acceptance
+- Organizer and invitee views are consistent
+
+================================================
+IMPORTANT SCOPE NOTE
+================================================
+
+This is a state + visibility consistency fix, NOT a new feature.
+Please avoid refactors outside invite state handling.
