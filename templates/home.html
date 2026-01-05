@@ -448,84 +448,9 @@
         </div>
         {% endif %}
 
-        {% set has_trips = my_trips and my_trips|length > 0 %}
-
-        <!-- My Trips Section -->
-        <div class="my-trips-section">
-            <div class="my-trips-header" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
-                <span>My Trips</span>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    {% if my_trips and my_trips|length > 0 %}
-                    <a href="{{ url_for('add_trip') }}" class="my-trips-add-btn" style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500; text-decoration: none; pointer-events: auto;" onclick="event.stopPropagation();">
-                        + Create a trip
-                    </a>
-                    {% endif %}
-                    <span class="my-trips-chevron">{% if my_trips and my_trips|length > 1 %}▸{% else %}▾{% endif %}</span>
-                </div>
-            </div>
-            <div class="my-trips-content" {% if my_trips and my_trips|length > 1 %}style="display: none;"{% endif %}>
-
-                {% if pending_invites and pending_invites|length > 0 %}
-                <div class="bl-invites-section" style="margin-bottom: 20px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; margin: 0 0 12px 0; color: var(--bl-color-text);">Trip Invites</h3>
-                    {% for invite in pending_invites %}
-                    <div class="bl-invite-card" style="background: linear-gradient(135deg, rgba(143, 1, 27, 0.06), rgba(143, 1, 27, 0.02)); border: 1px solid rgba(143, 1, 27, 0.15); border-radius: var(--bl-radius-lg); padding: 14px 16px; margin-bottom: 10px;">
-                        <div style="margin-bottom: 10px;">
-                            <p style="font-size: 0.95rem; font-weight: 600; color: var(--bl-color-text); margin: 0 0 4px 0;">
-                                {% if invite.trip.resort %}{{ invite.trip.resort.name }}{% else %}{{ invite.trip.mountain }}{% endif %}
-                            </p>
-                            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0 0 2px 0;">
-                                {{ format_trip_dates(invite.trip) }}
-                            </p>
-                            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">
-                                Invited by {{ invite.inviter.first_name }}{% if invite.inviter.last_name %} {{ invite.inviter.last_name }}{% endif %}
-                            </p>
-                        </div>
-                        <div style="display: flex; gap: 10px;">
-                            <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=invite.trip.id) }}" style="flex: 1;">
-                                <input type="hidden" name="action" value="accept">
-                                <button type="submit" class="bl-btn-primary" style="width: 100%; padding: 10px; font-size: 0.9rem;">Accept</button>
-                            </form>
-                            <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=invite.trip.id) }}" style="flex: 1;">
-                                <input type="hidden" name="action" value="decline">
-                                <button type="submit" class="bl-btn-outline" style="width: 100%; padding: 10px; font-size: 0.9rem;">Decline</button>
-                            </form>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-
-                <div class="bl-trip-list">
-                    {% if my_trips %}
-                        {% for trip in my_trips %}
-                        <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;" class="my-trip-item" data-duration="{{ trip.trip_duration }}" data-equipment="{{ trip.get_effective_equipment_status() }}">
-                            <div class="bl-trip-card">
-                                <div class="bl-trip-card-header">
-                                    <div class="bl-trip-card-content">
-                                        <p class="bl-trip-card-resort" style="font-weight: 600;">{% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</p>
-                                        <p class="bl-trip-card-dates" style="color: var(--bl-color-text-muted);">{{ format_trip_dates(trip) }}</p>
-                                    </div>
-                                    <span class="bl-trip-edit">View</span>
-                                </div>
-                            </div>
-                        </a>
-                        {% endfor %}
-                        <div id="no-filter-results" style="display: none;">
-                            <div class="empty-state-container">
-                                <p class="empty-state-title">No trips match this filter.</p>
-                                <p class="empty-state-desc">Try a different duration or add a new trip.</p>
-                            </div>
-                        </div>
-                    {% else %}
-                        <div class="empty-state-container">
-                            <p class="empty-state-title">No trips yet</p>
-                            <p class="empty-state-desc">Add trips you're planning so friends can see where you're skiing.</p>
-                            <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="display: inline-block; margin-top: 12px; text-decoration: none; padding: 12px 24px; font-size: 15px;">Create a trip</a>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
+        <!-- + Add trip button -->
+        <div style="margin-bottom: 16px;">
+            <a href="{{ url_for('add_trip') }}" style="display: block; width: 100%; padding: 14px 24px; background: var(--bl-color-primary); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; text-decoration: none; text-align: center;">+ Add trip</a>
         </div>
 
         <!-- Open Availability Section -->
@@ -541,6 +466,63 @@
         <a href="{{ url_for('trip_ideas') }}" style="display: block; text-align: center; font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500; margin-bottom: 16px; text-decoration: none;">
             See trip ideas →
         </a>
+
+        <!-- Pending Trip Invites -->
+        {% if pending_invites and pending_invites|length > 0 %}
+        <div style="margin-bottom: 16px;">
+            <p style="font-size: 12px; text-transform: uppercase; color: var(--bl-color-text-muted); margin: 0 0 8px 0; font-weight: 600; letter-spacing: 0.5px;">Trip Invites</p>
+            {% for invite in pending_invites %}
+            <div style="background: linear-gradient(135deg, rgba(143, 1, 27, 0.06), rgba(143, 1, 27, 0.02)); border: 1px solid rgba(143, 1, 27, 0.15); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;">
+                <div style="margin-bottom: 10px;">
+                    <p style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 4px 0;">
+                        {% if invite.trip.resort %}{{ invite.trip.resort.name }}{% if invite.trip.resort.state %}, {{ invite.trip.resort.state }}{% endif %}{% else %}{{ invite.trip.mountain }}{% endif %}
+                    </p>
+                    <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0;">
+                        {{ format_trip_dates(invite.trip) }}
+                    </p>
+                    <p style="font-size: 13px; color: var(--bl-color-primary); font-weight: 500; margin: 4px 0 0 0;">
+                        Invited by {{ invite.inviter.first_name }}{% if invite.inviter.last_name %} {{ invite.inviter.last_name }}{% endif %}
+                    </p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=invite.trip.id) }}" style="flex: 1;">
+                        <input type="hidden" name="action" value="accept">
+                        <button type="submit" class="bl-btn-primary" style="width: 100%; padding: 10px; font-size: 0.9rem;">Accept</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=invite.trip.id) }}" style="flex: 1;">
+                        <input type="hidden" name="action" value="decline">
+                        <button type="submit" class="bl-btn-outline" style="width: 100%; padding: 10px; font-size: 0.9rem;">Decline</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- My Trips List -->
+        {% if my_trips and my_trips|length > 0 %}
+        {% if pending_invites and pending_invites|length > 0 %}
+        <p style="font-size: 12px; text-transform: uppercase; color: var(--bl-color-text-muted); margin: 0 0 8px 0; font-weight: 600; letter-spacing: 0.5px;">My Trips</p>
+        {% endif %}
+        <div style="margin-bottom: 20px;">
+            {% for trip in my_trips %}
+            <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <p style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{% if trip.resort %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% else %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% endif %}</p>
+                        <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0;">{{ format_trip_dates(trip) }}</p>
+                    </div>
+                    <span style="flex-shrink: 0; margin-left: 12px; font-size: 14px; color: var(--bl-color-primary); font-weight: 500;">View</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% elif not pending_invites or pending_invites|length == 0 %}
+        <div style="text-align: center; padding: 24px 16px;">
+            <p style="font-size: 0.95rem; font-weight: 500; color: var(--bl-color-text); margin: 0 0 8px 0;">No trips yet</p>
+            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">Add trips you're planning so friends can see where you're skiing.</p>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Visited Resorts Modal -->
@@ -600,57 +582,6 @@
         }
 
 
-        // My Trips expand/collapse
-        document.addEventListener('DOMContentLoaded', function () {
-            const header = document.querySelector('.my-trips-header');
-            const content = document.querySelector('.my-trips-content');
-            const chevron = document.querySelector('.my-trips-chevron');
-
-            if (!header || !content) return;
-
-            header.addEventListener('click', function () {
-                const isHidden = content.style.display === 'none';
-                content.style.display = isHidden ? 'block' : 'none';
-                chevron.textContent = isHidden ? '▾' : '▸';
-            });
-        });
-
-        let currentDurationFilter = 'all';
-        let currentEquipmentFilter = 'all';
-
-        function filterTrips(filterType, value) {
-            if (filterType === 'duration') {
-                currentDurationFilter = value;
-                document.querySelectorAll('[data-filter^="duration-"]').forEach(btn => {
-                    btn.classList.toggle('active', btn.getAttribute('data-filter') === 'duration-' + value);
-                });
-            } else if (filterType === 'equipment') {
-                currentEquipmentFilter = value;
-                document.querySelectorAll('[data-filter^="equip-"]').forEach(btn => {
-                    btn.classList.toggle('active', btn.getAttribute('data-filter') === 'equip-' + value);
-                });
-            }
-
-            const trips = document.querySelectorAll('.my-trip-item');
-            let visibleCount = 0;
-
-            trips.forEach(trip => {
-                const tripDuration = trip.getAttribute('data-duration');
-                const tripEquipment = trip.getAttribute('data-equipment');
-
-                const durationMatch = (currentDurationFilter === 'all' || tripDuration === currentDurationFilter);
-                const equipmentMatch = (currentEquipmentFilter === 'all' || tripEquipment === currentEquipmentFilter);
-
-                const shouldShow = durationMatch && equipmentMatch;
-                trip.style.display = shouldShow ? 'block' : 'none';
-                if (shouldShow) visibleCount++;
-            });
-
-            const noResults = document.getElementById('no-filter-results');
-            if (noResults) {
-                noResults.style.display = (visibleCount === 0) ? 'block' : 'none';
-            }
-        }
     </script>
 
     {% if show_welcome_screen %}

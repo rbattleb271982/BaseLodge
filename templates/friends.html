@@ -401,9 +401,12 @@
         {% if friend_trips and friend_trips|length > 0 %}
         <div class="flat-list">
             {% for trip in friend_trips %}
-            <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="friend-trip-row">
-                <div class="friend-trip-line1">{{ trip.user.first_name }}{% if trip.user.last_name %} {{ trip.user.last_name }}{% endif %} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state_code or trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</div>
-                <div class="friend-trip-line2">{{ format_trip_dates(trip) }} · {% if trip.resort and trip.resort.pass_brands %}{{ trip.resort.pass_brands.split(',')[0]|replace(' Pass', '') }}{% elif trip.resort and trip.resort.brand %}{{ trip.resort.brand|replace(' Pass', '') }}{% else %}Other{% endif %}</div>
+            <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="friend-trip-row" style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1; min-width: 0;">
+                    <div class="friend-trip-line1">{{ trip.user.first_name }}{% if trip.user.last_name %} {{ trip.user.last_name }}{% endif %} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state_code or trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</div>
+                    <div class="friend-trip-line2">{{ format_trip_dates(trip) }} · {% if trip.resort and trip.resort.pass_brands %}{{ trip.resort.pass_brands.split(',')[0]|replace(' Pass', '') }}{% elif trip.resort and trip.resort.brand %}{{ trip.resort.brand|replace(' Pass', '') }}{% else %}Other{% endif %}</div>
+                </div>
+                <span style="flex-shrink: 0; margin-left: 12px; font-size: 14px; color: var(--bl-color-primary); font-weight: 500;">View</span>
             </a>
             {% endfor %}
         </div>

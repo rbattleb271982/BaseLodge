@@ -140,34 +140,23 @@
             <a href="{{ url_for('add_trip') }}" class="add-trip-button">+ Add trip</a>
         </div>
 
-        <!-- Pending Trip Invites -->
-        {% if invited_trips and invited_trips|length > 0 %}
-        <div style="margin-bottom: 16px;">
-            <p class="section-label">Trip Invites</p>
-            {% for trip in invited_trips %}
-            {% if trip and trip.id %}
-            <div class="trip-card invited-card" style="flex-direction: column; align-items: stretch;">
-                <div class="trip-card-content">
-                    <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% elif trip.mountain %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% else %}Resort TBD{% endif %}</p>
-                    <p class="trip-card-line2">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
-                    <p style="font-size: 13px; color: var(--bl-color-primary); font-weight: 500; margin: 6px 0 0 0;">Invited by {{ trip.user.first_name if trip.user else 'a friend' }}</p>
-                </div>
-                <div class="invite-actions">
-                    <button class="invite-accept-btn" data-trip-id="{{ trip.id }}">Accept</button>
-                    <button class="invite-decline-btn" data-trip-id="{{ trip.id }}">Decline</button>
-                </div>
+        <!-- Open Availability Section -->
+        <div style="background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <p style="font-size: 0.95rem; margin: 0; font-weight: 500;">
+                    Open availability · {% if user_open_dates and user_open_dates|length > 0 %}{{ user_open_dates|length }} day{% if user_open_dates|length != 1 %}s{% endif %}{% else %}0 days{% endif %}
+                </p>
+                <a href="{{ url_for('add_open_dates') }}" style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500; text-decoration: none;">Edit</a>
             </div>
-            {% endif %}
-            {% endfor %}
         </div>
-        {% endif %}
+        
+        <a href="{{ url_for('trip_ideas') }}" style="display: block; text-align: center; font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500; margin-bottom: 16px; text-decoration: none;">
+            See trip ideas →
+        </a>
 
         <!-- My Trips List -->
         {% set all_my_trips = (upcoming_trips or []) + (accepted_guest_trips or []) %}
         {% if all_my_trips|length > 0 %}
-        {% if invited_trips and invited_trips|length > 0 %}
-        <p class="section-label" style="margin-top: 8px;">My Trips</p>
-        {% endif %}
         <div class="trips-list" style="margin-bottom: 20px;">
             {% for trip in all_my_trips|sort(attribute='start_date') %}
             {% if trip and trip.id %}
@@ -183,81 +172,13 @@
             {% endif %}
             {% endfor %}
         </div>
-        {% elif not invited_trips or invited_trips|length == 0 %}
+        {% else %}
         <div class="empty-state-container">
             <p class="empty-state-title">No trips yet</p>
             <p class="empty-state-desc">Add trips you're planning so friends can see where you're skiing.</p>
         </div>
         {% endif %}
-
-        <!-- Open Availability Section -->
-        <div style="background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <p style="font-size: 0.95rem; margin: 0; font-weight: 500;">
-                    Open availability · {% if user_open_dates and user_open_dates|length > 0 %}{{ user_open_dates|length }} day{% if user_open_dates|length != 1 %}s{% endif %}{% else %}0 days{% endif %}
-                </p>
-                <a href="{{ url_for('add_open_dates') }}" style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500; text-decoration: none;">Edit</a>
-            </div>
-        </div>
-        
-        <a href="{{ url_for('trip_ideas') }}" style="display: block; text-align: center; font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500; margin-bottom: 16px; text-decoration: none;">
-            See trip ideas →
-        </a>
     </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.invite-accept-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const tripId = this.getAttribute('data-trip-id');
-                    const card = this.closest('.trip-card');
-                    
-                    fetch('/trips/' + tripId + '/respond', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ response: 'accept' })
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
-                            location.reload();
-                        } else {
-                            alert(data.error || 'Failed to accept invite');
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Error accepting invite:', err);
-                        alert('Something went wrong. Please try again.');
-                    });
-                });
-            });
-
-            document.querySelectorAll('.invite-decline-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const tripId = this.getAttribute('data-trip-id');
-                    const card = this.closest('.trip-card');
-                    
-                    fetch('/trips/' + tripId + '/respond', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ response: 'decline' })
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
-                            card.remove();
-                        } else {
-                            alert(data.error || 'Failed to decline invite');
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Error declining invite:', err);
-                        alert('Something went wrong. Please try again.');
-                    });
-                });
-            });
-        });
-    </script>
 
     {% include 'components/bottom_nav.html' %}
 </body>

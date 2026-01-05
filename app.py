@@ -1946,11 +1946,17 @@ def trip_ideas():
                     else:
                         social_context = f"{friends[0]['first_name']} + {friend_count - 1} other{'s' if friend_count > 2 else ''} open"
                     
+                    # Condensed date format
+                    date_range = date_obj.strftime('%b %-d')
+                    
                     trip_ideas_list.append({
                         "date_str": date_str,
+                        "start_date_str": date_str,
+                        "end_date_str": date_str,
                         "date_obj": date_obj,
-                        "display_date": date_obj.strftime('%b %-d'),
-                        "day_name": date_obj.strftime('%a'),
+                        "date_range": date_range,
+                        "destination": None,
+                        "resort_id": None,
                         "friends": friends,
                         "friend_count": friend_count,
                         "social_context": social_context,
