@@ -44,6 +44,17 @@ class ParticipantEquipment(PyEnum):
     NEEDS_RENTALS = "needs_rentals"
 
 
+class LessonChoice(PyEnum):
+    YES = "yes"
+    NO = "no"
+    MAYBE = "maybe"
+
+
+class CarpoolRole(PyEnum):
+    DRIVER = "driver"
+    RIDER = "rider"
+
+
 class EquipmentSlot(PyEnum):
     PRIMARY = "primary"
     SECONDARY = "secondary"
@@ -702,6 +713,18 @@ class SkiTripParticipant(db.Model):
         db.Enum(ParticipantEquipment, name='participant_equipment_enum', create_constraint=True),
         nullable=True
     )
+    taking_lesson = db.Column(
+        db.Enum(LessonChoice, name='lesson_choice_enum', create_constraint=True),
+        default=LessonChoice.NO,
+        nullable=False,
+        server_default='no'
+    )
+    carpool_role = db.Column(
+        db.Enum(CarpoolRole, name='carpool_role_enum', create_constraint=True),
+        nullable=True
+    )
+    carpool_seats = db.Column(db.Integer, nullable=True)
+    needs_ride = db.Column(db.Boolean, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     user = db.relationship('User', backref='ski_trip_participations')
@@ -935,6 +958,7 @@ class ActivityType(PyEnum):
     CONNECTION_ACCEPTED = "connection_accepted"
     TRIP_OVERLAP = "trip_overlap"
     FRIEND_TRIP_OVERLAPS_AVAILABILITY = "friend_trip_overlaps_availability"
+    CARPOOL_OFFERED = "carpool_offered"
 
 
 class Activity(db.Model):

@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps
 from flask_migrate import Migrate
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, Event, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, Event, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole
 from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
 from io import BytesIO
@@ -423,6 +423,54 @@ def delete_activities_for_trip(trip_id):
         Activity.object_type == 'trip',
         Activity.object_id == trip_id
     ).delete()
+
+
+def emit_carpool_activity(user, trip, seats):
+    """Emit carpool offered activity to friends with overlapping trip dates.
+    
+    Only emits to friends with trips that overlap dates and location.
+    Group trips do not emit carpool activities (handled at caller).
+    """
+    if user.is_seeded:
+        return
+    
+    friend_ids = get_friend_ids(user.id)
+    if not friend_ids:
+        return
+    
+    # Find friends with overlapping trips at the same location
+    overlapping_friends = set()
+    for friend_id in friend_ids:
+        friend_trips = SkiTrip.query.filter(
+            SkiTrip.user_id == friend_id,
+            SkiTrip.start_date <= trip.end_date,
+            SkiTrip.end_date >= trip.start_date,
+            db.or_(
+                SkiTrip.mountain == trip.mountain,
+                SkiTrip.resort_id == trip.resort_id
+            ) if trip.resort_id else SkiTrip.mountain == trip.mountain
+        ).first()
+        if friend_trips:
+            overlapping_friends.add(friend_id)
+    
+    # Create activity for each overlapping friend
+    mountain_name = trip.mountain or (trip.resort.name if trip.resort else 'Unknown')
+    for friend_id in overlapping_friends:
+        activity = Activity(
+            actor_user_id=user.id,
+            recipient_user_id=friend_id,
+            type=ActivityType.CARPOOL_OFFERED.value,
+            object_type='trip',
+            object_id=trip.id,
+            extra_data={
+                'seats': seats,
+                'mountain': mountain_name
+            }
+        )
+        db.session.add(activity)
+    
+    if overlapping_friends:
+        db.session.commit()
 
 
 def coalesce_date_ranges(date_ranges):
@@ -1939,6 +1987,79 @@ def delete_trip(trip_id):
     db.session.commit()
     
     return jsonify({"success": True})
+
+
+@app.route("/api/trip/<int:trip_id>/participant/settings", methods=["POST"])
+@login_required
+def update_participant_settings(trip_id):
+    """Update current user's lesson and carpool settings for a trip."""
+    trip = SkiTrip.query.get_or_404(trip_id)
+    
+    # Find participant record for current user
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id,
+        user_id=current_user.id
+    ).first()
+    
+    if not participant:
+        return jsonify({"success": False, "error": "You are not a participant of this trip"}), 403
+    
+    data = request.get_json() or {}
+    
+    # Track if carpool changed for activity emission
+    old_carpool_role = participant.carpool_role
+    old_carpool_seats = participant.carpool_seats
+    
+    # Update lesson setting
+    if 'taking_lesson' in data:
+        lesson_val = data['taking_lesson']
+        if lesson_val in ['yes', 'no', 'maybe']:
+            participant.taking_lesson = LessonChoice(lesson_val)
+    
+    # Update carpool settings
+    if 'carpool_role' in data:
+        new_role = data['carpool_role']
+        
+        if new_role == 'driver':
+            participant.carpool_role = CarpoolRole.DRIVER
+            participant.needs_ride = None
+            seats = data.get('carpool_seats', 1)
+            participant.carpool_seats = max(1, min(int(seats), 10)) if seats else 1
+        elif new_role == 'rider':
+            participant.carpool_role = CarpoolRole.RIDER
+            participant.carpool_seats = None
+            participant.needs_ride = True
+        else:
+            # Not participating
+            participant.carpool_role = None
+            participant.carpool_seats = None
+            participant.needs_ride = None
+    
+    # Handle seat update separately if driver
+    if 'carpool_seats' in data and participant.carpool_role == CarpoolRole.DRIVER:
+        seats = data['carpool_seats']
+        participant.carpool_seats = max(1, min(int(seats), 10)) if seats else 1
+    
+    db.session.commit()
+    
+    # Emit activity if user became driver or changed seats
+    if participant.carpool_role == CarpoolRole.DRIVER:
+        should_emit = (
+            old_carpool_role != CarpoolRole.DRIVER or
+            old_carpool_seats != participant.carpool_seats
+        )
+        if should_emit and not trip.is_group_trip:
+            emit_carpool_activity(current_user, trip, participant.carpool_seats)
+    
+    return jsonify({
+        "success": True,
+        "participant": {
+            "taking_lesson": participant.taking_lesson.value if participant.taking_lesson else 'no',
+            "carpool_role": participant.carpool_role.value if participant.carpool_role else None,
+            "carpool_seats": participant.carpool_seats,
+            "needs_ride": participant.needs_ride
+        }
+    })
 
 @app.route("/api/friends/invite", methods=["POST"])
 @login_required

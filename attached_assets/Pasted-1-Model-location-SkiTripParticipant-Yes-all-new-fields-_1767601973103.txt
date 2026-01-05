@@ -1,0 +1,76 @@
+1. Model location (SkiTripParticipant)
+Yes — all new fields must live on SkiTripParticipant.
+	•	Add:
+	•	taking_lesson
+	•	carpool_role
+	•	carpool_seats
+	•	needs_ride (see #4 for nuance)
+
+Important rule:
+There must always be a SkiTripParticipant record for the trip owner.
+	•	If a solo trip currently does not create a participant record for the owner, create one automatically at trip creation.
+	•	This is required so lesson + carpool data have a consistent home.
+	•	Going forward, assume every user on a trip (including owner) has exactly one participant row.
+
+⸻
+
+2. Transportation vs Carpool (they are separate)
+They are distinct concepts and should both remain.
+	•	Transportation = how you personally are getting there (drive, fly, train, etc.)
+	•	Carpool = whether you are coordinating rides with friends
+
+So:
+	•	Do not remove or replace transportation_status
+	•	UI order remains:
+	1.	Transportation
+	2.	Carpool
+	3.	Lesson
+
+Transportation stays general; carpool is social.
+
+⸻
+
+3. Existing ride_intent on SkiTrip
+ride_intent on the Trip model is now deprecated in practice.
+	•	Carpool is now per-user, per-trip
+	•	Do not use SkiTrip.ride_intent for new logic
+	•	Leave the field in place for backward compatibility (no breaking migration)
+	•	All new behavior should read/write only from:
+	•	SkiTripParticipant.carpool_role
+	•	carpool_seats
+
+In short:
+
+Treat ride_intent as legacy and unused going forward.
+
+⸻
+
+4. needs_ride field necessity
+Good catch.
+
+You’re right that:
+	•	carpool_role = 'rider' implies needs_ride = true
+
+However, keep the needs_ride field anyway, because:
+	•	It keeps the schema explicit and readable
+	•	It gives flexibility later (e.g., rider but “no longer needs ride”)
+	•	It avoids overloading enum semantics
+
+Rules:
+	•	When role = rider, set needs_ride = true
+	•	When switching away from rider, clear needs_ride
+
+So yes, it’s redundant by design, and that’s acceptable here.
+
+⸻
+
+5. Trip owner participation
+There must always be a SkiTripParticipant record for the owner.
+	•	If it already exists → use it
+	•	If it doesn’t → create it automatically
+	•	This applies to:
+	•	Solo trips
+	•	Group trips
+	•	Legacy trips
+
+This avoids special-case logic everywhere else.

@@ -506,6 +506,8 @@
                             accepted your connection request
                         {% elif activity.type == 'trip_overlap' %}
                             has a trip that overlaps with yours{% if trip %} at <span class="activity-context">{{ trip.mountain }}</span>{% endif %}
+                        {% elif activity.type == 'carpool_offered' %}
+                            is offering {{ activity.extra_data.get('seats', 0) }} carpool seat{% if activity.extra_data.get('seats', 0) != 1 %}s{% endif %}{% if activity.extra_data.get('mountain') %} to <span class="activity-context">{{ activity.extra_data.get('mountain') }}</span>{% endif %}
                         {% else %}
                             did something
                         {% endif %}
