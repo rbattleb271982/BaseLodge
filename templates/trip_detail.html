@@ -435,6 +435,46 @@
             padding: 24px;
             color: var(--bl-color-text-muted);
         }
+        
+        .modal-search {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            background-color: var(--bl-color-surface);
+        }
+        .friend-search-input {
+            width: 100%;
+            padding: 10px 14px;
+            font-size: 0.95rem;
+            border: 1px solid var(--bl-color-border);
+            border-radius: 8px;
+            background-color: var(--bl-color-bg);
+            color: var(--bl-color-text);
+            outline: none;
+        }
+        .friend-search-input:focus {
+            border-color: var(--bl-color-primary);
+        }
+        .friend-search-input::placeholder {
+            color: var(--bl-color-text-muted);
+        }
+        
+        .selection-count {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            margin-bottom: 8px;
+            display: block;
+            min-height: 1.2em;
+        }
+        
+        .no-search-results {
+            text-align: center;
+            padding: 24px;
+            color: var(--bl-color-text-muted);
+        }
+        .no-search-results p {
+            margin: 0;
+            font-size: 0.95rem;
+        }
     </style>
 </head>
 <body>
@@ -642,16 +682,28 @@
                 <button class="modal-close" onclick="closeInviteModal()">&times;</button>
             </div>
             <form method="POST" action="{{ url_for('send_trip_invites', trip_id=trip.id) }}" id="inviteForm">
-                <div class="modal-body">
+                {% if friends_for_invite %}
+                <div class="modal-search">
+                    <input type="text" 
+                           id="friendSearchInput" 
+                           placeholder="Search friends..." 
+                           autocomplete="off"
+                           class="friend-search-input">
+                </div>
+                {% endif %}
+                <div class="modal-body" id="friendsList">
                     {% if friends_for_invite %}
                         {% for f in friends_for_invite %}
-                        <div class="friend-select-row {% if f.disabled %}disabled{% endif %}">
+                        <div class="friend-select-row {% if f.disabled %}disabled{% endif %}"
+                             data-first-name="{{ f.user.first_name|lower }}"
+                             data-last-name="{{ (f.user.last_name or '')|lower }}"
+                             data-full-name="{{ f.user.first_name|lower }} {{ (f.user.last_name or '')|lower }}">
                             <input type="checkbox" 
                                    name="friend_ids" 
                                    value="{{ f.user.id }}" 
                                    id="friend_{{ f.user.id }}"
                                    {% if f.disabled %}disabled{% endif %}
-                                   onchange="updateSendButton()">
+                                   onchange="updateSelectionState()">
                             <div class="friend-select-info">
                                 <p class="friend-select-name">{{ f.user.first_name }} {{ f.user.last_name or '' }}</p>
                                 <p class="friend-select-identity">{{ f.user|identity_line }}</p>
@@ -661,6 +713,9 @@
                             {% endif %}
                         </div>
                         {% endfor %}
+                        <div class="no-search-results" id="noSearchResults" style="display: none;">
+                            <p>No friends match your search</p>
+                        </div>
                     {% else %}
                         <div class="empty-friends">
                             <p>No friends to invite yet.</p>
@@ -669,6 +724,7 @@
                     {% endif %}
                 </div>
                 <div class="modal-footer">
+                    <span class="selection-count" id="selectionCount"></span>
                     <button type="submit" class="bl-btn-primary" id="sendInvitesBtn" disabled>Send invites</button>
                 </div>
             </form>
@@ -677,6 +733,7 @@
     
     <script>
         let scrollPosition = 0;
+        let friendsSorted = false;
         
         function handleInviteClick() {
             const transBadge = document.getElementById('my-trans-badge');
@@ -692,11 +749,39 @@
             openInviteModal();
         }
         
+        function sortFriendsList() {
+            if (friendsSorted) return;
+            const container = document.getElementById('friendsList');
+            if (!container) return;
+            
+            const rows = Array.from(container.querySelectorAll('.friend-select-row'));
+            const noResults = document.getElementById('noSearchResults');
+            
+            rows.sort((a, b) => {
+                const nameA = a.dataset.firstName || '';
+                const nameB = b.dataset.firstName || '';
+                return nameA.localeCompare(nameB);
+            });
+            
+            rows.forEach(row => container.appendChild(row));
+            if (noResults) container.appendChild(noResults);
+            friendsSorted = true;
+        }
+        
         function openInviteModal() {
             scrollPosition = window.pageYOffset;
             document.body.classList.add('modal-open');
             document.body.style.top = `-${scrollPosition}px`;
             document.getElementById('inviteModal').classList.add('active');
+            
+            sortFriendsList();
+            
+            const searchInput = document.getElementById('friendSearchInput');
+            if (searchInput) {
+                searchInput.value = '';
+                filterFriends('');
+            }
+            updateSelectionState();
         }
         
         function closeInviteModal() {
@@ -706,10 +791,56 @@
             window.scrollTo(0, scrollPosition);
         }
         
-        function updateSendButton() {
-            const checkboxes = document.querySelectorAll('#inviteForm input[type="checkbox"]:not(:disabled):checked');
-            document.getElementById('sendInvitesBtn').disabled = checkboxes.length === 0;
+        function filterFriends(query) {
+            const rows = document.querySelectorAll('#friendsList .friend-select-row');
+            const noResults = document.getElementById('noSearchResults');
+            const searchTerm = query.toLowerCase().trim();
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                if (!searchTerm) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    const firstName = row.dataset.firstName || '';
+                    const lastName = row.dataset.lastName || '';
+                    const fullName = row.dataset.fullName || '';
+                    
+                    const matches = firstName.includes(searchTerm) || 
+                                    lastName.includes(searchTerm) || 
+                                    fullName.includes(searchTerm);
+                    
+                    row.style.display = matches ? '' : 'none';
+                    if (matches) visibleCount++;
+                }
+            });
+            
+            if (noResults) {
+                noResults.style.display = visibleCount === 0 ? '' : 'none';
+            }
         }
+        
+        function updateSelectionState() {
+            const checkboxes = document.querySelectorAll('#inviteForm input[type="checkbox"]:not(:disabled):checked');
+            const count = checkboxes.length;
+            const btn = document.getElementById('sendInvitesBtn');
+            const countEl = document.getElementById('selectionCount');
+            
+            btn.disabled = count === 0;
+            
+            if (countEl) {
+                countEl.textContent = count > 0 ? `${count} selected` : '';
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('friendSearchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    filterFriends(this.value);
+                });
+            }
+        });
         
         document.getElementById('inviteModal').addEventListener('click', function(e) {
             if (e.target === this) {
