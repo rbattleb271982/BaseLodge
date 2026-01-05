@@ -1,0 +1,127 @@
+PUT THIS IN AGENT
+
+Goal
+Unify the Trips and Friends experiences by:
+- Simplifying the Trips tab to only show the user’s own trips + open availability
+- Moving Friends’ Trips and Overlaps fully into the Friends tab
+- Making Trip Ideas a separate page (not a toggle)
+
+Scope
+This is a UI + routing change only. Do not change database schema or business logic.
+
+--------------------------------------------------
+1) TRIPS TAB (Bottom nav: “Trips”)
+--------------------------------------------------
+
+Remove:
+- The segmented toggle (My Trips / Friends’ Trips / Trip Overlaps / Open Avail.)
+- Any references to Friends’ Trips or Overlaps on this page
+
+Trips tab should contain ONLY, in this order:
+
+A) Profile summary card (unchanged)
+- Name
+- Rider type / pass / level
+- Buddy passes
+- Equipment
+- Mountains visited / wishlist
+
+B) Primary CTA
+- Full-width button: “+ Add trip” (unchanged behavior)
+
+C) Open Availability section
+- Single row: “Open availability · X days”
+- Right-aligned action: “Edit”
+- Beneath it, a text link: “See trip ideas →”
+- This link routes to a NEW page: /trip-ideas
+
+D) My Trips section
+- Header: “My Trips”
+- List of the user’s own trips only
+- Card format (exactly):
+    Line 1 (bold): Destination (e.g., “Whistler Blackcomb, BC”)
+    Line 2 (muted): Date range (e.g., “Feb 23–27”)
+    Right side action: “View”
+- Do NOT show:
+    - Friend counts
+    - “Accepted” language
+    - Any social indicators
+
+--------------------------------------------------
+2) TRIP IDEAS PAGE (NEW PAGE)
+--------------------------------------------------
+
+Route: /trip-ideas
+
+Purpose:
+Suggestions based on overlapping open availability.
+
+Layout:
+- Header: “Trip Ideas”
+- Subtext: “Suggestions based on overlapping availability”
+
+Each card:
+- Line 1 (bold): Date range OR destination if known
+- Line 2 (muted): Social context (e.g., “2 friends open” or “Alex + 1 other open”)
+- Right-aligned action: “Start →”
+
+Behavior:
+- Tapping “Start” opens Add Trip
+- Prefill dates
+- Prefill resort ONLY if the overlap includes a specific destination
+- Otherwise leave resort blank
+
+--------------------------------------------------
+3) FRIENDS TAB (Bottom nav: “Friends”)
+--------------------------------------------------
+
+Keep segmented control here ONLY:
+- Friends
+- Friends’ Trips
+- Overlaps
+
+Remove:
+- The old “Updates” or activity feed entirely (do not relocate it)
+
+A) Friends tab
+- List of friends
+- Two-line rows max
+- Right-aligned action: “View”
+- No changes needed here
+
+B) Friends’ Trips tab
+- This is where the old Trips > Friends’ Trips content now lives
+- Card format MUST be exactly:
+    Line 1 (bold): Friend name · Destination
+    Line 2 (muted): Date range · Pass
+- Right-aligned action: “View”
+- Do NOT group by destination
+- Do NOT include past trips (only current & future)
+
+C) Overlaps tab
+- This is where the old Trips > Trip Overlaps content now lives
+- Card format:
+    Line 1 (bold): Destination OR “Open day”
+    Line 2 (muted): Date range · overlap context
+        Examples:
+        - “Feb 23–27 · You + Alex overlap”
+        - “Feb 7 · 2 friends also open”
+- Right-aligned action: “View”
+- Keep language encouraging and actionable
+
+--------------------------------------------------
+4) GLOBAL RULES
+--------------------------------------------------
+
+- Max 2 lines of text per card (excluding buttons)
+- All actions (“View”, “Start”) are right-aligned
+- Normalize all actions to say “View” (no “Details”)
+- Trips tab shows ONLY the user’s data
+- Friends tab owns ALL social trip discovery
+
+--------------------------------------------------
+IMPORTANT
+--------------------------------------------------
+Do NOT leave segmented toggles on the Trips tab.
+If you see My Trips / Friends’ Trips / Trip Overlaps toggles there, remove them.
+Use checkpoints sparingly.
