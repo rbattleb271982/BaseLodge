@@ -738,7 +738,7 @@
                     <th class="checkbox-col"><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th>
                     <th class="sortable" data-sort="id" onclick="sortTable('id')">ID</th>
                     <th class="sortable" data-sort="name" onclick="sortTable('name')">Name</th>
-                    <th class="sortable" data-sort="country" onclick="sortTable('country')">Country</th>
+                    <th class="sortable" data-sort="country" onclick="sortTable('country')">Country Name</th>
                     <th class="sortable" data-sort="state" onclick="sortTable('state')">State/Region</th>
                     <th class="sortable" data-sort="pass" onclick="sortTable('pass')">Pass Brands</th>
                     <th>Status</th>
@@ -764,18 +764,14 @@
                                onblur="saveField(this)">
                     </td>
                     <td>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <input type="text" class="editable-input" 
-                                   data-field="country_code"
-                                   data-id="{{ resort.id }}"
-                                   value="{{ resort.country_code or resort.country or '' }}"
-                                   onblur="saveField(this)"
-                                   style="width: 45px; text-align: center; font-weight: 600;">
-                            <span style="font-size: 12px; color: #718096; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" 
-                                  title="{{ COUNTRIES.get(resort.country_code or resort.country, resort.country_code or resort.country) }}">
-                                {{ COUNTRIES.get(resort.country_code or resort.country, resort.country_code or resort.country) }}
-                            </span>
-                        </div>
+                        <input type="text" class="editable-input" 
+                               data-field="country_name_override"
+                               data-id="{{ resort.id }}"
+                               value="{{ resort.display_country_name }}"
+                               placeholder="{{ COUNTRIES.get(resort.country_code or resort.country, resort.country_code or resort.country) }}"
+                               onblur="saveCountryName(this)"
+                               style="width: 140px;">
+                        <input type="hidden" data-field="country_code" value="{{ resort.country_code or resort.country or '' }}">
                     </td>
                     <td>
                         <input type="text" class="editable-input" 
@@ -1098,6 +1094,27 @@
                     if (field === 'name') row.dataset.name = value.toLowerCase();
                     if (field === 'country_code') row.dataset.country = value;
                     if (field === 'state_code') row.dataset.state = value;
+                } else {
+                    showToast(data.message || 'Update failed', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
+        
+        async function saveCountryName(input) {
+            const id = input.dataset.id;
+            const value = input.value.trim();
+            
+            try {
+                const response = await fetch('/api/admin/resorts/update-country-name', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ resort_id: parseInt(id), country_name_override: value })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showToast('Country name updated', 'success');
                 } else {
                     showToast(data.message || 'Update failed', 'error');
                 }

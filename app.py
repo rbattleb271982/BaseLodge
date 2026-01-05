@@ -8208,6 +8208,7 @@ def admin_export_resorts_excel():
             "ID",
             "Name",
             "Country",
+            "Country Name",
             "State / Region",
             "Pass Brands",
             "Status"
@@ -8224,9 +8225,10 @@ def admin_export_resorts_excel():
             ws.cell(row=row_idx, column=1, value=r.id)
             ws.cell(row=row_idx, column=2, value=r.name or '')
             ws.cell(row=row_idx, column=3, value=r.country_code or r.country or '')
-            ws.cell(row=row_idx, column=4, value=r.state_code or r.state or '')
-            ws.cell(row=row_idx, column=5, value=r.pass_brands or r.brand or '')
-            ws.cell(row=row_idx, column=6, value="ACTIVE" if r.is_active else "INACTIVE")
+            ws.cell(row=row_idx, column=4, value=r.display_country_name)
+            ws.cell(row=row_idx, column=5, value=r.state_code or r.state or '')
+            ws.cell(row=row_idx, column=6, value=r.pass_brands or r.brand or '')
+            ws.cell(row=row_idx, column=7, value="ACTIVE" if r.is_active else "INACTIVE")
             
         # Adjust column widths
         for col_idx in range(1, len(headers) + 1):
@@ -8328,6 +8330,26 @@ def admin_update_resort_field():
     
     db.session.commit()
     return jsonify({'success': True})
+
+
+@app.route("/api/admin/resorts/update-country-name", methods=["POST"])
+@login_required
+@admin_required
+def admin_update_country_name():
+    """Update a resort's country name override."""
+    data = request.get_json()
+    resort_id = data.get('resort_id')
+    country_name_override = data.get('country_name_override', '').strip()
+    
+    resort = Resort.query.get(resort_id)
+    if not resort:
+        return jsonify({'success': False, 'message': 'Resort not found'}), 404
+    
+    # Set to None if empty (falls back to COUNTRIES lookup)
+    resort.country_name_override = country_name_override if country_name_override else None
+    db.session.commit()
+    
+    return jsonify({'success': True, 'display_country_name': resort.display_country_name})
 
 
 @app.route("/api/admin/resorts/toggle-active", methods=["POST"])
@@ -8451,8 +8473,15 @@ def admin_import_resorts_excel():
         rows_skipped = 0
         errors = []
         
-        # Header row is 2 (Note is 1)
-        # Data starts at row 3
+        # Detect schema version by checking header row (row 2)
+        # New format (7 cols): ID, Name, Country, Country Name, State/Region, Pass Brands, Status
+        # Legacy format (6 cols): ID, Name, Country, State/Region, Pass Brands, Status
+        header_row = list(ws.iter_rows(min_row=2, max_row=2, values_only=True))[0] if ws.max_row >= 2 else None
+        has_country_name_col = False
+        if header_row:
+            headers_lower = [str(h).lower().strip() if h else '' for h in header_row]
+            has_country_name_col = 'country name' in headers_lower
+        
         for row_idx, row in enumerate(ws.iter_rows(min_row=3, values_only=True), start=3):
             if not row or not any(row):
                 continue
@@ -8460,10 +8489,21 @@ def admin_import_resorts_excel():
             rows_processed += 1
             resort_id = row[0]
             name = row[1]
-            country = row[2]  # Country code (e.g., US, CA)
-            state_region = row[3]
-            pass_brands = row[4]
-            status = str(row[5]).upper() if row[5] else None
+            country = row[2]  # Country code (e.g., US, CA) - REQUIRED
+            
+            # Parse based on detected schema
+            if has_country_name_col:
+                # New 7-column format
+                country_name_override = row[3] if len(row) > 3 else None
+                state_region = row[4] if len(row) > 4 else None
+                pass_brands = row[5] if len(row) > 5 else None
+                status = str(row[6]).upper() if len(row) > 6 and row[6] else None
+            else:
+                # Legacy 6-column format (no Country Name column)
+                country_name_override = None
+                state_region = row[3] if len(row) > 3 else None
+                pass_brands = row[4] if len(row) > 4 else None
+                status = str(row[5]).upper() if len(row) > 5 and row[5] else None
             
             # Validation for status
             if status and status not in ['ACTIVE', 'INACTIVE']:
@@ -8507,6 +8547,7 @@ def admin_import_resorts_excel():
                     slug=slug,
                     country_code=str(country).strip().upper(),
                     country=str(country).strip().upper(),
+                    country_name_override=str(country_name_override).strip() if country_name_override and str(country_name_override).strip() else None,
                     state_code=str(state_region).strip() if state_region else None,
                     state=str(state_region).strip() if state_region else None,
                     pass_brands=str(pass_brands).strip() if pass_brands else None,
@@ -8539,6 +8580,13 @@ def admin_import_resorts_excel():
                 if new_country != resort.country_code:
                     resort.country_code = new_country
                     resort.country = new_country
+                    updated = True
+            
+            # Optional country name override
+            if country_name_override is not None:
+                new_override = str(country_name_override).strip() if country_name_override else None
+                if new_override != resort.country_name_override:
+                    resort.country_name_override = new_override if new_override else None
                     updated = True
                 
             if state_region is not None:

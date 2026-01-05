@@ -410,6 +410,7 @@ class Resort(db.Model):
     # Canonical geography columns (SINGLE SOURCE OF TRUTH)
     country_code = db.Column(db.String(10), nullable=True)  # ISO-2 code: US, CA, JP, etc.
     country_name = db.Column(db.String(100), nullable=True)  # Display: United States, Canada, etc.
+    country_name_override = db.Column(db.String(100), nullable=True)  # Optional admin override for display
     state_code = db.Column(db.String(50), nullable=True)  # Region code: CO, BC, Hokkaido, etc.
     state_name = db.Column(db.String(100), nullable=True)  # Display: Colorado, British Columbia, etc.
     
@@ -447,6 +448,20 @@ class Resort(db.Model):
         brands = self.get_pass_brands_list()
         order = {b: i for i, b in enumerate(self.VALID_PASS_BRANDS)}
         return sorted(brands, key=lambda x: order.get(x, 999))
+    
+    @property
+    def display_country_name(self):
+        """Returns the resolved country name for display.
+        
+        Priority: country_name_override > COUNTRIES lookup > raw ISO code
+        """
+        if self.country_name_override:
+            return self.country_name_override
+        from utils.countries import COUNTRIES
+        iso_code = self.country_code or self.country
+        if iso_code:
+            return COUNTRIES.get(iso_code.upper(), iso_code)
+        return ''
 
     def __repr__(self):
         return f'<Resort {self.name} ({self.state_code or self.state})>'
