@@ -1,0 +1,130 @@
+OBJECTIVE
+Correct the behavior and UI of the **Overlaps** toggle under the **Friends** tab.
+This is a correction and relocation task only. Do NOT modify any other tabs or pages.
+
+All overlap detection logic already exists and should be reused.
+This work must behave exactly like the old Overlaps toggle on the My Trips page,
+with the addition that availability can be edited even when overlaps exist.
+
+--------------------------------------------------
+SCOPE (DO NOT TOUCH)
+--------------------------------------------------
+- Trips tab (confirmed correct)
+- Trip Ideas page (confirmed correct)
+- Friends tab → Friends
+- Friends tab → Friends’ Trips
+- Profile summary (including buddy pass line)
+- Availability calendar/editor logic and routes
+
+--------------------------------------------------
+OVERLAPS TOGGLE — REQUIRED BEHAVIOR
+--------------------------------------------------
+
+The Overlaps toggle lives under:
+Friends tab → Overlaps
+
+--------------------------------------------------
+1) WHEN OVERLAPS EXIST
+--------------------------------------------------
+
+Render a list of overlap cards.
+
+Each card must follow this EXACT format (2 lines max):
+
+Line 1 (primary, bold):
+- Destination name (e.g. “Whistler Blackcomb”)
+  OR
+- “Open day” if no destination is associated
+
+Line 2 (secondary, muted):
+- Date range · You + X friends
+  Examples:
+  - “Feb 23–27 · You + 2 friends”
+  - “Feb 7 · You + 1 friend”
+
+Right-aligned action:
+- “View”
+
+Rules:
+- Do NOT show friend names on the card
+- Do NOT exceed two lines of text
+- One card per overlap (no grouping)
+- Ordering:
+  1) Soonest date first
+  2) If same date, higher friend count first
+
+--------------------------------------------------
+2) EDIT AVAILABILITY (MUST BE PRESENT EVEN WHEN OVERLAPS EXIST)
+--------------------------------------------------
+
+When overlaps exist, the user must still be able to edit availability.
+
+Add a clearly visible secondary action on the Overlaps screen:
+
+- Text: “Edit availability”
+- Style: text link (not a button)
+- Placement: header area or directly below the list
+- Route: MUST navigate to the SAME calendar editor used by:
+  “Open availability · X days → Edit” on the My Trips page
+
+This is a second entry point to the same flow — do NOT create a new route,
+modal, or calendar.
+
+--------------------------------------------------
+3) WHEN NO OVERLAPS EXIST (EMPTY STATE)
+--------------------------------------------------
+
+Show the following empty state:
+
+Title:
+No overlaps yet
+
+Body:
+When you add the days you’re free, we’ll look for times you and friends overlap.
+
+CTA (text link):
+Add your availability →
+
+Behavior:
+- Routes to the SAME availability calendar/editor as above
+- Same behavior as the old Overlaps empty state when it lived on My Trips
+
+--------------------------------------------------
+4) OVERLAP CARD “VIEW” ACTION
+--------------------------------------------------
+
+Tapping “View” on an overlap card navigates to a simple overlap detail screen.
+
+That screen should show:
+- Header:
+  - Destination name OR “Open day”
+- Date range
+- List of friends who overlap (first names only)
+- Primary CTA:
+  “Start a trip”
+
+“Start a trip” behavior:
+- Prefill dates
+- Prefill destination ONLY if one exists
+- Do NOT auto-invite friends
+
+--------------------------------------------------
+GUARDRAILS (NON-NEGOTIABLE)
+--------------------------------------------------
+- Do NOT change overlap detection logic
+- Do NOT add new data models
+- Do NOT remove overlaps when availability exists
+- Do NOT remove the ability to edit availability when overlaps exist
+- Do NOT change any other part of the app
+
+--------------------------------------------------
+DEFINITION OF DONE
+--------------------------------------------------
+- Overlaps tab works identically to the old My Trips Overlaps toggle
+- Availability can be edited whether overlaps exist or not
+- Empty state routes to the correct calendar
+- No regressions in Trips or Friends tabs
+
+Do not mark complete until tested with:
+- At least one overlap present
+- Zero overlaps present
