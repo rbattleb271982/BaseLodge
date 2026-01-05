@@ -30,54 +30,6 @@
             background: #6B000F;
         }
 
-        .trips-section {
-            margin-bottom: var(--bl-space-8);
-        }
-
-        .section-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin-bottom: var(--bl-space-4);
-        }
-
-        .trip-card-line1 {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin: 0 0 4px 0;
-        }
-
-        .trip-card-line2 {
-            font-size: 0.85rem;
-            color: var(--bl-color-text-muted);
-            margin: 0;
-        }
-
-        .trip-actions {
-            display: flex;
-            gap: var(--bl-space-3);
-            align-items: center;
-        }
-
-        .trip-action-link {
-            font-size: 14px;
-            color: var(--bl-color-primary);
-            text-decoration: none;
-            font-weight: 500;
-            padding: var(--bl-space-2) var(--bl-space-3);
-        }
-
-        .trip-action-link:active {
-            opacity: 0.7;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: var(--bl-space-8);
-            color: var(--bl-color-text-muted);
-        }
-
         .empty-state-container {
             text-align: center;
             padding: 24px 16px;
@@ -94,43 +46,83 @@
             margin: 0 0 16px 0;
         }
 
-        .friend-trip-row {
-            display: block;
-            text-decoration: none;
-            color: inherit;
-            padding: 10px 12px;
+        .trip-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             background: var(--bl-color-surface);
             border: 1px solid var(--bl-color-border-soft);
-            border-radius: 8px;
-            margin-bottom: 8px;
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
         }
-        .friend-trip-row:active {
-            background: var(--bl-color-bg-secondary);
+        .trip-card-content {
+            flex: 1;
+            min-width: 0;
         }
-        .friend-trip-line1 {
+        .trip-card-line1 {
             font-size: 15px;
             font-weight: 600;
             color: var(--bl-color-text);
-            line-height: 1.3;
+            margin: 0 0 4px 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .friend-trip-line2 {
+        .trip-card-line2 {
             font-size: 14px;
-            font-weight: 400;
             color: var(--bl-color-text-muted);
-            line-height: 1.3;
-            margin-top: 4px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            margin: 0;
+        }
+        .trip-card-action {
+            flex-shrink: 0;
+            margin-left: 12px;
+            font-size: 14px;
+            color: var(--bl-color-primary);
+            font-weight: 500;
+        }
+
+        .invited-card {
+            border: 2px solid var(--bl-color-primary);
+            background: rgba(143, 1, 27, 0.03);
+        }
+        .invite-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+            width: 100%;
+        }
+        .invite-accept-btn, .invite-decline-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .invite-accept-btn {
+            background: var(--bl-color-primary);
+            color: white;
+            border: none;
+        }
+        .invite-decline-btn {
+            background: transparent;
+            color: var(--bl-color-text-muted);
+            border: 1px solid var(--bl-color-border);
+        }
+
+        .section-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 8px 0;
+            font-weight: 600;
+            letter-spacing: 0.5px;
         }
     </style>
 </head>
 <body>
     <div class="page-container" style="padding: 16px 16px 88px;">
-        <!-- Profile Card -->
         {% if user %}
         {% set eq = primary_equipment if (primary_equipment and (primary_equipment.brand or primary_equipment.boot_brand)) else (secondary_equipment if (secondary_equipment and (secondary_equipment.brand or secondary_equipment.boot_brand)) else none) %}
         {% with profile_user=user, is_owner=true, upcoming_trips_count=(upcoming_trips|length if upcoming_trips else 0), equipment=eq, visited_resorts=(visited_resorts if visited_resorts else []), wishlist_resorts=(wishlist_resorts if wishlist_resorts else []) %}
@@ -140,7 +132,7 @@
 
         {% if show_connected_banner %}
         <div style="background: #E8F5E9; color: #2E7D32; padding: 12px; border-radius: var(--bl-radius-md); margin-bottom: 20px; font-weight: 600; text-align: center;">
-            🤝 You’re now connected
+            You're now connected
         </div>
         {% endif %}
 
@@ -148,237 +140,77 @@
             <a href="{{ url_for('add_trip') }}" class="add-trip-button">+ Add trip</a>
         </div>
 
-        <div style="margin-bottom:12px;" role="tablist">
-            <div class="bl-tabs-wrapper">
-                <button class="bl-tab-button {% if active_tab == 'my_trips' %}active{% endif %}" data-tab="my_trips" role="tab" aria-selected="{% if active_tab == 'my_trips' %}true{% else %}false{% endif %}"><span>My</span><span>Trips</span></button>
-                <div class="bl-tab-divider"></div>
-                <button class="bl-tab-button {% if active_tab == 'friends' %}active{% endif %}" data-tab="friends" role="tab" aria-selected="{% if active_tab == 'friends' %}true{% else %}false{% endif %}"><span>Friends'</span><span>Trips</span></button>
-                <div class="bl-tab-divider"></div>
-                <button class="bl-tab-button {% if active_tab == 'overlaps' %}active{% endif %}" data-tab="overlaps" role="tab" aria-selected="{% if active_tab == 'overlaps' %}true{% else %}false{% endif %}"><span>Trip</span><span>Overlaps</span></button>
-                <div class="bl-tab-divider"></div>
-                <button class="bl-tab-button {% if active_tab == 'open' %}active{% endif %}" data-tab="open" role="tab" aria-selected="{% if active_tab == 'open' %}true{% else %}false{% endif %}"><span>Open</span><span>Avail.</span></button>
+        <!-- Pending Trip Invites -->
+        {% if invited_trips and invited_trips|length > 0 %}
+        <div style="margin-bottom: 16px;">
+            <p class="section-label">Trip Invites</p>
+            {% for trip in invited_trips %}
+            {% if trip and trip.id %}
+            <div class="trip-card invited-card" style="flex-direction: column; align-items: stretch;">
+                <div class="trip-card-content">
+                    <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% elif trip.mountain %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% else %}Resort TBD{% endif %}</p>
+                    <p class="trip-card-line2">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
+                    <p style="font-size: 13px; color: var(--bl-color-primary); font-weight: 500; margin: 6px 0 0 0;">Invited by {{ trip.user.first_name if trip.user else 'a friend' }}</p>
+                </div>
+                <div class="invite-actions">
+                    <button class="invite-accept-btn" data-trip-id="{{ trip.id }}">Accept</button>
+                    <button class="invite-decline-btn" data-trip-id="{{ trip.id }}">Decline</button>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- My Trips List -->
+        {% set all_my_trips = (upcoming_trips or []) + (accepted_guest_trips or []) %}
+        {% if all_my_trips|length > 0 %}
+        {% if invited_trips and invited_trips|length > 0 %}
+        <p class="section-label" style="margin-top: 8px;">My Trips</p>
+        {% endif %}
+        <div class="trips-list" style="margin-bottom: 20px;">
+            {% for trip in all_my_trips|sort(attribute='start_date') %}
+            {% if trip and trip.id %}
+            <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                <div class="trip-card">
+                    <div class="trip-card-content">
+                        <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% elif trip.mountain %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% else %}Resort TBD{% endif %}</p>
+                        <p class="trip-card-line2">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
+                    </div>
+                    <span class="trip-card-action">View</span>
+                </div>
+            </a>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% elif not invited_trips or invited_trips|length == 0 %}
+        <div class="empty-state-container">
+            <p class="empty-state-title">No trips yet</p>
+            <p class="empty-state-desc">Add trips you're planning so friends can see where you're skiing.</p>
+        </div>
+        {% endif %}
+
+        <!-- Open Availability Section -->
+        <div style="background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <p style="font-size: 0.95rem; margin: 0; font-weight: 500;">
+                    Open availability · {% if user_open_dates and user_open_dates|length > 0 %}{{ user_open_dates|length }} day{% if user_open_dates|length != 1 %}s{% endif %}{% else %}0 days{% endif %}
+                </p>
+                <a href="{{ url_for('add_open_dates') }}" style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500; text-decoration: none;">Edit</a>
             </div>
         </div>
-
-        <!-- My Trips Tab -->
-        <div id="tab-my_trips" class="bl-trip-list" role="tabpanel" {% if active_tab != 'my_trips' %}style="display: none;"{% endif %}>
-            {# Pending Trip Invites - show first, visually distinct #}
-            {% if invited_trips and invited_trips|length > 0 %}
-                <div class="invited-trips-section">
-                    <p class="section-label" style="font-size: 0.75rem; text-transform: uppercase; color: var(--bl-color-text-muted); margin-bottom: 8px; font-weight: 600;">Trip Invites</p>
-                    {% for trip in invited_trips %}
-                    {% if trip and trip.id %}
-                    <div class="bl-trip-card bl-trip-card-invited" style="border: 2px solid var(--bl-color-primary); background: rgba(143, 1, 27, 0.03);">
-                        <div class="bl-trip-card-header" style="flex-direction: column; align-items: flex-start;">
-                            <div class="bl-trip-card-content">
-                                <p class="bl-trip-card-dates">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
-                                <p class="bl-trip-card-resort">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% elif trip.mountain %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% else %}Resort TBD{% endif %}</p>
-                                <p class="bl-trip-card-pass" style="color: var(--bl-color-primary); font-weight: 500;">Invited by {{ trip.user.first_name if trip.user else 'a friend' }}</p>
-                            </div>
-                            <div class="invite-actions" style="display: flex; gap: 12px; margin-top: 12px; width: 100%;">
-                                <button class="invite-accept-btn" data-trip-id="{{ trip.id }}" style="flex: 1; padding: 10px; background: var(--bl-color-primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Accept</button>
-                                <button class="invite-decline-btn" data-trip-id="{{ trip.id }}" style="flex: 1; padding: 10px; background: transparent; color: var(--bl-color-text-muted); border: 1px solid var(--bl-color-border); border-radius: 8px; font-weight: 600; cursor: pointer;">Decline</button>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                    {% endfor %}
-                </div>
-            {% endif %}
-
-            {# User's own trips + accepted guest trips #}
-            {% set all_my_trips = (upcoming_trips or []) + (accepted_guest_trips or []) %}
-            {% if all_my_trips|length > 0 %}
-                {% if invited_trips and invited_trips|length > 0 %}
-                <p class="section-label" style="font-size: 0.75rem; text-transform: uppercase; color: var(--bl-color-text-muted); margin: 16px 0 8px 0; font-weight: 600;">My Trips</p>
-                {% endif %}
-                {% for trip in all_my_trips|sort(attribute='start_date') %}
-                {% if trip and trip.id %}
-                <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                    <div class="bl-trip-card">
-                        <div class="bl-trip-card-header">
-                            <div class="bl-trip-card-content">
-                                <p class="bl-trip-card-dates">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
-                                <p class="bl-trip-card-resort">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% elif trip.mountain %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% else %}Resort TBD{% endif %}</p>
-                                <p class="bl-trip-card-pass">{% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.user_id != user.id %} · Going with {{ trip.user.first_name if trip.user else 'a friend' }}{% elif trip.invite_summary %} · {{ trip.invite_summary }}{% endif %}</p>
-                            </div>
-                            <span class="bl-trip-edit">View</span>
-                        </div>
-                    </div>
-                </a>
-                {% endif %}
-                {% endfor %}
-            {% elif not invited_trips or invited_trips|length == 0 %}
-                <div class="empty-state-container">
-                    <p class="empty-state-title">No trips yet</p>
-                    <p class="empty-state-desc">Add trips you're planning so friends can see where you're skiing.</p>
-                </div>
-            {% endif %}
-        </div>
-
-        <!-- Friends' Trips Tab -->
-        <div id="tab-friends" class="bl-trip-list" role="tabpanel" {% if active_tab != 'friends' %}style="display: none;"{% endif %}>
-            {% if friend_trips and friend_trips|length > 0 %}
-                {% for trip in friend_trips %}
-                {% if trip and trip.id and trip.user %}
-                <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="friend-trip-row">
-                    <div class="friend-trip-line1">{{ trip.user.first_name or 'Friend' }}{% if trip.user.last_name %} {{ trip.user.last_name }}{% endif %} · {% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state_code %}, {{ trip.resort.state_code }}{% elif trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% elif trip.mountain %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% else %}Resort TBD{% endif %}</div>
-                    <div class="friend-trip-line2">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %} · {% if trip.resort and trip.resort.pass_brands %}{{ trip.resort.pass_brands.split(',')[0]|replace(' Pass', '') }}{% elif trip.resort and trip.resort.brand %}{{ trip.resort.brand|replace(' Pass', '') }}{% else %}Other{% endif %}</div>
-                </a>
-                {% endif %}
-                {% endfor %}
-            {% else %}
-                <div class="empty-state-container">
-                    <p class="empty-state-title">No friends' trips yet</p>
-                    <p class="empty-state-desc">When friends add trips, you'll see them here.</p>
-                </div>
-            {% endif %}
-        </div>
-
-        <!-- Trip Overlaps Tab -->
-        <div id="tab-overlaps" class="bl-trip-list" role="tabpanel" {% if active_tab != 'overlaps' %}style="display: none;"{% endif %}>
-            {% if overlaps and overlaps|length > 0 %}
-                {% for o in overlaps %}
-                {% if o and o.friend_id and o.start_date and o.end_date %}
-                <a href="{{ url_for('friend_profile', friend_id=o.friend_id, resort_id=o.resort_id, overlap_start=o.start_date.strftime('%Y-%m-%d'), overlap_end=o.end_date.strftime('%Y-%m-%d')) }}" style="text-decoration: none; color: inherit;">
-                    <div class="bl-trip-card">
-                        <p class="bl-trip-card-dates">You and {{ o.friend_first_name or 'a friend' }} overlap at {{ o.mountain or 'a resort' }}</p>
-                        <p class="bl-trip-card-resort">{{ format_trip_dates(o) }}</p>
-                        <p class="bl-trip-card-pass">Same resort, {% if o.start_date == o.end_date %}same date{% else %}overlapping dates{% endif %}</p>
-                    </div>
-                </a>
-                {% endif %}
-                {% endfor %}
-            {% else %}
-                <div class="empty-state-container">
-                    <p class="empty-state-title">No overlaps found</p>
-                    <p class="empty-state-desc">When you and friends are skiing at the same place or time, it'll show up here.</p>
-                </div>
-            {% endif %}
-        </div>
-
-        <!-- Open Availability Tab -->
-        <div id="tab-open" class="bl-trip-list" role="tabpanel" {% if active_tab != 'open' %}style="display: none;"{% endif %}>
-            <!-- Open Availability Summary Card -->
-            <div class="open-availability-card">
-                {% if user_open_dates and user_open_dates|length > 0 %}
-                <span class="open-title">You're open on {{ user_open_dates|length }} day{% if user_open_dates|length != 1 %}s{% endif %}</span>
-                <a href="{{ url_for('add_open_dates') }}" class="open-edit">Edit</a>
-                {% else %}
-                <span class="open-title">You haven't marked any open days yet</span>
-                <a href="{{ url_for('add_open_dates') }}" class="open-edit">Add</a>
-                {% endif %}
-            </div>
-
-            {% if open_date_matches and open_date_matches|length > 0 %}
-                {% for match in open_date_matches %}
-                    {% if match and match.friends %}
-                    <div class="open-avail-card" data-modal-target="open-modal-{{ loop.index0 }}" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 12px; margin-bottom: 10px; cursor: pointer;">
-                        <div style="flex: 1; min-width: 0;">
-                            <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 4px 0; color: var(--bl-color-text);">
-                                {{ match.day_name }}, {{ match.display_date }}
-                            </p>
-                            <p style="font-size: 0.85rem; margin: 0; color: var(--bl-color-text-muted);">
-                                You + {{ match.total_count }} friend{% if match.total_count != 1 %}s{% endif %}
-                            </p>
-                        </div>
-                        <span style="font-size: 0.8rem; color: var(--bl-color-primary); font-weight: 500; white-space: nowrap; margin-left: 12px;">View who's open →</span>
-                    </div>
-                    {% endif %}
-                {% endfor %}
-            {% elif user_open_dates and user_open_dates|length > 0 %}
-                <div class="empty-state-container" style="margin-top: 16px;">
-                    <p class="empty-state-title">No friends are open on your dates yet</p>
-                    <p class="empty-state-desc">When friends mark overlapping dates, they'll show up here.</p>
-                </div>
-            {% endif %}
-        </div>
+        
+        <a href="{{ url_for('trip_ideas') }}" style="display: block; text-align: center; font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500; margin-bottom: 16px; text-decoration: none;">
+            See trip ideas →
+        </a>
     </div>
-
-    <!-- Open Availability Bottom Sheet Modals -->
-    {% if open_date_matches %}
-    {% for match in open_date_matches %}
-    <div class="bl-modal-overlay" id="open-modal-{{ loop.index0 }}" aria-hidden="true">
-        <div class="bl-modal" role="dialog" aria-labelledby="open-title-{{ loop.index0 }}" style="max-height: 70vh;">
-            <div class="bl-modal-header">
-                <h2 id="open-title-{{ loop.index0 }}" class="bl-modal-title">{{ match.day_name }}, {{ match.display_date }}</h2>
-                <button type="button" class="bl-modal-close" aria-label="Close">&times;</button>
-            </div>
-            <div class="bl-modal-subhead">{{ match.total_count }} friend{% if match.total_count != 1 %}s{% endif %} open</div>
-            <div class="bl-modal-body" style="padding: 0 16px 16px;">
-                {% if match.friends %}
-                    {% for friend in match.friends | sort(attribute='name') %}
-                    <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="display: block; text-decoration: none; color: var(--bl-color-text); padding: 10px 0; border-bottom: 1px solid var(--bl-color-border-soft);">
-                        <span style="font-size: 0.9rem;">{{ friend.name }}{% if friend.rider_type %} · {{ friend.rider_type }}{% endif %} · {{ friend.display_passes }}{% if friend.skill_level %} · {{ friend.skill_level }}{% endif %}</span>
-                    </a>
-                    {% endfor %}
-                {% else %}
-                    <p style="font-size: 0.9rem; color: var(--bl-color-text-muted); text-align: center; padding: 24px 0;">No friends are open on this day.</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endfor %}
-    {% endif %}
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Open Availability modal handlers
-            document.querySelectorAll('.open-avail-card').forEach(card => {
-                card.addEventListener('click', function() {
-                    const modalId = this.getAttribute('data-modal-target');
-                    const modal = document.getElementById(modalId);
-                    if (modal) {
-                        modal.classList.add('active');
-                        modal.setAttribute('aria-hidden', 'false');
-                    }
-                });
-            });
-
-            // Modal close handlers (overlay click + close button)
-            document.querySelectorAll('.bl-modal-overlay').forEach(overlay => {
-                overlay.addEventListener('click', function(e) {
-                    if (e.target === this) {
-                        this.classList.remove('active');
-                        this.setAttribute('aria-hidden', 'true');
-                    }
-                });
-                const closeBtn = overlay.querySelector('.bl-modal-close');
-                if (closeBtn) {
-                    closeBtn.addEventListener('click', function() {
-                        overlay.classList.remove('active');
-                        overlay.setAttribute('aria-hidden', 'true');
-                    });
-                }
-            });
-            const tabs = document.querySelectorAll('.bl-tab-button');
-            const panels = document.querySelectorAll('.bl-trip-list');
-
-            tabs.forEach(tab => {
-                tab.addEventListener('click', function() {
-                    const tabName = this.getAttribute('data-tab');
-
-                    tabs.forEach(t => {
-                        t.classList.remove('active');
-                        t.setAttribute('aria-selected', 'false');
-                    });
-                    this.classList.add('active');
-                    this.setAttribute('aria-selected', 'true');
-
-                    panels.forEach(panel => {
-                        panel.style.display = 'none';
-                    });
-                    document.getElementById('tab-' + tabName).style.display = 'flex';
-
-                    window.history.replaceState({}, '', '{{ url_for("my_trips") }}?tab=' + tabName);
-                });
-            });
-
-            // Trip Invite Accept/Decline handlers
             document.querySelectorAll('.invite-accept-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const tripId = this.getAttribute('data-trip-id');
-                    const card = this.closest('.bl-trip-card');
+                    const card = this.closest('.trip-card');
                     
                     fetch('/trips/' + tripId + '/respond', {
                         method: 'POST',
@@ -403,7 +235,7 @@
             document.querySelectorAll('.invite-decline-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const tripId = this.getAttribute('data-trip-id');
-                    const card = this.closest('.bl-trip-card');
+                    const card = this.closest('.trip-card');
                     
                     fetch('/trips/' + tripId + '/respond', {
                         method: 'POST',
@@ -414,11 +246,6 @@
                     .then(data => {
                         if (data.success) {
                             card.remove();
-                            // Check if any invites left
-                            const section = document.querySelector('.invited-trips-section');
-                            if (section && section.querySelectorAll('.bl-trip-card').length === 0) {
-                                section.remove();
-                            }
                         } else {
                             alert(data.error || 'Failed to decline invite');
                         }

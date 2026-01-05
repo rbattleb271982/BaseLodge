@@ -503,9 +503,8 @@
                             <div class="bl-trip-card">
                                 <div class="bl-trip-card-header">
                                     <div class="bl-trip-card-content">
-                                        <p class="bl-trip-card-dates">{{ format_trip_dates(trip) }}</p>
-                                        <p class="bl-trip-card-resort">{% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</p>
-                                        <p class="bl-trip-card-pass">{% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}{% if trip.invite_summary %} · {{ trip.invite_summary }}{% endif %}</p>
+                                        <p class="bl-trip-card-resort" style="font-weight: 600;">{% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</p>
+                                        <p class="bl-trip-card-dates" style="color: var(--bl-color-text-muted);">{{ format_trip_dates(trip) }}</p>
                                     </div>
                                     <span class="bl-trip-edit">View</span>
                                 </div>
@@ -529,23 +528,16 @@
             </div>
         </div>
 
-        <!-- Open Availability Row -->
-        {% if user.open_dates and user.open_dates|length > 0 %}
-        <a href="{{ url_for('add_open_dates') }}" style="text-decoration: none; color: inherit; display: block; margin-bottom: 16px; padding: 12px; background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px;">
-            <p style="font-size: 0.9rem; margin: 0;">
-                <strong>You're open on {{ user.open_dates|length }} day{% if user.open_dates|length != 1 %}s{% endif %}</strong>
-            </p>
-        </a>
-        {% else %}
-        <a href="{{ url_for('add_open_dates') }}" style="text-decoration: none; color: inherit; display: block; margin-bottom: 16px; padding: 12px; background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px;">
-            <p style="font-size: 0.9rem; margin: 0;">
-                <strong>Add open availability</strong>
-            </p>
-            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">Mark days you're free to ski</p>
-        </a>
-        {% endif %}
-
-        <!-- See Trip Ideas Link -->
+        <!-- Open Availability Section -->
+        <div style="background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <p style="font-size: 0.95rem; margin: 0; font-weight: 500;">
+                    Open availability · {% if user.open_dates and user.open_dates|length > 0 %}{{ user.open_dates|length }} day{% if user.open_dates|length != 1 %}s{% endif %}{% else %}0 days{% endif %}
+                </p>
+                <a href="{{ url_for('add_open_dates') }}" style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500; text-decoration: none;">Edit</a>
+            </div>
+        </div>
+        
         <a href="{{ url_for('trip_ideas') }}" style="display: block; text-align: center; font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500; margin-bottom: 16px; text-decoration: none;">
             See trip ideas →
         </a>

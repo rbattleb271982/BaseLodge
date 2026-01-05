@@ -419,50 +419,23 @@
         {% if grouped_overlaps and grouped_overlaps|length > 0 %}
         <div class="flat-list">
             {% for overlap in grouped_overlaps %}
-            <div class="overlap-card" data-overlap-index="{{ loop.index0 }}" onclick="toggleOverlapDetails({{ loop.index0 }})" style="background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; padding: 14px; margin-bottom: 10px; cursor: pointer;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div style="flex: 1;">
-                        {% if overlap.type == 'trip' %}
-                        <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 4px 0;">{{ overlap.mountain }}</p>
-                        <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">
-                            {{ format_trip_dates(overlap) }} · {{ overlap.friend_count }} friend{% if overlap.friend_count != 1 %}s{% endif %}
-                        </p>
-                        {% else %}
-                        <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 4px 0;">Open on {{ overlap.start_date.strftime('%b %d') }}</p>
-                        <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">
-                            {{ overlap.friend_count }} friend{% if overlap.friend_count != 1 %}s{% endif %} also open
-                        </p>
-                        {% endif %}
-                    </div>
-                    <div style="color: var(--bl-color-primary); font-size: 0.85rem; font-weight: 500;">
-                        <span class="overlap-toggle-icon" id="toggle-icon-{{ loop.index0 }}">Show →</span>
-                    </div>
+            {% set friend_ids = overlap.friends|map(attribute='id')|list|join(',') %}
+            <a href="{{ url_for('overlap_detail', type=overlap.type, mountain=overlap.mountain if overlap.type == 'trip' else '', resort_id=overlap.resort_id if overlap.resort_id else '', start_date=overlap.start_date.strftime('%Y-%m-%d'), end_date=overlap.end_date.strftime('%Y-%m-%d'), date=overlap.date_str if overlap.type == 'open' else '', friends=friend_ids) }}" class="overlap-card" style="display: flex; justify-content: space-between; align-items: center; background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; text-decoration: none; color: inherit;">
+                <div style="flex: 1; min-width: 0;">
+                    {% if overlap.type == 'trip' %}
+                    <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ overlap.mountain }}</p>
+                    <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">
+                        {{ format_trip_dates(overlap) }} · You + {{ overlap.friend_count }} friend{% if overlap.friend_count != 1 %}s{% endif %} overlap
+                    </p>
+                    {% else %}
+                    <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 4px 0;">Open day</p>
+                    <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">
+                        {{ overlap.start_date.strftime('%b %-d') }} · {{ overlap.friend_count }} friend{% if overlap.friend_count != 1 %}s{% endif %} also open
+                    </p>
+                    {% endif %}
                 </div>
-                
-                <div class="overlap-details" id="overlap-details-{{ loop.index0 }}" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bl-color-border-soft);">
-                    {% for friend in overlap.friends %}
-                    <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" style="display: block; padding: 8px 0; text-decoration: none; color: var(--bl-color-text); font-size: 0.9rem; border-bottom: 1px solid var(--bl-color-border-soft);">
-                        {{ friend.first_name }}
-                    </a>
-                    {% endfor %}
-                    
-                    <div style="margin-top: 12px;">
-                        {% if overlap.type == 'trip' and overlap.resort_id %}
-                        <a href="{{ url_for('create_trip') }}?resort_id={{ overlap.resort_id }}&start_date={{ overlap.start_date.strftime('%Y-%m-%d') }}&end_date={{ overlap.end_date.strftime('%Y-%m-%d') }}" class="bl-btn-primary" style="display: block; text-align: center; text-decoration: none; padding: 10px 16px; font-size: 0.9rem;">
-                            Start a trip
-                        </a>
-                        {% elif overlap.type == 'open' %}
-                        <a href="{{ url_for('create_trip') }}?start_date={{ overlap.date_str }}&end_date={{ overlap.date_str }}" class="bl-btn-primary" style="display: block; text-align: center; text-decoration: none; padding: 10px 16px; font-size: 0.9rem;">
-                            Start a trip
-                        </a>
-                        {% else %}
-                        <a href="{{ url_for('create_trip') }}?start_date={{ overlap.start_date.strftime('%Y-%m-%d') }}&end_date={{ overlap.end_date.strftime('%Y-%m-%d') }}" class="bl-btn-primary" style="display: block; text-align: center; text-decoration: none; padding: 10px 16px; font-size: 0.9rem;">
-                            Start a trip
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+                <span style="flex-shrink: 0; margin-left: 12px; font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500;">View</span>
+            </a>
             {% endfor %}
         </div>
         {% else %}
@@ -608,30 +581,6 @@
     </div>
     
     <script>
-        let expandedOverlapIndex = null;
-        
-        function toggleOverlapDetails(index) {
-            const details = document.getElementById('overlap-details-' + index);
-            const icon = document.getElementById('toggle-icon-' + index);
-            
-            if (expandedOverlapIndex !== null && expandedOverlapIndex !== index) {
-                const prevDetails = document.getElementById('overlap-details-' + expandedOverlapIndex);
-                const prevIcon = document.getElementById('toggle-icon-' + expandedOverlapIndex);
-                if (prevDetails) prevDetails.style.display = 'none';
-                if (prevIcon) prevIcon.textContent = 'Show →';
-            }
-            
-            if (details.style.display === 'none') {
-                details.style.display = 'block';
-                icon.textContent = 'Hide';
-                expandedOverlapIndex = index;
-            } else {
-                details.style.display = 'none';
-                icon.textContent = 'Show →';
-                expandedOverlapIndex = null;
-            }
-        }
-        
         const RIDER_TYPES = {{ rider_types|tojson }};
         const SKILL_LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
         const PASS_OPTIONS = ['Epic', 'Ikon', 'Other'];

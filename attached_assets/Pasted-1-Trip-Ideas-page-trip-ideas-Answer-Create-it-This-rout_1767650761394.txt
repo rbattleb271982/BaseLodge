@@ -1,0 +1,58 @@
+1) Trip Ideas page (/trip-ideas)
+Answer:
+Create it.
+This route does not need to exist today.
+Please create a new standalone page/route at /trip-ideas.
+It should query the same open availability overlap logic that already exists (no new data model).
+This page is read-only suggestions, not editing availability.
+Intent:
+Trips tab stays simple. Trip discovery based on availability lives on its own screen.
+2) My Trips section on the Trips tab
+Answer:
+Keep the existing trip card container but restyle the content to match the new 2-line format.
+Specifically:
+Remove all social indicators:
+No friend counts
+No “accepted”
+No overlap language
+Enforce this exact structure:
+Line 1 (bold): Destination
+Line 2 (muted): Date range
+Right-aligned: “View”
+Do not collapse or hide the section by default.
+3) Overlaps tab – “View” action behavior
+Answer:
+Navigate to a simple overlap detail screen, not inline expansion.
+That screen should:
+List the friends involved
+Show the overlapping dates
+Offer a clear CTA:
+“Start a trip” (prefilled as described below)
+Do not:
+Navigate to a friend profile
+Expand inline
+Why:
+Inline expansion doesn’t scale and breaks consistency with other “View” actions.
+4) “Start a trip” prefill behavior (open-date overlaps)
+Answer:
+Yes — the Start action should still appear.
+Behavior rules:
+Always prefill dates
+Only prefill resort if the overlap has a specific destination
+For open-date overlaps:
+Leave resort blank
+User selects it manually
+Your current implementation is correct — just keep this conditional logic.
+5) Existing changes / how to proceed
+Answer:
+Please compare what exists against the spec and continue refining.
+No need for a separate gap analysis doc — just:
+Adjust what’s already built
+Remove anything that violates the spec (especially leftover toggles on Trips)
+Ask only if you hit ambiguity in behavior, not styling
+TL;DR (for Replit)
+Create /trip-ideas as a new standalone page
+Restyle My Trips cards to strict 2-line, no social data
+Overlap “View” → detail screen (not inline, not profile)
+“Start” always shows; resort only prefilled when known
+Keep refining existing work, no reset needed

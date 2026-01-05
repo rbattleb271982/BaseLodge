@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BaseLodge - Overlap Detail</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .page-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .back-link {
+            font-size: 24px;
+            color: var(--bl-color-text);
+            text-decoration: none;
+            line-height: 1;
+        }
+        .page-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--bl-color-text);
+            margin: 0;
+        }
+        .page-subtitle {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 24px 0;
+        }
+        .friends-section {
+            margin-bottom: 24px;
+        }
+        .section-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--bl-color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+        .friend-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+        .friend-row:last-child {
+            border-bottom: none;
+        }
+        .friend-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--bl-color-text);
+        }
+        .friend-action {
+            font-size: 14px;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .cta-section {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container" style="padding: 16px 16px 88px;">
+        <div class="page-header">
+            <a href="{{ url_for('friends', tab='overlaps') }}" class="back-link">←</a>
+            <h1 class="page-title">{{ title }}</h1>
+        </div>
+        {% if subtitle %}
+        <p class="page-subtitle">{{ subtitle }}</p>
+        {% endif %}
+        
+        <div class="friends-section">
+            <p class="section-label">Friends</p>
+            {% for friend in friends %}
+            <div class="friend-row">
+                <span class="friend-name">{{ friend.first_name }}{% if friend.last_name %} {{ friend.last_name }}{% endif %}</span>
+                <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="friend-action">View</a>
+            </div>
+            {% endfor %}
+            {% if not friends %}
+            <p style="font-size: 14px; color: var(--bl-color-text-muted);">No friends in this overlap.</p>
+            {% endif %}
+        </div>
+        
+        <div class="cta-section">
+            {% if overlap_type == 'trip' and resort_id %}
+            <a href="{{ url_for('add_trip') }}?resort_id={{ resort_id }}&start_date={{ start_date.strftime('%Y-%m-%d') if start_date else '' }}&end_date={{ end_date.strftime('%Y-%m-%d') if end_date else '' }}" class="bl-btn-primary" style="display: block; text-align: center; text-decoration: none; padding: 14px 24px; font-size: 16px;">
+                Start a trip
+            </a>
+            {% elif date_str %}
+            <a href="{{ url_for('add_trip') }}?start_date={{ date_str }}&end_date={{ date_str }}" class="bl-btn-primary" style="display: block; text-align: center; text-decoration: none; padding: 14px 24px; font-size: 16px;">
+                Start a trip
+            </a>
+            {% else %}
+            <a href="{{ url_for('add_trip') }}?start_date={{ start_date.strftime('%Y-%m-%d') if start_date else '' }}&end_date={{ end_date.strftime('%Y-%m-%d') if end_date else '' }}" class="bl-btn-primary" style="display: block; text-align: center; text-decoration: none; padding: 14px 24px; font-size: 16px;">
+                Start a trip
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% include 'components/bottom_nav.html' %}
+</body>
+</html>

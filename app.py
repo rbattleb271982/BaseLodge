@@ -1830,6 +1830,141 @@ def my_trips():
         wishlist_resorts=wishlist_resorts or []
     )
 
+@app.route("/overlap-detail")
+@login_required
+def overlap_detail():
+    """Overlap detail screen showing friends involved and Start a trip CTA."""
+    user = current_user
+    
+    # Get parameters
+    overlap_type = request.args.get('type', 'trip')
+    date_str = request.args.get('date')
+    mountain = request.args.get('mountain')
+    resort_id = request.args.get('resort_id', type=int)
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+    
+    # Parse dates
+    start_date = None
+    end_date = None
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    if end_date_str:
+        try:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    
+    # Get friends from the overlap
+    friend_ids_str = request.args.get('friends', '')
+    friend_ids = [int(fid) for fid in friend_ids_str.split(',') if fid.isdigit()]
+    friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
+    
+    # Get resort info if available
+    resort = Resort.query.get(resort_id) if resort_id else None
+    
+    # Build display info
+    if overlap_type == 'trip':
+        title = mountain or (resort.name if resort else 'Trip Overlap')
+        subtitle = None
+        if start_date and end_date:
+            if start_date == end_date:
+                subtitle = start_date.strftime('%b %-d')
+            else:
+                subtitle = f"{start_date.strftime('%b %-d')} – {end_date.strftime('%b %-d')}"
+    else:
+        # Open date overlap
+        if start_date:
+            title = f"Open on {start_date.strftime('%b %-d')}"
+        else:
+            title = "Open Date Overlap"
+        subtitle = f"{len(friends)} friend{'s' if len(friends) != 1 else ''} also open"
+    
+    return render_template(
+        "overlap_detail.html",
+        user=user,
+        overlap_type=overlap_type,
+        title=title,
+        subtitle=subtitle,
+        friends=friends,
+        resort=resort,
+        resort_id=resort_id,
+        mountain=mountain,
+        start_date=start_date,
+        end_date=end_date,
+        date_str=date_str or (start_date_str if start_date_str else '')
+    )
+
+@app.route("/trip-ideas")
+@login_required
+def trip_ideas():
+    """Trip Ideas page - suggestions based on overlapping open availability."""
+    user = current_user
+    today = date.today()
+    today_str = today.strftime('%Y-%m-%d')
+    
+    # Get user's friends
+    friend_links = Friend.query.filter_by(user_id=user.id).all()
+    friend_ids = [f.friend_id for f in friend_links]
+    all_friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
+    
+    # Get user's open dates (future only)
+    user_open_dates = set(d for d in (user.open_dates or []) if d >= today_str)
+    
+    # Build trip ideas from open date overlaps
+    trip_ideas_list = []
+    
+    if user_open_dates and friend_ids:
+        # Group by date - find friends open on each date
+        date_to_friends = {}
+        for date_str in sorted(user_open_dates):
+            date_to_friends[date_str] = []
+            for friend in all_friends:
+                friend_dates = set(d for d in (friend.open_dates or []) if d >= today_str)
+                if date_str in friend_dates:
+                    date_to_friends[date_str].append({
+                        "id": friend.id,
+                        "first_name": friend.first_name,
+                        "last_name": friend.last_name or ""
+                    })
+        
+        # Create trip ideas for dates with at least one friend
+        for date_str, friends in date_to_friends.items():
+            if friends:
+                try:
+                    date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+                    friend_count = len(friends)
+                    
+                    # Build social context string
+                    if friend_count == 1:
+                        social_context = f"{friends[0]['first_name']} is also open"
+                    elif friend_count == 2:
+                        social_context = f"{friends[0]['first_name']} + {friends[1]['first_name']} are open"
+                    else:
+                        social_context = f"{friends[0]['first_name']} + {friend_count - 1} other{'s' if friend_count > 2 else ''} open"
+                    
+                    trip_ideas_list.append({
+                        "date_str": date_str,
+                        "date_obj": date_obj,
+                        "display_date": date_obj.strftime('%b %-d'),
+                        "day_name": date_obj.strftime('%a'),
+                        "friends": friends,
+                        "friend_count": friend_count,
+                        "social_context": social_context,
+                        "type": "open"
+                    })
+                except ValueError:
+                    pass
+    
+    return render_template(
+        "trip_ideas.html",
+        user=user,
+        trip_ideas=trip_ideas_list
+    )
+
 @app.route("/api/mountains/<state>")
 def get_mountains(state):
     state_code = state.upper()

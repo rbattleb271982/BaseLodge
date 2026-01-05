@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BaseLodge - Trip Ideas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .page-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .back-link {
+            font-size: 24px;
+            color: var(--bl-color-text);
+            text-decoration: none;
+            line-height: 1;
+        }
+        .page-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--bl-color-text);
+            margin: 0;
+        }
+        .page-subtext {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 20px 0;
+        }
+        .idea-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+        }
+        .idea-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .idea-line1 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 4px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .idea-line2 {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .idea-action {
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+        .idea-action a {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px 24px;
+            background: var(--bl-color-surface);
+            border-radius: 12px;
+        }
+        .empty-state h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 8px 0;
+        }
+        .empty-state p {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 16px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container" style="padding: 16px 16px 88px;">
+        <div class="page-header">
+            <a href="{{ url_for('my_trips') }}" class="back-link">←</a>
+            <h1 class="page-title">Trip Ideas</h1>
+        </div>
+        <p class="page-subtext">Suggestions based on overlapping availability</p>
+        
+        {% if trip_ideas and trip_ideas|length > 0 %}
+        <div class="ideas-list">
+            {% for idea in trip_ideas %}
+            <div class="idea-card">
+                <div class="idea-content">
+                    <p class="idea-line1">{{ idea.day_name }}, {{ idea.display_date }}</p>
+                    <p class="idea-line2">{{ idea.social_context }}</p>
+                </div>
+                <div class="idea-action">
+                    <a href="{{ url_for('add_trip') }}?start_date={{ idea.date_str }}&end_date={{ idea.date_str }}">Start →</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <h3>No trip ideas yet</h3>
+            <p>Add open dates to see when friends are also available.</p>
+            <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="display: inline-block; text-decoration: none; padding: 12px 24px;">Add Open Dates</a>
+        </div>
+        {% endif %}
+    </div>
+    
+    {% include 'components/bottom_nav.html' %}
+</body>
+</html>

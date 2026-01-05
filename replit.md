@@ -26,12 +26,12 @@ The backend is built with Flask, utilizing SQLAlchemy for ORM and Werkzeug for p
 ### Feature Specifications
 -   **Authentication & Onboarding:** A two-step onboarding process (Identity Setup, Location Setup) follows signup. Welcome modal appears after both steps are complete.
 -   **User Profile:** Comprehensive profiles managed via a "Settings" page, including rider types, skill level, pass types, home state, equipment, and visited mountains.
--   **Trip Management:** Users can create trips with location, dates (via inline calendar), public toggles, and ride intent. Trips are displayed in "My Trips", "Friends' Trips", and "Overlaps" tabs. Date validation enforces future dates for new trips and prevents duplicate active trips at the same resort.
+-   **Trip Management:** Users can create trips with location, dates (via inline calendar), public toggles, and ride intent. The Trips page focuses on personal trip management with a simple list of My Trips (2-line format: destination bold, date muted) plus an Open Availability section and Trip Ideas link. Date validation enforces future dates for new trips and prevents duplicate active trips at the same resort.
 -   **Date Range Calendar:** An inline calendar allows selecting start and end dates, calculating trip duration automatically. Past dates are disabled for new trips.
 -   **Unified Trip Date Display:** All trip dates are consistently formatted using `format_trip_dates(trip)` based on their duration and relation to the current date (e.g., "Today", "Dec 25–Dec 28").
 -   **Trip Invites:** Trip owners can invite friends, managing participant status (INVITED/ACCEPTED/DECLINED). Invited users can view trip details before accepting.
--   **Friends System:** An invitation-based, bidirectional friendship system with dedicated profiles and token-based invites.
--   **Activity Feed:** A "Updates" tab on the Friends screen displays real-time friend activities (e.g., trip created, friend joined trip, connection accepted). Activities are limited to 50 most recent per user.
+-   **Friends System:** An invitation-based, bidirectional friendship system with dedicated profiles and token-based invites. The Friends page has 3 tabs: Friends (list with filters), Friends' Trips (upcoming trips from friends), and Overlaps (date/location overlaps with "View" action leading to detail screen with friend list and "Start a trip" CTA).
+-   **Trip Ideas:** A standalone page (`/trip-ideas`) showing suggestions based on overlapping open availability with friends.
 -   **Pass Selection:** Quick-select options for major passes, with a dropdown for "Other passes" or "I don't have a pass."
 -   **Navigation:** Consistent 4-tab bottom navigation (Trips, Friends, Invite, Profile).
 -   **Location Selector:** A unified typeahead component for state/province selection, grouped by country and alphabetically sorted.
