@@ -1,0 +1,196 @@
+PUT THIS IN AGENT
+
+You are modifying the existing BaseLodge Flask app.
+Make the smallest possible changes required.
+Do NOT redesign unrelated UI or refactor outside the scope below.
+
+This prompt BOTH:
+1) Adds / moves content to the Friends tab
+2) Explicitly REMOVES social content from the My Trips tab
+
+────────────────────────────────
+1) MY TRIPS TAB — REMOVALS (CRITICAL)
+────────────────────────────────
+
+On the Trips tab (My Trips):
+
+REMOVE the following sections entirely:
+- Friends’ Trips
+- Trip Overlaps
+- Any Updates / Activity / Social sections
+- Any toggles related to friends or overlaps
+
+After this change, the Trips tab must contain ONLY:
+- Profile summary (if present today)
+- “+ Add trip” primary action
+- Open availability row
+- “See trip ideas →” link
+- “My Trips” list (user-owned trips only)
+
+The Trips tab must answer ONE question only:
+“What trips am I planning or attending?”
+
+No friends’ data may appear on this tab after this change.
+
+────────────────────────────────
+2) FRIENDS TAB — STRUCTURE
+────────────────────────────────
+
+The Friends tab must contain a 3-option segmented toggle under the header:
+
+- Friends
+- Friends’ Trips
+- Overlaps
+
+This replaces the old “Updates” section entirely.
+
+Reuse the existing segmented control component.
+Only change what content appears under each toggle.
+
+────────────────────────────────
+3) FRIENDS TOGGLE (NO CHANGE)
+────────────────────────────────
+
+When the “Friends” toggle is selected:
+- Keep existing friends list behavior
+- Each row shows:
+  Line 1 (left): Friend name
+  Line 1 (right): Trip count (e.g. “2 trips”, “No trips”)
+  Line 2: Rider type · Pass type · Skill level
+- Entire row is tappable
+- No layout or logic changes
+
+────────────────────────────────
+4) FRIENDS’ TRIPS TOGGLE (MOVED FROM TRIPS TAB)
+────────────────────────────────
+
+Move the content that previously appeared as “Friends’ Trips”
+from the Trips tab into this toggle.
+
+Remove it from the Trips tab entirely.
+
+Card layout (STRICT — EXACTLY TWO LINES):
+
+Line 1:
+Friend Name · Resort Name
+
+Line 2:
+Date range · Pass type
+
+Rules:
+- NO third line
+- NO acceptance counts
+- NO icons or badges
+- NO grouping
+- NO action buttons on the right
+- Entire card is tappable
+- Flat list only
+- Sorted by soonest date first
+
+This should visually match the prior Friends’ Trips cards,
+only relocated and normalized to the two-line rule.
+
+────────────────────────────────
+5) OVERLAPS TOGGLE (MOVED FROM TRIPS TAB)
+────────────────────────────────
+
+Move the existing Trip Overlaps section from the Trips tab
+into the “Overlaps” toggle on the Friends tab.
+
+Remove it from the Trips tab entirely.
+
+Card layout (STRICT — TWO LINES MAX):
+
+Line 1:
+Destination
+OR “Open day” if no destination exists
+
+Line 2:
+Date · You + X friends
+
+Examples:
+Whistler Blackcomb
+Feb 23–27 · You + 2 friends
+
+Open day
+Feb 7 · You + 1 friend
+
+Rules:
+- NO friend names on cards
+- NO third line
+- Right-side action text: “View”
+- Sort order:
+  1) Soonest date first
+  2) If same date, higher friend count first
+- Separate cards for separate resorts or dates
+
+────────────────────────────────
+6) OVERLAP DETAILS SCREEN (NEW)
+────────────────────────────────
+
+When user taps “View” on an Overlap card, open a Details screen.
+
+Details screen content:
+
+Header:
+- Destination name
+- OR “Open day overlap”
+
+Date section:
+- Exact date or date range
+
+Explanation text (one sentence only):
+Examples:
+- “You and 2 friends are both at Whistler during these dates.”
+- “You and 1 friend are open on this day.”
+
+Friend list:
+- First names only
+- Simple vertical list
+- No avatars required
+
+Primary action (ONLY ONE):
+“Start a trip”
+
+Behavior:
+- Opens Add Trip flow
+- Prefills dates
+- Prefills destination if known
+- Does NOT auto-invite friends
+
+Do NOT add:
+- Messaging
+- Auto-invites
+- Suggested destinations
+- Calendar UI
+- Social badges
+
+────────────────────────────────
+7) EMPTY STATES
+────────────────────────────────
+
+If Friends’ Trips or Overlaps has no data, show:
+
+Title:
+“No overlaps yet”
+
+Subtext:
+“Add open availability to find overlap opportunities.”
+
+Action link:
+“Edit availability →”
+
+Reuse this pattern where applicable.
+
+────────────────────────────────
+8) GLOBAL CONSTRAINTS
+────────────────────────────────
+
+- Max 2 lines per card everywhere
+- Actions always on the far right
+- Do NOT reintroduce Updates feed
+- Do NOT add new toggles
+- Preserve existing styling and spacing
+- Implement ONLY what is described
+
+END PROMPT
