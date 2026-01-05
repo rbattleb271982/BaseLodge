@@ -1,0 +1,78 @@
+PUT THIS IN AGENT
+
+We are now implementing layout + hierarchy changes
+based on confirmed template structure.
+
+================================================
+1) MOVE EDIT TRIP TO TOP-RIGHT (Trip Detail)
+================================================
+
+File: templates/trip_detail.html
+
+Current state:
+- “Edit Trip” appears at the bottom of the page
+- Header has Back chevron + title only
+
+Required changes:
+- Remove “Edit Trip” from the bottom entirely
+- Add “Edit” as a TEXT LINK in the top-right
+  of the header/navigation area
+
+Rules:
+- “Edit” is visible ONLY to the trip organizer
+- Style as a link (not a button)
+- Secondary visual weight (lighter than Invite CTA)
+- No backend route changes
+- Only ONE Edit entry point should exist
+
+================================================
+2) CONFIRM PRIMARY CTA HIERARCHY
+================================================
+
+On Trip Detail screen:
+- Keep “Invite people to this trip” as the
+  primary, full-width CTA near the top
+- Do NOT downgrade or move Invite
+- Invite button remains organizer-only
+
+No copy or behavior changes here —
+this is just ensuring hierarchy is preserved
+after header edits.
+
+================================================
+3) LOCATION DISPLAY (READ-ONLY COLLAPSE)
+================================================
+
+On Trip Detail (read-only view only):
+
+- Display Country + State/Region as a single line:
+  Example:
+    Location: British Columbia, Canada
+
+Rules:
+- Edit mode (add/edit trip) MUST retain
+  separate Country and State fields
+- Do NOT change filtering behavior
+- Do NOT change database schema
+
+This is display-only.
+
+================================================
+CONSTRAINTS
+================================================
+
+- Do NOT refactor templates
+- Do NOT change routing
+- Do NOT add new fields
+- Do NOT touch bottom_nav.html
+- Mobile-first layout (iOS-style header spacing)
+
+================================================
+REGRESSION CHECK
+================================================
+
+- Edit appears top-right only (no duplicates)
+- Invite CTA still works and is prominent
+- Organizer permissions respected
+- Location displays correctly
+- Resort filtering unaffected

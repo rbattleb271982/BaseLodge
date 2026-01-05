@@ -36,6 +36,17 @@
         .nav-spacer {
             width: 40px;
         }
+        .header-edit-link {
+            font-size: 0.95rem;
+            color: var(--bl-color-text-muted);
+            text-decoration: none;
+            padding: 8px;
+            min-width: 40px;
+            text-align: right;
+        }
+        .header-edit-link:hover {
+            color: var(--bl-color-primary);
+        }
         
         .invite-cta {
             margin-bottom: 20px;
@@ -235,14 +246,6 @@
             font-weight: 500;
         }
         
-        .edit-link {
-            display: block;
-            text-align: center;
-            margin-top: 16px;
-            font-size: 0.95rem;
-            color: var(--bl-color-primary);
-            text-decoration: none;
-        }
         
         .group-signals {
             background: var(--bl-color-surface);
@@ -443,7 +446,11 @@
                 </svg>
             </a>
             <h1 class="trip-title">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</h1>
+            {% if is_owner %}
+            <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="header-edit-link">Edit</a>
+            {% else %}
             <div class="nav-spacer"></div>
+            {% endif %}
         </div>
         
         {% if is_invited %}
@@ -520,7 +527,7 @@
             <div class="trip-detail-row">
                 <span class="trip-detail-label">Location</span>
                 <span class="trip-detail-value">
-                    {% if trip.resort %}{{ trip.resort.state_full or trip.resort.state }}{% if trip.resort.country and trip.resort.country != 'US' %}, {{ trip.resort.country }}{% endif %}{% else %}{{ trip.state }}{% endif %}
+                    {% if trip.resort %}{{ trip.resort.state_name or trip.resort.state_full or trip.resort.state }}{% if trip.resort.country_name or trip.resort.country %}, {{ trip.resort.country_name or trip.resort.country }}{% endif %}{% else %}{{ trip.state }}{% endif %}
                 </span>
             </div>
             
@@ -623,9 +630,6 @@
         </div>
         {% endif %}
         
-        {% if is_owner %}
-        <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="edit-link">Edit Trip</a>
-        {% endif %}
     </div>
     
     {% include 'components/bottom_nav.html' %}
