@@ -1,7 +1,7 @@
-# Base Lodge
+# BaseLodge
 
 ## Overview
-Base Lodge is a Flask-based ski/snowboard trip planning application. It helps users track ski days, manage resort passes, and connect with friends. The application provides a modern, mobile-first experience focused on user profiles, an invitation-based friends system, and a centralized trip management hub. The vision is to be the primary platform for snow sports enthusiasts to plan, track, and socialize their winter mountain experiences.
+BaseLodge is a Flask-based ski/snowboard trip planning application. It helps users track ski days, manage resort passes, and connect with friends. The application provides a modern, mobile-first experience focused on user profiles, an invitation-based friends system, and a centralized trip management hub. The vision is to be the primary platform for snow sports enthusiasts to plan, track, and socialize their winter mountain experiences.
 
 ## User Preferences
 - Mobile-first design approach (now supporting both web & mobile)
