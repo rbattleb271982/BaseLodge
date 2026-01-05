@@ -1,0 +1,94 @@
+PUT THIS IN AGENT
+
+Goal:
+Improve the Friends → Updates feed so aggregated entries like
+“2 friends are skiing while you're free” become actionable,
+by allowing an inline tap-to-reveal of friend names.
+
+STRICT CONSTRAINTS:
+- Do NOT add new screens
+- Do NOT navigate away from the Updates tab
+- Do NOT add avatars, icons, or badges
+- Do NOT change existing sorting or grouping logic
+- Keep the feed visually calm and text-first
+
+--------------------------------------------------
+BEHAVIOR SPEC (OPTION 2)
+--------------------------------------------------
+
+When an update represents multiple friends:
+
+Default (collapsed state):
+--------------------------------
+"2 friends are skiing while you're free"
+(date range below, unchanged)
+
+On tap:
+--------------------------------
+Expand inline (directly below the line) to reveal names:
+
+"Taylor, Charles"
+
+- Names appear as plain text
+- Comma-separated
+- Same text color as secondary metadata
+- No bullets, no background card, no divider
+- Indented slightly to indicate hierarchy
+
+On second tap:
+--------------------------------
+Collapse back to the original aggregate line.
+
+Only one update may be expanded at a time.
+Expanding a new item collapses any previously expanded item.
+
+--------------------------------------------------
+COPY RULES
+--------------------------------------------------
+
+- 1 friend → do NOT use this pattern (already shows name)
+- 2–5 friends → list all names
+- >5 friends:
+  - Show first 3 names + “and X others”
+  - Example: “Taylor, Charles, Justin and 2 others”
+
+--------------------------------------------------
+DATA RULES
+--------------------------------------------------
+
+- Names should be derived from the same dataset already used
+  to compute the aggregate count.
+- Do NOT refetch data.
+- Do NOT change backend payloads unless strictly necessary.
+
+--------------------------------------------------
+STATE MANAGEMENT
+--------------------------------------------------
+
+- Track expanded state by update ID
+- Expanded state is ephemeral (no persistence)
+- Reset expanded state on:
+  - Tab switch
+  - Pull-to-refresh
+  - App background → foreground
+
+--------------------------------------------------
+EXPLICITLY DO NOT DO
+--------------------------------------------------
+
+- Do NOT link names (no navigation)
+- Do NOT animate expansion
+- Do NOT add timestamps to expanded rows
+- Do NOT show trip details here
+
+--------------------------------------------------
+VALIDATION CHECKLIST (REQUIRED)
+--------------------------------------------------
+
+- Aggregated updates are tappable
+- Names are visible within 1 tap
+- Feed height changes feel natural
+- No visual clutter introduced
+- Single-friend updates remain unchanged
+
+Do not mark complete until all checks pass.
