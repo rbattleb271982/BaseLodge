@@ -7922,9 +7922,41 @@ def admin_resorts():
     # Get all resorts sorted by country, state, name
     resorts = Resort.query.order_by(Resort.country_code, Resort.state_code, Resort.name).all()
     
-    # Get unique countries and states for filters
-    countries = db.session.query(Resort.country_code).distinct().order_by(Resort.country_code).all()
-    countries = [c[0] for c in countries if c[0]]
+    # Get unique countries for filters (from existing resorts)
+    resort_countries = db.session.query(Resort.country_code).distinct().order_by(Resort.country_code).all()
+    resort_countries = set(c[0] for c in resort_countries if c[0])
+    
+    # Get all countries from Country table for the dropdown
+    from models import Country
+    db_countries = Country.query.filter_by(is_active=True).order_by(Country.name).all()
+    
+    # Build unified country list: combine hardcoded defaults + DB countries + resort countries
+    # This ensures all sources are represented
+    default_countries = [
+        ('US', 'United States'), ('CA', 'Canada'), ('FR', 'France'),
+        ('CH', 'Switzerland'), ('AT', 'Austria'), ('IT', 'Italy'),
+        ('JP', 'Japan'), ('NZ', 'New Zealand'), ('AU', 'Australia'),
+        ('CL', 'Chile'), ('AR', 'Argentina'), ('NO', 'Norway'),
+        ('SE', 'Sweden'), ('ES', 'Spain'), ('AD', 'Andorra'), ('DE', 'Germany')
+    ]
+    
+    # Start with defaults as dict
+    all_countries = {code: name for code, name in default_countries}
+    
+    # Add countries from Country table (overrides defaults if present)
+    for c in db_countries:
+        all_countries[c.code] = c.name
+    
+    # Add any resort countries not yet in list (using COUNTRY_NAMES for display)
+    for code in resort_countries:
+        if code not in all_countries:
+            all_countries[code] = COUNTRY_NAMES.get(code, code)
+    
+    # Convert to sorted list of tuples for template
+    dropdown_countries = sorted(all_countries.items(), key=lambda x: x[1])
+    
+    # Keep countries list for filters (just codes from resorts)
+    countries = sorted(resort_countries)
     
     # Check last canonical export timestamp
     canonical_file = os.path.join(os.path.dirname(__file__), 'data', 'canonical_resorts.json')
@@ -7944,6 +7976,7 @@ def admin_resorts():
     return render_template('admin_resorts.html',
                          resorts=resorts,
                          countries=countries,
+                         dropdown_countries=dropdown_countries,
                          last_export_info=last_export_info,
                          total_count=len(resorts))
 
