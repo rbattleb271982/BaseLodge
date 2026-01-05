@@ -1,0 +1,75 @@
+GOAL
+Normalize country handling so that ISO country codes remain the system-of-record,
+but the admin UI and user-facing UI always display full country names.
+This change should apply globally across the app (admin + user-facing),
+and must not break PROD sync or existing data.
+
+CURRENT PROBLEM
+In the Admin → Resort Curation panel:
+- Country dropdown shows a mix of full names and ISO codes (e.g., BG, CZ, RO)
+- Resorts table only shows ISO codes
+- Bulk upload accepts only ISO codes, which is correct, but provides no visibility
+  into the human-readable country name
+
+DESIRED BEHAVIOR (ADMIN PANEL)
+
+1. Country dropdown
+- Dropdown options should display FULL country names (e.g., "Czech Republic")
+- Internally, selections should still map to ISO-2 codes (e.g., "CZ")
+- No ISO codes should be visible to the admin in the dropdown UI
+
+2. Resorts table
+- Add a new column: "Country Name"
+- This column displays the full country name derived from the ISO code
+- Column should be editable inline (text input)
+- Editing this value updates a new field (see data model below), NOT the ISO code
+
+3. Bulk export
+- Add a new column to bulk export:
+  Country Name
+- Export format must include BOTH:
+  - Country (ISO-2 code) → used for PROD sync
+  - Country Name → for human readability / editing
+
+4. Bulk upload
+- Accept both of the following:
+  - Country (ISO-2) → REQUIRED
+  - Country Name → OPTIONAL
+- If Country Name is provided:
+  - Store it as an override display value
+- If not provided:
+  - Derive Country Name automatically from ISO mapping
+- Never reject uploads due to Country Name mismatch
+
+DATA MODEL (IMPORTANT — NO BREAKING CHANGES)
+
+- Keep existing `country` field unchanged (ISO-2 code)
+- Add a new nullable field:
+    country_name_override (string)
+- Display logic:
+    display_country_name =
+        country_name_override
+        OR
+        lookup_full_name_from_iso(country)
+
+- PROD sync continues to rely ONLY on `country` (ISO code)
+
+GLOBAL APP BEHAVIOR
+
+- All templates (admin + user-facing) must render `display_country_name`
+- ISO codes should NEVER be shown in the UI
+- Filters, grouping, and queries must continue to use ISO codes internally
+
+IMPLEMENTATION NOTES
+
+- Create a single canonical COUNTRY_MAP (ISO → Full Name)
+- Reuse it everywhere (admin dropdowns, tables, templates, exports)
+- Do NOT duplicate country logic in multiple files
+- Do NOT introduce schema migrations that modify existing country values
+
+VALIDATION
+
+- Existing resorts continue to work without modification
+- Bulk export → re-upload roundtrip works
+- Admin can optionally override display country name
+- PROD JSON output remains unchanged
