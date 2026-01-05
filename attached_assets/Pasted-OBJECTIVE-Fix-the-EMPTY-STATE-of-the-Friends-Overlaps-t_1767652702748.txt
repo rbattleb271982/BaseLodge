@@ -1,0 +1,72 @@
+OBJECTIVE
+Fix the EMPTY STATE of the Friends → Overlaps toggle so users can always access
+the availability calendar when no overlaps exist.
+
+This is a targeted UI correction only.
+Do NOT change overlap logic, routing, or any other screens.
+
+--------------------------------------------------
+CURRENT PROBLEM
+--------------------------------------------------
+When there are no overlaps, the Overlaps tab shows text only.
+There is no way for the user to add or edit availability from this screen.
+
+--------------------------------------------------
+REQUIRED CHANGE
+--------------------------------------------------
+
+When the Overlaps tab has ZERO overlaps:
+
+Keep the existing empty state copy:
+
+Title:
+No overlaps found
+
+Body:
+When you and friends are skiing at the same place or time, it’ll show up here.
+
+BUT add a clear action below the copy:
+
+Text link (required):
+Add your availability →
+
+--------------------------------------------------
+LINK BEHAVIOR (CRITICAL)
+--------------------------------------------------
+The “Add your availability →” link MUST:
+
+- Route to the SAME calendar/editor used by:
+  “Open availability · X days → Edit” on the My Trips tab
+- Reuse the existing availability flow
+- NOT create a new route, modal, or calendar
+
+This is a second entry point to the same feature.
+
+--------------------------------------------------
+STATES TO VERIFY
+--------------------------------------------------
+1) No overlaps
+   - Empty state visible
+   - “Add your availability →” link visible and clickable
+   - Calendar opens correctly
+
+2) Overlaps exist
+   - Overlap cards render as specified
+   - “Edit availability” link is still present
+   - Both routes go to the same calendar
+
+--------------------------------------------------
+GUARDRAILS
+--------------------------------------------------
+- Do NOT alter overlap detection
+- Do NOT remove existing copy
+- Do NOT touch Trips tab or Friends’ Trips tab
+- Do NOT change availability logic
+
+--------------------------------------------------
+DEFINITION OF DONE
+--------------------------------------------------
+Users can always reach the availability calendar from the Overlaps tab,
+even when no overlaps exist.
+
+Do not mark complete until verified in the no-overlap state.

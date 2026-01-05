@@ -428,12 +428,12 @@
                     {% if overlap.type == 'trip' %}
                     <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ overlap.mountain }}</p>
                     <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">
-                        {{ format_trip_dates(overlap) }} · You + {{ overlap.friend_count }} friend{% if overlap.friend_count != 1 %}s{% endif %} overlap
+                        {{ format_trip_dates(overlap) }} · You + {{ overlap.friend_count }} friend{% if overlap.friend_count != 1 %}s{% endif %}
                     </p>
                     {% else %}
                     <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 4px 0;">Open day</p>
                     <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">
-                        {{ overlap.start_date.strftime('%b %-d') }} · {{ overlap.friend_count }} friend{% if overlap.friend_count != 1 %}s{% endif %} also open
+                        {{ overlap.start_date.strftime('%b %-d') }} · You + {{ overlap.friend_count }} friend{% if overlap.friend_count != 1 %}s{% endif %}
                     </p>
                     {% endif %}
                 </div>
@@ -441,10 +441,16 @@
             </a>
             {% endfor %}
         </div>
+        <a href="{{ url_for('add_open_dates') }}" style="display: block; text-align: center; font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500; margin-top: 12px; text-decoration: none;">
+            Edit availability
+        </a>
         {% else %}
         <div class="empty-card">
-            <h3>No overlaps found</h3>
-            <p>When you and friends are skiing at the same place or time, it'll show up here.</p>
+            <h3>No overlaps yet</h3>
+            <p>When you add the days you're free, we'll look for times you and friends overlap.</p>
+            <a href="{{ url_for('add_open_dates') }}" style="display: inline-block; margin-top: 12px; font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500; text-decoration: none;">
+                Add your availability →
+            </a>
         </div>
         {% endif %}
         
