@@ -68,7 +68,7 @@
         {% if pass_name|lower in user_passes|lower %}
         <div class="tile-buddy-pass-row">
             <span class="tile-buddy-label">{{ pass_name }} buddy passes:</span>
-            {% set has_buddy = buddy_passes_data.get(pass_key, false) %}
+            {% set has_buddy = buddy_passes_data.get(pass_key, true) if buddy_passes_data.get(pass_key) is not none else true %}
             {% if is_owner %}
             <a href="#" class="tile-buddy-value-link" data-buddy-modal-target="buddy-modal-{{ profile_user.id }}-{{ pass_key }}">{{ 'Yes' if has_buddy else 'No' }}</a>
             {% else %}
@@ -147,7 +147,7 @@
                 <div class="bl-modal-body">
                     <p class="buddy-modal-question">Do you currently have buddy passes available on your {{ pass_name }} pass?</p>
                     <div class="buddy-modal-options">
-                        {% set has_buddy = buddy_passes_data.get(pass_key, false) %}
+                        {% set has_buddy = buddy_passes_data.get(pass_key, true) if buddy_passes_data.get(pass_key) is not none else true %}
                         <label class="buddy-radio-option">
                             <input type="radio" name="buddy-{{ pass_key }}" value="yes" {% if has_buddy %}checked{% endif %}>
                             <span>Yes</span>

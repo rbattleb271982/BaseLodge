@@ -115,6 +115,7 @@ class User(UserMixin, db.Model):
     terrain_preferences = db.Column(db.JSON, default=list)  # List of terrain types (max 2): Groomers, Trees, Park, Backcountry
     equipment_status = db.Column(db.String(20), default='have_own_equipment')  # have_own_equipment or needs_rentals
     buddy_passes = db.Column(db.JSON, default=dict)  # {"epic": true, "ikon": false} - availability per supported pass
+    buddy_passes_available = db.Column(db.Boolean, default=True, nullable=False, server_default='true')
     
     # Email & lifecycle hygiene (Dec 2025)
     created_at = db.Column(db.DateTime, nullable=True)  # Set to earliest trip/friend or NOW
