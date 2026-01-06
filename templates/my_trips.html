@@ -203,6 +203,43 @@
             color: var(--bl-color-text-muted);
             margin: 0;
         }
+
+        .new-trip-card {
+            display: block;
+            background: var(--bl-color-surface);
+            border: 1px dashed var(--bl-color-border-soft);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .new-trip-card:hover {
+            background: rgba(143, 1, 27, 0.03);
+            border-color: var(--bl-color-primary);
+        }
+        .new-trip-card-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--bl-color-primary);
+            margin: 0 0 4px 0;
+        }
+        .new-trip-card-subtext {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+        }
+        .new-trip-card.compact {
+            padding: 10px 16px;
+        }
+        .new-trip-card.compact .new-trip-card-title {
+            margin: 0;
+        }
+        .new-trip-card.compact .new-trip-card-subtext {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -242,13 +279,15 @@
             </button>
         </div>
 
-        <a href="{{ url_for('add_trip') }}" class="add-trip-button">+ Add Trip</a>
-
         <div id="segment-upcoming" class="segment-content active">
             <p class="section-label">Confirmed Trips</p>
             {% set all_my_trips = (upcoming_trips or []) + (accepted_guest_trips or []) %}
-            {% if all_my_trips|length > 0 %}
+            {% set upcoming_count = all_my_trips|length %}
             <div class="trips-list">
+                <a href="{{ url_for('add_trip') }}" class="new-trip-card{% if upcoming_count >= 20 %} compact{% endif %}">
+                    <p class="new-trip-card-title">{% if upcoming_count >= 20 %}＋ New trip{% else %}Plan a new trip{% endif %}</p>
+                    <p class="new-trip-card-subtext">Choose dates, a mountain, and who's coming</p>
+                </a>
                 {% for trip in all_my_trips|sort(attribute='start_date') %}
                 {% if trip and trip.id %}
                 <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
@@ -263,11 +302,6 @@
                 {% endif %}
                 {% endfor %}
             </div>
-            {% else %}
-            <div class="empty-state-container">
-                <p class="empty-state-title">No upcoming trips yet</p>
-            </div>
-            {% endif %}
         </div>
 
         <div id="segment-planning" class="segment-content">
