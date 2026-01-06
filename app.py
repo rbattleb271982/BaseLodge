@@ -2790,33 +2790,13 @@ def friend_profile(friend_id):
 @app.route("/profile/<int:user_id>")
 @login_required
 def friend_profile_legacy(user_id):
-    
+    """Legacy route - redirect to the main friend profile page."""
     # Check if viewing own profile
     if user_id == current_user.id:
         return redirect(url_for("more"))
     
-    friend_user = User.query.get_or_404(user_id)
-    
-    # Verify friendship
-    friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=user_id).first()
-    if not friendship:
-        flash("You can only view profiles of your friends.", "error")
-        return redirect(url_for("friends"))
-    
-    today = date.today()
-    upcoming_trips = SkiTrip.query.filter(
-        SkiTrip.user_id == user_id,
-        SkiTrip.start_date >= today,
-        SkiTrip.is_public == True
-    ).order_by(SkiTrip.start_date.asc()).all()
-    
-    past_trips = SkiTrip.query.filter(
-        SkiTrip.user_id == user_id,
-        SkiTrip.start_date < today,
-        SkiTrip.is_public == True
-    ).order_by(SkiTrip.start_date.desc()).all()
-    
-    return render_template("friend_profile.html", user=current_user, friend=friend_user, upcoming_trips=upcoming_trips, past_trips=past_trips, state_abbr=STATE_ABBR)
+    # Redirect to the main friend profile route
+    return redirect(url_for("friend_profile", friend_id=user_id))
 
 @app.route("/api/profile/update", methods=["POST"])
 @login_required

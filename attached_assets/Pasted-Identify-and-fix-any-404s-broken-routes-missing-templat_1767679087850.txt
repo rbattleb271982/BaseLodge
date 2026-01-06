@@ -1,0 +1,90 @@
+Identify and fix any 404s, broken routes, missing templates, or runtime errors introduced or exposed by recent changes.
+This is a verification + stabilization task, not feature work.
+🧠 CONTEXT
+Recent work touched:
+New routes (/planning, /planning/window/...)
+New navigation tab (Planning)
+Friend Profile enhancements
+Trip Detail polish
+Historically, this app has encountered:
+404s due to missing routes
+Template name mismatches
+Context variables missing in templates
+Errors only triggered via navigation (not unit tests)
+We want to catch all of that proactively.
+1️⃣ ROUTE AUDIT (MANDATORY)
+Action
+Enumerate all active routes in the Flask app.
+Verify that each route:
+Has a corresponding view function
+Returns a valid response
+Does not reference a missing template
+Pay special attention to:
+/planning
+/planning/window/<start>/<end>
+/friends/<id>
+/trips/<id>
+/invites/<id> (or equivalent)
+2️⃣ NAVIGATION LINK CHECK
+Action
+Inspect:
+Bottom navigation
+Any links added or modified recently
+Verify:
+Every href resolves to a valid route
+No stale paths (e.g. /plan, /calendar, etc.)
+Planning tab points to /planning exactly
+3️⃣ TEMPLATE RENDERING CHECK
+Action
+For each template rendered by the routes above:
+Confirm all required context variables exist
+Confirm no undefined variables are referenced
+Confirm conditional blocks handle None / empty states safely
+Pay close attention to:
+Planning feed template
+People List View template
+Friend Profile template (List / Calendar toggle)
+Trip Detail template (overlap copy, participants)
+4️⃣ COMMON ERROR PATTERNS TO CHECK FOR
+Explicitly check for:
+KeyError
+UndefinedError (Jinja)
+NoneType attribute access
+Incorrect date formatting calls
+Incorrect URL parameter names
+Missing url_for() endpoints
+5️⃣ MANUAL SMOKE TEST (SCRIPTED)
+Run through this exact flow manually in the browser:
+Load /planning
+Click a Planning card
+Click a person
+Toggle Friend Profile List → Calendar
+Tap a highlighted date
+Close modal
+Accept an invite
+Decline an invite
+Load Trip Detail directly via URL
+Verify:
+No 404s
+No 500s
+No console errors
+No broken back navigation
+6️⃣ LOG REVIEW
+Check application logs during the above flow for:
+Warnings
+Tracebacks
+Silent template failures
+Fix any issue discovered, even if it’s not user-facing yet.
+7️⃣ REPORTING (REQUIRED)
+When finished, report back with:
+✅ List of routes verified
+🛠️ Any issues found and fixed
+📂 Files touched
+❗ Any remaining known risks (if none, explicitly say “None”)
+🛑 STOP CONDITIONS
+Do not:
+Add new features
+Refactor unrelated code
+Change UX
+Optimize performance
+This task ends when the app is stable and error-free.
