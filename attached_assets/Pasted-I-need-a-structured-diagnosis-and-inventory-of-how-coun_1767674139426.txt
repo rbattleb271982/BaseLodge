@@ -1,0 +1,87 @@
+I need a structured diagnosis and inventory of how "country" is handled across the codebase and database, before making any changes.
+
+IMPORTANT CONTEXT:
+- Admin dashboard operates against PROD
+- DEV and PROD databases are currently not in sync
+- UI/UX behavior must remain unchanged for now
+- Some screens display country abbreviations (e.g. AT, US) and this must remain as-is initially
+- Admin dashboard currently shows mixed values (full country names + abbreviations)
+- We are planning a surgical fix, not a rewrite
+
+TASKS (DO NOT IMPLEMENT ANY CHANGES YET):
+
+1. DATA MODEL INVENTORY
+Identify every model and field that stores or references country data, including but not limited to:
+- Resort
+- Trip
+- User
+- Profile / Location
+- Any helper tables or enums
+
+For each, report:
+- Field name
+- Data type
+- Example values currently stored
+- Whether it is intended to store:
+  a) ISO country code
+  b) Full country name
+  c) Mixed / unclear
+
+2. ADMIN DASHBOARD ANALYSIS
+Analyze how the Admin Resorts dashboard:
+- Displays country today
+- Accepts country input when adding/editing a resort
+- Handles country values in:
+  - Excel upload
+  - Canonical JSON export
+  - Excel export
+
+For each path, report:
+- Expected input format
+- Actual accepted format
+- What is persisted to the database
+
+3. UI / UX CONSUMERS
+List all frontend/UI locations where country is displayed or selected, including:
+- Add Trip flow
+- Trip detail pages
+- Dropdowns / selectors
+- Filters
+- Profile or resort display
+
+For each:
+- What value is displayed (abbreviation vs full name)
+- What value is submitted/saved
+- Whether the display is derived or raw
+
+4. DEV VS PROD DIFFERENCES
+Identify:
+- Schema differences between DEV and PROD related to country
+- Any code paths that behave differently depending on environment
+- Any admin-only logic that bypasses validation
+
+5. RISK ASSESSMENT
+Call out:
+- High-risk areas if we change country handling
+- Areas safe for normalization
+- Any hidden coupling (e.g. filters, joins, exports)
+
+6. RECOMMENDED MIGRATION STRATEGY (NO CODE)
+Propose a step-by-step, low-risk plan that:
+- Separates storage (ISO code) from display (full name)
+- Allows admin dashboard to support BOTH abbreviation + full name
+- Preserves existing UI behavior during transition
+- Does NOT require immediate PROD data rewrite
+- Supports future normalization
+
+DO NOT:
+- Modify code
+- Add columns
+- Rename fields
+- Run migrations
+- Clean data
+
+OUTPUT FORMAT:
+- Use clear sections matching the tasks above
+- Be explicit
+- Assume a human will re-prompt you for implementation later
