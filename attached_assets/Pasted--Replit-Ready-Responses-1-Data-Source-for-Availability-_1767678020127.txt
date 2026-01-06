@@ -1,0 +1,60 @@
+✅ Replit-Ready Responses
+1. Data Source for Availability
+Use the existing Open Availability data.
+There is already an “Open Availability” concept in the app (this is what Planning is based on).
+Do NOT derive availability from SkiTrip records.
+Planning should be based on explicit availability, not inferred intent.
+If there is an existing OpenAvailability / Availability model or table, use that directly.
+If availability is stored in a user-associated table with start/end dates, that is the source of truth.
+⚠️ Do not treat “planning trips” or draft trips as availability.
+2. Window Grouping Logic
+Use Option (a):
+Show the intersection with the current user’s availability as a single card.
+Details:
+Planning cards represent overlap windows between the current user AND friends
+If:
+User is free Jan 18–22
+Friend A: Jan 18–21
+Friend B: Jan 19–22
+Then the overlap windows should be:
+Jan 18–21 (Friend A)
+Jan 19–22 (Friend B)
+If multiple friends share the same overlap window, group them into one card with a count.
+Do not:
+Show raw friend windows
+Merge windows beyond true overlaps
+Create “unioned” ranges that the user is not fully free for
+Rule of thumb:
+A Planning card only exists where BOTH the user and at least one friend are free.
+3. Current User’s Availability Required?
+✅ Yes — the current user must have availability set.
+If the user has no availability:
+Show an empty state:
+“Add your availability to see when friends are free.”
+Do not show all friend availability in this case.
+Planning is about alignment, not browsing others’ schedules.
+4. Navigation Placement
+Add Planning as a new 5th bottom tab.
+Label: Planning
+This is a first-class surface, not a sub-section
+Do not bury it inside Trips or Friends
+Final bottom nav:
+Trips
+Friends
+Invite
+Planning
+Profile
+(Icon choice can be handled later; not blocking.)
+5. Date Formatting
+Use the existing format_trip_dates() helper.
+Keep date formatting consistent across the app
+Output should match: Jan 18–21
+Do not introduce a new formatter unless absolutely required
+✅ Summary for Replit (mental model)
+Planning = overlap of explicit availability
+Cards = intersection windows, not raw availability
+User availability is mandatory
+Planning is a top-level nav item
+Reuse existing date formatting
+Once they proceed with this guidance, there should be no ambiguity left in the implementation.
+If Replit comes back with data-model-specific questions (e.g., “availability is stored as X/Y”), we can answer those surgically — but product-wise, this is fully locked.
