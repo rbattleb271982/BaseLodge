@@ -1,0 +1,80 @@
+Feature: Trips / Invites — Acceptance & Detail Polish
+🎯 GOAL
+Tighten and finalize the Trips / Invites experience so it feels complete, predictable, and consistent.
+This work is UX polish + state correctness only.
+⚠️ Do NOT introduce new features or flows.
+⚠️ Do NOT touch Planning or Friend Profile calendars.
+🧠 PRODUCT CONTEXT (LOCKED)
+Trips are explicit
+Invites are intentional
+Acceptance = commitment
+Decline = exit
+Trip details are the single source of truth
+1️⃣ INVITE ACCEPTANCE — STATE CLEANUP
+When a user accepts an invite:
+The user is:
+Added to the trip’s “Who’s going” list
+Marked as Going
+The trip owner is always shown first in “Who’s going”
+Accepted users appear immediately (no refresh required)
+After acceptance:
+User is redirected to the Trip Detail page
+Show a subtle confirmation message (toast or inline):
+You’re going
+When a user declines an invite:
+The invite status is set to Declined
+The user is redirected to My Trips
+The declined trip is not shown in My Trips
+No confirmation modal required — keep it light.
+2️⃣ INVITE VIEW — INFORMATIONAL CONSISTENCY
+Before acceptance:
+Invite detail page may show:
+Trip name
+Date range
+Accepted count (number only, no names)
+Do not show:
+Setup fields
+Coordination options
+Who’s going roster
+After acceptance:
+Full Trip Detail view is unlocked
+“Who’s going” list becomes visible
+3️⃣ TRIP DETAIL — “WHO’S GOING” RULES
+On Trip Detail (for owners + accepted invitees):
+Always show:
+Trip owner (first)
+Accepted invitees
+Do not show:
+Pending invites
+Declined users
+No avatars. Names only.
+4️⃣ TRIP DETAIL — OVERLAP COPY (SURFACE 1)
+Add a single informational line when applicable:
+You and Alex overlap for 2 days
+Rules:
+Show only when both users have confirmed trips
+Informational only (no CTA)
+Do not show on invites or Planning
+5️⃣ EXPLICIT NON-GOALS (DO NOT BUILD)
+🚫 Do NOT:
+Add new invite flows
+Add messaging
+Add calendar logic
+Add Planning references
+Add availability overlays
+Refactor trip models
+Change navigation structure
+This is polish, not expansion.
+6️⃣ TESTING CHECKLIST (REQUIRED)
+Verify:
+Accept → appears in “Who’s going”
+Decline → returns to My Trips
+Owner always shown in roster
+No declined users appear anywhere
+Overlap copy appears only when valid
+No regressions in Planning or Calendar views
+🛑 STOP CONDITIONS
+When complete:
+Report files touched
+Report any assumptions made
+STOP — do not continue to other features
