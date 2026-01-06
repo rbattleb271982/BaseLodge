@@ -1,0 +1,65 @@
+CRITICAL ISSUE:
+The My Trips → Ideas tab is behaving incorrectly in two ways:
+1) Trip Ideas cards are rendering when they should not.
+2) Trip Ideas cards are displayed in a horizontal scrolling layout, which was never intended.
+
+GOAL:
+Fix the Ideas tab so Trip Ideas cards:
+- Only render when the user has availability
+- Always render as a vertical list (no horizontal scrolling)
+
+THIS IS A LOGIC + LAYOUT FIX. UI-only tweaks are NOT sufficient.
+
+REQUIREMENTS (STRICT):
+
+PART 1 — HARD GATING (NON-NEGOTIABLE)
+1. Identify the variable representing availability days
+   (e.g., availability_days, open_days, etc.).
+
+2. On the My Trips → Ideas template, enforce this rule:
+
+   IF availability_days > 0:
+      - Render Trip Ideas cards
+      - Render “See all trip ideas” link
+
+   ELSE (availability_days == 0):
+      - DO NOT render Trip Ideas cards
+      - DO NOT render “See all trip ideas”
+      - Render ONLY an availability CTA card with:
+        Title: “Set your availability to see trip ideas”
+        Subtext: “Add the days you’re free and we’ll suggest trips that fit your schedule.”
+
+3. This must be enforced via template logic.
+   Do NOT rely on CSS hiding or visual workarounds.
+
+PART 2 — LAYOUT CORRECTION
+4. Remove horizontal scrolling entirely from Trip Ideas:
+   - Remove any overflow-x: auto / scroll
+   - Remove horizontal flex or carousel containers
+   - Remove fixed-width card styling intended for horizontal layouts
+
+5. Trip Ideas cards must render:
+   - Vertically stacked
+   - One card per row
+   - Full-width within the content column
+   - Scrolling only vertically with the page
+
+6. Layout should match:
+   - Confirmed Trips list
+   - Friends’ Trips list
+   - Invites list
+
+PART 3 — SCOPE CONTROL
+7. Do NOT:
+   - Change routing
+   - Change availability calculations
+   - Introduce new components
+   - Add pagination, sliders, or swipe gestures
+   - Change copy outside of the specified CTA card
+
+DELIVERABLE:
+- Updated Ideas tab template with a single clear conditional controlling rendering
+- Updated CSS / structure removing horizontal scroll behavior
+- Confirmation that:
+   a) availability_days == 0 → NO trip cards visible
+   b) availability_days > 0 → vertically stacked trip cards visible
