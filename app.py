@@ -821,15 +821,13 @@ def handle_exception(e):
         return e
     
     import traceback
-    print("=" * 70, flush=True)
-    print("🚨 UNHANDLED EXCEPTION", flush=True)
-    print("=" * 70, flush=True)
-    print(f"repr(e): {repr(e)}", flush=True)
-    print(f"e.args: {e.args}", flush=True)
-    print(f"Request Path: {request.path}", flush=True)
-    print("Full traceback:", flush=True)
-    print(traceback.format_exc(), flush=True)
-    print("=" * 70, flush=True)
+    print("=" * 70)
+    print(f"🚨 UNHANDLED EXCEPTION: {type(e).__name__}")
+    print("=" * 70)
+    print(f"Error: {e}")
+    print("Full traceback:")
+    traceback.print_exc()
+    print("=" * 70)
     db.session.rollback()
     return render_template("500.html"), 500
 
@@ -1574,8 +1572,8 @@ def setup_profile():
     return render_template("setup_profile.html", rider_types=RIDER_TYPES, pass_options=CANONICAL_PASSES)
 
 @app.route("/profile")
-def deprecated_profile():
-    """Defensive redirect: /profile no longer exists, redirect to /more."""
+def profile():
+    """Redirect /profile to /more (the main profile/settings page)."""
     return redirect(url_for("more"))
 
 @app.route("/edit_profile", methods=["GET", "POST"])
