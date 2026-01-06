@@ -1,0 +1,87 @@
+SECTION 1 — SCHEMA + COUNTRY MAPPING FOUNDATION
+
+GOAL
+Prepare the system for a two-field country model without changing any existing behavior or data.
+This section must be safe, reversible, and non-destructive.
+
+IMPORTANT CONSTRAINTS
+- Do NOT modify any existing resort data values.
+- Do NOT change any app or admin read logic yet.
+- Do NOT remove or rename the legacy country field.
+- This section is schema + utilities ONLY.
+
+========================================
+STEP 1 — DATABASE SCHEMA (DEV + PROD)
+========================================
+
+Add the following nullable columns to the Resort model and database:
+
+1) country_code
+   - Type: String(2)
+   - Nullable: true
+   - Indexed: true
+
+2) country_name
+   - Type: String(120)
+   - Nullable: true
+
+Rules:
+- Leave existing country / country_code / country fields untouched.
+- Do NOT backfill or populate these columns yet.
+- Generate Alembic migrations and apply to BOTH DEV and PROD.
+
+========================================
+STEP 2 — COUNTRY MAPPING SINGLE SOURCE OF TRUTH
+========================================
+
+Create or confirm a single canonical country mapping module:
+
+File:
+- utils/countries.py (or existing equivalent)
+
+Requirements:
+- Define a single dict mapping ISO-2 codes → full country names
+  Example:
+    COUNTRIES = {
+      "US": "United States",
+      "FR": "France",
+      "AT": "Austria",
+      ...
+    }
+
+- Add helper functions:
+  - is_valid_country_code(code)
+  - country_name_from_code(code)
+  - country_code_from_name(name)
+    - Normalize input (trim, casefold, collapse whitespace)
+    - Return None if ambiguous or not found
+
+Rules:
+- This module must be the ONLY place country mapping logic lives.
+- Do NOT duplicate mapping logic in templates, admin views, or models.
+
+========================================
+STEP 3 — NO BEHAVIOR CHANGE CONFIRMATION
+========================================
+
+- Do NOT update:
+  - Admin tables
+  - Filters
+  - Uploads
+  - Exports
+  - App templates
+
+- App behavior should remain IDENTICAL after this section.
+
+========================================
+STOP CONDITION
+========================================
+Stop after:
+- Columns exist in DEV and PROD
+- Mapping module exists
+- No data has been modified
+- App loads without errors
+
+Do NOT proceed to backfills or sync logic.
+Wait for explicit approval before continuing.
+END
