@@ -6,8 +6,96 @@
     <title>BaseLodge - Trips</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .add-trip-container {
-            margin-bottom: var(--bl-space-6);
+        .compact-profile-card {
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-lg);
+            border: 1px solid var(--bl-color-border-soft);
+            padding: 16px;
+            margin-bottom: 12px;
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .compact-profile-card:hover {
+            background: rgba(0, 0, 0, 0.02);
+        }
+        .compact-profile-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--bl-color-text);
+            line-height: 1.2;
+            margin-bottom: 4px;
+        }
+        .compact-profile-identity {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            line-height: 1.3;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--bl-color-text);
+            margin: 0 0 16px 0;
+        }
+
+        .segmented-control {
+            display: flex;
+            background: var(--bl-color-border-soft);
+            border-radius: 10px;
+            padding: 3px;
+            margin-bottom: 20px;
+        }
+        .segment-btn {
+            flex: 1;
+            padding: 10px 12px;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--bl-color-text-muted);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .segment-btn.active {
+            background: var(--bl-color-surface);
+            color: var(--bl-color-text);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .segment-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bl-color-primary);
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            padding: 0 5px;
+            margin-left: 6px;
+        }
+
+        .segment-content {
+            display: none;
+        }
+        .segment-content.active {
+            display: block;
+        }
+
+        .section-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 12px 0;
+            font-weight: 600;
+            letter-spacing: 0.5px;
         }
 
         .add-trip-button {
@@ -24,26 +112,10 @@
             text-decoration: none;
             display: block;
             text-align: center;
+            margin-bottom: 20px;
         }
-
         .add-trip-button:active {
             background: #6B000F;
-        }
-
-        .empty-state-container {
-            text-align: center;
-            padding: 24px 16px;
-        }
-        .empty-state-title {
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: var(--bl-color-text);
-            margin: 0 0 8px 0;
-        }
-        .empty-state-desc {
-            font-size: 0.85rem;
-            color: var(--bl-color-text-muted);
-            margin: 0 0 16px 0;
         }
 
         .trip-card {
@@ -82,123 +154,191 @@
             font-weight: 500;
         }
 
-        .invited-card {
-            border: 2px solid var(--bl-color-primary);
-            background: rgba(143, 1, 27, 0.03);
+        .planning-card {
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
         }
-        .invite-actions {
+        .planning-card-row {
             display: flex;
-            gap: 12px;
-            margin-top: 12px;
-            width: 100%;
+            justify-content: space-between;
+            align-items: center;
         }
-        .invite-accept-btn, .invite-decline-btn {
-            flex: 1;
-            padding: 10px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 14px;
+        .planning-card-text {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            margin: 0;
         }
-        .invite-accept-btn {
-            background: var(--bl-color-primary);
-            color: white;
-            border: none;
+        .planning-card-action {
+            font-size: 0.9rem;
+            color: var(--bl-color-primary);
+            font-weight: 500;
+            text-decoration: none;
         }
-        .invite-decline-btn {
-            background: transparent;
-            color: var(--bl-color-text-muted);
-            border: 1px solid var(--bl-color-border);
+        .planning-cta {
+            display: block;
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--bl-color-primary);
+            font-weight: 500;
+            text-decoration: none;
+            padding: 12px;
         }
 
-        .section-label {
-            font-size: 12px;
-            text-transform: uppercase;
-            color: var(--bl-color-text-muted);
+        .empty-state-container {
+            text-align: center;
+            padding: 24px 16px;
+        }
+        .empty-state-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--bl-color-text);
             margin: 0 0 8px 0;
-            font-weight: 600;
-            letter-spacing: 0.5px;
+        }
+        .empty-state-desc {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            margin: 0;
         }
     </style>
 </head>
 <body>
     <div class="page-container" style="padding: 16px 16px 88px;">
         {% if user %}
-        {% set eq = primary_equipment if (primary_equipment and (primary_equipment.brand or primary_equipment.boot_brand)) else (secondary_equipment if (secondary_equipment and (secondary_equipment.brand or secondary_equipment.boot_brand)) else none) %}
-        {% with profile_user=user, is_owner=true, upcoming_trips_count=(upcoming_trips|length if upcoming_trips else 0), equipment=eq, visited_resorts=(visited_resorts if visited_resorts else []), wishlist_resorts=(wishlist_resorts if wishlist_resorts else []) %}
-            {% include 'components/profile_card.html' %}
-        {% endwith %}
+        <a href="{{ url_for('profile') }}" class="compact-profile-card">
+            <div class="compact-profile-name">{{ user.first_name }}{% if user.last_name %} {{ user.last_name }}{% endif %}</div>
+            {% set identity = user|identity_line %}
+            {% if identity %}
+            <div class="compact-profile-identity">{{ identity }}</div>
+            {% endif %}
+        </a>
         {% endif %}
 
         {% if show_connected_banner %}
-        <div style="background: #E8F5E9; color: #2E7D32; padding: 12px; border-radius: var(--bl-radius-md); margin-bottom: 20px; font-weight: 600; text-align: center;">
+        <div style="background: #E8F5E9; color: #2E7D32; padding: 12px; border-radius: var(--bl-radius-md); margin-bottom: 16px; font-weight: 600; text-align: center;">
             You're now connected
         </div>
         {% endif %}
 
-        {% if invited_trips and invited_trips|length > 0 %}
-        <div style="margin-bottom: 16px;">
-            <p class="section-label">Invites</p>
+        <h1 class="page-title">My Trips</h1>
+
+        {% set ns = namespace(invite_count=0) %}
+        {% if invited_trips %}
             {% for trip in invited_trips %}
-            {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
-            <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                <div class="trip-card">
-                    <div class="trip-card-content">
-                        <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}, {{ trip.resort.state_code or trip.resort.state }}{% elif trip.mountain %}{{ trip.mountain }}, {{ trip.state }}{% else %}Resort TBD{% endif %} · {{ format_trip_dates(trip) }}</p>
-                        <p class="trip-card-line2" style="color: var(--bl-color-primary);">{{ trip.user.first_name if trip.user else 'Someone' }} invited you</p>
-                    </div>
-                    <span class="trip-card-action">View</span>
-                </div>
-            </a>
-            {% endif %}
+                {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
+                    {% set ns.invite_count = ns.invite_count + 1 %}
+                {% endif %}
             {% endfor %}
-        </div>
         {% endif %}
 
-        <div class="add-trip-container">
-            <a href="{{ url_for('add_trip') }}" class="add-trip-button">+ Add trip</a>
+        <div class="segmented-control">
+            <button type="button" class="segment-btn active" data-segment="upcoming">Upcoming</button>
+            <button type="button" class="segment-btn" data-segment="planning">Planning</button>
+            <button type="button" class="segment-btn" data-segment="invites">
+                Invites{% if ns.invite_count > 0 %}<span class="segment-badge">{{ ns.invite_count }}</span>{% endif %}
+            </button>
         </div>
 
-        <!-- Open Availability Section -->
-        <div style="background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <p style="font-size: 0.95rem; margin: 0; font-weight: 500;">
-                    Open availability · {% if user_open_dates and user_open_dates|length > 0 %}{{ user_open_dates|length }} day{% if user_open_dates|length != 1 %}s{% endif %}{% else %}0 days{% endif %}
-                </p>
-                <a href="{{ url_for('add_open_dates') }}" style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500; text-decoration: none;">Edit</a>
+        <a href="{{ url_for('add_trip') }}" class="add-trip-button">+ Add Trip</a>
+
+        <div id="segment-upcoming" class="segment-content active">
+            <p class="section-label">Confirmed Trips</p>
+            {% set all_my_trips = (upcoming_trips or []) + (accepted_guest_trips or []) %}
+            {% if all_my_trips|length > 0 %}
+            <div class="trips-list">
+                {% for trip in all_my_trips|sort(attribute='start_date') %}
+                {% if trip and trip.id %}
+                <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                    <div class="trip-card">
+                        <div class="trip-card-content">
+                            <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% elif trip.mountain %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% else %}Resort TBD{% endif %}</p>
+                            <p class="trip-card-line2">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
+                        </div>
+                        <span class="trip-card-action">View</span>
+                    </div>
+                </a>
+                {% endif %}
+                {% endfor %}
             </div>
-        </div>
-        
-        <a href="{{ url_for('trip_ideas') }}" style="display: block; text-align: center; font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500; margin-bottom: 16px; text-decoration: none;">
-            See trip ideas →
-        </a>
-
-        <!-- My Trips List -->
-        {% set all_my_trips = (upcoming_trips or []) + (accepted_guest_trips or []) %}
-        {% if all_my_trips|length > 0 %}
-        <div class="trips-list" style="margin-bottom: 20px;">
-            {% for trip in all_my_trips|sort(attribute='start_date') %}
-            {% if trip and trip.id %}
-            <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                <div class="trip-card">
-                    <div class="trip-card-content">
-                        <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% elif trip.mountain %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% else %}Resort TBD{% endif %}</p>
-                        <p class="trip-card-line2">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
-                    </div>
-                    <span class="trip-card-action">View</span>
-                </div>
-            </a>
+            {% else %}
+            <div class="empty-state-container">
+                <p class="empty-state-title">No upcoming trips yet</p>
+            </div>
             {% endif %}
-            {% endfor %}
         </div>
-        {% else %}
-        <div class="empty-state-container">
-            <p class="empty-state-title">No trips yet</p>
-            <p class="empty-state-desc">Add trips you're planning so friends can see where you're skiing.</p>
+
+        <div id="segment-planning" class="segment-content">
+            <p class="section-label">Planning</p>
+            
+            <div class="planning-card">
+                <div class="planning-card-row">
+                    <p class="planning-card-text">
+                        Open availability · {% if user_open_dates and user_open_dates|length > 0 %}{{ user_open_dates|length }} day{% if user_open_dates|length != 1 %}s{% endif %}{% else %}0 days{% endif %}
+                    </p>
+                    <a href="{{ url_for('add_open_dates') }}" class="planning-card-action">Edit</a>
+                </div>
+            </div>
+            
+            {% if not user_open_dates or user_open_dates|length == 0 %}
+            <a href="{{ url_for('add_open_dates') }}" class="planning-cta">Set your availability</a>
+            {% endif %}
+            
+            <a href="{{ url_for('trip_ideas') }}" class="planning-cta">See trip ideas →</a>
         </div>
-        {% endif %}
+
+        <div id="segment-invites" class="segment-content">
+            <p class="section-label">Invites</p>
+            {% set has_invites = false %}
+            {% if invited_trips and invited_trips|length > 0 %}
+                {% for trip in invited_trips %}
+                    {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
+                        {% set has_invites = true %}
+                        <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                            <div class="trip-card">
+                                <div class="trip-card-content">
+                                    <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}, {{ trip.resort.state_code or trip.resort.state }}{% elif trip.mountain %}{{ trip.mountain }}, {{ trip.state }}{% else %}Resort TBD{% endif %}</p>
+                                    <p class="trip-card-line2">{{ format_trip_dates(trip) }} · {{ trip.user.first_name if trip.user else 'Someone' }} invited you</p>
+                                </div>
+                                <span class="trip-card-action">View</span>
+                            </div>
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            {% if not has_invites %}
+            <div class="empty-state-container">
+                <p class="empty-state-title">No pending invites</p>
+            </div>
+            {% endif %}
+        </div>
     </div>
 
     {% include 'components/bottom_nav.html' %}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const segmentBtns = document.querySelectorAll('.segment-btn');
+            const segmentContents = document.querySelectorAll('.segment-content');
+            
+            segmentBtns.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const segment = this.getAttribute('data-segment');
+                    
+                    segmentBtns.forEach(function(b) { b.classList.remove('active'); });
+                    this.classList.add('active');
+                    
+                    segmentContents.forEach(function(content) {
+                        content.classList.remove('active');
+                        if (content.id === 'segment-' + segment) {
+                            content.classList.add('active');
+                        }
+                    });
+                });
+            });
+        });
+    </script>
 </body>
 </html>

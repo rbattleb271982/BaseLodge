@@ -1,0 +1,68 @@
+PUT THIS IN AGENT
+Update the My Trips page to fully match the finalized Segmented Hub design and behavior.
+CONTEXT
+The My Trips screen has been redesigned into a Segmented Hub with three modes and a compact profile card at the top.
+All decisions below are final and should be implemented exactly as written.
+REQUIRED SEGMENTED HUB CHANGES
+1) Segmented Control Order
+Update the segmented control to this exact order:
+Upcoming | Planning | Invites
+Upcoming is the default selected segment on every page load
+Invites appears last and shows a badge count when count > 0
+Do NOT auto-switch segments when new invites arrive (badge update only)
+2) Segment Content Rules (Do NOT mix content)
+Each segment must render only its own content.
+Upcoming (default)
+Show confirmed trips only
+Sorted by date
+Section header: CONFIRMED TRIPS
+Empty state text: No upcoming trips yet
+Planning
+Show:
+Open availability card (e.g. Open availability · 16 days) with an Edit action
+“See trip ideas →” CTA
+If availability is not set, show an explicit CTA (e.g. “Set your availability”)
+Section header: PLANNING
+Do NOT show trips or invites here
+Invites
+Show pending trip invites only
+Each invite must show:
+Resort name
+Date range
+“X invited you”
+View or chevron affordance
+Section header: INVITES
+Empty state text: No pending invites
+3) Default Behavior
+Always default to Upcoming
+Do NOT persist last selected segment
+Do NOT auto-navigate between segments
+PROFILE CARD RULES (IMPORTANT)
+Keep the compact profile card at the top of the screen
+Contents must be limited to:
+Name
+Identity line (e.g. Skier · Epic · Advanced)
+Entire card is tappable → Profile
+Do NOT show stats, counts, equipment, mountains, or buddy passes
+PRIMARY CTA RULES
+Keep a single global CTA: + Add Trip
+CTA must be visible across all segments
+Do NOT add any additional primary actions
+SPACING ADJUSTMENT (ADDITIONAL CHANGE)
+Reduce vertical spacing only between:
+The bottom of the compact Profile Card
+And the “My Trips” page title
+Target spacing: ~12–16px on mobile
+Do NOT:
+Change padding inside the Profile Card
+Change spacing below “My Trips”
+Change spacing around the segmented control
+Affect any other screen using the Profile Card component
+ACCEPTANCE CRITERIA
+Segmented control order is: Upcoming | Planning | Invites
+Upcoming always loads by default
+Invites update via badge only (no auto-switching)
+Planning contains availability + ideas only
+Vertical spacing above “My Trips” is reduced and intentional
+No regressions on other screens or profile views
+Make the smallest possible layout and logic changes needed to achieve this.
