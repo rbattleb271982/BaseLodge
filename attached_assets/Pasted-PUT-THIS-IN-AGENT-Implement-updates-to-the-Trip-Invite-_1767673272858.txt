@@ -1,0 +1,130 @@
+PUT THIS IN AGENT
+Implement updates to the Trip Invite Detail experience to support accepted-count visibility, roster unlocking on accept, and per-user trip coordination details (carpool, lessons, equipment), with clean accept/decline behavior.
+All rules below are final and should be implemented exactly as written.
+CONTEXT
+Trips are created by a user (the inviter) and invitations are sent to friends only.
+There are no avatars anywhere in the app — all displays are text-only.
+The Invite Detail page must:
+Keep acceptance/decline lightweight
+Avoid social pressure before acceptance
+Unlock coordination details only after acceptance
+Treat the inviter and invitees equally after acceptance
+TOP OF INVITE DETAIL PAGE (ALWAYS VISIBLE)
+Display trip context at the top:
+Resort name
+Date range
+If at least one person has accepted, show:
+X people going
+If zero accepted, show nothing (do NOT show “0 people”).
+PRIMARY ACTIONS (BEFORE ACCEPT)
+Show two primary buttons:
+[ Accept Invite ]   [ Decline ]
+Rules:
+No setup or coordination fields should block acceptance
+Accepting should NOT require filling anything out first
+DECLINE BEHAVIOR (LOCKED)
+When the invitee taps Decline:
+Immediately return them to My Trips
+Do NOT keep them on the trip page
+Do NOT show setup or roster information
+WHO’S GOING SECTION
+BEFORE ACCEPTING
+Show a section titled:
+WHO’S GOING
+Contents:
+Always show the inviter as going (text only)
+If accepted count ≥ 1, also show:
+X people going
+Do NOT:
+Show names of other invitees
+Show invited count
+Show avatars
+AFTER ACCEPTING
+Update the same section to show a text-only roster:
+WHO’S GOING
+Richard Battle-Baxter
+Jonathan
+Terry
+Rules:
+Names appear only after acceptance
+No avatars
+No roles or badges
+The inviter is always included automatically
+YOUR TRIP DETAILS SECTION
+Rename and standardize this section exactly as:
+YOUR TRIP DETAILS
+This section exists for everyone:
+Trip creator (inviter)
+Accepted invitees
+BEFORE ACCEPTING
+Show the section title
+Disable the content
+Display helper text:
+Accept the invite to add your trip details
+No fields should be editable.
+AFTER ACCEPTING
+Unlock the section and show four tappable rows, auto-saving on selection:
+Transportation      Add →
+Equipment           Bringing my own →
+Carpool             I need a ride →
+Taking a lesson?    Considering →
+Each row opens a selector. No explicit Save button.
+FIELD DEFINITIONS (LOCKED)
+TRANSPORTATION
+This row exists as an entry point only
+Do NOT over-model transportation modes yet
+Can remain “Add →” for now (future expansion)
+EQUIPMENT (PER-TRIP, ANCHORED TO PROFILE)
+Options:
+Bringing my own
+Renting
+Not set
+Defaults:
+If user profile indicates they own equipment → default to Bringing my own
+If user profile indicates they do not own equipment → default to Renting
+User may override per trip.
+CARPOOL (PER-TRIP)
+Options (exactly these five):
+I can drive and have space
+I can drive but have no space
+I need a ride
+Not carpooling
+Other
+Rules:
+No free-text input for “Other”
+Stored per-user, per-trip
+Visible only after acceptance
+LESSONS
+Label:
+Taking a lesson?
+Options:
+No
+Considering
+Yes
+No dates, times, or instructor details.
+ACCEPT FLOW NUDGE (SOFT)
+Immediately after a user accepts an invite, show a non-blocking prompt:
+Want to add your trip details now?
+
+[ Add details ]   [ Skip ]
+Rules:
+Skipping does not block access later
+No repeated prompts
+No forced completion
+DATA & VISIBILITY RULES
+All trip detail fields are:
+Per-user
+Per-trip
+Editable by both inviter and accepted invitees
+Declined users have no access to trip details
+No avatars anywhere
+No names shown before acceptance (except inviter)
+ACCEPTANCE CRITERIA
+Accepted count shows only when ≥ 1
+Names unlock only after acceptance
+Inviter is always marked as going
+Decline returns user to My Trips immediately
+Trip Details are locked until acceptance
+Carpool, Lessons, Equipment follow exact option sets
+No regressions to My Trips or Profile screens
+Make the smallest possible UI and logic changes required to implement this behavior.
