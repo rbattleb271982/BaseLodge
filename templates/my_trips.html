@@ -12,7 +12,9 @@
             border: 1px solid var(--bl-color-border-soft);
             padding: 16px;
             margin-bottom: 12px;
-            display: block;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
             text-decoration: none;
             color: inherit;
             cursor: pointer;
@@ -21,6 +23,14 @@
         .compact-profile-card:hover {
             background: rgba(0, 0, 0, 0.02);
         }
+        .compact-profile-content {
+            flex: 1;
+        }
+        .compact-profile-name-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
         .compact-profile-name {
             font-size: 1.5rem;
             font-weight: 700;
@@ -28,11 +38,22 @@
             line-height: 1.2;
             margin-bottom: 4px;
         }
+        .compact-profile-chevron {
+            font-size: 1.5rem;
+            color: var(--bl-color-text-muted);
+            margin-left: 12px;
+            flex-shrink: 0;
+        }
         .compact-profile-identity {
             font-size: 1.125rem;
             font-weight: 600;
             color: var(--bl-color-text);
             line-height: 1.3;
+        }
+        .compact-profile-link {
+            font-size: 0.875rem;
+            color: var(--bl-color-text-muted);
+            margin-top: 6px;
         }
 
         .page-title {
@@ -225,12 +246,16 @@
 <body>
     <div class="page-container" style="padding: 16px 16px 88px;">
         {% if user %}
-        <a href="{{ url_for('more') }}" class="compact-profile-card">
-            <div class="compact-profile-name">{{ user.first_name }}{% if user.last_name %} {{ user.last_name }}{% endif %}</div>
-            {% set identity = user|identity_line %}
-            {% if identity %}
-            <div class="compact-profile-identity">{{ identity }}</div>
-            {% endif %}
+        <a href="{{ url_for('profile') }}" class="compact-profile-card">
+            <div class="compact-profile-content">
+                <div class="compact-profile-name">{{ user.first_name }}{% if user.last_name %} {{ user.last_name }}{% endif %}</div>
+                {% set identity = user|identity_line %}
+                {% if identity %}
+                <div class="compact-profile-identity">{{ identity }}</div>
+                {% endif %}
+                <div class="compact-profile-link">View profile →</div>
+            </div>
+            <span class="compact-profile-chevron">›</span>
         </a>
         {% endif %}
 
