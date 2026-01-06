@@ -1,0 +1,89 @@
+Objective: Replace the legacy “Planning” concept with a single, intentional Ideas tab that represents availability-driven trip inspiration, and fully retire the old Planning implementation without regressions.
+
+This work must be completed in the order below. Do not skip steps.
+
+⸻
+
+STEP 1 — Rename & Re-scope the Tab (Foundation)
+	1.	Rename the “Planning” tab to “Ideas” everywhere:
+	•	Bottom navigation
+	•	Page headers
+	•	Any enums, constants, or UI labels
+	2.	Do not change routing unless necessary.
+	•	This is a semantic and intent change, not a feature expansion.
+	3.	Verify that “Planning” no longer appears anywhere in the user-facing UI.
+
+⸻
+
+STEP 2 — Define the Canonical Ideas Page
+
+There must be one authoritative implementation of the Ideas tab.
+	•	Determine whether:
+	•	The existing Planning page is being refactored in place OR
+	•	A new Ideas page already exists
+
+Choose one and deprecate the other.
+Both must not coexist.
+
+⸻
+
+STEP 3 — Migrate Allowed Content Only
+
+The Ideas tab must contain exactly the following, in this order:
+	1.	My Availability
+	•	Display open availability exactly as currently implemented
+	•	This is the anchor of the screen
+	2.	Trip Ideas
+	•	Horizontal, scrollable inspiration tiles
+	•	Filtered by pass ownership and availability
+	•	Retain existing “See all trip ideas →” behavior
+	3.	Inline Create Action
+	•	An inline card labeled:
+	•	“Plan a new trip”
+	•	Subtext: “Choose dates, a mountain, and who’s coming”
+	•	Entire card navigates to /add_trip
+	•	This card appears below availability and trip ideas
+
+Do not add confirmed, draft, or upcoming trips to this screen.
+
+⸻
+
+STEP 4 — Remove Legacy Planning Logic
+
+Completely remove or refactor out:
+	•	Any “draft trip” or execution-stage logic previously tied to Planning
+	•	Any unused templates (e.g. planning.html)
+	•	Any dead routes, imports, or conditionals referencing Planning
+	•	Any commented-out Planning code
+
+Ensure there is no duplicate availability or trip-idea rendering elsewhere.
+
+⸻
+
+STEP 5 — Backward Compatibility
+	•	If legacy Planning routes exist and may be bookmarked:
+	•	Add a clean redirect to the Ideas route
+	•	Do not allow 404s or broken navigation
+
+⸻
+
+STEP 6 — Final Validation
+
+Confirm the following before finishing:
+	•	“Planning” does not appear anywhere in the UI
+	•	Only one Ideas implementation exists
+	•	Ideas tab shows:
+	•	Availability → Trip Ideas → Inline Create
+	•	Trip creation via /add_trip works end-to-end
+	•	Upcoming and Invites tabs are unaffected
+
+Do not finish until all steps have been completed and manually verified. Use checkpoints sparingly.
+
+⸻
+
+Mental Model (must be preserved)
+	•	Upcoming = What’s locked in
+	•	Ideas = What could I do with the time I have
+	•	Invites = What others are coordinating with me
+
+This model should be obvious from the UI without explanation.
