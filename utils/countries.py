@@ -22,7 +22,10 @@ COUNTRIES = {
   "CH": "Switzerland",
   "TR": "Turkey",
   "US": "United States",
-  "XK": "Kosovo"
+  "XK": "Kosovo",
+  "FI": "Finland",
+  "KR": "South Korea",
+  "CN": "China"
 }
 
 
