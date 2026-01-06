@@ -1,0 +1,187 @@
+GOAL
+Implement all agreed UX, identity, filtering, and layout fixes across Trips, Friends’ Trips, Overlaps, Planning, and Invite flows in BaseLodge. This must be implemented in the dependency order below to avoid rework.
+
+========================================
+PHASE 1 — FOUNDATION (DO FIRST)
+========================================
+
+GLOBAL IDENTITY RULES (CRITICAL)
+- Use FIRST + LAST names everywhere
+- Replace the logged-in user’s own name with “You”
+- Identity format everywhere:
+  First Last
+  Rider type · Level · Pass(es)
+- Users may have MULTIPLE passes:
+  - Display all relevant passes inline (e.g. “Epic · Ikon”)
+  - Do NOT choose a primary pass arbitrarily
+- Apply this consistently to:
+  - Who’s Going
+  - Pending Invites
+  - Friends’ Trips
+  - Overlaps
+  - Planning cards
+  - Invite detail pages
+- Do NOT use “+1 other” or any aggregation shortcuts
+
+Implement identity formatting centrally if possible to avoid duplication.
+
+----------------------------------------
+
+FLASH MESSAGE BUG (CRITICAL)
+- Remove persistent / stacked flash messages from trip pages
+- Flash messages must:
+  - Appear only once
+  - Be consumed immediately after the redirect that triggers them
+  - Never persist across navigation or refresh
+- Do NOT render global flash messages on trip detail views
+- Prefer inline UI updates or lightweight toasts where appropriate
+
+========================================
+PHASE 2 — LAYOUT & VISIBILITY FIXES
+========================================
+
+STICKY ACTION CONTAINER
+- Add a reusable sticky action container ABOVE the bottom tab bar
+- Bottom navigation must remain visible at all times
+- Use this container for:
+  - Accept / Decline invite actions
+  - Any other critical trip actions
+- Ensure page content is padded so nothing is hidden behind the container
+
+----------------------------------------
+
+TRIP DETAIL HEADER CLEANUP
+- Remove dates displayed under the mountain/resort name
+- Remove “X people going” from the header
+- Header should show ONLY the mountain/resort name
+
+========================================
+PHASE 3 — TRIP DETAIL FIELD LOGIC
+========================================
+
+TRANSPORTATION
+- Single-select options:
+  - Driving
+  - Flying
+  - Train
+  - Bus
+  - Not set
+- Train and Bus MUST be separate options
+- Selection must persist immediately on tap
+
+----------------------------------------
+
+CARPOOL (SOCIAL COORDINATION)
+- Options:
+  - I can drive
+  - I need a ride
+  - Not needed
+- Carpool should be:
+  - Visible but READ-ONLY before accepting a trip
+  - Editable after accepting
+- If “I can drive”:
+  - Show available seats selector
+- Otherwise:
+  - Hide seat selector
+  - Reset seats value
+
+----------------------------------------
+
+EQUIPMENT
+- Options:
+  - Bringing my own equipment
+  - Renting equipment
+- Default selection comes from the user’s PROFILE
+- Trip-level changes MUST NOT update profile defaults
+- Equipment selection must exist:
+  - During initial trip creation
+  - In trip edit flows
+- Persist immediately on selection
+
+----------------------------------------
+
+LESSONS
+- Options (ORDER MATTERS):
+  1. No lesson (DEFAULT)
+  2. Taking a lesson
+  3. Maybe lessons
+- Persist immediately on selection
+
+========================================
+PHASE 4 — SOCIAL VIEWS
+========================================
+
+WHO’S GOING SECTION
+- List each participant individually
+- Show:
+  First Last
+  Rider type · Level · Pass(es)
+- Apply “You” substitution for the logged-in user
+- Remove any aggregation like “+1 other”
+
+----------------------------------------
+
+FRIENDS’ TRIPS TAB
+- Add FILTER capability (same entry affordance as Friends tab)
+- Filters apply to the FRIEND (not the trip):
+  - Pass
+  - Rider type
+  - Level
+  - Resort / State / Country
+- Filters must:
+  - Be scoped ONLY to Friends’ Trips
+  - Not leak into Overlaps or other tabs
+
+========================================
+PHASE 5 — OVERLAPS
+========================================
+
+OVERLAP LOGIC
+- Show overlaps when there is AT LEAST 1 overlapping day
+- Use MULTIPLE cards when overlaps occur on multiple days
+
+OVERLAP CARD STRUCTURE
+- Primary line:
+  Date · You + First Last (Passes)
+- Secondary line:
+  Resort · Country
+  OR “Open location” if no resort selected
+- Always include the OTHER PERSON’S pass(es) inline
+
+----------------------------------------
+
+OVERLAPS FILTERS
+- Add filter capability (lighter than Friends’ Trips):
+  - Date
+  - Resort / location
+  - Friend
+- Filters must be scoped ONLY to the Overlaps tab
+
+========================================
+PHASE 6 — PLANNING (LAST)
+========================================
+
+PLANNING TAB FLOW
+- After availability dates are entered, the page must NOT be a dead end
+- Add an inline, scrollable “Trip Ideas” section on the SAME page
+- Do NOT force navigation to another screen to see ideas
+
+TRIP IDEAS RANKING ORDER
+1. Same state the user lives in
+2. Compatible with the user’s pass(es)
+3. Buddy-pass compatible
+4. No-pass / out-of-pass options last
+
+========================================
+GENERAL REQUIREMENTS
+========================================
+- All selections must save and persist correctly
+- Changes must reflect immediately in parent views
+- Mobile-first behavior is mandatory
+- Reuse existing models where possible
+- Do NOT introduce new concepts like “ride status”
+- Prefer derived state over duplicated inputs
+- Use minimal checkpoints
+- Do not finish until all flows are manually tested end-to-end
+
+END
