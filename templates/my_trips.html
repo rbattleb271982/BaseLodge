@@ -98,26 +98,6 @@
             letter-spacing: 0.5px;
         }
 
-        .add-trip-button {
-            width: 100%;
-            padding: var(--bl-space-5) var(--bl-space-6);
-            background: var(--bl-color-primary);
-            color: white;
-            border: none;
-            border-radius: var(--bl-radius-lg);
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-            text-decoration: none;
-            display: block;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .add-trip-button:active {
-            background: #6B000F;
-        }
-
         .trip-card {
             display: flex;
             justify-content: space-between;
@@ -307,6 +287,11 @@
         <div id="segment-planning" class="segment-content">
             <p class="section-label">Planning</p>
             
+            <a href="{{ url_for('add_trip') }}" class="new-trip-card">
+                <p class="new-trip-card-title">Plan a new trip</p>
+                <p class="new-trip-card-subtext">Choose dates, a mountain, and who's coming</p>
+            </a>
+            
             <div class="planning-card">
                 <div class="planning-card-row">
                     <p class="planning-card-text">
@@ -341,11 +326,15 @@
 
         <div id="segment-invites" class="segment-content">
             <p class="section-label">Invites</p>
-            {% set has_invites = false %}
-            {% if invited_trips and invited_trips|length > 0 %}
-                {% for trip in invited_trips %}
-                    {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
-                        {% set has_invites = true %}
+            {% set invite_count = ns.invite_count %}
+            <div class="trips-list">
+                <a href="{{ url_for('add_trip') }}" class="new-trip-card{% if invite_count >= 20 %} compact{% endif %}">
+                    <p class="new-trip-card-title">{% if invite_count >= 20 %}＋ New trip{% else %}Plan a new trip{% endif %}</p>
+                    <p class="new-trip-card-subtext">Choose dates, a mountain, and who's coming</p>
+                </a>
+                {% if invited_trips and invited_trips|length > 0 %}
+                    {% for trip in invited_trips %}
+                        {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
                         <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
                             <div class="trip-card">
                                 <div class="trip-card-content">
@@ -355,14 +344,10 @@
                                 <span class="trip-card-action">View</span>
                             </div>
                         </a>
-                    {% endif %}
-                {% endfor %}
-            {% endif %}
-            {% if not has_invites %}
-            <div class="empty-state-container">
-                <p class="empty-state-title">No pending invites</p>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
             </div>
-            {% endif %}
         </div>
     </div>
 
