@@ -9030,11 +9030,13 @@ def admin_import_resorts_excel():
                     suffix += 1
                 
                 # Create new resort
+                parsed_country_code = str(country).strip().upper()
                 new_resort = Resort(
                     name=resort_name,
                     slug=slug,
-                    country_code=str(country).strip().upper(),
-                    country=str(country).strip().upper(),
+                    country_code=parsed_country_code,
+                    country=parsed_country_code,
+                    country_name=COUNTRIES.get(parsed_country_code, parsed_country_code),
                     country_name_override=str(country_name_override).strip() if country_name_override and str(country_name_override).strip() else None,
                     state_code=str(state_region).strip() if state_region else None,
                     state=str(state_region).strip() if state_region else None,
@@ -9445,19 +9447,11 @@ def admin_add_resort():
     if slug_exists:
         slug = f"{slug}-{int(datetime.utcnow().timestamp())}"
     
-    country_names = {
-        'US': 'United States', 'CA': 'Canada', 'FR': 'France',
-        'CH': 'Switzerland', 'AT': 'Austria', 'IT': 'Italy',
-        'JP': 'Japan', 'NZ': 'New Zealand', 'AU': 'Australia',
-        'CL': 'Chile', 'AR': 'Argentina', 'NO': 'Norway',
-        'SE': 'Sweden', 'ES': 'Spain', 'AD': 'Andorra', 'DE': 'Germany'
-    }
-    
     new_resort = Resort(
         name=name,
         country=country_code,
         country_code=country_code,
-        country_name=country_names.get(country_code, country_code),
+        country_name=COUNTRIES.get(country_code, country_code),
         state=state_code,
         state_code=state_code,
         state_name=state_code,
@@ -9515,10 +9509,13 @@ def admin_export_canonical():
     }
     
     for r in resorts:
+        resolved_country_code = r.country_code or r.country or 'US'
+        resolved_country_name = r.country_name or COUNTRIES.get(resolved_country_code, resolved_country_code)
         canonical_data['resorts'].append({
             'name': r.name,
             'state_code': r.state_code or r.state,
-            'country_code': r.country_code or r.country or 'US',
+            'country_code': resolved_country_code,
+            'country_name': resolved_country_name,
             'pass_brands': r.pass_brands or r.brand or ''
         })
     
