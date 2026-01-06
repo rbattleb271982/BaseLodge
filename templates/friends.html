@@ -446,16 +446,14 @@
                 <div style="flex: 1; min-width: 0;">
                     {% if overlap.type == 'trip' %}
                     <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                        {{ format_trip_dates(overlap) }} · You + {% for f in overlap.friends[:2] %}{{ f.first_name }}{% if not loop.last %}, {% endif %}{% endfor %}{% if overlap.friends|length > 2 %} +{{ overlap.friends|length - 2 }}{% endif %}
-                        {% if overlap.friends and overlap.friends[0].pass_type %}({{ overlap.friends[0].pass_type|pass_display }}){% endif %}
+                        {{ format_trip_dates(overlap) }} · You + {% if overlap.friends|length == 1 %}{{ overlap.friends[0].first_name }} {{ overlap.friends[0].last_name or '' }}{% else %}{{ overlap.friends|length }} others{% endif %}
                     </p>
                     <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">
                         {{ overlap.mountain }}{% if overlap.resort_id %}, {{ overlap.state or '' }}{% else %} · Open location{% endif %}
                     </p>
                     {% else %}
                     <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 4px 0;">
-                        {{ overlap.start_date.strftime('%b %-d') }} · You + {% for f in overlap.friends[:2] %}{{ f.first_name }}{% if not loop.last %}, {% endif %}{% endfor %}{% if overlap.friends|length > 2 %} +{{ overlap.friends|length - 2 }}{% endif %}
-                        {% if overlap.friends and overlap.friends[0].pass_type %}({{ overlap.friends[0].pass_type|pass_display }}){% endif %}
+                        {{ overlap.start_date.strftime('%b %-d') }} · You + {% if overlap.friends|length == 1 %}{{ overlap.friends[0].first_name }} {{ overlap.friends[0].last_name or '' }}{% else %}{{ overlap.friends|length }} others{% endif %}
                     </p>
                     <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">
                         Open availability
