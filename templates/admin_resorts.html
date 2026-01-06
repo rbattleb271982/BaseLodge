@@ -738,6 +738,7 @@
                     <th class="checkbox-col"><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th>
                     <th class="sortable" data-sort="id" onclick="sortTable('id')">ID</th>
                     <th class="sortable" data-sort="name" onclick="sortTable('name')">Name</th>
+                    <th class="sortable" data-sort="country_code" onclick="sortTable('country_code')">Code</th>
                     <th class="sortable" data-sort="country" onclick="sortTable('country')">Country Name</th>
                     <th class="sortable" data-sort="state" onclick="sortTable('state')">State/Region</th>
                     <th class="sortable" data-sort="pass" onclick="sortTable('pass')">Pass Brands</th>
@@ -750,6 +751,7 @@
                 <tr data-id="{{ resort.id }}" 
                     data-name="{{ resort.name|lower }}"
                     data-country="{{ resort.country_code or '' }}"
+                    data-country-name="{{ resort.country_name or '' }}"
                     data-state="{{ resort.state_code or resort.state or '' }}"
                     data-pass="{{ resort.get_pass_brands_list()|join(',') or 'None' }}"
                     data-active="{{ 'true' if resort.is_active else 'false' }}"
@@ -763,15 +765,11 @@
                                value="{{ resort.name }}"
                                onblur="saveField(this)">
                     </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #666;">
+                        {{ resort.country_code or '' }}
+                    </td>
                     <td>
-                        <input type="text" class="editable-input" 
-                               data-field="country_name_override"
-                               data-id="{{ resort.id }}"
-                               value="{{ resort.display_country_name }}"
-                               placeholder="{{ COUNTRIES.get(resort.country_code or resort.country, resort.country_code or resort.country) }}"
-                               onblur="saveCountryName(this)"
-                               style="width: 140px;">
-                        <input type="hidden" data-field="country_code" value="{{ resort.country_code or resort.country or '' }}">
+                        <span style="font-size: 13px;">{{ resort.country_name or '' }}</span>
                     </td>
                     <td>
                         <input type="text" class="editable-input" 

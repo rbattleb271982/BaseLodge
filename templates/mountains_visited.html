@@ -277,6 +277,7 @@
                        data-name="{{ resort.name|lower }}"
                        data-display-name="{{ resort.name }}"
                        data-country="{{ resort.country_code }}"
+                       data-country-name="{{ resort.country_name or '' }}"
                        data-region="{{ resort.state_code }}">
                     <input type="checkbox" name="resort_ids" value="{{ resort.id }}"
                            {% if resort.id in selected_resort_ids %}checked{% endif %} onchange="updatePills()">
@@ -404,6 +405,7 @@
                     id: parseInt(cb.value),
                     name: row.dataset.displayName,
                     country: row.dataset.country,
+                    countryName: row.dataset.countryName || '',
                     region: row.dataset.region
                 });
             });
@@ -417,7 +419,7 @@
                     groupLabel = stateNames[r.region] || r.region;
                 } else {
                     groupKey = r.country;
-                    groupLabel = countryNames[r.country] || r.country;
+                    groupLabel = r.countryName || r.country;
                 }
                 if (!groups[groupKey]) {
                     groups[groupKey] = { label: groupLabel, resorts: [] };

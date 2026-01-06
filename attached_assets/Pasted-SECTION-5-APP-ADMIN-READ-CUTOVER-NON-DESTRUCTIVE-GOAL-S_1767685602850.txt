@@ -1,0 +1,90 @@
+SECTION 5 — APP + ADMIN READ CUTOVER (NON-DESTRUCTIVE)
+
+GOAL
+Switch all app and admin READS to use the new two-field country model:
+- country_name for display
+- country_code for filtering and logic
+
+IMPORTANT CONSTRAINTS
+- Do NOT modify any resort data
+- Do NOT backfill or mutate fields
+- Reads only
+- All changes must be backward-safe
+
+========================================
+STEP 1 — USER-FACING DISPLAY
+========================================
+Update all user-facing templates/components so:
+
+- Display country_name wherever a country is shown
+- Do NOT display ISO codes to users
+- Remove any fallback logic that derives names from codes at render time
+
+If country_name is NULL (should be rare):
+- Display nothing or a safe placeholder
+- Do NOT crash
+
+Applies to:
+- Resort lists
+- Trip cards
+- Friends’ trips
+- Overlaps
+- Planning / trip ideas
+- Any other public-facing resort display
+
+========================================
+STEP 2 — FILTERS & GROUPING LOGIC
+========================================
+Update all filters, queries, and grouping logic to:
+
+- Filter/group using country_code (system-of-record)
+- Never filter on country_name text
+
+This includes:
+- Admin filters
+- User-facing filters
+- Any analytics/group-by logic
+
+========================================
+STEP 3 — ADMIN TABLE DISPLAY
+========================================
+Update the admin resorts table to show TWO explicit columns:
+
+- Country (country_name)
+- Country Code (country_code)
+
+Rules:
+- Do NOT derive values in the table
+- Display stored DB values only
+- Keep column ordering stable and readable
+
+========================================
+STEP 4 — ADMIN DROPDOWNS (READ BEHAVIOR)
+========================================
+For admin dropdowns/selectors:
+- Display full country names
+- Store both country_code and country_name
+- Ensure selected value reflects DB state exactly
+
+========================================
+STEP 5 — REMOVE LEGACY FALLBACKS
+========================================
+Identify and remove:
+- Any template logic that maps country_code → name at render time
+- Any admin logic that guesses country values for display
+
+After this step:
+- utils/countries.py is used ONLY for validation + normalization
+- Not for UI derivation
+
+========================================
+STOP CONDITION
+========================================
+Stop after:
+- All screens display country_name correctly
+- All filters work using country_code
+- Admin table shows both columns
+- No crashes when country fields are NULL
+- No resort data was modified
+
+END

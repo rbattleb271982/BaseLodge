@@ -471,15 +471,12 @@ class Resort(db.Model):
     def display_country_name(self):
         """Returns the resolved country name for display.
         
-        Priority: country_name_override > COUNTRIES lookup > raw ISO code
+        Priority: country_name_override > stored country_name > empty string
+        Note: No longer derives from COUNTRIES mapping (Section 5 compliant)
         """
         if self.country_name_override:
             return self.country_name_override
-        from utils.countries import COUNTRIES
-        iso_code = self.country_code or self.country
-        if iso_code:
-            return COUNTRIES.get(iso_code.upper(), iso_code)
-        return ''
+        return self.country_name or ''
 
     def __repr__(self):
         return f'<Resort {self.name} ({self.state_code or self.state})>'

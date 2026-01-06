@@ -1881,7 +1881,7 @@ def my_trips():
                     'id': resort.id,
                     'name': resort.name,
                     'state': resort.state_code or resort.state,
-                    'country': resort.country_code or '',
+                    'country': resort.country_name or '',
                     'score': score,
                     'match_reason': match_reason
                 })
