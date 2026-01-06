@@ -1,0 +1,82 @@
+SECTION 2 — PROD BACKFILL + REVIEW REPORT
+
+GOAL
+Backfill country_code and country_name for Resort records in PROD using existing legacy country values,
+with strict rules:
+- Infer only when confident
+- Leave NULL when uncertain
+- Produce a review report for all unresolved cases
+
+IMPORTANT CONSTRAINTS
+- PROD ONLY (read/write PROD database)
+- Do NOT touch DEV
+- Do NOT modify any fields other than country_code and country_name
+- Do NOT guess or coerce values
+- If unsure, leave NULL and flag
+
+========================================
+STEP 1 — INPUTS
+========================================
+- Use utils/countries.py as the single source of truth
+- Read the existing legacy country value from the Resort model
+  (this may be a field named `country` or an existing `country_code` — inspect and use appropriately)
+
+========================================
+STEP 2 — BACKFILL LOGIC (PROD)
+========================================
+For each Resort row in PROD:
+
+A) Determine candidate country_code:
+   1) If legacy value is a string of length 2 AND is_valid_country_code(value):
+        - Set country_code = UPPERCASE(value)
+   2) Else if legacy value is a full country name that country_code_from_name(value) can resolve uniquely:
+        - Set country_code = resolved ISO-2 code
+   3) Else:
+        - Leave country_code = NULL
+        - Flag for review
+
+B) Set country_name:
+   - If country_code is set and exists in COUNTRIES:
+        - Set country_name = COUNTRIES[country_code]
+   - Else:
+        - Leave country_name = NULL
+
+C) Do NOT modify any other fields.
+
+========================================
+STEP 3 — REVIEW REPORT (REQUIRED)
+========================================
+Generate a CSV report containing ONLY resorts where country_code is NULL after backfill.
+
+Columns:
+- resort_id
+- resort_name
+- legacy_country_value
+- issue_reason (one of:
+    "missing",
+    "unrecognized",
+    "ambiguous",
+    "invalid_format"
+  )
+
+Write the CSV to a downloadable location or expose it via an admin-only endpoint.
+
+========================================
+STEP 4 — SAFETY CHECKS
+========================================
+- Log counts:
+  - Total resorts processed
+  - Number successfully backfilled
+  - Number flagged for review
+- Do NOT crash if legacy values are empty or malformed
+
+========================================
+STOP CONDITION
+========================================
+Stop after:
+- Backfill completes
+- Review CSV is generated
+- Counts are logged
+Do NOT proceed to any DEV sync or UI changes.
+
+END
