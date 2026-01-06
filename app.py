@@ -2873,6 +2873,243 @@ def create_trip_page():
         is_group=is_group
     )
 
+# ============================================================================
+# PLANNING FEATURE
+# Shows availability overlap windows between current user and friends
+# ============================================================================
+
+def group_dates_into_windows(dates):
+    """Group a list of date strings into consecutive windows.
+    
+    Args:
+        dates: List of 'YYYY-MM-DD' date strings (must be sorted)
+    
+    Returns:
+        List of tuples: [(start_date, end_date), ...]
+    """
+    if not dates:
+        return []
+    
+    windows = []
+    sorted_dates = sorted(dates)
+    
+    window_start = sorted_dates[0]
+    window_end = sorted_dates[0]
+    
+    for i in range(1, len(sorted_dates)):
+        current = sorted_dates[i]
+        prev = sorted_dates[i - 1]
+        
+        # Check if consecutive (within 1 day)
+        try:
+            current_date = datetime.strptime(current, '%Y-%m-%d').date()
+            prev_date = datetime.strptime(prev, '%Y-%m-%d').date()
+            
+            if (current_date - prev_date).days <= 1:
+                window_end = current
+            else:
+                windows.append((window_start, window_end))
+                window_start = current
+                window_end = current
+        except ValueError:
+            continue
+    
+    windows.append((window_start, window_end))
+    return windows
+
+
+def get_planning_windows(user):
+    """Get availability overlap windows for the planning feed.
+    
+    Returns a list of windows, each containing:
+    - start_date: 'YYYY-MM-DD'
+    - end_date: 'YYYY-MM-DD'
+    - friends: list of friend user objects
+    - friend_names_display: formatted string for display
+    """
+    from services.open_dates import get_open_date_matches
+    
+    matches = get_open_date_matches(user)
+    if not matches:
+        return []
+    
+    # Group matches by date
+    date_to_friends = {}
+    friend_cache = {}
+    
+    for match in matches:
+        d = match['date']
+        fid = match['friend_id']
+        
+        if d not in date_to_friends:
+            date_to_friends[d] = set()
+        date_to_friends[d].add(fid)
+        
+        # Cache friend info
+        if fid not in friend_cache:
+            friend_cache[fid] = {
+                'id': fid,
+                'name': match['friend_name'],
+                'pass': match['friend_pass']
+            }
+    
+    # Filter to future dates only
+    today_str = date.today().strftime('%Y-%m-%d')
+    future_dates = sorted([d for d in date_to_friends.keys() if d >= today_str])
+    
+    if not future_dates:
+        return []
+    
+    # Group consecutive dates into windows
+    windows = group_dates_into_windows(future_dates)
+    
+    # For each window, find friends who are available for ALL dates in that window
+    result = []
+    for start, end in windows:
+        # Get all dates in this window
+        window_dates = [d for d in future_dates if start <= d <= end]
+        
+        if not window_dates:
+            continue
+        
+        # Find friends available on ALL dates in window
+        friends_per_date = [date_to_friends.get(d, set()) for d in window_dates]
+        common_friends = set.intersection(*friends_per_date) if friends_per_date else set()
+        
+        if not common_friends:
+            continue
+        
+        # Build friend info list
+        friends = [friend_cache[fid] for fid in common_friends]
+        friends.sort(key=lambda f: f['name'] or '')
+        
+        # Format display string
+        names = [f['name'] for f in friends if f['name']]
+        if len(names) == 0:
+            continue
+        elif len(names) == 1:
+            display = f"{names[0]} is free"
+        elif len(names) == 2:
+            display = f"{names[0]} and {names[1]} are free"
+        else:
+            display = f"{names[0]} + {len(names) - 1} others are free"
+        
+        result.append({
+            'start_date': start,
+            'end_date': end,
+            'friends': friends,
+            'friend_names_display': display
+        })
+    
+    return result
+
+
+def format_planning_dates(start_str, end_str):
+    """Format date range for planning display (e.g., 'Jan 18–21' or 'Jan 25–Feb 1')."""
+    try:
+        start = datetime.strptime(start_str, '%Y-%m-%d').date()
+        end = datetime.strptime(end_str, '%Y-%m-%d').date()
+        
+        if start == end:
+            return start.strftime('%b %-d')
+        elif start.month == end.month:
+            return f"{start.strftime('%b %-d')}–{end.day}"
+        else:
+            return f"{start.strftime('%b %-d')}–{end.strftime('%b %-d')}"
+    except ValueError:
+        return f"{start_str} – {end_str}"
+
+
+@app.route("/planning")
+@login_required
+def planning():
+    user = current_user
+    
+    # Check if user has any availability set
+    user_open_dates = set(user.open_dates or [])
+    today_str = date.today().strftime('%Y-%m-%d')
+    future_dates = {d for d in user_open_dates if d >= today_str}
+    
+    if not future_dates:
+        return render_template("planning.html", user=user, windows=[], has_availability=False)
+    
+    # Get planning windows
+    windows = get_planning_windows(user)
+    
+    # Format dates for display
+    for w in windows:
+        w['display_dates'] = format_planning_dates(w['start_date'], w['end_date'])
+    
+    return render_template("planning.html", user=user, windows=windows, has_availability=True)
+
+
+@app.route("/planning/window/<start_date>/<end_date>")
+@login_required
+def planning_window(start_date, end_date):
+    user = current_user
+    
+    # Validate date format
+    try:
+        start = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end = datetime.strptime(end_date, '%Y-%m-%d').date()
+    except ValueError:
+        flash("Invalid date range", "error")
+        return redirect(url_for('planning'))
+    
+    # Get friends available in this window
+    from services.open_dates import get_open_date_matches
+    matches = get_open_date_matches(user)
+    
+    # Find friends with overlapping dates in this window
+    window_dates = set()
+    d = start
+    while d <= end:
+        window_dates.add(d.strftime('%Y-%m-%d'))
+        d += timedelta(days=1)
+    
+    # Group by friend and check if they overlap with this window
+    friend_ids_in_window = set()
+    for match in matches:
+        if match['date'] in window_dates:
+            friend_ids_in_window.add(match['friend_id'])
+    
+    # Load friend details
+    friends_data = []
+    if friend_ids_in_window:
+        friends = User.query.filter(User.id.in_(friend_ids_in_window)).all()
+        for friend in friends:
+            # Build identity line (same format as elsewhere)
+            identity_parts = []
+            if friend.primary_rider_type:
+                identity_parts.append(friend.primary_rider_type)
+            if friend.pass_type:
+                identity_parts.append(friend.pass_type)
+            if friend.skill_level:
+                identity_parts.append(friend.skill_level)
+            
+            identity_line = ' · '.join(identity_parts) if identity_parts else ''
+            
+            friends_data.append({
+                'id': friend.id,
+                'name': f"{friend.first_name} {friend.last_name}".strip(),
+                'identity_line': identity_line
+            })
+        
+        friends_data.sort(key=lambda f: f['name'])
+    
+    # Format header
+    display_dates = format_planning_dates(start_date, end_date)
+    
+    return render_template(
+        "planning_window.html",
+        user=user,
+        friends=friends_data,
+        display_dates=display_dates,
+        start_date=start_date,
+        end_date=end_date
+    )
+
+
 @app.route("/invite")
 @login_required
 def invite():
@@ -4410,6 +4647,51 @@ def trip_detail(trip_id):
             trip_id=trip_id, user_id=current_user.id, role=ParticipantRole.OWNER
         ).first()
     
+    # Calculate participant overlaps (for "You and X overlap for Y days" display)
+    participant_overlaps = []
+    today = date.today()
+    if trip.start_date and trip.end_date and (is_owner or is_guest):
+        trip_dates = set()
+        d = trip.start_date
+        while d <= trip.end_date:
+            trip_dates.add(d)
+            d += timedelta(days=1)
+        
+        # Get other participants' confirmed trips at the same resort during the same period
+        other_user_ids = [p.user_id for p in all_participants if p.user_id != current_user.id]
+        if other_user_ids:
+            # Find overlapping trips from other participants
+            for user_id in other_user_ids:
+                other_user = User.query.get(user_id)
+                if not other_user:
+                    continue
+                
+                # Get their ACTIVE trips (not past, at same resort, overlapping dates)
+                other_trips = SkiTrip.query.filter(
+                    SkiTrip.user_id == user_id,
+                    SkiTrip.resort_id == trip.resort_id,
+                    SkiTrip.start_date <= trip.end_date,
+                    SkiTrip.end_date >= trip.start_date,
+                    SkiTrip.end_date >= today  # Active trips only
+                ).all()
+                
+                if other_trips:
+                    # Calculate overlap days using a SET to avoid double-counting
+                    overlap_day_set = set()
+                    for ot in other_trips:
+                        if ot.start_date and ot.end_date:
+                            ot_d = ot.start_date
+                            while ot_d <= ot.end_date:
+                                if ot_d in trip_dates:
+                                    overlap_day_set.add(ot_d)
+                                ot_d += timedelta(days=1)
+                    
+                    if overlap_day_set:
+                        participant_overlaps.append({
+                            'name': other_user.first_name,
+                            'days': len(overlap_day_set)
+                        })
+    
     return render_template(
         "trip_detail.html",
         trip=trip,
@@ -4424,6 +4706,7 @@ def trip_detail(trip_id):
         group_signals=group_signals,
         all_participants=all_participants,
         current_user_participant=current_user_participant,
+        participant_overlaps=participant_overlaps,
     )
 
 
@@ -4604,9 +4887,9 @@ def respond_to_trip_invite(trip_id):
         emit_friend_joined_trip_activities(trip, current_user.id)
         db.session.commit()
         if request.is_json:
-            return jsonify({"success": True, "message": "You've joined the trip!"})
-        flash("You've joined the trip!", "success")
-        return redirect(url_for("trip_invite_detail", trip_id=trip_id, just_accepted="1"))
+            return jsonify({"success": True, "message": "You're going"})
+        flash("You're going", "success")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
     elif action == "decline":
         participant.status = GuestStatus.DECLINED
         emit_trip_invite_declined_activity(trip, current_user.id, trip.user_id)

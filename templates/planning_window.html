@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ display_dates }} - Planning - BaseLodge</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .back-link {
+            display: inline-block;
+            margin-bottom: 16px;
+            color: var(--bl-color-text-muted);
+            text-decoration: none;
+            font-size: 16px;
+        }
+        
+        .window-header {
+            margin-bottom: 24px;
+        }
+        .window-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--bl-color-text);
+            margin: 0 0 4px 0;
+        }
+        .window-subtitle {
+            font-size: 0.9rem;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+        }
+        
+        .friend-row {
+            background: var(--bl-color-surface);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            text-decoration: none;
+            display: block;
+        }
+        .friend-row:hover {
+            background: var(--bl-color-surface-hover, rgba(0,0,0,0.02));
+        }
+        @media (prefers-color-scheme: dark) {
+            .friend-row:hover {
+                background: rgba(255,255,255,0.05);
+            }
+        }
+        
+        .friend-row-line1 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 4px 0;
+        }
+        .friend-row-line2 {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--bl-color-text-muted);
+        }
+        .empty-state-text {
+            font-size: 0.95rem;
+            margin: 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <div class="bl-header"><a href="{{ url_for('home') }}">BaseLodge</a></div>
+        <a href="{{ url_for('planning') }}" class="back-link">← Back</a>
+        
+        <div class="window-header">
+            <h1 class="window-title">{{ display_dates }}</h1>
+            <p class="window-subtitle">Friends available during this window</p>
+        </div>
+        
+        {% if friends|length == 0 %}
+        <div class="empty-state">
+            <p class="empty-state-text">No friends are available during this window.</p>
+        </div>
+        {% else %}
+        <div class="friends-list">
+            {% for friend in friends %}
+            <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="friend-row">
+                <p class="friend-row-line1">{{ friend.name }}</p>
+                {% if friend.identity_line %}
+                <p class="friend-row-line2">{{ friend.identity_line }}</p>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    
+    {% include 'components/bottom_nav.html' %}
+</body>
+</html>

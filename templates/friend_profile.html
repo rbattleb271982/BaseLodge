@@ -195,6 +195,180 @@
             color: var(--bl-color-text-muted);
             font-size: 15px;
         }
+        
+        /* Segmented Toggle */
+        .view-toggle {
+            display: flex;
+            background: var(--bl-color-border-soft, #e5e5e5);
+            border-radius: 8px;
+            padding: 3px;
+            margin-bottom: 16px;
+        }
+        @media (prefers-color-scheme: dark) {
+            .view-toggle {
+                background: rgba(255,255,255,0.1);
+            }
+        }
+        .view-toggle-btn {
+            flex: 1;
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--bl-color-text-muted);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .view-toggle-btn.active {
+            background: var(--bl-color-surface);
+            color: var(--bl-color-text);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        /* Calendar Styles */
+        .calendar-view {
+            display: none;
+        }
+        .calendar-view.active {
+            display: block;
+        }
+        .list-view {
+            display: block;
+        }
+        .list-view.hidden {
+            display: none;
+        }
+        
+        .calendar-month {
+            margin-bottom: 24px;
+        }
+        .calendar-month-header {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 12px 0;
+        }
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            margin-bottom: 4px;
+        }
+        .calendar-weekday {
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--bl-color-text-muted);
+            padding: 4px 0;
+            text-transform: uppercase;
+        }
+        .calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+        }
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: var(--bl-color-text);
+            border-radius: 6px;
+            position: relative;
+        }
+        .calendar-day.empty {
+            visibility: hidden;
+        }
+        .calendar-day.past {
+            color: var(--bl-color-text-muted);
+            opacity: 0.5;
+        }
+        .calendar-day.has-trip {
+            background: rgba(143, 1, 27, 0.15);
+            color: var(--bl-color-primary);
+            font-weight: 600;
+            cursor: pointer;
+        }
+        @media (prefers-color-scheme: dark) {
+            .calendar-day.has-trip {
+                background: rgba(255, 107, 122, 0.2);
+            }
+        }
+        .calendar-day.has-trip:hover {
+            background: rgba(143, 1, 27, 0.25);
+        }
+        
+        /* Trip Modal */
+        .trip-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .trip-modal-overlay.active {
+            display: flex;
+        }
+        .trip-modal {
+            background: var(--bl-color-surface);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 320px;
+            padding: 20px;
+        }
+        .trip-modal-header {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 16px 0;
+        }
+        .trip-modal-item {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+        .trip-modal-item:last-child {
+            border-bottom: none;
+        }
+        .trip-modal-item-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            margin: 0 0 4px 0;
+        }
+        .trip-modal-item-dates {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+        }
+        .trip-modal-close {
+            width: 100%;
+            margin-top: 16px;
+            padding: 12px;
+            background: var(--bl-color-border-soft);
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            cursor: pointer;
+        }
+        .trip-modal-view-link {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+        }
+        .trip-modal-view-link:hover .trip-modal-item-name {
+            color: var(--bl-color-primary);
+        }
     </style>
 </head>
 <body>
@@ -225,7 +399,16 @@
         
         <div class="trips-section">
             <h2 class="section-header">Upcoming Trips</h2>
+            
             {% if trips and trips|length > 0 %}
+            <!-- View Toggle -->
+            <div class="view-toggle">
+                <button class="view-toggle-btn active" id="list-toggle-btn" onclick="setView('list')">List</button>
+                <button class="view-toggle-btn" id="calendar-toggle-btn" onclick="setView('calendar')">Calendar</button>
+            </div>
+            
+            <!-- List View (Default) -->
+            <div class="list-view" id="list-view">
                 {% for trip in trips %}
                 <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
                     <div class="trip-card" style="padding: 14px 16px;">
@@ -238,9 +421,22 @@
                     </div>
                 </a>
                 {% endfor %}
+            </div>
+            
+            <!-- Calendar View -->
+            <div class="calendar-view" id="calendar-view"></div>
             {% else %}
                 <div class="empty-state">No upcoming public trips</div>
             {% endif %}
+        </div>
+        
+        <!-- Trip Modal -->
+        <div class="trip-modal-overlay" id="trip-modal-overlay">
+            <div class="trip-modal">
+                <h3 class="trip-modal-header" id="trip-modal-header">Trip Details</h3>
+                <div id="trip-modal-content"></div>
+                <button class="trip-modal-close" onclick="closeModal()">Close</button>
+            </div>
         </div>
         
         {% if has_availability_overlap %}
@@ -297,6 +493,198 @@
             mountainsExpanded = !mountainsExpanded;
             collapsed.style.display = mountainsExpanded ? 'none' : 'inline';
             expanded.style.display = mountainsExpanded ? 'block' : 'none';
+        }
+        
+        // Calendar View Toggle
+        let currentView = 'list';
+        
+        function setView(view) {
+            currentView = view;
+            const listView = document.getElementById('list-view');
+            const calendarView = document.getElementById('calendar-view');
+            const listBtn = document.getElementById('list-toggle-btn');
+            const calendarBtn = document.getElementById('calendar-toggle-btn');
+            
+            if (!listView || !calendarView) return;
+            
+            if (view === 'list') {
+                listView.classList.remove('hidden');
+                calendarView.classList.remove('active');
+                listBtn.classList.add('active');
+                calendarBtn.classList.remove('active');
+            } else {
+                listView.classList.add('hidden');
+                calendarView.classList.add('active');
+                listBtn.classList.remove('active');
+                calendarBtn.classList.add('active');
+                renderCalendar();
+            }
+        }
+        
+        // Trip data from server
+        const trips = [
+            {% for trip in trips %}
+            {
+                id: {{ trip.id }},
+                startDate: "{{ trip.start_date.strftime('%Y-%m-%d') if trip.start_date else '' }}",
+                endDate: "{{ trip.end_date.strftime('%Y-%m-%d') if trip.end_date else '' }}",
+                resortName: "{{ trip.resort.name if trip.resort else trip.mountain }}",
+                displayDates: "{{ format_trip_dates(trip) }}",
+                detailUrl: "{{ url_for('friend_trip_details', trip_id=trip.id) }}"
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        // Get all dates covered by trips
+        function getTripDates() {
+            const dateMap = {};
+            
+            trips.forEach(trip => {
+                if (!trip.startDate || !trip.endDate) return;
+                
+                const start = new Date(trip.startDate + 'T00:00:00');
+                const end = new Date(trip.endDate + 'T00:00:00');
+                
+                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                    const dateStr = d.toISOString().split('T')[0];
+                    if (!dateMap[dateStr]) {
+                        dateMap[dateStr] = [];
+                    }
+                    dateMap[dateStr].push(trip);
+                }
+            });
+            
+            return dateMap;
+        }
+        
+        // Find the range of months to render
+        function getMonthRange() {
+            if (trips.length === 0) return [];
+            
+            const now = new Date();
+            const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            
+            let maxDate = currentMonth;
+            trips.forEach(trip => {
+                if (trip.endDate) {
+                    const end = new Date(trip.endDate + 'T00:00:00');
+                    if (end > maxDate) {
+                        maxDate = end;
+                    }
+                }
+            });
+            
+            const months = [];
+            let current = new Date(currentMonth);
+            while (current <= maxDate) {
+                months.push(new Date(current));
+                current.setMonth(current.getMonth() + 1);
+            }
+            
+            return months;
+        }
+        
+        // Render the calendar
+        function renderCalendar() {
+            const container = document.getElementById('calendar-view');
+            if (!container) return;
+            
+            const tripDates = getTripDates();
+            const months = getMonthRange();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                               'July', 'August', 'September', 'October', 'November', 'December'];
+            
+            let html = '';
+            
+            months.forEach(monthDate => {
+                const year = monthDate.getFullYear();
+                const month = monthDate.getMonth();
+                const firstDay = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                
+                html += `<div class="calendar-month">`;
+                html += `<h4 class="calendar-month-header">${monthNames[month]} ${year}</h4>`;
+                
+                // Weekday headers
+                html += `<div class="calendar-weekdays">`;
+                weekdays.forEach(day => {
+                    html += `<div class="calendar-weekday">${day}</div>`;
+                });
+                html += `</div>`;
+                
+                // Day cells
+                html += `<div class="calendar-days">`;
+                
+                // Empty cells before first day
+                for (let i = 0; i < firstDay; i++) {
+                    html += `<div class="calendar-day empty"></div>`;
+                }
+                
+                // Day cells
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const thisDate = new Date(year, month, day);
+                    const isPast = thisDate < today;
+                    const hasTrip = tripDates[dateStr] && tripDates[dateStr].length > 0;
+                    
+                    let classes = 'calendar-day';
+                    if (isPast) classes += ' past';
+                    if (hasTrip) classes += ' has-trip';
+                    
+                    if (hasTrip) {
+                        html += `<div class="${classes}" onclick="showTripModal('${dateStr}')">${day}</div>`;
+                    } else {
+                        html += `<div class="${classes}">${day}</div>`;
+                    }
+                }
+                
+                html += `</div></div>`;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // Show trip modal for a date
+        function showTripModal(dateStr) {
+            const tripDates = getTripDates();
+            const tripsOnDate = tripDates[dateStr] || [];
+            
+            if (tripsOnDate.length === 0) return;
+            
+            const modal = document.getElementById('trip-modal-overlay');
+            const header = document.getElementById('trip-modal-header');
+            const content = document.getElementById('trip-modal-content');
+            
+            // Format date for header
+            const d = new Date(dateStr + 'T00:00:00');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            header.textContent = `${monthNames[d.getMonth()]} ${d.getDate()}`;
+            
+            // Build content
+            let html = '';
+            tripsOnDate.forEach(trip => {
+                html += `
+                    <a href="${trip.detailUrl}" class="trip-modal-view-link">
+                        <div class="trip-modal-item">
+                            <p class="trip-modal-item-name">${trip.resortName}</p>
+                            <p class="trip-modal-item-dates">${trip.displayDates}</p>
+                        </div>
+                    </a>
+                `;
+            });
+            content.innerHTML = html;
+            
+            modal.classList.add('active');
+        }
+        
+        // Close modal
+        function closeModal() {
+            const modal = document.getElementById('trip-modal-overlay');
+            modal.classList.remove('active');
         }
     </script>
 </body>

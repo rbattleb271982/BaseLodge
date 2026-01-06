@@ -479,6 +479,16 @@
 </head>
 <body>
     <div class="page-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div style="background: {% if category == 'success' %}rgba(34, 197, 94, 0.1){% else %}rgba(143, 1, 27, 0.1){% endif %}; border: 1px solid {% if category == 'success' %}rgba(34, 197, 94, 0.3){% else %}rgba(143, 1, 27, 0.3){% endif %}; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.95rem; color: {% if category == 'success' %}#166534{% else %}var(--bl-color-primary){% endif %};">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
         <div class="trip-nav-header">
             <a href="{{ url_for('home') }}" class="back-chevron" aria-label="Back to home">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -645,6 +655,16 @@
                 </span>
             </div>
             {% endif %}
+        </div>
+        {% endif %}
+        
+        {% if participant_overlaps and participant_overlaps|length > 0 %}
+        <div style="margin-bottom: 16px;">
+            {% for overlap in participant_overlaps %}
+            <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0 0 4px 0;">
+                You and {{ overlap.name }} overlap for {{ overlap.days }} day{% if overlap.days != 1 %}s{% endif %}
+            </p>
+            {% endfor %}
         </div>
         {% endif %}
         
