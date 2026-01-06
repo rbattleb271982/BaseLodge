@@ -158,6 +158,35 @@
             font-weight: 500;
         }
 
+        .invite-card {
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-primary-soft);
+            border-left: 4px solid var(--bl-color-primary);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(143, 1, 27, 0.05);
+        }
+        .invite-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--bl-color-primary);
+            background: rgba(143, 1, 27, 0.08);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            display: inline-block;
+            letter-spacing: 0.5px;
+        }
+        .invite-inviter {
+            color: var(--bl-color-text);
+            font-weight: 700;
+        }
+
         .planning-card {
             background: var(--bl-color-surface);
             border: 1px solid var(--bl-color-border-soft);
@@ -363,10 +392,11 @@
                 {% for trip in invited_trips %}
                     {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
                     <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                        <div class="trip-card">
+                        <div class="invite-card">
                             <div class="trip-card-content">
+                                <div class="invite-label">Invite</div>
                                 <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}, {{ trip.resort.state_code or trip.resort.state }}{% elif trip.mountain %}{{ trip.mountain }}, {{ trip.state }}{% else %}Resort TBD{% endif %}</p>
-                                <p class="trip-card-line2">{{ format_trip_dates(trip) }} · {{ trip.user.first_name if trip.user else 'Someone' }} invited you</p>
+                                <p class="trip-card-line2"><span class="invite-inviter">{{ trip.user.first_name if trip.user else 'Someone' }}</span> invited you · {{ format_trip_dates(trip) }}</p>
                             </div>
                             <span class="trip-card-action">View</span>
                         </div>
