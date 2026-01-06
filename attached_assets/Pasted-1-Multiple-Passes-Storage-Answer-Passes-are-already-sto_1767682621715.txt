@@ -1,0 +1,66 @@
+1. Multiple Passes Storage
+Answer:
+Passes are already stored as multiple values. Do not add a new multi-select or refactor storage.
+The User model uses a multi-pass structure (e.g., pass_brands / array / JSON / list depending on environment).
+Display logic should simply render all passes inline as text:
+Epic · Ikon
+Do not introduce a “primary pass.”
+Do not change the profile schema for this task.
+👉 This is a display-only change, not a data model change.
+2. Equipment Profile Default
+Answer:
+Yes — there is already a profile-level equipment preference.
+Use the existing profile field as the default when creating or editing a trip.
+Do not add a new profile column.
+Trip-level equipment is an override only and must not mutate the profile value.
+Rule of thumb:
+Profile = default
+Trip = override
+3. Carpool Current State
+Answer:
+Reuse existing carpool-related fields on SkiTripParticipant.
+Do not introduce or use ride_status
+Do not invent new concepts
+Transportation and carpool are separate:
+Transportation = how I get there
+Carpool = social coordination
+If there is:
+can_drive
+needs_ride
+seats_available
+→ reuse those.
+If transportation_status exists, do not overload it to represent carpool.
+Derived logic is preferred over new fields.
+4. Friends’ Trips Filter Affordance
+Answer:
+Yes — exactly.
+Match the existing filter UI used on the Friends list:
+Same icon
+Same placement
+Same modal/sheet interaction
+Only the filter options differ by tab.
+Do not invent a new filter UI.
+This is about consistency, not new design.
+5. Trip Ideas Ranking — Buddy Pass
+Answer:
+Buddy-pass compatibility is derived, not a new flag.
+For now:
+If a resort is not directly compatible with the user’s pass
+BUT is known to allow buddy access via one of the user’s passes
+→ treat it as “buddy-pass compatible”
+No new Resort fields are required for this phase.
+If buddy logic is incomplete:
+Gracefully fall back to:
+Pass compatible
+Then none
+This ranking can be iterated later without UI changes.
+6. Sticky Action Container
+Answer:
+The sticky container should be conditional, not always visible.
+✅ Show it only when there is a primary action:
+Accept / Decline invite
+Save / Confirm critical changes
+❌ Do not show it on passive views with no action
+Bottom nav stays always visible.
+Think of the sticky container as:
+“Only appears when the user must decide something.”
