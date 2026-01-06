@@ -253,7 +253,7 @@
 
         <div class="segmented-control">
             <button type="button" class="segment-btn active" data-segment="upcoming">Upcoming</button>
-            <button type="button" class="segment-btn" data-segment="planning">Planning</button>
+            <button type="button" class="segment-btn" data-segment="ideas">Ideas</button>
             <button type="button" class="segment-btn" data-segment="invites">
                 Invites{% if ns.invite_count > 0 %}<span class="segment-badge">{{ ns.invite_count }}</span>{% endif %}
             </button>
@@ -262,12 +262,8 @@
         <div id="segment-upcoming" class="segment-content active">
             <p class="section-label">Confirmed Trips</p>
             {% set all_my_trips = (upcoming_trips or []) + (accepted_guest_trips or []) %}
-            {% set upcoming_count = all_my_trips|length %}
+            {% if all_my_trips|length > 0 %}
             <div class="trips-list">
-                <a href="{{ url_for('add_trip') }}" class="new-trip-card{% if upcoming_count >= 20 %} compact{% endif %}">
-                    <p class="new-trip-card-title">{% if upcoming_count >= 20 %}＋ New trip{% else %}Plan a new trip{% endif %}</p>
-                    <p class="new-trip-card-subtext">Choose dates, a mountain, and who's coming</p>
-                </a>
                 {% for trip in all_my_trips|sort(attribute='start_date') %}
                 {% if trip and trip.id %}
                 <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
@@ -282,15 +278,16 @@
                 {% endif %}
                 {% endfor %}
             </div>
+            {% else %}
+            <div class="empty-state-container">
+                <p class="empty-state-title">No upcoming trips yet</p>
+                <p class="empty-state-desc">Head to the Ideas tab to start planning</p>
+            </div>
+            {% endif %}
         </div>
 
-        <div id="segment-planning" class="segment-content">
-            <p class="section-label">Planning</p>
-            
-            <a href="{{ url_for('add_trip') }}" class="new-trip-card">
-                <p class="new-trip-card-title">Plan a new trip</p>
-                <p class="new-trip-card-subtext">Choose dates, a mountain, and who's coming</p>
-            </a>
+        <div id="segment-ideas" class="segment-content">
+            <p class="section-label">My Availability</p>
             
             <div class="planning-card">
                 <div class="planning-card-row">
@@ -322,32 +319,36 @@
             </div>
             <a href="{{ url_for('trip_ideas') }}" class="planning-cta" style="margin-top: 12px;">See all trip ideas →</a>
             {% endif %}
+            
+            <a href="{{ url_for('add_trip') }}" class="new-trip-card" style="margin-top: 20px;">
+                <p class="new-trip-card-title">Plan a new trip</p>
+                <p class="new-trip-card-subtext">Choose dates, a mountain, and who's coming</p>
+            </a>
         </div>
 
         <div id="segment-invites" class="segment-content">
             <p class="section-label">Invites</p>
-            {% set invite_count = ns.invite_count %}
+            {% if ns.invite_count > 0 %}
             <div class="trips-list">
-                <a href="{{ url_for('add_trip') }}" class="new-trip-card{% if invite_count >= 20 %} compact{% endif %}">
-                    <p class="new-trip-card-title">{% if invite_count >= 20 %}＋ New trip{% else %}Plan a new trip{% endif %}</p>
-                    <p class="new-trip-card-subtext">Choose dates, a mountain, and who's coming</p>
-                </a>
-                {% if invited_trips and invited_trips|length > 0 %}
-                    {% for trip in invited_trips %}
-                        {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
-                        <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                            <div class="trip-card">
-                                <div class="trip-card-content">
-                                    <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}, {{ trip.resort.state_code or trip.resort.state }}{% elif trip.mountain %}{{ trip.mountain }}, {{ trip.state }}{% else %}Resort TBD{% endif %}</p>
-                                    <p class="trip-card-line2">{{ format_trip_dates(trip) }} · {{ trip.user.first_name if trip.user else 'Someone' }} invited you</p>
-                                </div>
-                                <span class="trip-card-action">View</span>
+                {% for trip in invited_trips %}
+                    {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
+                    <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                        <div class="trip-card">
+                            <div class="trip-card-content">
+                                <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}, {{ trip.resort.state_code or trip.resort.state }}{% elif trip.mountain %}{{ trip.mountain }}, {{ trip.state }}{% else %}Resort TBD{% endif %}</p>
+                                <p class="trip-card-line2">{{ format_trip_dates(trip) }} · {{ trip.user.first_name if trip.user else 'Someone' }} invited you</p>
                             </div>
-                        </a>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
+                            <span class="trip-card-action">View</span>
+                        </div>
+                    </a>
+                    {% endif %}
+                {% endfor %}
             </div>
+            {% else %}
+            <div class="empty-state-container">
+                <p class="empty-state-title">No pending invites</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 

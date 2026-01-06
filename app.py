@@ -3086,8 +3086,8 @@ def format_planning_dates(start_str, end_str):
 @app.route("/planning")
 @login_required
 def planning():
-    """Redirect to My Trips with Planning tab selected."""
-    return redirect(url_for('my_trips', tab='planning'))
+    """Redirect to My Trips with Ideas tab selected (legacy Planning route)."""
+    return redirect(url_for('my_trips', tab='ideas'))
 
 
 @app.route("/planning/window/<start_date>/<end_date>")
@@ -3101,7 +3101,7 @@ def planning_window(start_date, end_date):
         end = datetime.strptime(end_date, '%Y-%m-%d').date()
     except ValueError:
         flash("Invalid date range", "error")
-        return redirect(url_for('my_trips', tab='planning'))
+        return redirect(url_for('my_trips', tab='ideas'))
     
     # Get friends available in this window
     from services.open_dates import get_open_date_matches
