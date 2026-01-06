@@ -1,0 +1,188 @@
+OBJECTIVE
+Implement Trip Invites with a calm, explicit Accept / Decline flow.
+Invites must be visible, require a decision, and only become trips after acceptance.
+
+This is an additive feature. Do NOT break existing Trips, Friends, Overlaps, or Availability logic.
+
+================================================
+GLOBAL RULES (NON-NEGOTIABLE)
+================================================
+- Max 2 lines per card in list views
+- All primary actions appear on the RIGHT
+- No trips are created until an invite is accepted
+- Invites do NOT affect overlaps until accepted
+- Reuse existing trip, availability, and calendar logic
+- Page-based flow (NO modals)
+- Invite pages must support deep linking
+
+================================================
+1. WHERE INVITES APPEAR (TRIPS TAB)
+================================================
+
+On the Trips tab, directly BELOW the Profile Summary
+and ABOVE the "+ Add trip" button, add a new section:
+
+Section header:
+Invites
+
+This section:
+- Appears ONLY if there is at least one pending invite
+- Is completely hidden if there are zero invites
+- Stacks multiple invites vertically (no cap)
+
+------------------------------------------------
+Invite Card Format (STRICT)
+------------------------------------------------
+
+Each invite card MUST be exactly 2 lines, with action on the right:
+
+Line 1 (primary, bold):
+Destination, State/Country · Date range
+Example:
+Whistler Blackcomb, BC · Feb 23–27
+
+Line 2 (secondary, warmer tone):
+{Inviter first name} invited you
+Example:
+Alex invited you
+
+Right-aligned action:
+View
+
+DO NOT show:
+- Accept / Decline here
+- Avatars
+- Badges
+- “Pending” labels
+- Any third line
+
+================================================
+2. INVITE DETAIL PAGE (NEW PAGE)
+================================================
+
+Create a new page/route for viewing a trip invite.
+
+This page MUST be:
+- Accessible via tapping “View” from the Trips tab
+- Accessible via deep link (e.g. future email links)
+
+------------------------------------------------
+Invite Detail Page Content
+------------------------------------------------
+
+Header:
+- Destination
+- Date range
+
+Context text:
+"{Inviter name} invited you to this trip"
+
+------------------------------------------------
+Trip Information (READ-ONLY)
+------------------------------------------------
+- Destination
+- Dates
+- Who’s going (list of participant names)
+- Shared trip notes (if they exist)
+
+------------------------------------------------
+User-Editable Sections (IMPORTANT)
+------------------------------------------------
+Even before accepting, the invited user MAY edit:
+- Transportation
+- Equipment
+- Lessons
+
+These edits are user-owned fields only.
+They must NOT modify shared trip details.
+
+------------------------------------------------
+Actions (BOTTOM OF PAGE)
+------------------------------------------------
+
+Primary action:
+Accept trip
+
+Secondary action:
+Decline invite
+
+Tertiary action:
+Back (decide later)
+
+------------------------------------------------
+Accept Behavior
+------------------------------------------------
+On Accept:
+- Invite record is removed
+- User becomes a participant on the trip
+- Trip appears in “My Trips”
+- User is read-only for shared trip fields
+- User retains edit access to:
+  - Transportation
+  - Equipment
+  - Lessons
+- Overlaps logic now treats this as the user’s trip
+
+------------------------------------------------
+Decline Behavior
+------------------------------------------------
+On Decline:
+- Show confirmation dialog:
+  “Decline this trip invite?”
+- If confirmed:
+  - Invite is removed
+  - No trip is created
+  - Silent (no notification yet)
+
+------------------------------------------------
+Expiration
+------------------------------------------------
+- Invite automatically expires when the trip start date passes
+- Expired invites are not shown anywhere
+
+================================================
+3. CANCELING INVITES YOU SENT
+================================================
+
+If the CURRENT USER created a trip and invited others:
+
+- Pending invites must be visible on that trip’s detail page
+- For each pending invite, show:
+  {Invitee name}   Cancel invite
+
+Rules:
+- Cancel is ONLY allowed for pending invites
+- Cancel removes the invite from the recipient
+- Cancel does NOT affect accepted participants
+- Do NOT implement “remove participant” now
+
+================================================
+4. WHAT NOT TO DO
+================================================
+
+DO NOT:
+- Mix invites into My Trips list
+- Auto-create placeholder trips
+- Auto-accept invites
+- Add badges to the bottom nav
+- Add modals for invite decisions
+- Affect overlaps until acceptance
+
+================================================
+5. DEFINITION OF DONE
+================================================
+
+- Invites appear at top of Trips tab when present
+- Each invite card follows 2-line + View format
+- Invite Detail page works via UI and deep link
+- Accept creates a real trip
+- Decline removes invite cleanly
+- Expired invites disappear automatically
+- Trips, Overlaps, Availability remain unchanged
+
+Do not mark complete until tested with:
+- Multiple pending invites
+- Accept flow
+- Decline flow
+- Expired invite
+- Deep link access
