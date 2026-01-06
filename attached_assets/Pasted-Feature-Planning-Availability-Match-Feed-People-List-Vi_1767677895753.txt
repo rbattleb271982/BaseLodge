@@ -1,0 +1,104 @@
+Feature: Planning (Availability Match Feed + People List View)
+🎯 GOAL
+Implement the Planning feature as a read-only discovery surface that shows when a user’s availability overlaps with their friends.
+This feature introduces two new screens only:
+Planning Feed (date windows)
+People List View (friends available in a selected window)
+⚠️ Do NOT modify any calendar UI, Trips, or Invites in this task.
+🧠 PRODUCT CONTEXT (DO NOT DEVIATE)
+Planning is passive — no searching, no selecting dates
+Planning shows potential alignment, not confirmed plans
+Planning does not create trips or send invites
+Cards must follow the 2-line pattern used elsewhere in the app
+Friends only (v1)
+1️⃣ PLANNING FEED
+Route
+/planning
+Behavior
+Display a chronological feed of availability overlap windows
+Sort by soonest date window first
+Each card represents a time window, not a person
+Card Design (STRICT)
+Each card must have exactly two lines:
+Line 1 (bold):
+Jan 18–21
+Line 2 (muted):
+Alex Morgan is free
+Alex Morgan and Jordan Lee are free
+Alex Morgan + 2 others are free
+Rules:
+Entire card is tappable
+No avatars
+No icons
+No extra metadata
+No buttons
+Tap Behavior
+Tapping a card navigates to:
+/planning/window/<start_date>/<end_date>
+2️⃣ PEOPLE LIST VIEW
+Route
+/planning/window/<start_date>/<end_date>
+Header
+Title: <start_date>–<end_date> (e.g. Jan 18–21)
+Subtext: Friends available during this window
+Back button → returns to /planning
+Preserve scroll position on back
+List Content
+Show friends only
+Vertical list using existing list/card spacing
+No grouping or sorting controls
+Person Row (MAX 2 LINES)
+Line 1 (bold): Friend full name
+Line 2 (muted): Identity line
+(same format used elsewhere, e.g. Skier · Epic · Advanced)
+Rules:
+Entire row is tappable
+Tap → existing Friend Profile page
+No CTAs
+No availability text
+No avatars
+Empty State
+If no friends are available:
+No friends are available during this window.
+No actions required.
+3️⃣ DATA & LOGIC RULES
+Use accepted friends only
+Availability overlap requires ≥ 1 shared day
+Group overlaps by date window
+If multiple friends share a window → one Planning card
+Do not show windows with zero friends
+4️⃣ EXPLICIT NON-GOALS (DO NOT BUILD)
+🚫 Do NOT:
+Add calendar UI
+Modify Friend Profile calendar
+Modify Trips or Invites
+Create trips
+Send invites
+Add filters
+Add match scoring
+Add “Start a trip” or “Invite” CTAs
+Overlay availability anywhere else
+This feature is purely informational.
+5️⃣ STYLING REQUIREMENTS
+Reuse existing list/card spacing
+Match typography hierarchy already used in the app
+Mobile-first only
+Calm, minimal visual tone
+2-line max everywhere
+6️⃣ TESTING CHECKLIST (REQUIRED)
+Before completion, verify:
+Planning feed sorts by soonest window
+Multi-friend windows render correctly
+Navigation works:
+Planning → People List → Friend Profile → Back
+Empty state renders correctly
+No changes to:
+Calendars
+Trips
+Invites
+No console errors
+🛑 STOP CONDITIONS
+When complete:
+Report routes added
+Report any assumptions made
+STOP — do not continue to other features
