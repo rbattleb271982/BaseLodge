@@ -1,0 +1,39 @@
+Goal: Replace the global “+ Add Trip” button with an inline “Plan a new trip” card that appears as the first item in the Trips list (Upcoming / Planning / Invites), and gracefully scales for users with many trips.
+
+Requirements:
+	1.	Remove the existing “+ Add Trip” button (including any floating or inline versions).
+	2.	In the Trips page list view (for Upcoming, Planning, and Invites tabs):
+	•	Insert a new inline card as the first list item.
+	•	This card should visually match a trip card (same width, border radius), but with lighter visual weight (outline or subtle background).
+	3.	Card behavior:
+	•	Entire card is clickable.
+	•	On click, navigate to the existing /add_trip route.
+	•	No modal. No conditional branching. Same behavior across all tabs.
+	4.	Card copy (default):
+	•	Title (bold): “Plan a new trip”
+	•	Subtext (secondary): “Choose dates, a mountain, and who’s coming”
+	5.	Scaling behavior for long lists:
+	•	If the number of trips in the current tab is 20 or more, reduce the visual prominence of the card:
+	•	Reduce vertical padding
+	•	Hide the subtext
+	•	Update title to: “＋ New trip”
+	•	The card must remain first in the list regardless of trip count.
+	6.	Empty state handling:
+	•	If there are zero trips in a tab, the “Plan a new trip” card should still render as the only item.
+	•	Do NOT add any separate empty-state UI.
+	7.	Do NOT:
+	•	Add a floating action button
+	•	Add a “+” tab in the bottom navigation
+	•	Duplicate the action elsewhere
+	•	Introduce new routes or models
+	8.	Implementation notes:
+	•	This should be implemented at the list-rendering level (template or component that renders trip cards).
+	•	Use existing trip card styles where possible; avoid introducing a new design system.
+	•	Keep the logic simple and readable.
+
+Finish criteria:
+	•	The inline “Plan a new trip” card appears consistently across all three tabs.
+	•	Visual weight adapts correctly when trip count ≥ 20.
+	•	No regressions to trip ordering, navigation, or existing trip interactions.
+
+Do not finish until you’ve fully tested this behavior across all three tabs and with both short (0–3 trips) and long (20+ trips) lists. Use checkpoints sparingly.
