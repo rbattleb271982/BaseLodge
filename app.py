@@ -1827,7 +1827,8 @@ def my_trips():
         primary_equipment=primary_equipment,
         secondary_equipment=secondary_equipment,
         visited_resorts=visited_resorts or [],
-        wishlist_resorts=wishlist_resorts or []
+        wishlist_resorts=wishlist_resorts or [],
+        today=today
     )
 
 @app.route("/overlap-detail")
@@ -4424,6 +4425,72 @@ def trip_detail(trip_id):
         all_participants=all_participants,
         current_user_participant=current_user_participant,
     )
+
+
+@app.route("/trips/<int:trip_id>/invite")
+@login_required
+def trip_invite_detail(trip_id):
+    """Invite detail page - view trip invitation before accepting."""
+    trip = SkiTrip.query.get_or_404(trip_id)
+    today = date.today()
+    
+    # Check if invite has expired (trip start date has passed)
+    if trip.start_date and trip.start_date < today:
+        flash("This invite has expired.", "error")
+        return redirect(url_for("my_trips"))
+    
+    # Check if user has a pending invite for this trip
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, user_id=current_user.id, status=GuestStatus.INVITED
+    ).first()
+    
+    if not participant:
+        flash("You don't have a pending invite for this trip.", "error")
+        return redirect(url_for("my_trips"))
+    
+    # Get trip owner
+    owner = User.query.get(trip.user_id)
+    
+    # Get accepted participants only (for "Who's going")
+    accepted_participants = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, status=GuestStatus.ACCEPTED
+    ).all()
+    
+    return render_template(
+        "trip_invite_detail.html",
+        trip=trip,
+        owner=owner,
+        participant=participant,
+        accepted_participants=accepted_participants,
+    )
+
+
+@app.route("/trips/<int:trip_id>/invite/cancel", methods=["POST"])
+@login_required
+def cancel_trip_invite(trip_id):
+    """Cancel a pending invite (trip owner only)."""
+    trip = SkiTrip.query.get_or_404(trip_id)
+    
+    # Only trip owner can cancel invites
+    if trip.user_id != current_user.id:
+        abort(403)
+    
+    user_id = request.form.get("user_id", type=int)
+    if not user_id:
+        flash("Invalid request.", "error")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
+    
+    # Find the pending invite
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, user_id=user_id, status=GuestStatus.INVITED
+    ).first()
+    
+    if participant:
+        db.session.delete(participant)
+        db.session.commit()
+        flash("Invite cancelled.", "info")
+    
+    return redirect(url_for("trip_detail", trip_id=trip_id))
 
 
 @app.route("/trips/<int:trip_id>/invite", methods=["POST"])

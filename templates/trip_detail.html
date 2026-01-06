@@ -680,17 +680,21 @@
             </div>
             {% endfor %}
             
-            {% if is_owner %}
+        </div>
+        {% endif %}
+        
+        {% if is_owner and invited_participants %}
+        <div class="pending-invites-section" style="margin-top: 20px;">
+            <h3 style="font-size: 1rem; font-weight: 600; margin: 0 0 12px 0;">Pending Invites</h3>
             {% for p in invited_participants %}
-            <div class="participant-card">
-                <div class="participant-info">
-                    <span class="participant-name">{{ p.user.first_name }} {{ p.user.last_name or '' }}</span>
-                    <p class="participant-badges">Pending invite</p>
-                </div>
-                <span class="participant-status invited">Invited</span>
+            <div class="participant-card" style="display: flex; justify-content: space-between; align-items: center;">
+                <span class="participant-name">{{ p.user.first_name }} {{ p.user.last_name or '' }}</span>
+                <form method="POST" action="{{ url_for('cancel_trip_invite', trip_id=trip.id) }}" style="margin: 0;" onsubmit="return confirm('Cancel invite to {{ p.user.first_name }}?');">
+                    <input type="hidden" name="user_id" value="{{ p.user_id }}">
+                    <button type="submit" style="background: transparent; border: none; color: var(--bl-color-text-muted); font-size: 0.9rem; cursor: pointer; padding: 4px 8px;">Cancel invite</button>
+                </form>
             </div>
             {% endfor %}
-            {% endif %}
         </div>
         {% endif %}
         
