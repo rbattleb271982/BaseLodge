@@ -359,21 +359,32 @@
             const segmentBtns = document.querySelectorAll('.segment-btn');
             const segmentContents = document.querySelectorAll('.segment-content');
             
+            function selectTab(tabName) {
+                segmentBtns.forEach(function(b) { b.classList.remove('active'); });
+                segmentContents.forEach(function(c) { c.classList.remove('active'); });
+                
+                const btn = document.querySelector('.segment-btn[data-segment="' + tabName + '"]');
+                const content = document.getElementById('segment-' + tabName);
+                
+                if (btn && content) {
+                    btn.classList.add('active');
+                    content.classList.add('active');
+                }
+            }
+            
             segmentBtns.forEach(function(btn) {
                 btn.addEventListener('click', function() {
                     const segment = this.getAttribute('data-segment');
-                    
-                    segmentBtns.forEach(function(b) { b.classList.remove('active'); });
-                    this.classList.add('active');
-                    
-                    segmentContents.forEach(function(content) {
-                        content.classList.remove('active');
-                        if (content.id === 'segment-' + segment) {
-                            content.classList.add('active');
-                        }
-                    });
+                    selectTab(segment);
                 });
             });
+            
+            var urlParams = new URLSearchParams(window.location.search);
+            var tab = urlParams.get('tab');
+            if (tab === 'planning') tab = 'ideas';
+            if (tab === 'ideas' || tab === 'invites') {
+                selectTab(tab);
+            }
         });
     </script>
 </body>
