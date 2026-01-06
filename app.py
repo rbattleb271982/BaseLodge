@@ -128,31 +128,79 @@ def health_check():
     """Health check endpoint for production probes. Returns 200 OK immediately."""
     return "OK", 200
 
+@app.template_filter('display_name')
+def display_name_filter(user, current_user_id=None):
+    """
+    Returns full name (First Last) or 'You' if viewing own profile.
+    Usage in templates: {{ user|display_name(current_user.id) }}
+    """
+    try:
+        if not user:
+            return ""
+        user_id = getattr(user, 'id', None)
+        if current_user_id and user_id == current_user_id:
+            return "You"
+        first = getattr(user, 'first_name', '') or ''
+        last = getattr(user, 'last_name', '') or ''
+        full_name = f"{first} {last}".strip()
+        return full_name if full_name else "Friend"
+    except Exception:
+        return "Friend"
+
+
+def format_passes_display(pass_type):
+    """
+    Helper to format passes as 'Epic · Ikon' style.
+    Filters out 'Both' and empty values.
+    """
+    if not pass_type:
+        return ''
+    pass_str = str(pass_type).strip()
+    if ',' in pass_str:
+        passes = [p.strip() for p in pass_str.split(',') if p.strip() and p.strip().lower() not in ('both', 'none', "i don't have a pass")]
+        return ' · '.join(passes) if passes else ''
+    if pass_str.lower() in ('both', 'none', "i don't have a pass"):
+        return ''
+    return pass_str
+
+
 @app.template_filter('identity_line')
 def identity_line_filter(user):
+    """
+    Formats user identity as: Rider type · Level · Pass(es)
+    Example: Skier · Advanced · Epic · Ikon
+    """
     try:
         if not user:
             return ""
 
         parts = []
 
-        # Rider types (stored as list)
-        rider_types = getattr(user, "rider_types", None)
-        if rider_types:
-            if isinstance(rider_types, list):
-                parts.append(", ".join([str(rt) for rt in rider_types]))
-            else:
-                parts.append(str(rider_types))
-
-        # Passes (stored as comma-separated string)
-        pass_type = getattr(user, "pass_type", None)
-        if pass_type:
-            parts.append(str(pass_type))
+        # Rider type (primary first, then show as single type)
+        primary_rider = getattr(user, "primary_rider_type", None)
+        if primary_rider:
+            parts.append(str(primary_rider))
+        else:
+            rider_types = getattr(user, "rider_types", None)
+            if rider_types:
+                if isinstance(rider_types, list) and rider_types:
+                    parts.append(str(rider_types[0]))
+                elif isinstance(rider_types, str):
+                    parts.append(rider_types)
 
         # Skill level
         skill_level = getattr(user, "skill_level", None)
         if skill_level:
             parts.append(str(skill_level))
+
+        # Passes (formatted properly with · separator)
+        pass_type = getattr(user, "pass_type", None)
+        if pass_type:
+            formatted_passes = format_passes_display(pass_type)
+            if formatted_passes:
+                # Split individual passes and add each as a part
+                for p in formatted_passes.split(' · '):
+                    parts.append(p)
 
         return " · ".join(parts)
 
@@ -162,16 +210,10 @@ def identity_line_filter(user):
 @app.template_filter('pass_display')
 def pass_display_filter(pass_type):
     """
-    Displays passes individually, never showing "Both".
+    Displays passes individually as 'Epic · Ikon'.
     Use for standalone pass display in stats cards and settings.
     """
-    if not pass_type:
-        return ''
-    pass_str = pass_type.strip()
-    if ',' in pass_str:
-        passes = [p.strip() for p in pass_str.split(',') if p.strip() and p.strip().lower() != 'both']
-        return ' · '.join(passes) if passes else ''
-    return pass_str if pass_str.lower() != 'both' else ''
+    return format_passes_display(pass_type)
 
 
 @app.template_filter('relative_time')
@@ -1809,6 +1851,46 @@ def my_trips():
     except Exception:
         wishlist_resorts = []
 
+    # Generate trip ideas with ranking
+    trip_ideas = []
+    try:
+        if user_open_dates:
+            user_state = getattr(user, 'home_state', None) or ''
+            user_passes = set(p.strip().lower() for p in (user.pass_type or '').split(',') if p.strip())
+            
+            # Get active resorts
+            resorts = Resort.query.filter_by(is_active=True, is_region=False).limit(50).all()
+            
+            for resort in resorts:
+                score = 0
+                match_reason = None
+                
+                # Check if in user's home state
+                if user_state and resort.state_code and resort.state_code.lower() == user_state.lower():
+                    score += 100
+                    match_reason = "Near you"
+                
+                # Check pass compatibility
+                resort_passes = set(p.strip().lower() for p in (resort.pass_brands or '').split(',') if p.strip())
+                if user_passes & resort_passes:
+                    score += 50
+                    if not match_reason:
+                        match_reason = "On your pass"
+                
+                trip_ideas.append({
+                    'id': resort.id,
+                    'name': resort.name,
+                    'state': resort.state_code or resort.state,
+                    'country': resort.country_code or '',
+                    'score': score,
+                    'match_reason': match_reason
+                })
+            
+            # Sort by score descending
+            trip_ideas.sort(key=lambda x: x['score'], reverse=True)
+    except Exception:
+        trip_ideas = []
+
     return render_template(
         "my_trips.html",
         user=user,
@@ -1828,7 +1910,8 @@ def my_trips():
         secondary_equipment=secondary_equipment,
         visited_resorts=visited_resorts or [],
         wishlist_resorts=wishlist_resorts or [],
-        today=today
+        today=today,
+        trip_ideas=trip_ideas
     )
 
 @app.route("/overlap-detail")

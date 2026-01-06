@@ -399,12 +399,22 @@
         {% if active_tab == 'trips' %}
         <!-- Friends' Trips Tab Content -->
         {% if friend_trips and friend_trips|length > 0 %}
+        <div class="filter-bar">
+            <div class="filter-bar-left" onclick="openTripsFilterSheet()">
+                <span>Filter</span>
+                {% if trips_filter_count and trips_filter_count > 0 %}
+                <span class="filter-active-count">{{ trips_filter_count }} active</span>
+                {% endif %}
+            </div>
+            <button class="filter-bar-clear" onclick="clearTripsFilters()" {% if not trips_filter_count or trips_filter_count == 0 %}disabled{% endif %}>Clear</button>
+        </div>
         <div class="flat-list">
             {% for trip in friend_trips %}
             <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="friend-trip-row" style="display: flex; justify-content: space-between; align-items: center;">
                 <div style="flex: 1; min-width: 0;">
-                    <div class="friend-trip-line1">{{ trip.user.first_name }}{% if trip.user.last_name %} {{ trip.user.last_name }}{% endif %} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state_code or trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %}</div>
-                    <div class="friend-trip-line2">{{ format_trip_dates(trip) }} · {% if trip.resort and trip.resort.pass_brands %}{{ trip.resort.pass_brands.split(',')[0]|replace(' Pass', '') }}{% elif trip.resort and trip.resort.brand %}{{ trip.resort.brand|replace(' Pass', '') }}{% else %}Other{% endif %}</div>
+                    <div class="friend-trip-line1">{{ trip.user|display_name(current_user.id) }}</div>
+                    <div class="friend-trip-line2">{{ trip.user|identity_line }}</div>
+                    <div class="friend-trip-line2" style="margin-top: 2px;">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %} · {{ format_trip_dates(trip) }}</div>
                 </div>
                 <span style="flex-shrink: 0; margin-left: 12px; font-size: 14px; color: var(--bl-color-primary); font-weight: 500;">View</span>
             </a>
@@ -420,20 +430,35 @@
         {% elif active_tab == 'overlaps' %}
         <!-- Overlaps Tab Content -->
         {% if grouped_overlaps and grouped_overlaps|length > 0 %}
+        <div class="filter-bar">
+            <div class="filter-bar-left" onclick="openOverlapsFilterSheet()">
+                <span>Filter</span>
+                {% if overlaps_filter_count and overlaps_filter_count > 0 %}
+                <span class="filter-active-count">{{ overlaps_filter_count }} active</span>
+                {% endif %}
+            </div>
+            <button class="filter-bar-clear" onclick="clearOverlapsFilters()" {% if not overlaps_filter_count or overlaps_filter_count == 0 %}disabled{% endif %}>Clear</button>
+        </div>
         <div class="flat-list">
             {% for overlap in grouped_overlaps %}
             {% set friend_ids = overlap.friends|map(attribute='id')|list|join(',') %}
             <a href="{{ url_for('overlap_detail', type=overlap.type, mountain=overlap.mountain if overlap.type == 'trip' else '', resort_id=overlap.resort_id if overlap.resort_id else '', start_date=overlap.start_date.strftime('%Y-%m-%d'), end_date=overlap.end_date.strftime('%Y-%m-%d'), date=overlap.date_str if overlap.type == 'open' else '', friends=friend_ids) }}" class="overlap-card" style="display: flex; justify-content: space-between; align-items: center; background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; text-decoration: none; color: inherit;">
                 <div style="flex: 1; min-width: 0;">
                     {% if overlap.type == 'trip' %}
-                    <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ overlap.mountain }}</p>
+                    <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        {{ format_trip_dates(overlap) }} · You + {% for f in overlap.friends[:2] %}{{ f.first_name }}{% if not loop.last %}, {% endif %}{% endfor %}{% if overlap.friends|length > 2 %} +{{ overlap.friends|length - 2 }}{% endif %}
+                        {% if overlap.friends and overlap.friends[0].pass_type %}({{ overlap.friends[0].pass_type|pass_display }}){% endif %}
+                    </p>
                     <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">
-                        {{ format_trip_dates(overlap) }} · You + {{ overlap.friend_count }} friend{% if overlap.friend_count != 1 %}s{% endif %}
+                        {{ overlap.mountain }}{% if overlap.resort_id %}, {{ overlap.state or '' }}{% else %} · Open location{% endif %}
                     </p>
                     {% else %}
-                    <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 4px 0;">Open day</p>
+                    <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 4px 0;">
+                        {{ overlap.start_date.strftime('%b %-d') }} · You + {% for f in overlap.friends[:2] %}{{ f.first_name }}{% if not loop.last %}, {% endif %}{% endfor %}{% if overlap.friends|length > 2 %} +{{ overlap.friends|length - 2 }}{% endif %}
+                        {% if overlap.friends and overlap.friends[0].pass_type %}({{ overlap.friends[0].pass_type|pass_display }}){% endif %}
+                    </p>
                     <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">
-                        {{ overlap.start_date.strftime('%b %-d') }} · You + {{ overlap.friend_count }} friend{% if overlap.friend_count != 1 %}s{% endif %}
+                        Open availability
                     </p>
                     {% endif %}
                 </div>
@@ -704,6 +729,22 @@
         
         function clearAllFilters() {
             window.location.href = '/friends';
+        }
+        
+        function openTripsFilterSheet() {
+            alert('Filter functionality coming soon');
+        }
+        
+        function clearTripsFilters() {
+            window.location.href = '/friends?tab=trips';
+        }
+        
+        function openOverlapsFilterSheet() {
+            alert('Filter functionality coming soon');
+        }
+        
+        function clearOverlapsFilters() {
+            window.location.href = '/friends?tab=overlaps';
         }
         
         let touchStartY = 0;

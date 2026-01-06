@@ -112,6 +112,11 @@
             font-weight: 500;
             color: var(--bl-color-text);
         }
+        .participant-identity {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            margin: 2px 0 0 0;
+        }
         .participant-status {
             font-size: 0.8rem;
             padding: 4px 10px;
@@ -475,20 +480,42 @@
             margin: 0;
             font-size: 0.95rem;
         }
+        
+        .sticky-action-container {
+            position: fixed;
+            bottom: 72px;
+            left: 0;
+            right: 0;
+            background: var(--bl-color-bg);
+            border-top: 1px solid var(--bl-color-border-soft);
+            padding: 12px 16px;
+            z-index: 90;
+        }
+        .sticky-action-content {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .sticky-action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .sticky-action-buttons form {
+            flex: 1;
+        }
+        .sticky-action-buttons .bl-btn-primary,
+        .sticky-action-buttons .bl-btn-outline {
+            width: 100%;
+            padding: 12px;
+            font-size: 0.95rem;
+        }
+        
+        .page-container-with-sticky {
+            padding-bottom: 80px;
+        }
     </style>
 </head>
 <body>
-    <div class="page-container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                <div style="background: {% if category == 'success' %}rgba(34, 197, 94, 0.1){% else %}rgba(143, 1, 27, 0.1){% endif %}; border: 1px solid {% if category == 'success' %}rgba(34, 197, 94, 0.3){% else %}rgba(143, 1, 27, 0.3){% endif %}; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.95rem; color: {% if category == 'success' %}#166534{% else %}var(--bl-color-primary){% endif %};">
-                    {{ message }}
-                </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        
+    <div class="page-container{% if is_invited %} page-container-with-sticky{% endif %}">
         <div class="trip-nav-header">
             <a href="{{ url_for('home') }}" class="back-chevron" aria-label="Back to home">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -504,19 +531,9 @@
         </div>
         
         {% if is_invited %}
-        <div class="invite-response-cta" style="background: linear-gradient(135deg, rgba(143, 1, 27, 0.06), rgba(143, 1, 27, 0.02)); border: 1px solid rgba(143, 1, 27, 0.15); border-radius: var(--bl-radius-lg); padding: 16px; margin-bottom: 20px;">
+        <div class="invite-banner" style="background: linear-gradient(135deg, rgba(143, 1, 27, 0.06), rgba(143, 1, 27, 0.02)); border: 1px solid rgba(143, 1, 27, 0.15); border-radius: var(--bl-radius-lg); padding: 16px; margin-bottom: 20px;">
             <p style="font-size: 0.95rem; font-weight: 600; color: var(--bl-color-text); margin: 0 0 4px 0;">You're invited to this trip!</p>
-            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0 0 12px 0;">{{ owner.first_name }}{% if owner.last_name %} {{ owner.last_name }}{% endif %} wants you to join.</p>
-            <div style="display: flex; gap: 10px;">
-                <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}" style="flex: 1;">
-                    <input type="hidden" name="action" value="accept">
-                    <button type="submit" class="bl-btn-primary" style="width: 100%; padding: 12px; font-size: 0.95rem;">Accept</button>
-                </form>
-                <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}" style="flex: 1;">
-                    <input type="hidden" name="action" value="decline">
-                    <button type="submit" class="bl-btn-outline" style="width: 100%; padding: 12px; font-size: 0.95rem;">Decline</button>
-                </form>
-            </div>
+            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">{{ owner.first_name }}{% if owner.last_name %} {{ owner.last_name }}{% endif %} wants you to join.</p>
         </div>
         {% elif is_owner %}
         <div class="invite-cta">
@@ -534,7 +551,7 @@
         
         {% set trans = group_signals.transportation if group_signals else {} %}
         {% set equip = group_signals.equipment if group_signals else {} %}
-        {% set has_trans = (trans.get('driving', 0) + trans.get('flying', 0) + trans.get('train_bus', 0)) > 0 %}
+        {% set has_trans = (trans.get('driving', 0) + trans.get('flying', 0) + trans.get('train', 0) + trans.get('bus', 0) + trans.get('train_bus', 0)) > 0 %}
         {% set has_equip = (equip.get('own', 0) + equip.get('renting', 0) + equip.get('needs_rentals', 0)) > 0 %}
         {% if has_trans or has_equip %}
         <div class="group-signals" onclick="document.getElementById('participants-section').scrollIntoView({behavior: 'smooth'})">
@@ -545,6 +562,12 @@
                 {% endif %}
                 {% if trans.get('flying', 0) > 0 %}
                 <span class="group-signals-item">Flying: <strong>{{ trans.flying }}</strong></span>
+                {% endif %}
+                {% if trans.get('train', 0) > 0 %}
+                <span class="group-signals-item">Train: <strong>{{ trans.train }}</strong></span>
+                {% endif %}
+                {% if trans.get('bus', 0) > 0 %}
+                <span class="group-signals-item">Bus: <strong>{{ trans.bus }}</strong></span>
                 {% endif %}
                 {% if trans.get('train_bus', 0) > 0 %}
                 <span class="group-signals-item">Train / Bus: <strong>{{ trans.train_bus }}</strong></span>
@@ -626,7 +649,7 @@
                 <span style="font-size: 0.9rem; color: var(--bl-color-text);">Transportation</span>
                 <span style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500;" id="your-trans-display">
                     {% if current_user_participant.transportation_status %}
-                        {% if current_user_participant.transportation_status.value == 'driving' %}Driving{% elif current_user_participant.transportation_status.value == 'flying' %}Flying{% elif current_user_participant.transportation_status.value == 'train_bus' %}Train/Bus{% else %}Add{% endif %} ›
+                        {% if current_user_participant.transportation_status.value == 'driving' %}Driving{% elif current_user_participant.transportation_status.value == 'flying' %}Flying{% elif current_user_participant.transportation_status.value == 'train' %}Train{% elif current_user_participant.transportation_status.value == 'bus' %}Bus{% elif current_user_participant.transportation_status.value == 'train_bus' %}Train/Bus{% else %}Add{% endif %} ›
                     {% else %}Add ›{% endif %}
                 </span>
             </div>
@@ -676,9 +699,10 @@
             <div class="participant-card">
                 <div class="participant-info">
                     <span class="participant-name">
-                        {% if p.user_id == current_user.id %}You{% else %}{{ p.user.first_name }} {{ p.user.last_name or '' }}{% endif %}
+                        {{ p.user|display_name(current_user.id) }}
                         {% if p.role and p.role.value == 'owner' %} (Organizer){% endif %}
                     </span>
+                    <p class="participant-identity">{{ p.user|identity_line }}</p>
                     {% if p.user_id == current_user.id and (is_owner or is_guest) %}
                     {% set my_trans = p.get_display_transportation() %}
                     {% set my_equip = p.get_display_equipment() %}
@@ -748,7 +772,10 @@
             <h3 style="font-size: 1rem; font-weight: 600; margin: 0 0 12px 0;">Pending Invites</h3>
             {% for p in invited_participants %}
             <div class="participant-card" style="display: flex; justify-content: space-between; align-items: center;">
-                <span class="participant-name">{{ p.user.first_name }} {{ p.user.last_name or '' }}</span>
+                <div class="participant-info">
+                    <span class="participant-name">{{ p.user|display_name(current_user.id) }}</span>
+                    <p class="participant-identity">{{ p.user|identity_line }}</p>
+                </div>
                 <form method="POST" action="{{ url_for('cancel_trip_invite', trip_id=trip.id) }}" style="margin: 0;" onsubmit="return confirm('Cancel invite to {{ p.user.first_name }}?');">
                     <input type="hidden" name="user_id" value="{{ p.user_id }}">
                     <button type="submit" style="background: transparent; border: none; color: var(--bl-color-text-muted); font-size: 0.9rem; cursor: pointer; padding: 4px 8px;">Cancel invite</button>
@@ -759,6 +786,23 @@
         {% endif %}
         
     </div>
+    
+    {% if is_invited %}
+    <div class="sticky-action-container visible">
+        <div class="sticky-action-content">
+            <div class="sticky-action-buttons">
+                <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}">
+                    <input type="hidden" name="action" value="accept">
+                    <button type="submit" class="bl-btn-primary">Accept</button>
+                </form>
+                <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}">
+                    <input type="hidden" name="action" value="decline">
+                    <button type="submit" class="bl-btn-outline">Decline</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
     
     {% include 'components/bottom_nav.html' %}
     
@@ -970,7 +1014,8 @@
         const transportationOptions = [
             { value: 'driving', label: 'Driving' },
             { value: 'flying', label: 'Flying' },
-            { value: 'train_bus', label: 'Train / Bus' },
+            { value: 'train', label: 'Train' },
+            { value: 'bus', label: 'Bus' },
             { value: 'tbd', label: 'Not set' }
         ];
         
@@ -982,13 +1027,13 @@
         const carpoolOptions = [
             { value: 'driver', label: 'I can drive' },
             { value: 'rider', label: 'I need a ride' },
-            { value: 'none', label: 'Not participating' }
+            { value: 'none', label: 'Not needed' }
         ];
         
         const lessonOptions = [
-            { value: 'yes', label: 'Taking lessons' },
-            { value: 'maybe', label: 'Maybe taking lessons' },
-            { value: 'no', label: 'Not taking lessons' }
+            { value: 'no', label: 'No lesson' },
+            { value: 'yes', label: 'Taking a lesson' },
+            { value: 'maybe', label: 'Maybe lessons' }
         ];
         
         function openSignalPicker(type) {

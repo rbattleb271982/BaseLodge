@@ -34,7 +34,8 @@ class ParticipantRole(PyEnum):
 class ParticipantTransportation(PyEnum):
     DRIVING = "driving"
     FLYING = "flying"
-    TRAIN_BUS = "train_bus"
+    TRAIN = "train"
+    BUS = "bus"
     TBD = "tbd"
 
 
@@ -642,6 +643,8 @@ class SkiTrip(db.Model):
         transportation = {
             'driving': 0,
             'flying': 0,
+            'train': 0,
+            'bus': 0,
             'train_bus': 0,
             'tbd': 0,
         }
@@ -744,9 +747,13 @@ class SkiTripParticipant(db.Model):
             labels = {
                 ParticipantTransportation.DRIVING: "Driving",
                 ParticipantTransportation.FLYING: "Flying",
-                ParticipantTransportation.TRAIN_BUS: "Train / Bus",
+                ParticipantTransportation.TRAIN: "Train",
+                ParticipantTransportation.BUS: "Bus",
                 ParticipantTransportation.TBD: "Ride: Not set",
             }
+            # Handle legacy train_bus value
+            if hasattr(self.transportation_status, 'value') and self.transportation_status.value == 'train_bus':
+                return "Train / Bus"
             return labels.get(self.transportation_status, "Ride: Not set")
         return "Ride: Not set"
     
