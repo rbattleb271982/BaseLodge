@@ -1,0 +1,92 @@
+Feature: Friend Profile — Upcoming Trips (List / Calendar Toggle)
+🎯 GOAL
+Enhance the Friend Profile page to allow viewing a friend’s upcoming trips in two modes:
+List view (default)
+Calendar view (read-only)
+This feature is purely informational and applies only when viewing another user’s profile.
+⚠️ Do NOT modify Planning, Trips, or Invites logic.
+🧠 PRODUCT CONTEXT (DO NOT DEVIATE)
+This calendar is for friends only
+Shows confirmed trips only
+No availability
+No overlap logic
+No actions (read-only)
+This is NOT Planning
+1️⃣ WHERE THIS LIVES
+Page
+/friends/<friend_id>
+Section
+Upcoming Trips
+This section already exists in List form — you are adding a view toggle + calendar visualization.
+2️⃣ VIEW TOGGLE
+Add a segmented control at the top of the “Upcoming Trips” section:
+List | Calendar
+Default = List
+Toggle persists while on the page (no global persistence required)
+3️⃣ LIST VIEW (DEFAULT)
+Reuse the existing Upcoming Trips list
+No changes to data, ordering, or styling
+This is the fallback and safe state
+4️⃣ CALENDAR VIEW (NEW)
+Calendar Rules (STRICT)
+Vertical scrolling months (Jan → Feb → Mar, etc.)
+One month stacked below the previous (not horizontal swipe)
+Dates are continuous highlighted ranges for each trip
+Highlight spans across months if the trip does
+No text inside date cells
+What the Calendar Shows
+Only confirmed trips for that friend
+Multiple trips can exist
+Overlapping trips should each be highlighted correctly
+5️⃣ DATE INTERACTION
+Tap behavior
+Tapping a highlighted date opens a modal
+Modal is read-only
+Modal includes:
+Resort name
+Full date range
+Optional “View trip” CTA (read-only detail page)
+Close behavior
+Explicit Close button only
+❌ No swipe to dismiss
+❌ No tap-outside to dismiss
+6️⃣ MODAL RULES
+One modal at a time
+If multiple trips cover the same date:
+Show a list inside the modal
+Each item tappable → read-only trip detail
+7️⃣ EXPLICIT NON-GOALS (DO NOT BUILD)
+🚫 Do NOT:
+Show availability
+Show overlap indicators
+Show “You overlap X days”
+Add invite or join actions
+Modify trip data
+Modify Planning
+Modify My Trips
+Modify Invites
+This is a read-only visualization only.
+8️⃣ STYLING & UX
+Match existing app typography and spacing
+Calendar should feel calm and legible
+No visual noise
+Mobile-first only
+Accessibility: tap targets must be large enough
+9️⃣ TESTING CHECKLIST (REQUIRED)
+Before completion, verify:
+Default view = List
+Toggle switches correctly
+Calendar scrolls vertically by month
+Date highlights render correctly across months
+Modal opens and closes correctly
+Back navigation unaffected
+No impact to:
+Planning
+Trips
+Invites
+User’s own profile
+🛑 STOP CONDITIONS
+When complete:
+Report files/routes touched
+Confirm no shared logic was altered
+STOP — do not continue to other features
