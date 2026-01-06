@@ -1,0 +1,68 @@
+✅ PUT THIS IN REPLIT AGENT
+Task: Remove Planning From Bottom Navigation (Keep in My Trips Toggle Only)
+🎯 GOAL
+Eliminate duplicate entry points for Planning.
+Planning should live only inside the My Trips segmented toggle:
+Upcoming | Planning | Invites
+Planning should NOT appear as a standalone item in the bottom navigation.
+🧠 CONTEXT (IMPORTANT)
+Current state (incorrect for v1):
+Planning appears:
+As a segmented toggle inside My Trips
+As a bottom navigation icon
+This creates confusion and redundancy.
+Desired state (v1):
+Planning exists only as a segmented view inside My Trips
+Bottom nav remains simple and stable
+✅ REQUIRED CHANGES
+1️⃣ Bottom Navigation
+Remove Planning from bottom nav entirely
+Bottom nav should be exactly:
+Trips
+Friends
+Invite
+Profile
+No Planning icon.
+No Planning route linked from bottom nav.
+2️⃣ Routing (IMPORTANT)
+Do not delete the Planning route or logic
+Planning content should still render when:
+User selects the Planning segment inside My Trips
+If /planning currently exists as a standalone route:
+Either:
+Remove direct navigation to it, or
+Redirect /planning → /trips?tab=planning (or equivalent)
+Choose the least invasive option.
+3️⃣ My Trips Page (DO NOT CHANGE FUNCTIONALITY)
+Inside My Trips:
+Keep the segmented control:
+Upcoming | Planning | Invites
+Planning tab behavior stays exactly as implemented
+No UI redesign required
+🚫 EXPLICIT NON-GOALS
+Do not:
+Change Planning logic
+Change Planning feed
+Change People List View
+Change availability logic
+Add new tabs
+Rename anything
+Touch Friend Profile calendars
+This is navigation cleanup only.
+🧪 TESTING CHECKLIST
+After changes:
+Bottom nav shows no Planning
+Trips tab loads correctly
+Switching to Planning inside My Trips works
+No 404s
+No broken links
+Back navigation works as expected
+📋 REPORT BACK WITH
+Files modified
+How /planning is handled (removed vs redirected)
+Confirmation that Planning still works via My Trips toggle
+Any risks or edge cases (or explicitly say “None”)
+🛑 STOP CONDITION
+Once navigation is fixed and verified:
+STOP
+Do not continue with other refactors

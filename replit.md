@@ -35,7 +35,7 @@ The backend is built with Flask, utilizing SQLAlchemy for ORM and Werkzeug for p
 -   **Planning Feature:** A dedicated Planning tab (`/planning`) displays availability overlap windows between the user and their friends. Each card shows a date range and which friends are free. Tapping a card navigates to a People List View (`/planning/window/<start>/<end>`) showing friends available during that window with their identity line. User must have availability set to see overlaps.
 -   **Friend Profile Calendar:** Friend profiles feature a List/Calendar toggle for the Upcoming Trips section. The calendar view displays a custom vanilla JS calendar with vertical scrolling months and trip date highlighting. Tapping highlighted dates opens a modal with trip details and navigation to the trip detail page.
 -   **Pass Selection:** Quick-select options for major passes, with a dropdown for "Other passes" or "I don't have a pass."
--   **Navigation:** Consistent 5-tab bottom navigation (Trips, Friends, Invite, Planning, Profile).
+-   **Navigation:** Consistent 4-tab bottom navigation (Trips, Friends, Invite, Profile). Planning is accessed via the segmented toggle inside My Trips.
 -   **Location Selector:** A unified typeahead component for state/province selection, grouped by country and alphabetically sorted.
 -   **Multi-Pass & International Resort Support:** The `Resort` model includes `pass_brands`, `country`, and expanded `state` fields.
 -   **Group Coordination Signals:** `SkiTripParticipant` includes `transportation_status` and `equipment_status` for per-participant coordination, summarized in a Group Signals card on the Trip Detail page.

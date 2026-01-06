@@ -3003,24 +3003,8 @@ def format_planning_dates(start_str, end_str):
 @app.route("/planning")
 @login_required
 def planning():
-    user = current_user
-    
-    # Check if user has any availability set
-    user_open_dates = set(user.open_dates or [])
-    today_str = date.today().strftime('%Y-%m-%d')
-    future_dates = {d for d in user_open_dates if d >= today_str}
-    
-    if not future_dates:
-        return render_template("planning.html", user=user, windows=[], has_availability=False)
-    
-    # Get planning windows
-    windows = get_planning_windows(user)
-    
-    # Format dates for display
-    for w in windows:
-        w['display_dates'] = format_planning_dates(w['start_date'], w['end_date'])
-    
-    return render_template("planning.html", user=user, windows=windows, has_availability=True)
+    """Redirect to My Trips with Planning tab selected."""
+    return redirect(url_for('my_trips', tab='planning'))
 
 
 @app.route("/planning/window/<start_date>/<end_date>")
@@ -3034,7 +3018,7 @@ def planning_window(start_date, end_date):
         end = datetime.strptime(end_date, '%Y-%m-%d').date()
     except ValueError:
         flash("Invalid date range", "error")
-        return redirect(url_for('planning'))
+        return redirect(url_for('my_trips', tab='planning'))
     
     # Get friends available in this window
     from services.open_dates import get_open_date_matches
