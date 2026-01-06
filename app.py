@@ -1856,26 +1856,69 @@ def my_trips():
     try:
         if user_open_dates:
             user_state = getattr(user, 'home_state', None) or ''
-            user_passes = set(p.strip().lower() for p in (user.pass_type or '').split(',') if p.strip())
+            user_passes = set(p.strip().lower() for p in (user.pass_type or '').split(',') if p.strip() and p.strip().lower() != "i don't have a pass")
+            
+            # Calculate average trip duration from past trips (for trip-length matching)
+            avg_trip_nights = None
+            try:
+                user_past_trips = SkiTrip.query.filter(
+                    SkiTrip.user_id == user.id,
+                    SkiTrip.start_date.isnot(None),
+                    SkiTrip.end_date.isnot(None),
+                    SkiTrip.end_date < today
+                ).all()
+                
+                if user_past_trips:
+                    total_nights = sum((t.end_date - t.start_date).days for t in user_past_trips)
+                    avg_trip_nights = total_nights / len(user_past_trips) if len(user_past_trips) > 0 else None
+            except Exception:
+                avg_trip_nights = None
+            
+            # Determine typical trip category based on average
+            # day_trip: 0 nights, long_weekend: 1-3 nights, extended: 4+ nights
+            user_trip_category = None
+            if avg_trip_nights is not None:
+                if avg_trip_nights < 1:
+                    user_trip_category = 'day_trip'
+                elif avg_trip_nights <= 3:
+                    user_trip_category = 'long_weekend'
+                else:
+                    user_trip_category = 'extended'
             
             # Get active resorts
             resorts = Resort.query.filter_by(is_active=True, is_region=False).limit(50).all()
             
-            for resort in resorts:
+            for idx, resort in enumerate(resorts):
                 score = 0
                 match_reason = None
                 
-                # Check if in user's home state
-                if user_state and resort.state_code and resort.state_code.lower() == user_state.lower():
-                    score += 100
-                    match_reason = "Near you"
+                # Priority 1: Pass compatibility (highest score)
+                resort_passes = set(p.strip().lower() for p in resort.get_pass_brands_list() if p.strip())
+                if user_passes and resort_passes and (user_passes & resort_passes):
+                    score += 150
+                    match_reason = "On your pass"
                 
-                # Check pass compatibility
-                resort_passes = set(p.strip().lower() for p in (resort.pass_brands or '').split(',') if p.strip())
-                if user_passes & resort_passes:
+                # Priority 2: Trip-length match (medium score)
+                if user_trip_category and not match_reason:
+                    # Heuristic: closer resorts are better for day trips, farther for extended
+                    # Since we don't have distance data, use state proximity as proxy
+                    is_nearby = user_state and resort.state_code and resort.state_code.lower() == user_state.lower()
+                    
+                    if user_trip_category == 'day_trip' and is_nearby:
+                        score += 75
+                        match_reason = "Great for a day trip"
+                    elif user_trip_category == 'long_weekend':
+                        score += 75
+                        match_reason = "Good for a long weekend"
+                    elif user_trip_category == 'extended' and not is_nearby:
+                        score += 75
+                        match_reason = "Worth the trip"
+                
+                # Priority 3: Proximity to home state (lower score)
+                if user_state and resort.state_code and resort.state_code.lower() == user_state.lower():
                     score += 50
                     if not match_reason:
-                        match_reason = "On your pass"
+                        match_reason = "Near you"
                 
                 trip_ideas.append({
                     'id': resort.id,
@@ -1883,11 +1926,12 @@ def my_trips():
                     'state': resort.state_code or resort.state,
                     'country': resort.country_name or '',
                     'score': score,
-                    'match_reason': match_reason
+                    'match_reason': match_reason,
+                    '_original_order': idx  # Preserve original DB order for fallback
                 })
             
-            # Sort by score descending
-            trip_ideas.sort(key=lambda x: x['score'], reverse=True)
+            # Sort by score descending; preserve original order as tie-breaker
+            trip_ideas.sort(key=lambda x: (-x['score'], x['_original_order']))
     except Exception:
         trip_ideas = []
 
