@@ -821,13 +821,27 @@ def handle_exception(e):
         return e
     
     import traceback
-    print("=" * 70)
-    print(f"🚨 UNHANDLED EXCEPTION: {type(e).__name__}")
-    print("=" * 70)
-    print(f"Message: {str(e)}")
-    print("Full traceback:")
-    traceback.print_exc()
-    print("=" * 70)
+    import sys
+    print("=" * 70, file=sys.stderr)
+    print(f"🚨 UNHANDLED EXCEPTION: {type(e).__name__}", file=sys.stderr)
+    print("=" * 70, file=sys.stderr)
+    print(f"Exception Type: {type(e).__name__}", file=sys.stderr)
+    print(f"Exception Message: {str(e)}", file=sys.stderr)
+    print(f"Request Path: {request.path}", file=sys.stderr)
+    print(f"Request Method: {request.method}", file=sys.stderr)
+    print(f"Request URL: {request.url}", file=sys.stderr)
+    try:
+        print(f"Request Host: {request.host}", file=sys.stderr)
+    except Exception as host_err:
+        print(f"Request Host: ERROR GETTING HOST - {host_err}", file=sys.stderr)
+    print(f"Host Header: {request.headers.get('Host', 'NOT SET')}", file=sys.stderr)
+    print(f"X-Forwarded-Host: {request.headers.get('X-Forwarded-Host', 'NOT SET')}", file=sys.stderr)
+    print(f"User Agent: {request.headers.get('User-Agent', 'NOT SET')}", file=sys.stderr)
+    print(f"Endpoint: {request.endpoint}", file=sys.stderr)
+    print(f"Is Authenticated: {current_user.is_authenticated if hasattr(current_user, 'is_authenticated') else 'N/A'}", file=sys.stderr)
+    print("Full traceback:", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+    print("=" * 70, file=sys.stderr)
     db.session.rollback()
     return render_template("500.html"), 500
 
