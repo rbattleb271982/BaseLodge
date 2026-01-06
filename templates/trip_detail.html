@@ -608,6 +608,46 @@
             </div>
         </div>
         
+        {% if is_owner or is_guest %}
+        <div class="your-trip-details-section" style="background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: var(--bl-radius-md); padding: 16px; margin-bottom: 20px;">
+            <p style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--bl-color-text-muted); font-weight: 600; margin: 0 0 12px 0;">Your Trip Details</p>
+            {% if current_user_participant %}
+            <div class="your-detail-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--bl-color-border-soft); cursor: pointer;" onclick="openSignalPicker('transportation')">
+                <span style="font-size: 0.9rem; color: var(--bl-color-text);">Transportation</span>
+                <span style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500;" id="your-trans-display">
+                    {% if current_user_participant.transportation_status %}
+                        {% if current_user_participant.transportation_status.value == 'driving' %}Driving{% elif current_user_participant.transportation_status.value == 'flying' %}Flying{% elif current_user_participant.transportation_status.value == 'train_bus' %}Train/Bus{% else %}Add{% endif %} ›
+                    {% else %}Add ›{% endif %}
+                </span>
+            </div>
+            <div class="your-detail-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--bl-color-border-soft); cursor: pointer;" onclick="openSignalPicker('equipment')">
+                <span style="font-size: 0.9rem; color: var(--bl-color-text);">Equipment</span>
+                <span style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500;" id="your-equip-display">
+                    {% if current_user_participant.equipment_status %}
+                        {% if current_user_participant.equipment_status.value == 'own' %}Bringing my own{% elif current_user_participant.equipment_status.value == 'renting' %}Renting{% else %}Not set{% endif %} ›
+                    {% else %}Not set ›{% endif %}
+                </span>
+            </div>
+            <div class="your-detail-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--bl-color-border-soft); cursor: pointer;" onclick="openSignalPicker('carpool')">
+                <span style="font-size: 0.9rem; color: var(--bl-color-text);">Carpool</span>
+                <span style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500;" id="your-carpool-display">
+                    {% if current_user_participant.carpool_role %}
+                        {% if current_user_participant.carpool_role.value == 'driver_with_space' %}I can drive and have space{% elif current_user_participant.carpool_role.value == 'driver_no_space' %}I can drive but have no space{% elif current_user_participant.carpool_role.value == 'needs_ride' %}I need a ride{% elif current_user_participant.carpool_role.value == 'not_carpooling' %}Not carpooling{% elif current_user_participant.carpool_role.value == 'other' %}Other{% elif current_user_participant.carpool_role.value == 'driver' %}Driving{% elif current_user_participant.carpool_role.value == 'rider' %}Need a ride{% else %}Add{% endif %} ›
+                    {% else %}Add ›{% endif %}
+                </span>
+            </div>
+            <div class="your-detail-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; cursor: pointer;" onclick="openSignalPicker('lesson')">
+                <span style="font-size: 0.9rem; color: var(--bl-color-text);">Taking a lesson?</span>
+                <span style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500;" id="your-lesson-display">
+                    {% if current_user_participant.taking_lesson %}
+                        {% if current_user_participant.taking_lesson.value == 'yes' %}Yes{% elif current_user_participant.taking_lesson.value == 'maybe' %}Considering{% else %}No{% endif %} ›
+                    {% else %}No ›{% endif %}
+                </span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        
         {% if all_participants or invited_participants %}
         <div class="participants-section" id="participants-section">
             <h3>Who's Going</h3>

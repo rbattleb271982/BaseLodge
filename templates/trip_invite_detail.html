@@ -8,7 +8,7 @@
     <style>
         .invite-header {
             text-align: center;
-            margin-bottom: 24px;
+            margin-bottom: 8px;
         }
         .invite-destination {
             font-size: 1.5rem;
@@ -20,6 +20,12 @@
             font-size: 1rem;
             color: var(--bl-color-text-muted);
             margin: 0;
+        }
+        .invite-going-count {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--bl-color-text-muted);
+            margin: 8px 0 16px;
         }
         .invite-context {
             text-align: center;
@@ -73,6 +79,7 @@
             padding: 8px 0;
             border-bottom: 1px solid var(--bl-color-border-soft);
             font-size: 0.9rem;
+            color: var(--bl-color-text);
         }
         .participant-item:last-child {
             border-bottom: none;
@@ -89,7 +96,12 @@
             flex-direction: column;
             gap: 12px;
         }
+        .action-buttons-row {
+            display: flex;
+            gap: 12px;
+        }
         .btn-accept {
+            flex: 2;
             background: var(--bl-color-primary);
             color: white;
             border: none;
@@ -98,18 +110,17 @@
             font-weight: 600;
             font-size: 1rem;
             cursor: pointer;
-            width: 100%;
         }
         .btn-decline {
+            flex: 1;
             background: transparent;
             color: var(--bl-color-text-muted);
             border: 1px solid var(--bl-color-border);
-            padding: 12px 24px;
+            padding: 14px 16px;
             border-radius: var(--bl-radius-md);
             font-weight: 500;
             font-size: 0.9rem;
             cursor: pointer;
-            width: 100%;
         }
         .btn-back {
             display: block;
@@ -133,7 +144,7 @@
             font-size: 0.9rem;
             margin-bottom: 16px;
         }
-        .decline-modal-overlay {
+        .decline-modal-overlay, .nudge-modal-overlay {
             display: none;
             position: fixed;
             top: 0;
@@ -146,10 +157,10 @@
             justify-content: center;
             padding: 16px;
         }
-        .decline-modal-overlay.active {
+        .decline-modal-overlay.active, .nudge-modal-overlay.active {
             display: flex;
         }
-        .decline-modal {
+        .decline-modal, .nudge-modal {
             background: var(--bl-color-surface);
             border-radius: var(--bl-radius-lg);
             padding: 24px;
@@ -157,23 +168,23 @@
             max-width: 320px;
             text-align: center;
         }
-        .decline-modal h3 {
+        .decline-modal h3, .nudge-modal h3 {
             margin: 0 0 16px 0;
             font-size: 1.1rem;
         }
-        .decline-modal-actions {
+        .decline-modal-actions, .nudge-modal-actions {
             display: flex;
             gap: 12px;
             margin-top: 20px;
         }
-        .decline-modal-actions button {
+        .decline-modal-actions button, .nudge-modal-actions button {
             flex: 1;
             padding: 12px;
             border-radius: var(--bl-radius-md);
             font-weight: 600;
             cursor: pointer;
         }
-        .btn-cancel-modal {
+        .btn-cancel-modal, .btn-skip {
             background: transparent;
             color: var(--bl-color-text);
             border: 1px solid var(--bl-color-border);
@@ -183,10 +194,127 @@
             color: white;
             border: none;
         }
+        .btn-add-details {
+            background: var(--bl-color-primary);
+            color: white;
+            border: none;
+        }
+        .section-locked {
+            opacity: 0.6;
+        }
+        .section-locked-hint {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            font-style: italic;
+            text-align: center;
+            padding: 12px 0;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            cursor: pointer;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-row-label {
+            font-size: 0.9rem;
+            color: var(--bl-color-text);
+        }
+        .detail-row-value {
+            font-size: 0.9rem;
+            color: var(--bl-color-primary);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .detail-row-value::after {
+            content: "›";
+            font-size: 1.1rem;
+        }
+        .selector-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .selector-modal-overlay.active {
+            display: flex;
+        }
+        .selector-modal {
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-lg) var(--bl-radius-lg) 0 0;
+            width: 100%;
+            max-width: 500px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        .selector-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+        .selector-modal-title {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        .selector-modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--bl-color-text-muted);
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .selector-option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .selector-option:hover {
+            background: rgba(0, 0, 0, 0.03);
+        }
+        .selector-option:last-child {
+            border-bottom: none;
+        }
+        .selector-option.selected {
+            color: var(--bl-color-primary);
+        }
+        .selector-option.selected::after {
+            content: "✓";
+            color: var(--bl-color-primary);
+            font-weight: 600;
+        }
+        .accepted-banner {
+            background: #E8F5E9;
+            color: #2E7D32;
+            padding: 12px;
+            border-radius: var(--bl-radius-md);
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 16px;
+        }
     </style>
 </head>
 <body>
-    <div class="page-container" style="padding: 16px 16px 180px;">
+    <div class="page-container" style="padding: 16px 16px {% if is_accepted %}88px{% else %}180px{% endif %};">
         <a href="{{ url_for('my_trips') }}" class="back-link">← Back</a>
         
         <div class="invite-header">
@@ -202,9 +330,17 @@
             <p class="invite-dates">{{ format_trip_dates(trip) }}</p>
         </div>
         
+        {% if going_count >= 2 %}
+        <p class="invite-going-count">{{ going_count }} people going</p>
+        {% endif %}
+        
+        {% if not is_accepted %}
         <div class="invite-context">
             {{ owner.first_name if owner else 'Someone' }} invited you to this trip
         </div>
+        {% else %}
+        <div class="accepted-banner">You're going!</div>
+        {% endif %}
         
         <div class="info-section">
             <p class="info-section-title">Trip Details</p>
@@ -234,29 +370,83 @@
         
         <div class="info-section">
             <p class="info-section-title">Who's Going</p>
-            {% if accepted_participants|length > 0 %}
+            {% if is_accepted %}
             <ul class="participant-list">
-                <li class="participant-item">{{ owner.first_name if owner else 'Organizer' }} (organizer)</li>
+                <li class="participant-item">{{ owner.first_name if owner else 'Organizer' }}</li>
                 {% for p in accepted_participants %}
-                {% if p.user and p.user_id != trip.user_id %}
+                {% if p.user %}
                 <li class="participant-item">{{ p.user.first_name }}</li>
                 {% endif %}
                 {% endfor %}
             </ul>
             {% else %}
-            <p class="empty-state">Just {{ owner.first_name if owner else 'the organizer' }} so far</p>
+            <ul class="participant-list">
+                <li class="participant-item">{{ owner.first_name if owner else 'Organizer' }}</li>
+            </ul>
+            {% if accepted_participants|length > 0 %}
+            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 8px 0 0 0;">
+                + {{ accepted_participants|length }} other{% if accepted_participants|length > 1 %}s{% endif %} going
+            </p>
+            {% endif %}
             {% endif %}
         </div>
         
-        <div class="action-buttons">
-            <form method="POST" action="/trips/{{ trip.id }}/respond">
-                <input type="hidden" name="action" value="accept">
-                <button type="submit" class="btn-accept">Accept trip</button>
-            </form>
-            <button type="button" class="btn-decline" onclick="showDeclineModal()">Decline invite</button>
-            <a href="{{ url_for('my_trips') }}" class="btn-back">Back (decide later)</a>
+        <div class="info-section {% if not is_accepted %}section-locked{% endif %}">
+            <p class="info-section-title">Your Trip Details</p>
+            {% if is_accepted %}
+            <div class="detail-row" onclick="openSelector('transportation')">
+                <span class="detail-row-label">Transportation</span>
+                <span class="detail-row-value" id="transportation-value">
+                    {% if participant.transportation_status %}
+                        {% if participant.transportation_status.value == 'driving' %}Driving{% elif participant.transportation_status.value == 'flying' %}Flying{% elif participant.transportation_status.value == 'train_bus' %}Train/Bus{% else %}Add{% endif %}
+                    {% else %}Add{% endif %}
+                </span>
+            </div>
+            <div class="detail-row" onclick="openSelector('equipment')">
+                <span class="detail-row-label">Equipment</span>
+                <span class="detail-row-value" id="equipment-value">
+                    {% if participant.equipment_status %}
+                        {% if participant.equipment_status.value == 'own' %}Bringing my own{% elif participant.equipment_status.value == 'renting' %}Renting{% else %}Not set{% endif %}
+                    {% else %}
+                        {% if user_owns_equipment %}Bringing my own{% else %}Renting{% endif %}
+                    {% endif %}
+                </span>
+            </div>
+            <div class="detail-row" onclick="openSelector('carpool')">
+                <span class="detail-row-label">Carpool</span>
+                <span class="detail-row-value" id="carpool-value">
+                    {% if participant.carpool_role %}
+                        {% if participant.carpool_role.value == 'driver_with_space' %}I can drive and have space{% elif participant.carpool_role.value == 'driver_no_space' %}I can drive but have no space{% elif participant.carpool_role.value == 'needs_ride' %}I need a ride{% elif participant.carpool_role.value == 'not_carpooling' %}Not carpooling{% elif participant.carpool_role.value == 'other' %}Other{% else %}Add{% endif %}
+                    {% else %}Add{% endif %}
+                </span>
+            </div>
+            <div class="detail-row" onclick="openSelector('lesson')">
+                <span class="detail-row-label">Taking a lesson?</span>
+                <span class="detail-row-value" id="lesson-value">
+                    {% if participant.taking_lesson %}
+                        {% if participant.taking_lesson.value == 'yes' %}Yes{% elif participant.taking_lesson.value == 'maybe' %}Considering{% else %}No{% endif %}
+                    {% else %}No{% endif %}
+                </span>
+            </div>
+            {% else %}
+            <p class="section-locked-hint">Accept the invite to add your trip details</p>
+            {% endif %}
         </div>
+        
+        {% if not is_accepted %}
+        <div class="action-buttons">
+            <div class="action-buttons-row">
+                <form method="POST" action="/trips/{{ trip.id }}/respond" style="flex: 2;">
+                    <input type="hidden" name="action" value="accept">
+                    <button type="submit" class="btn-accept" style="width: 100%;">Accept Invite</button>
+                </form>
+                <button type="button" class="btn-decline" onclick="showDeclineModal()">Decline</button>
+            </div>
+        </div>
+        {% endif %}
     </div>
+
+    {% include 'components/bottom_nav.html' %}
     
     <div class="decline-modal-overlay" id="decline-modal">
         <div class="decline-modal">
@@ -271,6 +461,71 @@
         </div>
     </div>
     
+    {% if show_nudge %}
+    <div class="nudge-modal-overlay active" id="nudge-modal">
+        <div class="nudge-modal">
+            <h3>Want to add your trip details now?</h3>
+            <div class="nudge-modal-actions">
+                <button type="button" class="btn-skip" onclick="hideNudgeModal()">Skip</button>
+                <button type="button" class="btn-add-details" onclick="hideNudgeAndScroll()">Add details</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if is_accepted %}
+    <div class="selector-modal-overlay" id="transportation-selector">
+        <div class="selector-modal">
+            <div class="selector-modal-header">
+                <span class="selector-modal-title">Transportation</span>
+                <button class="selector-modal-close" onclick="closeSelector('transportation')">&times;</button>
+            </div>
+            <div class="selector-option" data-field="transportation" data-value="driving">Driving</div>
+            <div class="selector-option" data-field="transportation" data-value="flying">Flying</div>
+            <div class="selector-option" data-field="transportation" data-value="train_bus">Train/Bus</div>
+            <div class="selector-option" data-field="transportation" data-value="tbd">TBD</div>
+        </div>
+    </div>
+    
+    <div class="selector-modal-overlay" id="equipment-selector">
+        <div class="selector-modal">
+            <div class="selector-modal-header">
+                <span class="selector-modal-title">Equipment</span>
+                <button class="selector-modal-close" onclick="closeSelector('equipment')">&times;</button>
+            </div>
+            <div class="selector-option" data-field="equipment" data-value="own">Bringing my own</div>
+            <div class="selector-option" data-field="equipment" data-value="renting">Renting</div>
+            <div class="selector-option" data-field="equipment" data-value="">Not set</div>
+        </div>
+    </div>
+    
+    <div class="selector-modal-overlay" id="carpool-selector">
+        <div class="selector-modal">
+            <div class="selector-modal-header">
+                <span class="selector-modal-title">Carpool</span>
+                <button class="selector-modal-close" onclick="closeSelector('carpool')">&times;</button>
+            </div>
+            <div class="selector-option" data-field="carpool" data-value="driver_with_space">I can drive and have space</div>
+            <div class="selector-option" data-field="carpool" data-value="driver_no_space">I can drive but have no space</div>
+            <div class="selector-option" data-field="carpool" data-value="needs_ride">I need a ride</div>
+            <div class="selector-option" data-field="carpool" data-value="not_carpooling">Not carpooling</div>
+            <div class="selector-option" data-field="carpool" data-value="other">Other</div>
+        </div>
+    </div>
+    
+    <div class="selector-modal-overlay" id="lesson-selector">
+        <div class="selector-modal">
+            <div class="selector-modal-header">
+                <span class="selector-modal-title">Taking a lesson?</span>
+                <button class="selector-modal-close" onclick="closeSelector('lesson')">&times;</button>
+            </div>
+            <div class="selector-option" data-field="lesson" data-value="no">No</div>
+            <div class="selector-option" data-field="lesson" data-value="maybe">Considering</div>
+            <div class="selector-option" data-field="lesson" data-value="yes">Yes</div>
+        </div>
+    </div>
+    {% endif %}
+    
     <script>
         function showDeclineModal() {
             document.getElementById('decline-modal').classList.add('active');
@@ -281,6 +536,77 @@
         document.getElementById('decline-modal').addEventListener('click', function(e) {
             if (e.target === this) hideDeclineModal();
         });
+        
+        {% if show_nudge %}
+        function hideNudgeModal() {
+            document.getElementById('nudge-modal').classList.remove('active');
+        }
+        function hideNudgeAndScroll() {
+            hideNudgeModal();
+            var detailsSection = document.querySelector('.info-section:last-of-type');
+            if (detailsSection) {
+                detailsSection.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+        document.getElementById('nudge-modal').addEventListener('click', function(e) {
+            if (e.target === this) hideNudgeModal();
+        });
+        {% endif %}
+        
+        {% if is_accepted %}
+        var tripId = {{ trip.id }};
+        
+        function openSelector(field) {
+            document.getElementById(field + '-selector').classList.add('active');
+        }
+        
+        function closeSelector(field) {
+            document.getElementById(field + '-selector').classList.remove('active');
+        }
+        
+        document.querySelectorAll('.selector-modal-overlay').forEach(function(overlay) {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('active');
+                }
+            });
+        });
+        
+        document.querySelectorAll('.selector-option').forEach(function(option) {
+            option.addEventListener('click', function() {
+                var field = this.getAttribute('data-field');
+                var value = this.getAttribute('data-value');
+                var displayText = this.textContent.trim();
+                
+                var payload = {};
+                if (field === 'transportation') {
+                    payload.transportation_status = value;
+                } else if (field === 'equipment') {
+                    payload.equipment_status = value;
+                } else if (field === 'carpool') {
+                    payload.carpool_role = value;
+                } else if (field === 'lesson') {
+                    payload.taking_lesson = value;
+                }
+                
+                fetch('/api/trips/' + tripId + '/participant/signals', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        document.getElementById(field + '-value').childNodes[0].textContent = displayText || 'Add';
+                        closeSelector(field);
+                    }
+                })
+                .catch(function(error) {
+                    console.error('Error updating:', error);
+                });
+            });
+        });
+        {% endif %}
     </script>
 </body>
 </html>

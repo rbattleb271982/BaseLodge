@@ -4430,7 +4430,7 @@ def trip_detail(trip_id):
 @app.route("/trips/<int:trip_id>/invite")
 @login_required
 def trip_invite_detail(trip_id):
-    """Invite detail page - view trip invitation before accepting."""
+    """Invite detail page - view trip invitation before accepting or after accepting."""
     trip = SkiTrip.query.get_or_404(trip_id)
     today = date.today()
     
@@ -4439,14 +4439,20 @@ def trip_invite_detail(trip_id):
         flash("This invite has expired.", "error")
         return redirect(url_for("my_trips"))
     
-    # Check if user has a pending invite for this trip
+    # Check if user has an invite (pending or accepted) for this trip
     participant = SkiTripParticipant.query.filter_by(
-        trip_id=trip_id, user_id=current_user.id, status=GuestStatus.INVITED
-    ).first()
+        trip_id=trip_id, user_id=current_user.id
+    ).filter(SkiTripParticipant.status.in_([GuestStatus.INVITED, GuestStatus.ACCEPTED])).first()
     
     if not participant:
-        flash("You don't have a pending invite for this trip.", "error")
+        flash("You don't have an invite for this trip.", "error")
         return redirect(url_for("my_trips"))
+    
+    # Check if user has accepted (unlocked state)
+    is_accepted = participant.status == GuestStatus.ACCEPTED
+    
+    # Check if we should show the nudge (just accepted via query param)
+    show_nudge = request.args.get("just_accepted") == "1" and is_accepted
     
     # Get trip owner
     owner = User.query.get(trip.user_id)
@@ -4456,12 +4462,28 @@ def trip_invite_detail(trip_id):
         trip_id=trip_id, status=GuestStatus.ACCEPTED
     ).all()
     
+    # Calculate going count: owner (always) + accepted invitees
+    going_count = 1 + len(accepted_participants)  # 1 for owner
+    
+    # Check if user owns equipment (has EquipmentSetup with brand or model)
+    user_owns_equipment = EquipmentSetup.query.filter(
+        EquipmentSetup.user_id == current_user.id,
+        db.or_(
+            EquipmentSetup.brand.isnot(None),
+            EquipmentSetup.model.isnot(None)
+        )
+    ).first() is not None
+    
     return render_template(
         "trip_invite_detail.html",
         trip=trip,
         owner=owner,
         participant=participant,
         accepted_participants=accepted_participants,
+        is_accepted=is_accepted,
+        show_nudge=show_nudge,
+        going_count=going_count,
+        user_owns_equipment=user_owns_equipment,
     )
 
 
@@ -4584,7 +4606,7 @@ def respond_to_trip_invite(trip_id):
         if request.is_json:
             return jsonify({"success": True, "message": "You've joined the trip!"})
         flash("You've joined the trip!", "success")
-        return redirect(url_for("trip_detail", trip_id=trip_id))
+        return redirect(url_for("trip_invite_detail", trip_id=trip_id, just_accepted="1"))
     elif action == "decline":
         participant.status = GuestStatus.DECLINED
         emit_trip_invite_declined_activity(trip, current_user.id, trip.user_id)
@@ -4600,7 +4622,7 @@ def respond_to_trip_invite(trip_id):
 @app.route("/api/trips/<int:trip_id>/participant/signals", methods=["POST"])
 @login_required
 def update_participant_signals(trip_id):
-    """Update current user's transportation and equipment signals for a trip."""
+    """Update current user's transportation, equipment, carpool, and lesson signals for a trip."""
     trip = SkiTrip.query.get_or_404(trip_id)
     
     # Find the user's participant record
@@ -4632,13 +4654,56 @@ def update_participant_signals(trip_id):
             participant.equipment_status = ParticipantEquipment(equipment)
         except ValueError:
             pass
+    elif equipment == "":
+        participant.equipment_status = None
+    
+    # Update carpool role
+    carpool = data.get("carpool_role")
+    if carpool:
+        try:
+            participant.carpool_role = CarpoolRole(carpool)
+        except ValueError:
+            pass
+    elif carpool == "":
+        participant.carpool_role = None
+    
+    # Update lesson status
+    lesson = data.get("taking_lesson")
+    if lesson:
+        try:
+            participant.taking_lesson = LessonChoice(lesson)
+        except ValueError:
+            pass
     
     db.session.commit()
+    
+    # Build display values for response
+    carpool_display = None
+    if participant.carpool_role:
+        carpool_labels = {
+            CarpoolRole.DRIVER_WITH_SPACE: "I can drive and have space",
+            CarpoolRole.DRIVER_NO_SPACE: "I can drive but have no space",
+            CarpoolRole.NEEDS_RIDE: "I need a ride",
+            CarpoolRole.NOT_CARPOOLING: "Not carpooling",
+            CarpoolRole.OTHER: "Other",
+        }
+        carpool_display = carpool_labels.get(participant.carpool_role, "Add")
+    
+    lesson_display = None
+    if participant.taking_lesson:
+        lesson_labels = {
+            LessonChoice.NO: "No",
+            LessonChoice.MAYBE: "Considering",
+            LessonChoice.YES: "Yes",
+        }
+        lesson_display = lesson_labels.get(participant.taking_lesson, "Not set")
     
     return jsonify({
         "success": True,
         "transportation_display": participant.get_display_transportation(),
         "equipment_display": participant.get_display_equipment(),
+        "carpool_display": carpool_display or "Add",
+        "lesson_display": lesson_display or "Not set",
     })
 
 

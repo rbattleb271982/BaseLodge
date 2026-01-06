@@ -53,6 +53,11 @@ class LessonChoice(PyEnum):
 class CarpoolRole(PyEnum):
     DRIVER = "driver"
     RIDER = "rider"
+    DRIVER_WITH_SPACE = "driver_with_space"
+    DRIVER_NO_SPACE = "driver_no_space"
+    NEEDS_RIDE = "needs_ride"
+    NOT_CARPOOLING = "not_carpooling"
+    OTHER = "other"
 
 
 class EquipmentSlot(PyEnum):
