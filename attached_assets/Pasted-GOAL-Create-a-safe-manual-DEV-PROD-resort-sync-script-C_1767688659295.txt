@@ -1,0 +1,91 @@
+GOAL
+Create a safe, manual DEV → PROD resort sync script.
+
+CONTEXT
+- DEV is the source of truth for resorts
+- PROD contains live trips that reference resorts by ID
+- Resort IDs must NEVER change
+- Existing PROD resorts may be updated, new ones may be added
+- No resorts should ever be deleted in PROD
+
+IMPORTANT RULES
+- Match resorts by `id` ONLY
+- NEVER delete from PROD
+- NEVER generate new IDs
+- NEVER overwrite IDs
+- Script must be idempotent (safe to run multiple times)
+- Script must log what it changes
+
+========================================
+STEP 1 — CREATE SCRIPT FILE
+========================================
+Create a new file:
+
+scripts/sync_resorts_to_prod.py
+
+========================================
+STEP 2 — LOAD DEV CANONICAL DATA
+========================================
+The script should load canonical resort data from DEV.
+Use the existing canonical JSON export format already used in the app
+(or query DEV resorts directly if easier).
+
+Each resort record includes:
+- id
+- name
+- country_code
+- country_name
+- state / region
+- pass_brands
+- is_active
+- any other resort fields
+
+========================================
+STEP 3 — CONNECT TO PROD DATABASE
+========================================
+Connect to the PROD database using environment variables.
+This connection is WRITE-ENABLED but MUST be handled carefully.
+
+========================================
+STEP 4 — SYNC LOGIC (CRITICAL)
+========================================
+For EACH resort from DEV:
+
+1. Look up resort in PROD by `id`
+2. If found:
+   - UPDATE all mutable fields
+   - DO NOT modify the `id`
+3. If NOT found:
+   - INSERT new resort using the same `id`
+4. NEVER delete any PROD resort
+5. NEVER reassign IDs
+
+========================================
+STEP 5 — LOGGING
+========================================
+Log clearly:
+- How many resorts were updated
+- How many were inserted
+- Any skipped records
+- Any errors
+
+========================================
+STEP 6 — SAFETY GUARDS
+========================================
+- If PROD connection fails → STOP
+- If DEV data is empty → STOP
+- If duplicate IDs appear → STOP
+- Require explicit confirmation flag (e.g. --confirm) to run
+
+========================================
+STEP 7 — DOCUMENT USAGE
+========================================
+At the top of the script, include comments explaining:
+- What the script does
+- That it is DEV → PROD only
+- That IDs must never be changed
+- How to run it safely
+
+STOP after creating the script.
+DO NOT execute it automatically.
+END
