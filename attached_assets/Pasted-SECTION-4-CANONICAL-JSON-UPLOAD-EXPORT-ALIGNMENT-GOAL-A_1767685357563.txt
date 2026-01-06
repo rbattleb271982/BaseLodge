@@ -1,0 +1,100 @@
+SECTION 4 — CANONICAL JSON + UPLOAD / EXPORT ALIGNMENT
+
+GOAL
+Align canonical JSON exports, admin exports, and admin uploads so that
+country_code and country_name are always handled consistently from a single source of truth.
+
+IMPORTANT CONSTRAINTS
+- NON-DESTRUCTIVE: Do NOT modify existing resort data
+- Do NOT change app display logic yet
+- Do NOT backfill or mutate any fields
+- This section affects EXPORTS + UPLOAD NORMALIZATION ONLY
+
+========================================
+STEP 1 — CANONICAL JSON EXPORT (DEV)
+========================================
+Update the canonical resorts export in DEV so that each resort includes BOTH:
+
+- country_code
+- country_name
+
+Rules:
+- Export country_code exactly as stored
+- Export country_name exactly as stored
+- Do NOT derive or recompute during export
+- Preserve all existing fields and structure
+
+Example (partial):
+{
+  "name": "Aspen Snowmass",
+  "country_code": "US",
+  "country_name": "United States",
+  "state": "CO",
+  "pass_brands": ["Ikon", "MountainCollective"],
+  ...
+}
+
+========================================
+STEP 2 — ADMIN EXCEL EXPORT
+========================================
+Update admin Excel / CSV export so it ALWAYS includes two separate columns:
+
+- country_code
+- country_name
+
+Rules:
+- Do NOT collapse these into a single column
+- Do NOT export legacy country fields
+- Export values exactly as stored in DB
+
+========================================
+STEP 3 — ADMIN EXCEL UPLOAD NORMALIZATION
+========================================
+Update admin upload handling to support the following cases per row:
+
+CASE A — country_code ONLY provided
+- Validate code via utils/countries.py
+- Set country_code
+- Derive country_name from mapping
+
+CASE B — country_name ONLY provided
+- Attempt reverse-map via country_code_from_name
+- If resolvable uniquely:
+    - Set both fields
+- Else:
+    - Leave both fields unchanged
+    - Add row to upload error report
+
+CASE C — BOTH provided
+- Validate they match
+- If mismatch:
+    - Reject row
+    - Surface clear error message:
+      "Country code/name mismatch for resort: <name>"
+
+CASE D — NEITHER provided
+- Leave both fields unchanged
+- Do NOT fail upload
+
+Rules:
+- Never guess
+- Never silently coerce
+- Validation errors must be explicit and row-specific
+
+========================================
+STEP 4 — ADMIN UI SAFETY
+========================================
+- Admin dropdowns should continue to SHOW full country names
+- Stored values should remain country_code + country_name
+- No UI changes beyond validation behavior in uploads
+
+========================================
+STOP CONDITION
+========================================
+Stop after:
+- Canonical export includes both country fields
+- Admin export includes both columns
+- Admin upload normalization handles all cases above
+- No existing resort rows were modified
+
+END

@@ -9021,12 +9021,12 @@ def admin_export_resorts_excel():
             
         ws.title = "Resorts Export"
         
-        # Headers explicitly defined
+        # Headers explicitly defined - use country_code and country_name (exact DB columns)
         headers = [
             "ID",
             "Name",
-            "Country",
-            "Country Name",
+            "country_code",
+            "country_name",
             "State / Region",
             "Pass Brands",
             "Status"
@@ -9038,12 +9038,12 @@ def admin_export_resorts_excel():
             from openpyxl.styles import Font
             cell.font = Font(bold=True)
         
-        # Data starts at row 2
+        # Data starts at row 2 - export exactly as stored in DB
         for row_idx, r in enumerate(resorts, start=2):
             ws.cell(row=row_idx, column=1, value=r.id)
             ws.cell(row=row_idx, column=2, value=r.name or '')
-            ws.cell(row=row_idx, column=3, value=r.country_code or r.country or '')
-            ws.cell(row=row_idx, column=4, value=r.display_country_name)
+            ws.cell(row=row_idx, column=3, value=r.country_code or '')
+            ws.cell(row=row_idx, column=4, value=r.country_name or '')
             ws.cell(row=row_idx, column=5, value=r.state_code or r.state or '')
             ws.cell(row=row_idx, column=6, value=r.pass_brands or r.brand or '')
             ws.cell(row=row_idx, column=7, value="ACTIVE" if r.is_active else "INACTIVE")
@@ -9270,9 +9270,60 @@ def admin_bulk_update_pass_brand():
 @login_required
 @admin_required
 def admin_import_resorts_excel():
-    """Import resort updates from Excel. Supports CREATE (blank ID) and UPDATE (existing ID)."""
+    """Import resort updates from Excel. Supports CREATE (blank ID) and UPDATE (existing ID).
+    
+    Country field normalization (Section 4 compliant):
+    - CASE A: country_code ONLY → validate, derive country_name from mapping
+    - CASE B: country_name ONLY → reverse-map to code if unique, else reject
+    - CASE C: BOTH provided → validate they match, reject if mismatch
+    - CASE D: NEITHER provided → leave unchanged (for updates), reject (for creates)
+    """
     from openpyxl import load_workbook
     from io import BytesIO
+    from utils.countries import is_valid_country_code, country_name_from_code, country_code_from_name
+    
+    def normalize_country_fields(code_val, name_val, resort_name):
+        """Normalize country fields per Section 4 rules.
+        Returns (country_code, country_name, error_message).
+        If error_message is not None, the row should be rejected.
+        """
+        code_str = str(code_val).strip().upper() if code_val and str(code_val).strip() else None
+        name_str = str(name_val).strip() if name_val and str(name_val).strip() else None
+        
+        # CASE D: Neither provided
+        if not code_str and not name_str:
+            return (None, None, None)  # No error, just leave unchanged
+        
+        # CASE A: country_code ONLY
+        if code_str and not name_str:
+            if is_valid_country_code(code_str):
+                derived_name = country_name_from_code(code_str)
+                return (code_str, derived_name, None)
+            else:
+                return (None, None, f"Invalid country_code '{code_str}' for resort: {resort_name}")
+        
+        # CASE B: country_name ONLY
+        if name_str and not code_str:
+            resolved_code = country_code_from_name(name_str)
+            if resolved_code:
+                resolved_name = country_name_from_code(resolved_code)
+                return (resolved_code, resolved_name, None)
+            else:
+                return (None, None, f"Could not resolve country_name '{name_str}' to a unique code for resort: {resort_name}")
+        
+        # CASE C: BOTH provided - validate match
+        if code_str and name_str:
+            if not is_valid_country_code(code_str):
+                return (None, None, f"Invalid country_code '{code_str}' for resort: {resort_name}")
+            
+            expected_name = country_name_from_code(code_str)
+            # Check if names match (case-insensitive, whitespace-normalized)
+            if expected_name and expected_name.casefold() == name_str.casefold():
+                return (code_str, expected_name, None)
+            else:
+                return (None, None, f"Country code/name mismatch for resort: {resort_name} (code={code_str}, name={name_str}, expected={expected_name})")
+        
+        return (None, None, None)
     
     if 'file' not in request.files:
         return jsonify({'status': 'error', 'message': 'No file uploaded'}), 400
@@ -9291,34 +9342,33 @@ def admin_import_resorts_excel():
         rows_skipped = 0
         errors = []
         
-        # Detect schema version by checking header row (row 2)
-        # New format (7 cols): ID, Name, Country, Country Name, State/Region, Pass Brands, Status
-        # Legacy format (6 cols): ID, Name, Country, State/Region, Pass Brands, Status
-        header_row = list(ws.iter_rows(min_row=2, max_row=2, values_only=True))[0] if ws.max_row >= 2 else None
+        # Detect header row (row 1 now contains headers)
+        # Format: ID, Name, country_code, country_name, State/Region, Pass Brands, Status
+        header_row = list(ws.iter_rows(min_row=1, max_row=1, values_only=True))[0] if ws.max_row >= 1 else None
         has_country_name_col = False
         if header_row:
             headers_lower = [str(h).lower().strip() if h else '' for h in header_row]
-            has_country_name_col = 'country name' in headers_lower
+            has_country_name_col = 'country_name' in headers_lower or 'country name' in headers_lower
         
-        for row_idx, row in enumerate(ws.iter_rows(min_row=3, values_only=True), start=3):
+        for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
             if not row or not any(row):
                 continue
                 
             rows_processed += 1
             resort_id = row[0]
             name = row[1]
-            country = row[2]  # Country code (e.g., US, CA) - REQUIRED
+            country_code_val = row[2] if len(row) > 2 else None
             
             # Parse based on detected schema
             if has_country_name_col:
-                # New 7-column format
-                country_name_override = row[3] if len(row) > 3 else None
+                # New 7-column format: ID, Name, country_code, country_name, State/Region, Pass Brands, Status
+                country_name_val = row[3] if len(row) > 3 else None
                 state_region = row[4] if len(row) > 4 else None
                 pass_brands = row[5] if len(row) > 5 else None
                 status = str(row[6]).upper() if len(row) > 6 and row[6] else None
             else:
-                # Legacy 6-column format (no Country Name column)
-                country_name_override = None
+                # Legacy 6-column format (no country_name column)
+                country_name_val = None
                 state_region = row[3] if len(row) > 3 else None
                 pass_brands = row[4] if len(row) > 4 else None
                 status = str(row[5]).upper() if len(row) > 5 and row[5] else None
@@ -9329,6 +9379,12 @@ def admin_import_resorts_excel():
                 errors.append({'row': row_idx, 'reason': f'Invalid status: {status}'})
                 continue
             
+            # Normalize country fields using Section 4 rules
+            resort_name_str = str(name).strip() if name else f'Row {row_idx}'
+            normalized_code, normalized_name, country_error = normalize_country_fields(
+                country_code_val, country_name_val, resort_name_str
+            )
+            
             # CREATE MODE: ID is blank/null
             if not resort_id:
                 # Required fields for creation
@@ -9337,10 +9393,14 @@ def admin_import_resorts_excel():
                     errors.append({'row': row_idx, 'reason': 'Missing required field: name'})
                     continue
                 
-                country_code = str(country).strip().upper()
-                if not country_code or country_code not in COUNTRIES:
-                    rows_skipped += 1
-                    errors.append({'row': row_idx, 'reason': f'Invalid or missing country code: {country}'})
+                # CASE D for CREATE: country is required
+                if not normalized_code:
+                    if country_error:
+                        rows_skipped += 1
+                        errors.append({'row': row_idx, 'reason': country_error})
+                    else:
+                        rows_skipped += 1
+                        errors.append({'row': row_idx, 'reason': 'Missing required country_code for new resort'})
                     continue
                 
                 # Generate slug from name
@@ -9359,15 +9419,13 @@ def admin_import_resorts_excel():
                     slug = f"{base_slug}-{suffix}"
                     suffix += 1
                 
-                # Create new resort
-                parsed_country_code = str(country).strip().upper()
+                # Create new resort with normalized country fields
                 new_resort = Resort(
                     name=resort_name,
                     slug=slug,
-                    country_code=parsed_country_code,
-                    country=parsed_country_code,
-                    country_name=COUNTRIES.get(parsed_country_code, parsed_country_code),
-                    country_name_override=str(country_name_override).strip() if country_name_override and str(country_name_override).strip() else None,
+                    country_code=normalized_code,
+                    country=normalized_code,
+                    country_name=normalized_name,
                     state_code=str(state_region).strip() if state_region else None,
                     state=str(state_region).strip() if state_region else None,
                     pass_brands=str(pass_brands).strip() if pass_brands else None,
@@ -9384,6 +9442,12 @@ def admin_import_resorts_excel():
                 rows_skipped += 1
                 errors.append({'row': row_idx, 'reason': f'Resort ID {resort_id} not found'})
                 continue
+            
+            # Check for country field errors (reject row if mismatch/invalid)
+            if country_error:
+                rows_skipped += 1
+                errors.append({'row': row_idx, 'reason': country_error})
+                continue
                 
             # Apply updates
             updated = False
@@ -9391,23 +9455,14 @@ def admin_import_resorts_excel():
                 resort.name = str(name).strip()
                 updated = True
             
-            if country and str(country).strip():
-                new_country = str(country).strip().upper()
-                if new_country not in COUNTRIES:
-                    rows_skipped += 1
-                    errors.append({'row': row_idx, 'reason': f'Invalid country code: {country}'})
-                    continue
-                if new_country != resort.country_code:
-                    resort.country_code = new_country
-                    resort.country = new_country
-                    updated = True
-            
-            # Optional country name override
-            if country_name_override is not None:
-                new_override = str(country_name_override).strip() if country_name_override else None
-                if new_override != resort.country_name_override:
-                    resort.country_name_override = new_override if new_override else None
-                    updated = True
+            # Apply normalized country fields (CASE D leaves unchanged)
+            if normalized_code and normalized_code != resort.country_code:
+                resort.country_code = normalized_code
+                resort.country = normalized_code
+                updated = True
+            if normalized_name and normalized_name != resort.country_name:
+                resort.country_name = normalized_name
+                updated = True
                 
             if state_region is not None:
                 new_state = str(state_region).strip()
@@ -9839,13 +9894,11 @@ def admin_export_canonical():
     }
     
     for r in resorts:
-        resolved_country_code = r.country_code or r.country or 'US'
-        resolved_country_name = r.country_name or COUNTRIES.get(resolved_country_code, resolved_country_code)
         canonical_data['resorts'].append({
             'name': r.name,
             'state_code': r.state_code or r.state,
-            'country_code': resolved_country_code,
-            'country_name': resolved_country_name,
+            'country_code': r.country_code,
+            'country_name': r.country_name,
             'pass_brands': r.pass_brands or r.brand or ''
         })
     
