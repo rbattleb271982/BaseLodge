@@ -1344,7 +1344,7 @@ def build_trip_idea(user, idea_type, destination=None, resort_id=None, start_dat
         params.append(f"start_date={start_date_str}")
         params.append(f"end_date={end_date_str}")
     
-    cta_url = "/add-trip"
+    cta_url = "/add_trip"
     if params:
         cta_url += "?" + "&".join(params)
         
