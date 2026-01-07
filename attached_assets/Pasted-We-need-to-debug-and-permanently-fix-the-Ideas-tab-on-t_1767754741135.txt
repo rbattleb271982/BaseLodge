@@ -1,0 +1,98 @@
+We need to debug and permanently fix the Ideas tab on the My Trips page.
+This is a logic issue, not UI.
+
+Please answer and verify EACH item below with logs or code references.
+
+––––––––––––––––
+1. DATA CONFIRMATION
+––––––––––––––––
+
+A) On page load, what exact data structures are passed into the Ideas template?
+   - user availability (raw + parsed)
+   - friend list
+   - friend trips
+   - wishlist resorts
+
+Please log counts for each:
+- availability_days count
+- number of friends
+- number of friend trips
+- number of wishlist resorts
+
+––––––––––––––––
+2. AVAILABILITY LOGIC (CRITICAL)
+––––––––––––––––
+
+How is availability represented internally?
+- As a single date range?
+- As discrete individual dates?
+
+Confirm:
+- Overlap logic is day-based (ANY shared day = overlap)
+- NOT full-range containment (friend trip must fully fit inside availability)
+
+Please log:
+- each availability day
+- each friend trip date range
+- the exact overlap comparison result per trip
+
+––––––––––––––––
+3. FRIEND TRIP FILTERING
+––––––––––––––––
+
+Before overlap logic runs:
+- Are friend trips being filtered by start_date >= today?
+- Are past-starting but still-active trips excluded?
+
+Confirm:
+- Trips that started in the past but overlap availability are INCLUDED
+
+––––––––––––––––
+4. IDEA GENERATION RULES
+––––––––––––––––
+
+Confirm the intended rule is:
+
+An Idea should be created if ANY of the following are true:
+- Friend trip overlaps user availability
+- Friend availability overlaps user availability
+- Friend trip destination matches user wishlist resort
+
+Please verify this is implemented as OR logic, not AND.
+
+––––––––––––––––
+5. WISHLIST INTEGRATION
+––––––––––––––––
+
+Confirm:
+- Wishlist matching is included in Ideas logic
+- Wishlist does NOT require date overlap to appear
+- Wishlist Ideas are deduped against overlap Ideas
+
+––––––––––––––––
+6. EMPTY STATE CONDITIONS
+––––––––––––––––
+
+Confirm:
+- The Ideas list is empty ONLY if no overlap AND no wishlist matches exist
+- Empty state message is shown ONLY in that case
+- Empty state is NOT triggered by missing availability UI elements
+
+––––––––––––––––
+7. RENDERING GUARANTEE
+––––––––––––––––
+
+Confirm:
+- If Ideas list has length > 0, cards MUST render
+- No CSS, JS, or conditional hiding exists for populated Ideas
+
+––––––––––––––––
+8. FINAL VALIDATION
+––––––––––––––––
+
+Please provide:
+- One concrete example (friend name, dates, resort)
+- Show the overlap calculation
+- Show why it DOES or DOES NOT generate an Idea
+
+If overlaps exist and no Idea is produced, stop and fix before proceeding.

@@ -359,12 +359,11 @@
                 </div>
             </div>
             
-            {% if user_open_dates and user_open_dates|length > 0 %}
-                {% if trip_ideas and trip_ideas|length > 0 %}
+            {% if trip_ideas and trip_ideas|length > 0 %}
                 <p class="section-label" style="margin-top: 20px;">Trip Ideas</p>
                 <div class="trips-list">
                     {% for idea in trip_ideas[:6] %}
-                    <div class="trip-card trip-idea-row" data-friends='{{ idea.friend_names|tojson|safe }}'>
+                    <div class="trip-card trip-idea-row" data-friends='{{ idea.friend_names|tojson|safe }}' style="cursor: pointer;">
                         <div class="trip-card-content">
                             <p class="trip-card-line1">{{ idea.name }}</p>
                             <p class="trip-card-line2">{{ idea.match_reason }}</p>
@@ -373,13 +372,11 @@
                     </div>
                     {% endfor %}
                 </div>
-                {% endif %}
             {% else %}
-            <div style="margin-top: 12px; background: rgba(0,0,0,0.02); border: 1px dashed var(--bl-color-border-soft); border-radius: 10px; padding: 16px;">
-                <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); text-align: center; margin: 0;">
-                    More availability can unlock more trip ideas.
-                </p>
-            </div>
+                <div class="empty-state-container" style="padding-top: 20px;">
+                    <p class="empty-state-title">No trip ideas yet</p>
+                    <p class="empty-state-desc">Set your availability or add resorts to your wishlist to see suggestions.</p>
+                </div>
             {% endif %}
         </div>
 

@@ -548,6 +548,7 @@ def compute_friend_trip_availability_overlaps(user):
     - list of (friend_id, trip_id, resort_id, resort_name, state, country)
     """
     if not user.open_dates:
+        print("DEBUG_COMPUTE: User has no open_dates field")
         return []
     
     user_open_dates = set()
@@ -561,16 +562,20 @@ def compute_friend_trip_availability_overlaps(user):
             continue
     
     if not user_open_dates:
+        print("DEBUG_COMPUTE: Parsed user_open_dates is empty")
         return []
     
+    print(f"DEBUG_COMPUTE: User has {len(user_open_dates)} parsed open dates")
     friend_ids = get_friend_ids(user.id)
     if not friend_ids:
+        print("DEBUG_COMPUTE: User has no friends")
         return []
     
     friend_trips = SkiTrip.query.filter(
         SkiTrip.user_id.in_(friend_ids),
         SkiTrip.end_date >= date.today()
     ).all()
+    print(f"DEBUG_COMPUTE: Found {len(friend_trips)} active friend trips")
     
     overlap_by_range = {}
     
@@ -585,6 +590,7 @@ def compute_friend_trip_availability_overlaps(user):
         if not overlapping_dates:
             continue
         
+        print(f"DEBUG_COMPUTE: Trip {trip.id} to {trip.mountain} has {len(overlapping_dates)} overlapping days")
         sorted_dates = sorted(overlapping_dates)
         ranges = []
         range_start = sorted_dates[0]
@@ -1776,87 +1782,101 @@ def my_trips():
     # Build trip ideas based on overlaps and wishlist (wrapped for production safety)
     trip_ideas = []
     try:
-        ideas_by_resort = {}
+        print(f"--- IDEA GENERATION DIAGNOSTICS (User {current_user.id}) ---")
+        print(f"1. DATA CONFIRMATION")
+        print(f"   - user_availability count: {len(user_open_dates)}")
+        print(f"   - friend count: {len(friend_ids)}")
+        print(f"   - friend trips count: {len(friend_trips)}")
+        print(f"   - wishlist resorts count: {len(user.wish_list_resorts or [])}")
         
-        # 1. Availability + Friend Trip Overlaps (Type A)
+        ideas_by_resort = {} # Key: resort_name -> idea_dict
+        
+        # Helper to add/update idea
+        def add_idea(resort_name, state, idea_type, friend_name, date_obj=None):
+            if resort_name not in ideas_by_resort:
+                ideas_by_resort[resort_name] = {
+                    'name': resort_name,
+                    'state': state,
+                    'types': {idea_type},
+                    'friends': {friend_name},
+                    'soonest_date': date_obj
+                }
+            else:
+                ideas_by_resort[resort_name]['types'].add(idea_type)
+                ideas_by_resort[resort_name]['friends'].add(friend_name)
+                if date_obj and (not ideas_by_resort[resort_name]['soonest_date'] or date_obj < ideas_by_resort[resort_name]['soonest_date']):
+                    ideas_by_resort[resort_name]['soonest_date'] = date_obj
+
+        # RULE 1: Friend trip overlaps user availability (Day-based)
         availability_overlaps = compute_friend_trip_availability_overlaps(current_user)
         for overlap in availability_overlaps:
+            start_date = overlap['overlap_start_date']
             for friend_data in overlap['friends']:
                 resort_name = friend_data['resort_name']
-                state = friend_data['state']
-                
-                if resort_name not in ideas_by_resort:
-                    ideas_by_resort[resort_name] = {
-                        'name': resort_name,
-                        'state': state,
-                        'type': 'overlap',
-                        'friends': [],
-                        'soonest_date': overlap['overlap_start_date']
-                    }
-                
                 friend_name = f"{friend_data['first_name']} {friend_data['last_name']}".strip()
-                if friend_name not in ideas_by_resort[resort_name]['friends']:
-                    ideas_by_resort[resort_name]['friends'].append(friend_name)
-                
-                if overlap['overlap_start_date'] < ideas_by_resort[resort_name]['soonest_date']:
-                    ideas_by_resort[resort_name]['soonest_date'] = overlap['overlap_start_date']
+                add_idea(resort_name, friend_data['state'], 'overlap', friend_name, start_date)
+                print(f"   - RULE 1 MATCH: Friend {friend_name} trip to {resort_name} overlaps on {start_date}")
 
-        # 2. Wishlist Overlaps (Type B)
-        if friend_ids:
-            user_wishlist = current_user.wish_list_resort_ids or []
-            for resort_id in user_wishlist:
-                resort = Resort.query.get(resort_id)
-                if not resort: continue
-                
-                resort_name = resort.name
-                friends_interested = []
-                
-                # Friends who have it in wishlist
-                wishlist_friends = User.query.filter(User.id.in_(friend_ids), User.wish_list_resort_ids.contains([resort_id])).all()
-                for f in wishlist_friends:
-                    friends_interested.append(f"{f.first_name} {f.last_name}".strip())
-                
-                # Friends who have a trip there
-                trip_friends = User.query.join(SkiTrip).filter(User.id.in_(friend_ids), SkiTrip.resort_id == resort_id, SkiTrip.end_date >= today).all()
-                for f in trip_friends:
-                    fname = f"{f.first_name} {f.last_name}".strip()
-                    if fname not in friends_interested:
-                        friends_interested.append(fname)
-                
-                if friends_interested:
-                    if resort_name in ideas_by_resort:
-                        # Already exists as Type A (higher priority), just add unique friends
-                        for fname in friends_interested:
-                            if fname not in ideas_by_resort[resort_name]['friends']:
-                                ideas_by_resort[resort_name]['friends'].append(fname)
-                    else:
-                        ideas_by_resort[resort_name] = {
-                            'name': resort_name,
-                            'state': resort.state_code,
-                            'type': 'wishlist',
-                            'friends': friends_interested,
-                            'soonest_date': None
-                        }
-
-        overlap_ideas = sorted([v for v in ideas_by_resort.values() if v['type'] == 'overlap'], key=lambda x: x['soonest_date'])
-        wishlist_ideas = sorted([v for v in ideas_by_resort.values() if v['type'] == 'wishlist'], key=lambda x: x['name'])
-        
-        # Only show ideas if user has availability (per specs)
-        if user_open_dates:
-            for idea in overlap_ideas + wishlist_ideas:
-                n = len(idea['friends'])
-                if n > 0:
-                    if idea['type'] == 'overlap':
-                        reason = f"You + {idea['friends'][0]} overlap" if n == 1 else f"You + {n} friends overlap"
-                    else:
-                        reason = f"You + {idea['friends'][0]} want to go" if n == 1 else f"You + {n} friends want to go"
+        # RULE 2: Friend availability overlaps user availability
+        if user_open_dates and friend_ids:
+            friends_with_open = User.query.filter(User.id.in_(friend_ids)).all()
+            for friend in friends_with_open:
+                f_open = set(d for d in (friend.open_dates or []) if d >= today.strftime('%Y-%m-%d'))
+                overlap_dates = set(user_open_dates) & f_open
+                if overlap_dates:
+                    friend_name = f"{friend.first_name} {friend.last_name}".strip()
+                    soonest_date_str = min(overlap_dates)
+                    soonest = datetime.strptime(soonest_date_str, '%Y-%m-%d').date()
                     
-                    trip_ideas.append({
-                        'name': f"{idea['name']}, {idea['state']}" if idea['state'] else idea['name'],
-                        'match_reason': reason,
-                        'friend_names': idea['friends']
-                    })
-    except Exception:
+                    # Anchor to shared wishlist resorts or user's wishlist
+                    shared_wish = set(user.wish_list_resorts or []) & set(friend.wish_list_resorts or [])
+                    if not shared_wish:
+                        shared_wish = set(user.wish_list_resorts or [])
+                    
+                    for r_id in shared_wish:
+                        resort = Resort.query.get(r_id)
+                        if resort:
+                            add_idea(resort.name, resort.state_code, 'both_free', friend_name, soonest)
+                            print(f"   - RULE 2 MATCH: You and {friend_name} are both free on {soonest} (Potential: {resort.name})")
+
+        # RULE 3: Friend trip destination matches user wishlist resort
+        user_wish_ids = set(user.wish_list_resorts or [])
+        if user_wish_ids and friend_trips:
+            for trip in friend_trips:
+                if trip.resort_id in user_wish_ids:
+                    resort = Resort.query.get(trip.resort_id)
+                    if resort:
+                        friend_name = f"{trip.user.first_name} {trip.user.last_name}".strip() if trip.user else "Friend"
+                        add_idea(resort.name, resort.state_code, 'wishlist', friend_name, trip.start_date)
+                        print(f"   - RULE 3 MATCH: Friend {friend_name} is going to {resort.name} (Your Wishlist)")
+
+        # Convert to final list and sort
+        sorted_ideas = sorted(ideas_by_resort.values(), key=lambda x: (x['soonest_date'] or date.max, x['name']))
+        
+        trip_ideas = []
+        for idea in sorted_ideas:
+            n = len(idea['friends'])
+            friends_list = sorted(list(idea['friends']))
+            
+            # Match reason based on priority: Overlap > Both Free > Wishlist
+            if 'overlap' in idea['types']:
+                reason = f"You + {friends_list[0]} overlap" if n == 1 else f"You + {n} friends overlap"
+            elif 'both_free' in idea['types']:
+                reason = f"You + {friends_list[0]} are both free" if n == 1 else f"You + {n} friends are both free"
+            else:
+                reason = f"You + {friends_list[0]} want to go" if n == 1 else f"You + {n} friends want to go"
+            
+            trip_ideas.append({
+                'name': f"{idea['name']}, {idea['state']}" if idea['state'] else idea['name'],
+                'match_reason': reason,
+                'friend_names': friends_list
+            })
+        
+        print(f"   - Final trip_ideas count: {len(trip_ideas)}")
+        print("------------------------------------------------")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         trip_ideas = []
 
     return render_template(
