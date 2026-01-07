@@ -153,8 +153,8 @@
         .trip-card-action {
             flex-shrink: 0;
             margin-left: 12px;
-            font-size: 14px;
-            color: var(--bl-color-primary);
+            font-size: 1.5rem;
+            color: var(--bl-color-text-muted);
             font-weight: 500;
         }
 
@@ -361,17 +361,17 @@
             
             {% if user_open_dates and user_open_dates|length > 0 and trip_ideas and trip_ideas|length > 0 %}
             <p class="section-label" style="margin-top: 20px;">Trip Ideas</p>
-            <div class="trip-ideas-list">
+            <div class="trips-list">
                 {% for idea in trip_ideas[:6] %}
-                <div class="trip-card">
-                    <div class="trip-card-content">
-                        <p class="trip-card-line1">{{ idea.name }}</p>
-                        <p class="trip-card-line2">{{ idea.state or '' }}{% if idea.country and idea.country != 'USA' %}, {{ idea.country }}{% endif %}</p>
-                        {% if idea.match_reason %}
-                        <span style="font-size: 0.75rem; background: rgba(143, 1, 27, 0.1); color: var(--bl-color-primary); padding: 2px 8px; border-radius: 4px; display: inline-block; margin-top: 4px;">{{ idea.match_reason }}</span>
-                        {% endif %}
+                <a href="{{ url_for('trip_ideas') }}" style="text-decoration: none; color: inherit;">
+                    <div class="trip-card">
+                        <div class="trip-card-content">
+                            <p class="trip-card-line1">{{ idea.name }}</p>
+                            <p class="trip-card-line2">{{ idea.state or '' }}{% if idea.country and idea.country != 'USA' %}, {{ idea.country }}{% endif %}{% if idea.match_reason %} · {{ idea.match_reason }}{% endif %}</p>
+                        </div>
+                        <span class="trip-card-action">›</span>
                     </div>
-                </div>
+                </a>
                 {% endfor %}
             </div>
             <a href="{{ url_for('trip_ideas') }}" class="planning-cta" style="margin-top: 12px;">See all trip ideas →</a>
