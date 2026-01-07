@@ -4371,9 +4371,13 @@ def add_open_dates():
     existing_dates = current_user.open_dates or []
     
     # Get canonical maps for dropdowns
-    from utils.countries import COUNTRIES as CANONICAL_COUNTRIES, STATE_ABBR_MAP
-    countries_map = CANONICAL_COUNTRIES
-    states_map = STATE_ABBR_MAP
+    try:
+        from utils.countries import COUNTRIES as CANONICAL_COUNTRIES, STATE_ABBR_MAP
+        countries_map = CANONICAL_COUNTRIES
+        states_map = STATE_ABBR_MAP
+    except ImportError:
+        countries_map = {}
+        states_map = {}
     
     return render_template(
         "add_trip.html",
@@ -4398,18 +4402,33 @@ def add_trip():
     resorts = get_resorts_for_trip_form()
     
     # Get canonical maps for dropdowns
-    from utils.countries import COUNTRIES as CANONICAL_COUNTRIES, STATE_ABBR_MAP
-    countries_map = CANONICAL_COUNTRIES
-    states_map = STATE_ABBR_MAP
+    try:
+        from utils.countries import COUNTRIES as CANONICAL_COUNTRIES, STATE_ABBR_MAP
+        countries_map = CANONICAL_COUNTRIES
+        states_map = STATE_ABBR_MAP
+    except ImportError:
+        countries_map = {}
+        states_map = {}
     
     user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
     print(f"[add_trip] User passes: {user_passes}")
     
     # Get prefill parameters for "Propose a trip" flow
-    prefill_friend_id = request.args.get('friend_id', type=int)
+    def safe_int(val):
+        if val in (None, "", "null", "None"):
+            return None
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return None
+
+    raw_friend_id = request.args.get('friend_id')
+    raw_resort_id = request.args.get('resort_id')
+    
+    prefill_friend_id = safe_int(raw_friend_id)
     prefill_start_date = request.args.get('start_date') or None
     prefill_end_date = request.args.get('end_date') or None
-    prefill_resort_id = request.args.get('resort_id', type=int)
+    prefill_resort_id = safe_int(raw_resort_id)
     is_group = request.args.get('is_group') == '1'
     
     # Clean up empty strings from query params
@@ -4417,18 +4436,16 @@ def add_trip():
     if prefill_end_date == "": prefill_end_date = None
     
     prefill_friend = None
-    if prefill_friend_id:
+    if prefill_friend_id is not None:
         prefill_friend = User.query.get(prefill_friend_id)
 
     prefill_resort = None
-    if prefill_resort_id:
+    if prefill_resort_id is not None:
         prefill_resort = Resort.query.get(prefill_resort_id)
     
     # Also handle wishlist resort via resort_id param
-    if not prefill_resort and request.args.get('resort_id'):
-        prefill_resort_id = request.args.get('resort_id', type=int)
-        if prefill_resort_id:
-            prefill_resort = Resort.query.get(prefill_resort_id)
+    if not prefill_resort and prefill_resort_id is not None:
+        prefill_resort = Resort.query.get(prefill_resort_id)
     
     if request.method == "POST":
         resort_id = request.form.get("resort_id")
@@ -4602,9 +4619,13 @@ def edit_trip_form(trip_id):
     my_transportation = my_participant.transportation_status.value if my_participant and my_participant.transportation_status else None
 
     # Get canonical maps for dropdowns
-    from utils.countries import COUNTRIES as CANONICAL_COUNTRIES, STATE_ABBR_MAP
-    countries_map = CANONICAL_COUNTRIES
-    states_map = STATE_ABBR_MAP
+    try:
+        from utils.countries import COUNTRIES as CANONICAL_COUNTRIES, STATE_ABBR_MAP
+        countries_map = CANONICAL_COUNTRIES
+        states_map = STATE_ABBR_MAP
+    except ImportError:
+        countries_map = {}
+        states_map = {}
 
     if request.method == "POST":
         resort_id = request.form.get("resort_id")
