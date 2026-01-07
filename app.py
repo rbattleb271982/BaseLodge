@@ -2105,7 +2105,8 @@ def trip_ideas():
         "trip_ideas.html",
         user=user,
         trip_ideas=trip_ideas_list,
-        wishlist_overlaps=list(wishlist_overlaps.values())
+        wishlist_overlaps=list(wishlist_overlaps.values()),
+        wishlist_count=len(wishlist_overlaps)
     )
 
 @app.route("/api/mountains/<state>")

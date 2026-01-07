@@ -1,0 +1,77 @@
+Proceed with TEMPLATE + LAYOUT changes only.
+Assume backend data (trip_ideas_list and wishlist_overlaps) is correct and final.
+
+DO NOT modify backend logic, queries, or data structures.
+
+================================
+PAGE: My Trips → Ideas
+================================
+
+SECTION ORDER (TOP → BOTTOM):
+
+1) Open Availability
+- Leave existing Open Availability section unchanged.
+
+2) Wishlist (Collapsible)
+- Place this section directly under Open Availability.
+- Section header text: "Wishlist"
+- Chevron on the right.
+- Collapsed by default.
+
+Collapsed state:
+- Show text: "X matches"
+  (X = number of wishlist_overlaps entries)
+
+Expanded state:
+- Iterate over wishlist_overlaps.
+- For EACH mountain group:
+  - Render mountain header:
+    "{resort_name}, {state/country if already available}"
+  - Under the header, render overlapping_people as compact rows:
+
+    "First Last · Rider Type · Skill Level · Pass Type"
+
+Rules:
+- Show ONLY wishlist_overlaps provided by backend.
+- Do NOT show dates.
+- Do NOT add buttons or CTAs.
+- Do NOT add navigation or click handlers.
+- Normal page scroll (no nested scrolling).
+
+3) Trip Ideas
+- Section title: "Trip Ideas"
+- Render trip_ideas_list as a vertical list.
+- One row per item.
+
+Row copy format:
+- "{display_date} · You and N friends are free"
+- OR if N == 1:
+  "{display_date} · You and First Last are free"
+
+Rules:
+- Do NOT show mountains.
+- List rows only (no cards).
+- Do NOT add click handlers yet.
+
+================================
+DO NOT
+================================
+- Do not add modals
+- Do not add JS behavior
+- Do not change wording
+- Do not change data shape
+
+================================
+QA / ERROR CHECKING
+================================
+- Verify section order matches spec.
+- Verify Wishlist is collapsed by default.
+- Verify expanding Wishlist shows grouped mountains + people.
+- Verify Trip Ideas list scrolls normally.
+- Verify page renders with:
+  - no wishlist overlaps
+  - one wishlist overlap
+  - many wishlist overlaps
+- Check console for template errors.
+
+Report back once layout renders correctly.

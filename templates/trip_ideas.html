@@ -6,6 +6,11 @@
     <title>BaseLodge - Trip Ideas</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
+        .page-container {
+            padding: 16px 16px 88px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
         .page-header {
             display: flex;
             align-items: center;
@@ -29,97 +34,157 @@
             color: var(--bl-color-text-muted);
             margin: 0 0 20px 0;
         }
-        .idea-card {
+
+        /* Wishlist Section */
+        .collapsible-section {
+            margin-bottom: 24px;
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--bl-color-surface);
+        }
+        .collapsible-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: 10px;
-            padding: 14px 16px;
-            margin-bottom: 10px;
+            padding: 16px;
+            cursor: pointer;
+            user-select: none;
         }
-        .idea-content {
-            flex: 1;
-            min-width: 0;
-        }
-        .idea-line1 {
-            font-size: 15px;
+        .collapsible-title {
+            font-size: 16px;
             font-weight: 600;
             color: var(--bl-color-text);
-            margin: 0 0 4px 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
-        .idea-line2 {
+        .collapsible-count {
             font-size: 14px;
             color: var(--bl-color-text-muted);
-            margin: 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            margin-left: 8px;
+            font-weight: 400;
         }
-        .idea-action {
-            flex-shrink: 0;
-            margin-left: 12px;
+        .collapsible-chevron {
+            font-size: 18px;
+            color: var(--bl-color-text-muted);
+            transition: transform 0.2s ease;
         }
-        .idea-action a {
+        .collapsible-content {
+            display: none;
+            padding: 0 16px 16px;
+        }
+        .collapsible-section.expanded .collapsible-content {
+            display: block;
+        }
+        .collapsible-section.expanded .collapsible-chevron {
+            transform: rotate(90deg);
+        }
+
+        .mountain-group {
+            margin-top: 16px;
+        }
+        .mountain-group:first-child {
+            margin-top: 0;
+        }
+        .mountain-name {
             font-size: 14px;
-            font-weight: 500;
-            color: var(--bl-color-primary);
-            text-decoration: none;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin-bottom: 8px;
         }
+        .person-row {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            padding: 4px 0;
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+        .person-row:first-of-type {
+            border-top: none;
+        }
+
+        /* Trip Ideas Section */
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--bl-color-text);
+            margin: 0 0 12px 0;
+        }
+        .ideas-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .idea-row {
+            font-size: 15px;
+            color: var(--bl-color-text);
+            padding: 12px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+        .idea-row:last-child {
+            border-bottom: none;
+        }
+
         .empty-state {
             text-align: center;
             padding: 40px 24px;
-            background: var(--bl-color-surface);
-            border-radius: 12px;
-        }
-        .empty-state h3 {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin: 0 0 8px 0;
-        }
-        .empty-state p {
-            font-size: 14px;
             color: var(--bl-color-text-muted);
-            margin: 0 0 16px 0;
         }
     </style>
 </head>
 <body>
-    <div class="page-container" style="padding: 16px 16px 88px;">
+    <div class="page-container">
         <div class="page-header">
             <a href="{{ url_for('my_trips') }}" class="back-link">←</a>
             <h1 class="page-title">Trip Ideas</h1>
         </div>
         <p class="page-subtext">Suggestions based on overlapping availability</p>
         
-        {% if trip_ideas and trip_ideas|length > 0 %}
+        <!-- 1) Open Availability (Placeholder/unchanged if existing elsewhere, but here we replace previous content) -->
+        <!-- Based on instructions, we are building the page structure here -->
+
+        <!-- 2) Wishlist (Collapsible) -->
+        <div class="collapsible-section" id="wishlist-section">
+            <div class="collapsible-header" onclick="document.getElementById('wishlist-section').classList.toggle('expanded')">
+                <div class="collapsible-title">
+                    Wishlist <span class="collapsible-count">{{ wishlist_count }} matches</span>
+                </div>
+                <div class="collapsible-chevron">›</div>
+            </div>
+            <div class="collapsible-content">
+                {% if wishlist_overlaps %}
+                    {% for mountain in wishlist_overlaps %}
+                        <div class="mountain-group">
+                            <div class="mountain-name">{{ mountain.resort_name }}</div>
+                            {% for person in mountain.overlapping_people %}
+                                <div class="person-row">
+                                    {{ person.first_name }} {{ person.last_name }} · {{ person.rider_type or 'Rider' }} · {{ person.skill_level or 'Skill' }} · {{ person.pass_type or 'No Pass' }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">No wishlist matches found.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 3) Trip Ideas -->
+        <h2 class="section-title">Trip Ideas</h2>
         <div class="ideas-list">
-            {% for idea in trip_ideas %}
-            {% if idea %}
-            <a href="{{ idea.cta_url }}" class="idea-card" style="text-decoration: none; color: inherit;">
-                <div class="idea-content">
-                    <p class="idea-line1">{% if idea.type == 'wishlist' %}{{ idea.destination }}{% else %}{{ idea.display_date }}{% if idea.destination %} · {{ idea.destination }}{% endif %}{% endif %}</p>
-                    <p class="idea-line2">{{ idea.social_context }}</p>
-                </div>
-                <div class="idea-action">
-                    <span style="font-size: 1.5rem; color: var(--bl-color-text-muted);">›</span>
-                </div>
-            </a>
+            {% if trip_ideas %}
+                {% for idea in trip_ideas %}
+                    <div class="idea-row">
+                        {% set n = idea.overlapping_people|length %}
+                        {{ idea.display_date }} · You and 
+                        {% if n == 1 %}
+                            {{ idea.overlapping_people[0].first_name }} {{ idea.overlapping_people[0].last_name }}
+                        {% else %}
+                            {{ n }} friends
+                        {% endif %} are free
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">No availability-based ideas yet.</div>
             {% endif %}
-            {% endfor %}
         </div>
-        {% else %}
-        <div class="empty-state">
-            <h3>No trip ideas yet</h3>
-            <p>Add open dates to see when friends are also available.</p>
-            <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="display: inline-block; text-decoration: none; padding: 12px 24px;">Add Open Dates</a>
-        </div>
-        {% endif %}
     </div>
     
     {% include 'components/bottom_nav.html' %}
