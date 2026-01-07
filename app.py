@@ -2025,7 +2025,7 @@ def overlap_detail():
 @app.route("/trip-ideas")
 @login_required
 def trip_ideas():
-    """Trip Ideas page - suggestions based on overlapping open availability."""
+    """Trip Ideas page - suggestions based on overlapping open availability and wishlist matches."""
     user = current_user
     today = date.today()
     today_str = today.strftime('%Y-%m-%d')
@@ -2035,80 +2035,77 @@ def trip_ideas():
     friend_ids = [f.friend_id for f in friend_links]
     all_friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
     
-    # Get user's open dates (future only)
+    # Task 1: Trip Ideas (Availability Only)
     user_open_dates = set(d for d in (user.open_dates or []) if d >= today_str)
-    
-    # Build trip ideas from open date overlaps
     trip_ideas_list = []
     
     if user_open_dates and friend_ids:
-        # Group by date - find friends open on each date
         date_to_friends = {}
         for date_str in sorted(user_open_dates):
-            date_to_friends[date_str] = []
+            friends_on_date = []
             for friend in all_friends:
                 friend_dates = set(d for d in (friend.open_dates or []) if d >= today_str)
                 if date_str in friend_dates:
-                    date_to_friends[date_str].append({
+                    friends_on_date.append({
                         "id": friend.id,
                         "first_name": friend.first_name,
-                        "last_name": friend.last_name or ""
+                        "last_name": friend.last_name or "",
+                        "rider_type": friend.rider_type,
+                        "skill_level": friend.skill_level,
+                        "pass_type": friend.pass_type
                     })
+            if friends_on_date:
+                date_to_friends[date_str] = friends_on_date
         
-        # Create trip ideas for dates with at least one friend
         for date_str, friends in date_to_friends.items():
-            if friends:
-                try:
-                    friend_count = len(friends)
-                    
-                    # Build social context string
-                    if friend_count == 1:
-                        social_context = f"{friends[0]['first_name']} is also open"
-                    elif friend_count == 2:
-                        social_context = f"{friends[0]['first_name']} + {friends[1]['first_name']} are open"
-                    else:
-                        social_context = f"{friends[0]['first_name']} + {friend_count - 1} others are open"
-                    
-                    trip_ideas_list.append(build_trip_idea(
-                        user=user,
-                        idea_type="open",
-                        start_date_str=date_str,
-                        end_date_str=date_str,
-                        social_context=social_context,
-                        friends=friends
-                    ))
-                except ValueError:
-                    pass
+            trip_ideas_list.append({
+                "date_str": date_str,
+                "display_date": datetime.strptime(date_str, '%Y-%m-%d').strftime('%b %-d'),
+                "overlapping_people": friends
+            })
 
-    # Add Wishlist overlaps
-    for friend in all_friends:
-        friend_wishlist = getattr(friend, 'wish_list_resorts', []) or []
-        user_wishlist = getattr(user, 'wish_list_resorts', []) or []
-        
-        # Find common resorts
-        common_resorts = set(user_wishlist).intersection(set(friend_wishlist))
-        for resort_id in common_resorts:
-            resort = Resort.query.get(resort_id)
-            if resort:
-                trip_ideas_list.append(build_trip_idea(
-                    user=user,
-                    idea_type="wishlist",
-                    destination=resort.name,
-                    resort_id=resort.id,
-                    social_context=f"{friend.first_name} also wants to go here!",
-                    friends=[{"id": friend.id, "first_name": friend.first_name, "last_name": friend.last_name or ""}]
-                ))
-
-    # Enforce invariant: no None entries
-    trip_ideas_list = [idea for idea in trip_ideas_list if idea is not None]
-
-    # Sort: Open dates first (by date), then wishlist
-    trip_ideas_list.sort(key=lambda x: (x.get('type') != 'open', x.get('date_str', '9999-12-31')))
+    # Task 2: Wishlist Overlaps (Grouped by Mountain)
+    user_wishlist = set(user.wish_list_resorts or [])
+    wishlist_overlaps = {}
     
+    if user_wishlist and all_friends:
+        for resort_id in user_wishlist:
+            overlapping_friends = []
+            for friend in all_friends:
+                friend_wishlist = set(friend.wish_list_resorts or [])
+                if resort_id in friend_wishlist:
+                    overlapping_friends.append({
+                        "id": friend.id,
+                        "first_name": friend.first_name,
+                        "last_name": friend.last_name or "",
+                        "rider_type": friend.rider_type,
+                        "skill_level": friend.skill_level,
+                        "pass_type": friend.pass_type
+                    })
+            
+            if overlapping_friends:
+                resort = Resort.query.get(resort_id)
+                if resort:
+                    wishlist_overlaps[resort_id] = {
+                        "resort_id": resort.id,
+                        "resort_name": resort.name,
+                        "overlapping_people": overlapping_friends
+                    }
+
+    # QA Logging
+    print(f"[QA] Trip Ideas (Availability) count: {len(trip_ideas_list)}")
+    print(f"[QA] Wishlist overlaps count: {len(wishlist_overlaps)}")
+    if trip_ideas_list:
+        print(f"[QA] Example Trip Idea: {trip_ideas_list[0]}")
+    if wishlist_overlaps:
+        example_resort_id = next(iter(wishlist_overlaps))
+        print(f"[QA] Example Wishlist Overlap: {wishlist_overlaps[example_resort_id]}")
+
     return render_template(
         "trip_ideas.html",
         user=user,
-        trip_ideas=trip_ideas_list
+        trip_ideas=trip_ideas_list,
+        wishlist_overlaps=list(wishlist_overlaps.values())
     )
 
 @app.route("/api/mountains/<state>")
