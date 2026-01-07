@@ -100,23 +100,27 @@
         {% if trip_ideas and trip_ideas|length > 0 %}
         <div class="ideas-list">
             {% for idea in trip_ideas %}
-            <div class="idea-card">
+            {% if idea.type == 'wishlist' %}
+            <a href="{{ url_for('add_trip') }}{% if idea.resort_id %}?resort_id={{ idea.resort_id }}{% endif %}" class="idea-card" style="text-decoration: none; color: inherit;">
                 <div class="idea-content">
-                    {% if idea.type == 'wishlist' %}
                     <p class="idea-line1">{{ idea.destination }}</p>
-                    {% else %}
-                    <p class="idea-line1">{{ idea.date_range }}{% if idea.destination %} · {{ idea.destination }}{% endif %}</p>
-                    {% endif %}
                     <p class="idea-line2">{{ idea.social_context }}</p>
                 </div>
                 <div class="idea-action">
-                    {% if idea.type == 'wishlist' %}
-                    <a href="{{ url_for('add_trip') }}{% if idea.resort_id %}?resort_id={{ idea.resort_id }}{% endif %}">Start →</a>
-                    {% else %}
-                    <a href="{{ url_for('add_trip') }}?start_date={{ idea.start_date_str }}&end_date={{ idea.end_date_str }}{% if idea.resort_id %}&resort_id={{ idea.resort_id }}{% endif %}">Start →</a>
-                    {% endif %}
+                    <span style="font-size: 1.5rem; color: var(--bl-color-text-muted);">›</span>
                 </div>
-            </div>
+            </a>
+            {% else %}
+            <a href="{{ url_for('add_trip') }}?start_date={{ idea.start_date_str }}&end_date={{ idea.end_date_str }}{% if idea.resort_id %}&resort_id={{ idea.resort_id }}{% endif %}" class="idea-card" style="text-decoration: none; color: inherit;">
+                <div class="idea-content">
+                    <p class="idea-line1">{{ idea.date_range }}{% if idea.destination %} · {{ idea.destination }}{% endif %}</p>
+                    <p class="idea-line2">{{ idea.social_context }}</p>
+                </div>
+                <div class="idea-action">
+                    <span style="font-size: 1.5rem; color: var(--bl-color-text-muted);">›</span>
+                </div>
+            </a>
+            {% endif %}
             {% endfor %}
         </div>
         {% else %}

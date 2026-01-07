@@ -339,13 +339,15 @@
                 <p class="section-label" style="margin-top: 20px;">Trip Ideas</p>
                 <div class="trips-list">
                     {% for idea in trip_ideas[:6] %}
-                    <div class="trip-card trip-idea-row" data-friends='{{ idea.friend_names|tojson|safe }}' style="cursor: pointer;">
-                        <div class="trip-card-content">
-                            <p class="trip-card-line1">{{ idea.name }}</p>
-                            <p class="trip-card-line2">{{ idea.match_reason }}</p>
+                    <a href="{{ url_for('trip_ideas') }}" style="text-decoration: none; color: inherit;">
+                        <div class="trip-card trip-idea-row" data-friends='{{ idea.friend_names|tojson|safe }}' style="cursor: pointer;">
+                            <div class="trip-card-content">
+                                <p class="trip-card-line1">{{ idea.name }}</p>
+                                <p class="trip-card-line2">{{ idea.match_reason }}</p>
+                            </div>
+                            <span class="trip-card-action">›</span>
                         </div>
-                        <span class="trip-card-action">›</span>
-                    </div>
+                    </a>
                     {% endfor %}
                 </div>
             {% else %}
