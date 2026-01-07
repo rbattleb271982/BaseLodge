@@ -100,7 +100,7 @@
         {% if trip_ideas and trip_ideas|length > 0 %}
         <div class="ideas-list">
             {% for idea in trip_ideas %}
-            {% if idea.type == 'wishlist' %}
+            {% if idea and idea.type == 'wishlist' %}
             <a href="{{ url_for('add_trip') }}{% if idea.resort_id %}?resort_id={{ idea.resort_id }}{% endif %}" class="idea-card" style="text-decoration: none; color: inherit;">
                 <div class="idea-content">
                     <p class="idea-line1">{{ idea.destination }}</p>
@@ -110,7 +110,7 @@
                     <span style="font-size: 1.5rem; color: var(--bl-color-text-muted);">›</span>
                 </div>
             </a>
-            {% else %}
+            {% elif idea %}
             <a href="{{ url_for('add_trip') }}?start_date={{ idea.start_date_str }}&end_date={{ idea.end_date_str }}{% if idea.resort_id %}&resort_id={{ idea.resort_id }}{% endif %}" class="idea-card" style="text-decoration: none; color: inherit;">
                 <div class="idea-content">
                     <p class="idea-line1">{{ idea.date_range }}{% if idea.destination %} · {{ idea.destination }}{% endif %}</p>

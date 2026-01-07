@@ -2042,8 +2042,8 @@ def trip_ideas():
 
     # Add Wishlist overlaps
     for friend in all_friends:
-        friend_wishlist = friend.wishlist_resorts or []
-        user_wishlist = user.wishlist_resorts or []
+        friend_wishlist = getattr(friend, 'wishlist_resorts', []) or []
+        user_wishlist = getattr(user, 'wishlist_resorts', []) or []
         
         # Find common resorts
         common_resorts = set(user_wishlist).intersection(set(friend_wishlist))
@@ -2058,8 +2058,11 @@ def trip_ideas():
                     "friends": [{"id": friend.id, "first_name": friend.first_name, "last_name": friend.last_name or ""}]
                 })
 
+    # Enforce invariant: no None entries
+    trip_ideas_list = [idea for idea in trip_ideas_list if idea is not None]
+
     # Sort: Open dates first (by date), then wishlist
-    trip_ideas_list.sort(key=lambda x: (x['type'] != 'open', x.get('date_str', '9999-12-31')))
+    trip_ideas_list.sort(key=lambda x: (x.get('type') != 'open', x.get('date_str', '9999-12-31')))
     
     return render_template(
         "trip_ideas.html",
