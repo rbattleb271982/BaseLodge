@@ -403,6 +403,68 @@
             margin: 0;
         }
 
+        /* Reusable Bottom Sheet Modal */
+        .bl-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            z-index: 3000;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .bl-modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+        .bl-modal-sheet {
+            width: 100%;
+            max-width: 500px;
+            background: var(--bl-color-background);
+            border-radius: 20px 20px 0 0;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+        }
+        .bl-modal-overlay.active .bl-modal-sheet {
+            transform: translateY(0);
+        }
+        .bl-modal-handle-container {
+            padding: 12px 0 8px;
+            cursor: grab;
+        }
+        .bl-modal-handle {
+            width: 36px;
+            height: 4px;
+            background: var(--bl-color-border-soft);
+            border-radius: 2px;
+            margin: 0 auto;
+        }
+        .bl-modal-header {
+            padding: 0 20px 16px;
+            text-align: center;
+        }
+        .bl-modal-body {
+            padding: 0 20px 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .bl-modal-footer {
+            padding: 0 20px 20px;
+        }
+        body.modal-open {
+            overflow: hidden;
+            touch-action: none;
+        }
+
         .new-trip-card {
             display: block;
             background: var(--bl-color-surface);
@@ -624,6 +686,18 @@
         </div>
     </div>
 
+    <!-- Reusable Generic Modal -->
+    <div id="bl-generic-modal" class="bl-modal-overlay" onclick="BaseLodgeModal.close()">
+        <div class="bl-modal-sheet" onclick="event.stopPropagation()">
+            <div class="bl-modal-handle-container">
+                <div class="bl-modal-handle"></div>
+            </div>
+            <div id="bl-modal-header-slot" class="bl-modal-header"></div>
+            <div id="bl-modal-body-slot" class="bl-modal-body"></div>
+            <div id="bl-modal-footer-slot" class="bl-modal-footer"></div>
+        </div>
+    </div>
+
     {% include 'components/bottom_nav.html' %}
 
     <script>
@@ -737,6 +811,65 @@
                     window.closeIdeaModal();
                 }
             });
+
+            // Reusable BaseLodgeModal System
+            window.BaseLodgeModal = {
+                overlay: document.getElementById('bl-generic-modal'),
+                sheet: document.querySelector('#bl-generic-modal .bl-modal-sheet'),
+                header: document.getElementById('bl-modal-header-slot'),
+                body: document.getElementById('bl-modal-body-slot'),
+                footer: document.getElementById('bl-modal-footer-slot'),
+                lastFocusedElement: null,
+
+                open: function(options = {}) {
+                    this.lastFocusedElement = document.activeElement;
+                    this.header.innerHTML = options.header || '';
+                    this.body.innerHTML = options.body || '';
+                    this.footer.innerHTML = options.footer || '';
+                    
+                    this.overlay.style.display = 'flex';
+                    document.body.classList.add('modal-open');
+                    
+                    // Trigger animation
+                    requestAnimationFrame(() => {
+                        this.overlay.classList.add('active');
+                    });
+
+                    // Accessibility: Trap focus (simple version)
+                    const focusable = this.sheet.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                    if (focusable.length) focusable[0].focus();
+                },
+
+                close: function() {
+                    this.overlay.classList.remove('active');
+                    setTimeout(() => {
+                        this.overlay.style.display = 'none';
+                        document.body.classList.remove('modal-open');
+                        if (this.lastFocusedElement) this.lastFocusedElement.focus();
+                    }, 300);
+                }
+            };
+
+            // Global Esc to close
+            window.addEventListener('keydown', e => {
+                if (e.key === 'Escape' && BaseLodgeModal.overlay.classList.contains('active')) {
+                    BaseLodgeModal.close();
+                }
+            });
+
+            // Swipe to close for generic modal
+            let modalTouchStart = 0;
+            BaseLodgeModal.sheet.addEventListener('touchstart', e => {
+                modalTouchStart = e.touches[0].clientY;
+            }, { passive: true });
+            
+            BaseLodgeModal.sheet.addEventListener('touchmove', e => {
+                const touchMove = e.touches[0].clientY;
+                const delta = touchMove - modalTouchStart;
+                if (delta > 100) {
+                    BaseLodgeModal.close();
+                }
+            }, { passive: true });
         });
     </script>
 </body>
