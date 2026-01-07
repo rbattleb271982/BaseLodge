@@ -117,9 +117,94 @@
             color: var(--bl-color-text);
             padding: 12px 0;
             border-bottom: 1px solid var(--bl-color-border-soft);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .idea-row:active {
+            opacity: 0.7;
         }
         .idea-row:last-child {
             border-bottom: none;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+        .modal-sheet {
+            width: 100%;
+            max-width: 500px;
+            background: var(--bl-color-background);
+            border-radius: 20px 20px 0 0;
+            padding: 20px;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+        .modal-overlay.active .modal-sheet {
+            transform: translateY(0);
+        }
+        .modal-handle {
+            width: 40px;
+            height: 4px;
+            background: var(--bl-color-border-soft);
+            border-radius: 2px;
+            margin: 0 auto 20px;
+        }
+        .modal-header {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .modal-people-list {
+            margin-bottom: 24px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .modal-person-row {
+            padding: 12px 0;
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+        .modal-person-row:first-child {
+            border-top: none;
+        }
+        .modal-person-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin-bottom: 4px;
+        }
+        .modal-person-meta {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+        }
+        .modal-cta {
+            width: 100%;
+            padding: 16px;
+            background: var(--bl-color-primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
         }
 
         .empty-state {
@@ -171,7 +256,8 @@
         <div class="ideas-list">
             {% if trip_ideas %}
                 {% for idea in trip_ideas %}
-                    <div class="idea-row">
+                    <div class="idea-row" 
+                         onclick='openIdeaModal({{ idea|tojson }})'>
                         {% set n = idea.overlapping_people|length %}
                         {{ idea.display_date }} · You and 
                         {% if n == 1 %}
@@ -186,7 +272,78 @@
             {% endif %}
         </div>
     </div>
+
+    <!-- Context Modal -->
+    <div id="idea-modal" class="modal-overlay" onclick="closeIdeaModal(event)">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-handle"></div>
+            <div id="modal-header" class="modal-header"></div>
+            <div id="modal-people-list" class="modal-people-list"></div>
+            <button id="modal-cta" class="modal-cta" onclick="planTrip()">Plan this trip</button>
+        </div>
+    </div>
     
+    <script>
+        let currentIdea = null;
+
+        function openIdeaModal(idea) {
+            currentIdea = idea;
+            const overlay = document.getElementById('idea-modal');
+            const header = document.getElementById('modal-header');
+            const list = document.getElementById('modal-people-list');
+            
+            const n = idea.overlapping_people.length;
+            const names = n === 1 ? `${idea.overlapping_people[0].first_name} ${idea.overlapping_people[0].last_name}` : `${n} friends`;
+            header.innerText = `${idea.display_date} · You and ${names} are free`;
+            
+            list.innerHTML = '';
+            idea.overlapping_people.forEach(person => {
+                const row = document.createElement('div');
+                row.className = 'modal-person-row';
+                row.innerHTML = `
+                    <div class="modal-person-name">${person.first_name} ${person.last_name}</div>
+                    <div class="modal-person-meta">${person.rider_type || 'Rider'} · ${person.skill_level || 'Skill'} · ${person.pass_type || 'No Pass'}</div>
+                `;
+                list.appendChild(row);
+            });
+            
+            overlay.style.display = 'flex';
+            setTimeout(() => overlay.classList.add('active'), 10);
+        }
+
+        function closeIdeaModal(event) {
+            const overlay = document.getElementById('idea-modal');
+            overlay.classList.remove('active');
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                currentIdea = null;
+            }, 300);
+        }
+
+        function planTrip() {
+            if (!currentIdea) return;
+            const baseUrl = "{{ url_for('add_trip') }}";
+            const params = new URLSearchParams({
+                start_date: currentIdea.date_str,
+                end_date: currentIdea.date_str
+            });
+            window.location.href = `${baseUrl}?${params.toString()}`;
+        }
+
+        // Swipe down to close simulation
+        let touchStart = 0;
+        document.querySelector('.modal-sheet').addEventListener('touchstart', e => {
+            touchStart = e.touches[0].clientY;
+        });
+        document.querySelector('.modal-sheet').addEventListener('touchmove', e => {
+            const touchMove = e.touches[0].clientY;
+            const delta = touchMove - touchStart;
+            if (delta > 100) {
+                closeIdeaModal();
+            }
+        });
+    </script>
+
     {% include 'components/bottom_nav.html' %}
 </body>
 </html>
