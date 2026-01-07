@@ -631,7 +631,9 @@
             const segmentBtns = document.querySelectorAll('.segment-btn');
             const segmentContents = document.querySelectorAll('.segment-content');
             
-            function selectTab(tabName) {
+            const STORAGE_KEY = 'my_trips_active_tab';
+            
+            function selectTab(tabName, shouldPersist = true) {
                 segmentBtns.forEach(function(b) { b.classList.remove('active'); });
                 segmentContents.forEach(function(c) { c.classList.remove('active'); });
                 
@@ -641,6 +643,9 @@
                 if (btn && content) {
                     btn.classList.add('active');
                     content.classList.add('active');
+                    if (shouldPersist) {
+                        sessionStorage.setItem(STORAGE_KEY, tabName);
+                    }
                 }
             }
             
@@ -651,11 +656,15 @@
                 });
             });
             
+            const savedTab = sessionStorage.getItem(STORAGE_KEY);
             var urlParams = new URLSearchParams(window.location.search);
             var tab = urlParams.get('tab');
             if (tab === 'planning') tab = 'ideas';
+            
             if (tab === 'ideas' || tab === 'invites') {
                 selectTab(tab);
+            } else if (savedTab && ['upcoming', 'ideas', 'invites'].includes(savedTab)) {
+                selectTab(savedTab, false);
             }
 
             // Modal logic
