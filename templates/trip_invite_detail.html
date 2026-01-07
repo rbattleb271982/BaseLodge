@@ -21,21 +21,6 @@
             color: var(--bl-color-text-muted);
             margin: 0;
         }
-        .invite-going-count {
-            text-align: center;
-            font-size: 0.9rem;
-            color: var(--bl-color-text-muted);
-            margin: 8px 0 16px;
-        }
-        .invite-context {
-            text-align: center;
-            color: var(--bl-color-primary);
-            font-weight: 500;
-            margin-bottom: 24px;
-            padding: 12px;
-            background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-md);
-        }
         .info-section {
             background: var(--bl-color-surface);
             border: 1px solid var(--bl-color-border-soft);
@@ -327,18 +312,10 @@
                     Trip Invite
                 {% endif %}
             </h1>
-            <p class="invite-dates">{{ format_trip_dates(trip) }}</p>
+            <p class="invite-dates">{{ format_trip_dates(trip) }} · {{ going_count }} people going</p>
         </div>
         
-        {% if going_count >= 2 %}
-        <p class="invite-going-count">{{ going_count }} people going</p>
-        {% endif %}
-        
-        {% if not is_accepted %}
-        <div class="invite-context">
-            {{ owner.first_name if owner else 'Someone' }} invited you to this trip
-        </div>
-        {% else %}
+        {% if is_accepted %}
         <div class="accepted-banner">You're going!</div>
         {% endif %}
         
@@ -356,10 +333,6 @@
                     {% endif %}
                 </span>
             </div>
-            <div class="info-row">
-                <span class="info-label">Dates</span>
-                <span class="info-value">{{ format_trip_dates(trip) }}</span>
-            </div>
             {% if trip.notes %}
             <div class="info-row" style="flex-direction: column; align-items: flex-start;">
                 <span class="info-label" style="margin-bottom: 4px;">Notes</span>
@@ -370,30 +343,17 @@
         
         <div class="info-section">
             <p class="info-section-title">Who's Going</p>
-            {% if going_count == 2 %}
-                <ul class="participant-list">
-                    <li class="participant-item">{{ owner.first_name if owner else 'Organizer' }}</li>
-                    {% for p in accepted_participants %}
-                        {% if p.user %}
-                            <li class="participant-item">{{ p.user.first_name }}</li>
-                        {% endif %}
-                    {% endfor %}
-                    {% if not is_accepted %}
-                        <li class="participant-item" style="color: var(--bl-color-text-muted); font-style: italic;">You (invited)</li>
+            <ul class="participant-list">
+                <li class="participant-item">{{ owner.first_name if owner else 'Organizer' }}</li>
+                {% for p in accepted_participants %}
+                    {% if p.user and p.user.id != owner.id %}
+                        <li class="participant-item">{{ p.user.first_name }}</li>
                     {% endif %}
-                </ul>
-            {% elif going_count > 2 %}
-                <ul class="participant-list">
-                    <li class="participant-item">{{ owner.first_name if owner else 'Organizer' }}</li>
-                </ul>
-                <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 8px 0 0 0;">
-                    + {{ going_count - 1 }} others going
-                </p>
-            {% else %}
-                <ul class="participant-list">
-                    <li class="participant-item">{{ owner.first_name if owner else 'Organizer' }}</li>
-                </ul>
-            {% endif %}
+                {% endfor %}
+                {% if not is_accepted %}
+                    <li class="participant-item" style="color: var(--bl-color-text-muted); font-style: italic;">You (invited)</li>
+                {% endif %}
+            </ul>
         </div>
         
         <div class="info-section {% if not is_accepted %}section-locked{% endif %}">
