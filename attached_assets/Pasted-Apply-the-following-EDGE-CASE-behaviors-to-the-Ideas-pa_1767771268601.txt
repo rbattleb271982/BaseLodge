@@ -1,0 +1,78 @@
+Apply the following EDGE CASE behaviors to the Ideas page.
+Do NOT change backend logic, queries, or data structures.
+This is UI behavior + copy only.
+
+==============================
+EDGE CASE DECISIONS (LOCKED)
+==============================
+
+1) LARGE WISHLIST OVERLAPS
+- If a wishlist mountain has many overlapping people:
+  - Show the FULL list.
+  - Do NOT truncate.
+  - Do NOT collapse.
+  - Do NOT add “+X more”.
+
+This is intentional behavior.
+
+2) SAME PERSON IN MANY TRIP IDEAS
+- Do NOT dedupe or collapse Trip Ideas.
+- Repeated appearance of the same person across multiple Trip Ideas is correct.
+- Always show FIRST + LAST NAME everywhere.
+
+3) MULTIPLE TRIP IDEAS ON THE SAME DATE
+- Do NOT group by date.
+- Each Trip Idea remains its own row, even if dates repeat.
+- No date headers or grouping logic.
+
+4) TEXT WRAPPING
+- Allow identity rows and headers to wrap naturally.
+- Do NOT truncate names or identity fields.
+- Do NOT add ellipses.
+
+5) INVITE FRIENDS (EMPTY STATES ONLY)
+Add copy-only invite messaging in EMPTY STATES:
+
+A) If NO wishlist overlaps:
+  Show empty state text:
+  “No wishlist matches yet. Invite friends to see overlaps.”
+
+  Include a single CTA:
+  Button text: “Invite friends”
+  (Use existing invite flow or placeholder route if already defined.)
+
+B) If wishlist overlaps exist:
+  Do NOT show invite CTAs anywhere else.
+
+==============================
+NAMING RULE (CRITICAL)
+==============================
+- ALL references to people must use:
+  FIRST + LAST NAME
+- No first-name-only references.
+- Applies to:
+  - Trip Ideas rows
+  - Modal headers
+  - Modal people lists
+  - Wishlist lists
+  - Empty-state copy
+
+==============================
+DO NOT
+==============================
+- Do not add new modals
+- Do not add analytics
+- Do not add banners
+- Do not add additional CTAs
+- Do not refactor logic
+
+==============================
+QA / VERIFICATION
+==============================
+- Verify long lists render fully.
+- Verify repeated names appear correctly across rows.
+- Verify empty wishlist shows invite copy + CTA.
+- Verify invite CTA does NOT appear when wishlist overlaps exist.
+- Verify no layout breakage from wrapping text.
+
+Report back once complete.
