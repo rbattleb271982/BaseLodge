@@ -1693,12 +1693,19 @@ def my_trips():
             SkiTripParticipant.status == GuestStatus.INVITED
         ).all()
         invited_trip_ids = [p.trip_id for p in invited_participations]
+        print(f"--- TRIP INVITE DEBUG (User {current_user.id}) ---")
+        print(f"  Invited participations: {[(p.trip_id, p.status.value) for p in invited_participations]}")
+        print(f"  Invited trip IDs: {invited_trip_ids}")
         if invited_trip_ids:
             invited_trips = SkiTrip.query.filter(
                 SkiTrip.id.in_(invited_trip_ids),
                 SkiTrip.end_date >= today
             ).order_by(SkiTrip.start_date.asc()).all() or []
-    except Exception:
+            print(f"  Invited trips found: {[t.id for t in invited_trips]}")
+        print(f"  Final invited_trips count: {len(invited_trips)}")
+        print(f"-------------------------------------------")
+    except Exception as e:
+        print(f"  ERROR fetching invited trips: {e}")
         invited_trips = []
 
     # Get trips where user is ACCEPTED as guest (not owner)
