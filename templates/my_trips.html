@@ -340,10 +340,10 @@
                 <div class="trips-list">
                     {% for idea in trip_ideas[:6] %}
                     {% if idea %}
-                    <a href="{{ url_for('trip_ideas') }}" style="text-decoration: none; color: inherit;">
+                    <a href="{{ idea.cta_url }}" style="text-decoration: none; color: inherit;">
                         <div class="trip-card">
                             <div class="trip-card-content">
-                                <p class="trip-card-line1">{% if idea.type == 'wishlist' %}{{ idea.destination }}{% else %}{{ idea.date_range }}{% if idea.destination %} · {{ idea.destination }}{% endif %}{% endif %}</p>
+                                <p class="trip-card-line1">{% if idea.type == 'wishlist' %}{{ idea.destination }}{% else %}{{ idea.display_date }}{% if idea.destination %} · {{ idea.destination }}{% endif %}{% endif %}</p>
                                 <p class="trip-card-line2">{{ idea.social_context }}</p>
                             </div>
                             <span class="trip-card-action">›</span>
@@ -352,6 +352,7 @@
                     {% endif %}
                     {% endfor %}
                 </div>
+                <a href="{{ url_for('trip_ideas') }}" class="planning-cta">View all ideas →</a>
             {% else %}
                 <div class="empty-state-container" style="padding-top: 20px;">
                     <p class="empty-state-title">No trip ideas yet</p>

@@ -1324,6 +1324,43 @@ def reset_password(token=None):
 
     return render_template("reset_password.html", token=token)
 
+def build_trip_idea(user, idea_type, destination=None, resort_id=None, start_date_str=None, end_date_str=None, social_context=None, friends=None):
+    """Canonical Trip Idea builder."""
+    has_dates = bool(start_date_str and end_date_str)
+    
+    # Display Date
+    display_date = ""
+    if has_dates:
+        try:
+            d = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            display_date = d.strftime('%b %-d')
+        except:
+            display_date = start_date_str
+            
+    # CTA URL
+    params = []
+    if resort_id: params.append(f"resort_id={resort_id}")
+    if has_dates:
+        params.append(f"start_date={start_date_str}")
+        params.append(f"end_date={end_date_str}")
+    
+    cta_url = "/add-trip"
+    if params:
+        cta_url += "?" + "&".join(params)
+        
+    return {
+        "type": idea_type,
+        "destination": destination,
+        "resort_id": resort_id,
+        "social_context": social_context,
+        "has_dates": has_dates,
+        "start_date_str": start_date_str,
+        "end_date_str": end_date_str,
+        "display_date": display_date,
+        "cta_url": cta_url,
+        "friends": friends or []
+    }
+
 @app.route("/")
 def index():
     if current_user.is_authenticated:
@@ -1801,18 +1838,20 @@ def my_trips():
         ideas_by_resort = {} # Key: resort_name -> idea_dict
         
         # Helper to add/update idea
-        def add_idea(resort_name, state, idea_type, friend_name, date_obj=None):
+        def add_idea(resort_name, state, idea_type, friend_name, date_obj=None, resort_id=None):
             if resort_name not in ideas_by_resort:
                 ideas_by_resort[resort_name] = {
                     'name': resort_name,
                     'state': state,
                     'types': {idea_type},
                     'friends': {friend_name},
-                    'soonest_date': date_obj
+                    'soonest_date': date_obj,
+                    'resort_id': resort_id
                 }
             else:
                 ideas_by_resort[resort_name]['types'].add(idea_type)
                 ideas_by_resort[resort_name]['friends'].add(friend_name)
+                if resort_id: ideas_by_resort[resort_name]['resort_id'] = resort_id
                 if date_obj and (not ideas_by_resort[resort_name]['soonest_date'] or date_obj < ideas_by_resort[resort_name]['soonest_date']):
                     ideas_by_resort[resort_name]['soonest_date'] = date_obj
 
@@ -1856,7 +1895,7 @@ def my_trips():
                     resort = Resort.query.get(trip.resort_id)
                     if resort:
                         friend_name = f"{trip.user.first_name} {trip.user.last_name}".strip() if trip.user else "Friend"
-                        add_idea(resort.name, resort.state_code, 'wishlist', friend_name, trip.start_date)
+                        add_idea(resort.name, resort.state_code, 'wishlist', friend_name, trip.start_date, resort.id)
                         print(f"   - RULE 3 MATCH: Friend {friend_name} is going to {resort.name} (Your Wishlist)")
 
         # Convert to final list and sort
@@ -1870,16 +1909,26 @@ def my_trips():
             # Match reason based on priority: Overlap > Both Free > Wishlist
             if 'overlap' in idea['types']:
                 reason = f"You + {friends_list[0]} overlap" if n == 1 else f"You + {n} friends overlap"
+                i_type = "open"
             elif 'both_free' in idea['types']:
                 reason = f"You + {friends_list[0]} are both free" if n == 1 else f"You + {n} friends are both free"
+                i_type = "open"
             else:
                 reason = f"You + {friends_list[0]} want to go" if n == 1 else f"You + {n} friends want to go"
+                i_type = "wishlist"
             
-            trip_ideas.append({
-                'name': f"{idea['name']}, {idea['state']}" if idea['state'] else idea['name'],
-                'match_reason': reason,
-                'friend_names': friends_list
-            })
+            s_date = idea['soonest_date'].isoformat() if idea['soonest_date'] else None
+            
+            trip_ideas.append(build_trip_idea(
+                user=user,
+                idea_type=i_type,
+                destination=f"{idea['name']}, {idea['state']}" if idea['state'] else idea['name'],
+                resort_id=idea.get('resort_id'),
+                start_date_str=s_date,
+                end_date_str=s_date,
+                social_context=reason,
+                friends=[{"first_name": name} for name in friends_list]
+            ))
         
         print(f"   - Final trip_ideas count: {len(trip_ideas)}")
         print("------------------------------------------------")
@@ -2010,7 +2059,6 @@ def trip_ideas():
         for date_str, friends in date_to_friends.items():
             if friends:
                 try:
-                    date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
                     friend_count = len(friends)
                     
                     # Build social context string
@@ -2021,42 +2069,35 @@ def trip_ideas():
                     else:
                         social_context = f"{friends[0]['first_name']} + {friend_count - 1} others are open"
                     
-                    # Condensed date format
-                    date_range = date_obj.strftime('%b %-d')
-                    
-                    trip_ideas_list.append({
-                        "date_str": date_str,
-                        "start_date_str": date_str,
-                        "end_date_str": date_str,
-                        "date_obj": date_obj,
-                        "date_range": date_range,
-                        "destination": None,
-                        "resort_id": None,
-                        "friends": friends,
-                        "friend_count": friend_count,
-                        "social_context": social_context,
-                        "type": "open"
-                    })
+                    trip_ideas_list.append(build_trip_idea(
+                        user=user,
+                        idea_type="open",
+                        start_date_str=date_str,
+                        end_date_str=date_str,
+                        social_context=social_context,
+                        friends=friends
+                    ))
                 except ValueError:
                     pass
 
     # Add Wishlist overlaps
     for friend in all_friends:
-        friend_wishlist = getattr(friend, 'wishlist_resorts', []) or []
-        user_wishlist = getattr(user, 'wishlist_resorts', []) or []
+        friend_wishlist = getattr(friend, 'wish_list_resorts', []) or []
+        user_wishlist = getattr(user, 'wish_list_resorts', []) or []
         
         # Find common resorts
         common_resorts = set(user_wishlist).intersection(set(friend_wishlist))
         for resort_id in common_resorts:
             resort = Resort.query.get(resort_id)
             if resort:
-                trip_ideas_list.append({
-                    "destination": resort.name,
-                    "resort_id": resort.id,
-                    "social_context": f"{friend.first_name} also wants to go here!",
-                    "type": "wishlist",
-                    "friends": [{"id": friend.id, "first_name": friend.first_name, "last_name": friend.last_name or ""}]
-                })
+                trip_ideas_list.append(build_trip_idea(
+                    user=user,
+                    idea_type="wishlist",
+                    destination=resort.name,
+                    resort_id=resort.id,
+                    social_context=f"{friend.first_name} also wants to go here!",
+                    friends=[{"id": friend.id, "first_name": friend.first_name, "last_name": friend.last_name or ""}]
+                ))
 
     # Enforce invariant: no None entries
     trip_ideas_list = [idea for idea in trip_ideas_list if idea is not None]
