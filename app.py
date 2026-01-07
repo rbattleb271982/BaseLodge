@@ -1851,87 +1851,109 @@ def my_trips():
     except Exception:
         wishlist_resorts = []
 
-    # Generate trip ideas with ranking
+    # Generate trip ideas (social-first: friends' trips overlapping user's availability)
     trip_ideas = []
     try:
-        if user_open_dates:
-            user_state = getattr(user, 'home_state', None) or ''
+        if user_open_dates and friend_ids:
             user_passes = set(p.strip().lower() for p in (user.pass_type or '').split(',') if p.strip() and p.strip().lower() != "i don't have a pass")
+            user_open_set = set(user_open_dates)
             
-            # Calculate average trip duration from past trips (for trip-length matching)
-            avg_trip_nights = None
-            try:
-                user_past_trips = SkiTrip.query.filter(
-                    SkiTrip.user_id == user.id,
-                    SkiTrip.start_date.isnot(None),
-                    SkiTrip.end_date.isnot(None),
-                    SkiTrip.end_date < today
-                ).all()
+            # Find friends' trips that overlap user's open availability
+            destination_ideas = {}  # Key: (resort_name, state) -> idea data
+            
+            for friend_trip in friend_trips:
+                if not friend_trip.start_date or not friend_trip.end_date:
+                    continue
                 
-                if user_past_trips:
-                    total_nights = sum((t.end_date - t.start_date).days for t in user_past_trips)
-                    avg_trip_nights = total_nights / len(user_past_trips) if len(user_past_trips) > 0 else None
-            except Exception:
-                avg_trip_nights = None
+                # Check if trip dates overlap with any of user's open dates
+                trip_dates = set()
+                current = friend_trip.start_date
+                while current <= friend_trip.end_date:
+                    trip_dates.add(current.strftime('%Y-%m-%d'))
+                    current += timedelta(days=1)
+                
+                overlap_dates = user_open_set & trip_dates
+                if not overlap_dates:
+                    continue
+                
+                # Get destination info
+                resort_name = friend_trip.mountain
+                state = friend_trip.state
+                resort_id = None
+                resort_obj = None
+                
+                if friend_trip.resort:
+                    resort_name = friend_trip.resort.name
+                    state = friend_trip.resort.state_code or friend_trip.resort.state
+                    resort_id = friend_trip.resort.id
+                    resort_obj = friend_trip.resort
+                
+                if not resort_name:
+                    continue
+                
+                # Use (resort_name, state) as unique key to collapse multiple friends
+                key = (resort_name, state or '')
+                
+                # Calculate earliest overlap date for this trip
+                earliest_overlap = min(datetime.strptime(d, '%Y-%m-%d').date() for d in overlap_dates)
+                
+                # Get friend info
+                friend_first_name = friend_trip.user.first_name if friend_trip.user else "Friend"
+                friend_id = friend_trip.user_id
+                
+                if key not in destination_ideas:
+                    destination_ideas[key] = {
+                        'resort_name': resort_name,
+                        'state': state or '',
+                        'resort_id': resort_id,
+                        'resort_obj': resort_obj,
+                        'friends': {},  # friend_id -> friend_name
+                        'earliest_overlap': earliest_overlap,
+                        'overlap_dates': set(overlap_dates)
+                    }
+                
+                # Add friend to this destination
+                destination_ideas[key]['friends'][friend_id] = friend_first_name
+                # Update earliest overlap if this one is sooner
+                if earliest_overlap < destination_ideas[key]['earliest_overlap']:
+                    destination_ideas[key]['earliest_overlap'] = earliest_overlap
+                # Union overlap dates
+                destination_ideas[key]['overlap_dates'] |= overlap_dates
             
-            # Determine typical trip category based on average
-            # day_trip: 0 nights, long_weekend: 1-3 nights, extended: 4+ nights
-            user_trip_category = None
-            if avg_trip_nights is not None:
-                if avg_trip_nights < 1:
-                    user_trip_category = 'day_trip'
-                elif avg_trip_nights <= 3:
-                    user_trip_category = 'long_weekend'
+            # Build final trip_ideas list from destination_ideas
+            for key, data in destination_ideas.items():
+                friend_count = len(data['friends'])
+                friend_names = list(data['friends'].values())
+                
+                # Build social label
+                if friend_count == 1:
+                    social_label = f"You + {friend_names[0]} overlap"
                 else:
-                    user_trip_category = 'extended'
-            
-            # Get active resorts
-            resorts = Resort.query.filter_by(is_active=True, is_region=False).limit(50).all()
-            
-            for idx, resort in enumerate(resorts):
-                score = 0
-                match_reason = None
+                    social_label = f"You + {friend_count} friends overlap"
                 
-                # Priority 1: Pass compatibility (highest score)
-                resort_passes = set(p.strip().lower() for p in resort.get_pass_brands_list() if p.strip())
-                if user_passes and resort_passes and (user_passes & resort_passes):
-                    score += 150
-                    match_reason = "On your pass"
+                # Check pass compatibility (secondary label)
+                on_pass = False
+                if user_passes and data['resort_obj']:
+                    resort_passes = set(p.strip().lower() for p in data['resort_obj'].get_pass_brands_list() if p.strip())
+                    if user_passes & resort_passes:
+                        on_pass = True
                 
-                # Priority 2: Trip-length match (medium score)
-                if user_trip_category and not match_reason:
-                    # Heuristic: closer resorts are better for day trips, farther for extended
-                    # Since we don't have distance data, use state proximity as proxy
-                    is_nearby = user_state and resort.state_code and resort.state_code.lower() == user_state.lower()
-                    
-                    if user_trip_category == 'day_trip' and is_nearby:
-                        score += 75
-                        match_reason = "Great for a day trip"
-                    elif user_trip_category == 'long_weekend':
-                        score += 75
-                        match_reason = "Good for a long weekend"
-                    elif user_trip_category == 'extended' and not is_nearby:
-                        score += 75
-                        match_reason = "Worth the trip"
-                
-                # Priority 3: Proximity to home state (lower score)
-                if user_state and resort.state_code and resort.state_code.lower() == user_state.lower():
-                    score += 50
-                    if not match_reason:
-                        match_reason = "Near you"
+                # Primary label is always social; "On your pass" only if no social context (shouldn't happen here)
+                match_reason = social_label
                 
                 trip_ideas.append({
-                    'id': resort.id,
-                    'name': resort.name,
-                    'state': resort.state_code or resort.state,
-                    'country': resort.country_name or '',
-                    'score': score,
+                    'id': data['resort_id'],
+                    'name': data['resort_name'],
+                    'state': data['state'],
+                    'country': data['resort_obj'].country_name if data['resort_obj'] else '',
                     'match_reason': match_reason,
-                    '_original_order': idx  # Preserve original DB order for fallback
+                    'friend_count': friend_count,
+                    'earliest_overlap': data['earliest_overlap'],
+                    'on_pass': on_pass
                 })
             
-            # Sort by score descending; preserve original order as tie-breaker
-            trip_ideas.sort(key=lambda x: (-x['score'], x['_original_order']))
+            # Sort: soonest overlap date first, then more friends, then on_pass
+            trip_ideas.sort(key=lambda x: (x['earliest_overlap'], -x['friend_count'], not x['on_pass']))
     except Exception:
         trip_ideas = []
 

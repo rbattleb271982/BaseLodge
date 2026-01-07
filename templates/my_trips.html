@@ -359,10 +359,9 @@
                 </div>
             </div>
             
-            {% if user_open_dates and user_open_dates|length > 0 %}
+            {% if user_open_dates and user_open_dates|length > 0 and trip_ideas and trip_ideas|length > 0 %}
             <p class="section-label" style="margin-top: 20px;">Trip Ideas</p>
             <div class="trip-ideas-list">
-                {% if trip_ideas and trip_ideas|length > 0 %}
                 {% for idea in trip_ideas[:6] %}
                 <div class="trip-card">
                     <div class="trip-card-content">
@@ -374,15 +373,12 @@
                     </div>
                 </div>
                 {% endfor %}
-                {% else %}
-                <p style="font-size: 0.9rem; color: var(--bl-color-text-muted);">No trip ideas available yet. Connect with friends to see suggestions.</p>
-                {% endif %}
             </div>
             <a href="{{ url_for('trip_ideas') }}" class="planning-cta" style="margin-top: 12px;">See all trip ideas →</a>
             {% else %}
             <a href="{{ url_for('add_open_dates') }}" class="new-trip-card" style="margin-top: 12px;">
                 <p class="new-trip-card-title" style="color: var(--bl-color-text);">Set your availability to see trip ideas</p>
-                <p class="new-trip-card-subtext">Add the days you're free and we'll suggest trips that fit your schedule.</p>
+                <p class="new-trip-card-subtext">Add the days you're free to find trips that overlap with friends.</p>
             </a>
             {% endif %}
         </div>
