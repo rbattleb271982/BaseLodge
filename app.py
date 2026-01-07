@@ -4407,10 +4407,14 @@ def add_trip():
     
     # Get prefill parameters for "Propose a trip" flow
     prefill_friend_id = request.args.get('friend_id', type=int)
-    prefill_start_date = request.args.get('start_date')
-    prefill_end_date = request.args.get('end_date')
+    prefill_start_date = request.args.get('start_date') or None
+    prefill_end_date = request.args.get('end_date') or None
     prefill_resort_id = request.args.get('resort_id', type=int)
     is_group = request.args.get('is_group') == '1'
+    
+    # Clean up empty strings from query params
+    if prefill_start_date == "": prefill_start_date = None
+    if prefill_end_date == "": prefill_end_date = None
     
     prefill_friend = None
     if prefill_friend_id:
