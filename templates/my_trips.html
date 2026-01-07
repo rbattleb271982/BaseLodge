@@ -303,18 +303,23 @@
 
         .empty-state-container {
             text-align: center;
-            padding: 40px 16px;
+            padding: 24px 16px;
         }
         .empty-state-title {
-            font-size: 0.95rem;
-            font-weight: 500;
+            font-size: 1.1rem;
+            font-weight: 600;
             color: var(--bl-color-text);
             margin: 0 0 8px 0;
         }
         .empty-state-desc {
-            font-size: 0.85rem;
+            font-size: 0.95rem;
             color: var(--bl-color-text-muted);
             margin: 0;
+        }
+        .inline-empty-message {
+            font-size: 0.95rem;
+            color: var(--bl-color-text-muted);
+            padding: 12px 0;
         }
 
         /* Reusable Bottom Sheet Modal */
@@ -582,17 +587,29 @@
                 </div>
             </div>
 
-            <!-- 2) Wishlist (Tappable Modal Trigger) -->
+            <!-- 2) Wishlist Section -->
             {% if wishlist_overlaps and wishlist_overlaps|length > 0 %}
-            <div class="wishlist-card" onclick='openWishlistModal({{ wishlist_overlaps|tojson }})'>
-                <div class="wishlist-card-row">
-                    <p class="wishlist-card-text">
-                        Wishlist · {{ wishlist_overlaps|length }} match{% if wishlist_overlaps|length != 1 %}es{% endif %}
-                    </p>
-                    <span class="wishlist-card-action">View</span>
+                {# STATE A: Wishlist mountains exist AND overlaps exist #}
+                <div class="wishlist-card" onclick='openWishlistModal({{ wishlist_overlaps|tojson }})'>
+                    <div class="wishlist-card-row">
+                        <p class="wishlist-card-text">
+                            Wishlist · {{ wishlist_overlaps|length }} match{% if wishlist_overlaps|length != 1 %}es{% endif %}
+                        </p>
+                        <span class="wishlist-card-action">View</span>
+                    </div>
                 </div>
-            </div>
+            {% elif not user.wishlist_mountains %}
+                {# STATE C: User has NO wishlist mountains at all #}
+                <a href="{{ url_for('profile') }}" class="wishlist-card" style="text-decoration: none;">
+                    <div class="wishlist-card-row">
+                        <div style="flex: 1;">
+                            <p class="wishlist-card-text">Wishlist</p>
+                            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">Add mountains you want to ski to find matches →</p>
+                        </div>
+                    </div>
+                </a>
             {% endif %}
+            {# STATE B: User has wishlist mountains BUT NO overlaps (Render NOTHING) #}
             
             <!-- 3) Trip Ideas -->
             <h2 class="section-title">Trip Ideas</h2>
@@ -611,7 +628,7 @@
                         </div>
                     {% endfor %}
                 {% else %}
-                    <div class="empty-state">No availability-based ideas yet.</div>
+                    <div class="inline-empty-message">No shared availability yet. Add more dates.</div>
                 {% endif %}
             </div>
             <!-- MY_TRIPS IDEAS END -->
@@ -637,7 +654,8 @@
             </div>
             {% else %}
             <div class="empty-state-container">
-                <p class="empty-state-title">No pending invites</p>
+                <p class="empty-state-title">No trip invites from your friends yet</p>
+                <p class="empty-state-desc">Invite friends to start planning trips</p>
             </div>
             {% endif %}
         </div>

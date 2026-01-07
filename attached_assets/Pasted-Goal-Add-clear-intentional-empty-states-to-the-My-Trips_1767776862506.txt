@@ -1,0 +1,98 @@
+Goal:
+Add clear, intentional empty states to the My Trips page
+so users always understand what to do next.
+
+Scope:
+- My Trips → Ideas tab
+- My Trips → Invites tab
+- Wishlist section logic
+
+Do NOT:
+- Modify backend data logic
+- Modify modal behavior
+- Add new routes
+- Change existing interactions
+
+==============================
+IDEAS TAB — EMPTY STATES
+==============================
+
+1) Availability-based Trip Ideas
+Condition:
+- trip_ideas is empty
+
+UI:
+- Show a single inline message:
+  "No shared availability yet. Add more dates."
+
+Placement:
+- Where Trip Ideas would normally appear
+
+Do NOT:
+- Mention wishlist here
+- Show any CTA buttons
+
+==============================
+WISHLIST SECTION LOGIC
+==============================
+
+There are THREE mutually exclusive states.
+Only ONE may render at a time.
+
+STATE A — User has wishlist mountains AND overlaps exist
+- Show:
+  "Wishlist · N matches" card
+- Behavior:
+  Opens Wishlist modal (existing behavior)
+
+STATE B — User has wishlist mountains BUT NO overlaps
+- Show:
+  NOTHING
+- No header
+- No message
+- No CTA
+
+STATE C — User has NO wishlist mountains at all
+- Show a lightweight CTA row:
+
+Header:
+  "Wishlist"
+
+Subtext / Action:
+  "Add mountains you want to ski to find matches →"
+
+Action:
+- Navigate to the user's profile wishlist editor
+  (use existing profile navigation)
+
+==============================
+INVITES TAB — EMPTY STATE
+==============================
+
+Condition:
+- No incoming trip invites
+
+UI:
+Primary text:
+  "No trip invites from your friends yet"
+
+Secondary hint text:
+  "Invite friends to start planning trips"
+
+Do NOT:
+- Add buttons
+- Add deep links
+- Add modals
+
+==============================
+QA / VERIFICATION (MANDATORY)
+==============================
+
+Confirm:
+- No “Wishlist · 0 matches” ever appears
+- Wishlist CTA only appears when wishlist is completely empty
+- Wishlist CTA does NOT appear if user already has wishlist mountains
+- Ideas empty message appears only when availability ideas are empty
+- Invites empty state renders correctly
+- No layout jumps or spacing issues
+- No console errors
