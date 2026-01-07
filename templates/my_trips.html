@@ -56,6 +56,196 @@
             margin-top: 6px;
         }
 
+        /* Wishlist Section Styles (Sync with trip_ideas.html) */
+        .collapsible-section {
+            margin-bottom: 24px;
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--bl-color-surface);
+        }
+        .collapsible-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .collapsible-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+        }
+        .collapsible-count {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin-left: 8px;
+            font-weight: 400;
+        }
+        .collapsible-chevron {
+            font-size: 18px;
+            color: var(--bl-color-text-muted);
+            transition: transform 0.2s ease;
+        }
+        .collapsible-content {
+            display: none;
+            padding: 0 16px 16px;
+        }
+        .collapsible-section.expanded .collapsible-content {
+            display: block;
+        }
+        .collapsible-section.expanded .collapsible-chevron {
+            transform: rotate(90deg);
+        }
+
+        .mountain-group {
+            margin-top: 16px;
+        }
+        .mountain-group:first-child {
+            margin-top: 0;
+        }
+        .mountain-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin-bottom: 8px;
+        }
+        .person-row {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            padding: 4px 0;
+            border-top: 1px solid var(--bl-color-border-soft);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .person-row:first-of-type {
+            border-top: none;
+        }
+
+        /* Trip Ideas Section Styles (Sync with trip_ideas.html) */
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--bl-color-text);
+            margin: 20px 0 12px 0;
+        }
+        .ideas-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .idea-row {
+            font-size: 15px;
+            color: var(--bl-color-text);
+            padding: 12px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .idea-row:active {
+            opacity: 0.7;
+        }
+        .idea-row:last-child {
+            border-bottom: none;
+        }
+
+        /* Modal Styles (Sync with trip_ideas.html) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+        .modal-sheet {
+            width: 100%;
+            max-width: 500px;
+            background: var(--bl-color-background);
+            border-radius: 20px 20px 0 0;
+            padding: 20px;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+        .modal-overlay.active .modal-sheet {
+            transform: translateY(0);
+        }
+        .modal-handle {
+            width: 40px;
+            height: 4px;
+            background: var(--bl-color-border-soft);
+            border-radius: 2px;
+            margin: 0 auto 20px;
+        }
+        .modal-header {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin-bottom: 24px;
+            text-align: center;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .modal-people-list {
+            margin-bottom: 24px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .modal-person-row {
+            padding: 12px 0;
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+        .modal-person-row:first-child {
+            border-top: none;
+        }
+        .modal-person-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin-bottom: 4px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .modal-person-meta {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .modal-cta {
+            width: 100%;
+            padding: 16px;
+            background: var(--bl-color-primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Prevent Wishlist from being clickable */
+        .collapsible-section *, .mountain-group *, .person-row * {
+            cursor: default;
+        }
+        .collapsible-header, .collapsible-header * {
+            cursor: pointer !important;
+        }
+
         .page-title {
             font-size: 1.5rem;
             font-weight: 700;
@@ -324,6 +514,7 @@
         </div>
 
         <div id="segment-ideas" class="segment-content">
+            <!-- MY_TRIPS IDEAS START -->
             <p class="section-label">My Availability</p>
             
             <div class="planning-card">
@@ -334,31 +525,53 @@
                     <a href="{{ url_for('add_open_dates') }}" class="planning-card-action">Edit</a>
                 </div>
             </div>
-            
-            {% if trip_ideas and trip_ideas|length > 0 %}
-                <p class="section-label" style="margin-top: 20px;">Trip Ideas</p>
-                <div class="trips-list">
-                    {% for idea in trip_ideas[:6] %}
-                    {% if idea %}
-                    <a href="{{ idea.cta_url }}" style="text-decoration: none; color: inherit;">
-                        <div class="trip-card">
-                            <div class="trip-card-content">
-                                <p class="trip-card-line1">{% if idea.type == 'wishlist' %}{{ idea.destination }}{% else %}{{ idea.display_date }}{% if idea.destination %} · {{ idea.destination }}{% endif %}{% endif %}</p>
-                                <p class="trip-card-line2">{{ idea.social_context }}</p>
-                            </div>
-                            <span class="trip-card-action">›</span>
+
+            <!-- 2) Wishlist (Collapsible) -->
+            {% if wishlist_overlaps %}
+            <div class="collapsible-section" id="wishlist-section">
+                <div class="collapsible-header" onclick="document.getElementById('wishlist-section').classList.toggle('expanded')">
+                    <div class="collapsible-title">
+                        Wishlist <span class="collapsible-count">{{ wishlist_overlaps|length }} matches</span>
+                    </div>
+                    <div class="collapsible-chevron">›</div>
+                </div>
+                <div class="collapsible-content">
+                    {% for mountain in wishlist_overlaps %}
+                        <div class="mountain-group">
+                            <div class="mountain-name">{{ mountain.resort_name }}</div>
+                            {% for person in mountain.overlapping_people %}
+                                <div class="person-row">
+                                    {{ person.first_name }} {{ person.last_name }} · {{ person.rider_type or 'Rider' }} · {{ person.skill_level or 'Skill' }} · {{ person.pass_type or 'No Pass' }}
+                                </div>
+                            {% endfor %}
                         </div>
-                    </a>
-                    {% endif %}
                     {% endfor %}
                 </div>
-                <a href="{{ url_for('trip_ideas') }}" class="planning-cta">View all ideas →</a>
-            {% else %}
-                <div class="empty-state-container" style="padding-top: 20px;">
-                    <p class="empty-state-title">No trip ideas yet</p>
-                    <p class="empty-state-desc">Set your availability or add resorts to your wishlist to see suggestions.</p>
-                </div>
+            </div>
             {% endif %}
+            
+            <!-- 3) Trip Ideas -->
+            <h2 class="section-title">Trip Ideas</h2>
+            <div class="ideas-list">
+                {% if trip_ideas %}
+                    {% for idea in trip_ideas[:6] %}
+                        <div class="idea-row" 
+                             onclick='openIdeaModal({{ idea|tojson }})'>
+                            {% set n = idea.overlapping_people|length %}
+                            {{ idea.display_date }} · You and 
+                            {% if n == 1 %}
+                                {{ idea.overlapping_people[0].first_name }} {{ idea.overlapping_people[0].last_name }}
+                            {% else %}
+                                {{ n }} friends
+                            {% endif %} are free
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">No availability-based ideas yet.</div>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('trip_ideas') }}" class="planning-cta">View all ideas →</a>
+            <!-- MY_TRIPS IDEAS END -->
         </div>
 
         <div id="segment-invites" class="segment-content">
@@ -399,6 +612,16 @@
             <div style="padding: 16px; background: rgba(0,0,0,0.02); text-align: center;">
                 <a href="{{ url_for('add_trip') }}" style="display: inline-block; background: var(--bl-color-primary); color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem;">Start a trip</a>
             </div>
+        </div>
+    </div>
+
+    <!-- Context Modal (Sync with trip_ideas.html) -->
+    <div id="idea-modal" class="modal-overlay" onclick="closeIdeaModal(event)">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-handle"></div>
+            <div id="modal-header" class="modal-header"></div>
+            <div id="modal-people-list" class="modal-people-list"></div>
+            <button id="modal-cta" class="modal-cta" onclick="planTrip()">Plan this trip</button>
         </div>
     </div>
 
@@ -446,6 +669,66 @@
             window.onclick = (event) => {
                 if (event.target == modal) modal.style.display = 'none';
             };
+
+            // New Modal Logic (Sync with trip_ideas.html)
+            window.currentIdea = null;
+
+            window.openIdeaModal = function(idea) {
+                window.currentIdea = idea;
+                const overlay = document.getElementById('idea-modal');
+                const header = document.getElementById('modal-header');
+                const list = document.getElementById('modal-people-list');
+                
+                const n = idea.overlapping_people.length;
+                const names = n === 1 ? `${idea.overlapping_people[0].first_name} ${idea.overlapping_people[0].last_name}` : `${n} friends`;
+                header.innerText = `${idea.display_date} · You and ${names} are free`;
+                
+                list.innerHTML = '';
+                idea.overlapping_people.forEach(person => {
+                    const row = document.createElement('div');
+                    row.className = 'modal-person-row';
+                    row.innerHTML = `
+                        <div class="modal-person-name">${person.first_name} ${person.last_name}</div>
+                        <div class="modal-person-meta">${person.rider_type || 'Rider'} · ${person.skill_level || 'Skill'} · ${person.pass_type || 'No Pass'}</div>
+                    `;
+                    list.appendChild(row);
+                });
+                
+                overlay.style.display = 'flex';
+                setTimeout(() => overlay.classList.add('active'), 10);
+            };
+
+            window.closeIdeaModal = function(event) {
+                const overlay = document.getElementById('idea-modal');
+                overlay.classList.remove('active');
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    window.currentIdea = null;
+                }, 300);
+            };
+
+            window.planTrip = function() {
+                if (!window.currentIdea) return;
+                const baseUrl = "{{ url_for('add_trip') }}";
+                const params = new URLSearchParams({
+                    start_date: window.currentIdea.date_str,
+                    end_date: window.currentIdea.date_str
+                });
+                window.location.href = `${baseUrl}?${params.toString()}`;
+            };
+
+            // Swipe down to close simulation
+            let touchStart = 0;
+            document.querySelector('#idea-modal .modal-sheet').addEventListener('touchstart', e => {
+                touchStart = e.touches[0].clientY;
+            });
+            document.querySelector('#idea-modal .modal-sheet').addEventListener('touchmove', e => {
+                const touchMove = e.touches[0].clientY;
+                const delta = touchMove - touchStart;
+                if (delta > 100) {
+                    window.closeIdeaModal();
+                }
+            });
         });
     </script>
 </body>
