@@ -370,24 +370,29 @@
         
         <div class="info-section">
             <p class="info-section-title">Who's Going</p>
-            {% if is_accepted %}
-            <ul class="participant-list">
-                <li class="participant-item">{{ owner.first_name if owner else 'Organizer' }}</li>
-                {% for p in accepted_participants %}
-                {% if p.user %}
-                <li class="participant-item">{{ p.user.first_name }}</li>
-                {% endif %}
-                {% endfor %}
-            </ul>
+            {% if going_count == 2 %}
+                <ul class="participant-list">
+                    <li class="participant-item">{{ owner.first_name if owner else 'Organizer' }}</li>
+                    {% for p in accepted_participants %}
+                        {% if p.user %}
+                            <li class="participant-item">{{ p.user.first_name }}</li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if not is_accepted and participant.status == GuestStatus.INVITED %}
+                        <li class="participant-item" style="color: var(--bl-color-text-muted); font-style: italic;">You (invited)</li>
+                    {% endif %}
+                </ul>
+            {% elif going_count > 2 %}
+                <ul class="participant-list">
+                    <li class="participant-item">{{ owner.first_name if owner else 'Organizer' }}</li>
+                </ul>
+                <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 8px 0 0 0;">
+                    + {{ going_count - 1 }} others going
+                </p>
             {% else %}
-            <ul class="participant-list">
-                <li class="participant-item">{{ owner.first_name if owner else 'Organizer' }}</li>
-            </ul>
-            {% if accepted_participants|length > 0 %}
-            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 8px 0 0 0;">
-                + {{ accepted_participants|length }} other{% if accepted_participants|length > 1 %}s{% endif %} going
-            </p>
-            {% endif %}
+                <ul class="participant-list">
+                    <li class="participant-item">{{ owner.first_name if owner else 'Organizer' }}</li>
+                </ul>
             {% endif %}
         </div>
         
