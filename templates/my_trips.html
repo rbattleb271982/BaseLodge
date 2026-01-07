@@ -340,7 +340,7 @@
                 <div class="trips-list">
                     {% for idea in trip_ideas[:6] %}
                     <a href="{{ url_for('trip_ideas') }}" style="text-decoration: none; color: inherit;">
-                        <div class="trip-card trip-idea-row" data-friends='{{ idea.friend_names|tojson|safe }}' style="cursor: pointer;">
+                        <div class="trip-card">
                             <div class="trip-card-content">
                                 <p class="trip-card-line1">{{ idea.name }}</p>
                                 <p class="trip-card-line2">{{ idea.match_reason }}</p>
@@ -437,25 +437,7 @@
             const modal = document.getElementById('friendsModal');
             const closeBtn = document.getElementById('closeModal');
             const friendsList = document.getElementById('friendsList');
-            const rows = document.querySelectorAll('.trip-idea-row');
-
-            rows.forEach(row => {
-                row.addEventListener('click', function(e) {
-                    const friendsData = this.getAttribute('data-friends');
-                    if (friendsData) {
-                        const friends = JSON.parse(friendsData);
-                        if (friends.length > 1) {
-                            e.preventDefault();
-                            friendsList.innerHTML = friends.map(name => `
-                                <div style="padding: 12px 0; border-bottom: 1px solid var(--bl-color-border-soft); font-weight: 500;">
-                                    ${name}
-                                </div>
-                            `).join('');
-                            modal.style.display = 'flex';
-                        }
-                    }
-                });
-            });
+            // Logic removed - Trip Ideas now navigate to dedicated page
 
             closeBtn.onclick = () => modal.style.display = 'none';
             window.onclick = (event) => {
