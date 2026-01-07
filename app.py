@@ -793,90 +793,51 @@ def run_startup_diagnostics_once():
         app._diagnostics_run = True
         log_startup_diagnostics()
 
-    # @app.errorhandler(404)
-    # def not_found_error(error):
-    #     """Handle 404 Not Found errors with user-friendly template."""
-    #     return render_template("404.html"), 404
+# ============================================================================
+# ERROR HANDLERS - Must be registered at module level, not inside functions
+# ============================================================================
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handle 404 Not Found errors with user-friendly template."""
+    return render_template("404.html"), 404
 
-    @app.errorhandler(500)
-    def internal_error(error):
-        """Handle internal server errors with full traceback logging."""
-        import traceback
-        import sys
-        print("=" * 70)
-        print("🚨 INTERNAL SERVER ERROR (500)")
-        print("=" * 70)
-        print(f"Error: {error}")
-        print("Full traceback:")
-        traceback.print_exc(file=sys.stdout)
-        print("=" * 70)
-        db.session.rollback()
-        return render_template("500.html"), 500
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle internal server errors with full traceback logging."""
+    import traceback
+    import sys
+    print("=" * 70)
+    print("🚨 INTERNAL SERVER ERROR (500)")
+    print("=" * 70)
+    print(f"Error: {error}")
+    print("Full traceback:")
+    traceback.print_exc(file=sys.stdout)
+    print("=" * 70)
+    db.session.rollback()
+    return render_template("500.html"), 500
 
-    @app.errorhandler(Exception)
-    def handle_exception(e):
-        """Handle all exceptions with full traceback logging (except HTTP errors)."""
-        from werkzeug.exceptions import HTTPException
-        
-        # Don't catch HTTP errors like 404 - let them return normally
-        if isinstance(e, HTTPException):
-            if e.code == 404:
-                return render_template("404.html"), 404
-            return e
-        
-        import traceback
-        import sys
-        print("=" * 70)
-        print(f"🚨 UNHANDLED EXCEPTION: {type(e).__name__}")
-        print("=" * 70)
-        print(f"Error: {e}")
-        print("Full traceback:")
-        traceback.print_exc(file=sys.stdout)
-        print("=" * 70)
-        db.session.rollback()
-        return render_template("500.html"), 500
-    # @app.errorhandler(404)
-    # def not_found_error(error):
-    #     """Handle 404 Not Found errors with user-friendly template."""
-    #     return render_template("404.html"), 404
-
-    @app.errorhandler(500)
-    def internal_error(error):
-        """Handle internal server errors with full traceback logging."""
-        import traceback
-        import sys
-        print("=" * 70)
-        print("🚨 INTERNAL SERVER ERROR (500)")
-        print("=" * 70)
-        print(f"Error: {error}")
-        print("Full traceback:")
-        traceback.print_exc(file=sys.stdout)
-        print("=" * 70)
-        db.session.rollback()
-        return render_template("500.html"), 500
-
-    @app.errorhandler(Exception)
-    def handle_exception(e):
-        """Handle all exceptions with full traceback logging (except HTTP errors)."""
-        from werkzeug.exceptions import HTTPException
-        
-        # Don't catch HTTP errors like 404 - let them return normally
-        if isinstance(e, HTTPException):
-            if e.code == 404:
-                return render_template("404.html"), 404
-            return e
-        
-        import traceback
-        import sys
-        print("=" * 70)
-        print(f"🚨 UNHANDLED EXCEPTION: {type(e).__name__}")
-        print("=" * 70)
-        print(f"Error: {e}")
-        print("Full traceback:")
-        traceback.print_exc(file=sys.stdout)
-        print("=" * 70)
-        db.session.rollback()
-        return render_template("500.html"), 500
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handle all exceptions with full traceback logging (except HTTP errors)."""
+    from werkzeug.exceptions import HTTPException
+    
+    # Don't catch HTTP errors like 404 - let them return normally
+    if isinstance(e, HTTPException):
+        if e.code == 404:
+            return render_template("404.html"), 404
+        return e
+    
+    import traceback
+    import sys
+    print("=" * 70)
+    print(f"🚨 UNHANDLED EXCEPTION: {type(e).__name__}")
+    print("=" * 70)
+    print(f"Error: {e}")
+    print("Full traceback:")
+    traceback.print_exc(file=sys.stdout)
+    print("=" * 70)
+    db.session.rollback()
+    return render_template("500.html"), 500
 
 def get_or_create_invite_token(user):
     """Get existing valid invite token for user or create a new one.
@@ -4391,8 +4352,6 @@ def add_open_dates():
 def add_trip():
     # Single source of truth: Resort table
     resorts = get_resorts_for_trip_form()
-    # DEBUG: Force crash in /add_trip
-    # raise Exception("DEBUG CRASH")
     
     # Get canonical maps for dropdowns
     from utils.countries import COUNTRIES as CANONICAL_COUNTRIES, STATE_ABBR_MAP
