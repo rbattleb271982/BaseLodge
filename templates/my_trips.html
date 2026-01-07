@@ -56,108 +56,37 @@
             margin-top: 6px;
         }
 
-        /* Wishlist Section Styles (Sync with trip_ideas.html) */
-        .collapsible-section {
-            margin-bottom: 24px;
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: 12px;
-            overflow: hidden;
-            background: var(--bl-color-surface);
-        }
-        .collapsible-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px;
-            cursor: pointer;
-            user-select: none;
-        }
-        .collapsible-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--bl-color-text);
-        }
-        .collapsible-count {
-            font-size: 14px;
-            color: var(--bl-color-text-muted);
-            margin-left: 8px;
-            font-weight: 400;
-        }
-        .collapsible-chevron {
-            font-size: 18px;
-            color: var(--bl-color-text-muted);
-            transition: transform 0.2s ease;
-        }
-        .collapsible-content {
-            display: none;
-            padding: 0 16px 16px;
-        }
-        .collapsible-section.expanded .collapsible-content {
-            display: block;
-        }
-        .collapsible-section.expanded .collapsible-chevron {
-            transform: rotate(90deg);
-        }
-
-        .mountain-group {
-            margin-top: 16px;
-        }
-        .mountain-group:first-child {
-            margin-top: 0;
-        }
-        .mountain-name {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin-bottom: 8px;
-        }
-        .person-row {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-            padding: 4px 0;
-            border-top: 1px solid var(--bl-color-border-soft);
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        .person-row:first-of-type {
-            border-top: none;
-        }
-
-        /* Trip Ideas Section Styles (Sync with trip_ideas.html) */
         .section-title {
             font-size: 18px;
             font-weight: 700;
             color: var(--bl-color-text);
-            margin: 20px 0 12px 0;
+            margin: 32px 0 12px 0;
         }
         .ideas-list {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 4px;
         }
         .idea-row {
             font-size: 15px;
             color: var(--bl-color-text);
-            padding: 12px 0;
+            padding: 14px 0;
             border-bottom: 1px solid var(--bl-color-border-soft);
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
             word-wrap: break-word;
             overflow-wrap: break-word;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .idea-row:active {
-            opacity: 0.7;
-        }
-        .idea-row:last-child {
-            border-bottom: none;
-        }
-
-        /* Prevent Wishlist from being clickable */
-        .collapsible-section *, .mountain-group *, .person-row * {
-            cursor: default;
-        }
-        .collapsible-header, .collapsible-header * {
-            cursor: pointer !important;
+        .idea-row::after {
+            content: 'View';
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--bl-color-primary);
+            margin-left: 12px;
+            flex-shrink: 0;
         }
 
         .page-title {
@@ -192,9 +121,6 @@
             color: var(--bl-color-text);
             box-shadow: 0 1px 3px rgba(0,0,0,0.08);
         }
-        .segment-btn:hover:not(.active) {
-            color: var(--bl-color-text);
-        }
         .segment-badge {
             display: inline-flex;
             align-items: center;
@@ -221,9 +147,12 @@
             font-size: 11px;
             text-transform: uppercase;
             color: var(--bl-color-text-muted);
-            margin: 8px 0 8px 0;
+            margin: 24px 0 8px 0;
             font-weight: 600;
             letter-spacing: 0.5px;
+        }
+        .section-label:first-child {
+            margin-top: 8px;
         }
 
         .trip-card {
@@ -253,8 +182,8 @@
             font-size: 14px;
             color: var(--bl-color-text-muted);
             margin: 0;
+            line-height: 1.4;
         }
-        /* Secondary Action Consistency */
         .secondary-action {
             font-size: 0.9rem;
             font-weight: 500;
@@ -262,13 +191,6 @@
             text-decoration: none;
             -webkit-tap-highlight-color: transparent;
         }
-        .secondary-action:active {
-            opacity: 0.7;
-        }
-        .text-muted {
-            color: var(--bl-color-text-muted) !important;
-        }
-
         .trip-card-action {
             flex-shrink: 0;
             margin-left: 12px;
@@ -276,101 +198,58 @@
             color: var(--bl-color-primary);
             font-weight: 500;
         }
-        
-        /* Vertical Rhythm & Spacing */
-        .section-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            color: var(--bl-color-text-muted);
-            margin: 24px 0 8px 0;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-        .section-label:first-child {
-            margin-top: 8px;
-        }
-        .section-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--bl-color-text);
-            margin: 32px 0 12px 0;
-        }
-        
-        .ideas-list {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        
+
         .empty-state-container {
             text-align: center;
             padding: 48px 20px;
         }
-        
-        /* Hierarchy & De-emphasis */
-        .trip-card-line2 {
-            font-size: 14px;
+        .empty-state-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 8px 0;
+        }
+        .empty-state-desc {
+            font-size: 0.95rem;
             color: var(--bl-color-text-muted);
             margin: 0;
-            line-height: 1.4;
         }
-        
-        .idea-row {
-            font-size: 15px;
-            color: var(--bl-color-text);
-            padding: 14px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .idea-row::after {
-            content: 'View';
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: var(--bl-color-primary);
-            margin-left: 12px;
-            flex-shrink: 0;
+        .inline-empty-message {
+            font-size: 0.95rem;
+            color: var(--bl-color-text-muted);
+            padding: 12px 0;
         }
 
-        /* Reusable Bottom Sheet Modal */
-        .bl-modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            align-items: flex-end;
-            justify-content: center;
-            z-index: 3000;
-            opacity: 0;
-            transition: opacity 0.2s ease;
+        /* Modal Global CSS */
+        .base-lodge-modal-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.35);
+          z-index: 999;
         }
-        .bl-modal-overlay.active {
-            display: flex;
-            opacity: 1;
+
+        .base-lodge-modal {
+          position: fixed;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          max-height: 85vh;
+          background: #fff;
+          z-index: 1000;
+          overflow: hidden;
+          border-radius: 20px 20px 0 0;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
         }
-        .bl-modal-sheet {
-            width: 100%;
-            max-width: 500px;
-            background: var(--bl-color-background);
-            border-radius: 20px 20px 0 0;
-            transform: translateY(100%);
-            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-            padding-bottom: env(safe-area-inset-bottom, 20px);
-            display: flex;
-            flex-direction: column;
-            max-height: 90vh;
+
+        .base-lodge-modal-body {
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          flex: 1;
+          padding: 0 20px 20px;
         }
-        .bl-modal-overlay.active .bl-modal-sheet {
-            transform: translateY(0);
-        }
+
         .bl-modal-handle-container {
             padding: 12px 0 8px;
             cursor: grab;
@@ -386,26 +265,13 @@
             padding: 0 20px 16px;
             text-align: center;
         }
-        .bl-modal-body {
-            padding: 0 20px 20px;
-            overflow-y: auto;
-            flex: 1;
-        }
         .bl-modal-footer {
             padding: 0 20px 20px;
-        }
-        body.modal-open {
-            overflow: hidden;
-            touch-action: none;
         }
         .bl-modal-title {
             font-size: 16px;
             font-weight: 600;
             color: var(--bl-color-text);
-        }
-        .bl-modal-people-list {
-            max-height: 300px;
-            overflow-y: auto;
         }
         .bl-modal-person-row {
             padding: 12px 0;
@@ -438,9 +304,6 @@
         .bl-modal-mountain-group {
             margin-bottom: 16px;
         }
-        .bl-modal-mountain-group:last-child {
-            margin-bottom: 0;
-        }
         .bl-modal-mountain-name {
             font-size: 15px;
             font-weight: 600;
@@ -459,9 +322,6 @@
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
         }
-        .wishlist-card:active {
-            opacity: 0.7;
-        }
         .wishlist-card-row {
             display: flex;
             justify-content: space-between;
@@ -472,11 +332,6 @@
             font-weight: 500;
             color: var(--bl-color-text);
             margin: 0;
-        }
-        .wishlist-card-action {
-            font-size: 0.9rem;
-            color: var(--bl-color-primary);
-            font-weight: 500;
         }
 
         .new-trip-card {
@@ -491,9 +346,6 @@
             cursor: pointer;
             transition: background 0.15s;
         }
-        .new-trip-card:hover {
-            background: rgba(0, 0, 0, 0.02);
-        }
         .new-trip-card-title {
             font-size: 15px;
             font-weight: 600;
@@ -504,15 +356,6 @@
             font-size: 14px;
             color: var(--bl-color-text-muted);
             margin: 0;
-        }
-        .new-trip-card.compact {
-            padding: 10px 16px;
-        }
-        .new-trip-card.compact .new-trip-card-title {
-            margin: 0;
-        }
-        .new-trip-card.compact .new-trip-card-subtext {
-            display: none;
         }
     </style>
 </head>
@@ -530,12 +373,6 @@
             </div>
             <span class="compact-profile-chevron">›</span>
         </a>
-        {% endif %}
-
-        {% if show_connected_banner %}
-        <div style="background: #E8F5E9; color: #2E7D32; padding: 12px; border-radius: var(--bl-radius-md); margin-bottom: 16px; font-weight: 600; text-align: center;">
-            You're now connected
-        </div>
         {% endif %}
 
         <h1 class="page-title">My Trips</h1>
@@ -590,59 +427,43 @@
         </div>
 
         <div id="segment-ideas" class="segment-content">
-            <!-- MY_TRIPS IDEAS START -->
             <p class="section-label">My Availability</p>
-            
-            <div class="planning-card" style="background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; padding: 12px 16px; margin-bottom: 8px;">
-                <div class="planning-card-row" style="display: flex; justify-content: space-between; align-items: center;">
-                    <p class="planning-card-text" style="font-size: 0.95rem; font-weight: 500; color: var(--bl-color-text); margin: 0;">
+            <div class="wishlist-card" style="margin-bottom: 8px; cursor: default;">
+                <div class="wishlist-card-row">
+                    <p class="wishlist-card-text">
                         Open availability · {% if user_open_dates and user_open_dates|length > 0 %}{{ user_open_dates|length }} day{% if user_open_dates|length != 1 %}s{% endif %}{% else %}0 days{% endif %}
                     </p>
                     <a href="{{ url_for('add_open_dates') }}" class="secondary-action">Edit</a>
                 </div>
             </div>
 
-            <!-- 2) Wishlist Section -->
             {% if wishlist_overlaps and wishlist_overlaps|length > 0 %}
-                {# STATE A: Wishlist mountains exist AND overlaps exist #}
                 <div class="wishlist-card" onclick='openWishlistModal({{ wishlist_overlaps|tojson }})'>
                     <div class="wishlist-card-row">
-                        <p class="wishlist-card-text">
-                            Wishlist · {{ wishlist_overlaps|length }} match{% if wishlist_overlaps|length != 1 %}es{% endif %}
-                        </p>
+                        <p class="wishlist-card-text">Wishlist · {{ wishlist_overlaps|length }} match{% if wishlist_overlaps|length != 1 %}es{% endif %}</p>
                         <span class="secondary-action">View</span>
                     </div>
                 </div>
             {% elif not user.wishlist_mountains %}
-                {# STATE C: User has NO wishlist mountains at all #}
                 <a href="{{ url_for('profile') }}" class="wishlist-card" style="text-decoration: none;">
                     <div class="wishlist-card-row">
                         <div style="flex: 1;">
                             <p class="wishlist-card-text">Wishlist</p>
-                            <p class="text-muted" style="font-size: 0.85rem; margin: 4px 0 0 0;">Add mountains you want to ski to find matches →</p>
+                            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">Add mountains you want to ski to find matches →</p>
                         </div>
                     </div>
                 </a>
             {% endif %}
-            {# STATE B: User has wishlist mountains BUT NO overlaps (Render NOTHING) #}
             
-            <!-- 3) Trip Ideas -->
             <h2 class="section-title">Trip Ideas</h2>
             <div class="ideas-list">
                 {% if trip_ideas %}
                     {% for idea in trip_ideas[:6] %}
-                        <div class="idea-row" 
-                             onclick='openIdeaModal({{ idea|tojson }})'>
+                        <div class="idea-row" onclick='openIdeaModal({{ idea|tojson }})'>
                             <div style="flex: 1; min-width: 0;">
-                                {% set n = idea.overlapping_people|length %}
                                 <div style="font-weight: 600; margin-bottom: 2px;">{{ idea.display_date }}</div>
-                                <div class="text-muted" style="font-size: 0.85rem;">
-                                    You and 
-                                    {% if n == 1 %}
-                                        {{ idea.overlapping_people[0].first_name }}
-                                    {% else %}
-                                        {{ n }} friends
-                                    {% endif %} are free
+                                <div style="font-size: 0.85rem; color: var(--bl-color-text-muted);">
+                                    You and {% if idea.overlapping_people|length == 1 %}{{ idea.overlapping_people[0].first_name }}{% else %}{{ idea.overlapping_people|length }} friends{% endif %} are free
                                 </div>
                             </div>
                         </div>
@@ -651,7 +472,6 @@
                     <div class="inline-empty-message">No shared availability yet. Add more dates.</div>
                 {% endif %}
             </div>
-            <!-- MY_TRIPS IDEAS END -->
         </div>
 
         <div id="segment-invites" class="segment-content">
@@ -663,7 +483,7 @@
                     <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
                         <div class="trip-card">
                             <div class="trip-card-content">
-                                <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}, {{ trip.resort.state_code or trip.resort.state }}{% elif trip.mountain %}{{ trip.mountain }}, {{ trip.state }}{% else %}Resort TBD{% endif %}</p>
+                                <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% else %}{{ trip.mountain }}{% endif %}</p>
                                 <p class="trip-card-line2"><span style="color: var(--bl-color-text); font-weight: 600;">{{ trip.user.first_name if trip.user else 'Someone' }}</span> invited you · {{ format_trip_dates(trip) }}</p>
                             </div>
                             <span class="secondary-action">View</span>
@@ -681,229 +501,134 @@
         </div>
     </div>
 
-    <div id="friendsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
-        <div style="background: var(--bl-color-surface); width: 90%; max-width: 400px; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-            <div style="padding: 16px; border-bottom: 1px solid var(--bl-color-border-soft); display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700;">Who's interested</h3>
-                <button id="closeModal" style="background: none; border: none; font-size: 1.5rem; color: var(--bl-color-text-muted); cursor: pointer; padding: 0 4px;">&times;</button>
-            </div>
-            <div id="friendsList" style="padding: 0 16px; max-height: 300px; overflow-y: auto;">
-                <!-- Friends list injected here -->
-            </div>
-            <div style="padding: 16px; background: rgba(0,0,0,0.02); text-align: center;">
-                <a href="{{ url_for('add_trip') }}" style="display: inline-block; background: var(--bl-color-primary); color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem;">Start a trip</a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Reusable Generic Modal -->
-    <div id="bl-generic-modal" class="bl-modal-overlay" onclick="BaseLodgeModal.close()">
-        <div class="bl-modal-sheet" onclick="event.stopPropagation()">
-            <div class="bl-modal-handle-container">
-                <div class="bl-modal-handle"></div>
-            </div>
-            <div id="bl-modal-header-slot" class="bl-modal-header"></div>
-            <div id="bl-modal-body-slot" class="bl-modal-body"></div>
-            <div id="bl-modal-footer-slot" class="bl-modal-footer"></div>
-        </div>
-    </div>
-
+    <div id="base-lodge-modal-root"></div>
     {% include 'components/bottom_nav.html' %}
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const segmentBtns = document.querySelectorAll('.segment-btn');
-            const segmentContents = document.querySelectorAll('.segment-content');
-            
             const STORAGE_KEY = 'my_trips_active_tab';
-            
+            const segmentBtns = document.querySelectorAll('.segment-btn');
+            const contents = document.querySelectorAll('.segment-content');
+
             function selectTab(tabName, shouldPersist = true) {
-                segmentBtns.forEach(function(b) { b.classList.remove('active'); });
-                segmentContents.forEach(function(c) { c.classList.remove('active'); });
-                
-                const btn = document.querySelector('.segment-btn[data-segment="' + tabName + '"]');
+                segmentBtns.forEach(b => b.classList.remove('active'));
+                contents.forEach(c => b = c.classList.remove('active'));
+                const btn = document.querySelector(`[data-segment="${tabName}"]`);
                 const content = document.getElementById('segment-' + tabName);
-                
                 if (btn && content) {
                     btn.classList.add('active');
                     content.classList.add('active');
-                    if (shouldPersist) {
-                        sessionStorage.setItem(STORAGE_KEY, tabName);
-                    }
+                    if (shouldPersist) sessionStorage.setItem(STORAGE_KEY, tabName);
                 }
             }
-            
-            segmentBtns.forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    const segment = this.getAttribute('data-segment');
-                    selectTab(segment);
-                });
-            });
-            
+
+            segmentBtns.forEach(btn => btn.addEventListener('click', function() {
+                selectTab(this.getAttribute('data-segment'));
+            }));
+
             const savedTab = sessionStorage.getItem(STORAGE_KEY);
-            var urlParams = new URLSearchParams(window.location.search);
-            var tab = urlParams.get('tab');
+            let tab = new URLSearchParams(window.location.search).get('tab');
             if (tab === 'planning') tab = 'ideas';
-            
-            if (tab === 'ideas' || tab === 'invites') {
-                selectTab(tab);
-            } else if (savedTab && ['upcoming', 'ideas', 'invites'].includes(savedTab)) {
-                selectTab(savedTab, false);
-            }
+            if (tab === 'ideas' || tab === 'invites') selectTab(tab);
+            else if (savedTab) selectTab(savedTab, false);
 
-            // Modal logic
-            const modal = document.getElementById('friendsModal');
-            const closeBtn = document.getElementById('closeModal');
-            const friendsList = document.getElementById('friendsList');
-            // Logic removed - Trip Ideas now navigate to dedicated page
-
-            closeBtn.onclick = () => modal.style.display = 'none';
-            window.onclick = (event) => {
-                if (event.target == modal) modal.style.display = 'none';
-            };
-
-            // Reusable BaseLodgeModal System (must be defined before usage)
             window.BaseLodgeModal = {
-                overlay: document.getElementById('bl-generic-modal'),
-                sheet: document.querySelector('#bl-generic-modal .bl-modal-sheet'),
-                header: document.getElementById('bl-modal-header-slot'),
-                body: document.getElementById('bl-modal-body-slot'),
-                footer: document.getElementById('bl-modal-footer-slot'),
-                lastFocusedElement: null,
+                root: document.getElementById('base-lodge-modal-root'),
+                isOpen: false,
+                startY: 0,
+                currentY: 0,
+                isDragging: false,
 
-                open: function(options = {}) {
-                    this.lastFocusedElement = document.activeElement;
-                    this.header.innerHTML = options.header || '';
-                    this.body.innerHTML = options.body || '';
-                    this.footer.innerHTML = options.footer || '';
-                    
-                    this.overlay.style.display = 'flex';
-                    document.body.classList.add('modal-open');
-                    
-                    requestAnimationFrame(() => {
-                        this.overlay.classList.add('active');
-                    });
-
-                    const focusable = this.sheet.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-                    if (focusable.length) focusable[0].focus();
-                },
-
-                close: function() {
-                    this.overlay.classList.remove('active');
-                    setTimeout(() => {
-                        this.overlay.style.display = 'none';
-                        document.body.classList.remove('modal-open');
-                        if (this.lastFocusedElement) this.lastFocusedElement.focus();
-                    }, 300);
-                }
-            };
-
-            // Global Esc to close
-            window.addEventListener('keydown', e => {
-                if (e.key === 'Escape' && BaseLodgeModal.overlay.classList.contains('active')) {
-                    BaseLodgeModal.close();
-                }
-            });
-
-            // Swipe to close for generic modal
-            let modalTouchStart = 0;
-            BaseLodgeModal.sheet.addEventListener('touchstart', e => {
-                modalTouchStart = e.touches[0].clientY;
-            }, { passive: true });
-            
-            BaseLodgeModal.sheet.addEventListener('touchmove', e => {
-                const touchMove = e.touches[0].clientY;
-                const delta = touchMove - modalTouchStart;
-                if (delta > 100) {
-                    BaseLodgeModal.close();
-                }
-            }, { passive: true });
-
-            // Trip Ideas Modal Logic (using BaseLodgeModal)
-            window.currentIdea = null;
-
-            window.openIdeaModal = function(idea) {
-                if (!idea || !idea.overlapping_people || idea.overlapping_people.length === 0) {
-                    return;
-                }
-                
-                window.currentIdea = idea;
-                
-                const n = idea.overlapping_people.length;
-                const names = n === 1 
-                    ? `${idea.overlapping_people[0].first_name} ${idea.overlapping_people[0].last_name}` 
-                    : `${n} friends`;
-                const headerText = `${idea.display_date} · You and ${names} are free`;
-                
-                let bodyHtml = '<div class="bl-modal-people-list">';
-                idea.overlapping_people.forEach(person => {
-                    bodyHtml += `
-                        <div class="bl-modal-person-row">
-                            <div class="bl-modal-person-name">${person.first_name} ${person.last_name}</div>
-                            <div class="bl-modal-person-meta">${person.rider_type || 'Rider'} · ${person.skill_level || 'Skill'} · ${person.pass_type || 'No Pass'}</div>
+                open: function(config) {
+                    this.root.innerHTML = `
+                        <div class="base-lodge-modal-backdrop" onclick="BaseLodgeModal.close()"></div>
+                        <div class="base-lodge-modal">
+                            <div class="bl-modal-handle-container" onmousedown="BaseLodgeModal.startDrag(event)" ontouchstart="BaseLodgeModal.startDrag(event)">
+                                <div class="bl-modal-handle"></div>
+                            </div>
+                            <div class="bl-modal-header">${config.header || ''}</div>
+                            <div class="bl-modal-body base-lodge-modal-body">${config.body || ''}</div>
+                            <div class="bl-modal-footer">${config.footer || ''}</div>
                         </div>
                     `;
+                    document.body.style.overflow = 'hidden';
+                    this.isOpen = true;
+                    if (!this._escListener) {
+                        this._escListener = (e) => { if (e.key === 'Escape' && this.isOpen) this.close(); };
+                        window.addEventListener('keydown', this._escListener);
+                    }
+                },
+                close: function() {
+                    this.root.innerHTML = '';
+                    document.body.style.overflow = '';
+                    this.isOpen = false;
+                },
+                startDrag: function(e) {
+                    this.isDragging = true;
+                    this.startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+                    const onDrag = (e) => this.drag(e);
+                    const onEnd = () => {
+                        this.endDrag();
+                        document.removeEventListener('mousemove', onDrag);
+                        document.removeEventListener('touchmove', onDrag);
+                        document.removeEventListener('mouseup', onEnd);
+                        document.removeEventListener('touchend', onEnd);
+                    };
+                    document.addEventListener('mousemove', onDrag);
+                    document.addEventListener('touchmove', onDrag, { passive: false });
+                    document.addEventListener('mouseup', onEnd);
+                    document.addEventListener('touchend', onEnd);
+                },
+                drag: function(e) {
+                    if (!this.isDragging) return;
+                    if (e.type === 'touchmove') e.preventDefault();
+                    const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+                    const deltaY = clientY - this.startY;
+                    if (deltaY > 0) {
+                        const sheet = this.root.querySelector('.base-lodge-modal');
+                        if (sheet) { sheet.style.transform = `translateY(${deltaY}px)`; this.currentY = deltaY; }
+                    }
+                },
+                endDrag: function() {
+                    this.isDragging = false;
+                    if (this.currentY > 100) this.close();
+                    else { const sheet = this.root.querySelector('.base-lodge-modal'); if (sheet) sheet.style.transform = 'translateY(0)'; }
+                    this.currentY = 0;
+                }
+            };
+
+            window.openIdeaModal = function(idea) {
+                if (!idea) return;
+                window.currentIdea = idea;
+                let bodyHtml = '<div class="bl-modal-people-list">';
+                idea.overlapping_people.forEach(p => {
+                    bodyHtml += `<div class="bl-modal-person-row"><div class="bl-modal-person-name">${p.first_name} ${p.last_name}</div><div class="bl-modal-person-meta">${p.rider_type || 'Rider'} · ${p.skill_level || 'Skill'} · ${p.pass_type || 'No Pass'}</div></div>`;
                 });
                 bodyHtml += '</div>';
-                
-                const footerHtml = `<button class="bl-modal-cta" onclick="planTrip()">Plan this trip</button>`;
-                
                 BaseLodgeModal.open({
-                    header: `<div class="bl-modal-title">${headerText}</div>`,
+                    header: `<div class="bl-modal-title">Trip to ${idea.resort_name}</div>`,
                     body: bodyHtml,
-                    footer: footerHtml
+                    footer: `<button class="bl-modal-cta" onclick="planTrip()">Plan this trip</button>`
                 });
             };
 
             window.planTrip = function() {
                 if (!window.currentIdea) return;
                 BaseLodgeModal.close();
-                const baseUrl = "{{ url_for('add_trip') }}";
-                const params = new URLSearchParams({
-                    start_date: window.currentIdea.date_str,
-                    end_date: window.currentIdea.date_str
-                });
-                window.location.href = `${baseUrl}?${params.toString()}`;
+                window.location.href = `{{ url_for('add_trip') }}?start_date=${window.currentIdea.date_str}&end_date=${window.currentIdea.date_str}`;
             };
 
-            // Wishlist Modal Logic (discovery only, no CTA)
-            window.openWishlistModal = function(wishlistOverlaps) {
-                if (!wishlistOverlaps || wishlistOverlaps.length === 0) {
-                    return;
-                }
-                
+            window.openWishlistModal = function(overlaps) {
                 let bodyHtml = '';
-                wishlistOverlaps.forEach(mountain => {
-                    if (!mountain.overlapping_people || mountain.overlapping_people.length === 0) {
-                        return;
-                    }
-                    
-                    const locationParts = [mountain.resort_name];
-                    if (mountain.state) locationParts.push(mountain.state);
-                    else if (mountain.country) locationParts.push(mountain.country);
-                    const locationText = locationParts.join(', ');
-                    
-                    bodyHtml += `<div class="bl-modal-mountain-group">`;
-                    bodyHtml += `<div class="bl-modal-mountain-name">${locationText}</div>`;
-                    bodyHtml += `<div class="bl-modal-people-list">`;
-                    
-                    mountain.overlapping_people.forEach(person => {
-                        bodyHtml += `
-                            <div class="bl-modal-person-row">
-                                <div class="bl-modal-person-name">${person.first_name} ${person.last_name}</div>
-                                <div class="bl-modal-person-meta">${person.rider_type || 'Rider'} · ${person.skill_level || 'Skill'} · ${person.pass_type || 'No Pass'}</div>
-                            </div>
-                        `;
+                overlaps.forEach(m => {
+                    if (!m.overlapping_people || !m.overlapping_people.length) return;
+                    bodyHtml += `<div class="bl-modal-mountain-group"><div class="bl-modal-mountain-name">${m.resort_name}${m.state ? ', ' + m.state : (m.country ? ', ' + m.country : '')}</div><div class="bl-modal-people-list">`;
+                    m.overlapping_people.forEach(p => {
+                        bodyHtml += `<div class="bl-modal-person-row"><div class="bl-modal-person-name">${p.first_name} ${p.last_name}</div><div class="bl-modal-person-meta">${p.rider_type || 'Rider'} · ${p.skill_level || 'Skill'} · ${p.pass_type || 'No Pass'}</div></div>`;
                     });
-                    
                     bodyHtml += `</div></div>`;
                 });
-                
-                BaseLodgeModal.open({
-                    header: `<div class="bl-modal-title">Wishlist matches</div>`,
-                    body: bodyHtml,
-                    footer: ''
-                });
+                BaseLodgeModal.open({ header: `<div class="bl-modal-title">Wishlist matches</div>`, body: bodyHtml });
             };
         });
     </script>
