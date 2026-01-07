@@ -359,29 +359,31 @@
                 </div>
             </div>
             
-            {% if not user_open_dates or user_open_dates|length == 0 %}
-            <a href="{{ url_for('add_open_dates') }}" class="new-trip-card" style="margin-top: 12px;">
-                <p class="new-trip-card-title" style="color: var(--bl-color-text);">Set your availability to see trip ideas</p>
-                <p class="new-trip-card-subtext">Add the days you’re free and we’ll suggest trips that fit your schedule.</p>
-            </a>
-            {% else %}
+            {% if user_open_dates and user_open_dates|length > 0 %}
             <p class="section-label" style="margin-top: 20px;">Trip Ideas</p>
-            <div class="trip-ideas-scroll" style="overflow-x: auto; white-space: nowrap; padding-bottom: 8px; -webkit-overflow-scrolling: touch;">
+            <div class="trip-ideas-list">
                 {% if trip_ideas and trip_ideas|length > 0 %}
                 {% for idea in trip_ideas[:6] %}
-                <div class="trip-idea-card" style="display: inline-block; width: 200px; margin-right: 12px; white-space: normal; vertical-align: top; background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; padding: 12px;">
-                    <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 4px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ idea.name }}</p>
-                    <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0 0 8px 0;">{{ idea.state or '' }}{% if idea.country and idea.country != 'USA' %}, {{ idea.country }}{% endif %}</p>
-                    {% if idea.match_reason %}
-                    <span style="font-size: 0.75rem; background: rgba(143, 1, 27, 0.1); color: var(--bl-color-primary); padding: 2px 8px; border-radius: 4px;">{{ idea.match_reason }}</span>
-                    {% endif %}
+                <div class="trip-card">
+                    <div class="trip-card-content">
+                        <p class="trip-card-line1">{{ idea.name }}</p>
+                        <p class="trip-card-line2">{{ idea.state or '' }}{% if idea.country and idea.country != 'USA' %}, {{ idea.country }}{% endif %}</p>
+                        {% if idea.match_reason %}
+                        <span style="font-size: 0.75rem; background: rgba(143, 1, 27, 0.1); color: var(--bl-color-primary); padding: 2px 8px; border-radius: 4px; display: inline-block; margin-top: 4px;">{{ idea.match_reason }}</span>
+                        {% endif %}
+                    </div>
                 </div>
                 {% endfor %}
                 {% else %}
-                <p style="font-size: 0.9rem; color: var(--bl-color-text-muted);">No trip ideas available yet. Add more availability or connect with friends to see suggestions.</p>
+                <p style="font-size: 0.9rem; color: var(--bl-color-text-muted);">No trip ideas available yet. Connect with friends to see suggestions.</p>
                 {% endif %}
             </div>
             <a href="{{ url_for('trip_ideas') }}" class="planning-cta" style="margin-top: 12px;">See all trip ideas →</a>
+            {% else %}
+            <a href="{{ url_for('add_open_dates') }}" class="new-trip-card" style="margin-top: 12px;">
+                <p class="new-trip-card-title" style="color: var(--bl-color-text);">Set your availability to see trip ideas</p>
+                <p class="new-trip-card-subtext">Add the days you're free and we'll suggest trips that fit your schedule.</p>
+            </a>
             {% endif %}
         </div>
 
