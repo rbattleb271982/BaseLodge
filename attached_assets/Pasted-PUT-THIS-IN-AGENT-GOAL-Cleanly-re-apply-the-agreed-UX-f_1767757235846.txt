@@ -1,0 +1,106 @@
+PUT THIS IN AGENT
+
+GOAL:
+Cleanly re-apply the agreed UX for the Invited Trip Detail page. This is NOT a regression investigation. This is an intentional UI cleanup to remove duplicate information and restore the correct invite decision flow.
+
+PAGE PURPOSE:
+This page exists only to:
+1) Review the invited trip at a glance
+2) Decide to Accept or Decline
+
+Do not add explanatory copy.
+
+--------------------------------
+REMOVE DUPLICATE / REDUNDANT INFO
+--------------------------------
+
+REMOVE entirely:
+- The banner text: “Terry invited you to this trip”
+- Any duplicate date display (dates should appear ONCE only)
+- Any duplicate rendering of the inviter’s name
+- Any explanatory copy describing that this is an invite
+
+--------------------------------
+HEADER (TOP OF PAGE)
+--------------------------------
+
+The header should contain ONLY:
+- Resort name
+- Date range
+- People count
+
+Example:
+Aspen Mountain
+Jan 19–23 · 2 people going
+
+This is the single source of truth for dates.
+
+--------------------------------
+TRIP DETAILS CARD
+--------------------------------
+
+Keep the Trip Details card, but ensure:
+- It shows ONLY the destination in the format:
+  “Aspen Mountain, CO”
+- Dates must NOT be repeated here if already shown in the header
+
+--------------------------------
+WHO’S GOING SECTION
+--------------------------------
+
+Rules:
+- Render one row per UNIQUE person only
+- No duplicate names
+- Inviter appears once
+- Invitee appears once, labeled as:
+  “You (invited)”
+- Do NOT display invitation status text anywhere else
+- Do NOT repeat participant counts here
+
+--------------------------------
+YOUR TRIP DETAILS SECTION
+--------------------------------
+
+Before acceptance:
+- Show placeholder text only:
+  “Accept the invite to add your trip details”
+- No inputs enabled
+
+--------------------------------
+FLOATING ACCEPT / DECLINE (CRITICAL)
+--------------------------------
+
+Accept / Decline must be implemented as a STICKY / FLOATING ACTION BAR.
+
+Requirements:
+- Fixed to the bottom of the screen
+- Always visible while scrolling
+- Not part of the scrollable content
+- Contains ONLY:
+  Primary button: “Accept invite”
+  Secondary button: “Decline”
+
+Rules:
+- Do NOT render Accept / Decline inline anywhere
+- Do NOT duplicate these buttons elsewhere
+- Buttons disappear only AFTER a decision is made
+
+--------------------------------
+CONSTRAINTS
+--------------------------------
+
+- Do NOT change backend models
+- Do NOT change invite state logic
+- Do NOT redesign the page
+- Do NOT add new copy
+- UI + rendering cleanup only
+
+--------------------------------
+FINAL VALIDATION
+--------------------------------
+
+After implementation:
+- Dates appear once
+- Each person appears once
+- No invite narration text exists
+- Accept / Decline is always visible without scrolling
