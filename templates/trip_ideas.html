@@ -248,34 +248,28 @@
         <!-- Based on instructions, we are building the page structure here -->
 
         <!-- 2) Wishlist (Collapsible) -->
+        {% if wishlist_overlaps %}
         <div class="collapsible-section" id="wishlist-section">
             <div class="collapsible-header" onclick="document.getElementById('wishlist-section').classList.toggle('expanded')">
                 <div class="collapsible-title">
-                    Wishlist <span class="collapsible-count">{{ wishlist_count }} matches</span>
+                    Wishlist <span class="collapsible-count">{{ wishlist_overlaps|length }} matches</span>
                 </div>
                 <div class="collapsible-chevron">›</div>
             </div>
             <div class="collapsible-content">
-                {% if wishlist_overlaps %}
-                    {% for mountain in wishlist_overlaps %}
-                        <div class="mountain-group">
-                            <div class="mountain-name">{{ mountain.resort_name }}</div>
-                            {% for person in mountain.overlapping_people %}
-                                <div class="person-row">
-                                    {{ person.first_name }} {{ person.last_name }} · {{ person.rider_type or 'Rider' }} · {{ person.skill_level or 'Skill' }} · {{ person.pass_type or 'No Pass' }}
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state">
-                        No wishlist matches yet. Invite friends to see overlaps.
-                        <br>
-                        <a href="{{ url_for('invite_friends') }}" class="invite-cta">Invite friends</a>
+                {% for mountain in wishlist_overlaps %}
+                    <div class="mountain-group">
+                        <div class="mountain-name">{{ mountain.resort_name }}</div>
+                        {% for person in mountain.overlapping_people %}
+                            <div class="person-row">
+                                {{ person.first_name }} {{ person.last_name }} · {{ person.rider_type or 'Rider' }} · {{ person.skill_level or 'Skill' }} · {{ person.pass_type or 'No Pass' }}
+                            </div>
+                        {% endfor %}
                     </div>
-                {% endif %}
+                {% endfor %}
             </div>
         </div>
+        {% endif %}
 
         <!-- 3) Trip Ideas -->
         <h2 class="section-title">Trip Ideas</h2>
