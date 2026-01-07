@@ -415,6 +415,49 @@
             font-weight: 600;
             cursor: pointer;
         }
+        .bl-modal-mountain-group {
+            margin-bottom: 16px;
+        }
+        .bl-modal-mountain-group:last-child {
+            margin-bottom: 0;
+        }
+        .bl-modal-mountain-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+
+        .wishlist-card {
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .wishlist-card:active {
+            opacity: 0.7;
+        }
+        .wishlist-card-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .wishlist-card-text {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            margin: 0;
+        }
+        .wishlist-card-action {
+            font-size: 0.9rem;
+            color: var(--bl-color-primary);
+            font-weight: 500;
+        }
 
         .new-trip-card {
             display: block;
@@ -539,26 +582,14 @@
                 </div>
             </div>
 
-            <!-- 2) Wishlist (Collapsible) -->
-            {% if wishlist_overlaps %}
-            <div class="collapsible-section" id="wishlist-section">
-                <div class="collapsible-header" onclick="document.getElementById('wishlist-section').classList.toggle('expanded')">
-                    <div class="collapsible-title">
-                        Wishlist <span class="collapsible-count">{{ wishlist_overlaps|length }} matches</span>
-                    </div>
-                    <div class="collapsible-chevron">›</div>
-                </div>
-                <div class="collapsible-content">
-                    {% for mountain in wishlist_overlaps %}
-                        <div class="mountain-group">
-                            <div class="mountain-name">{{ mountain.resort_name }}</div>
-                            {% for person in mountain.overlapping_people %}
-                                <div class="person-row">
-                                    {{ person.first_name }} {{ person.last_name }} · {{ person.rider_type or 'Rider' }} · {{ person.skill_level or 'Skill' }} · {{ person.pass_type or 'No Pass' }}
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% endfor %}
+            <!-- 2) Wishlist (Tappable Modal Trigger) -->
+            {% if wishlist_overlaps and wishlist_overlaps|length > 0 %}
+            <div class="wishlist-card" onclick='openWishlistModal({{ wishlist_overlaps|tojson }})'>
+                <div class="wishlist-card-row">
+                    <p class="wishlist-card-text">
+                        Wishlist · {{ wishlist_overlaps|length }} match{% if wishlist_overlaps|length != 1 %}es{% endif %}
+                    </p>
+                    <span class="wishlist-card-action">View</span>
                 </div>
             </div>
             {% endif %}
@@ -795,6 +826,46 @@
                     end_date: window.currentIdea.date_str
                 });
                 window.location.href = `${baseUrl}?${params.toString()}`;
+            };
+
+            // Wishlist Modal Logic (discovery only, no CTA)
+            window.openWishlistModal = function(wishlistOverlaps) {
+                if (!wishlistOverlaps || wishlistOverlaps.length === 0) {
+                    return;
+                }
+                
+                let bodyHtml = '';
+                wishlistOverlaps.forEach(mountain => {
+                    if (!mountain.overlapping_people || mountain.overlapping_people.length === 0) {
+                        return;
+                    }
+                    
+                    const locationParts = [mountain.resort_name];
+                    if (mountain.state) locationParts.push(mountain.state);
+                    else if (mountain.country) locationParts.push(mountain.country);
+                    const locationText = locationParts.join(', ');
+                    
+                    bodyHtml += `<div class="bl-modal-mountain-group">`;
+                    bodyHtml += `<div class="bl-modal-mountain-name">${locationText}</div>`;
+                    bodyHtml += `<div class="bl-modal-people-list">`;
+                    
+                    mountain.overlapping_people.forEach(person => {
+                        bodyHtml += `
+                            <div class="bl-modal-person-row">
+                                <div class="bl-modal-person-name">${person.first_name} ${person.last_name}</div>
+                                <div class="bl-modal-person-meta">${person.rider_type || 'Rider'} · ${person.skill_level || 'Skill'} · ${person.pass_type || 'No Pass'}</div>
+                            </div>
+                        `;
+                    });
+                    
+                    bodyHtml += `</div></div>`;
+                });
+                
+                BaseLodgeModal.open({
+                    header: `<div class="bl-modal-title">Wishlist matches</div>`,
+                    body: bodyHtml,
+                    footer: ''
+                });
             };
         });
     </script>
