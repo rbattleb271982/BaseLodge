@@ -102,11 +102,19 @@
             {% for idea in trip_ideas %}
             <div class="idea-card">
                 <div class="idea-content">
+                    {% if idea.type == 'wishlist' %}
+                    <p class="idea-line1">{{ idea.destination }}</p>
+                    {% else %}
                     <p class="idea-line1">{{ idea.date_range }}{% if idea.destination %} · {{ idea.destination }}{% endif %}</p>
+                    {% endif %}
                     <p class="idea-line2">{{ idea.social_context }}</p>
                 </div>
                 <div class="idea-action">
+                    {% if idea.type == 'wishlist' %}
+                    <a href="{{ url_for('add_trip') }}{% if idea.resort_id %}?resort_id={{ idea.resort_id }}{% endif %}">Start →</a>
+                    {% else %}
                     <a href="{{ url_for('add_trip') }}?start_date={{ idea.start_date_str }}&end_date={{ idea.end_date_str }}{% if idea.resort_id %}&resort_id={{ idea.resort_id }}{% endif %}">Start →</a>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
