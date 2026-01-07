@@ -302,15 +302,22 @@
             cursor: pointer;
         }
         .bl-modal-mountain-group {
-            margin-bottom: 16px;
+            margin-bottom: 20px;
+        }
+        .bl-modal-mountain-group:last-child {
+            margin-bottom: 0;
         }
         .bl-modal-mountain-name {
             font-size: 15px;
             font-weight: 600;
             color: var(--bl-color-text);
-            margin-bottom: 8px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            margin-bottom: 6px;
+        }
+        .bl-modal-person-inline {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            padding: 4px 0 4px 12px;
+            line-height: 1.4;
         }
 
         .wishlist-card {
@@ -448,9 +455,10 @@
                 <a href="{{ url_for('profile') }}" class="wishlist-card" style="text-decoration: none;">
                     <div class="wishlist-card-row">
                         <div style="flex: 1;">
-                            <p class="wishlist-card-text">Wishlist</p>
-                            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">Add mountains you want to ski to find matches →</p>
+                            <p class="wishlist-card-text">Add mountains to your wishlist to find matches</p>
+                            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">We'll show you friends who want to ski the same places.</p>
                         </div>
+                        <span class="secondary-action">Add wishlist</span>
                     </div>
                 </a>
             {% endif %}
@@ -622,13 +630,18 @@
                 let bodyHtml = '';
                 overlaps.forEach(m => {
                     if (!m.overlapping_people || !m.overlapping_people.length) return;
-                    bodyHtml += `<div class="bl-modal-mountain-group"><div class="bl-modal-mountain-name">${m.resort_name}${m.state ? ', ' + m.state : (m.country ? ', ' + m.country : '')}</div><div class="bl-modal-people-list">`;
+                    bodyHtml += `<div class="bl-modal-mountain-group"><div class="bl-modal-mountain-name">${m.resort_name}</div>`;
                     m.overlapping_people.forEach(p => {
-                        bodyHtml += `<div class="bl-modal-person-row"><div class="bl-modal-person-name">${p.first_name} ${p.last_name}</div><div class="bl-modal-person-meta">${p.rider_type || 'Rider'} · ${p.skill_level || 'Skill'} · ${p.pass_type || 'No Pass'}</div></div>`;
+                        const parts = [];
+                        parts.push(`${p.first_name || ''}${p.last_name ? ' ' + p.last_name : ''}`.trim());
+                        if (p.rider_type) parts.push(p.rider_type);
+                        if (p.skill_level) parts.push(p.skill_level);
+                        if (p.pass_type) parts.push(p.pass_type);
+                        bodyHtml += `<div class="bl-modal-person-inline">${parts.join(' · ')}</div>`;
                     });
-                    bodyHtml += `</div></div>`;
+                    bodyHtml += `</div>`;
                 });
-                BaseLodgeModal.open({ header: `<div class="bl-modal-title">Wishlist matches</div>`, body: bodyHtml });
+                BaseLodgeModal.open({ header: `<div class="bl-modal-title">Mountains on your wishlist</div>`, body: bodyHtml });
             };
         });
     </script>
