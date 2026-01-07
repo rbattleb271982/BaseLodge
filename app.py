@@ -2017,7 +2017,7 @@ def trip_ideas():
                     elif friend_count == 2:
                         social_context = f"{friends[0]['first_name']} + {friends[1]['first_name']} are open"
                     else:
-                        social_context = f"{friends[0]['first_name']} + {friend_count - 1} other{'s' if friend_count > 2 else ''} open"
+                        social_context = f"{friends[0]['first_name']} + {friend_count - 1} others are open"
                     
                     # Condensed date format
                     date_range = date_obj.strftime('%b %-d')
@@ -2037,6 +2037,27 @@ def trip_ideas():
                     })
                 except ValueError:
                     pass
+
+    # Add Wishlist overlaps
+    for friend in all_friends:
+        friend_wishlist = friend.wishlist_resorts or []
+        user_wishlist = user.wishlist_resorts or []
+        
+        # Find common resorts
+        common_resorts = set(user_wishlist).intersection(set(friend_wishlist))
+        for resort_id in common_resorts:
+            resort = Resort.query.get(resort_id)
+            if resort:
+                trip_ideas_list.append({
+                    "destination": resort.name,
+                    "resort_id": resort.id,
+                    "social_context": f"{friend.first_name} also wants to go here!",
+                    "type": "wishlist",
+                    "friends": [{"id": friend.id, "first_name": friend.first_name, "last_name": friend.last_name or ""}]
+                })
+
+    # Sort: Open dates first (by date), then wishlist
+    trip_ideas_list.sort(key=lambda x: (x['type'] != 'open', x.get('date_str', '9999-12-31')))
     
     return render_template(
         "trip_ideas.html",
@@ -4302,7 +4323,26 @@ def add_open_dates():
     
     # Pre-populate with existing dates
     existing_dates = current_user.open_dates or []
-    return render_template("add_open_dates.html", existing_dates=existing_dates)
+    
+    # Get canonical maps for dropdowns
+    from utils.countries import COUNTRIES as CANONICAL_COUNTRIES, STATE_ABBR_MAP
+    countries_map = CANONICAL_COUNTRIES
+    states_map = STATE_ABBR_MAP
+    
+    return render_template(
+        "add_trip.html",
+        trip=None,
+        resorts=resorts,
+        countries_map=countries_map,
+        states_map=states_map,
+        user=current_user,
+        form_action=url_for("add_trip"),
+        user_passes=user_passes,
+        prefill_friend=prefill_friend,
+        prefill_start_date=prefill_start_date,
+        prefill_end_date=prefill_end_date,
+        is_group=is_group,
+    )
 
 @app.route("/add_trip", methods=["GET", "POST"])
 @login_required
@@ -4310,6 +4350,11 @@ def add_trip():
     # Single source of truth: Resort table
     resorts = get_resorts_for_trip_form()
     print(f"[add_trip] Loaded {len(resorts)} resorts")
+    
+    # Get canonical maps for dropdowns
+    from utils.countries import COUNTRIES as CANONICAL_COUNTRIES, STATE_ABBR_MAP
+    countries_map = CANONICAL_COUNTRIES
+    states_map = STATE_ABBR_MAP
     
     user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
     print(f"[add_trip] User passes: {user_passes}")
@@ -4377,6 +4422,8 @@ def add_trip():
                 "add_trip.html",
                 trip=None,
                 resorts=resorts,
+                countries_map=countries_map,
+                states_map=states_map,
                 user=current_user,
                 form_action=url_for("add_trip"),
                 user_passes=user_passes,
@@ -4446,6 +4493,8 @@ def add_trip():
                 "add_trip.html",
                 trip=None,
                 resorts=resorts,
+                countries_map=countries_map,
+                states_map=states_map,
                 user=current_user,
                 form_action=url_for("add_trip"),
                 user_passes=user_passes,
@@ -4488,6 +4537,11 @@ def edit_trip_form(trip_id):
         trip_id=trip_id, user_id=current_user.id
     ).first()
     my_transportation = my_participant.transportation_status.value if my_participant and my_participant.transportation_status else None
+
+    # Get canonical maps for dropdowns
+    from utils.countries import COUNTRIES as CANONICAL_COUNTRIES, STATE_ABBR_MAP
+    countries_map = CANONICAL_COUNTRIES
+    states_map = STATE_ABBR_MAP
 
     if request.method == "POST":
         resort_id = request.form.get("resort_id")
@@ -4541,6 +4595,8 @@ def edit_trip_form(trip_id):
                 "add_trip.html",
                 trip=trip,
                 resorts=resorts,
+                countries_map=countries_map,
+                states_map=states_map,
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
                 user_passes=user_passes,
@@ -4561,6 +4617,8 @@ def edit_trip_form(trip_id):
                 "add_trip.html",
                 trip=trip,
                 resorts=resorts,
+                countries_map=countries_map,
+                states_map=states_map,
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
                 overlap_trip=overlapping,
