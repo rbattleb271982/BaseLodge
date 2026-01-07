@@ -4063,7 +4063,7 @@ def profile():
     wish_list_count = len(wish_list_ids)
     wish_list_resorts = Resort.query.filter(Resort.id.in_(wish_list_ids)).all() if wish_list_ids else []
     
-    return render_template("settings.html",
+    return render_template("profile.html",
                            page_title="Profile",
                            mountains_visited_count=mountains_visited_count,
                            has_equipment=has_equipment,
