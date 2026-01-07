@@ -572,9 +572,9 @@
         
         // Existing trip data for edit mode
         const existingTrip = {
-            countryCode: {{ (trip.resort.country_code if trip and trip.resort else none)|tojson }},
-            stateCode: {{ (trip.resort.state_code if trip and trip.resort else none)|tojson }},
-            resortId: {{ (trip.resort_id if trip else none)|tojson }},
+            countryCode: {{ (trip.resort.country_code if trip and trip.resort else (prefill_resort.country_code if prefill_resort else none))|tojson }},
+            stateCode: {{ (trip.resort.state_code if trip and trip.resort else (prefill_resort.state_code if prefill_resort else none))|tojson }},
+            resortId: {{ (trip.resort_id if trip else (prefill_resort.id if prefill_resort else none))|tojson }},
             startDate: {{ (trip.start_date.isoformat() if trip and trip.start_date else none)|tojson }},
             endDate: {{ (trip.end_date.isoformat() if trip and trip.end_date else none)|tojson }}
         };

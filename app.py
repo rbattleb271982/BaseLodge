@@ -4341,6 +4341,7 @@ def add_open_dates():
         prefill_friend=prefill_friend,
         prefill_start_date=prefill_start_date,
         prefill_end_date=prefill_end_date,
+        prefill_resort=prefill_resort,
         is_group=is_group,
     )
 
@@ -4363,11 +4364,22 @@ def add_trip():
     prefill_friend_id = request.args.get('friend_id', type=int)
     prefill_start_date = request.args.get('start_date')
     prefill_end_date = request.args.get('end_date')
+    prefill_resort_id = request.args.get('resort_id', type=int)
     is_group = request.args.get('is_group') == '1'
     
     prefill_friend = None
     if prefill_friend_id:
         prefill_friend = User.query.get(prefill_friend_id)
+
+    prefill_resort = None
+    if prefill_resort_id:
+        prefill_resort = Resort.query.get(prefill_resort_id)
+    
+    # Also handle wishlist resort via resort_id param
+    if not prefill_resort and request.args.get('resort_id'):
+        prefill_resort_id = request.args.get('resort_id', type=int)
+        if prefill_resort_id:
+            prefill_resort = Resort.query.get(prefill_resort_id)
     
     if request.method == "POST":
         resort_id = request.form.get("resort_id")
@@ -4430,6 +4442,7 @@ def add_trip():
                 prefill_friend=prefill_friend,
                 prefill_start_date=prefill_start_date,
                 prefill_end_date=prefill_end_date,
+                prefill_resort=prefill_resort,
                 is_group=is_group,
             )
         
@@ -4454,6 +4467,7 @@ def add_trip():
                 prefill_friend=prefill_friend,
                 prefill_start_date=prefill_start_date,
                 prefill_end_date=prefill_end_date,
+                prefill_resort=prefill_resort,
                 is_group=is_group,
             )
 
