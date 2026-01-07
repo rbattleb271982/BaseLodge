@@ -4074,32 +4074,7 @@ def profile():
 @app.route("/settings")
 @login_required
 def settings():
-    mountains = current_user.mountains_visited or []
-    mountains_visited_count = len(mountains)
-    
-    primary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=EquipmentSlot.PRIMARY).first()
-    secondary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=EquipmentSlot.SECONDARY).first()
-    
-    has_equipment = primary_equipment is not None or secondary_equipment is not None
-    equipment_summary = ""
-    if primary_equipment:
-        equipment_summary = f"{primary_equipment.brand or 'Primary'}"
-        if secondary_equipment:
-            equipment_summary += f" + {secondary_equipment.brand or 'Secondary'}"
-    elif secondary_equipment:
-        equipment_summary = f"{secondary_equipment.brand or 'Secondary'}"
-    
-    # Wish list data
-    wish_list_ids = current_user.wish_list_resorts or []
-    wish_list_count = len(wish_list_ids)
-    wish_list_resorts = Resort.query.filter(Resort.id.in_(wish_list_ids)).all() if wish_list_ids else []
-    
-    return render_template("settings.html", 
-                           mountains_visited_count=mountains_visited_count,
-                           has_equipment=has_equipment,
-                           equipment_summary=equipment_summary,
-                           wish_list_count=wish_list_count,
-                           wish_list_resorts=wish_list_resorts)
+    return redirect(url_for("profile"), code=301)
 
 
 @app.route("/settings/profile", methods=["GET", "POST"])
