@@ -357,29 +357,29 @@
                     </p>
                     <a href="{{ url_for('add_open_dates') }}" class="planning-card-action">Edit</a>
                 </div>
-                <p style="font-size: 0.75rem; color: var(--bl-color-text-muted); margin: 6px 0 0 0; line-height: 1.3;">Add more days you’re available to see more trip ideas.</p>
             </div>
             
-            {% if user_open_dates and user_open_dates|length > 0 and trip_ideas and trip_ideas|length > 0 %}
-            <p class="section-label" style="margin-top: 20px;">Trip Ideas</p>
-            <div class="trips-list">
-                {% for idea in trip_ideas[:6] %}
-                <a href="{{ url_for('trip_ideas') }}" style="text-decoration: none; color: inherit;">
-                    <div class="trip-card">
+            {% if user_open_dates and user_open_dates|length > 0 %}
+                {% if trip_ideas and trip_ideas|length > 0 %}
+                <p class="section-label" style="margin-top: 20px;">Trip Ideas</p>
+                <div class="trips-list">
+                    {% for idea in trip_ideas[:6] %}
+                    <div class="trip-card trip-idea-row" data-friends='{{ idea.friend_names|tojson|safe }}'>
                         <div class="trip-card-content">
                             <p class="trip-card-line1">{{ idea.name }}</p>
-                            <p class="trip-card-line2">{{ idea.state or '' }}{% if idea.country and idea.country != 'USA' %}, {{ idea.country }}{% endif %}{% if idea.match_reason %} · {{ idea.match_reason }}{% endif %}</p>
+                            <p class="trip-card-line2">{{ idea.match_reason }}</p>
                         </div>
                         <span class="trip-card-action">›</span>
                     </div>
-                </a>
-                {% endfor %}
-            </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
             {% else %}
-            <a href="{{ url_for('add_open_dates') }}" class="new-trip-card" style="margin-top: 12px;">
-                <p class="new-trip-card-title" style="color: var(--bl-color-text);">Set your availability to see trip ideas</p>
-                <p class="new-trip-card-subtext">Add the days you're free to find trips that overlap with friends.</p>
-            </a>
+            <div style="margin-top: 12px; background: rgba(0,0,0,0.02); border: 1px dashed var(--bl-color-border-soft); border-radius: 10px; padding: 16px;">
+                <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); text-align: center; margin: 0;">
+                    More availability can unlock more trip ideas.
+                </p>
+            </div>
             {% endif %}
         </div>
 
@@ -407,6 +407,21 @@
                 <p class="empty-state-title">No pending invites</p>
             </div>
             {% endif %}
+        </div>
+    </div>
+
+    <div id="friendsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: var(--bl-color-surface); width: 90%; max-width: 400px; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+            <div style="padding: 16px; border-bottom: 1px solid var(--bl-color-border-soft); display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700;">Who's interested</h3>
+                <button id="closeModal" style="background: none; border: none; font-size: 1.5rem; color: var(--bl-color-text-muted); cursor: pointer; padding: 0 4px;">&times;</button>
+            </div>
+            <div id="friendsList" style="padding: 0 16px; max-height: 300px; overflow-y: auto;">
+                <!-- Friends list injected here -->
+            </div>
+            <div style="padding: 16px; background: rgba(0,0,0,0.02); text-align: center;">
+                <a href="{{ url_for('add_trip') }}" style="display: inline-block; background: var(--bl-color-primary); color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem;">Start a trip</a>
+            </div>
         </div>
     </div>
 
@@ -443,6 +458,35 @@
             if (tab === 'ideas' || tab === 'invites') {
                 selectTab(tab);
             }
+
+            // Modal logic
+            const modal = document.getElementById('friendsModal');
+            const closeBtn = document.getElementById('closeModal');
+            const friendsList = document.getElementById('friendsList');
+            const rows = document.querySelectorAll('.trip-idea-row');
+
+            rows.forEach(row => {
+                row.addEventListener('click', function(e) {
+                    const friendsData = this.getAttribute('data-friends');
+                    if (friendsData) {
+                        const friends = JSON.parse(friendsData);
+                        if (friends.length > 1) {
+                            e.preventDefault();
+                            friendsList.innerHTML = friends.map(name => `
+                                <div style="padding: 12px 0; border-bottom: 1px solid var(--bl-color-border-soft); font-weight: 500;">
+                                    ${name}
+                                </div>
+                            `).join('');
+                            modal.style.display = 'flex';
+                        }
+                    }
+                });
+            });
+
+            closeBtn.onclick = () => modal.style.display = 'none';
+            window.onclick = (event) => {
+                if (event.target == modal) modal.style.display = 'none';
+            };
         });
     </script>
 </body>

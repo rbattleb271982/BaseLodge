@@ -1,0 +1,126 @@
+GOAL:
+Finalize the My Trips → Ideas tab so it reflects social overlap and shared intent with friends, using a clean, scalable list UI and clear logic.
+
+--------------------------------
+WHAT COUNTS AS A “TRIP IDEA”
+--------------------------------
+
+An Idea should appear if ANY of the following are true:
+
+A) FRIEND TRIP + AVAILABILITY OVERLAP
+- A friend has a planned trip at a resort
+AND
+- That trip overlaps with the user’s open availability
+
+B) WISHLIST OVERLAP (NEW)
+- The user has a resort on their wishlist
+AND
+- At least one friend either:
+  • also has that resort on their wishlist, OR
+  • has a planned trip to that resort (date overlap not required)
+
+Both A and B ideas appear in the SAME list (no separate sections).
+
+--------------------------------
+ORDERING / PRIORITY
+--------------------------------
+
+1) Availability + friend trip overlaps (A), ordered by soonest date
+2) Wishlist-only overlaps (B), ordered alphabetically by resort name
+
+--------------------------------
+CARD LAYOUT (ALL IDEAS)
+--------------------------------
+
+- Vertical stacked list (NO horizontal scrolling)
+- Each card is fully tappable
+- Uniform card height
+- 2 rows ONLY
+- Right-aligned chevron (›) on every card
+
+--------------------------------
+ROW 1 (PRIMARY)
+--------------------------------
+
+Format:
+"{Resort Name}, {State/Province}"
+
+Examples:
+- Heavenly, CA
+- Breckenridge, CO
+- Whistler Blackcomb, BC
+
+Do NOT show state/province on its own line.
+
+--------------------------------
+ROW 2 (SECONDARY COPY)
+--------------------------------
+
+RULES FOR FRIEND TRIP / AVAILABILITY OVERLAP:
+
+1) Exactly ONE overlapping friend:
+   "You + FirstName LastName overlap"
+
+2) MORE THAN ONE overlapping friend:
+   "You + {N} friends overlap"
+   - Do NOT list names inline
+   - Tapping the card must allow access to a modal
+
+RULES FOR WISHLIST-BASED IDEAS:
+
+1) Exactly ONE friend:
+   "You + FirstName LastName want to go"
+
+2) MORE THAN ONE friend:
+   "You + {N} friends want to go"
+   - Do NOT list names inline
+   - Tapping the card must allow access to a modal
+
+--------------------------------
+MODAL BEHAVIOR (MULTI-FRIEND CASES)
+--------------------------------
+
+Trigger:
+- When an Idea involves MORE THAN ONE friend
+
+Modal contents:
+- Title: "Friends"
+- Simple vertical list of names
+- Full first + last names only
+- No avatars
+- No dates
+- No extra metadata
+
+--------------------------------
+REMOVALS / CONSTRAINTS
+--------------------------------
+
+- Remove any pills or badges
+- Remove horizontal scrolling layouts
+- Remove third-row content
+- Remove “See all trip ideas” link entirely
+- Do NOT mix wishlist language with availability language
+- Do NOT show dates for wishlist-only ideas
+- Do NOT introduce new sections
+
+--------------------------------
+EMPTY STATE / GUIDANCE
+--------------------------------
+
+- If the user has zero availability days:
+  - Show NO trip idea cards
+  - Instead, show a single guidance card or helper text near Open Availability
+
+Copy (use one):
+- “Add more days you’re available to see trip ideas with friends.”
+OR
+- “More availability can unlock more trip ideas.”
+
+--------------------------------
+SCOPE
+--------------------------------
+
+- UI + template logic only
+- No new models
+- No schema changes
+- No changes to how overlaps are calculated, only how they’re surfaced
