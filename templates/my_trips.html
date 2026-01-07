@@ -254,72 +254,87 @@
             color: var(--bl-color-text-muted);
             margin: 0;
         }
+        /* Secondary Action Consistency */
+        .secondary-action {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .secondary-action:active {
+            opacity: 0.7;
+        }
+        .text-muted {
+            color: var(--bl-color-text-muted) !important;
+        }
+
         .trip-card-action {
             flex-shrink: 0;
             margin-left: 12px;
-            font-size: 1.5rem;
-            color: var(--bl-color-text-muted);
+            font-size: 0.9rem;
+            color: var(--bl-color-primary);
             font-weight: 500;
         }
-
-        .invite-inviter {
-            color: var(--bl-color-text);
+        
+        /* Vertical Rhythm & Spacing */
+        .section-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--bl-color-text-muted);
+            margin: 24px 0 8px 0;
             font-weight: 600;
+            letter-spacing: 0.5px;
         }
-
-        .planning-card {
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: 10px;
-            padding: 12px 16px;
-            margin-bottom: 8px;
+        .section-label:first-child {
+            margin-top: 8px;
         }
-        .planning-card-row {
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--bl-color-text);
+            margin: 32px 0 12px 0;
+        }
+        
+        .ideas-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .empty-state-container {
+            text-align: center;
+            padding: 48px 20px;
+        }
+        
+        /* Hierarchy & De-emphasis */
+        .trip-card-line2 {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+            line-height: 1.4;
+        }
+        
+        .idea-row {
+            font-size: 15px;
+            color: var(--bl-color-text);
+            padding: 14px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .planning-card-text {
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: var(--bl-color-text);
-            margin: 0;
-        }
-        .planning-card-action {
+        .idea-row::after {
+            content: 'View';
             font-size: 0.9rem;
-            color: var(--bl-color-primary);
             font-weight: 500;
-            text-decoration: none;
-        }
-        .planning-cta {
-            display: block;
-            text-align: center;
-            font-size: 0.9rem;
             color: var(--bl-color-primary);
-            font-weight: 500;
-            text-decoration: none;
-            padding: 8px;
-        }
-
-        .empty-state-container {
-            text-align: center;
-            padding: 24px 16px;
-        }
-        .empty-state-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin: 0 0 8px 0;
-        }
-        .empty-state-desc {
-            font-size: 0.95rem;
-            color: var(--bl-color-text-muted);
-            margin: 0;
-        }
-        .inline-empty-message {
-            font-size: 0.95rem;
-            color: var(--bl-color-text-muted);
-            padding: 12px 0;
+            margin-left: 12px;
+            flex-shrink: 0;
         }
 
         /* Reusable Bottom Sheet Modal */
@@ -568,7 +583,7 @@
             </div>
             {% endif %}
 
-            <a href="{{ url_for('add_trip') }}" class="new-trip-card" style="margin-top: 10px;">
+            <a href="{{ url_for('add_trip') }}" class="new-trip-card" style="margin-top: 16px;">
                 <p class="new-trip-card-title">Plan a new trip</p>
                 <p class="new-trip-card-subtext">Choose dates, a mountain, and who's coming</p>
             </a>
@@ -578,12 +593,12 @@
             <!-- MY_TRIPS IDEAS START -->
             <p class="section-label">My Availability</p>
             
-            <div class="planning-card">
-                <div class="planning-card-row">
-                    <p class="planning-card-text">
+            <div class="planning-card" style="background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; padding: 12px 16px; margin-bottom: 8px;">
+                <div class="planning-card-row" style="display: flex; justify-content: space-between; align-items: center;">
+                    <p class="planning-card-text" style="font-size: 0.95rem; font-weight: 500; color: var(--bl-color-text); margin: 0;">
                         Open availability · {% if user_open_dates and user_open_dates|length > 0 %}{{ user_open_dates|length }} day{% if user_open_dates|length != 1 %}s{% endif %}{% else %}0 days{% endif %}
                     </p>
-                    <a href="{{ url_for('add_open_dates') }}" class="planning-card-action">Edit</a>
+                    <a href="{{ url_for('add_open_dates') }}" class="secondary-action">Edit</a>
                 </div>
             </div>
 
@@ -595,7 +610,7 @@
                         <p class="wishlist-card-text">
                             Wishlist · {{ wishlist_overlaps|length }} match{% if wishlist_overlaps|length != 1 %}es{% endif %}
                         </p>
-                        <span class="wishlist-card-action">View</span>
+                        <span class="secondary-action">View</span>
                     </div>
                 </div>
             {% elif not user.wishlist_mountains %}
@@ -604,7 +619,7 @@
                     <div class="wishlist-card-row">
                         <div style="flex: 1;">
                             <p class="wishlist-card-text">Wishlist</p>
-                            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">Add mountains you want to ski to find matches →</p>
+                            <p class="text-muted" style="font-size: 0.85rem; margin: 4px 0 0 0;">Add mountains you want to ski to find matches →</p>
                         </div>
                     </div>
                 </a>
@@ -618,13 +633,18 @@
                     {% for idea in trip_ideas[:6] %}
                         <div class="idea-row" 
                              onclick='openIdeaModal({{ idea|tojson }})'>
-                            {% set n = idea.overlapping_people|length %}
-                            {{ idea.display_date }} · You and 
-                            {% if n == 1 %}
-                                {{ idea.overlapping_people[0].first_name }} {{ idea.overlapping_people[0].last_name }}
-                            {% else %}
-                                {{ n }} friends
-                            {% endif %} are free
+                            <div style="flex: 1; min-width: 0;">
+                                {% set n = idea.overlapping_people|length %}
+                                <div style="font-weight: 600; margin-bottom: 2px;">{{ idea.display_date }}</div>
+                                <div class="text-muted" style="font-size: 0.85rem;">
+                                    You and 
+                                    {% if n == 1 %}
+                                        {{ idea.overlapping_people[0].first_name }}
+                                    {% else %}
+                                        {{ n }} friends
+                                    {% endif %} are free
+                                </div>
+                            </div>
                         </div>
                     {% endfor %}
                 {% else %}
@@ -644,9 +664,9 @@
                         <div class="trip-card">
                             <div class="trip-card-content">
                                 <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}, {{ trip.resort.state_code or trip.resort.state }}{% elif trip.mountain %}{{ trip.mountain }}, {{ trip.state }}{% else %}Resort TBD{% endif %}</p>
-                                <p class="trip-card-line2"><span class="invite-inviter">{{ trip.user.first_name if trip.user else 'Someone' }}</span> invited you · {{ format_trip_dates(trip) }}</p>
+                                <p class="trip-card-line2"><span style="color: var(--bl-color-text); font-weight: 600;">{{ trip.user.first_name if trip.user else 'Someone' }}</span> invited you · {{ format_trip_dates(trip) }}</p>
                             </div>
-                            <span class="trip-card-action">›</span>
+                            <span class="secondary-action">View</span>
                         </div>
                     </a>
                     {% endif %}
