@@ -1,0 +1,60 @@
+Pause implementation immediately. Do NOT modify any code.
+
+All Trip Ideas logic, templates, and routes were implemented by you in prior steps. No new external logic has been introduced.
+
+We now have a regression that must be diagnosed precisely.
+
+Current behavior (both environments, possibly differing):
+1. Trip Idea cards render blank (no visible content)
+2. Clicking a Trip Idea card fails
+3. Clicking “Plan a trip” fails
+4. This behavior did not exist before recent changes
+
+Your task is DIAGNOSIS ONLY using the existing codebase.
+
+You must analyze BOTH environments and report differences.
+
+Required steps:
+
+1. DEV vs PROD comparison
+   - Confirm whether the above behaviors occur in:
+     a) Development
+     b) Production
+   - Explicitly state any differences in behavior between environments
+
+2. Route execution analysis (/trip-ideas)
+   - Walk through the execution path in DEV and PROD
+   - List the Trip Idea data structures created in each environment
+   - Enumerate all fields present on each Trip Idea object at render time
+   - Identify any fields that are None, missing, or differ between environments
+
+3. Template variable analysis (trip_ideas.html)
+   - List every variable the template accesses per Trip Idea
+   - Identify which variables are assumed to exist
+   - Identify which assumptions are violated in DEV and/or PROD
+
+4. Link generation analysis
+   - Show the exact href values generated for:
+     a) “Plan a trip”
+     b) A Trip Idea card
+   - Compare DEV vs PROD href values
+   - Identify undefined, empty, or malformed query parameters
+
+5. Primary failure point
+   - Identify the FIRST point in the execution path where runtime data diverges from expectations
+   - Reference the exact variable names and environment where this occurs
+   - Explain why this results in:
+     - Blank Trip Idea cards
+     - Broken navigation
+
+Output requirements:
+- No code changes
+- No fixes
+- No refactors
+- No defensive suggestions
+- No assumptions without evidence
+
+Return a factual explanation of:
+- What broke
+- Where it broke
+- Why DEV and PROD behave the same or differently
