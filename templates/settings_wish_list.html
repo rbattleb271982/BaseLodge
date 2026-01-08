@@ -422,9 +422,15 @@
             if (index > -1) {
                 selectedIds.splice(index, 1);
                 const checkbox = document.querySelector(`input[value="${id}"]`);
-                if (checkbox) checkbox.checked = false;
-                updateUI();
-                updateSaveButton();
+                if (checkbox) {
+                    checkbox.checked = false;
+                    // Trigger the change event to ensure any listener (like updateSelection) runs
+                    checkbox.dispatchEvent(new Event('change'));
+                } else {
+                    // Fallback if checkbox isn't found in current filtered list
+                    updateUI();
+                    updateSaveButton();
+                }
             }
         }
         

@@ -386,8 +386,14 @@
         function removeResort(id) {
             selectedResortIds.delete(id);
             const checkbox = document.querySelector(`input[value="${id}"]`);
-            if (checkbox) checkbox.checked = false;
-            updatePills();
+            if (checkbox) {
+                checkbox.checked = false;
+                // Trigger the change event to ensure any listener (like updatePills) runs
+                checkbox.dispatchEvent(new Event('change'));
+            } else {
+                // Fallback if checkbox isn't found in current filtered list
+                updatePills();
+            }
         }
         
         let isExpanded = false;
