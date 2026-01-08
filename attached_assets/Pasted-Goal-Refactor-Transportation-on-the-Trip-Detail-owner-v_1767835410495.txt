@@ -1,0 +1,59 @@
+Goal: Refactor Transportation on the Trip Detail (owner view) to use an inline expand/collapse (accordion-style) editor with auto-save, and remove all old/broken patterns.
+Important constraints:
+Do not refactor unrelated fields
+Do not rename models, routes, or tables
+Do not introduce bottom sheets or modals
+Touch the minimum number of files necessary
+Follow existing coding style and patterns
+No speculative cleanup or abstractions
+Step-by-step instructions
+Remove Transportation from trip creation
+Ensure the trip creation flow (any /add_trip, /create_trip, or equivalent) no longer asks for or sets transportation.
+Transportation should default to "not_set" (or existing equivalent) when a trip is created.
+Confirm Transportation lives only on the Trip model
+Use the existing trip-level transportation field if one already exists.
+Do not create a new field or migration unless absolutely required.
+Valid values should be limited to:
+driving
+flying
+train
+bus
+not_set
+Replace the existing Transportation UI on Trip Detail
+Remove the current bottom sheet / modal interaction for Transportation.
+Implement an inline expand/collapse editor directly in the Trip Detail page:
+Collapsed state shows:
+Label: “Transportation”
+Current value (human-readable, e.g. “Driving” or “Not set”)
+A chevron or caret to indicate expandability
+Expanded state shows:
+A radio group with the options listed above
+Selecting an option immediately saves (auto-save)
+After save, collapse the section and update the summary text
+Auto-save behavior
+Reuse the existing trip update route/API if one exists.
+Save on change (no explicit Save or Done button).
+Do not introduce toast notifications unless there is already a pattern in the app.
+Ensure the UI reflects the saved value immediately after selection.
+Interaction rules
+Only one accordion section may be open at a time (if applicable).
+Tapping the already-open section header should collapse it.
+No animation is required beyond simple show/hide.
+Visual consistency
+Match spacing, typography, and button/radio styles used on Profile → Equipment.
+Keep the section calm and non-dominant (this is informational, not a CTA).
+Do not touch
+Lessons
+Equipment
+Invite CTA
+Ride Status
+Carpool
+(Those will be handled later.)
+Verification
+Confirm:
+Transportation can be changed
+The value persists on refresh
+No console errors
+No regressions on trip creation or viewing trips
+Stop after Transportation is complete.
+Do not continue refactoring other fields.
