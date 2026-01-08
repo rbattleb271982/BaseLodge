@@ -410,10 +410,10 @@
                     <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
                         <div class="trip-card">
                             <div class="trip-card-content">
-                                <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% elif trip.mountain %}{{ trip.mountain }}{% else %}Mountain TBD{% endif %}</p>
-                                {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
+                                <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% elif trip.mountain %}{{ trip.mountain }}{% else %}Mountain TBD{% endif %}{% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
                                 {% set pass_brands = trip.resort|mountain_passes if trip.resort else '' %}
-                                <p class="trip-card-line2">{% if state_abbr %}{{ state_abbr }} · {% endif %}{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}{% if pass_brands %} · {{ pass_brands }}{% endif %}</p>
+                                {% set accepted_count = trip.accepted_count %}
+                                <p class="trip-card-line2">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}{% if pass_brands %} · {{ pass_brands }}{% endif %}{% if accepted_count > 1 %} · {{ accepted_count }} going{% endif %}</p>
                             </div>
                             <span class="trip-card-action">View</span>
                         </div>
@@ -475,10 +475,8 @@
                         {% for idea in trip_ideas[:6] %}
                             <div class="idea-row" onclick='openIdeaModal({{ idea|tojson }})'>
                                 <div style="flex: 1; min-width: 0;">
-                                    <div style="font-weight: 600; margin-bottom: 2px;">{{ idea.display_date }}</div>
-                                    <div style="font-size: 0.85rem; color: var(--bl-color-text-muted);">
-                                        You and {% if idea.overlapping_people|length == 1 %}{{ idea.overlapping_people[0].first_name }} {{ idea.overlapping_people[0].last_name }}{% else %}{{ idea.overlapping_people|length }} friends{% endif %} are free
-                                    </div>
+                                    <div class="trip-card-line1">{{ idea.display_date }}</div>
+                                    <div class="trip-card-line2">You and {% if idea.overlapping_people|length == 1 %}{{ idea.overlapping_people[0].first_name }} {{ idea.overlapping_people[0].last_name }}{% else %}{{ idea.overlapping_people|length }} friends{% endif %} are free</div>
                                 </div>
                             </div>
                         {% endfor %}
@@ -498,9 +496,10 @@
                         <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
                             <div class="trip-card">
                                 <div class="trip-card-content">
-                                    <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</p>
-                                    {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
-                                    <p class="trip-card-line2">{% if state_abbr %}{{ state_abbr }} · {% endif %}<span style="color: var(--bl-color-text); font-weight: 600;">{{ trip.user.first_name if trip.user else 'Someone' }}</span> invited you · {{ format_trip_dates(trip) }}</p>
+                                    <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}{% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+                                    {% set pass_brands = trip.resort|mountain_passes if trip.resort else '' %}
+                                    {% set accepted_count = trip.accepted_count %}
+                                    <p class="trip-card-line2">{{ format_trip_dates(trip) }}{% if pass_brands %} · {{ pass_brands }}{% endif %}{% if accepted_count > 1 %} · {{ accepted_count }} going{% endif %}</p>
                                 </div>
                                 <span class="secondary-action">View</span>
                             </div>

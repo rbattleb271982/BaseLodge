@@ -286,13 +286,10 @@
                 {% for idea in trip_ideas %}
                     <div class="idea-row" 
                          onclick='openIdeaModal({{ idea|tojson }})'>
-                        {% set n = idea.overlapping_people|length %}
-                        {{ idea.display_date }} · You and 
-                        {% if n == 1 %}
-                            {{ idea.overlapping_people[0].first_name }} {{ idea.overlapping_people[0].last_name }}
-                        {% else %}
-                            {{ n }} friends
-                        {% endif %} are free
+                        <div style="flex: 1; min-width: 0;">
+                            <div class="trip-card-line1">{{ idea.display_date }}</div>
+                            <div class="trip-card-line2">You and {% if idea.overlapping_people|length == 1 %}{{ idea.overlapping_people[0].first_name }} {{ idea.overlapping_people[0].last_name }}{% else %}{{ idea.overlapping_people|length }} friends{% endif %} are free</div>
+                        </div>
                     </div>
                 {% endfor %}
             {% else %}
