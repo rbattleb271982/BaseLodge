@@ -748,13 +748,20 @@
                     </div>
                 </div>
             </div>
-            <div class="your-detail-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--bl-color-border-soft); cursor: pointer;" onclick="openSignalPicker('equipment')">
+            <div class="your-detail-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--bl-color-border-soft); cursor: default;">
                 <span style="font-size: 0.9rem; color: var(--bl-color-text);">Equipment</span>
-                <span style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500;" id="your-equip-display">
-                    {% if current_user_participant.equipment_status %}
-                        {% if current_user_participant.equipment_status.value == 'own' %}Bringing my own{% elif current_user_participant.equipment_status.value == 'renting' %}Renting{% else %}Not set{% endif %} ›
-                    {% else %}Not set ›{% endif %}
-                </span>
+                <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                    <span style="font-size: 0.9rem; color: var(--bl-color-text-muted); font-weight: 500;">
+                        {% if current_user.equipment_status == 'have_own_equipment' %}
+                            Have own equipment
+                        {% elif current_user.equipment_status == 'needs_rentals' %}
+                            Use rentals
+                        {% else %}
+                            Not set
+                        {% endif %}
+                    </span>
+                    <span style="font-size: 0.7rem; color: var(--bl-color-text-muted); opacity: 0.7; margin-top: 2px;">Managed from Profile</span>
+                </div>
             </div>
             <div class="your-detail-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--bl-color-border-soft); cursor: pointer;" onclick="openSignalPicker('carpool')">
                 <span style="font-size: 0.9rem; color: var(--bl-color-text);">Carpool</span>
@@ -1207,7 +1214,6 @@
         
         const badgeContainer = document.querySelector('.participant-badges.editable');
         let currentTransportation = badgeContainer ? badgeContainer.dataset.transValue : '';
-        let currentEquipment = badgeContainer ? badgeContainer.dataset.equipValue : '';
         let currentCarpoolRole = badgeContainer ? badgeContainer.dataset.carpoolRole : '';
         let currentCarpoolSeats = badgeContainer ? parseInt(badgeContainer.dataset.carpoolSeats) || 0 : 0;
         let currentLesson = badgeContainer ? badgeContainer.dataset.lessonValue : 'no';
@@ -1218,11 +1224,6 @@
             { value: 'train', label: 'Train' },
             { value: 'bus', label: 'Bus' },
             { value: 'tbd', label: 'Not set' }
-        ];
-        
-        const equipmentOptions = [
-            { value: 'own', label: 'Bringing my own equipment' },
-            { value: 'renting', label: 'Renting equipment' }
         ];
         
         const carpoolOptions = [
@@ -1257,11 +1258,6 @@
             let options, currentValue, titleText;
             
             switch(type) {
-                case 'equipment':
-                    options = equipmentOptions;
-                    currentValue = currentEquipment;
-                    titleText = 'Equipment';
-                    break;
                 case 'carpool':
                     options = carpoolOptions;
                     currentValue = currentCarpoolRole || 'none';
