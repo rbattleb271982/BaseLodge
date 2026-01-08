@@ -216,6 +216,17 @@ def pass_display_filter(pass_type):
     return format_passes_display(pass_type)
 
 
+@app.template_filter('country_name')
+def country_name_filter(code):
+    """
+    Returns full country name from ISO code.
+    Usage: {{ resort.country_code|country_name }}
+    """
+    if not code:
+        return ""
+    return COUNTRIES.get(code.upper(), code)
+
+
 @app.template_filter('relative_time')
 def relative_time_filter(dt):
     """
@@ -228,25 +239,15 @@ def relative_time_filter(dt):
     diff = now - dt
     
     seconds = diff.total_seconds()
-    minutes = seconds / 60
-    hours = minutes / 60
-    days = hours / 24
-    
     if seconds < 60:
-        return 'Just now'
-    elif minutes < 60:
-        m = int(minutes)
-        return f'{m}m ago'
-    elif hours < 24:
-        h = int(hours)
-        return f'{h}h ago'
-    elif days < 2:
+        return 'just now'
+    if seconds < 3600:
+        return f'{int(seconds // 60)}m ago'
+    if seconds < 86400:
+        return f'{int(seconds // 3600)}h ago'
+    if seconds < 172800:
         return 'Yesterday'
-    elif days < 7:
-        d = int(days)
-        return f'{d}d ago'
-    else:
-        return dt.strftime('%b %d')
+    return dt.strftime('%b %d')
 
 
 @app.before_request

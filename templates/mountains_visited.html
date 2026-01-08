@@ -252,7 +252,13 @@
                 <div class="selected-mountains" id="selected-pills">
                     {% for group in grouped_selected %}
                     <div class="selected-group">
-                        <div class="selected-group-header">{{ group.label }}</div>
+                        <div class="selected-group-header">
+                            {% if group.country and group.country != 'US' %}
+                                {{ group.country|country_name }}
+                            {% else %}
+                                {{ group.label }}
+                            {% endif %}
+                        </div>
                         <div class="selected-group-resorts">
                             {% for resort in group.resorts %}
                             <span class="mountain-pill" data-id="{{ resort.id }}">
@@ -410,22 +416,6 @@
                 });
             });
             
-            // Group resorts: US by state, non-US by country
-            const groups = {};
-            resorts.forEach(r => {
-                let groupKey, groupLabel;
-                if (r.country === 'US') {
-                    groupKey = 'US-' + r.region;
-                    groupLabel = stateNames[r.region] || r.region;
-                } else {
-                    groupKey = r.country;
-                    groupLabel = r.countryName || r.country;
-                }
-                if (!groups[groupKey]) {
-                    groups[groupKey] = { label: groupLabel, resorts: [] };
-                }
-                groups[groupKey].resorts.push(r);
-            });
             
             // Sort groups alphabetically by label
             const sortedGroupKeys = Object.keys(groups).sort((a, b) => 
