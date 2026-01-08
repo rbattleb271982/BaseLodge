@@ -384,44 +384,65 @@
         }
         
         function removeResort(id) {
+            // The Set is our source of truth for the session
             selectedResortIds.delete(id);
+            
+            // Uncheck the checkbox if it's currently rendered
             const checkbox = document.querySelector(`input[value="${id}"]`);
             if (checkbox) {
                 checkbox.checked = false;
-                // Trigger the change event to ensure any listener (like updatePills) runs
-                checkbox.dispatchEvent(new Event('change'));
-            } else {
-                // Fallback if checkbox isn't found in current filtered list
-                updatePills();
             }
+            
+            // Sync the Set with the current state of checkboxes (to capture any other changes)
+            // But we already deleted the ID from the Set, so we just need to re-render.
+            updatePills(true); // pass flag to indicate we're coming from a remove action
         }
         
         let isExpanded = false;
         
-        function updatePills() {
-            const checks = document.querySelectorAll('input[name="resort_ids"]:checked');
+        function updatePills(fromRemove = false) {
             const pillsContainer = document.getElementById('selected-pills');
             const countDisplay = document.getElementById('count-display');
             
-            // Sync selectedResortIds with checkboxes
-            selectedResortIds.clear();
-            checks.forEach(cb => selectedResortIds.add(parseInt(cb.value)));
+            if (!fromRemove) {
+                // If triggered by a checkbox change, sync the Set from all checked boxes
+                const checks = document.querySelectorAll('input[name="resort_ids"]:checked');
+                selectedResortIds.clear();
+                checks.forEach(cb => selectedResortIds.add(parseInt(cb.value)));
+            }
             
             countDisplay.textContent = selectedResortIds.size + ' selected';
             
-            // Collect resort data for grouping
+            // To render the groups, we need data for each selected ID
+            // We'll get it from the labels which are always present or data attributes
             const resorts = [];
-            checks.forEach(cb => {
-                const row = cb.closest('.mountain-row');
-                resorts.push({
-                    id: parseInt(cb.value),
-                    name: row.dataset.displayName,
-                    country: row.dataset.country,
-                    countryName: row.dataset.countryName || '',
-                    region: row.dataset.region
-                });
+            selectedResortIds.forEach(id => {
+                const row = document.querySelector(`.mountain-row[data-id="${id}"]`);
+                if (row) {
+                    resorts.push({
+                        id: id,
+                        name: row.dataset.displayName,
+                        country: row.dataset.country,
+                        countryName: row.dataset.countryName || '',
+                        region: row.dataset.region
+                    });
+                }
             });
             
+            const groups = {};
+            resorts.forEach(r => {
+                let label = 'Other';
+                if (r.country && r.country !== 'US') {
+                    label = countryNames[r.country] || r.country;
+                } else if (r.region) {
+                    label = stateNames[r.region] || r.region;
+                }
+                
+                if (!groups[label]) {
+                    groups[label] = { label: label, resorts: [] };
+                }
+                groups[label].resorts.push(r);
+            });
             
             // Sort groups alphabetically by label
             const sortedGroupKeys = Object.keys(groups).sort((a, b) => 

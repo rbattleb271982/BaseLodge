@@ -400,17 +400,22 @@
         }
         
         function updateSelection(id) {
-            const index = selectedIds.indexOf(id);
+            const checkbox = document.querySelector(`input[value="${id}"]`);
+            if (!checkbox) return;
             
-            if (index > -1) {
-                selectedIds.splice(index, 1);
-            } else {
-                if (selectedIds.length >= maxResorts) {
-                    const checkbox = document.querySelector(`input[value="${id}"]`);
-                    if (checkbox) checkbox.checked = false;
-                    return;
+            const index = selectedIds.indexOf(id);
+            if (checkbox.checked) {
+                if (index === -1) {
+                    if (selectedIds.length >= maxResorts) {
+                        checkbox.checked = false;
+                        return;
+                    }
+                    selectedIds.push(id);
                 }
-                selectedIds.push(id);
+            } else {
+                if (index > -1) {
+                    selectedIds.splice(index, 1);
+                }
             }
             
             updateUI();
@@ -418,20 +423,21 @@
         }
         
         function removeResort(id) {
+            // Force removal from the state array first
             const index = selectedIds.indexOf(id);
             if (index > -1) {
                 selectedIds.splice(index, 1);
-                const checkbox = document.querySelector(`input[value="${id}"]`);
-                if (checkbox) {
-                    checkbox.checked = false;
-                    // Trigger the change event to ensure any listener (like updateSelection) runs
-                    checkbox.dispatchEvent(new Event('change'));
-                } else {
-                    // Fallback if checkbox isn't found in current filtered list
-                    updateUI();
-                    updateSaveButton();
-                }
             }
+            
+            // Uncheck the checkbox if it exists in the current view
+            const checkbox = document.querySelector(`input[value="${id}"]`);
+            if (checkbox) {
+                checkbox.checked = false;
+            }
+            
+            // Re-render UI from the updated state array
+            updateUI();
+            updateSaveButton();
         }
         
         function updateUI() {
@@ -458,6 +464,20 @@
                 }
             });
             
+            const groups = {};
+            resorts.forEach(r => {
+                let label = 'Other';
+                if (r.country && r.country !== 'US') {
+                    label = countryNames[r.country] || r.country;
+                } else if (r.region) {
+                    label = stateNames[r.region] || r.region;
+                }
+                
+                if (!groups[label]) {
+                    groups[label] = { label: label, resorts: [] };
+                }
+                groups[label].resorts.push(r);
+            });
             
             // Sort groups alphabetically by label
             const sortedGroupKeys = Object.keys(groups).sort((a, b) => 
