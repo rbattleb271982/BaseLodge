@@ -4202,32 +4202,9 @@ def settings_wish_list():
     # Group and sort wish list resorts for display
     grouped_wish_list = group_resorts_for_display(wish_list_resorts)
     
-    # Get distinct countries for dropdown (only from resorts, excluding regions)
-    countries = db.session.query(Resort.country_code).distinct().filter(
-        Resort.country_code.isnot(None),
-        Resort.country_code != '',
-        Resort.is_region == False
-    ).all()
-    
-    from utils.countries import country_code_from_name
-    normalized_codes = set()
-    for (val,) in countries:
-        if not val:
-            continue
-        # If it's 2 chars, assume ISO code
-        if len(val) == 2:
-            normalized_codes.add(val.upper())
-        else:
-            # Try to map from name
-            code = country_code_from_name(val)
-            if code:
-                normalized_codes.add(code)
-            else:
-                normalized_codes.add(val)
-    
-    countries_list = list(normalized_codes)
-    # Sort: US first, then alphabetically
-    countries_list.sort(key=lambda c: (c != 'US', c))
+    # Get canonical countries for dropdown from the shared COUNTRIES mapping
+    from utils.countries import COUNTRIES
+    countries_list = sorted(COUNTRIES.keys(), key=lambda c: (c != 'US', COUNTRIES[c]))
     
     return render_template("settings_wish_list.html",
                            resorts=resorts,
@@ -5232,30 +5209,9 @@ def mountains_visited():
     # Group and sort selected resorts for display
     grouped_selected = group_resorts_for_display(selected_resorts)
     
-    # Get distinct countries for dropdown (only from resorts, excluding regions)
-    countries = db.session.query(Resort.country_code).distinct().filter(
-        Resort.country_code.isnot(None),
-        Resort.country_code != '',
-        Resort.is_region == False
-    ).all()
-    
-    from utils.countries import country_code_from_name
-    normalized_codes = set()
-    for (val,) in countries:
-        if not val:
-            continue
-        if len(val) == 2:
-            normalized_codes.add(val.upper())
-        else:
-            code = country_code_from_name(val)
-            if code:
-                normalized_codes.add(code)
-            else:
-                normalized_codes.add(val)
-    
-    countries_list = list(normalized_codes)
-    # Sort: US first, then alphabetically
-    countries_list.sort(key=lambda c: (c != 'US', c))
+    # Get canonical countries for dropdown from the shared COUNTRIES mapping
+    from utils.countries import COUNTRIES
+    countries_list = sorted(COUNTRIES.keys(), key=lambda c: (c != 'US', COUNTRIES[c]))
     
     return render_template(
         "mountains_visited.html",
