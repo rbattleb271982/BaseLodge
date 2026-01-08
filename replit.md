@@ -23,6 +23,20 @@ The application employs a mobile-first responsive design with a unified "BaseLod
 ### Technical Implementations
 The backend is built with Flask, utilizing SQLAlchemy for ORM and Werkzeug for password hashing. Jinja2 is used for templating, complemented by custom CSS and Vanilla JS for interactivity and AJAX. Flask-Login handles session-based authentication. An event system captures user actions for notifications. User lifecycle stages (`new`, `onboarding`, `active`) and canonical states (`is_core_profile_complete`, `has_started_planning`, `is_active_user`) dictate UI and feature availability.
 
+### Template Filters for Consistent Display
+Centralized Jinja2 filters in `app.py` ensure consistent formatting across all templates:
+-   **`mountain_passes`**: Formats resort pass brands (e.g., "Epic · Ikon") without "Pass" suffix. Returns empty string if no pass.
+-   **`state_abbrev`**: Returns state abbreviation (e.g., "CO"). Accepts resort object or string.
+-   **`state_fullname`**: Returns full state name (e.g., "Colorado") with fallback to `resort.state` if `state_name` is empty.
+
+**UI Terminology Standards:**
+-   Use "Mountain" instead of "Resort" in user-facing labels
+-   Use "Pass" instead of "Pass Type" for field labels
+-   Trip cards/tiles: Mountain name (line 1), State abbr · Date · Pass (line 2)
+-   Detail pages: Full state name with country when applicable
+-   Pass brands come from mountain data (`resort.pass_brands`), not user data
+-   Omit empty fields entirely rather than showing "No Pass" or placeholder text
+
 ### Data Ownership & Source of Truth
 To prevent UI and architectural regressions, the following ownership rules must be maintained:
 - **Profile Owns:** Equipment setup, rider preferences, pass info, and mountain history.
