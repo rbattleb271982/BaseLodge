@@ -1,0 +1,85 @@
+PUT THIS IN AGENT
+
+We’re still failing to populate the Country <select> on /add_trip (it stays stuck on “Choose country” and shows no options on mobile Safari). We’ve tried JS-based population multiple times and it keeps regressing, so I want to eliminate JS as a dependency for the Country dropdown.
+
+Goal (contract lock)
+
+Country dropdown must be server-rendered (Jinja) using countries_map, so it always has options even if any JS fails. JS can still handle state/resort filtering, but Country options must be present in the HTML at render time.
+
+⸻
+
+Step 1 — Server-render the Country dropdown (no JS needed)
+
+In templates/add_trip.html, replace the Country select markup with a Jinja-rendered options list:
+	•	Keep the placeholder option:
+	•	<option value="" disabled selected hidden>Choose country</option>
+	•	Then loop through countries_map keys/values.
+	•	Sorting requirements:
+	•	US first
+	•	Then alphabetical by full country name
+	•	Display: full country name
+	•	Value: ISO-2 code
+
+Example structure (implement in the template, not here):
+	•	Build a sorted list in Jinja:
+	•	Put ('US', 'United States') first if present
+	•	For the rest: sort by the value (country name)
+	•	Output <option value="US">United States</option> etc.
+
+Important: Do NOT derive anything from resorts. This dropdown must be independent.
+
+⸻
+
+Step 2 — Remove/disable JS country population to prevent overwrites
+
+In the JS inside add_trip.html:
+	•	Remove or disable populateCountries() and any line that does:
+	•	countrySelect.innerHTML = ...
+	•	Remove/disable deriveCountries()
+	•	JS should only:
+	•	Listen for countrySelect change
+	•	Populate State dropdown based on selected country (from states_map OR from resorts—either is fine)
+	•	Populate Resort dropdown based on selected country/state (using resorts)
+
+This prevents the exact regression we keep hitting: JS accidentally clearing the server-rendered options.
+
+⸻
+
+Step 3 — Runtime verification (must add temporarily)
+
+Add these two checks so we can confirm what’s happening without guessing:
+
+Backend (Flask log)
+
+In /add_trip right before render_template, log:
+	•	countries_map type
+	•	count of keys
+	•	whether “US” exists
+
+Frontend (console)
+
+On DOMContentLoaded, log:
+	•	document.getElementById('country') found?
+	•	number of <option> elements in the country select
+	•	first 5 option texts
+
+If option count is 1 (just placeholder), then the template loop isn’t rendering or countries_map isn’t being passed.
+
+⸻
+
+Acceptance criteria
+	•	Country dropdown shows a full list immediately on page load (no “Loading…” option ever appears)
+	•	Full country names only (no ISO shown in UI)
+	•	Works on iOS Safari reliably
+	•	State and Resort behavior still works after selecting a country/state
+	•	No route (including /add-open-dates) can break the country list because it is not JS-derived
+
+⸻
+
+NOTE
+
+Do NOT introduce async fetches.
+Do NOT add new dependencies.
+Do NOT change unrelated trip logic.
+
+Implement the above, restart the server, and confirm on mobile Safari that the country list is populated before any interaction.

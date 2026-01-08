@@ -4527,8 +4527,11 @@ def add_trip():
 
     # GET - render the add trip form
     # ⚠️ CONTRACT LOCK: countries_map must ALWAYS be passed to template.
-    # The country dropdown is populated from countries_map (COUNTRIES in utils/countries.py),
-    # NOT derived from resorts. Changing this will break the Add Trip country dropdown.
+    # The country dropdown is now server-rendered from COUNTRIES.
+    # Log verification data for Step 3:
+    print(f"[VERIFY] countries_map type: {type(countries_map)}")
+    print(f"[VERIFY] countries_map size: {len(countries_map)}")
+    print(f"[VERIFY] 'US' in map: {'US' in countries_map}")
     
     return render_template(
         "add_trip.html",

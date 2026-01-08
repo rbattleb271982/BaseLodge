@@ -436,6 +436,26 @@
                     <label for="country">Country</label>
                     <select id="country" name="country" required>
                         <option value="" disabled selected hidden>Choose country</option>
+                        {% set sorted_countries = [] %}
+                        {% for code, name in COUNTRIES.items() %}
+                            {% if code == 'US' %}
+                                {% set _ = sorted_countries.insert(0, (code, name)) %}
+                            {% else %}
+                                {% set _ = sorted_countries.append((code, name)) %}
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {# Custom sort for non-US countries #}
+                        {% set us_country = sorted_countries[0] if sorted_countries[0][0] == 'US' else none %}
+                        {% set other_countries = sorted_countries[1:] if us_country else sorted_countries %}
+                        {% set other_countries_sorted = other_countries|sort(attribute=1) %}
+                        
+                        {% if us_country %}
+                            <option value="{{ us_country[0] }}">{{ us_country[1] }}</option>
+                        {% endif %}
+                        {% for code, name in other_countries_sorted %}
+                            <option value="{{ code }}">{{ name }}</option>
+                        {% endfor %}
                     </select>
                 </div>
 
@@ -586,31 +606,13 @@
         // ===========================================
         
         // ⚠️ CONTRACT LOCK: Do not derive countries from resorts. This will break Add Trip.
-        // Countries are populated exclusively from COUNTRY_NAMES (utils/countries.py).
-        // Changing this contract requires updating both backend and frontend in sync.
+        // Countries are now server-rendered via Jinja from the COUNTRIES mapping.
+        // This JS function is disabled to prevent overwriting server-rendered options.
+        /*
         function populateCountries() {
-            console.assert(typeof COUNTRY_NAMES === 'object' && COUNTRY_NAMES !== null, 
-                'COUNTRY_NAMES must exist and be an object');
-            
-            // Get all country codes from COUNTRY_NAMES (canonical source)
-            const countries = Object.keys(COUNTRY_NAMES);
-            
-            // Sort: US first, then alphabetically by full country name
-            countries.sort((a, b) => {
-                if (a === 'US') return -1;
-                if (b === 'US') return 1;
-                return COUNTRY_NAMES[a].localeCompare(COUNTRY_NAMES[b]);
-            });
-            
-            countrySelect.innerHTML = '<option value="">Choose country</option>';
-            countries.forEach(code => {
-                const option = document.createElement('option');
-                option.value = code;
-                option.textContent = COUNTRY_NAMES[code];  // Always full name, never code
-                countrySelect.appendChild(option);
-            });
-            countrySelect.disabled = false;
+            // ... (disabled)
         }
+        */
         
         function populateStates(countryCode) {
             const states = deriveStates(countryCode);
@@ -907,9 +909,20 @@
         // INITIALIZATION
         // ===========================================
         document.addEventListener('DOMContentLoaded', function() {
-            // ⚠️ CONTRACT: Countries are populated from COUNTRY_NAMES, NOT resorts.
+            // ⚠️ CONTRACT: Countries are server-rendered from COUNTRIES, NOT resorts.
             // This ensures the dropdown always works regardless of resort data state.
-            populateCountries();
+            // DO NOT call populateCountries() here.
+            
+            // Step 3: Runtime verification (TEMPORARY)
+            const countryEl = document.getElementById('country');
+            console.log("=== COUNTRY RENDER VERIFICATION ===");
+            console.log("Country element found:", !!countryEl);
+            console.log("Option count:", countryEl ? countryEl.options.length : 0);
+            if (countryEl && countryEl.options.length > 1) {
+                const firstFive = Array.from(countryEl.options).slice(0, 6).map(o => o.text);
+                console.log("First options:", firstFive);
+            }
+            console.log("================================");
             
             // Calendar navigation
             document.getElementById('prev-month').addEventListener('click', () => navigateMonth(-1));
