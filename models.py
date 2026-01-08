@@ -542,12 +542,12 @@ class SkiTrip(db.Model):
     def duration_display(self):
         """Return human-readable duration label."""
         labels = {
-            'day_trip': 'Day Trip',
-            'one_night': '1 Night',
-            'two_nights': '2 Nights',
-            'three_plus_nights': '3+ Nights'
+            'day_trip': '1 night',
+            'one_night': '1 night',
+            'two_nights': '2 nights',
+            'three_plus_nights': '3+ nights'
         }
-        return labels.get(self.trip_duration, 'Day Trip')
+        return labels.get(self.trip_duration, '1 night')
     
     @property
     def organizer_id(self):
