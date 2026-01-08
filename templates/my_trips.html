@@ -488,28 +488,29 @@
         </div>
 
         <div id="segment-invites" class="segment-content">
-            <p class="section-label">Invites</p>
             {% if ns.invite_count > 0 %}
-            <div class="trips-list">
-                {% for trip in invited_trips %}
-                    {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
-                    <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                        <div class="trip-card">
-                            <div class="trip-card-content">
-                                <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% else %}{{ trip.mountain }}{% endif %}</p>
-                                <p class="trip-card-line2"><span style="color: var(--bl-color-text); font-weight: 600;">{{ trip.user.first_name if trip.user else 'Someone' }}</span> invited you · {{ format_trip_dates(trip) }}</p>
+                <p class="section-label">Invites</p>
+                <div class="trips-list">
+                    {% for trip in invited_trips %}
+                        {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
+                        <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                            <div class="trip-card">
+                                <div class="trip-card-content">
+                                    <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% else %}{{ trip.mountain }}{% endif %}</p>
+                                    <p class="trip-card-line2"><span style="color: var(--bl-color-text); font-weight: 600;">{{ trip.user.first_name if trip.user else 'Someone' }}</span> invited you · {{ format_trip_dates(trip) }}</p>
+                                </div>
+                                <span class="secondary-action">View</span>
                             </div>
-                            <span class="secondary-action">View</span>
-                        </div>
-                    </a>
-                    {% endif %}
-                {% endfor %}
-            </div>
+                        </a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
             {% else %}
-            <div class="empty-state-container">
-                <p class="empty-state-title">No trip invites from your friends yet</p>
-                <p class="empty-state-desc">Invite friends to start planning trips</p>
-            </div>
+                <div class="empty-state-container" style="padding-top: 32px;">
+                    <p class="empty-state-title">No invites yet</p>
+                    <p class="empty-state-desc" style="margin-bottom: 24px;">You’ll see trip invites from friends here when they plan something.</p>
+                    <a href="{{ url_for('invite') }}" class="bl-modal-cta" style="display: block; text-decoration: none; text-align: center;">Invite friends</a>
+                </div>
             {% endif %}
         </div>
     </div>
