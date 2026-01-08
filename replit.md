@@ -23,6 +23,13 @@ The application employs a mobile-first responsive design with a unified "BaseLod
 ### Technical Implementations
 The backend is built with Flask, utilizing SQLAlchemy for ORM and Werkzeug for password hashing. Jinja2 is used for templating, complemented by custom CSS and Vanilla JS for interactivity and AJAX. Flask-Login handles session-based authentication. An event system captures user actions for notifications. User lifecycle stages (`new`, `onboarding`, `active`) and canonical states (`is_core_profile_complete`, `has_started_planning`, `is_active_user`) dictate UI and feature availability.
 
+### Data Ownership & Source of Truth
+To prevent UI and architectural regressions, the following ownership rules must be maintained:
+- **Profile Owns:** Equipment setup, rider preferences, pass info, and mountain history.
+- **Trips Own:** Specific dates, resort selection, carpool roles, and lesson intent.
+- **UI Constraints:** Trip-level views may reference profile data (e.g., displaying equipment status) but must not duplicate, store, or allow per-trip overrides of profile-owned data.
+- **Geography:** Country labels must always be derived from the canonical `utils/countries.py` mapping, never inferred from raw `Resort` table data.
+
 ### Feature Specifications
 -   **Authentication & Onboarding:** A two-step onboarding process (Identity Setup, Location Setup) follows signup. Welcome modal appears after both steps are complete.
 -   **User Profile:** Comprehensive profiles managed via a "Settings" page, including rider types, skill level, pass types, home state, equipment, and visited mountains.

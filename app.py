@@ -4203,6 +4203,7 @@ def settings_wish_list():
     grouped_wish_list = group_resorts_for_display(wish_list_resorts)
     
     # Get canonical countries for dropdown from the shared COUNTRIES mapping
+    # Safeguard: Dropdown options MUST come from canonical country list, not resort data
     from utils.countries import COUNTRIES
     countries_list = sorted(COUNTRIES.keys(), key=lambda c: (c != 'US', COUNTRIES[c]))
     
@@ -5210,6 +5211,7 @@ def mountains_visited():
     grouped_selected = group_resorts_for_display(selected_resorts)
     
     # Get canonical countries for dropdown from the shared COUNTRIES mapping
+    # Safeguard: Dropdown options MUST come from canonical country list, not resort data
     from utils.countries import COUNTRIES
     countries_list = sorted(COUNTRIES.keys(), key=lambda c: (c != 'US', COUNTRIES[c]))
     
