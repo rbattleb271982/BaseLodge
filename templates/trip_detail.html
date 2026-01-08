@@ -512,6 +512,62 @@
         .page-container-with-sticky {
             padding-bottom: 80px;
         }
+        .your-trip-details-section {
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: var(--bl-radius-md);
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .transport-editor-container {
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+        .transport-row-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            cursor: pointer;
+        }
+        .transport-summary {
+            font-size: 0.9rem;
+            color: var(--bl-color-primary);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .transport-options-inline {
+            display: none;
+            padding: 0 0 16px 0;
+        }
+        .transport-options-inline.expanded {
+            display: block;
+        }
+        .transport-radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .transport-radio-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: var(--bl-color-text);
+        }
+        .transport-radio-label input {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--bl-color-primary);
+        }
+        .chevron-icon {
+            transition: transform 0.2s ease;
+        }
+        .chevron-icon.expanded {
+            transform: rotate(90deg);
+        }
     </style>
 </head>
 <body>
@@ -642,16 +698,48 @@
         </div>
         
         {% if is_owner or is_guest %}
-        <div class="your-trip-details-section" style="background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: var(--bl-radius-md); padding: 16px; margin-bottom: 20px;">
+        <div class="your-trip-details-section">
             <p style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--bl-color-text-muted); font-weight: 600; margin: 0 0 12px 0;">Your Trip Details</p>
             {% if current_user_participant %}
-            <div class="your-detail-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--bl-color-border-soft); cursor: pointer;" onclick="openSignalPicker('transportation')">
-                <span style="font-size: 0.9rem; color: var(--bl-color-text);">Transportation</span>
-                <span style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500;" id="your-trans-display">
-                    {% if current_user_participant.transportation_status %}
-                        {% if current_user_participant.transportation_status.value == 'driving' %}Driving{% elif current_user_participant.transportation_status.value == 'flying' %}Flying{% elif current_user_participant.transportation_status.value == 'train' %}Train{% elif current_user_participant.transportation_status.value == 'bus' %}Bus{% elif current_user_participant.transportation_status.value == 'train_bus' %}Train/Bus{% else %}Add{% endif %} ›
-                    {% else %}Add ›{% endif %}
-                </span>
+            <div class="transport-editor-container">
+                <div class="transport-row-header" onclick="toggleTransportEditor()">
+                    <span style="font-size: 0.9rem; color: var(--bl-color-text);">Transportation</span>
+                    <span class="transport-summary">
+                        <span id="trans-summary-text">
+                            {% if current_user_participant.transportation_status %}
+                                {% if current_user_participant.transportation_status.value == 'driving' %}Driving{% elif current_user_participant.transportation_status.value == 'flying' %}Flying{% elif current_user_participant.transportation_status.value == 'train' %}Train{% elif current_user_participant.transportation_status.value == 'bus' %}Bus{% elif current_user_participant.transportation_status.value == 'train_bus' %}Train/Bus{% else %}Not set{% endif %}
+                            {% else %}Not set{% endif %}
+                        </span>
+                        <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </span>
+                </div>
+                <div class="transport-options-inline" id="transport-options-inline">
+                    <div class="transport-radio-group">
+                        {% set current_trans = current_user_participant.transportation_status.value if current_user_participant.transportation_status else 'tbd' %}
+                        <label class="transport-radio-label">
+                            <span>Driving</span>
+                            <input type="radio" name="transportation_status" value="driving" {% if current_trans == 'driving' %}checked{% endif %} onchange="saveTransportation(this.value)">
+                        </label>
+                        <label class="transport-radio-label">
+                            <span>Flying</span>
+                            <input type="radio" name="transportation_status" value="flying" {% if current_trans == 'flying' %}checked{% endif %} onchange="saveTransportation(this.value)">
+                        </label>
+                        <label class="transport-radio-label">
+                            <span>Train</span>
+                            <input type="radio" name="transportation_status" value="train" {% if current_trans == 'train' %}checked{% endif %} onchange="saveTransportation(this.value)">
+                        </label>
+                        <label class="transport-radio-label">
+                            <span>Bus</span>
+                            <input type="radio" name="transportation_status" value="bus" {% if current_trans == 'bus' %}checked{% endif %} onchange="saveTransportation(this.value)">
+                        </label>
+                        <label class="transport-radio-label">
+                            <span>Not set</span>
+                            <input type="radio" name="transportation_status" value="tbd" {% if current_trans == 'tbd' or current_trans == '' %}checked{% endif %} onchange="saveTransportation(this.value)">
+                        </label>
+                    </div>
+                </div>
             </div>
             <div class="your-detail-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--bl-color-border-soft); cursor: pointer;" onclick="openSignalPicker('equipment')">
                 <span style="font-size: 0.9rem; color: var(--bl-color-text);">Equipment</span>
@@ -1000,6 +1088,49 @@
     </div>
     
     <script>
+        function toggleTransportEditor() {
+            const content = document.getElementById('transport-options-inline');
+            const chevron = document.querySelector('.transport-row-header .chevron-icon');
+            content.classList.toggle('expanded');
+            chevron.classList.toggle('expanded');
+        }
+
+        async function saveTransportation(value) {
+            const tripId = {{ trip.id }};
+            const labels = {
+                'driving': 'Driving',
+                'flying': 'Flying',
+                'train': 'Train',
+                'bus': 'Bus',
+                'tbd': 'Not set'
+            };
+
+            try {
+                const response = await fetch(`/api/trips/${tripId}/participant/signals`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ transportation_status: value })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('trans-summary-text').textContent = labels[value] || 'Not set';
+                    
+                    // Also update the badge in "Who's Going" if it exists
+                    const badge = document.getElementById('my-trans-badge');
+                    if (badge) {
+                        badge.textContent = data.transportation_display || labels[value];
+                        badge.classList.toggle('unset', value === 'tbd');
+                    }
+                    
+                    // Auto-collapse after save
+                    toggleTransportEditor();
+                }
+            } catch (err) {
+                console.error('Failed to save transportation:', err);
+            }
+        }
+
         let currentPickerType = null;
         let activeTriggerElement = null;
         let selectionMade = false;
@@ -1056,11 +1187,6 @@
             let options, currentValue, titleText;
             
             switch(type) {
-                case 'transportation':
-                    options = transportationOptions;
-                    currentValue = currentTransportation;
-                    titleText = 'Transportation';
-                    break;
                 case 'equipment':
                     options = equipmentOptions;
                     currentValue = currentEquipment;
