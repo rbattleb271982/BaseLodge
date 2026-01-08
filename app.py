@@ -1038,7 +1038,11 @@ def get_grouped_locations():
 def get_resorts_for_trip_form():
     """Get all active resorts for the Add Trip form.
     Returns list of dicts with id, name, country_code, state_code, pass_brands.
-    Frontend JS derives all geography from this single list.
+    
+    ⚠️ CONTRACT: This data is used ONLY for filtering States and Resorts after
+    a country is selected. The Country dropdown is populated from COUNTRIES
+    in utils/countries.py, NOT from this data. Do not change this contract.
+    
     Excludes region-level entities (is_region=True).
     """
     resorts = Resort.query.filter_by(is_active=True, is_region=False).order_by(
@@ -4522,16 +4526,9 @@ def add_trip():
             )
 
     # GET - render the add trip form
-    # =====================================================================
-    # RUNTIME VERIFICATION LOGGING (TEMPORARY - REMOVE AFTER DEBUGGING)
-    # =====================================================================
-    print(f"[add_trip GET] === COUNTRY DROPDOWN DEBUG ===")
-    print(f"[add_trip GET] 1. resorts count: {len(resorts)}")
-    print(f"[add_trip GET] 2. resorts sample: {resorts[0] if resorts else 'EMPTY'}")
-    print(f"[add_trip GET] 3. countries_map keys: {list(countries_map.keys()) if countries_map else 'EMPTY'}")
-    print(f"[add_trip GET] 4. states_map exists: {bool(states_map)}")
-    print(f"[add_trip GET] === END DEBUG ===")
-    # =====================================================================
+    # ⚠️ CONTRACT LOCK: countries_map must ALWAYS be passed to template.
+    # The country dropdown is populated from countries_map (COUNTRIES in utils/countries.py),
+    # NOT derived from resorts. Changing this will break the Add Trip country dropdown.
     
     return render_template(
         "add_trip.html",
