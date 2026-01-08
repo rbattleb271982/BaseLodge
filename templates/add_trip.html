@@ -434,8 +434,8 @@
                 
                 <div class="form-group">
                     <label for="country">Country</label>
-                    <select id="country" name="country" required disabled>
-                        <option value="" disabled selected hidden>Loading...</option>
+                    <select id="country" name="country" required>
+                        <option value="" disabled selected hidden>Choose country</option>
                     </select>
                 </div>
 
@@ -902,7 +902,17 @@
         // INITIALIZATION
         // ===========================================
         document.addEventListener('DOMContentLoaded', function() {
-            console.log("Add Trip: Initializing with", resorts.length, "resorts");
+            console.log("Add Trip: Starting initialization...");
+            
+            // Step 1: Check resorts data source
+            if (typeof resorts === 'undefined') {
+                console.error("Add Trip: 'resorts' variable is undefined!");
+                countrySelect.innerHTML = '<option value="">Error: Resorts undefined</option>';
+                countrySelect.disabled = true;
+                return;
+            }
+            
+            console.log("Add Trip: Resorts data length =", resorts.length);
             
             // DEBUG: Log incoming user data for production debugging
             console.log("USER DATA", {
@@ -911,11 +921,14 @@
                 resort: existingTrip.resortId
             });
             
-            // CRITICAL: Force enable country select immediately (iOS Safari fix)
-            countrySelect.disabled = false;
-            
             // Populate countries from resorts
-            populateCountries();
+            if (resorts && resorts.length > 0) {
+                populateCountries();
+                console.log("Add Trip: Countries populated");
+            } else {
+                console.error("Add Trip: Resorts data is empty!");
+                countrySelect.innerHTML = '<option value="">No resorts found</option>';
+            }
             
             // CRITICAL: Ensure country stays enabled after population
             countrySelect.disabled = false;
