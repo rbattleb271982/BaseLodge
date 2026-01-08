@@ -4528,6 +4528,8 @@ def add_trip():
         "add_trip.html",
         trip=None,
         resorts=resorts,
+        countries_map=countries_map,
+        states_map=states_map,
         user=current_user,
         form_action=url_for("add_trip"),
         user_passes=user_passes,
