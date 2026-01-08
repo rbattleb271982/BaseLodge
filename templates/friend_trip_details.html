@@ -27,18 +27,21 @@
         
         <div class="trip-detail-card">
             <div class="trip-detail-row">
-                <span class="trip-detail-label">Resort</span>
+                <span class="trip-detail-label">Mountain</span>
                 <span class="trip-detail-value">
                     {% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}
                 </span>
             </div>
             
+            {% set location_display = trip.resort|state_fullname if trip.resort else trip.state %}
+            {% if location_display %}
             <div class="trip-detail-row">
                 <span class="trip-detail-label">Location</span>
                 <span class="trip-detail-value">
-                    {% if trip.resort %}{{ trip.resort.state_full or trip.resort.state }}{% else %}{{ trip.state }}{% endif %}
+                    {{ location_display }}{% if trip.resort and trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}
                 </span>
             </div>
+            {% endif %}
             
             <div class="trip-detail-row">
                 <span class="trip-detail-label">Dates</span>
@@ -47,12 +50,13 @@
                 </span>
             </div>
             
+            {% set pass_display = trip.resort|mountain_passes %}
+            {% if pass_display %}
             <div class="trip-detail-row">
-                <span class="trip-detail-label">Pass Type</span>
-                <span class="trip-detail-value">
-                    {% if trip.resort %}{{ trip.resort.brand or 'No Pass' }}{% else %}{{ trip.pass_type or 'Not specified' }}{% endif %}
-                </span>
+                <span class="trip-detail-label">Pass</span>
+                <span class="trip-detail-value">{{ pass_display }}</span>
             </div>
+            {% endif %}
             
             <div class="trip-detail-row">
                 <span class="trip-detail-label">Trip Length</span>

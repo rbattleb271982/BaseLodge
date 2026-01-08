@@ -3,9 +3,9 @@
         <p style="font-size: 0.9rem; font-weight: 500; margin: 0;">
             <strong>{{ format_trip_dates(trip) }}</strong> — 
             {% if trip.resort %}
-                {{ trip.resort.name }} {{ trip.resort.state }}, {{ trip.resort.brand or 'No Pass' }}
+                {{ trip.resort.name }}{% set state_abbr = trip.resort|state_abbrev %}{% if state_abbr %}, {{ state_abbr }}{% endif %}{% set pass_brands = trip.resort|mountain_passes %}{% if pass_brands %} · {{ pass_brands }}{% endif %}
             {% else %}
-                {{ trip.mountain }} {{ trip.state }}, No Pass
+                {{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}
             {% endif %}
             • {{ (trip.end_date - trip.start_date).days + 1 }} days
         </p>

@@ -322,17 +322,25 @@
         <div class="info-section">
             <p class="info-section-title">Trip Details</p>
             <div class="info-row">
-                <span class="info-label">Destination</span>
+                <span class="info-label">Mountain</span>
                 <span class="info-value">
-                    {% if trip.resort and trip.resort.name %}
-                        {{ trip.resort.name }}, {{ trip.resort.state_code or trip.resort.state }}
-                    {% elif trip.mountain %}
-                        {{ trip.mountain }}, {{ trip.state }}
-                    {% else %}
-                        TBD
-                    {% endif %}
+                    {% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% elif trip.mountain %}{{ trip.mountain }}{% else %}TBD{% endif %}
                 </span>
             </div>
+            {% set location_display = trip.resort|state_fullname if trip.resort else trip.state %}
+            {% if location_display %}
+            <div class="info-row">
+                <span class="info-label">Location</span>
+                <span class="info-value">{{ location_display }}{% if trip.resort and trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}</span>
+            </div>
+            {% endif %}
+            {% set pass_display = trip.resort|mountain_passes if trip.resort else '' %}
+            {% if pass_display %}
+            <div class="info-row">
+                <span class="info-label">Pass</span>
+                <span class="info-value">{{ pass_display }}</span>
+            </div>
+            {% endif %}
             {% if trip.notes %}
             <div class="info-row" style="flex-direction: column; align-items: flex-start;">
                 <span class="info-label" style="margin-bottom: 4px;">Notes</span>

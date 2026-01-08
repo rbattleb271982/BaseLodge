@@ -504,10 +504,12 @@
             <div style="background: linear-gradient(135deg, rgba(143, 1, 27, 0.06), rgba(143, 1, 27, 0.02)); border: 1px solid rgba(143, 1, 27, 0.15); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;">
                 <div style="margin-bottom: 10px;">
                     <p style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 4px 0;">
-                        {% if invite.trip.resort %}{{ invite.trip.resort.name }}{% if invite.trip.resort.state %}, {{ invite.trip.resort.state }}{% endif %}{% else %}{{ invite.trip.mountain }}{% endif %}
+                        {% if invite.trip.resort %}{{ invite.trip.resort.name }}{% else %}{{ invite.trip.mountain }}{% endif %}
                     </p>
+                    {% set state_abbr = invite.trip.resort|state_abbrev if invite.trip.resort else invite.trip.state %}
+                    {% set pass_brands = invite.trip.resort|mountain_passes if invite.trip.resort else '' %}
                     <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0;">
-                        {{ format_trip_dates(invite.trip) }}
+                        {% if state_abbr %}{{ state_abbr }} · {% endif %}{{ format_trip_dates(invite.trip) }}{% if pass_brands %} · {{ pass_brands }}{% endif %}
                     </p>
                     <p style="font-size: 13px; color: var(--bl-color-primary); font-weight: 500; margin: 4px 0 0 0;">
                         Invited by {{ invite.inviter.first_name }}{% if invite.inviter.last_name %} {{ invite.inviter.last_name }}{% endif %}
@@ -538,8 +540,10 @@
             <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
                 <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bl-color-surface); border: 1px solid var(--bl-color-border-soft); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;">
                     <div style="flex: 1; min-width: 0;">
-                        <p style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{% if trip.resort %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% else %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% endif %}</p>
-                        <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0;">{{ format_trip_dates(trip) }}</p>
+                        <p style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</p>
+                        {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
+                        {% set pass_brands = trip.resort|mountain_passes if trip.resort else '' %}
+                        <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0;">{% if state_abbr %}{{ state_abbr }} · {% endif %}{{ format_trip_dates(trip) }}{% if pass_brands %} · {{ pass_brands }}{% endif %}</p>
                     </div>
                     <span style="flex-shrink: 0; margin-left: 12px; font-size: 14px; color: var(--bl-color-primary); font-weight: 500;">View</span>
                 </div>
@@ -559,7 +563,7 @@
     <div class="visited-modal-overlay" id="visited-modal-overlay" onclick="closeVisitedModal(event)">
         <div class="visited-modal" onclick="event.stopPropagation()">
             <div class="visited-modal-header">
-                <h2 class="visited-modal-title">Visited Resorts</h2>
+                <h2 class="visited-modal-title">Visited Mountains</h2>
                 <button class="visited-modal-done" onclick="closeVisitedModal()">Done</button>
             </div>
             <div class="visited-modal-list">

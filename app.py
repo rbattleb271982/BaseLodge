@@ -227,6 +227,67 @@ def country_name_filter(code):
     return COUNTRIES.get(code.upper(), code)
 
 
+@app.template_filter('mountain_passes')
+def mountain_passes_filter(resort):
+    """
+    Formats mountain pass brands as 'Epic · Ikon' (no "Pass" suffix).
+    Returns empty string if no passes.
+    Usage: {{ trip.resort|mountain_passes }}
+    """
+    if not resort:
+        return ""
+    pass_brands = getattr(resort, 'pass_brands', None)
+    if not pass_brands:
+        return ""
+    # Split comma-separated, filter empties and normalize
+    brands = [b.strip() for b in str(pass_brands).split(',') if b.strip()]
+    # Filter out placeholder values
+    brands = [b for b in brands if b.lower() not in ('none', 'n/a', '')]
+    if not brands:
+        return ""
+    return ' · '.join(brands)
+
+
+@app.template_filter('state_abbrev')
+def state_abbrev_filter(resort_or_code):
+    """
+    Returns state abbreviation (e.g., 'CO').
+    Accepts resort object or state_code string.
+    Usage: {{ trip.resort|state_abbrev }} or {{ 'Colorado'|state_abbrev }}
+    """
+    if not resort_or_code:
+        return ""
+    # If it's a resort object, get state_code
+    if hasattr(resort_or_code, 'state_code'):
+        return resort_or_code.state_code or ""
+    # If it's already a short code (2-3 chars), return as-is
+    if isinstance(resort_or_code, str) and len(resort_or_code) <= 3:
+        return resort_or_code
+    return ""
+
+
+@app.template_filter('state_fullname')
+def state_fullname_filter(resort_or_code):
+    """
+    Returns full state name (e.g., 'Colorado').
+    Accepts resort object or state_name string.
+    Falls back to state_code or state field if state_name not available.
+    Usage: {{ trip.resort|state_fullname }}
+    """
+    if not resort_or_code:
+        return ""
+    # If it's a resort object, get state_name with fallbacks
+    if hasattr(resort_or_code, 'state_name'):
+        return resort_or_code.state_name or getattr(resort_or_code, 'state', '') or ""
+    # Also try state field directly (for legacy objects)
+    if hasattr(resort_or_code, 'state'):
+        return resort_or_code.state or ""
+    # If it's already a string, return as-is
+    if isinstance(resort_or_code, str):
+        return resort_or_code
+    return ""
+
+
 @app.template_filter('relative_time')
 def relative_time_filter(dt):
     """

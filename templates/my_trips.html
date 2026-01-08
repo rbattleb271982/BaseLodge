@@ -410,8 +410,10 @@
                     <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
                         <div class="trip-card">
                             <div class="trip-card-content">
-                                <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% elif trip.mountain %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% else %}Resort TBD{% endif %}</p>
-                                <p class="trip-card-line2">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
+                                <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% elif trip.mountain %}{{ trip.mountain }}{% else %}Mountain TBD{% endif %}</p>
+                                {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
+                                {% set pass_brands = trip.resort|mountain_passes if trip.resort else '' %}
+                                <p class="trip-card-line2">{% if state_abbr %}{{ state_abbr }} · {% endif %}{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}{% if pass_brands %} · {{ pass_brands }}{% endif %}</p>
                             </div>
                             <span class="trip-card-action">View</span>
                         </div>
@@ -496,8 +498,9 @@
                         <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
                             <div class="trip-card">
                                 <div class="trip-card-content">
-                                    <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% else %}{{ trip.mountain }}{% endif %}</p>
-                                    <p class="trip-card-line2"><span style="color: var(--bl-color-text); font-weight: 600;">{{ trip.user.first_name if trip.user else 'Someone' }}</span> invited you · {{ format_trip_dates(trip) }}</p>
+                                    <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</p>
+                                    {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
+                                    <p class="trip-card-line2">{% if state_abbr %}{{ state_abbr }} · {% endif %}<span style="color: var(--bl-color-text); font-weight: 600;">{{ trip.user.first_name if trip.user else 'Someone' }}</span> invited you · {{ format_trip_dates(trip) }}</p>
                                 </div>
                                 <span class="secondary-action">View</span>
                             </div>

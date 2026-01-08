@@ -373,21 +373,31 @@
         {# Trip Summary Section #}
         <div class="trip-detail-card">
             <div class="trip-detail-row">
-                <span class="trip-detail-label">Resort</span>
+                <span class="trip-detail-label">Mountain</span>
                 <span class="trip-detail-value">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</span>
             </div>
+            {% if trip.resort and trip.resort|state_fullname %}
             <div class="trip-detail-row">
                 <span class="trip-detail-label">Location</span>
-                <span class="trip-detail-value">{% if trip.resort %}{{ trip.resort.state_name }}, {{ trip.resort.display_country_name }}{% else %}{{ trip.state }}{% endif %}</span>
+                <span class="trip-detail-value">{{ trip.resort|state_fullname }}{% if trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}</span>
             </div>
+            {% elif trip.state %}
+            <div class="trip-detail-row">
+                <span class="trip-detail-label">Location</span>
+                <span class="trip-detail-value">{{ trip.state }}</span>
+            </div>
+            {% endif %}
             <div class="trip-detail-row">
                 <span class="trip-detail-label">Dates</span>
                 <span class="trip-detail-value">{{ format_trip_dates(trip) }}</span>
             </div>
+            {% set pass_display = trip.resort|mountain_passes %}
+            {% if pass_display %}
             <div class="trip-detail-row">
-                <span class="trip-detail-label">Pass Type</span>
-                <span class="trip-detail-value">{{ trip.pass_type }}</span>
+                <span class="trip-detail-label">Pass</span>
+                <span class="trip-detail-value">{{ pass_display }}</span>
             </div>
+            {% endif %}
             <div class="trip-detail-row">
                 <span class="trip-detail-label">Trip Length</span>
                 <span class="trip-detail-value">{{ trip.trip_duration|replace('_', ' ')|capitalize }}</span>

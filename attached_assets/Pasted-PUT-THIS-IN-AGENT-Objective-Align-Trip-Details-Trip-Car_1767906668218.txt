@@ -1,0 +1,108 @@
+PUT THIS IN AGENT
+
+Objective
+Align Trip Details, Trip Cards (tiles), and Invite Previews so they use consistent
+terminology and pass logic, while intentionally using different location formats
+by surface. This is a UI consistency task only — do not change business logic
+or user flows.
+
+────────────────────────────
+GLOBAL RULES
+────────────────────────────
+
+1. Terminology
+- Replace all user-facing text "Resort" with "Mountain"
+- Internal model or variable names may remain unchanged
+
+2. Pass Type (mountain-based reference data)
+- Passes come from the mountain, NOT the user
+- Display brand names only (e.g., "Epic", "Ikon")
+- NEVER append the word "Pass"
+- If multiple passes apply, join with a middle dot: "Epic · Ikon"
+- If zero passes apply, do NOT render the Pass Type row or line at all
+- Pass Type is read-only and never editable
+
+3. Location rendering by surface
+- Trip Details page: full state name (e.g., "Colorado")
+- Trip Cards / Tiles: state abbreviation only (e.g., "CO")
+- Invite Previews: state abbreviation only (e.g., "CO")
+- Never render None, empty strings, or dangling punctuation
+- If state data is missing, hide the location line entirely
+
+────────────────────────────
+PHASE 1 — Centralize formatting helpers
+────────────────────────────
+- Identify where pass and location formatting logic is duplicated
+- Create or reuse shared helpers (template filters or utilities) for:
+  a) Formatting pass lists into a display string
+  b) Rendering state names vs abbreviations based on surface
+- Replace inline formatting with these helpers
+
+────────────────────────────
+PHASE 2 — Trip Details page
+────────────────────────────
+- Update label text:
+  - "Resort" → "Mountain"
+- Ensure fields render as:
+  - Mountain name
+  - Location (full state name)
+  - Dates
+  - Pass Type (using shared helper)
+- Do not render Pass Type row if no passes exist
+- Ensure no placeholders or empty values appear
+
+────────────────────────────
+PHASE 3 — Trip Cards / Tiles
+(My Trips, Friends Trips, Planning, Trip Ideas)
+────────────────────────────
+- Layout:
+  Line 1: Mountain name
+  Line 2: Location (state abbreviation)
+  Line 3: Date range + Pass Type (if present)
+- Example:
+  "Jan 20–23 · Epic · Ikon"
+- If no passes exist, show dates only
+- Do not introduce labels, icons, or explanatory copy
+
+────────────────────────────
+PHASE 4 — Invite Previews
+(invite list + invite landing)
+────────────────────────────
+- Layout:
+  Line 1: Mountain name
+  Line 2: Location (state abbreviation)
+  Line 3: Date range
+  Line 4: Pass Type (if present)
+- Use the same pass helper for formatting
+- Do not render a pass line if no passes exist
+
+────────────────────────────
+PHASE 5 — Cleanup
+────────────────────────────
+- Remove any remaining instances of the word "Pass" from the UI
+- Ensure "Mountain" terminology is consistent across all affected screens
+- Verify no surface renders:
+  - Empty rows
+  - "None"
+  - Trailing separators or punctuation
+
+────────────────────────────
+PHASE 6 — QA (REQUIRED)
+────────────────────────────
+Verify manually:
+
+1. Mountain with one pass
+   - Shows: "Epic"
+
+2. Mountain with multiple passes
+   - Shows: "Epic · Ikon"
+
+3. Mountain with no passes
+   - Pass Type row/line is hidden everywhere
+
+4. Location formatting
+   - Trip Details: "Colorado"
+   - Trip Cards: "CO"
+   - Invite Previews: "CO"
+
+Do NOT publish until all QA checks pass.
