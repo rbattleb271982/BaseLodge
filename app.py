@@ -4332,29 +4332,10 @@ def add_open_dates():
     # Pre-populate with existing dates
     existing_dates = current_user.open_dates or []
     
-    # Get canonical maps for dropdowns
-    try:
-        from utils.countries import COUNTRIES as CANONICAL_COUNTRIES, STATE_ABBR_MAP
-        countries_map = CANONICAL_COUNTRIES
-        states_map = STATE_ABBR_MAP
-    except ImportError:
-        countries_map = {}
-        states_map = {}
-    
     return render_template(
-        "add_trip.html",
-        trip=None,
-        resorts=resorts,
-        countries_map=countries_map,
-        states_map=states_map,
+        "add_open_dates.html",
         user=current_user,
-        form_action=url_for("add_trip"),
-        user_passes=user_passes,
-        prefill_friend=prefill_friend,
-        prefill_start_date=prefill_start_date,
-        prefill_end_date=prefill_end_date,
-        prefill_resort=prefill_resort,
-        is_group=is_group,
+        existing_dates=existing_dates,
     )
 
 @app.route("/add_trip", methods=["GET", "POST"])
