@@ -401,29 +401,29 @@
         </div>
 
         <div id="segment-upcoming" class="segment-content active">
-            <p class="section-label">Confirmed Trips</p>
             {% set all_my_trips = (upcoming_trips or []) + (accepted_guest_trips or []) %}
             {% if all_my_trips|length > 0 %}
-            <div class="trips-list">
-                {% for trip in all_my_trips|sort(attribute='start_date') %}
-                {% if trip and trip.id %}
-                <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                    <div class="trip-card">
-                        <div class="trip-card-content">
-                            <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% elif trip.mountain %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% else %}Resort TBD{% endif %}</p>
-                            <p class="trip-card-line2">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
+                <p class="section-label">Confirmed Trips</p>
+                <div class="trips-list">
+                    {% for trip in all_my_trips|sort(attribute='start_date') %}
+                    {% if trip and trip.id %}
+                    <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                        <div class="trip-card">
+                            <div class="trip-card-content">
+                                <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% elif trip.mountain %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% else %}Resort TBD{% endif %}</p>
+                                <p class="trip-card-line2">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
+                            </div>
+                            <span class="trip-card-action">View</span>
                         </div>
-                        <span class="trip-card-action">View</span>
-                    </div>
-                </a>
-                {% endif %}
-                {% endfor %}
-            </div>
+                    </a>
+                    {% endif %}
+                    {% endfor %}
+                </div>
             {% else %}
-            <div class="empty-state-container">
-                <p class="empty-state-title">No upcoming trips yet</p>
-                <p class="empty-state-desc">Head to the Ideas tab to start planning</p>
-            </div>
+                <div class="empty-state-container" style="padding-top: 32px;">
+                    <p class="empty-state-title">No upcoming trips yet</p>
+                    <p class="empty-state-desc">Head to the Ideas tab to start planning</p>
+                </div>
             {% endif %}
 
             <a href="{{ url_for('add_trip') }}" class="new-trip-card" style="margin-top: 16px;">
