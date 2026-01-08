@@ -4898,6 +4898,12 @@ def trip_invite_detail(trip_id):
     )
 
 
+
+
+
+
+
+
 @app.route("/api/trip/<int:trip_id>/accommodation", methods=["POST"])
 @login_required
 def update_trip_accommodation(trip_id):
@@ -7566,32 +7572,6 @@ def save_equipment():
     db.session.commit()
     
     return jsonify({"success": True, "message": f"{slot.value} equipment saved"})
-
-
-@app.route("/api/trip/<int:trip_id>/accommodation", methods=["POST"])
-@login_required
-def update_trip_accommodation(trip_id):
-    """Update accommodation status (owner-only)."""
-    trip = db.session.get(SkiTrip, trip_id)
-    if not trip:
-        return jsonify({"status": "error", "message": "Trip not found"}), 404
-    
-    if trip.user_id != current_user.id:
-        return jsonify({"status": "error", "message": "Only the trip organizer can manage accommodations"}), 403
-
-    data = request.json
-    status = data.get("status")
-    link = data.get("link")
-    
-    if status == 'none_yet' or not status:
-        trip.accommodation_status = None
-        trip.accommodation_link = None
-    else:
-        trip.accommodation_status = status
-        trip.accommodation_link = link
-
-    db.session.commit()
-    return jsonify({"status": "success"})
 
 
 @app.route("/group-trip/<int:trip_id>/transportation", methods=["POST"])
