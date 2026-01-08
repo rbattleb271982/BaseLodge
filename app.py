@@ -4522,7 +4522,16 @@ def add_trip():
             )
 
     # GET - render the add trip form
-    print(f"[add_trip GET] Resorts count: {len(resorts)}")
+    # =====================================================================
+    # RUNTIME VERIFICATION LOGGING (TEMPORARY - REMOVE AFTER DEBUGGING)
+    # =====================================================================
+    print(f"[add_trip GET] === COUNTRY DROPDOWN DEBUG ===")
+    print(f"[add_trip GET] 1. resorts count: {len(resorts)}")
+    print(f"[add_trip GET] 2. resorts sample: {resorts[0] if resorts else 'EMPTY'}")
+    print(f"[add_trip GET] 3. countries_map keys: {list(countries_map.keys()) if countries_map else 'EMPTY'}")
+    print(f"[add_trip GET] 4. states_map exists: {bool(states_map)}")
+    print(f"[add_trip GET] === END DEBUG ===")
+    # =====================================================================
     
     return render_template(
         "add_trip.html",
