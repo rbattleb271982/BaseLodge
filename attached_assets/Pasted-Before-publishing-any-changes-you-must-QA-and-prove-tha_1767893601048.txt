@@ -1,0 +1,79 @@
+Before publishing any changes, you must QA and prove that the Country dropdown on /add_trip works correctly. Do not proceed without completing every step below.
+
+⸻
+
+✅ QA CONTRACT — /add_trip Country Dropdown
+
+1️⃣ Server-Side Rendering (MANDATORY)
+Confirm that the Country dropdown is rendered entirely by Jinja, not JavaScript.
+	•	countries_map must be passed into render_template("add_trip.html")
+	•	<select id="country"> must be populated using a Jinja {% for %} loop
+	•	Display text: full country names (e.g. United States)
+	•	Option values: ISO-2 codes (e.g. US)
+	•	Ordering:
+	•	United States first
+	•	All others alphabetically
+
+📌 Reply with:
+	•	The final Jinja <select> markup used to render the Country dropdown
+
+⸻
+
+2️⃣ JavaScript Guardrail
+Verify that JavaScript does NOT populate or overwrite the Country dropdown.
+	•	❌ No populateCountries() calls
+	•	❌ No countrySelect.innerHTML = ...
+	•	✅ JS may ONLY respond to change events to populate:
+	•	State / Region
+	•	Resort
+
+📌 Reply with:
+	•	The JS section showing no country mutation logic
+
+⸻
+
+3️⃣ Runtime QA (REQUIRED — NO EXCEPTIONS)
+Test /add_trip in all environments below:
+
+Desktop Chrome
+	•	Country dropdown populated immediately
+	•	No “Loading…” option
+	•	Selecting a country enables State dropdown
+
+Mobile Safari (REAL DEVICE)
+	•	Country list visible on first tap
+	•	Scrollable list
+	•	No empty or stuck dropdown
+
+Incognito / Private Window
+	•	Hard refresh
+	•	Same behavior as above
+
+📸 Reply with screenshots from Mobile Safari showing:
+	•	Open Country dropdown
+	•	At least 5 countries visible
+	•	“United States” at the top
+
+⸻
+
+4️⃣ Route Regression Check
+Confirm that every route rendering add_trip.html passes:
+	•	countries_map
+	•	states_map
+	•	resorts
+
+Also confirm:
+	•	/add-open-dates does NOT render add_trip.html
+
+📌 Reply with:
+	•	A list of all routes that render add_trip.html
+
+⸻
+
+5️⃣ Final Confirmation
+Reply only when complete with:
+	•	✅ “All QA checks passed”
+	•	📸 Screenshots attached
+	•	📄 Code snippets where requested
+
+🚫 Do not publish until all steps above are verified.

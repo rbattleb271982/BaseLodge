@@ -4533,6 +4533,11 @@ def add_trip():
     print(f"[VERIFY] countries_map size: {len(countries_map)}")
     print(f"[VERIFY] 'US' in map: {'US' in countries_map}")
     
+    # QA Check: Routes rendering add_trip.html:
+    # 1. /add_trip (GET/POST)
+    # 2. /trips/<int:trip_id>/edit (GET/POST)
+    # Confirm: /add-open-dates does NOT render add_trip.html (fixed previously)
+    
     return render_template(
         "add_trip.html",
         trip=None,
