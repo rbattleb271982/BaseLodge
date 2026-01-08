@@ -1,0 +1,94 @@
+PUT THIS IN AGENT
+
+We have a BLOCKING regression on /add_trip: the calendar renders but is not interactive (no dates can be selected), especially on mobile Safari.
+
+You must diagnose before fixing. Do not change unrelated code.
+
+STEP 1 — Identify Calendar Implementation (NO CHANGES)
+First, determine exactly how the calendar is implemented.
+
+Reply with:
+- Calendar type: custom or library (name if library)
+- JS file(s) responsible for calendar setup
+- HTML element ID/class used as the calendar target
+- Confirmation that the calendar previously worked
+
+Do NOT modify code yet.
+
+STEP 2 — Verify Initialization Path (MANDATORY LOGGING)
+Trace the calendar initialization path end-to-end.
+
+Confirm:
+- DOMContentLoaded fires
+- Calendar init function is invoked
+- No conditional gates prevent execution
+- No JS errors occur before init
+
+Add temporary logging ONLY:
+console.log("[CALENDAR] DOMContentLoaded fired");
+console.log("[CALENDAR] Init function called");
+console.log("[CALENDAR] Target element:", document.getElementById("CALENDAR_ID"));
+
+Reply with browser console output showing:
+- Logs firing
+- Target element FOUND (not null)
+
+STEP 3 — DOM & CSS INTERFERENCE CHECK
+Verify the calendar is present and clickable at runtime.
+
+Check:
+- Element exists when JS runs
+- No overlay blocking clicks
+- No pointer-events: none
+- No disabled attribute applied
+- No z-index conflict
+
+Reply with:
+- Rendered HTML snippet of the calendar element
+- Relevant CSS rules affecting it
+
+STEP 4 — REGRESSION ROOT CAUSE ANALYSIS
+This calendar worked before. Identify what broke it.
+
+Compare against:
+- Recent template splits (add_trip vs add_open_dates)
+- Country/state dropdown refactor
+- Missing variables passed to template
+- JS function moved or conditionally gated
+
+Reply with:
+- Exact cause (file + line)
+- Why the calendar silently stopped responding
+
+No guessing allowed.
+
+STEP 5 — APPLY MINIMAL FIX
+Apply the smallest possible fix to restore functionality.
+
+Rules:
+- No refactors
+- No unrelated cleanup
+- Do not change country/state logic
+- Fix must restore calendar interaction
+
+STEP 6 — ACCEPTANCE VERIFICATION (REQUIRED)
+Do not mark complete unless all pass:
+- Dates selectable on desktop Chrome
+- Dates selectable on mobile Safari
+- Range selection works
+- Selected dates persist on submit
+
+Attach screenshots showing:
+- Mobile Safari selecting dates
+- Successful save with dates
+
+FINAL RESPONSE FORMAT (STRICT)
+Reply ONLY with:
+1. Root cause
+2. Fix applied (code snippet or diff)
+3. Proof (screenshots)
+4. Confirmation no unrelated logic was touched
+
+If any step fails, stop and report — do not proceed.
+
+This is a release blocker and must be correct before publishing.
