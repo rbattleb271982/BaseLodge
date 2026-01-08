@@ -4416,10 +4416,6 @@ def add_trip():
         is_public = request.form.get("is_public") == "on"
         ride_intent = request.form.get("ride_intent") or None
         trip_equipment_status = request.form.get("trip_equipment_status") or "use_default"
-        accommodation_status = request.form.get("accommodation_status") or None
-        accommodation_link = request.form.get("accommodation_link") or None
-        if accommodation_status == "none_yet":
-            accommodation_link = None
         
         friend_id = request.form.get("friend_id", type=int)
         is_group_trip = request.form.get("is_group") == "1"
@@ -4512,8 +4508,6 @@ def add_trip():
             ride_intent=ride_intent,
             trip_duration=trip_duration,
             trip_equipment_status=trip_equipment_status if trip_equipment_status != 'use_default' else None,
-            accommodation_status=accommodation_status if accommodation_status != 'none_yet' else None,
-            accommodation_link=accommodation_link,
             is_group_trip=is_group_trip or (friend_id is not None),
             created_by_user_id=current_user.id,
         )
@@ -4596,10 +4590,6 @@ def edit_trip_form(trip_id):
         is_public = request.form.get("is_public") == "on"
         transportation_status = request.form.get("transportation_status") or None
         trip_equipment_status = request.form.get("trip_equipment_status") or "use_default"
-        accommodation_status = request.form.get("accommodation_status") or None
-        accommodation_link = request.form.get("accommodation_link") or None
-        if accommodation_status in ("none_yet", "not_booked"):
-            accommodation_link = None
 
         errors = []
 
@@ -4682,8 +4672,6 @@ def edit_trip_form(trip_id):
         trip.end_date = end_date
         trip.is_public = is_public
         trip.trip_equipment_status = trip_equipment_status if trip_equipment_status != 'use_default' else None
-        trip.accommodation_status = accommodation_status if accommodation_status not in ('none_yet', 'not_booked') else None
-        trip.accommodation_link = accommodation_link
         trip.trip_duration = SkiTrip.calculate_duration(start_date, end_date)
         
         # Update current user's transportation_status on their participant record
@@ -4908,6 +4896,32 @@ def trip_invite_detail(trip_id):
         going_count=going_count,
         user_owns_equipment=user_owns_equipment,
     )
+
+
+@app.route("/api/trip/<int:trip_id>/accommodation", methods=["POST"])
+@login_required
+def update_trip_accommodation(trip_id):
+    """Update accommodation status (owner-only)."""
+    trip = db.session.get(SkiTrip, trip_id)
+    if not trip:
+        return jsonify({"status": "error", "message": "Trip not found"}), 404
+    
+    if trip.user_id != current_user.id:
+        return jsonify({"status": "error", "message": "Only the trip organizer can manage accommodations"}), 403
+
+    data = request.json
+    status = data.get("status")
+    link = data.get("link")
+    
+    if status == 'none_yet' or not status:
+        trip.accommodation_status = None
+        trip.accommodation_link = None
+    else:
+        trip.accommodation_status = status
+        trip.accommodation_link = link
+
+    db.session.commit()
+    return jsonify({"status": "success"})
 
 
 @app.route("/trips/<int:trip_id>/invite/cancel", methods=["POST"])
@@ -7554,30 +7568,30 @@ def save_equipment():
     return jsonify({"success": True, "message": f"{slot.value} equipment saved"})
 
 
-@app.route("/group-trip/<int:trip_id>/accommodation", methods=["POST"])
+@app.route("/api/trip/<int:trip_id>/accommodation", methods=["POST"])
 @login_required
-def update_group_trip_accommodation(trip_id):
-    """Update accommodation status (host-only)."""
-    trip = GroupTrip.query.get_or_404(trip_id)
+def update_trip_accommodation(trip_id):
+    """Update accommodation status (owner-only)."""
+    trip = db.session.get(SkiTrip, trip_id)
+    if not trip:
+        return jsonify({"status": "error", "message": "Trip not found"}), 404
     
-    if trip.host_id != current_user.id:
-        return jsonify({"success": False, "error": "Only host can update"}), 403
+    if trip.user_id != current_user.id:
+        return jsonify({"status": "error", "message": "Only the trip organizer can manage accommodations"}), 403
+
+    data = request.json
+    status = data.get("status")
+    link = data.get("link")
     
-    data = request.get_json()
-    status_name = data.get("accommodation_status", "").upper()
-    
-    if status_name == "":
+    if status == 'none_yet' or not status:
         trip.accommodation_status = None
-    elif status_name in ["BOOKED", "NOT_YET", "STAYING_WITH_FRIENDS"]:
-        try:
-            trip.accommodation_status = AccommodationStatus[status_name]
-        except KeyError:
-            return jsonify({"success": False, "error": "Invalid status"}), 400
+        trip.accommodation_link = None
     else:
-        return jsonify({"success": False, "error": "Invalid status"}), 400
-    
+        trip.accommodation_status = status
+        trip.accommodation_link = link
+
     db.session.commit()
-    return jsonify({"success": True})
+    return jsonify({"status": "success"})
 
 
 @app.route("/group-trip/<int:trip_id>/transportation", methods=["POST"])

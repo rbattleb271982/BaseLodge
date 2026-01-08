@@ -694,6 +694,34 @@
                     <div style="font-size: 0.75rem; margin-top: 2px;">Managed in Profile</div>
                 </span>
             </div>
+
+            <div class="trip-detail-row" style="cursor: {% if is_owner %}pointer{% else %}default{% endif %};" onclick="{% if is_owner %}openAccommodationPicker(){% endif %}">
+                <span class="trip-detail-label">Accommodations</span>
+                <div class="trip-detail-value" style="display: flex; flex-direction: column; align-items: flex-end;">
+                    <span id="accommodation-display-text" style="color: {% if is_owner %}var(--bl-color-primary){% else %}var(--bl-color-text){% endif %}; font-weight: 500;">
+                        {% if trip.accommodation_status == 'booked' %}
+                            Booked
+                        {% elif trip.accommodation_status == 'friends' %}
+                            Staying with friends
+                        {% else %}
+                            Not yet
+                        {% endif %}
+                        {% if is_owner %} ›{% endif %}
+                    </span>
+                    {% if not is_owner %}
+                        <span style="font-size: 0.75rem; color: var(--bl-color-text-muted); margin-top: 2px;">Managed by trip organizer</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if trip.accommodation_link %}
+            <div class="trip-detail-row">
+                <span class="trip-detail-label">Stay Details</span>
+                <span class="trip-detail-value">
+                    <a href="{{ trip.accommodation_link }}" target="_blank" style="color: var(--bl-color-primary); text-decoration: none;">View link</a>
+                </span>
+            </div>
+            {% endif %}
             
             <div class="trip-detail-row">
                 <span class="trip-detail-label">Visibility</span>
@@ -1209,6 +1237,9 @@
         let activeTriggerElement = null;
         let selectionMade = false;
         
+        let currentAccommodationStatus = '{{ trip.accommodation_status or "none_yet" }}';
+        let currentAccommodationLink = '{{ trip.accommodation_link or "" }}';
+        
         const badgeContainer = document.querySelector('.participant-badges.editable');
         let currentTransportation = badgeContainer ? badgeContainer.dataset.transValue : '';
         let currentCarpoolRole = badgeContainer ? badgeContainer.dataset.carpoolRole : '';
@@ -1234,6 +1265,83 @@
             { value: 'yes', label: 'Taking a lesson' },
             { value: 'maybe', label: 'Maybe lessons' }
         ];
+
+        const accommodationOptions = [
+            { value: 'none_yet', label: 'Not yet' },
+            { value: 'booked', label: 'Booked' },
+            { value: 'friends', label: 'Staying with friends' }
+        ];
+        
+        function openAccommodationPicker() {
+            currentPickerType = 'accommodation';
+            const overlay = document.getElementById('signalPickerOverlay');
+            const title = document.getElementById('signalPickerTitle');
+            const optionsContainer = document.getElementById('signalPickerOptions');
+            
+            title.textContent = 'Accommodations';
+            
+            let html = accommodationOptions.map(opt => `
+                <button type="button" class="signal-picker-option ${opt.value === currentAccommodationStatus ? 'selected' : ''}" 
+                     onclick="selectAccommodation('${opt.value}')">
+                    ${opt.label}
+                </button>
+            `).join('');
+            
+            html += `
+                <div id="accommodationLinkGroup" style="display: ${currentAccommodationStatus === 'booked' ? 'block' : 'none'}; margin-top: 12px; padding: 12px; background: var(--bl-color-border-soft); border-radius: 8px;">
+                    <label style="font-size: 0.9rem; color: var(--bl-color-text-muted);">Booking Link:</label>
+                    <input type="url" id="accommodationLinkInput" 
+                           class="friend-search-input" 
+                           style="margin-top: 8px;"
+                           placeholder="https://..." 
+                           value="${currentAccommodationLink}"
+                           oninput="currentAccommodationLink = this.value">
+                    <button type="button" class="bl-btn-primary" style="width: 100%; margin-top: 12px; padding: 10px;" onclick="saveAccommodation()">Save Link</button>
+                </div>
+            `;
+            
+            optionsContainer.innerHTML = html;
+            overlay.classList.add('active');
+        }
+
+        function selectAccommodation(status) {
+            currentAccommodationStatus = status;
+            if (status === 'booked') {
+                document.getElementById('accommodationLinkGroup').style.display = 'block';
+                // Don't close yet, wait for link or save
+            } else {
+                currentAccommodationLink = '';
+                saveAccommodation();
+            }
+            
+            // Update selected state in UI
+            document.querySelectorAll('#signalPickerOptions .signal-picker-option').forEach(btn => {
+                const opt = accommodationOptions.find(o => o.value === status);
+                if (opt) {
+                    btn.classList.toggle('selected', btn.textContent.trim() === opt.label);
+                }
+            });
+        }
+
+        async function saveAccommodation() {
+            const tripId = {{ trip.id }};
+            try {
+                const response = await fetch(`/api/trip/${tripId}/accommodation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        status: currentAccommodationStatus,
+                        link: currentAccommodationLink 
+                    })
+                });
+
+                if (response.ok) {
+                    location.reload(); 
+                }
+            } catch (err) {
+                console.error('Failed to save accommodation:', err);
+            }
+        }
         
         function openSignalPicker(type) {
             currentPickerType = type;

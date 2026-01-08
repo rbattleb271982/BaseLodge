@@ -458,35 +458,8 @@
             </div>
 
             <div class="form-card">
-                <div class="form-group">
-                    <label>Trip dates</label>
-                    <input type="hidden" id="start_date" name="start_date" required value="{% if trip and trip.start_date %}{{ trip.start_date.isoformat() }}{% elif prefill_start_date %}{{ prefill_start_date }}{% endif %}">
-                    <input type="hidden" id="end_date" name="end_date" required value="{% if trip and trip.end_date %}{{ trip.end_date.isoformat() }}{% elif prefill_end_date %}{{ prefill_end_date }}{% endif %}">
-                    
-                    <div class="calendar-container" id="date-range-calendar">
-                        <div class="calendar-header">
-                            <button type="button" id="prev-month">&larr;</button>
-                            <span class="calendar-month-year" id="calendar-month-year"></span>
-                            <button type="button" id="next-month">&rarr;</button>
-                        </div>
-                        <div class="calendar-weekdays">
-                            <span class="calendar-weekday">Su</span>
-                            <span class="calendar-weekday">Mo</span>
-                            <span class="calendar-weekday">Tu</span>
-                            <span class="calendar-weekday">We</span>
-                            <span class="calendar-weekday">Th</span>
-                            <span class="calendar-weekday">Fr</span>
-                            <span class="calendar-weekday">Sa</span>
-                        </div>
-                        <div class="calendar-days" id="calendar-days"></div>
-                    </div>
-                    
-                    <div class="date-range-helper" id="date-range-helper">
-                        <span class="range-text" id="range-text"></span>
-                    </div>
-                    <p class="inline-error" id="date-error">Please select a date range</p>
-                </div>
-
+                <h3 style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">Trip Planning</h3>
+                
                 <div class="form-group toggle-group">
                     {% set public_checked = (trip.is_public if trip is not none else True) %}
                     <label class="toggle-label">
@@ -494,24 +467,6 @@
                         <span>Make this trip visible to friends</span>
                     </label>
                     <p class="helper-text">Only friends can see this trip.</p>
-                </div>
-            </div>
-            
-            <div class="form-card">
-                <h3 style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">Trip Planning</h3>
-                
-                <div class="form-group">
-                    <label for="accommodation_status">Accommodations</label>
-                    <select id="accommodation_status" name="accommodation_status" onchange="toggleAccommodationLink()">
-                        <option value="hotel" {% if trip and trip.accommodation_status == 'hotel' %}selected{% endif %}>Hotel</option>
-                        <option value="short_term_rental" {% if trip and trip.accommodation_status == 'short_term_rental' %}selected{% endif %}>Short-term rental</option>
-                        <option value="friends" {% if trip and trip.accommodation_status == 'friends' %}selected{% endif %}>Staying with friends</option>
-                        <option value="not_booked" {% if not trip or trip.accommodation_status == 'not_booked' %}selected{% endif %}>Not booked yet</option>
-                    </select>
-                </div>
-
-                <div class="form-group" id="accommodation-link-group" style="display: none;">
-                    <input type="text" id="accommodation_link" name="accommodation_link" placeholder="Accommodation link (optional)" value="{{ trip.accommodation_link if trip and trip.accommodation_link else '' }}">
                 </div>
             </div>
 
@@ -906,15 +861,6 @@
         }
         
         // ===========================================
-        // ACCOMMODATION TOGGLE
-        // ===========================================
-        function toggleAccommodationLink() {
-            const status = document.getElementById('accommodation_status').value;
-            const linkGroup = document.getElementById('accommodation-link-group');
-            linkGroup.style.display = (status && status !== 'none_yet') ? 'block' : 'none';
-        }
-        
-        // ===========================================
         // MODAL FUNCTIONS
         // ===========================================
         function closeOverlapModal() {
@@ -985,7 +931,6 @@
             // ALWAYS render calendar immediately (not gated on geography)
             renderCalendar();
             updateDateRangeHelper();
-            toggleAccommodationLink();
             
             // If editing, restore selections with validation
             if (isEditMode && existingTrip.countryCode) {
