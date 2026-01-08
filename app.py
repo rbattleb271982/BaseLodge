@@ -4208,12 +4208,9 @@ def settings_wish_list():
         Resort.country_code != '',
         Resort.is_region == False
     ).all()
-    countries_list = []
-    for (code,) in countries:
-        if code:
-            countries_list.append({'code': code, 'name': COUNTRY_NAMES.get(code, code)})
-    # Sort: US first, then alphabetically by display name
-    countries_list.sort(key=lambda c: (c['name'] != 'United States', c['name']))
+    countries_list = [code for (code,) in countries if code]
+    # Sort: US first, then alphabetically
+    countries_list.sort(key=lambda c: (c != 'US', c))
     
     return render_template("settings_wish_list.html",
                            resorts=resorts,
@@ -5224,12 +5221,9 @@ def mountains_visited():
         Resort.country_code != '',
         Resort.is_region == False
     ).all()
-    countries_list = []
-    for (code,) in countries:
-        if code:
-            countries_list.append({'code': code, 'name': COUNTRY_NAMES.get(code, code)})
-    # Sort: US first, then alphabetically by display name
-    countries_list.sort(key=lambda c: (c['name'] != 'United States', c['name']))
+    countries_list = [code for (code,) in countries if code]
+    # Sort: US first, then alphabetically
+    countries_list.sort(key=lambda c: (c != 'US', c))
     
     return render_template(
         "mountains_visited.html",
