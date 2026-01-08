@@ -742,7 +742,7 @@
                                 {% if current_user_participant.transportation_status.value == 'driving' %}Driving{% elif current_user_participant.transportation_status.value == 'flying' %}Flying{% elif current_user_participant.transportation_status.value == 'train' %}Train{% elif current_user_participant.transportation_status.value == 'bus' %}Bus{% elif current_user_participant.transportation_status.value == 'train_bus' %}Train/Bus{% else %}Not set{% endif %}
                             {% else %}Not set{% endif %}
                         </span>
-                        <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
+                        <svg class="chevron-icon" id="transportChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
                             <polyline points="9 18 15 12 9 6"></polyline>
                         </svg>
                     </span>
@@ -773,21 +773,67 @@
                     </div>
                 </div>
             </div>
+            
+            {% if is_owner %}
+            <div class="lesson-editor-container">
+                <div class="lesson-row-header" onclick="toggleEquipmentOverride()">
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 0.9rem; color: var(--bl-color-text);">Equipment</span>
+                        <p style="font-size: 0.7rem; color: var(--bl-color-text-muted); opacity: 0.7; margin-top: 2px;">
+                            {% if trip.equipment_override %}For this trip only{% else %}From profile{% endif %}
+                        </p>
+                    </div>
+                    <span class="lesson-summary">
+                        <span id="equipmentSummaryText">
+                            {% if trip.equipment_override == 'have_own_equipment' %}
+                                Have own equipment
+                            {% elif trip.equipment_override == 'renting' %}
+                                Renting equipment
+                            {% else %}
+                                {{ current_user.equipment_status|replace('_', ' ')|capitalize }}
+                            {% endif %}
+                        </span>
+                        <svg class="chevron-icon" id="equipmentChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </span>
+                </div>
+                <div class="lesson-options-inline" id="equipmentOverrideOptions">
+                    <div class="lesson-radio-group">
+                        <label class="lesson-radio-label">
+                            <input type="radio" name="equipment_override" value="use_default" {% if not trip.equipment_override %}checked{% endif %} onchange="updateEquipmentOverride('use_default')">
+                            <span>Use profile setting</span>
+                        </label>
+                        <label class="lesson-radio-label">
+                            <input type="radio" name="equipment_override" value="have_own_equipment" {% if trip.equipment_override == 'have_own_equipment' %}checked{% endif %} onchange="updateEquipmentOverride('have_own_equipment')">
+                            <span>Have own equipment</span>
+                        </label>
+                        <label class="lesson-radio-label">
+                            <input type="radio" name="equipment_override" value="renting" {% if trip.equipment_override == 'renting' %}checked{% endif %} onchange="updateEquipmentOverride('renting')">
+                            <span>Renting equipment</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            {% else %}
             <div class="your-detail-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--bl-color-border-soft); cursor: default;">
                 <span style="font-size: 0.9rem; color: var(--bl-color-text);">Equipment</span>
                 <div style="display: flex; flex-direction: column; align-items: flex-end;">
                     <span style="font-size: 0.9rem; color: var(--bl-color-text-muted); font-weight: 500;">
-                        {% if current_user.equipment_status == 'have_own_equipment' %}
+                        {% if trip.equipment_override == 'have_own_equipment' %}
                             Have own equipment
-                        {% elif current_user.equipment_status == 'needs_rentals' %}
-                            Use rentals
+                        {% elif trip.equipment_override == 'renting' %}
+                            Renting equipment
                         {% else %}
-                            Not set
+                            {{ owner.equipment_status|replace('_', ' ')|capitalize }}
                         {% endif %}
                     </span>
-                    <span style="font-size: 0.7rem; color: var(--bl-color-text-muted); opacity: 0.7; margin-top: 2px;">Managed from Profile</span>
+                    <span style="font-size: 0.7rem; color: var(--bl-color-text-muted); opacity: 0.7; margin-top: 2px;">
+                        {% if trip.equipment_override %}For this trip only{% else %}From profile{% endif %}
+                    </span>
                 </div>
             </div>
+            {% endif %}
             <div class="your-detail-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--bl-color-border-soft); cursor: pointer;" onclick="openSignalPicker('carpool')">
                 <span style="font-size: 0.9rem; color: var(--bl-color-text);">Carpool</span>
                 <span style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500;" id="your-carpool-display">
@@ -1153,7 +1199,7 @@
     <script>
         function toggleTransportEditor() {
             const content = document.getElementById('transport-options-inline');
-            const chevron = document.querySelector('.transport-row-header .chevron-icon');
+            const chevron = document.getElementById('transportChevron');
             content.classList.toggle('expanded');
             chevron.classList.toggle('expanded');
         }
@@ -1191,6 +1237,52 @@
                 }
             } catch (err) {
                 console.error('Failed to save transportation:', err);
+            }
+        }
+
+        function toggleEquipmentOverride() {
+            const content = document.getElementById('equipmentOverrideOptions');
+            const chevron = document.getElementById('equipmentChevron');
+            content.classList.toggle('expanded');
+            chevron.classList.toggle('expanded');
+        }
+
+        async function updateEquipmentOverride(value) {
+            const tripId = {{ trip.id }};
+            const labels = {
+                'use_default': '{{ current_user.equipment_status|replace("_", " ")|capitalize }}',
+                'have_own_equipment': 'Have own equipment',
+                'renting': 'Renting equipment'
+            };
+
+            try {
+                const response = await fetch(`/api/trip/${tripId}/equipment-override`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: value })
+                });
+
+                if (response.ok) {
+                    document.getElementById('equipmentSummaryText').textContent = labels[value] || labels['use_default'];
+                    
+                    // Update subtext
+                    const subtext = document.querySelector('.lesson-editor-container .lesson-row-header p');
+                    if (subtext) {
+                        subtext.textContent = (value === 'use_default') ? 'From profile' : 'For this trip only';
+                    }
+
+                    // Also update the badge in "Who's Going" if it exists
+                    const badge = document.getElementById('my-equip-badge');
+                    if (badge) {
+                        badge.textContent = labels[value] || labels['use_default'];
+                        badge.classList.remove('unset');
+                    }
+                    
+                    // Auto-collapse after save
+                    toggleEquipmentOverride();
+                }
+            } catch (err) {
+                console.error('Failed to save equipment override:', err);
             }
         }
 

@@ -4930,6 +4930,44 @@ def update_trip_accommodation(trip_id):
     return jsonify({"status": "success"})
 
 
+@app.route("/api/trip/<int:trip_id>/equipment-override", methods=["POST"])
+@login_required
+def update_trip_equipment_override(trip_id):
+    """Update equipment override status (owner-only)."""
+    trip = db.session.get(SkiTrip, trip_id)
+    if not trip:
+        return jsonify({"status": "error", "message": "Trip not found"}), 404
+    
+    if trip.user_id != current_user.id:
+        return jsonify({"status": "error", "message": "Only the trip organizer can manage equipment overrides"}), 403
+
+    data = request.json
+    status = data.get("status") # use_default, have_own_equipment, renting
+    
+    if status == 'use_default' or not status:
+        trip.equipment_override = None
+    else:
+        trip.equipment_override = status
+
+    db.session.commit()
+    
+    # Update organizer's participant record to match if they are on the trip
+    participant = SkiTripParticipant.query.filter_by(trip_id=trip.id, user_id=current_user.id).first()
+    if participant:
+        if status == 'have_own_equipment':
+            participant.equipment_status = ParticipantEquipment.OWN
+        elif status == 'renting':
+            participant.equipment_status = ParticipantEquipment.RENTING
+        else:
+            # Revert to profile logic in the display helper usually, but let's sync the enum if possible
+            # ParticipantEquipment doesn't have a 'PROFILE' option, it usually stores the explicit state.
+            # For now, we'll let the template/model display property handle the 'None' case.
+            participant.equipment_status = None
+        db.session.commit()
+
+    return jsonify({"status": "success"})
+
+
 @app.route("/trips/<int:trip_id>/invite/cancel", methods=["POST"])
 @login_required
 def cancel_trip_invite(trip_id):
