@@ -4208,7 +4208,24 @@ def settings_wish_list():
         Resort.country_code != '',
         Resort.is_region == False
     ).all()
-    countries_list = [code for (code,) in countries if code]
+    
+    from utils.countries import country_code_from_name
+    normalized_codes = set()
+    for (val,) in countries:
+        if not val:
+            continue
+        # If it's 2 chars, assume ISO code
+        if len(val) == 2:
+            normalized_codes.add(val.upper())
+        else:
+            # Try to map from name
+            code = country_code_from_name(val)
+            if code:
+                normalized_codes.add(code)
+            else:
+                normalized_codes.add(val)
+    
+    countries_list = list(normalized_codes)
     # Sort: US first, then alphabetically
     countries_list.sort(key=lambda c: (c != 'US', c))
     
@@ -5221,7 +5238,22 @@ def mountains_visited():
         Resort.country_code != '',
         Resort.is_region == False
     ).all()
-    countries_list = [code for (code,) in countries if code]
+    
+    from utils.countries import country_code_from_name
+    normalized_codes = set()
+    for (val,) in countries:
+        if not val:
+            continue
+        if len(val) == 2:
+            normalized_codes.add(val.upper())
+        else:
+            code = country_code_from_name(val)
+            if code:
+                normalized_codes.add(code)
+            else:
+                normalized_codes.add(val)
+    
+    countries_list = list(normalized_codes)
     # Sort: US first, then alphabetically
     countries_list.sort(key=lambda c: (c != 'US', c))
     
