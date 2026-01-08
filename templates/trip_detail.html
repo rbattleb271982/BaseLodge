@@ -539,7 +539,7 @@
         }
         .transport-options-inline {
             display: none;
-            padding: 0 0 16px 0;
+            padding: 4px 0 16px 0;
         }
         .transport-options-inline.expanded {
             display: block;
@@ -547,20 +547,27 @@
         .transport-radio-group {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 4px;
         }
         .transport-radio-label {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 0;
             cursor: pointer;
             font-size: 0.95rem;
             color: var(--bl-color-text);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .transport-radio-label:active {
+            opacity: 0.7;
         }
         .transport-radio-label input {
             width: 20px;
             height: 20px;
+            margin: 0;
             accent-color: var(--bl-color-primary);
+            cursor: pointer;
         }
         .chevron-icon {
             transition: transform 0.2s ease;
@@ -719,24 +726,24 @@
                     <div class="transport-radio-group">
                         {% set current_trans = current_user_participant.transportation_status.value if current_user_participant.transportation_status else 'tbd' %}
                         <label class="transport-radio-label">
-                            <span>Driving</span>
                             <input type="radio" name="transportation_status" value="driving" {% if current_trans == 'driving' %}checked{% endif %} onchange="saveTransportation(this.value)">
+                            <span>Driving</span>
                         </label>
                         <label class="transport-radio-label">
-                            <span>Flying</span>
                             <input type="radio" name="transportation_status" value="flying" {% if current_trans == 'flying' %}checked{% endif %} onchange="saveTransportation(this.value)">
+                            <span>Flying</span>
                         </label>
                         <label class="transport-radio-label">
-                            <span>Train</span>
                             <input type="radio" name="transportation_status" value="train" {% if current_trans == 'train' %}checked{% endif %} onchange="saveTransportation(this.value)">
+                            <span>Train</span>
                         </label>
                         <label class="transport-radio-label">
-                            <span>Bus</span>
                             <input type="radio" name="transportation_status" value="bus" {% if current_trans == 'bus' %}checked{% endif %} onchange="saveTransportation(this.value)">
+                            <span>Bus</span>
                         </label>
                         <label class="transport-radio-label">
-                            <span>Not set</span>
                             <input type="radio" name="transportation_status" value="tbd" {% if current_trans == 'tbd' or current_trans == '' %}checked{% endif %} onchange="saveTransportation(this.value)">
+                            <span>Not set</span>
                         </label>
                     </div>
                 </div>
