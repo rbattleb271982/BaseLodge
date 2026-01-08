@@ -519,17 +519,17 @@
             padding: 16px;
             margin-bottom: 20px;
         }
-        .transport-editor-container {
+        .transport-editor-container, .lesson-editor-container {
             border-bottom: 1px solid var(--bl-color-border-soft);
         }
-        .transport-row-header {
+        .transport-row-header, .lesson-row-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 12px 0;
             cursor: pointer;
         }
-        .transport-summary {
+        .transport-summary, .lesson-summary {
             font-size: 0.9rem;
             color: var(--bl-color-primary);
             font-weight: 500;
@@ -537,19 +537,19 @@
             align-items: center;
             gap: 4px;
         }
-        .transport-options-inline {
+        .transport-options-inline, .lesson-options-inline {
             display: none;
             padding: 4px 0 16px 0;
         }
-        .transport-options-inline.expanded {
+        .transport-options-inline.expanded, .lesson-options-inline.expanded {
             display: block;
         }
-        .transport-radio-group {
+        .transport-radio-group, .lesson-radio-group {
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
-        .transport-radio-label {
+        .transport-radio-label, .lesson-radio-label {
             display: flex;
             align-items: center;
             gap: 12px;
@@ -559,10 +559,10 @@
             color: var(--bl-color-text);
             -webkit-tap-highlight-color: transparent;
         }
-        .transport-radio-label:active {
+        .transport-radio-label:active, .lesson-radio-label:active {
             opacity: 0.7;
         }
-        .transport-radio-label input {
+        .transport-radio-label input, .lesson-radio-label input {
             width: 20px;
             height: 20px;
             margin: 0;
@@ -764,13 +764,37 @@
                     {% else %}Add ›{% endif %}
                 </span>
             </div>
-            <div class="your-detail-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; cursor: pointer;" onclick="openSignalPicker('lesson')">
-                <span style="font-size: 0.9rem; color: var(--bl-color-text);">Taking a lesson?</span>
-                <span style="font-size: 0.9rem; color: var(--bl-color-primary); font-weight: 500;" id="your-lesson-display">
-                    {% if current_user_participant.taking_lesson %}
-                        {% if current_user_participant.taking_lesson.value == 'yes' %}Yes{% elif current_user_participant.taking_lesson.value == 'maybe' %}Considering{% else %}No{% endif %} ›
-                    {% else %}No ›{% endif %}
-                </span>
+            <div class="lesson-editor-container">
+                <div class="lesson-row-header" onclick="toggleLessonEditor()">
+                    <span style="font-size: 0.9rem; color: var(--bl-color-text);">Taking a lesson?</span>
+                    <span class="lesson-summary">
+                        <span id="lesson-summary-text">
+                            {% if current_user_participant.taking_lesson %}
+                                {% if current_user_participant.taking_lesson.value == 'yes' %}Yes{% elif current_user_participant.taking_lesson.value == 'maybe' %}Considering{% else %}No{% endif %}
+                            {% else %}No{% endif %}
+                        </span>
+                        <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </span>
+                </div>
+                <div class="lesson-options-inline" id="lesson-options-inline">
+                    <div class="lesson-radio-group">
+                        {% set current_lesson = current_user_participant.taking_lesson.value if current_user_participant.taking_lesson else 'no' %}
+                        <label class="lesson-radio-label">
+                            <input type="radio" name="taking_lesson" value="no" {% if current_lesson == 'no' %}checked{% endif %} onchange="saveLesson(this.value)">
+                            <span>No lesson</span>
+                        </label>
+                        <label class="lesson-radio-label">
+                            <input type="radio" name="taking_lesson" value="yes" {% if current_lesson == 'yes' %}checked{% endif %} onchange="saveLesson(this.value)">
+                            <span>Taking a lesson</span>
+                        </label>
+                        <label class="lesson-radio-label">
+                            <input type="radio" name="taking_lesson" value="maybe" {% if current_lesson == 'maybe' %}checked{% endif %} onchange="saveLesson(this.value)">
+                            <span>Maybe lessons</span>
+                        </label>
+                    </div>
+                </div>
             </div>
             {% endif %}
         </div>
@@ -1138,6 +1162,45 @@
             }
         }
 
+        function toggleLessonEditor() {
+            const content = document.getElementById('lesson-options-inline');
+            const chevron = document.querySelector('.lesson-row-header .chevron-icon');
+            content.classList.toggle('expanded');
+            chevron.classList.toggle('expanded');
+        }
+
+        async function saveLesson(value) {
+            const tripId = {{ trip.id }};
+            const labels = {
+                'no': 'No',
+                'yes': 'Yes',
+                'maybe': 'Considering'
+            };
+
+            try {
+                const response = await fetch(`/api/trips/${tripId}/participant/signals`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ taking_lesson: value })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('lesson-summary-text').textContent = labels[value] || 'No';
+                    
+                    const badge = document.getElementById('my-lesson-badge');
+                    if (badge) {
+                        badge.textContent = data.lesson_display || labels[value];
+                        badge.classList.toggle('unset', value === 'no');
+                    }
+                    
+                    toggleLessonEditor();
+                }
+            } catch (err) {
+                console.error('Failed to save lesson status:', err);
+            }
+        }
+
         let currentPickerType = null;
         let activeTriggerElement = null;
         let selectionMade = false;
@@ -1203,11 +1266,6 @@
                     options = carpoolOptions;
                     currentValue = currentCarpoolRole || 'none';
                     titleText = 'Carpool';
-                    break;
-                case 'lesson':
-                    options = lessonOptions;
-                    currentValue = currentLesson;
-                    titleText = 'Lessons';
                     break;
             }
             
