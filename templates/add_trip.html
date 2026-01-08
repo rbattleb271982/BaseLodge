@@ -832,8 +832,7 @@
                 if (isInRange(date)) classes.push('in-range');
                 
                 html += `<button type="button" class="${classes.join(' ')}" 
-                         data-date="${dateStr}" ${disabled ? 'disabled' : ''}
-                         onclick="selectDate('${dateStr}')">${day}</button>`;
+                         data-date="${dateStr}" ${disabled ? 'disabled' : ''}>${day}</button>`;
             }
             
             calendarDays.innerHTML = html;
@@ -957,6 +956,14 @@
             // Calendar navigation
             document.getElementById('prev-month').addEventListener('click', () => navigateMonth(-1));
             document.getElementById('next-month').addEventListener('click', () => navigateMonth(1));
+            
+            // Calendar date selection via event delegation (mobile Safari compatible)
+            document.getElementById('calendar-days').addEventListener('click', function(e) {
+                const btn = e.target.closest('.calendar-day');
+                if (btn && !btn.disabled && btn.dataset.date) {
+                    selectDate(btn.dataset.date);
+                }
+            });
             
             // Set initial calendar month
             if (selectedStartDate) {
