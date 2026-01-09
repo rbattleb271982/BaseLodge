@@ -6,69 +6,124 @@
     <title>Trip Invite - BaseLodge</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .invite-header {
-            text-align: center;
-            margin-bottom: 8px;
+        .trip-nav-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            position: relative;
         }
-        .invite-destination {
-            font-size: 1.5rem;
-            font-weight: 700;
+        .back-chevron {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
             color: var(--bl-color-text);
-            margin: 0 0 4px 0;
+            text-decoration: none;
+            border-radius: var(--bl-radius-md);
         }
-        .invite-dates {
-            font-size: 1rem;
-            color: var(--bl-color-text-muted);
+        .back-chevron:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        .trip-title {
+            flex: 1;
+            font-size: 1.25rem;
+            font-weight: 600;
             margin: 0;
+            color: var(--bl-color-text);
+            text-align: center;
         }
-        .info-section {
+        .nav-spacer {
+            width: 40px;
+        }
+        
+        .trip-detail-card {
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-lg);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .trip-detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+        .trip-detail-row:last-child {
+            border-bottom: none;
+        }
+        .trip-detail-label {
+            font-size: 0.9rem;
+            color: var(--bl-color-text-muted);
+        }
+        .trip-detail-value {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--bl-color-text);
+            text-align: right;
+        }
+        
+        .participants-section {
+            margin-top: 20px;
+        }
+        .participants-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 0 0 12px 0;
+            color: var(--bl-color-text);
+        }
+        .participant-card {
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-md);
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .participant-name {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--bl-color-text);
+        }
+        .participant-identity {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            margin: 2px 0 0 0;
+        }
+
+        .your-trip-details-section {
             background: var(--bl-color-surface);
             border: 1px solid var(--bl-color-border-soft);
             border-radius: var(--bl-radius-md);
             padding: 16px;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
-        .info-section-title {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--bl-color-text-muted);
-            font-weight: 600;
-            margin: 0 0 12px 0;
+        .transport-editor-container {
+            border-bottom: 1px solid var(--bl-color-border-soft);
         }
-        .info-row {
+        .transport-editor-container:last-child {
+            border-bottom: none;
+        }
+        .transport-row-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            padding: 12px 0;
+            cursor: pointer;
         }
-        .info-row:last-child {
-            border-bottom: none;
-        }
-        .info-label {
-            color: var(--bl-color-text-muted);
+        .transport-summary {
             font-size: 0.9rem;
-        }
-        .info-value {
-            color: var(--bl-color-text);
+            color: var(--bl-color-primary);
             font-weight: 500;
-            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
-        .participant-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
+        .chevron-icon {
+            transition: transform 0.2s ease;
         }
-        .participant-item {
-            padding: 8px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
-            font-size: 0.9rem;
-            color: var(--bl-color-text);
-        }
-        .participant-item:last-child {
-            border-bottom: none;
-        }
+
         .action-buttons {
             position: sticky;
             bottom: env(safe-area-inset-bottom);
@@ -108,29 +163,7 @@
             font-size: 0.9rem;
             cursor: pointer;
         }
-        .btn-back {
-            display: block;
-            text-align: center;
-            color: var(--bl-color-text-muted);
-            font-size: 0.9rem;
-            text-decoration: none;
-            padding: 8px;
-        }
-        .empty-state {
-            color: var(--bl-color-text-muted);
-            font-size: 0.9rem;
-            font-style: italic;
-        }
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            color: var(--bl-color-text-muted);
-            text-decoration: none;
-            font-size: 0.9rem;
-            margin-bottom: 16px;
-        }
-        .decline-modal-overlay, .nudge-modal-overlay {
+        .decline-modal-overlay {
             display: none;
             position: fixed;
             top: 0;
@@ -143,10 +176,10 @@
             justify-content: center;
             padding: 16px;
         }
-        .decline-modal-overlay.active, .nudge-modal-overlay.active {
+        .decline-modal-overlay.active {
             display: flex;
         }
-        .decline-modal, .nudge-modal {
+        .decline-modal {
             background: var(--bl-color-surface);
             border-radius: var(--bl-radius-lg);
             padding: 24px;
@@ -154,23 +187,23 @@
             max-width: 320px;
             text-align: center;
         }
-        .decline-modal h3, .nudge-modal h3 {
+        .decline-modal h3 {
             margin: 0 0 16px 0;
             font-size: 1.1rem;
         }
-        .decline-modal-actions, .nudge-modal-actions {
+        .decline-modal-actions {
             display: flex;
             gap: 12px;
             margin-top: 20px;
         }
-        .decline-modal-actions button, .nudge-modal-actions button {
+        .decline-modal-actions button {
             flex: 1;
             padding: 12px;
             border-radius: var(--bl-radius-md);
             font-weight: 600;
             cursor: pointer;
         }
-        .btn-cancel-modal, .btn-skip {
+        .btn-cancel-modal {
             background: transparent;
             color: var(--bl-color-text);
             border: 1px solid var(--bl-color-border);
@@ -179,48 +212,6 @@
             background: #dc3545;
             color: white;
             border: none;
-        }
-        .btn-add-details {
-            background: var(--bl-color-primary);
-            color: white;
-            border: none;
-        }
-        .section-locked {
-            opacity: 0.6;
-        }
-        .section-locked-hint {
-            font-size: 0.85rem;
-            color: var(--bl-color-text-muted);
-            font-style: italic;
-            text-align: center;
-            padding: 12px 0;
-        }
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
-            cursor: pointer;
-        }
-        .detail-row:last-child {
-            border-bottom: none;
-        }
-        .detail-row-label {
-            font-size: 0.9rem;
-            color: var(--bl-color-text);
-        }
-        .detail-row-value {
-            font-size: 0.9rem;
-            color: var(--bl-color-primary);
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .detail-row-value::after {
-            content: "›";
-            font-size: 1.1rem;
         }
         .selector-modal-overlay {
             display: none;
@@ -283,130 +274,153 @@
         .selector-option.selected {
             color: var(--bl-color-primary);
         }
-        .selector-option.selected::after {
-            content: "✓";
-            color: var(--bl-color-primary);
-            font-weight: 600;
-        }
-        .accepted-banner {
-            background: #E8F5E9;
-            color: #2E7D32;
-            padding: 12px;
-            border-radius: var(--bl-radius-md);
-            font-weight: 600;
-            text-align: center;
-            margin-bottom: 16px;
-        }
     </style>
 </head>
 <body>
     <div class="page-container" style="padding: 16px 16px 24px; min-height: 100vh; display: flex; flex-direction: column;">
         <div style="flex: 1;">
-            <a href="{{ url_for('my_trips') }}" class="back-link">← Back</a>
+            <div class="trip-nav-header">
+                <a href="{{ url_for('my_trips') }}" class="back-chevron" aria-label="Back to trips">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </a>
+                <h1 class="trip-title">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</h1>
+                <div class="nav-spacer"></div>
+            </div>
             
-            <div class="invite-header">
-            <h1 class="invite-destination">
-                {% if trip.resort and trip.resort.name %}
-                    {{ trip.resort.name }}
-                {% elif trip.mountain %}
-                    {{ trip.mountain }}
-                {% else %}
-                    Trip Invite
+            {% if is_accepted %}
+            <div class="accepted-banner" style="background: #E8F5E9; color: #2E7D32; padding: 12px; border-radius: var(--bl-radius-md); font-weight: 600; text-align: center; margin-bottom: 16px;">You're going!</div>
+            {% endif %}
+            
+            <div class="trip-detail-card">
+                <div class="trip-detail-row">
+                    <span class="trip-detail-label">Mountain</span>
+                    <span class="trip-detail-value">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</span>
+                </div>
+                {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
+                {% if state_abbr %}
+                <div class="trip-detail-row">
+                    <span class="trip-detail-label">Location</span>
+                    <span class="trip-detail-value">{{ trip.resort|state_fullname if trip.resort else trip.state }}{% if trip.resort and trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}</span>
+                </div>
                 {% endif %}
-            </h1>
-            <p class="invite-dates">{{ format_trip_dates(trip) }} · {{ going_count }} people going</p>
-        </div>
-        
-        {% if is_accepted %}
-        <div class="accepted-banner">You're going!</div>
-        {% endif %}
-        
-        <div class="info-section">
-            <p class="info-section-title">Trip Details</p>
-            <div class="info-row">
-                <span class="info-label">Mountain</span>
-                <span class="info-value">
-                    {% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% elif trip.mountain %}{{ trip.mountain }}{% else %}TBD{% endif %}
-                </span>
+                <div class="trip-detail-row">
+                    <span class="trip-detail-label">Dates</span>
+                    <span class="trip-detail-value">{{ format_trip_dates(trip) }}</span>
+                </div>
+                {% set pass_display = trip.resort|mountain_passes if trip.resort else '' %}
+                {% if pass_display %}
+                <div class="trip-detail-row">
+                    <span class="trip-detail-label">Pass</span>
+                    <span class="trip-detail-value">{{ pass_display }}</span>
+                </div>
+                {% endif %}
+                <div class="trip-detail-row">
+                    <span class="trip-detail-label">Trip Length</span>
+                    <span class="trip-detail-value">{{ trip.duration_display }}</span>
+                </div>
             </div>
-            {% set location_display = trip.resort|state_fullname if trip.resort else trip.state %}
-            {% if location_display %}
-            <div class="info-row">
-                <span class="info-label">Location</span>
-                <span class="info-value">{{ location_display }}{% if trip.resort and trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}</span>
-            </div>
-            {% endif %}
-            {% set pass_display = trip.resort|mountain_passes if trip.resort else '' %}
-            {% if pass_display %}
-            <div class="info-row">
-                <span class="info-label">Pass</span>
-                <span class="info-value">{{ pass_display }}</span>
-            </div>
-            {% endif %}
-            {% if trip.notes %}
-            <div class="info-row" style="flex-direction: column; align-items: flex-start;">
-                <span class="info-label" style="margin-bottom: 4px;">Notes</span>
-                <span class="info-value" style="font-weight: 400;">{{ trip.notes }}</span>
-            </div>
-            {% endif %}
-        </div>
-        
-        <div class="info-section">
-            <p class="info-section-title">Who's Going</p>
-            <ul class="participant-list">
-                <li class="participant-item">{{ owner.first_name if owner else 'Organizer' }}</li>
+            
+            <div class="participants-section">
+                <h3>Who's Going</h3>
+                <div class="participant-card">
+                    <div>
+                        <div class="participant-name">{{ owner.first_name if owner else 'Organizer' }}</div>
+                        <div class="participant-identity">Organizer</div>
+                    </div>
+                </div>
                 {% for p in accepted_participants %}
                     {% if p.user and p.user.id != owner.id %}
-                        <li class="participant-item">{{ p.user.first_name }}</li>
+                    <div class="participant-card">
+                        <div>
+                            <div class="participant-name">{{ p.user.first_name }}</div>
+                            <div class="participant-identity">{{ p.user|identity_line }}</div>
+                        </div>
+                    </div>
                     {% endif %}
                 {% endfor %}
                 {% if not is_accepted %}
-                    <li class="participant-item" style="color: var(--bl-color-text-muted); font-style: italic;">You (invited)</li>
+                <div class="participant-card">
+                    <div>
+                        <div class="participant-name">You (invited)</div>
+                        <div class="participant-identity">Awaiting response</div>
+                    </div>
+                </div>
                 {% endif %}
-            </ul>
-        </div>
-        
-        <div class="info-section {% if not is_accepted %}section-locked{% endif %}">
-            <p class="info-section-title">Your Trip Details</p>
+            </div>
+            
             {% if is_accepted %}
-            <div class="detail-row" onclick="openSelector('transportation')">
-                <span class="detail-row-label">Transportation</span>
-                <span class="detail-row-value" id="transportation-value">
-                    {% if participant.transportation_status %}
-                        {% if participant.transportation_status.value == 'driving' %}Driving{% elif participant.transportation_status.value == 'flying' %}Flying{% elif participant.transportation_status.value == 'train_bus' %}Train/Bus{% else %}Add{% endif %}
-                    {% else %}Add{% endif %}
-                </span>
+            <div class="your-trip-details-section" style="margin-top: 24px;">
+                <p style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--bl-color-text-muted); font-weight: 600; margin: 0 0 12px 0;">Your Trip Details</p>
+                
+                <div class="transport-editor-container">
+                    <div class="transport-row-header" onclick="openSelector('transportation')">
+                        <span style="font-size: 0.9rem; color: var(--bl-color-text);">Transportation</span>
+                        <span class="transport-summary">
+                            <span id="transportation-value">
+                                {% if participant.transportation_status %}
+                                    {% if participant.transportation_status.value == 'driving' %}Driving{% elif participant.transportation_status.value == 'flying' %}Flying{% elif participant.transportation_status.value == 'train_bus' %}Train/Bus{% else %}Add{% endif %}
+                                {% else %}Add{% endif %}
+                            </span>
+                            <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="transport-editor-container">
+                    <div class="transport-row-header" onclick="openSelector('equipment')">
+                        <span style="font-size: 0.9rem; color: var(--bl-color-text);">Equipment</span>
+                        <span class="transport-summary">
+                            <span id="equipment-value">
+                                {% if participant.equipment_status %}
+                                    {% if participant.equipment_status.value == 'own' %}Bringing my own{% elif participant.equipment_status.value == 'renting' %}Renting{% else %}Not set{% endif %}
+                                {% else %}
+                                    {% if user_owns_equipment %}Bringing my own{% else %}Renting{% endif %}
+                                {% endif %}
+                            </span>
+                            <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="transport-editor-container">
+                    <div class="transport-row-header" onclick="openSelector('carpool')">
+                        <span style="font-size: 0.9rem; color: var(--bl-color-text);">Carpool</span>
+                        <span class="transport-summary">
+                            <span id="carpool-value">
+                                {% if participant.carpool_role %}
+                                    {% if participant.carpool_role.value == 'driver_with_space' %}I can drive and have space{% elif participant.carpool_role.value == 'driver_no_space' %}I can drive but have no space{% elif participant.carpool_role.value == 'needs_ride' %}I need a ride{% elif participant.carpool_role.value == 'not_carpooling' %}Not carpooling{% elif participant.carpool_role.value == 'other' %}Other{% else %}Add{% endif %}
+                                {% else %}Add{% endif %}
+                            </span>
+                            <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="transport-editor-container">
+                    <div class="transport-row-header" onclick="openSelector('lesson')">
+                        <span style="font-size: 0.9rem; color: var(--bl-color-text);">Taking a lesson?</span>
+                        <span class="transport-summary">
+                            <span id="lesson-value">
+                                {% if participant.taking_lesson %}
+                                    {% if participant.taking_lesson.value == 'yes' %}Yes{% elif participant.taking_lesson.value == 'maybe' %}Considering{% else %}No{% endif %}
+                                {% else %}No{% endif %}
+                            </span>
+                            <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </span>
+                    </div>
+                </div>
             </div>
-            <div class="detail-row" onclick="openSelector('equipment')">
-                <span class="detail-row-label">Equipment</span>
-                <span class="detail-row-value" id="equipment-value">
-                    {% if participant.equipment_status %}
-                        {% if participant.equipment_status.value == 'own' %}Bringing my own{% elif participant.equipment_status.value == 'renting' %}Renting{% else %}Not set{% endif %}
-                    {% else %}
-                        {% if user_owns_equipment %}Bringing my own{% else %}Renting{% endif %}
-                    {% endif %}
-                </span>
-            </div>
-            <div class="detail-row" onclick="openSelector('carpool')">
-                <span class="detail-row-label">Carpool</span>
-                <span class="detail-row-value" id="carpool-value">
-                    {% if participant.carpool_role %}
-                        {% if participant.carpool_role.value == 'driver_with_space' %}I can drive and have space{% elif participant.carpool_role.value == 'driver_no_space' %}I can drive but have no space{% elif participant.carpool_role.value == 'needs_ride' %}I need a ride{% elif participant.carpool_role.value == 'not_carpooling' %}Not carpooling{% elif participant.carpool_role.value == 'other' %}Other{% else %}Add{% endif %}
-                    {% else %}Add{% endif %}
-                </span>
-            </div>
-            <div class="detail-row" onclick="openSelector('lesson')">
-                <span class="detail-row-label">Taking a lesson?</span>
-                <span class="detail-row-value" id="lesson-value">
-                    {% if participant.taking_lesson %}
-                        {% if participant.taking_lesson.value == 'yes' %}Yes{% elif participant.taking_lesson.value == 'maybe' %}Considering{% else %}No{% endif %}
-                    {% else %}No{% endif %}
-                </span>
-            </div>
-            {% else %}
-            <p class="section-locked-hint">Accept the invite to add your trip details</p>
             {% endif %}
-        </div>
         </div>
         
         {% if not is_accepted %}
@@ -436,18 +450,6 @@
             </div>
         </div>
     </div>
-    
-    {% if show_nudge %}
-    <div class="nudge-modal-overlay active" id="nudge-modal">
-        <div class="nudge-modal">
-            <h3>Want to add your trip details now?</h3>
-            <div class="nudge-modal-actions">
-                <button type="button" class="btn-skip" onclick="hideNudgeModal()">Skip</button>
-                <button type="button" class="btn-add-details" onclick="hideNudgeAndScroll()">Add details</button>
-            </div>
-        </div>
-    </div>
-    {% endif %}
     
     {% if is_accepted %}
     <div class="selector-modal-overlay" id="transportation-selector">
@@ -512,22 +514,6 @@
         document.getElementById('decline-modal').addEventListener('click', function(e) {
             if (e.target === this) hideDeclineModal();
         });
-        
-        {% if show_nudge %}
-        function hideNudgeModal() {
-            document.getElementById('nudge-modal').classList.remove('active');
-        }
-        function hideNudgeAndScroll() {
-            hideNudgeModal();
-            var detailsSection = document.querySelector('.info-section:last-of-type');
-            if (detailsSection) {
-                detailsSection.scrollIntoView({ behavior: 'smooth' });
-            }
-        }
-        document.getElementById('nudge-modal').addEventListener('click', function(e) {
-            if (e.target === this) hideNudgeModal();
-        });
-        {% endif %}
         
         {% if is_accepted %}
         var tripId = {{ trip.id }};
