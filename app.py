@@ -5123,113 +5123,62 @@ def send_trip_invites(trip_id):
 @login_required
 def respond_to_trip_invite(trip_id):
     """Accept or decline a trip invite."""
-    import logging
-    import traceback
-    logger = logging.getLogger(__name__)
+    trip = SkiTrip.query.get_or_404(trip_id)
     
-    try:
-        # Support both form data and JSON
-        if request.is_json:
-            data = request.get_json() or {}
-            action = data.get("response") or data.get("action")
-        else:
-            action = request.form.get("action")
-
-        logger.info(f"[ACCEPT_TRACE] Enter respond_to_trip_invite - user_id: {current_user.id}, trip_id: {trip_id}, action: {action}")
+    # Find the user's participant record
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, user_id=current_user.id
+    ).first()
+    
+    if not participant or participant.status != GuestStatus.INVITED:
+        return jsonify({"success": False, "error": "No pending invite found"}), 404
+    
+    # Support both form data and JSON
+    if request.is_json:
+        data = request.get_json() or {}
+        action = data.get("response") or data.get("action")
+    else:
+        action = request.form.get("action")
+    
+    if action == "accept":
+        participant.status = GuestStatus.ACCEPTED
         
-        trip = SkiTrip.query.get_or_404(trip_id)
-        logger.info(f"[ACCEPT_TRACE] Trip lookup result - trip_id: {trip.id}, mountain: {trip.mountain}")
-        
-        # Find the user's participant record
-        participant = SkiTripParticipant.query.filter_by(
-            trip_id=trip_id, user_id=current_user.id
+        # Archive solo trip if it exists
+        solo_trip = SkiTrip.query.filter(
+            SkiTrip.user_id == current_user.id,
+            SkiTrip.id != trip_id,
+            SkiTrip.start_date == trip.start_date,
+            SkiTrip.end_date == trip.end_date,
+            db.or_(
+                SkiTrip.resort_id == trip.resort_id,
+                SkiTrip.mountain == trip.mountain
+            )
         ).first()
         
-        if not participant:
-            logger.warning(f"[ACCEPT_TRACE] Permission/Validity check result - No participant found for user {current_user.id} on trip {trip_id}")
-            return jsonify({"success": False, "error": "No pending invite found"}), 404
+        if solo_trip:
+            # Carry over equipment details from solo trip (SkiTrip doesn't have transportation_status)
+            if solo_trip.equipment_override and solo_trip.equipment_override != 'use_default':
+                participant.equipment_status = ParticipantEquipment.OWN if solo_trip.equipment_override == 'have_own_equipment' else ParticipantEquipment.RENTING
             
-        logger.info(f"[ACCEPT_TRACE] Invite lookup result - participant_id: {participant.id}, current_status: {participant.status}")
-        
-        if participant.status != GuestStatus.INVITED:
-            logger.warning(f"[ACCEPT_TRACE] Permission/Validity check result - Participant status is {participant.status}, expected INVITED")
-            return jsonify({"success": False, "error": "No pending invite found"}), 404
-        
-        logger.info(f"[ACCEPT_TRACE] Permission/Validity check result - SUCCESS")
-        
-        if action == "accept":
-            logger.info(f"[ACCEPT_TRACE] Starting accept logic")
-            participant.status = GuestStatus.ACCEPTED
-            logger.info(f"[ACCEPT_TRACE] TripParticipant status updated to ACCEPTED")
+            db.session.delete(solo_trip)
             
-            # Archive solo trip if it exists
-            logger.info(f"[ACCEPT_TRACE] Looking for existing solo trip to archive")
-            solo_trip = SkiTrip.query.filter(
-                SkiTrip.user_id == current_user.id,
-                SkiTrip.id != trip_id,
-                SkiTrip.start_date == trip.start_date,
-                SkiTrip.end_date == trip.end_date,
-                db.or_(
-                    SkiTrip.resort_id == trip.resort_id,
-                    SkiTrip.mountain == trip.mountain
-                )
-            ).first()
-            
-            if solo_trip:
-                logger.info(f"[ACCEPT_TRACE] Existing solo trip found - solo_trip_id: {solo_trip.id}")
-                # Carry over equipment details from solo trip (SkiTrip doesn't have transportation_status)
-                try:
-                    if solo_trip.equipment_override and solo_trip.equipment_override != 'use_default':
-                        participant.equipment_status = ParticipantEquipment.OWN if solo_trip.equipment_override == 'have_own_equipment' else ParticipantEquipment.RENTING
-                        logger.info(f"[ACCEPT_TRACE] Carried over equipment_status: {participant.equipment_status}")
-                    
-                    db.session.delete(solo_trip)
-                    logger.info(f"[ACCEPT_TRACE] Solo trip marked for deletion")
-                except Exception as e:
-                    logger.error(f"[ACCEPT_TRACE] Error during solo trip conversion: {str(e)}")
-                    logger.error(traceback.format_exc())
-            else:
-                logger.info(f"[ACCEPT_TRACE] No existing solo trip found")
-                
-            emit_trip_invite_accepted_activity(trip, current_user.id, trip.user_id)
-            emit_friend_joined_trip_activities(trip, current_user.id)
-            
-            db.session.commit()
-            logger.info(f"[ACCEPT_TRACE] Database session committed successfully")
-            
-            if request.is_json:
-                logger.info(f"[ACCEPT_TRACE] Redirect target resolution - JSON response")
-                return jsonify({"success": True, "message": "You're going"})
-            
-            flash("You're going", "success")
-            logger.info(f"[ACCEPT_TRACE] Redirect target resolution - Redirecting to trip_detail(trip_id={trip_id})")
-            return redirect(url_for("trip_detail", trip_id=trip_id))
-            
-        elif action == "decline":
-            logger.info(f"[ACCEPT_TRACE] Starting decline logic")
-            participant.status = GuestStatus.DECLINED
-            emit_trip_invite_declined_activity(trip, current_user.id, trip.user_id)
-            db.session.commit()
-            logger.info(f"[ACCEPT_TRACE] Database session committed successfully (decline)")
-            
-            if request.is_json:
-                logger.info(f"[ACCEPT_TRACE] Redirect target resolution - JSON response (decline)")
-                return jsonify({"success": True, "message": "Invite declined"})
-            
-            flash("Invite declined.", "info")
-            logger.info(f"[ACCEPT_TRACE] Redirect target resolution - Redirecting to my_trips")
-            return redirect(url_for("my_trips"))
-        else:
-            logger.warning(f"[ACCEPT_TRACE] Invalid action received: {action}")
-            return jsonify({"success": False, "error": "Invalid action"}), 400
-            
-    except Exception as e:
-        logger.error(f"[ACCEPT_TRACE] CRITICAL FAILURE in respond_to_trip_invite: {str(e)}")
-        logger.error(traceback.format_exc())
-        db.session.rollback()
+        emit_trip_invite_accepted_activity(trip, current_user.id, trip.user_id)
+        emit_friend_joined_trip_activities(trip, current_user.id)
+        db.session.commit()
         if request.is_json:
-            return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
-        raise e
+            return jsonify({"success": True, "message": "You're going"})
+        flash("You're going", "success")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
+    elif action == "decline":
+        participant.status = GuestStatus.DECLINED
+        emit_trip_invite_declined_activity(trip, current_user.id, trip.user_id)
+        db.session.commit()
+        if request.is_json:
+            return jsonify({"success": True, "message": "Invite declined"})
+        flash("Invite declined.", "info")
+        return redirect(url_for("my_trips"))
+    else:
+        return jsonify({"success": False, "error": "Invalid action"}), 400
 
 
 @app.route("/api/trips/<int:trip_id>/participant/signals", methods=["POST"])
