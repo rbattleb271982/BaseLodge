@@ -1,0 +1,105 @@
+IMPORTANT:
+This task is STRICTLY READ-ONLY.
+Do NOT modify code, schemas, routes, migrations, or behavior.
+If something appears wrong, report it — do not fix it.
+
+Goal:
+Generate a backend validation report for the new “Request to Join Trip” feature so we can confirm correctness and safety before UI work, without breaking any existing functionality.
+
+--------------------------------
+NON-NEGOTIABLE RULES
+--------------------------------
+
+- ❌ No refactors
+- ❌ No migrations
+- ❌ No enum changes
+- ❌ No route changes
+- ❌ No logic changes
+- ❌ No formatting-only edits
+- ❌ No “small fixes”
+
+This is an inspection and documentation task only.
+
+--------------------------------
+1) Data Model Inspection
+--------------------------------
+
+Inspect and document (do not change):
+
+- Invitation / TripInvite model:
+  - Enum values for InviteType
+  - Enum values for status
+  - All unique constraints (exact fields, directionality)
+
+- SkiTrip model:
+  - Presence of max_participants (nullable)
+  - Presence of group_trip
+  - List every place in the codebase where group_trip is referenced
+
+--------------------------------
+2) Request Lifecycle Trace
+--------------------------------
+
+Trace the REQUEST invite lifecycle in code:
+
+- Creation route:
+  - Preconditions enforced
+  - Duplicate-prevention query (exact filter conditions)
+
+- Acceptance logic:
+  - Authorization checks
+  - Participant creation logic
+  - Date assignment logic
+  - Behavior if trip dates are missing
+
+- Decline logic:
+  - State changes only
+
+--------------------------------
+3) Safety & Regression Checks
+--------------------------------
+
+Report (do not modify):
+
+- Whether REQUEST invites can interfere with existing OUTBOUND invites
+- Whether any existing flows (sent invites, trip creation, friends, My Trips) are touched or indirectly affected
+- Whether unique constraints could cause IntegrityErrors in previously valid flows
+
+--------------------------------
+4) Edge-Case Behavior Table
+--------------------------------
+
+For each case, report expected vs implemented behavior:
+
+- Multiple users requesting the same trip
+- One user requesting multiple trips
+- Request → decline → request again
+- Owner sending invite after receiving request
+- Trip in past
+- Trip cancelled
+- Trip with no dates
+
+--------------------------------
+5) Environment Safety
+--------------------------------
+
+Document:
+- Enum migration behavior in PostgreSQL
+- Risk of enum mismatch between environments
+- Any prod-only failure risks
+
+--------------------------------
+6) Output Format
+--------------------------------
+
+Return a written report with sections:
+
+- ✅ Safe / Confirmed
+- ⚠️ Potential Risks (non-breaking)
+- 🛑 Breaking Risks (must be resolved before UI)
+- ❓ Open Product Decisions
+
+Do not implement anything.
+Do not propose fixes unless explicitly asked.
+
+Use checkpoints sparingly.
