@@ -5177,11 +5177,8 @@ def respond_to_trip_invite(trip_id):
             
             if solo_trip:
                 logger.info(f"[ACCEPT_TRACE] Existing solo trip found - solo_trip_id: {solo_trip.id}")
-                # Carry over details
+                # Carry over equipment details from solo trip (SkiTrip doesn't have transportation_status)
                 try:
-                    participant.transportation_status = TransportationStatus(solo_trip.transportation_status) if solo_trip.transportation_status else None
-                    logger.info(f"[ACCEPT_TRACE] Carried over transportation_status: {participant.transportation_status}")
-                    
                     if solo_trip.equipment_override and solo_trip.equipment_override != 'use_default':
                         participant.equipment_status = ParticipantEquipment.OWN if solo_trip.equipment_override == 'have_own_equipment' else ParticipantEquipment.RENTING
                         logger.info(f"[ACCEPT_TRACE] Carried over equipment_status: {participant.equipment_status}")
