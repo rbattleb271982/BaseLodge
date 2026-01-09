@@ -64,22 +64,30 @@
         }
         
         .participants-section {
-            margin-top: 16px;
+            margin-top: 12px;
         }
         .participants-section h3 {
-            font-size: 1rem;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--bl-color-text-muted);
             font-weight: 600;
             margin: 0 0 8px 0;
-            color: var(--bl-color-text);
         }
-        .participant-card {
+        .participant-list {
             background: var(--bl-color-surface);
             border-radius: var(--bl-radius-md);
-            padding: 10px 14px;
-            margin-bottom: 6px;
+            padding: 4px 14px;
+        }
+        .participant-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+        .participant-row:last-child {
+            border-bottom: none;
         }
         .participant-name {
             font-size: 0.95rem;
@@ -89,7 +97,73 @@
         .participant-identity {
             font-size: 0.85rem;
             color: var(--bl-color-text-muted);
-            margin: 1px 0 0 0;
+        }
+
+        .calendar-preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .calendar-preview-modal.active {
+            display: flex;
+        }
+        .calendar-content {
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-lg);
+            width: 100%;
+            max-width: 320px;
+            padding: 16px;
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            text-align: center;
+        }
+        .calendar-day-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--bl-color-text-muted);
+            padding-bottom: 8px;
+        }
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            border-radius: 4px;
+        }
+        .calendar-day.in-range {
+            background: var(--bl-color-primary);
+            color: white;
+        }
+        .calendar-day.range-start {
+            border-radius: 4px 0 0 4px;
+        }
+        .calendar-day.range-end {
+            border-radius: 0 4px 4px 0;
+        }
+        .calendar-day.today {
+            border: 1px solid var(--bl-color-primary);
+        }
+        .calendar-day.muted {
+            color: var(--bl-color-text-muted);
+            opacity: 0.3;
         }
 
         .your-trip-details-section {
@@ -305,9 +379,17 @@
                     <span class="trip-detail-value">{{ trip.resort|state_fullname if trip.resort else trip.state }}{% if trip.resort and trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}</span>
                 </div>
                 {% endif %}
-                <div class="trip-detail-row">
+                <div class="trip-detail-row" onclick="showDatePreview()" style="cursor: pointer;">
                     <span class="trip-detail-label">Dates</span>
-                    <span class="trip-detail-value">{{ format_trip_dates(trip) }}</span>
+                    <span class="trip-detail-value" style="color: var(--bl-color-primary); display: flex; align-items: center; gap: 4px;">
+                        {{ format_trip_dates(trip) }}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </span>
                 </div>
                 {% set pass_display = trip.resort|mountain_passes if trip.resort else '' %}
                 {% if pass_display %}
@@ -324,30 +406,26 @@
             
             <div class="participants-section">
                 <h3>Who's Going</h3>
-                <div class="participant-card">
-                    <div>
-                        <div class="participant-name">{{ owner.first_name if owner else 'Organizer' }}</div>
-                        <div class="participant-identity">Organizer</div>
+                <div class="participant-list">
+                    <div class="participant-row">
+                        <span class="participant-name">{{ owner.first_name if owner else 'Organizer' }}</span>
+                        <span class="participant-identity">Organizer</span>
                     </div>
-                </div>
-                {% for p in accepted_participants %}
-                    {% if p.user and p.user.id != owner.id %}
-                    <div class="participant-card">
-                        <div>
-                            <div class="participant-name">{{ p.user.first_name }}</div>
-                            <div class="participant-identity">{{ p.user|identity_line }}</div>
+                    {% for p in accepted_participants %}
+                        {% if p.user and p.user.id != owner.id %}
+                        <div class="participant-row">
+                            <span class="participant-name">{{ p.user.first_name }}</span>
+                            <span class="participant-identity">{{ p.user|identity_line }}</span>
                         </div>
+                        {% endif %}
+                    {% endfor %}
+                    {% if not is_accepted %}
+                    <div class="participant-row">
+                        <span class="participant-name">You (invited)</span>
+                        <span class="participant-identity">Invited</span>
                     </div>
                     {% endif %}
-                {% endfor %}
-                {% if not is_accepted %}
-                <div class="participant-card">
-                    <div>
-                        <div class="participant-name">You (invited)</div>
-                        <div class="participant-identity">Awaiting response</div>
-                    </div>
                 </div>
-                {% endif %}
             </div>
             
             {% if is_accepted %}
@@ -504,7 +582,86 @@
     </div>
     {% endif %}
     
+    <div class="calendar-preview-modal" id="date-preview-modal">
+        <div class="calendar-content">
+            <div class="calendar-header">
+                <span id="calendar-month-year" style="font-weight: 600;"></span>
+                <button onclick="hideDatePreview()" style="background: none; border: none; font-size: 1.25rem; color: var(--bl-color-text-muted); padding: 4px;">&times;</button>
+            </div>
+            <div class="calendar-grid">
+                <div class="calendar-day-label">S</div>
+                <div class="calendar-day-label">M</div>
+                <div class="calendar-day-label">T</div>
+                <div class="calendar-day-label">W</div>
+                <div class="calendar-day-label">T</div>
+                <div class="calendar-day-label">F</div>
+                <div class="calendar-day-label">S</div>
+            </div>
+            <div class="calendar-grid" id="calendar-days"></div>
+        </div>
+    </div>
+
     <script>
+        function showDatePreview() {
+            const modal = document.getElementById('date-preview-modal');
+            const container = document.getElementById('calendar-days');
+            const monthYear = document.getElementById('calendar-month-year');
+            
+            const startDate = new Date('{{ trip.start_date.isoformat() }}');
+            const endDate = new Date('{{ trip.end_date.isoformat() }}');
+            
+            // Set to noon to avoid DST issues
+            startDate.setHours(12, 0, 0, 0);
+            endDate.setHours(12, 0, 0, 0);
+            
+            const month = startDate.getMonth();
+            const year = startDate.getFullYear();
+            
+            monthYear.textContent = startDate.toLocaleDateString('default', { month: 'long', year: 'numeric' });
+            
+            const firstDay = new Date(year, month, 1);
+            const startOffset = firstDay.getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            container.innerHTML = '';
+            
+            // Padding for start of month
+            for (let i = 0; i < startOffset; i++) {
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'calendar-day muted';
+                container.appendChild(dayDiv);
+            }
+            
+            for (let d = 1; d <= daysInMonth; d++) {
+                const current = new Date(year, month, d, 12, 0, 0, 0);
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'calendar-day';
+                dayDiv.textContent = d;
+                
+                if (current >= startDate && current <= endDate) {
+                    dayDiv.classList.add('in-range');
+                    if (current.getTime() === startDate.getTime()) dayDiv.classList.add('range-start');
+                    if (current.getTime() === endDate.getTime()) dayDiv.classList.add('range-end');
+                }
+                
+                const today = new Date();
+                today.setHours(12, 0, 0, 0);
+                if (current.getTime() === today.getTime()) dayDiv.classList.add('today');
+                
+                container.appendChild(dayDiv);
+            }
+            
+            modal.classList.add('active');
+        }
+
+        function hideDatePreview() {
+            document.getElementById('date-preview-modal').classList.remove('active');
+        }
+
+        document.getElementById('date-preview-modal').addEventListener('click', function(e) {
+            if (e.target === this) hideDatePreview();
+        });
+
         function showDeclineModal() {
             document.getElementById('decline-modal').classList.add('active');
         }
