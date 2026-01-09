@@ -391,6 +391,9 @@
                 {% endif %}
             {% endfor %}
         {% endif %}
+        {% if join_requests %}
+            {% set ns.invite_count = ns.invite_count + join_requests|length %}
+        {% endif %}
 
         <div class="segmented-control">
             <button type="button" class="segment-btn active" data-segment="upcoming">Upcoming</button>
@@ -489,24 +492,44 @@
 
         <div id="segment-invites" class="segment-content">
             {% if ns.invite_count > 0 %}
-                <p class="section-label">Invites</p>
-                <div class="trips-list">
-                    {% for trip in invited_trips %}
-                        {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
-                        <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                            <div class="trip-card">
-                                <div class="trip-card-content">
-                                    <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}{% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-                                    {% set pass_brands = trip.resort|mountain_passes if trip.resort else '' %}
-                                    {% set accepted_count = trip.accepted_count %}
-                                    <p class="trip-card-line2">{{ format_trip_dates(trip) }}{% if pass_brands %} · {{ pass_brands }}{% endif %}{% if accepted_count > 1 %} · {{ accepted_count }} going{% endif %}</p>
-                                </div>
-                                <span class="secondary-action">View</span>
+                {% if join_requests %}
+                    <p class="section-label">Join Requests</p>
+                    <div class="trips-list">
+                        {% for req in join_requests %}
+                        <div class="trip-card">
+                            <div class="trip-card-content">
+                                <p class="trip-card-line1">{{ req.sender.first_name }} {{ req.sender.last_name }} wants to join</p>
+                                <p class="trip-card-line2">{% if req.trip.resort %}{{ req.trip.resort.name }}{% else %}{{ req.trip.mountain }}{% endif %} · {{ format_trip_dates(req.trip) }}</p>
                             </div>
-                        </a>
-                        {% endif %}
-                    {% endfor %}
-                </div>
+                            <div class="trip-card-action" style="display: flex; gap: 12px;">
+                                <button onclick="respondToJoinRequest({{ req.id }}, 'accept')" class="secondary-action" style="background: none; border: none; padding: 0; cursor: pointer;">Accept</button>
+                                <button onclick="respondToJoinRequest({{ req.id }}, 'decline')" class="secondary-action" style="background: none; border: none; padding: 0; cursor: pointer; color: var(--bl-color-text-muted);">Decline</button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% if invited_trips %}
+                    <p class="section-label">Trip Invites</p>
+                    <div class="trips-list">
+                        {% for trip in invited_trips %}
+                            {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
+                            <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                                <div class="trip-card">
+                                    <div class="trip-card-content">
+                                        <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}{% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+                                        {% set pass_brands = trip.resort|mountain_passes if trip.resort else '' %}
+                                        {% set accepted_count = trip.accepted_count %}
+                                        <p class="trip-card-line2">{{ format_trip_dates(trip) }}{% if pass_brands %} · {{ pass_brands }}{% endif %}{% if accepted_count > 1 %} · {{ accepted_count }} going{% endif %}</p>
+                                    </div>
+                                    <span class="secondary-action">View</span>
+                                </div>
+                            </a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
             {% else %}
                 <div class="empty-state-container" style="padding-top: 32px;">
                     <p class="empty-state-title">No invites yet</p>
@@ -547,6 +570,26 @@
             if (tab === 'planning') tab = 'ideas';
             if (tab === 'ideas' || tab === 'invites') selectTab(tab);
             else if (savedTab) selectTab(savedTab, false);
+
+            window.respondToJoinRequest = function(requestId, action) {
+                fetch(`/trips/requests/${requestId}/respond`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.error || 'Something went wrong');
+                    }
+                })
+                .catch(err => {
+                    console.error('Error responding to join request:', err);
+                    alert('Something went wrong');
+                });
+            };
 
             window.BaseLodgeModal = {
                 root: document.getElementById('base-lodge-modal-root'),
