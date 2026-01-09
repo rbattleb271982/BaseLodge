@@ -365,6 +365,8 @@
             
             {% if is_accepted %}
             <div class="accepted-banner" style="background: #E8F5E9; color: #2E7D32; padding: 12px; border-radius: var(--bl-radius-md); font-weight: 600; text-align: center; margin-bottom: 16px;">You're going!</div>
+            {% elif current_status == 'DECLINED' %}
+            <div class="accepted-banner" style="background: var(--bl-color-surface); color: var(--bl-color-text-muted); padding: 12px; border-radius: var(--bl-radius-md); font-weight: 600; text-align: center; margin-bottom: 16px; border: 1px solid var(--bl-color-border-soft);">You declined this trip</div>
             {% endif %}
             
             <div class="trip-detail-card">
@@ -419,10 +421,23 @@
                         </div>
                         {% endif %}
                     {% endfor %}
-                    {% if not is_accepted %}
+                    {% for p in other_participants %}
+                        {% if p.status.value == 'DECLINED' %}
+                        <div class="participant-row">
+                            <span class="participant-name">{{ p.user.first_name if p.user else 'Friend' }}</span>
+                            <span class="participant-identity" style="opacity: 0.6;">Declined</span>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    {% if not is_accepted and current_status != 'DECLINED' %}
                     <div class="participant-row">
                         <span class="participant-name">You (invited)</span>
                         <span class="participant-identity">Invited</span>
+                    </div>
+                    {% elif current_status == 'DECLINED' %}
+                    <div class="participant-row">
+                        <span class="participant-name">You</span>
+                        <span class="participant-identity" style="opacity: 0.6;">Declined</span>
                     </div>
                     {% endif %}
                 </div>
