@@ -788,5 +788,28 @@
             });
         });
     </script>
+    <script>
+        function respondToJoinRequest(requestId, action) {
+            fetch(`/trips/requests/${requestId}/respond`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ action: action })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || 'Something went wrong');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        }
+    </script>
 </body>
 </html>

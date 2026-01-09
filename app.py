@@ -4825,6 +4825,15 @@ def trip_detail(trip_id):
     # EXCLUDE organizer from all_participants list for the "Who's Going" section
     all_participants = [p for p in trip.get_all_participants() if p.user_id != trip.user_id]
     
+    # Get pending join requests (owner only)
+    pending_requests = []
+    if is_owner:
+        pending_requests = Invitation.query.filter_by(
+            trip_id=trip_id,
+            invite_type=InviteType.REQUEST,
+            status='pending'
+        ).all()
+    
     # Get current user's participant record for inline editing
     current_user_participant = participant
     if is_owner:
@@ -4893,6 +4902,7 @@ def trip_detail(trip_id):
         all_participants=all_participants,
         current_user_participant=current_user_participant,
         participant_overlaps=participant_overlaps,
+        pending_requests=pending_requests,
     )
 
 
