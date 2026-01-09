@@ -70,8 +70,8 @@
             border-bottom: none;
         }
         .action-buttons {
-            position: fixed;
-            bottom: 0;
+            position: sticky;
+            bottom: env(safe-area-inset-bottom);
             left: 0;
             right: 0;
             background: var(--bl-color-background);
@@ -80,6 +80,7 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+            z-index: 10;
         }
         .action-buttons-row {
             display: flex;
@@ -299,10 +300,11 @@
     </style>
 </head>
 <body>
-    <div class="page-container" style="padding: 16px 16px {% if is_accepted %}88px{% else %}180px{% endif %};">
-        <a href="{{ url_for('my_trips') }}" class="back-link">← Back</a>
-        
-        <div class="invite-header">
+    <div class="page-container" style="padding: 16px 16px 24px; min-height: 100vh; display: flex; flex-direction: column;">
+        <div style="flex: 1;">
+            <a href="{{ url_for('my_trips') }}" class="back-link">← Back</a>
+            
+            <div class="invite-header">
             <h1 class="invite-destination">
                 {% if trip.resort and trip.resort.name %}
                     {{ trip.resort.name }}
@@ -404,6 +406,7 @@
             {% else %}
             <p class="section-locked-hint">Accept the invite to add your trip details</p>
             {% endif %}
+        </div>
         </div>
         
         {% if not is_accepted %}
