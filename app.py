@@ -4908,10 +4908,10 @@ def trip_invite_detail(trip_id):
         flash("This invite has expired.", "error")
         return redirect(url_for("my_trips"))
     
-    # Check if user has an invite (pending or accepted) for this trip
+    # Check if user has an invite (pending, accepted, or declined) for this trip
     participant = SkiTripParticipant.query.filter_by(
         trip_id=trip_id, user_id=current_user.id
-    ).filter(SkiTripParticipant.status.in_([GuestStatus.INVITED, GuestStatus.ACCEPTED])).first()
+    ).first()
     
     if not participant:
         flash("You don't have an invite for this trip.", "error")
@@ -4926,10 +4926,12 @@ def trip_invite_detail(trip_id):
     # Get trip owner
     owner = User.query.get(trip.user_id)
     
-    # Get accepted participants only (for "Who's going")
-    accepted_participants = SkiTripParticipant.query.filter_by(
-        trip_id=trip_id, status=GuestStatus.ACCEPTED
-    ).all()
+    # Get all participants
+    all_participants = SkiTripParticipant.query.filter_by(trip_id=trip_id).all()
+    
+    # Sort participants by status
+    accepted_participants = [p for p in all_participants if p.status == GuestStatus.ACCEPTED]
+    other_participants = [p for p in all_participants if p.status != GuestStatus.ACCEPTED]
     
     # Calculate going count: owner (always) + accepted invitees
     going_count = 1 + len(accepted_participants)  # 1 for owner
@@ -4949,6 +4951,7 @@ def trip_invite_detail(trip_id):
         owner=owner,
         participant=participant,
         accepted_participants=accepted_participants,
+        other_participants=other_participants,
         is_accepted=is_accepted,
         show_nudge=show_nudge,
         going_count=going_count,

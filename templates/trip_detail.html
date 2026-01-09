@@ -362,7 +362,7 @@
         {% elif is_owner %}
         <div class="invite-cta">
             <button class="bl-btn-primary" onclick="handleInviteClick()">
-                {% if invite_count > 0 %}Invite more people{% else %}Invite people to this trip{% endif %}
+                {% if invite_count > 0 %}Invite more people{% else %}Make this a group trip{% endif %}
             </button>
             {% if invite_count > 0 %}
             <p class="invite-count">{{ invite_count }} invite{{ 's' if invite_count != 1 else '' }} sent</p>
@@ -652,9 +652,20 @@
                     {% endfor %}
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="bl-btn-primary" id="sendInvitesBtn" disabled>Send invites</button>
+                    <button type="button" class="bl-btn-primary" id="sendInvitesBtn" disabled onclick="showConfirmModal()">Send invites</button>
                 </div>
             </form>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="confirmInviteModal" style="z-index: 10001;">
+        <div style="background: var(--bl-color-surface); border-radius: var(--bl-radius-lg); padding: 24px; width: 100%; max-width: 320px; text-align: center;">
+            <h3 style="margin: 0 0 12px 0; font-size: 1.1rem;">Send invites?</h3>
+            <p style="font-size: 0.9rem; color: var(--bl-color-text-muted); margin: 0 0 20px 0;">This will turn your trip into a group trip and invite selected friends.</p>
+            <div style="display: flex; gap: 12px;">
+                <button type="button" onclick="hideConfirmModal()" style="flex: 1; padding: 12px; border-radius: var(--bl-radius-md); font-weight: 600; background: transparent; color: var(--bl-color-text); border: 1px solid var(--bl-color-border); cursor: pointer;">Cancel</button>
+                <button type="button" onclick="submitInvites()" style="flex: 1; padding: 12px; border-radius: var(--bl-radius-md); font-weight: 600; background: var(--bl-color-primary); color: white; border: none; cursor: pointer;">Confirm</button>
+            </div>
         </div>
     </div>
     {% endif %}
@@ -766,6 +777,10 @@
             const count = document.querySelectorAll('#inviteForm input[type="checkbox"]:checked').length;
             document.getElementById('sendInvitesBtn').disabled = count === 0;
         }
+        function showConfirmModal() { document.getElementById('confirmInviteModal').classList.add('active'); }
+        function hideConfirmModal() { document.getElementById('confirmInviteModal').classList.remove('active'); }
+        function submitInvites() { document.getElementById('inviteForm').submit(); }
+        document.getElementById('confirmInviteModal')?.addEventListener('click', function(e) { if (e.target === this) hideConfirmModal(); });
         document.getElementById('friendSearchInput')?.addEventListener('input', function(e) {
             const term = e.target.value.toLowerCase();
             document.querySelectorAll('.friend-select-row').forEach(row => {
