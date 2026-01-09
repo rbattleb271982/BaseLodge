@@ -498,6 +498,7 @@ class SkiTrip(db.Model):
     equipment_override = db.Column(db.String(20), nullable=True)  # use_default, have_own_equipment, renting
     accommodation_status = db.Column(db.String(20), nullable=True)  # none_yet, hotel, airbnb, other
     accommodation_link = db.Column(db.String(500), nullable=True)  # URL to accommodation booking
+    max_participants = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_group_trip = db.Column(db.Boolean, default=False)  # True if trip has participants
     created_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Organizer (null = legacy, use user_id)
@@ -775,17 +776,29 @@ class SkiTripParticipant(db.Model):
         return f'<SkiTripParticipant trip={self.trip_id} user={self.user_id} status={self.status.value}>'
 
 
+class InviteType(PyEnum):
+    OUTBOUND = "outbound"
+    REQUEST = "request"
+
+
 class Invitation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    trip_id = db.Column(db.Integer, db.ForeignKey('ski_trip.id'), nullable=True)
+    invite_type = db.Column(
+        db.Enum(InviteType, name='invite_type_enum', create_constraint=True),
+        default=InviteType.OUTBOUND,
+        nullable=False,
+        server_default='outbound'
+    )
     status = db.Column(db.String(20), default='pending')  # pending, accepted, declined
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    __table_args__ = (db.UniqueConstraint('sender_id', 'receiver_id', name='unique_invitation'),)
+    __table_args__ = (db.UniqueConstraint('sender_id', 'receiver_id', 'trip_id', name='unique_invitation_per_trip'),)
 
     def __repr__(self):
-        return f'<Invitation {self.sender_id} -> {self.receiver_id}>'
+        return f'<Invitation {self.invite_type.value} from {self.sender_id} to {self.receiver_id} trip={self.trip_id}>'
 
 
 INVITE_EXPIRY_HOURS = 48

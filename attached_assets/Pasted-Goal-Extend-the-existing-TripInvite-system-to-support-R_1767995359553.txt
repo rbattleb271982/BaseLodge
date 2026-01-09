@@ -1,0 +1,98 @@
+Goal:
+Extend the existing TripInvite system to support "Request to Join Trip" without creating new tables or UI yet. This prompt covers data model changes, backend logic, and guards only.
+
+Scope:
+- Data model updates
+- Backend creation + acceptance/decline logic
+- Edge-case enforcement
+- No frontend UI changes in this prompt
+
+--------------------------------
+1) Data Model Changes
+--------------------------------
+
+Update the TripInvite model to support inbound join requests.
+
+- Add invite_type (string or enum):
+  - "OUTBOUND" (existing behavior)
+  - "REQUEST" (new)
+
+- Existing status values remain:
+  - PENDING
+  - ACCEPTED
+  - DECLINED
+
+- Add nullable max_participants field to the Trip model for future use.
+  - Do not enforce it anywhere yet.
+  - No UI exposure.
+
+Run migrations safely and do not drop or rename existing columns.
+
+--------------------------------
+2) Create Join Request Logic
+--------------------------------
+
+Add backend logic to create a REQUEST-type TripInvite when a user requests to join a trip.
+
+Rules:
+- Requester must be logged in.
+- Requester must be a friend of the trip owner.
+- Requester must not already be a participant.
+- Trip must not be cancelled or in the past.
+- Requester may only have ONE pending request per trip.
+
+If a pending request exists for this user + trip:
+- Do NOT create a new invite.
+- Return a no-op or safe error response.
+
+Create TripInvite with:
+- trip_id
+- from_user_id = requester
+- to_user_id = trip.owner_id
+- invite_type = "REQUEST"
+- status = "PENDING"
+
+Dates are NOT required at request time.
+
+--------------------------------
+3) Accepting a Request (Owner Only)
+--------------------------------
+
+Update accept-invite logic so that:
+
+- Only the trip owner may accept or decline REQUEST-type invites.
+- When ACCEPTED:
+  - Mark TripInvite as ACCEPTED.
+  - Add requester as a trip participant.
+  - Set participant start_date and end_date to the trip's start/end dates.
+  - Do NOT copy or inherit logistics (equipment, lodging, lessons, transport).
+
+--------------------------------
+4) Declining a Request
+--------------------------------
+
+- Set status = DECLINED.
+- No side effects.
+- User may request again later if allowed.
+
+--------------------------------
+5) Visibility Rules (Backend Enforcement)
+--------------------------------
+
+Ensure backend helpers enforce:
+- Multiple users may request the same trip concurrently.
+- Only one pending request per user per trip.
+- Accepted participants may see requests, but only owner may act (UI later).
+
+--------------------------------
+6) Guardrails
+--------------------------------
+
+Do NOT:
+- Create new tables
+- Create new routes beyond what's required
+- Touch frontend templates
+- Add notifications yet
+- Refactor unrelated invite logic
+
+Use checkpoints sparingly.

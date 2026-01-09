@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps
 from flask_migrate import Migrate
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, Event, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, Event, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType
 from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
 from io import BytesIO
@@ -5117,6 +5117,97 @@ def send_trip_invites(trip_id):
         flash("No new invites were sent.", "info")
     
     return redirect(url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/trips/<int:trip_id>/request-join", methods=["POST"])
+@login_required
+def request_to_join_trip(trip_id):
+    """Create a join request for a trip."""
+    trip = SkiTrip.query.get_or_404(trip_id)
+    
+    # 1. Requester must be a friend of the trip owner
+    is_friend = Friend.query.filter_by(user_id=current_user.id, friend_id=trip.user_id).first()
+    if not is_friend:
+        return jsonify({"success": False, "error": "You must be a friend of the trip owner to request to join."}), 403
+    
+    # 2. Requester must not already be a participant
+    is_participant = SkiTripParticipant.query.filter_by(trip_id=trip_id, user_id=current_user.id).first()
+    if is_participant:
+        return jsonify({"success": False, "error": "You are already a participant of this trip."}), 400
+        
+    # 3. Trip must not be in the past
+    if trip.end_date < date.today():
+        return jsonify({"success": False, "error": "This trip has already ended."}), 400
+        
+    # 4. Only one pending request per user per trip
+    existing_request = Invitation.query.filter_by(
+        sender_id=current_user.id,
+        receiver_id=trip.user_id,
+        trip_id=trip_id,
+        invite_type=InviteType.REQUEST,
+        status='pending'
+    ).first()
+    
+    if existing_request:
+        return jsonify({"success": True, "message": "Request already pending."})
+        
+    # Create the request
+    join_request = Invitation(
+        sender_id=current_user.id,
+        receiver_id=trip.user_id,
+        trip_id=trip_id,
+        invite_type=InviteType.REQUEST,
+        status='pending'
+    )
+    db.session.add(join_request)
+    db.session.commit()
+    
+    return jsonify({"success": True, "message": "Request sent to owner."})
+
+
+@app.route("/trips/requests/<int:request_id>/respond", methods=["POST"])
+@login_required
+def respond_to_join_request(request_id):
+    """Accept or decline a join request."""
+    invitation = Invitation.query.get_or_404(request_id)
+    
+    if invitation.invite_type != InviteType.REQUEST:
+        return jsonify({"success": False, "error": "Invalid invitation type."}), 400
+        
+    trip = SkiTrip.query.get_or_404(invitation.trip_id)
+    
+    # Only the trip owner can respond
+    if trip.user_id != current_user.id:
+        return jsonify({"success": False, "error": "Only the trip owner can respond to join requests."}), 403
+        
+    data = request.get_json() or {}
+    action = data.get("action")
+    
+    if action == "accept":
+        invitation.status = 'accepted'
+        
+        # Add requester as participant
+        participant = SkiTripParticipant(
+            trip_id=trip.id,
+            user_id=invitation.sender_id,
+            status=GuestStatus.ACCEPTED,
+            role=ParticipantRole.GUEST
+        )
+        db.session.add(participant)
+        
+        # Mark trip as group trip if not already
+        if not trip.is_group_trip:
+            trip.is_group_trip = True
+            
+        db.session.commit()
+        return jsonify({"success": True, "message": "Request accepted."})
+        
+    elif action == "decline":
+        invitation.status = 'declined'
+        db.session.commit()
+        return jsonify({"success": True, "message": "Request declined."})
+        
+    return jsonify({"success": False, "error": "Invalid action."}), 400
 
 
 @app.route("/trips/<int:trip_id>/respond", methods=["POST"])
