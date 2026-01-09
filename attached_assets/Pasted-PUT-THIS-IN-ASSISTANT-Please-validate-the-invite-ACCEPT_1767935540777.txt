@@ -1,0 +1,64 @@
+PUT THIS IN ASSISTANT
+
+Please validate the invite ACCEPT flow end-to-end now that the fix has been applied.
+
+================================
+WHAT TO TEST
+================================
+
+Test the following scenarios using an invited user account (e.g. invite1@gmail.com):
+
+1) ACCEPT invite when the invited user ALREADY has a solo trip
+2) ACCEPT invite when the invited user does NOT have a solo trip
+3) DECLINE invite
+
+================================
+WHAT SHOULD HAPPEN
+================================
+
+Scenario 1: ACCEPT with existing solo trip
+- Accept succeeds with no errors
+- TripParticipant is created with status = ACCEPTED
+- Existing solo trip is archived / hidden
+- Shared trip detail page loads correctly
+- No redirect to “Something went wrong”
+
+Scenario 2: ACCEPT with no solo trip
+- Accept succeeds
+- User joins shared trip
+- No archival logic runs
+- Shared trip detail page loads correctly
+
+Scenario 3: DECLINE
+- Decline succeeds
+- User’s existing trips remain unchanged
+- User is not counted as going
+
+================================
+LOGGING TO REVIEW
+================================
+
+Review the new [ACCEPT_TRACE] logs and confirm the following sequence for ACCEPT:
+
+- [ACCEPT_TRACE] handler entry (user_id, invite_id, trip_id)
+- [ACCEPT_TRACE] invite lookup success
+- [ACCEPT_TRACE] validation checks passed
+- [ACCEPT_TRACE] TripParticipant creation success
+- [ACCEPT_TRACE] solo trip lookup (found / not found)
+- [ACCEPT_TRACE] solo trip archive success (only if found)
+- [ACCEPT_TRACE] database commit success
+- [ACCEPT_TRACE] redirect resolution success
+
+================================
+GUARDRAIL
+================================
+
+Confirm that the accept handler:
+- Does NOT access non-existent fields on SkiTrip
+- Only carries over explicitly supported fields
+- Uses correct enums for participant vs trip state
+- Does not auto-accept or auto-merge outside the accept handler
+
+If any step fails, please report:
+- The last successful [ACCEPT_TRACE] log line
+- The full exception message and stack trace
