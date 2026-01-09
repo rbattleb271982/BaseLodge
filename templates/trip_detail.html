@@ -408,27 +408,8 @@
             </div>
         </div>
         
-        {# Group Signals #}
-        {% if is_owner and pending_requests %}
-        <div style="margin-bottom: 24px; padding: 16px; background: rgba(143, 1, 27, 0.04); border: 1px solid var(--bl-color-primary); border-radius: 12px;">
-            <p style="color: var(--bl-color-primary); font-weight: 700; font-size: 0.9rem; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Join Requests</p>
-            <div class="trips-list">
-                {% for req in pending_requests %}
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-top: 1px solid rgba(143, 1, 27, 0.1);">
-                    <div style="flex: 1; min-width: 0; padding-right: 12px;">
-                        <p style="margin: 0; font-weight: 600; font-size: 15px; color: var(--bl-color-text);">{{ req.sender.first_name }} {{ req.sender.last_name }}</p>
-                        <p style="margin: 2px 0 0 0; font-size: 13px; color: var(--bl-color-text-muted);">{{ req.sender|identity_line }}</p>
-                    </div>
-                    <div style="display: flex; gap: 12px; flex-shrink: 0;">
-                        <button onclick="respondToJoinRequest({{ req.id }}, 'accept')" style="background: var(--bl-color-primary); color: white; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer;">Accept</button>
-                        <button onclick="respondToJoinRequest({{ req.id }}, 'decline')" style="background: transparent; color: var(--bl-color-text-muted); border: 1px solid var(--bl-color-border); padding: 8px 14px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer;">Decline</button>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
+        {# Removed Join Requests standalone section #}
+        
         <div class="your-trip-details-section">
             <p style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--bl-color-text-muted); font-weight: 600; margin: 0 0 12px 0;">Your Trip Details</p>
             
@@ -612,22 +593,61 @@
         </div>
         {% endif %}
         
-        {% if is_owner and invited_participants %}
+        {% if is_owner and invited_participants or pending_requests %}
         <div class="pending-invites-section" style="margin-top: 20px;">
             <h3 style="font-size: 1rem; font-weight: 600; margin: 0 0 12px 0;">Pending Invites</h3>
-            {% for p in invited_participants %}
-            <div class="participant-card">
-                <div class="participant-info">
-                    <span class="participant-name">{{ p.user|display_name(current_user.id) }}</span>
-                    <p class="participant-identity">{{ p.user|identity_line }}</p>
+            
+            {# 1. REQUEST-type Join Requests #}
+            {% if pending_requests %}
+                {% for req in pending_requests %}
+                <div class="participant-card">
+                    <div class="participant-info">
+                        <span class="participant-name">{{ req.sender.first_name }} {{ req.sender.last_name }}</span>
+                        <p class="participant-identity">{{ req.sender|identity_line }}</p>
+                        <p style="font-size: 0.85rem; color: var(--bl-color-primary); font-weight: 600; margin: 4px 0 0 0;">Requested to Join</p>
+                    </div>
+                    {% if is_owner %}
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="respondToJoinRequest({{ req.id }}, 'accept')" style="background: var(--bl-color-primary); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer;">Accept</button>
+                        <button onclick="respondToJoinRequest({{ req.id }}, 'decline')" style="background: transparent; color: var(--bl-color-text-muted); border: 1px solid var(--bl-color-border); padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer;">Decline</button>
+                    </div>
+                    {% endif %}
                 </div>
-                <form method="POST" action="{{ url_for('cancel_trip_invite', trip_id=trip.id) }}" onsubmit="return confirm('Cancel invite?');">
-                    <input type="hidden" name="user_id" value="{{ p.user_id }}">
-                    <button type="submit" style="background: transparent; border: none; color: var(--bl-color-text-muted); font-size: 0.9rem; cursor: pointer;">Cancel</button>
-                </form>
-            </div>
-            {% endfor %}
+                {% endfor %}
+            {% endif %}
+
+            {# 2. OUTBOUND-type Pending Invites #}
+            {% if invited_participants %}
+                {% for p in invited_participants %}
+                <div class="participant-card">
+                    <div class="participant-info">
+                        <span class="participant-name">{{ p.user|display_name(current_user.id) }}</span>
+                        <p class="participant-identity">{{ p.user|identity_line }}</p>
+                    </div>
+                    {% if is_owner %}
+                    <form method="POST" action="{{ url_for('cancel_trip_invite', trip_id=trip.id) }}" onsubmit="return confirm('Cancel invite?');">
+                        <input type="hidden" name="user_id" value="{{ p.user_id }}">
+                        <button type="submit" style="background: transparent; border: none; color: var(--bl-color-text-muted); font-size: 0.9rem; cursor: pointer;">Cancel</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% endif %}
         </div>
+        {% elif not is_owner and pending_requests %}
+            {# If not owner but a participant, show read-only requested status if any exist (though currently logic only fetches for owner, but following prompt) #}
+             <div class="pending-invites-section" style="margin-top: 20px;">
+                <h3 style="font-size: 1rem; font-weight: 600; margin: 0 0 12px 0;">Pending Invites</h3>
+                {% for req in pending_requests %}
+                <div class="participant-card">
+                    <div class="participant-info">
+                        <span class="participant-name">{{ req.sender.first_name }} {{ req.sender.last_name }}</span>
+                        <p class="participant-identity">{{ req.sender|identity_line }}</p>
+                        <p style="font-size: 0.85rem; color: var(--bl-color-primary); font-weight: 600; margin: 4px 0 0 0;">Requested to Join</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         {% endif %}
     </div>
 
