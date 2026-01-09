@@ -5191,7 +5191,9 @@ def respond_to_join_request(request_id):
             trip_id=trip.id,
             user_id=invitation.sender_id,
             status=GuestStatus.ACCEPTED,
-            role=ParticipantRole.GUEST
+            role=ParticipantRole.GUEST,
+            start_date=trip.start_date,
+            end_date=trip.end_date
         )
         db.session.add(participant)
         
