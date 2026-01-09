@@ -732,6 +732,8 @@ class SkiTripParticipant(db.Model):
     )
     carpool_seats = db.Column(db.Integer, nullable=True)
     needs_ride = db.Column(db.Boolean, nullable=True)
+    start_date = db.Column(db.Date, nullable=True)
+    end_date = db.Column(db.Date, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     user = db.relationship('User', backref='ski_trip_participations')
