@@ -1,0 +1,78 @@
+IMPORTANT:
+This task is STRICTLY READ-ONLY.
+Do NOT modify code, schemas, migrations, routes, or UI.
+Do NOT roll back or reapply anything.
+This is a forensic inspection only.
+
+Goal:
+Determine the current, exact state of the “Request to Join Trip” feature and identify the most recent backend or UI changes applied, so we can safely decide where to resume work.
+
+--------------------------------
+1) Last Change Audit
+--------------------------------
+
+Report:
+- The MOST RECENT commit / change / action performed related to:
+  - Join request logic
+  - Invitation acceptance logic
+  - Participant creation
+  - Date syncing on accept
+  - Invite toggle UI (if touched)
+
+For each, report:
+- What file(s) were changed
+- What behavior was altered
+- Whether the change is currently active in the codebase
+
+--------------------------------
+2) Current Feature State (As-Is)
+--------------------------------
+
+Answer explicitly (yes/no + explanation):
+
+- Does accepting a REQUEST invite currently:
+  - Add the user as a SkiTripParticipant?
+  - Populate participant start_date/end_date from the trip?
+- Is REQUEST invite logic currently enabled in routes?
+- Is any UI currently rendering REQUEST-type invites?
+- Has the Invite toggle UI been modified at all?
+
+--------------------------------
+3) Backend Completeness Check
+--------------------------------
+
+Confirm whether the following are PRESENT and ACTIVE:
+
+- InviteType enum with REQUEST
+- Join-request creation route
+- Owner-only accept/decline logic
+- Participant date sync on ACCEPT
+- No enforced capacity logic
+
+--------------------------------
+4) Risk & Drift Assessment
+--------------------------------
+
+Report:
+- Any partially applied changes
+- Any commented-out logic
+- Any duplicated logic paths
+- Any inconsistencies between intent and implementation
+
+--------------------------------
+5) Output Requirements
+--------------------------------
+
+Return a concise report with sections:
+
+- 🧭 Current Truth (what is live right now)
+- 🕒 Last Action Taken (most recent change)
+- ✅ Completed & Stable
+- ⚠️ Partial / Incomplete
+- 🔁 Recommended Resume Point (do NOT implement)
+
+Do NOT propose fixes.
+Do NOT implement anything.
+Do NOT refactor.
+
+Use checkpoints sparingly.
