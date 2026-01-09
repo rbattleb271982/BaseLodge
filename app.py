@@ -4024,6 +4024,41 @@ def friend_trip_details(trip_id):
     # showing third-party friend data (e.g., "Richard · Epic") when
     # Jonathan views Charles's trip.
 
+    # Gating for "Request to Join"
+    today = date.today()
+    can_request_join = False
+    has_pending_request = False
+    
+    if trip.user_id != current_user.id:
+        # 1. Not already a participant (accepted or invited)
+        is_participant = SkiTripParticipant.query.filter_by(
+            trip_id=trip_id, user_id=current_user.id
+        ).first()
+        
+        # 2. Not in the past
+        is_future = trip.end_date >= today
+        
+        # 3. Trip not cancelled (SkiTrip doesn't have status, but we check if it exists)
+        
+        # 4. Not already requested
+        existing_request = Invitation.query.filter_by(
+            trip_id=trip_id,
+            sender_id=current_user.id,
+            invite_type=InviteType.REQUEST,
+            status='pending'
+        ).first()
+        
+        has_pending_request = existing_request is not None
+        
+        # 5. Must be a friend (already checked for authorization, but re-confirming)
+        is_friend = Friend.query.filter_by(
+            user_id=current_user.id,
+            friend_id=friend.id
+        ).first() is not None
+        
+        if is_friend and not is_participant and is_future and not has_pending_request:
+            can_request_join = True
+
     return render_template(
         "friend_trip_details.html",
         trip=trip,
@@ -4031,7 +4066,9 @@ def friend_trip_details(trip_id):
         has_overlap=has_overlap,
         overlap_days=your_overlap_days,
         your_overlap_ranges=your_overlap_ranges,
-        friends_open_on_trip=[]  # Always empty - privacy protection
+        friends_open_on_trip=[],  # Always empty - privacy protection
+        can_request_join=can_request_join,
+        has_pending_request=has_pending_request
     )
 
 @app.route("/feedback", methods=["GET", "POST"])

@@ -89,6 +89,59 @@
             {% endif %}
         </div>
         {% endif %}
+
+        {% if can_request_join %}
+        <div id="join-request-container" style="margin-top: 16px;">
+            <button id="request-join-btn" class="bl-btn-primary" style="width: 100%; padding: 14px; font-size: 1rem;" onclick="requestToJoin({{ trip.id }})">
+                Request to Join
+            </button>
+        </div>
+        {% elif has_pending_request %}
+        <div style="margin-top: 16px;">
+            <button class="bl-btn-outline" style="width: 100%; padding: 14px; font-size: 1rem; opacity: 0.7;" disabled>
+                Request Sent
+            </button>
+        </div>
+        {% endif %}
+
+        {% if can_request_join or has_pending_request %}
+        <script>
+            function requestToJoin(tripId) {
+                const btn = document.getElementById('request-join-btn');
+                if (!btn || btn.disabled) return;
+                
+                btn.disabled = true;
+                btn.innerText = 'Sending...';
+                
+                fetch(`/trips/${tripId}/request-join`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        btn.innerText = 'Request Sent';
+                        btn.classList.remove('bl-btn-primary');
+                        btn.classList.add('bl-btn-outline');
+                        btn.style.opacity = '0.7';
+                        btn.disabled = true;
+                    } else {
+                        btn.disabled = false;
+                        btn.innerText = 'Request to Join';
+                        alert(data.error || 'Something went wrong. Please try again.');
+                    }
+                })
+                .catch(err => {
+                    console.error('Error requesting to join:', err);
+                    btn.disabled = false;
+                    btn.innerText = 'Request to Join';
+                    alert('Something went wrong. Please try again.');
+                });
+            }
+        </script>
+        {% endif %}
         
         {% if friends_open_on_trip and friends_open_on_trip|length > 0 %}
         <div style="margin-top: 16px; background: linear-gradient(135deg, rgba(143, 1, 27, 0.08), rgba(143, 1, 27, 0.04)); border: 1px solid rgba(143, 1, 27, 0.2); border-radius: 12px; padding: 16px;">
