@@ -421,23 +421,10 @@
                         </div>
                         {% endif %}
                     {% endfor %}
-                    {% for p in other_participants %}
-                        {% if p.status.value == 'DECLINED' and (not p.user or p.user.id != current_user.id) %}
-                        <div class="participant-row">
-                            <span class="participant-name">{{ p.user.first_name if p.user else 'Someone' }}</span>
-                            <span class="participant-identity" style="opacity: 0.6;">Declined</span>
-                        </div>
-                        {% endif %}
-                    {% endfor %}
                     {% if not is_accepted and participant.status.value != 'DECLINED' %}
                     <div class="participant-row">
                         <span class="participant-name">You (invited)</span>
                         <span class="participant-identity">Invited</span>
-                    </div>
-                    {% elif participant.status.value == 'DECLINED' %}
-                    <div class="participant-row">
-                        <span class="participant-name">You</span>
-                        <span class="participant-identity" style="opacity: 0.6;">Declined</span>
                     </div>
                     {% endif %}
                 </div>

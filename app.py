@@ -5142,6 +5142,27 @@ def respond_to_trip_invite(trip_id):
     
     if action == "accept":
         participant.status = GuestStatus.ACCEPTED
+        
+        # Archive solo trip if it exists
+        solo_trip = SkiTrip.query.filter(
+            SkiTrip.user_id == current_user.id,
+            SkiTrip.id != trip_id,
+            SkiTrip.start_date == trip.start_date,
+            SkiTrip.end_date == trip.end_date,
+            db.or_(
+                SkiTrip.resort_id == trip.resort_id,
+                SkiTrip.mountain == trip.mountain
+            )
+        ).first()
+        
+        if solo_trip:
+            # Carry over details
+            participant.transportation_status = TransportationStatus(solo_trip.transportation_status) if solo_trip.transportation_status else None
+            if solo_trip.equipment_override and solo_trip.equipment_override != 'use_default':
+                participant.equipment_status = ParticipantEquipment.OWN if solo_trip.equipment_override == 'have_own_equipment' else ParticipantEquipment.RENTING
+            
+            db.session.delete(solo_trip)
+            
         emit_trip_invite_accepted_activity(trip, current_user.id, trip.user_id)
         emit_friend_joined_trip_activities(trip, current_user.id)
         db.session.commit()

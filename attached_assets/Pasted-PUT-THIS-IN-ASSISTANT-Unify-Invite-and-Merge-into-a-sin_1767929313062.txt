@@ -1,0 +1,93 @@
+PUT THIS IN ASSISTANT
+
+Unify “Invite” and “Merge” into a single, invite-based collaboration flow with clear intent communicated via copy, not separate mechanics.
+
+================================
+CORE MODEL (LOCKED)
+================================
+- Trip creation is always solo
+- Collaboration happens only after creation
+- There is exactly ONE backend flow:
+  Send invite → Accept / Decline → Join shared trip
+- “Invite” and “Merge” are UX concepts only, not separate logic
+
+================================
+PRIMARY CTA
+================================
+CTA Label:
+- “Invite friends”
+
+Visibility:
+- Show on Trip Detail pages when the user is:
+  - The trip owner, OR
+  - An accepted participant
+
+CTA Behavior:
+1) Opens a friend picker (connected friends only)
+2) User selects one or more friends
+3) Show confirmation modal (see copy below)
+4) On confirm:
+   - Send TripInvites
+   - No automatic acceptance
+   - No automatic merging
+
+================================
+CONFIRMATION MODAL COPY (IMPORTANT)
+================================
+
+Title:
+“Invite friends”
+
+Body:
+“This will invite selected friends to join this trip.
+If they already have a trip for these dates, it will be combined into a shared trip once they accept.”
+
+Notes:
+- Do NOT use the word “merge” in the UI
+- Use “combine” / “shared trip” language only
+
+================================
+INVITE & ACCEPT LOGIC
+================================
+- Invited users must explicitly ACCEPT or DECLINE
+- Users are NOT considered “going” until ACCEPTED
+
+On ACCEPT:
+- Create TripParticipant with status = ACCEPTED
+- If the user already has a solo trip for the same destination and dates:
+  - Automatically archive / hide that solo trip
+  - Link it via converted_to_trip_id
+  - Carry over all personal trip details as-is
+    (equipment, lodging, transportation, lessons)
+- If the user had no solo trip:
+  - Join shared trip with empty personal details
+
+================================
+DECLINE LOGIC
+================================
+On DECLINE:
+- Do NOT alter the user’s existing trips
+- Declined users are not counted as going
+- Declined users can be re-invited later
+- No permanent declined participant record is required in the shared trip view
+
+================================
+INVITING OTHERS (IMPORTANT)
+================================
+- Any user who has ACCEPTED a trip may invite additional friends
+- Inviting others always uses the same Invite flow
+- Organizer role is retained by the original creator unless explicitly reassigned
+
+================================
+COUNTS & DISPLAY
+================================
+- “X going” counts ACCEPTED participants only
+- Pending and declined users are never counted
+
+================================
+GUARDRAIL (MUST ENFORCE)
+================================
+- No user’s trip is ever merged, archived, hidden, or altered without an explicit ACCEPT action
+- Do NOT implement automatic trip matching, detection, or merging
+
+This is an invite-driven collaboration feature. Keep backend logic unified and express intent through copy only.

@@ -359,10 +359,10 @@
             <p style="font-size: 0.95rem; font-weight: 600; color: var(--bl-color-text); margin: 0 0 4px 0;">You're invited to this trip!</p>
             <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">{{ owner.first_name }}{% if owner.last_name %} {{ owner.last_name }}{% endif %} wants you to join.</p>
         </div>
-        {% elif is_owner %}
+        {% elif is_owner or is_accepted %}
         <div class="invite-cta">
             <button class="bl-btn-primary" onclick="handleInviteClick()">
-                {% if invite_count > 0 %}Invite more people{% else %}Make this a group trip{% endif %}
+                Invite friends
             </button>
             {% if invite_count > 0 %}
             <p class="invite-count">{{ invite_count }} invite{{ 's' if invite_count != 1 else '' }} sent</p>
@@ -660,11 +660,11 @@
     
     <div class="modal-overlay" id="confirmInviteModal" style="z-index: 10001;">
         <div style="background: var(--bl-color-surface); border-radius: var(--bl-radius-lg); padding: 24px; width: 100%; max-width: 320px; text-align: center;">
-            <h3 style="margin: 0 0 12px 0; font-size: 1.1rem;">Send invites?</h3>
-            <p style="font-size: 0.9rem; color: var(--bl-color-text-muted); margin: 0 0 20px 0;">This will turn your trip into a group trip and invite selected friends.</p>
+            <h3 style="margin: 0 0 12px 0; font-size: 1.1rem;">Invite friends</h3>
+            <p style="font-size: 0.95rem; color: var(--bl-color-text-muted); line-height: 1.5; margin: 0 0 20px 0;">This will invite selected friends to join this trip. If they already have a trip for these dates, it will be combined into a shared trip once they accept.</p>
             <div style="display: flex; gap: 12px;">
                 <button type="button" onclick="hideConfirmModal()" style="flex: 1; padding: 12px; border-radius: var(--bl-radius-md); font-weight: 600; background: transparent; color: var(--bl-color-text); border: 1px solid var(--bl-color-border); cursor: pointer;">Cancel</button>
-                <button type="button" onclick="submitInvites()" style="flex: 1; padding: 12px; border-radius: var(--bl-radius-md); font-weight: 600; background: var(--bl-color-primary); color: white; border: none; cursor: pointer;">Confirm</button>
+                <button type="button" onclick="submitInvites()" style="flex: 1; padding: 12px; border-radius: var(--bl-radius-md); font-weight: 600; background: var(--bl-color-primary); color: white; border: none; cursor: pointer;">Invite</button>
             </div>
         </div>
     </div>
