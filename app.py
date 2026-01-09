@@ -5178,7 +5178,10 @@ def request_to_join_trip(trip_id):
 @app.route("/trips/requests/<int:request_id>/respond", methods=["POST"])
 @login_required
 def respond_to_join_request(request_id):
-    """Accept or decline a join request."""
+    """
+    Accept or decline a join request.
+    Feature complete as of 2026-01-09. Backend + UI verified.
+    """
     invitation = Invitation.query.get_or_404(request_id)
     
     if invitation.invite_type != InviteType.REQUEST:
