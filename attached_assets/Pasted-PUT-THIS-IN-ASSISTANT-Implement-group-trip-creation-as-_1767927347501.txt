@@ -1,0 +1,71 @@
+PUT THIS IN ASSISTANT
+
+Implement group trip creation as an invite-based flow with an explicit user-facing CTA.
+
+================================
+CTA: “Make this a group trip”
+================================
+- Add a button labeled “Make this a group trip”
+- Show ONLY when:
+  - The trip is currently a solo trip
+  - The current user is the trip owner / organizer
+
+CTA behavior:
+1) Tapping the CTA opens a friend picker (connected friends only)
+2) User selects one or more friends
+3) Show a confirmation modal with copy:
+   “This will turn your trip into a group trip and invite selected friends.”
+4) On confirm:
+   - Convert the trip into a shared trip container
+   - Set the initiating user as the organizer (organizer can be reassigned later)
+   - Send invites to selected friends
+
+================================
+Core Concept
+================================
+- “Merge” means converting a solo trip into a shared trip and inviting others
+- The system must NEVER silently merge, alter, or combine another user’s trip
+- All grouping happens via invites and explicit acceptance
+
+================================
+Invite Behavior
+================================
+- Invited users must explicitly ACCEPT or DECLINE
+- Users are NOT considered “going” until they ACCEPT
+- Pending invites are not counted as attendees
+
+================================
+Accept Logic (Critical)
+================================
+If an invitee ACCEPTS:
+- Create TripParticipant with status = ACCEPTED
+- If the invitee already has a solo trip for the same destination and dates:
+  - Automatically archive / hide the solo trip
+  - Link it internally via converted_to_trip_id
+  - Carry over all personal trip details as-is
+    (equipment, lodging, transportation, lessons)
+- If the invitee had no solo trip:
+  - Add them to the shared trip with empty personal details
+
+================================
+Decline Logic
+================================
+If an invitee DECLINES:
+- Their existing solo trips remain untouched
+- They are NOT counted as going
+- They can be re-invited later
+- No permanent declined participant record is required in the shared trip view
+
+================================
+Counts & Display Rules
+================================
+- “X going” counts ACCEPTED participants only
+- Pending and declined users are never counted
+
+================================
+Guardrail (Must Enforce)
+================================
+- No user’s trip is ever merged, archived, hidden, or altered without an explicit ACCEPT action by that user
+- Do NOT implement automatic trip matching or merging
+
+This is an invite-driven grouping feature. Do not infer merges or alter data outside of explicit user actions.
