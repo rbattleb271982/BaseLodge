@@ -1827,17 +1827,6 @@ def my_trips():
     except Exception:
         accepted_guest_trips = []
 
-    # Get join requests (current_user is trip owner, others want to join)
-    join_requests = []
-    try:
-        join_requests = Invitation.query.filter_by(
-            receiver_id=current_user.id,
-            invite_type=InviteType.REQUEST,
-            status='pending'
-        ).all() or []
-    except Exception as e:
-        print(f"  ERROR fetching join requests: {e}")
-
     # Get friends (wrapped for production safety)
     try:
         friend_links = Friend.query.filter_by(user_id=user.id).all()
@@ -1984,7 +1973,6 @@ def my_trips():
         past_trips=past_trips or [],
         invited_trips=invited_trips or [],
         accepted_guest_trips=accepted_guest_trips or [],
-        join_requests=join_requests or [],
         active_tab=active_tab,
         show_connected_banner=show_connected_banner,
         friends=friends or [],

@@ -408,6 +408,27 @@
             </div>
         </div>
         
+        {# Group Signals #}
+        {% if is_owner and pending_requests %}
+        <div style="margin-bottom: 24px; padding: 16px; background: rgba(143, 1, 27, 0.04); border: 1px solid var(--bl-color-primary); border-radius: 12px;">
+            <p style="color: var(--bl-color-primary); font-weight: 700; font-size: 0.9rem; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Join Requests</p>
+            <div class="trips-list">
+                {% for req in pending_requests %}
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-top: 1px solid rgba(143, 1, 27, 0.1);">
+                    <div style="flex: 1; min-width: 0; padding-right: 12px;">
+                        <p style="margin: 0; font-weight: 600; font-size: 15px; color: var(--bl-color-text);">{{ req.sender.first_name }} {{ req.sender.last_name }}</p>
+                        <p style="margin: 2px 0 0 0; font-size: 13px; color: var(--bl-color-text-muted);">{{ req.sender|identity_line }}</p>
+                    </div>
+                    <div style="display: flex; gap: 12px; flex-shrink: 0;">
+                        <button onclick="respondToJoinRequest({{ req.id }}, 'accept')" style="background: var(--bl-color-primary); color: white; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer;">Accept</button>
+                        <button onclick="respondToJoinRequest({{ req.id }}, 'decline')" style="background: transparent; color: var(--bl-color-text-muted); border: 1px solid var(--bl-color-border); padding: 8px 14px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer;">Decline</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <div class="your-trip-details-section">
             <p style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--bl-color-text-muted); font-weight: 600; margin: 0 0 12px 0;">Your Trip Details</p>
             
@@ -773,6 +794,26 @@
 
         function handleInviteClick() { document.getElementById('inviteModal').classList.add('active'); document.body.classList.add('modal-open'); }
         function closeInviteModal() { document.getElementById('inviteModal').classList.remove('active'); document.body.classList.remove('modal-open'); }
+
+        function respondToJoinRequest(requestId, action) {
+            fetch(`/trips/requests/${requestId}/respond`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: action })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || 'Something went wrong');
+                }
+            })
+            .catch(err => {
+                console.error('Error responding to join request:', err);
+                alert('Something went wrong');
+            });
+        }
         function updateSelectionState() {
             const count = document.querySelectorAll('#inviteForm input[type="checkbox"]:checked').length;
             document.getElementById('sendInvitesBtn').disabled = count === 0;
