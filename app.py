@@ -4024,40 +4024,38 @@ def friend_trip_details(trip_id):
     # showing third-party friend data (e.g., "Richard · Epic") when
     # Jonathan views Charles's trip.
 
-    # Gating for "Request to Join"
+    # Gating for "Request to Join" - Simplified for production
     today = date.today()
     can_request_join = False
     has_pending_request = False
     
     if trip.user_id != current_user.id:
-        # 1. Not already a participant (accepted or invited)
-        is_participant = SkiTripParticipant.query.filter_by(
-            trip_id=trip_id, user_id=current_user.id
-        ).first()
+        # 1. Not already an ACCEPTED participant
+        is_accepted = SkiTripParticipant.query.filter_by(
+            trip_id=trip_id, 
+            user_id=current_user.id,
+            status=GuestStatus.ACCEPTED
+        ).first() is not None
         
         # 2. Not in the past
         is_future = trip.end_date >= today
         
-        # 3. Trip not cancelled (SkiTrip doesn't have status, but we check if it exists)
-        
-        # 4. Not already requested
-        existing_request = Invitation.query.filter_by(
+        # 3. Check for pending request
+        pending_request = Invitation.query.filter_by(
             trip_id=trip_id,
             sender_id=current_user.id,
             invite_type=InviteType.REQUEST,
             status='pending'
         ).first()
         
-        has_pending_request = existing_request is not None
+        has_pending_request = pending_request is not None
         
-        # 5. Must be a friend (already checked for authorization, but re-confirming)
-        is_friend = Friend.query.filter_by(
-            user_id=current_user.id,
-            friend_id=friend.id
-        ).first() is not None
-        
-        if is_friend and not is_participant and is_future and not has_pending_request:
-            can_request_join = True
+        # Show button if future trip and not already an accepted participant
+        if not is_accepted and is_future:
+            # can_request_join is True if no pending request
+            # if has_pending_request is True, template shows "Request Sent"
+            if not has_pending_request:
+                can_request_join = True
 
     return render_template(
         "friend_trip_details.html",
