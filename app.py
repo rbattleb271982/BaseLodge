@@ -4032,14 +4032,14 @@ def friend_trip_details(trip_id):
     is_accepted = False
     
     if trip.user_id != current_user.id:
-        # 1. Check if viewer is already an accepted participant
+        # 1. Check if viewer is already an accepted participant (CRITICAL: status=ACCEPTED only)
         is_accepted = SkiTripParticipant.query.filter_by(
             trip_id=trip_id, 
             user_id=current_user.id,
             status=GuestStatus.ACCEPTED
         ).first() is not None
         
-        # 2. Check for pending join request
+        # 2. Check for pending join request (status=pending)
         pending_request = Invitation.query.filter_by(
             trip_id=trip_id,
             sender_id=current_user.id,
@@ -4051,9 +4051,10 @@ def friend_trip_details(trip_id):
         # 3. Trip must be in the future (has not ended)
         is_future = trip.end_date >= today
         
-        # Button visibility logic:
-        # Show "Request to Join" (enabled) if: Future trip AND Not Owner AND Not Accepted AND No Pending Request
-        # Show "Request Sent" (disabled) if: Future trip AND Not Owner AND Not Accepted AND Has Pending Request
+        # Final CTA State Decision:
+        # - Already Accepted: Template shows "You're Going"
+        # - Future + Not Accepted + No Pending Request: Template shows "Request to Join"
+        # - Future + Not Accepted + Has Pending Request: Template shows "Request Sent"
         if is_future and not is_accepted:
             if not has_pending_request:
                 can_request_join = True
