@@ -1,0 +1,82 @@
+I need you to diagnose the entire Trip Invite / Join / Request system end-to-end and reconcile UI, routes, and data so it behaves consistently.
+
+Scope
+
+Audit all code paths related to:
+	•	Viewing a friend’s trip
+	•	Inviting someone to a trip (owner → friend)
+	•	Requesting to join a trip (friend → owner)
+	•	Accepting / declining participation
+
+Step 1 — Inventory & Diagnosis (DO NOT SKIP)
+
+Identify and list:
+	•	All existing models involved (e.g. TripInvite, TripParticipant, join tables, status enums)
+	•	All routes that create, update, or consume these records
+	•	All templates where trips are viewed by:
+	•	The trip owner
+	•	A friend (non-owner)
+	•	Any logic that distinguishes “invite” vs “request” flows
+
+Explicitly state:
+	•	Whether a join/request model already exists
+	•	Whether it is partially implemented, orphaned, or unused
+	•	Where UI entry points are missing or inconsistent
+
+Step 2 — Behavioral Alignment (Source of Truth)
+
+Re-align the system to these rules:
+	•	Trips are owned
+	•	No auto-join
+	•	No chat
+	•	Participation requires explicit approval
+	•	Owner can invite
+	•	Friend can request to join
+	•	Both actions create the same underlying pending record
+
+Step 3 — Friend Trip View Fix
+
+On friend trip detail pages (viewer ≠ owner):
+	•	Add a primary CTA: “Request to Join Trip”
+	•	CTA should be hidden or disabled if:
+	•	A pending request already exists
+	•	The viewer is already a participant
+
+Step 4 — Owner Trip View Fix
+
+On owner trip detail pages:
+	•	Surface incoming requests clearly
+	•	Allow Accept / Decline
+	•	On accept:
+	•	Add requester as participant
+	•	Update status cleanly
+
+Step 5 — State Handling
+
+Ensure all states are handled explicitly:
+	•	Not requested
+	•	Pending
+	•	Accepted
+	•	Declined
+
+UI should never show ambiguous or dead-end states.
+
+Step 6 — Validation
+
+After changes:
+	•	Walk through the full flow as a friend requesting to join
+	•	Walk through the owner accepting
+	•	Confirm no duplicate records
+	•	Confirm no silent joins
+	•	Confirm no broken links or missing CTAs
+
+Output Required
+
+Before coding, respond with:
+	1.	A brief written diagnosis of what’s currently broken or missing
+	2.	A proposed fix plan (models, routes, templates)
+	3.	Confirmation of whether existing code is reused or needs extension
+
+Do not implement partial fixes. Do not add chat. Do not invent new product behavior.
+
+Only proceed once the system is coherent end-to-end.
