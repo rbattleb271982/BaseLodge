@@ -5173,19 +5173,19 @@ def request_to_join_trip(trip_id):
     """Create a join request for a trip."""
     trip = SkiTrip.query.get_or_404(trip_id)
     
-    # 1. Requester must be a friend of the trip owner
-    is_friend = Friend.query.filter_by(user_id=current_user.id, friend_id=trip.user_id).first()
-    if not is_friend:
-        return jsonify({"success": False, "error": "You must be a friend of the trip owner to request to join."}), 403
-    
-    # 2. Requester must not already be a participant
-    is_participant = SkiTripParticipant.query.filter_by(trip_id=trip_id, user_id=current_user.id).first()
-    if is_participant:
-        return jsonify({"success": False, "error": "You are already a participant of this trip."}), 400
-        
-    # 3. Trip must not be in the past
+    # 1. Trip must not be in the past
     if trip.end_date < date.today():
         return jsonify({"success": False, "error": "This trip has already ended."}), 400
+    
+    # 2. Requester must not already be an ACCEPTED participant
+    is_accepted = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, 
+        user_id=current_user.id,
+        status=GuestStatus.ACCEPTED
+    ).first() is not None
+    
+    if is_accepted:
+        return jsonify({"success": False, "error": "You are already an accepted participant of this trip."}), 400
         
     # 4. Only one pending request per user per trip
     existing_request = Invitation.query.filter_by(
