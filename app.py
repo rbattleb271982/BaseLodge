@@ -1890,7 +1890,36 @@ def my_trips():
     # Build trip ideas using SAME logic as /trip-ideas route (availability-based only)
     trip_ideas = []
     wishlist_overlaps_dict = {}
+    requested_trips = []
     try:
+        # Load requested trips (Invitations where I am the sender)
+        # Query join requests sent by me
+        requests = Invitation.query.filter_by(
+            sender_id=current_user.id,
+            invite_type=InviteType.REQUEST
+        ).all()
+        
+        for req in requests:
+            # Hide if a corresponding SkiTripParticipant(status=ACCEPTED) exists to avoid duplication
+            if req.status == 'accepted':
+                exists = SkiTripParticipant.query.filter_by(
+                    trip_id=req.trip_id,
+                    user_id=current_user.id,
+                    status=GuestStatus.ACCEPTED
+                ).first()
+                if exists:
+                    continue
+                    
+            # Only show if trip is in the future
+            trip = SkiTrip.query.get(req.trip_id)
+            if trip and trip.end_date >= today:
+                requested_trips.append({
+                    'invitation_id': req.id,
+                    'trip': trip,
+                    'owner': User.query.get(req.receiver_id),
+                    'status': req.status.capitalize()
+                })
+
         today_str = today.strftime('%Y-%m-%d')
         print(f"--- MY_TRIPS IDEA GENERATION (User {current_user.id}) ---")
         print(f"   - user_open_dates count: {len(user_open_dates)}")
@@ -1973,6 +2002,7 @@ def my_trips():
         past_trips=past_trips or [],
         invited_trips=invited_trips or [],
         accepted_guest_trips=accepted_guest_trips or [],
+        requested_trips=requested_trips,
         active_tab=active_tab,
         show_connected_banner=show_connected_banner,
         friends=friends or [],
@@ -5262,6 +5292,27 @@ def respond_to_join_request(request_id):
         
     return jsonify({"success": False, "error": "Invalid action."}), 400
 
+
+@app.route("/trips/requests/<int:request_id>/cancel", methods=["POST"])
+@login_required
+def cancel_join_request(request_id):
+    """Cancel a pending join request."""
+    invitation = Invitation.query.get_or_404(request_id)
+    
+    if invitation.sender_id != current_user.id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+        
+    if invitation.invite_type != InviteType.REQUEST:
+        return jsonify({"success": False, "error": "Invalid request type"}), 400
+        
+    if invitation.status != 'pending':
+        return jsonify({"success": False, "error": "Only pending requests can be cancelled"}), 400
+        
+    db.session.delete(invitation)
+    db.session.commit()
+    
+    flash("Join request cancelled.", "info")
+    return redirect(url_for("my_trips"))
 
 @app.route("/trips/<int:trip_id>/respond", methods=["POST"])
 @login_required

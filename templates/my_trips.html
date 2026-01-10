@@ -432,6 +432,30 @@
                 <p class="new-trip-card-title">Plan a new trip</p>
                 <p class="new-trip-card-subtext">Choose dates, a mountain, and who's coming</p>
             </a>
+
+            {% if requested_trips %}
+            <p class="section-label">Requested Trips</p>
+            <div class="trips-list">
+                {% for req in requested_trips %}
+                <div class="trip-card" onclick="window.location.href='{{ url_for('friend_trip_details', trip_id=req.trip.id) }}'" style="cursor: pointer;">
+                    <div class="trip-card-content">
+                        <p class="trip-card-line1">{% if req.trip.resort %}{{ req.trip.resort.name }}{% else %}{{ req.trip.mountain }}{% endif %} · {{ format_trip_dates(req.trip) }}</p>
+                        <p class="trip-card-line2">
+                            {{ req.owner.first_name }} {{ req.owner.last_name or '' }} · 
+                            <span style="font-weight: 600; color: {% if req.status == 'Pending' %}var(--bl-color-primary){% elif req.status == 'Accepted' %}#28a745{% else %}var(--bl-color-text-muted){% endif %};">
+                                {{ req.status }}
+                            </span>
+                        </p>
+                    </div>
+                    {% if req.status == 'Pending' %}
+                    <form action="{{ url_for('cancel_join_request', request_id=req.invitation_id) }}" method="POST" onsubmit="return confirm('Cancel request?');" onclick="event.stopPropagation();">
+                        <button type="submit" class="secondary-action" style="background: none; border: none; padding: 0; cursor: pointer;">Cancel request</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
 
         <div id="segment-ideas" class="segment-content">
