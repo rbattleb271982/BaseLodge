@@ -90,7 +90,13 @@
         </div>
         {% endif %}
 
-        {% if can_request_join %}
+        {% if is_accepted %}
+        <div style="margin-top: 16px;">
+            <button class="bl-btn-outline" style="width: 100%; padding: 14px; font-size: 1rem; opacity: 0.7;" disabled>
+                You're Going
+            </button>
+        </div>
+        {% elif can_request_join %}
         <div id="join-request-container" style="margin-top: 16px;">
             <button id="request-join-btn" class="bl-btn-primary" style="width: 100%; padding: 14px; font-size: 1rem;" onclick="requestToJoin({{ trip.id }})">
                 Request to Join
@@ -104,7 +110,7 @@
         </div>
         {% endif %}
 
-        {% if can_request_join or has_pending_request %}
+        {% if can_request_join %}
         <script>
             function requestToJoin(tripId) {
                 const btn = document.getElementById('request-join-btn');

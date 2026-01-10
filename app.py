@@ -4024,36 +4024,36 @@ def friend_trip_details(trip_id):
     # showing third-party friend data (e.g., "Richard · Epic") when
     # Jonathan views Charles's trip.
 
-    # Gating for "Request to Join" - Simplified for production
+    # Gating for "Request to Join" - Final Production Rules
     today = date.today()
     can_request_join = False
     has_pending_request = False
+    is_accepted = False
     
     if trip.user_id != current_user.id:
-        # 1. Not already an ACCEPTED participant
+        # 1. Check if viewer is already an accepted participant
         is_accepted = SkiTripParticipant.query.filter_by(
             trip_id=trip_id, 
             user_id=current_user.id,
             status=GuestStatus.ACCEPTED
         ).first() is not None
         
-        # 2. Not in the past
-        is_future = trip.end_date >= today
-        
-        # 3. Check for pending request
+        # 2. Check for pending join request
         pending_request = Invitation.query.filter_by(
             trip_id=trip_id,
             sender_id=current_user.id,
             invite_type=InviteType.REQUEST,
             status='pending'
         ).first()
-        
         has_pending_request = pending_request is not None
         
-        # Show button if future trip and not already an accepted participant
-        if not is_accepted and is_future:
-            # can_request_join is True if no pending request
-            # if has_pending_request is True, template shows "Request Sent"
+        # 3. Trip must be in the future (has not ended)
+        is_future = trip.end_date >= today
+        
+        # Button visibility logic:
+        # Show "Request to Join" (enabled) if: Future trip AND Not Owner AND Not Accepted AND No Pending Request
+        # Show "Request Sent" (disabled) if: Future trip AND Not Owner AND Not Accepted AND Has Pending Request
+        if is_future and not is_accepted:
             if not has_pending_request:
                 can_request_join = True
 
@@ -4064,9 +4064,10 @@ def friend_trip_details(trip_id):
         has_overlap=has_overlap,
         overlap_days=your_overlap_days,
         your_overlap_ranges=your_overlap_ranges,
-        friends_open_on_trip=[],  # Always empty - privacy protection
+        friends_open_on_trip=[],  # Privacy protection
         can_request_join=can_request_join,
-        has_pending_request=has_pending_request
+        has_pending_request=has_pending_request,
+        is_accepted=is_accepted
     )
 
 @app.route("/feedback", methods=["GET", "POST"])
