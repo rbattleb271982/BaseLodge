@@ -1,0 +1,30 @@
+The written “diagnosis report” claims the friend trip view has a working “Request to Join” button in friend_trip_details.html, but in the live UI it is NOT present (user screenshot shows only “View Jon’s Profile”).
+I need you to diagnose the mismatch between the report and the actual rendered page.
+Step 1 — Confirm the actual route + template used (source of truth)
+Identify the exact route handler that serves the URL for “view a friend’s trip” (the page in the screenshot).
+In that route function, print/log which render_template() file is used.
+Confirm whether it is truly friend_trip_details.html or a different template (e.g., trip_detail.html or another shared template).
+Step 2 — Confirm the button exists in the rendered HTML
+Add a temporary, unmistakable marker near where the button should be (for example: <!-- FRIEND_TRIP_VIEW_MARKER --> and a visible DEBUG: friend trip template loaded).
+Load the page and confirm that marker appears. If it does not, we are editing the wrong template.
+Step 3 — If template is correct, audit gating conditions
+If the button exists in the template but is hidden, log/print the values used to gate it on that page render:
+viewer_user_id / current_user.id
+trip.owner_id
+is_friend (or equivalent)
+is_participant
+existing_pending_request (Invitation/Request record)
+trip_is_past (how this is computed)
+Then show which condition is causing the button to be hidden.
+Step 4 — Fix based on findings
+If the wrong template is used: update the route to render the correct friend-trip template.
+If variables are missing: pass the required booleans/records into the template context.
+If the “not a friend” check is wrong: correct the friend relationship check used for gating.
+Step 5 — Validation
+After the fix, verify these scenarios on real accounts:
+Friend viewing a future trip: button visible
+Friend already requested: “Request Sent” visible/disabled
+Friend already participant: no request button
+Non-friend: no request button
+Past trip: no request button
+Do not conclude “nothing is broken” until the button is visible in the real rendered page and the gating logic is verified with printed values.
