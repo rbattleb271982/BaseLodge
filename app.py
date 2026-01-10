@@ -4025,6 +4025,7 @@ def friend_trip_details(trip_id):
     # Jonathan views Charles's trip.
 
     # Gating for "Request to Join" - Final Production Rules
+    # This logic is intentionally simplified for production UX. Do not reintroduce friendship or legacy invite gating.
     today = date.today()
     can_request_join = False
     has_pending_request = False
