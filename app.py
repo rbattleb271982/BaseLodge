@@ -4056,8 +4056,14 @@ def friend_trip_details(trip_id):
             friend_id=friend.id
         ).first() is not None
         
+        # Debug logging for join request gating
+        print(f"[DEBUG friend_trip_details] trip_id={trip_id}, viewer={current_user.id}, owner={trip.user_id}")
+        print(f"  is_friend={is_friend}, is_participant={is_participant is not None}, is_future={is_future}, has_pending_request={has_pending_request}")
+        
         if is_friend and not is_participant and is_future and not has_pending_request:
             can_request_join = True
+        
+        print(f"  => can_request_join={can_request_join}")
 
     return render_template(
         "friend_trip_details.html",
