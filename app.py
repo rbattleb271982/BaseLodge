@@ -1326,8 +1326,7 @@ def forgot_password():
                 token = user.get_reset_token()
                 
                 # Send Email via SendGrid
-                # Production base URL
-                BASE_URL = "https://base-lodge-app--rbattleb.replit.app"
+                # Canonical base URL
                 reset_url = f"{BASE_URL}/reset-password/{token}"
                 
                 message = Mail(
@@ -3283,7 +3282,7 @@ def invite():
         return render_template("invite_limit_reached.html", user=current_user)
     
     invite_token = get_or_create_invite_token(current_user)
-    invite_url = url_for("invite_token_landing", token=invite_token.token, _external=True)
+    invite_url = f"{BASE_URL}{url_for('invite_token_landing', token=invite_token.token)}"
     
     return render_template("invite.html", user=current_user, invite_url=invite_url, remaining_invites=None)
 
@@ -3293,7 +3292,7 @@ def my_qr():
     invite_token = get_or_create_invite_token(current_user)
     if not invite_token:
         return render_template("invite_limit_reached.html", user=current_user)
-    qr_url = url_for("invite_token_landing", token=invite_token.token, _external=True)
+    qr_url = f"{BASE_URL}{url_for('invite_token_landing', token=invite_token.token)}"
     qr = segno.make(qr_url)
     buf = BytesIO()
     qr.save(buf, kind="png", scale=8)
