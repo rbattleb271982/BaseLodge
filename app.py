@@ -1,6 +1,8 @@
 import os
 import secrets
 from datetime import datetime, date, timedelta
+
+BASE_URL = os.getenv("BASE_URL", "https://app.baselodgeapp.com").rstrip("/")
 import sqlalchemy as sa
 from sqlalchemy import func
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file
@@ -20,6 +22,7 @@ import unicodedata
 import re
 
 app = Flask(__name__)
+app.config["PREFERRED_URL_SCHEME"] = "https"
 
 from utils.countries import COUNTRIES
 
@@ -79,6 +82,7 @@ def generate_resort_slug(name):
 is_production = os.environ.get("DATABASE_URL") is not None and "postgresql" in os.environ.get("DATABASE_URL", "")
 
 app = Flask(__name__)
+app.config["PREFERRED_URL_SCHEME"] = "https"
 
 # ============================================================================
 # SESSION & SECURITY CONFIGURATION
