@@ -24,6 +24,17 @@ import re
 app = Flask(__name__)
 app.config["PREFERRED_URL_SCHEME"] = "https"
 
+@app.before_request
+def redirect_to_canonical_domain():
+    """Redirect replit.app requests to the canonical domain."""
+    host = request.host.lower()
+    if "replit.app" in host and not host.startswith("app.baselodgeapp.com"):
+        new_url = request.url.replace(request.host, "app.baselodgeapp.com", 1)
+        # Ensure we redirect to https
+        if new_url.startswith("http://"):
+            new_url = new_url.replace("http://", "https://", 1)
+        return redirect(new_url, code=301)
+
 from utils.countries import COUNTRIES
 
 @app.context_processor
@@ -83,6 +94,17 @@ is_production = os.environ.get("DATABASE_URL") is not None and "postgresql" in o
 
 app = Flask(__name__)
 app.config["PREFERRED_URL_SCHEME"] = "https"
+
+@app.before_request
+def redirect_to_canonical_domain():
+    """Redirect replit.app requests to the canonical domain."""
+    host = request.host.lower()
+    if "replit.app" in host and not host.startswith("app.baselodgeapp.com"):
+        new_url = request.url.replace(request.host, "app.baselodgeapp.com", 1)
+        # Ensure we redirect to https
+        if new_url.startswith("http://"):
+            new_url = new_url.replace("http://", "https://", 1)
+        return redirect(new_url, code=301)
 
 # ============================================================================
 # SESSION & SECURITY CONFIGURATION
