@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 BASE_URL = os.getenv("BASE_URL", "https://app.baselodgeapp.com").rstrip("/")
 import sqlalchemy as sa
 from sqlalchemy import func
+from urllib.parse import urlparse
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps
@@ -26,13 +27,15 @@ app.config["PREFERRED_URL_SCHEME"] = "https"
 
 @app.before_request
 def redirect_to_canonical_domain():
-    """Redirect replit.app requests to the canonical domain."""
-    host = request.host.lower()
-    if "replit.app" in host and not host.startswith("app.baselodgeapp.com"):
-        new_url = request.url.replace(request.host, "app.baselodgeapp.com", 1)
-        # Ensure we redirect to https
-        if new_url.startswith("http://"):
-            new_url = new_url.replace("http://", "https://", 1)
+    parsed_url = urlparse(request.url)
+    hostname = parsed_url.hostname.lower() if parsed_url.hostname else ""
+
+    if hostname.endswith("replit.app"):
+        new_url = request.url.replace(
+            f"{parsed_url.scheme}://{parsed_url.netloc}",
+            "https://app.baselodgeapp.com",
+            1
+        )
         return redirect(new_url, code=301)
 
 from utils.countries import COUNTRIES
@@ -97,13 +100,15 @@ app.config["PREFERRED_URL_SCHEME"] = "https"
 
 @app.before_request
 def redirect_to_canonical_domain():
-    """Redirect replit.app requests to the canonical domain."""
-    host = request.host.lower()
-    if "replit.app" in host and not host.startswith("app.baselodgeapp.com"):
-        new_url = request.url.replace(request.host, "app.baselodgeapp.com", 1)
-        # Ensure we redirect to https
-        if new_url.startswith("http://"):
-            new_url = new_url.replace("http://", "https://", 1)
+    parsed_url = urlparse(request.url)
+    hostname = parsed_url.hostname.lower() if parsed_url.hostname else ""
+
+    if hostname.endswith("replit.app"):
+        new_url = request.url.replace(
+            f"{parsed_url.scheme}://{parsed_url.netloc}",
+            "https://app.baselodgeapp.com",
+            1
+        )
         return redirect(new_url, code=301)
 
 # ============================================================================
