@@ -1,7 +1,7 @@
 """Add birthday field to User model
 
 Revision ID: 45308c4feacd
-Revises: 
+Revises: 000000000000
 Create Date: 2025-12-10 07:44:58.997713
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '45308c4feacd'
-down_revision = None
+down_revision = '000000000000'
 branch_labels = None
 depends_on = None
 
