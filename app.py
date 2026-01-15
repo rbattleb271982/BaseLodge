@@ -161,13 +161,13 @@ def health_check():
 
 def get_upcoming_trip_count(user):
     """
-    Returns the count of unique upcoming or currently active trips a user is committed to.
+    Returns the count of unique strictly future trips a user is committed to.
     'Committed' means being the owner or an ACCEPTED participant.
     Filters:
     - Deduplicate by trip.id
     - Includes owner or ACCEPTED participant role
-    - Filters for end_date >= today (upcoming or active)
-    - Excludes past, canceled, archived, or pending states
+    - Filters for start_date > today (upcoming strictly future)
+    - Excludes in-progress, past, canceled, archived, or pending states
     """
     if not user:
         return 0
@@ -177,7 +177,7 @@ def get_upcoming_trip_count(user):
     # 1. Trips owned by the user
     owned_trips = SkiTrip.query.filter(
         SkiTrip.user_id == user.id,
-        SkiTrip.end_date >= today
+        SkiTrip.start_date > today
     ).all()
 
     # 2. Trips where the user is an ACCEPTED participant
@@ -187,7 +187,7 @@ def get_upcoming_trip_count(user):
         .filter(
             SkiTripParticipant.user_id == user.id,
             SkiTripParticipant.status == 'ACCEPTED',
-            SkiTrip.end_date >= today
+            SkiTrip.start_date > today
         )
         .all()
     )
