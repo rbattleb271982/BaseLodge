@@ -2786,17 +2786,19 @@ def friends():
             .all()
         )
         
-        # Combine and deduplicate
-        all_upcoming = {t.id: t for t in upcoming_owner_trips}
+        # Combine and deduplicate by trip ID
+        all_upcoming_trips = {}
+        for t in upcoming_owner_trips:
+            all_upcoming_trips[t.id] = t
         for t in upcoming_participant_trips:
-            all_upcoming[t.id] = t
+            all_upcoming_trips[t.id] = t
         
-        friend._upcoming_trip_count = len(all_upcoming)
-        friend._has_upcoming_trip = len(all_upcoming) > 0
+        friend._upcoming_trip_count = len(all_upcoming_trips)
+        friend._has_upcoming_trip = len(all_upcoming_trips) > 0
         
         # Find most recent upcoming trip created_at (for sorting)
-        if all_upcoming:
-            latest_created = max(t.created_at for t in all_upcoming.values() if t.created_at)
+        if all_upcoming_trips:
+            latest_created = max(t.created_at for t in all_upcoming_trips.values() if t.created_at)
             friend._latest_upcoming_trip_created_at = latest_created
         else:
             friend._latest_upcoming_trip_created_at = None
