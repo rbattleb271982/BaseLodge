@@ -1,4 +1,18 @@
 """
+========================================
+⚠️ DEPRECATED - DO NOT USE ⚠️
+========================================
+
+STATUS: DEPRECATED as of 2026-01-15
+REASON: Supabase is now the single system of record for resort data.
+        Ikon resorts are already included in the 693 resorts imported
+        from prod_resorts_full.xlsx. Do not run this script.
+
+DO NOT RUN THIS SCRIPT - it may create duplicate entries.
+
+========================================
+ORIGINAL DOCUMENTATION (for reference):
+========================================
 Safely upsert all Ikon Pass resorts into the resort table.
 Idempotent: safe to run multiple times.
 Run with: python scripts/upsert_ikon_resorts.py

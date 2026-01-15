@@ -1,4 +1,19 @@
 """
+========================================
+⚠️ DEPRECATED - DO NOT USE ⚠️
+========================================
+
+STATUS: DEPRECATED as of 2026-01-15
+REASON: Supabase is now the single system of record.
+        - Schema management: Use 'flask db upgrade' (Alembic migrations only)
+        - Resort data: Already imported (693 resorts from prod_resorts_full.xlsx)
+        - User seeding: Disabled until user migration phase
+
+DO NOT RUN THIS SCRIPT.
+
+========================================
+ORIGINAL DOCUMENTATION (for reference):
+========================================
 Database initialization module.
 Run with: python db_init.py
 Only creates tables and ensures primary user exists.

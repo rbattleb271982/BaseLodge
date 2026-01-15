@@ -1,3 +1,20 @@
+"""
+========================================
+BaseLodge Application
+========================================
+
+SYSTEM OF RECORD (as of 2026-01-15):
+  Supabase is the single system of record for resorts and core app data.
+  
+  - Resort data: 693 resorts imported from prod_resorts_full.xlsx
+  - Schema: Managed exclusively via Flask-Migrate/Alembic
+  - Database: SUPABASE_DATABASE_URL environment variable
+  
+  DO NOT use db.create_all() or run legacy seed scripts.
+  All schema changes must go through migrations.
+========================================
+"""
+
 import os
 import secrets
 from datetime import datetime, date, timedelta

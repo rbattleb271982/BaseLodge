@@ -1,6 +1,22 @@
 #!/usr/bin/env python3
 """
 ========================================
+⚠️ DEPRECATED - DO NOT USE ⚠️
+========================================
+
+STATUS: DEPRECATED as of 2026-01-15
+REASON: Supabase is now the single system of record for resort data.
+        This script assumed a DEV→PROD sync architecture that no longer exists.
+
+The authoritative resort data was imported from prod_resorts_full.xlsx 
+directly into Supabase (693 resorts). All resort management should now 
+happen via the admin interface which writes directly to Supabase.
+
+DO NOT RUN THIS SCRIPT.
+
+========================================
+ORIGINAL DOCUMENTATION (for reference):
+========================================
 DEV → PROD Resort Sync Script
 ========================================
 

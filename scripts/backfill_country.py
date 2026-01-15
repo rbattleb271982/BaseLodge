@@ -1,5 +1,19 @@
 #!/usr/bin/env python3
 """
+========================================
+⚠️ DEPRECATED - DO NOT USE ⚠️
+========================================
+
+STATUS: DEPRECATED as of 2026-01-15
+REASON: Supabase is now the single system of record for resort data.
+        Country data was imported directly from prod_resorts_full.xlsx
+        which contains authoritative country_code and country_name values.
+
+DO NOT RUN THIS SCRIPT - country data is already complete.
+
+========================================
+ORIGINAL DOCUMENTATION (for reference):
+========================================
 SECTION 2 — PROD BACKFILL + REVIEW REPORT
 
 Backfills country_code and country_name for Resort records using existing legacy country values.
