@@ -93,7 +93,7 @@ def generate_resort_slug(name):
 # Do NOT reintroduce profile routes or templates.
 # ============================================================================
 
-is_production = os.environ.get("DATABASE_URL") is not None and "postgresql" in os.environ.get("DATABASE_URL", "")
+is_production = os.environ.get("SUPABASE_DATABASE_URL") is not None and "postgresql" in os.environ.get("SUPABASE_DATABASE_URL", "")
 
 app = Flask(__name__)
 app.config["PREFERRED_URL_SCHEME"] = "https"
@@ -857,7 +857,7 @@ def emit_availability_overlap_activities_for_trip(trip):
             emit_availability_overlap_activities_for_user(friend)
 
 
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///baselodge.db")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SUPABASE_DATABASE_URL", "sqlite:///baselodge.db")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
@@ -875,7 +875,7 @@ def log_startup_diagnostics():
     """Log database and user counts on startup for debugging."""
     try:
         with app.app_context():
-            db_url = os.environ.get("DATABASE_URL", "NOT SET")
+            db_url = os.environ.get("SUPABASE_DATABASE_URL", "NOT SET")
             
             # Mask credentials
             if db_url and db_url != "NOT SET" and "@" in db_url:
