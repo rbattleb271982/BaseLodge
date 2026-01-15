@@ -6362,7 +6362,9 @@ def init_db_http():
     try:
         with app.app_context():
             # Create all tables
-            db.create_all()
+            # Schema creation disabled for Supabase migration.
+    # Use 'flask db upgrade' instead.
+    # db.create_all()
             
             messages = []
             

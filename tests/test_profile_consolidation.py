@@ -16,6 +16,7 @@ def client():
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     
     with app.app_context():
+        # Using db.create_all() strictly for isolated in-memory testing
         db.create_all()
         yield app.test_client()
         db.session.remove()

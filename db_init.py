@@ -9,9 +9,14 @@ from models import User
 
 
 def init_database():
-    """Initialize the database: create all tables and verify primary user."""
+    """DEPRECATED: Initialize the database: create all tables and verify primary user.
+    
+    WARNING: db.create_all() is disabled to prevent schema drift from Alembic migrations.
+    Use 'flask db upgrade' for schema management.
+    """
     with app.app_context():
-        db.create_all()
+        # db.create_all()  # DISABLED
+        print("⚠️ db.create_all() is DISABLED. Use 'flask db upgrade' instead.")
         
         primary_user = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
         if not primary_user:
