@@ -1677,7 +1677,31 @@ def invite_token_landing(token):
     if not inviter:
         return render_template("invite_expired.html")
 
-    inviter_trips_count = SkiTrip.query.filter_by(user_id=inviter.id).count()
+    # Align with "My Trips -> Upcoming" logic:
+    # 1. Trips owned by the inviter
+    owned_trips = SkiTrip.query.filter(
+        SkiTrip.user_id == inviter.id,
+        SkiTrip.end_date >= date.today()
+    ).all()
+
+    # 2. Trips where the inviter is an ACCEPTED participant
+    participant_trips = (
+        db.session.query(SkiTrip)
+        .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
+        .filter(
+            SkiTripParticipant.user_id == inviter.id,
+            SkiTripParticipant.status == 'ACCEPTED',
+            SkiTrip.end_date >= date.today()
+        )
+        .all()
+    )
+
+    # Deduplicate by trip ID
+    all_upcoming_trips = {t.id: t for t in owned_trips}
+    for t in participant_trips:
+        all_upcoming_trips[t.id] = t
+
+    inviter_trips_count = len(all_upcoming_trips)
 
     return render_template(
         "invite_landing.html",
@@ -2731,13 +2755,13 @@ def friends():
         score = 0
         
         # 1. Trip overlap (highest priority) - only count future trips
-        friend_trips = SkiTrip.query.filter(
+        friend_trips_future = SkiTrip.query.filter(
             SkiTrip.user_id == friend.id,
             SkiTrip.is_public == True,
             SkiTrip.end_date >= today
         ).all()
         for ut in user_trips:
-            for ft in friend_trips:
+            for ft in friend_trips_future:
                 if ut.mountain == ft.mountain and date_ranges_overlap(ut.start_date, ut.end_date, ft.start_date, ft.end_date):
                     score += 100
         
@@ -2773,7 +2797,7 @@ def friends():
         # Get upcoming trips where friend is owner OR participant
         upcoming_owner_trips = SkiTrip.query.filter(
             SkiTrip.user_id == friend.id,
-            SkiTrip.start_date >= today
+            SkiTrip.end_date >= today
         ).all()
         
         upcoming_participant_trips = (
@@ -2781,7 +2805,8 @@ def friends():
             .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
             .filter(
                 SkiTripParticipant.user_id == friend.id,
-                SkiTrip.start_date >= today
+                SkiTripParticipant.status == 'ACCEPTED',
+                SkiTrip.end_date >= today
             )
             .all()
         )
