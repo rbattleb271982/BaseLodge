@@ -159,6 +159,47 @@ def health_check():
     """Health check endpoint for production probes. Returns 200 OK immediately."""
     return "OK", 200
 
+def get_upcoming_trip_count(user):
+    """
+    Returns the count of unique upcoming or currently active trips a user is committed to.
+    'Committed' means being the owner or an ACCEPTED participant.
+    Filters:
+    - Deduplicate by trip.id
+    - Includes owner or ACCEPTED participant role
+    - Filters for end_date >= today (upcoming or active)
+    - Excludes past, canceled, archived, or pending states
+    """
+    if not user:
+        return 0
+    
+    today = date.today()
+    
+    # 1. Trips owned by the user
+    owned_trips = SkiTrip.query.filter(
+        SkiTrip.user_id == user.id,
+        SkiTrip.end_date >= today
+    ).all()
+
+    # 2. Trips where the user is an ACCEPTED participant
+    participant_trips = (
+        db.session.query(SkiTrip)
+        .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
+        .filter(
+            SkiTripParticipant.user_id == user.id,
+            SkiTripParticipant.status == 'ACCEPTED',
+            SkiTrip.end_date >= today
+        )
+        .all()
+    )
+
+    # Deduplicate by trip ID
+    all_upcoming_trips = {t.id for t in owned_trips}
+    for t in participant_trips:
+        all_upcoming_trips.add(t.id)
+
+    return len(all_upcoming_trips)
+
+
 @app.template_filter('display_name')
 def display_name_filter(user, current_user_id=None):
     """
@@ -1677,31 +1718,7 @@ def invite_token_landing(token):
     if not inviter:
         return render_template("invite_expired.html")
 
-    # Align with "My Trips -> Upcoming" logic:
-    # 1. Trips owned by the inviter
-    owned_trips = SkiTrip.query.filter(
-        SkiTrip.user_id == inviter.id,
-        SkiTrip.end_date >= date.today()
-    ).all()
-
-    # 2. Trips where the inviter is an ACCEPTED participant
-    participant_trips = (
-        db.session.query(SkiTrip)
-        .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
-        .filter(
-            SkiTripParticipant.user_id == inviter.id,
-            SkiTripParticipant.status == 'ACCEPTED',
-            SkiTrip.end_date >= date.today()
-        )
-        .all()
-    )
-
-    # Deduplicate by trip ID
-    all_upcoming_trips = {t.id: t for t in owned_trips}
-    for t in participant_trips:
-        all_upcoming_trips[t.id] = t
-
-    inviter_trips_count = len(all_upcoming_trips)
+    inviter_trips_count = get_upcoming_trip_count(inviter)
 
     return render_template(
         "invite_landing.html",
@@ -2794,12 +2811,16 @@ def friends():
         if friendship and friendship.created_at:
             friend._is_new_friend = friendship.created_at >= seven_days_ago
         
-        # Get upcoming trips where friend is owner OR participant
+        # Get upcoming trips count using centralized helper
+        friend._upcoming_trip_count = get_upcoming_trip_count(friend)
+        friend._has_upcoming_trip = friend._upcoming_trip_count > 0
+        
+        # Find most recent upcoming trip created_at (for sorting)
+        # We still need the actual trip objects for sorting metadata
         upcoming_owner_trips = SkiTrip.query.filter(
             SkiTrip.user_id == friend.id,
             SkiTrip.end_date >= today
         ).all()
-        
         upcoming_participant_trips = (
             db.session.query(SkiTrip)
             .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
@@ -2810,20 +2831,12 @@ def friends():
             )
             .all()
         )
-        
-        # Combine and deduplicate by trip ID
-        all_upcoming_trips = {}
-        for t in upcoming_owner_trips:
-            all_upcoming_trips[t.id] = t
+        all_upcoming_trips_dict = {t.id: t for t in upcoming_owner_trips}
         for t in upcoming_participant_trips:
-            all_upcoming_trips[t.id] = t
-        
-        friend._upcoming_trip_count = len(all_upcoming_trips)
-        friend._has_upcoming_trip = len(all_upcoming_trips) > 0
-        
-        # Find most recent upcoming trip created_at (for sorting)
-        if all_upcoming_trips:
-            latest_created = max(t.created_at for t in all_upcoming_trips.values() if t.created_at)
+            all_upcoming_trips_dict[t.id] = t
+
+        if all_upcoming_trips_dict:
+            latest_created = max(t.created_at for t in all_upcoming_trips_dict.values() if t.created_at)
             friend._latest_upcoming_trip_created_at = latest_created
         else:
             friend._latest_upcoming_trip_created_at = None
