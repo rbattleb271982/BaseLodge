@@ -1,0 +1,127 @@
+You are working on the BaseLodge codebase.
+
+This is Phase 2A of Supabase hardening.
+THIS STEP IS DISCOVERY ONLY.
+
+DO NOT:
+- migrate user data
+- change auth flows
+- change schemas
+- edit tables
+- remove or add models
+- modify runtime behavior
+
+====================
+GOAL
+====================
+Produce a clear audit report of Supabase readiness:
+1) schema/constraints readiness for future user migration
+2) security posture (RLS, service role usage)
+3) operational posture (backups, migration discipline)
+4) app usage posture (what tables are read/written today)
+
+We will NOT apply fixes yet — only report.
+
+====================
+STEP 1 — CURRENT DB CONNECTION & TARGET
+====================
+1) Identify how the app connects to Supabase Postgres:
+- connection string name(s)
+- where SQLAlchemy engine/session is created
+- confirm there is no remaining alternate DB path in production
+
+Output:
+- file + line numbers
+- “production path” vs “development path”
+
+====================
+STEP 2 — LIVE TABLE INVENTORY (SUPABASE)
+====================
+Query Supabase Postgres for:
+- list of tables in public schema
+- primary keys for each table
+- foreign keys between tables
+- indexes (especially on FK columns)
+
+Output as a table:
+Table | PK | FKs (from->to) | Indexes | Notes/Concerns
+
+====================
+STEP 3 — USER-RELATED TABLE READINESS (NO DATA MOVE)
+====================
+Specifically evaluate these user-dependent tables (or their Supabase equivalents):
+- user
+- friend
+- ski_trip
+- ski_trip_participant
+- invitation
+- invite_token
+- group_trip
+- trip_guest
+- equipment_setup
+- dismissed_nudge
+- event
+- email_log
+- activity
+
+For each:
+- does it exist in Supabase already? (yes/no)
+- if yes: does schema match the Replit SQLAlchemy model? (match/partial/mismatch)
+- identify mismatched columns, types, nullability, defaults
+- identify FK constraint differences
+- identify cascade behavior differences
+
+DO NOT change anything — just report deltas.
+
+====================
+STEP 4 — AUTH & SECURITY POSTURE (SUPABASE)
+====================
+We need to know current posture even if we’re not enforcing yet.
+
+Report:
+1) Are Row Level Security (RLS) policies enabled on any tables?
+2) Which roles does the app use to connect (service role vs anon vs postgres)?
+3) Are we using Supabase Auth today or only Postgres?
+4) Where are the keys stored (Replit secrets/env)?
+
+Output:
+- current state
+- risks (e.g., “service role used in app runtime”)
+
+====================
+STEP 5 — MIGRATION DISCIPLINE
+====================
+Report how schema changes are currently handled:
+- Alembic/Flask-Migrate used? (yes/no)
+- Are migrations committed?
+- Any raw SQL schema drift?
+
+Output:
+- current migration workflow
+- recommended minimal best practice (report only)
+
+====================
+STEP 6 — BACKUP / RECOVERY READINESS (REPORT ONLY)
+====================
+Without changing anything, report:
+- Any evidence of backup posture in code/docs
+- Any docs referencing PITR/backups
+- Anything we should explicitly confirm in Supabase dashboard (list as a checklist)
+
+====================
+OUTPUT FORMAT (STRICT)
+====================
+Return a report with exactly these sections:
+
+A) Connection & Environment
+B) Supabase Schema Map (tables/PK/FK/index)
+C) User-Related Table Readiness (match/mismatch list)
+D) Security Posture (RLS/roles/keys/auth)
+E) Migration Workflow (current state)
+F) Backup/Recovery Checklist
+
+At the end, include:
+- TOP 5 highest-risk gaps to fix in Phase 2B
+- TOP 5 quick wins to fix in Phase 2B
+
+Do not apply fixes yet. Wait for explicit user approval.
