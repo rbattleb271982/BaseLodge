@@ -112,6 +112,18 @@ def generate_resort_slug(name):
 
 is_production = os.environ.get("SUPABASE_DATABASE_URL") is not None and "postgresql" in os.environ.get("SUPABASE_DATABASE_URL", "")
 
+# Enforce Supabase connection for resort-related operations
+SUPABASE_URL = os.environ.get("SUPABASE_DATABASE_URL")
+if not SUPABASE_URL:
+    if is_production:
+        raise RuntimeError("CRITICAL: SUPABASE_DATABASE_URL is not set in production. App startup aborted.")
+    else:
+        # Loud warning for development
+        print("!" * 70)
+        print("⚠️  WARNING: SUPABASE_DATABASE_URL is not set.")
+        print("⚠️  Development will fallback to local SQLite but Resort data will be MISSING.")
+        print("!" * 70)
+
 app = Flask(__name__)
 app.config["PREFERRED_URL_SCHEME"] = "https"
 
@@ -874,7 +886,15 @@ def emit_availability_overlap_activities_for_trip(trip):
             emit_availability_overlap_activities_for_user(friend)
 
 
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SUPABASE_DATABASE_URL", "sqlite:///baselodge.db")
+# Database Configuration
+supabase_url = os.environ.get("SUPABASE_DATABASE_URL")
+if supabase_url:
+    app.config["SQLALCHEMY_DATABASE_URI"] = supabase_url
+else:
+    if is_production:
+        raise RuntimeError("SUPABASE_DATABASE_URL must be set in production.")
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///baselodge.db"
+
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
@@ -892,13 +912,15 @@ def log_startup_diagnostics():
     """Log database and user counts on startup for debugging."""
     try:
         with app.app_context():
-            db_url = os.environ.get("SUPABASE_DATABASE_URL", "NOT SET")
+            db_url = os.environ.get("SUPABASE_DATABASE_URL")
             
             # Mask credentials
-            if db_url and db_url != "NOT SET" and "@" in db_url:
+            if db_url and "@" in db_url:
                 safe_db = db_url.split("@")[-1]
+            elif not is_production:
+                safe_db = "DEVELOPMENT FALLBACK: SQLite (baselodge.db)"
             else:
-                safe_db = "SQLite (baselodge.db)"
+                safe_db = "ERROR: NOT SET"
             
             print("=" * 70)
             print("🔧 BASELODGE STARTUP DIAGNOSTICS")
