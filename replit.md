@@ -65,8 +65,10 @@ To prevent UI and architectural regressions, the following ownership rules must 
 -   **Wish List Destinations:** Users can save up to 3 aspirational resorts, displayed on profiles with overlap features.
 -   **Personalization Features:** Terrain preferences, smart resort defaults, next trip countdown, availability match nudges, and relevance-based friend ordering.
 
-### System Design Choices
--   **Database:** SQLite for development, PostgreSQL for production, managed with SQLAlchemy.
+### Hardening Measures (Phase 2B)
+- **Dedicated Application Role**: Created `baselodge_app` role with restricted permissions (LOGIN enabled, no superuser/createrole privileges).
+- **Credential Separation**: The application now connects using `baselodge_app` instead of the `postgres` superuser.
+- **Permission Mapping**: `baselodge_app` has `CONNECT` on the database, `USAGE` on the `public` schema, and `ALL` privileges on existing tables and sequences.
 -   **File Structure:** Standardized separation of application logic, models, templates, and static assets.
 -   **API Endpoints:** Dedicated routes for core functionalities like authentication, trips, friends, and profiles.
 -   **Models:** Key models include `User`, `SkiTrip`, `Resort`, `Friend`, `Invitation`, `SkiTripParticipant`, and `EquipmentSetup`.
