@@ -185,8 +185,23 @@ def normalize_country_code(code):
 
 @app.route("/health")
 def health_check():
-    """Health check endpoint for production probes. Returns 200 OK immediately."""
-    return "OK", 200
+    """Health check endpoint for production probes. Returns JSON status and DB connectivity check."""
+    try:
+        # Lightweight query to verify DB connectivity
+        db.session.execute(sa.text("SELECT 1")).fetchone()
+        return jsonify({
+            "status": "healthy",
+            "database": "connected",
+            "environment": os.environ.get("FLASK_ENV", "development"),
+            "timestamp": datetime.utcnow().isoformat()
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Health check failed: {e}")
+        return jsonify({
+            "status": "unhealthy",
+            "database": "disconnected",
+            "error": str(e) if not is_production else "Internal Server Error"
+        }), 500
 
 def get_upcoming_trip_count(user):
     """

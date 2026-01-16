@@ -1,0 +1,72 @@
+You are working on the BaseLodge codebase.
+
+This task is Phase 4A: VISIBILITY.
+Goal: make app startup and health obvious and debuggable.
+This is product stability work, not infra or Supabase work.
+
+IMPORTANT RULES:
+- First, inspect the existing structure before changing anything
+- Do NOT refactor unrelated code
+- Do NOT change auth logic
+- Do NOT touch Supabase configuration
+- Do NOT change UI templates
+- Do NOT introduce breaking changes
+
+========================
+STEP 1 — DISCOVERY
+========================
+Before writing code, inspect and report:
+1) Where the Flask app is created (file + function)
+2) Where the SQLAlchemy db session is initialized
+3) Whether a /health or similar endpoint already exists
+4) Where startup logging currently happens (if any)
+
+Summarize findings briefly, then proceed.
+
+========================
+STEP 2 — STARTUP VISIBILITY
+========================
+Add a clear startup banner that prints ONCE when the app boots.
+
+The banner must include:
+- Environment (FLASK_ENV)
+- Database role / connection info (masked, no secrets)
+- A clear "BaseLodge started successfully" message
+
+This must be safe for production logs.
+
+========================
+STEP 3 — HEALTH ENDPOINT
+========================
+Add a GET /health endpoint that:
+- Returns JSON
+- Confirms the app is running
+- Confirms the database is reachable using a lightweight query
+
+Return 200 on success, 500 on failure.
+Do not expose secrets.
+
+========================
+STEP 4 — READY CONFIRMATION
+========================
+Add a single log line that prints once when:
+- app initialization is complete
+- routes are registered
+- app is ready to serve requests
+
+========================
+STEP 5 — VERIFICATION
+========================
+After implementation:
+- Restart the app
+- Confirm startup banner appears
+- Confirm /health returns success
+- Confirm no behavior changes elsewhere
+
+========================
+OUTPUT
+========================
+Report:
+- Files modified
+- Code added (only the new sections)
+- Confirmation that Phase 4A is complete
