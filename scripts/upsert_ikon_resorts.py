@@ -1,3 +1,4 @@
+raise Exception("This script is deprecated. Resorts are authoritative in Supabase.")
 """
 ========================================
 ⚠️ DEPRECATED - DO NOT USE ⚠️
