@@ -557,31 +557,16 @@
 <body>
     <div class="admin-header">
         <h1>Resort Data Curation</h1>
-        <p>DEV is the source of truth. Export to canonical JSON for PROD sync.</p>
+        <p>Resort data is now managed via Supabase.</p>
     </div>
     
     <div class="sync-status">
-        <h3>Last Canonical Export</h3>
+        <h3>System of Record</h3>
         <div class="sync-info">
-            {% if last_export_info %}
             <div class="sync-item">
-                <label>Version</label>
-                <span>{{ last_export_info.version }}</span>
+                <label>Database</label>
+                <span>Supabase</span>
             </div>
-            <div class="sync-item">
-                <label>Exported At</label>
-                <span>{{ last_export_info.exported_at[:19] if last_export_info.exported_at != 'unknown' else 'Unknown' }}</span>
-            </div>
-            <div class="sync-item">
-                <label>Resort Count</label>
-                <span>{{ last_export_info.count }}</span>
-            </div>
-            {% else %}
-            <div class="sync-item">
-                <label>Status</label>
-                <span>No export yet</span>
-            </div>
-            {% endif %}
             <div class="sync-item">
                 <label>Current DB Count</label>
                 <span>{{ total_count }}</span>
@@ -678,7 +663,6 @@
             <option value="Other">Other</option>
             <option value="None">None</option>
         </select>
-        <button class="btn btn-primary" onclick="exportCanonical()">Export to Canonical JSON</button>
         <button class="btn btn-success" onclick="exportExcel()">Export Filtered to Excel</button>
         
         <div style="display: inline-flex; align-items: center; gap: 8px; margin-left: 12px; padding-left: 12px; border-left: 1px solid #ddd;">
