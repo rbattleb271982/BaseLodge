@@ -948,9 +948,12 @@ def log_startup_diagnostics():
             friend_count = Friend.query.count()
             trip_count = SkiTrip.query.count()
             
-            print(f"USER COUNT: {user_count}")
-            print(f"FRIEND COUNT: {friend_count}")
-            print(f"TRIP COUNT: {trip_count}")
+            print("USER COUNT: " + str(user_count))
+            print("FRIEND COUNT: " + str(friend_count))
+            print("TRIP COUNT: " + str(trip_count))
+            print("=" * 70)
+            print("✅ BaseLodge started successfully and is ready to serve requests.")
+            print("=" * 70)
             
             # Check specific users
             richard = User.query.filter(db.func.lower(User.email) == "richardbattlebaxter@gmail.com").first()
