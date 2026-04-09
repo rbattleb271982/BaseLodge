@@ -397,11 +397,11 @@
         {% endif %}
 
         <div class="segmented-control">
-            <button type="button" class="segment-btn active" data-segment="upcoming">Upcoming</button>
-            <button type="button" class="segment-btn" data-segment="ideas">Ideas</button>
-            <button type="button" class="segment-btn" data-segment="invites">
-                Invites{% if ns.invite_count > 0 %}<span class="segment-badge">{{ ns.invite_count }}</span>{% endif %}
+            <button type="button" class="segment-btn active" data-segment="upcoming">
+                Upcoming{% if ns.invite_count > 0 %}<span class="segment-badge">{{ ns.invite_count }}</span>{% endif %}
             </button>
+            <button type="button" class="segment-btn" data-segment="ideas">Ideas</button>
+            <button type="button" class="segment-btn" data-segment="past">Past</button>
         </div>
 
         <div id="segment-upcoming" class="segment-content active">
@@ -437,8 +437,35 @@
                 <p class="new-trip-card-subtext">Choose dates, a mountain, and who's coming</p>
             </a>
 
+            {% if invited_trips %}
+                {% set visible_invites = [] %}
+                {% for trip in invited_trips %}
+                    {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
+                        {% set _ = visible_invites.append(trip) %}
+                    {% endif %}
+                {% endfor %}
+                {% if visible_invites %}
+                <p class="section-label">Pending Invites</p>
+                <div class="trips-list">
+                    {% for trip in visible_invites %}
+                    <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                        <div class="trip-card">
+                            <div class="trip-card-content">
+                                <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}{% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+                                {% set pass_brands = trip.resort|mountain_passes if trip.resort else '' %}
+                                {% set accepted_count = trip.accepted_count %}
+                                <p class="trip-card-line2">{{ format_trip_dates(trip) }}{% if pass_brands %} · {{ pass_brands }}{% endif %}{% if accepted_count > 1 %} · {{ accepted_count }} going{% endif %}</p>
+                            </div>
+                            <span class="secondary-action">View</span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% endif %}
+
             {% if requested_trips %}
-            <p class="section-label">Requested Trips</p>
+            <p class="section-label">Requested</p>
             <div class="trips-list">
                 {% for req in requested_trips %}
                 <div class="trip-card" onclick="window.location.href='{{ url_for('friend_trip_details', trip_id=req.trip.id) }}'" style="cursor: pointer;">
@@ -515,33 +542,30 @@
             {% endif %}
         </div>
 
-        <div id="segment-invites" class="segment-content">
-            {% if ns.invite_count > 0 %}
-                {% if invited_trips %}
-                    <p class="section-label">Trip Invites</p>
-                    <div class="trips-list">
-                        {% for trip in invited_trips %}
-                            {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
-                            <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                                <div class="trip-card">
-                                    <div class="trip-card-content">
-                                        <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}{% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-                                        {% set pass_brands = trip.resort|mountain_passes if trip.resort else '' %}
-                                        {% set accepted_count = trip.accepted_count %}
-                                        <p class="trip-card-line2">{{ format_trip_dates(trip) }}{% if pass_brands %} · {{ pass_brands }}{% endif %}{% if accepted_count > 1 %} · {{ accepted_count }} going{% endif %}</p>
-                                    </div>
-                                    <span class="secondary-action">View</span>
-                                </div>
-                            </a>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                {% endif %}
+        <div id="segment-past" class="segment-content">
+            {% if past_trips %}
+                <p class="section-label">Completed Trips</p>
+                <div class="trips-list">
+                    {% for trip in past_trips %}
+                    {% if trip and trip.id %}
+                    <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
+                        <div class="trip-card">
+                            <div class="trip-card-content">
+                                <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% elif trip.mountain %}{{ trip.mountain }}{% else %}Mountain TBD{% endif %}{% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+                                {% set pass_brands = trip.resort|mountain_passes if trip.resort else '' %}
+                                {% set accepted_count = trip.accepted_count %}
+                                <p class="trip-card-line2">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}{% if pass_brands %} · {{ pass_brands }}{% endif %}{% if accepted_count > 1 %} · {{ accepted_count }} went{% endif %}</p>
+                            </div>
+                            <span class="trip-card-action">View</span>
+                        </div>
+                    </a>
+                    {% endif %}
+                    {% endfor %}
+                </div>
             {% else %}
                 <div class="empty-state-container" style="padding-top: 32px;">
-                    <p class="empty-state-title">No invites yet</p>
-                    <p class="empty-state-desc" style="margin-bottom: 24px;">You’ll see trip invites from friends here when they plan something.</p>
-                    <a href="{{ url_for('invite') }}" class="bl-modal-cta" style="display: block; text-decoration: none; text-align: center;">Invite friends</a>
+                    <p class="empty-state-title">No past trips yet</p>
+                    <p class="empty-state-desc">Your completed trips will appear here.</p>
                 </div>
             {% endif %}
         </div>
@@ -575,7 +599,7 @@
             const savedTab = sessionStorage.getItem(STORAGE_KEY);
             let tab = new URLSearchParams(window.location.search).get('tab');
             if (tab === 'planning') tab = 'ideas';
-            if (tab === 'ideas' || tab === 'invites') selectTab(tab);
+            if (tab === 'ideas' || tab === 'past') selectTab(tab);
             else if (savedTab) selectTab(savedTab, false);
 
             window.BaseLodgeModal = {
