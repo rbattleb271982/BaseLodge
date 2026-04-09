@@ -55,7 +55,7 @@ def redirect_to_canonical_domain():
         )
         return redirect(new_url, code=301)
 
-from utils.countries import COUNTRIES
+from utils.countries import COUNTRIES, STATE_ABBR_MAP
 
 @app.context_processor
 def inject_countries():
@@ -168,7 +168,7 @@ login_manager.login_message = None
 def load_user(user_id):
     return db.session.get(User, int(user_id))
 
-from utils.countries import COUNTRIES
+from utils.countries import COUNTRIES, STATE_ABBR_MAP
 
 @app.context_processor
 def inject_countries():
@@ -4355,15 +4355,9 @@ def add_trip():
     # Single source of truth: Resort table
     resorts = get_resorts_for_trip_form()
     
-    # Get canonical maps for dropdowns
-    try:
-        from utils.countries import COUNTRIES as CANONICAL_COUNTRIES, STATE_ABBR_MAP
-        countries_map = CANONICAL_COUNTRIES
-        states_map = STATE_ABBR_MAP
-    except ImportError:
-        countries_map = {}
-        states_map = {}
-    
+    countries_map = COUNTRIES
+    states_map = STATE_ABBR_MAP
+
     user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
     print(f"[add_trip] User passes: {user_passes}")
     
@@ -4578,14 +4572,8 @@ def edit_trip_form(trip_id):
     ).first()
     my_transportation = my_participant.transportation_status.value if my_participant and my_participant.transportation_status else None
 
-    # Get canonical maps for dropdowns
-    try:
-        from utils.countries import COUNTRIES as CANONICAL_COUNTRIES, STATE_ABBR_MAP
-        countries_map = CANONICAL_COUNTRIES
-        states_map = STATE_ABBR_MAP
-    except ImportError:
-        countries_map = {}
-        states_map = {}
+    countries_map = COUNTRIES
+    states_map = STATE_ABBR_MAP
 
     if request.method == "POST":
         resort_id = request.form.get("resort_id")
@@ -6313,6 +6301,8 @@ def init_db_http():
                         name=r["name"],
                         state=r["state"],
                         state_full=STATE_FULL.get(r["state"], r["state"]),
+                        country_code="US",
+                        state_code=r["state"],
                         brand=r["brand"],
                         slug=slug,
                         is_active=True
