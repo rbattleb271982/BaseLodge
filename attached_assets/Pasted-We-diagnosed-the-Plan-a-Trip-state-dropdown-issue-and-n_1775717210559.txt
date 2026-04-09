@@ -1,0 +1,72 @@
+We diagnosed the Plan a Trip state dropdown issue and now need to choose the right fix approach before coding.
+What we know
+There are two separate issues:
+STATE_ABBR_MAP is imported in app.py but does not exist in utils/countries.py
+this causes an import failure and silent fallback
+result: production may show raw state codes like CO instead of Colorado
+The actual reason the state dropdown cannot be selected in local/dev is that the dropdown is derived from resort data, and local/dev currently has no active resort data loaded
+resorts = []
+deriveStates('US') returns []
+JS sets stateSelect.disabled = true
+So the real blocker is missing local resort seed data, while the missing map is a separate bug that still needs to be fixed.
+Goal
+Give me the best implementation plan to fix this correctly, without breaking production.
+I want you to evaluate the best approach for local/dev and recommend the proper implementation path before making any code changes.
+What I want from this plan
+1. Confirm intended architecture
+Explain how the Plan a Trip page is supposed to work today:
+where resort data is expected to come from
+whether the state dropdown is intentionally derived from active resorts
+whether local/dev is expected to have seeded resort data for this page to function
+2. Compare the fix options
+Evaluate these options and recommend one:
+Option A — preferred if correct
+Restore or seed local resort data so the state dropdown works as designed
+Option B
+Add a graceful fallback in dev if resorts are empty
+For example:
+show a full state list even if no resorts exist
+or keep the dropdown enabled with fallback data
+For each option, explain:
+pros
+cons
+risk to production behavior
+whether it matches current architecture
+3. Address the missing constant
+Include in the plan a fix for the missing STATE_ABBR_MAP in utils/countries.py
+Requirements:
+all US state abbreviations mapped to full names
+imports in app.py should succeed
+state labels should display properly
+4. Recommend the correct implementation sequence
+Tell me the best order to implement:
+missing constant
+local/dev resort fix or fallback
+browser QA
+5. File impact
+Identify which files would likely need changes for the final implementation:
+app.py
+utils/countries.py
+templates/add_trip.html
+any resort seed/import logic
+any dev startup/init scripts if relevant
+6. QA plan
+Tell me exactly what should be tested after implementation:
+Add Trip page in local/dev
+dropdown opens
+states are selectable
+labels show full names
+no regression in production-oriented logic
+behavior when no resorts exist, if that case is still possible
+Constraints
+This is a planning pass only
+Do not code yet
+Do not over-engineer
+Keep production-safe behavior
+Prefer the cleanest fix that matches BaseLodge’s intended architecture
+Use checkpoints sparingly
+At the end, give me:
+the recommended fix approach
+why it is the right one
+likely files to change
+anything that should be decided before coding

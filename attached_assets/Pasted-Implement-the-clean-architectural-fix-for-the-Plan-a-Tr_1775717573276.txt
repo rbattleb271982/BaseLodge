@@ -1,0 +1,83 @@
+Implement the clean architectural fix for the Plan a Trip country/state/resort flow. This is not a patch. I want the underlying data and dev bootstrap path corrected so the Add Trip and Edit Trip forms work properly and the system is cleaner going forward.
+Context
+We already diagnosed the issue:
+STATE_ABBR_MAP is imported in app.py but is missing from utils/countries.py
+Local/dev seeded resorts do not populate the fields the form logic actually depends on:
+country_code
+state_code
+The current code uses silent fallback behavior that hides import/data issues instead of surfacing them clearly
+The Add Trip and Edit Trip forms derive state options from actual resort data, which is the correct architecture and should remain in place
+The prior diagnosis also confirmed that the current local seed path around /admin/init-db does not set country_code or state_code, so even seeded resorts would not properly drive the state dropdown.
+What I want you to do
+Part 1 — Add STATE_ABBR_MAP
+Update utils/countries.py to define STATE_ABBR_MAP.
+Requirements:
+include all 50 US states
+include Canadian provinces and territories
+code → full display name
+keep formatting clean and maintainable
+Examples:
+CO: Colorado
+UT: Utah
+BC: British Columbia
+Part 2 — Fix the resort seed/bootstrap data
+Find the local/dev resort seed logic used by /admin/init-db or the equivalent bootstrap path in app.py.
+Update the seeded Resort(...) records so they populate the fields required by the form logic:
+country_code
+state_code
+Requirements:
+for US resorts, seed country_code='US'
+seed state_code from the source state field already present in the seed data
+if any Canadian resorts exist in the seed source, assign them correctly too
+make sure the seeded data shape matches what get_resorts_for_trip_form() and the Add/Edit Trip JS expect
+Part 3 — Clean up silent failure behavior
+Find the current import/fallback logic in app.py where missing imports are swallowed and empty maps are substituted.
+I do not want broad silent fallback behavior hiding broken architecture.
+Refactor this so that:
+the import succeeds normally once STATE_ABBR_MAP exists
+if a true failure still occurs, it is visible in logs or error output
+behavior remains production-safe
+do not keep “empty dict” fallback that silently masks real issues
+Part 4 — Make local/dev actually usable after the fix
+After the seed change, verify whether local data must be refreshed or reseeded for the new fields to take effect.
+Handle this cleanly:
+if the local DB already has resorts but they are incomplete, determine the safest way to correct them
+if a one-time reseed/reset is required locally, do it in the cleanest way possible
+do not break production behavior
+do not assume that resort_count == 0 is enough if bad local records already exist
+I want local/dev to end in a correct, usable state.
+Part 5 — Verify data flow end to end
+Confirm that after the fix:
+the Add Trip template receives resort data with usable country_code and state_code
+the JS can derive states correctly
+state labels show full names from STATE_ABBR_MAP
+selecting a state populates the resort dropdown
+QA requirements
+Add Trip
+Test in browser:
+country can be selected
+state dropdown becomes enabled
+state labels show full names, not abbreviations
+selecting a state populates resorts
+form can be completed
+Edit Trip
+Test the same state/resort behavior there too.
+Data verification
+Also verify directly that seeded/local resort records now contain:
+country_code
+state_code
+Important constraints
+Use checkpoints sparingly
+Do not over-engineer
+Do not add a hardcoded fallback state list unless absolutely necessary
+Preserve the architecture where state options are derived from real resort data
+Keep production-safe behavior intact
+This is a cleanup pass, not a band-aid
+Output format
+When done, report:
+files changed
+what was added to STATE_ABBR_MAP
+what changed in the seed/bootstrap path
+how silent failure behavior was cleaned up
+whether local reseed/reset/backfill was required
+QA results for Add Trip and Edit Trip
