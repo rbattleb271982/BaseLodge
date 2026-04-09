@@ -1,0 +1,175 @@
+Refactor the Friends tab to follow the same design language and screen philosophy as the updated Trips tab.
+Goal
+The Friends tab should no longer feel like a separate utility area with segmented tabs and a passive empty state. It should become a clean, single-scroll screen with:
+one persistent top action area
+a simple, scannable friend list
+inline social/trip intelligence per friend
+no segmented sub-tabs
+a clear path into a combined friend detail view
+This is a product structure refactor first, not just a visual restyle.
+Important constraints
+Use checkpoints sparingly.
+Do not over-engineer.
+Preserve existing backend behavior wherever possible.
+Reuse the existing invite flow and route if it already exists.
+Do not create a new social feed.
+Do not reintroduce segmented tabs like Friends / Friends’ Trips / Overlaps.
+Keep the layout mobile-first and visually consistent with the Trips tab.
+Keep the bottom nav intact.
+Keep the page top-aligned, not vertically centered.
+Do not finish until you have fully tested the updated Friends tab in the browser across the relevant states below.
+Product direction
+Core philosophy
+The Friends tab should answer:
+Who can I do this with?
+Not:
+who is in my network in a generic sense
+a profile browser
+a social feed
+Invite should be treated as an action, not a standalone destination
+We already have an existing Invite experience with:
+Invite via text
+Copy invite link
+QR code
+That logic should remain available, but the Friends tab should now surface a persistent invite entry point at the top of the screen.
+Friend detail behavior
+When a user taps a friend, the destination should be a combined planning-oriented view, not just a static profile.
+The priority of information on friend detail should be:
+shared overlap, if one exists
+that friend’s upcoming trips
+any other shared or relevant context after that
+The page should answer:
+What can we do together?
+Not:
+Who is this person?
+Required UI changes on Friends tab
+1. Remove segmented tabs
+Remove the current segmented control:
+Friends
+Friends’ Trips
+Overlaps
+The new Friends tab should be a single scrolling screen.
+2. Add a persistent top invite card
+At the top of the Friends tab, add a compact action card styled in the same overall language as the Trips tab.
+This should not be oversized like a full hero if that feels too dominant. It should feel intentional, clean, and clearly primary without overwhelming the page.
+Suggested content structure:
+Title: Plan trips with friends
+Supporting text: Invite friends to see each other’s trips and plan together.
+Primary CTA: Invite via text →
+Secondary action: Copy link
+Behavior:
+Primary CTA should open the existing invite flow or invite screen
+Secondary action should trigger the existing copy-link behavior if already implemented
+Do not inline the QR code on the Friends tab itself
+The QR code can remain on the dedicated invite screen
+3. Replace empty-state centered card with a top-aligned flow
+For users with no friends:
+show the invite card at the top
+below it, optionally show a light empty-state message if needed, but keep it subtle
+do not use a large centered “No friends yet” card as the main content
+the page should feel like a structured destination, not a dead end
+4. Build a friend list as the main content
+Below the invite card, render the user’s friends in a clean vertical list.
+Each friend row should follow a simple 2-line system with a right-aligned action, visually aligned with the broader app structure.
+Each row should include:
+friend name on line 1
+one line of dynamic context on line 2
+a right-aligned View action or chevron
+5. Add dynamic context logic per friend row
+Each friend row should show the single most relevant signal using this priority order:
+Priority 1: overlap exists
+If the current user and that friend have relevant overlapping availability, show something like:
+Free Jan 24
+Overlap Jan 24
+You’re both free Jan 24
+Keep it concise.
+Priority 2: upcoming trip exists
+If there is no overlap but the friend has an upcoming trip, show something like:
+Vail · Feb 3–5
+Going to Aspen · Mar 1–3
+Use the friend’s next most relevant upcoming trip.
+Priority 3: no current activity
+If neither exists, show:
+No trips yet
+Do not show multiple competing signals in the list row. One signal only.
+6. Visual treatment
+Make the Friends tab feel like it belongs to the same system as Trips:
+similar spacing rhythm
+same quality of hierarchy
+same mobile card/list sensibility
+clean neutral background treatment
+restrained use of accent color
+Do not make it look like a separate product area.
+Friend detail page changes
+Refactor the friend detail destination so it becomes a combined planning view.
+If a friend row is tapped, the destination should lead with:
+A. Shared overlap section, if overlap exists
+At the top, show a highlighted shared context module if applicable, such as:
+You and Alex are both free Jan 24
+optional CTA: Plan a trip
+This should be the most prominent element when overlap exists.
+B. That friend’s upcoming trips
+Below that, show the friend’s upcoming trips in a clean list.
+C. Keep profile information secondary
+Do not lead with generic profile information.
+Avoid making this feel like a profile-first page.
+The main job is coordination.
+If a combined friend detail route already exists, adapt it.
+If not, update the existing friend view route/template as needed using the lightest-touch implementation possible.
+Data / implementation guidance
+Use existing data models and relationships where possible.
+You will likely need to derive, for each friend:
+whether there is overlapping availability
+the most relevant overlap date or label
+the friend’s next upcoming trip, if any
+Keep this logic efficient and simple.
+Do not invent a large new subsystem if existing trip/friend/invite relationships already support this.
+If overlap logic already exists elsewhere in the app, reuse it instead of duplicating it in a totally separate way.
+If upcoming trips for friends already exist in another view, reuse or adapt that query logic.
+Empty / partial / populated states to support
+State 1: No friends
+invite card visible
+subtle supporting empty state below if needed
+no centered dead-end card
+State 2: Friends exist but no overlaps or trips
+invite card visible
+friend list visible
+each friend row shows No trips yet
+State 3: Friends with upcoming trips
+invite card visible
+friend list visible
+rows show next trip summaries
+State 4: Friends with overlaps
+invite card visible
+friend list visible
+rows prioritize overlap signal over trip summary
+Technical expectations
+Please identify and update the relevant:
+route(s)
+template(s)
+any supporting helper functions or queries
+any CSS needed for layout consistency
+If there is a dedicated Invite tab in the bottom nav that is now redundant because invite is embedded in Friends, do not remove or repurpose global navigation unless the existing app structure already requires that as part of this refactor. For this pass, focus on the Friends screen and its destination behavior only.
+If the existing Invite screen remains in the app, keep it working.
+QA requirements
+Do not stop at code changes. Fully test in browser and verify:
+Friends tab loads correctly with no broken layout
+Segmented tabs are gone
+Invite card appears at top
+Invite via text opens the correct existing flow
+Copy link still works
+No-friends state looks intentional and top-aligned
+Friend rows render correctly for populated data
+Dynamic second-line text follows the correct priority:
+overlap first
+otherwise upcoming trip
+otherwise no trips yet
+Tapping a friend leads to the combined planning-oriented detail view
+Friend detail leads with shared context when applicable
+Mobile spacing, hierarchy, and scrolling feel aligned with the Trips tab
+At the end, give me a concise summary of:
+what files changed
+what logic was reused
+what logic was added
+what states you tested
+any follow-up recommendations, if truly necessary
