@@ -4081,7 +4081,7 @@ def profile():
                            equipment_summary=equipment_summary,
                            wish_list_count=wish_list_count,
                            wish_list_resorts=wish_list_resorts,
-                           upcoming_trip_count=get_upcoming_trip_count(current_user))
+                           upcoming_count=get_upcoming_trip_count(current_user))
 
 @app.route("/settings")
 @login_required

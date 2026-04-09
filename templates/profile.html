@@ -15,7 +15,7 @@
             background: #252320;
             border-radius: 16px;
             padding: 20px 16px;
-            margin-bottom: 14px;
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
             gap: 14px;
@@ -65,53 +65,31 @@
             opacity: 0.6;
         }
 
-        /* ── Trips pill ──────────────────────────────── */
-        .trips-pill {
-            display: flex;
+        /* ── Trips inline pill ───────────────────────── */
+        .trips-inline-pill {
+            display: inline-flex;
             align-items: center;
-            justify-content: space-between;
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: 12px;
-            padding: 13px 16px;
-            margin-bottom: 22px;
+            background: rgba(143, 1, 27, 0.08);
+            border-radius: 20px;
+            padding: 4px 12px;
+            margin-bottom: 24px;
             text-decoration: none;
-            color: inherit;
             -webkit-tap-highlight-color: transparent;
         }
-        .trips-pill:active {
-            opacity: 0.75;
+        .trips-inline-pill:active {
+            opacity: 0.7;
         }
-        .trips-pill-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .trips-pill-label {
-            font-size: 0.95rem;
+        .trips-inline-pill-text {
+            font-size: 0.82rem;
             font-weight: 600;
-            color: var(--bl-color-text);
-        }
-        .trips-pill-count {
-            font-size: 0.8rem;
-            font-weight: 600;
-            background: var(--bl-color-primary);
-            color: #fff;
-            border-radius: 20px;
-            padding: 2px 9px;
-            line-height: 1.5;
-        }
-        .trips-pill-chevron {
-            font-size: 0.95rem;
             color: var(--bl-color-primary);
-            font-weight: 500;
         }
 
-        /* ── Settings groups ─────────────────────────── */
+        /* ── Profile groups ──────────────────────────── */
         .profile-group {
             margin-bottom: 24px;
         }
-        .profile-group-header {
+        .profile-group-label {
             font-size: 11px;
             font-weight: 700;
             color: var(--bl-color-text-muted);
@@ -145,6 +123,14 @@
             font-size: 0.95rem;
             color: var(--bl-color-text);
         }
+        .profile-row-label-muted {
+            font-size: 0.95rem;
+            color: var(--bl-color-text-muted);
+        }
+        .profile-row-label-danger {
+            font-size: 0.95rem;
+            color: var(--bl-color-primary);
+        }
         .profile-row-right {
             display: flex;
             align-items: center;
@@ -164,10 +150,6 @@
             font-size: 1rem;
             opacity: 0.4;
             flex-shrink: 0;
-        }
-        .profile-row-label-danger {
-            font-size: 0.95rem;
-            color: var(--bl-color-primary);
         }
     </style>
 </head>
@@ -193,20 +175,29 @@
             <a href="{{ url_for('edit_profile') }}" class="identity-edit">Edit</a>
         </div>
 
-        <!-- Trips pill -->
-        <a href="{{ url_for('my_trips') }}" class="trips-pill">
-            <div class="trips-pill-left">
-                <span class="trips-pill-label">My Trips</span>
-                {% if upcoming_trip_count and upcoming_trip_count > 0 %}
-                <span class="trips-pill-count">{{ upcoming_trip_count }} upcoming</span>
-                {% endif %}
-            </div>
-            <span class="trips-pill-chevron">→</span>
+        <!-- Trips inline pill — hidden if zero -->
+        {% if upcoming_count and upcoming_count > 0 %}
+        <a href="{{ url_for('my_trips') }}" class="trips-inline-pill">
+            <span class="trips-inline-pill-text">{{ upcoming_count }} trip{{ 's' if upcoming_count != 1 else '' }} planned</span>
         </a>
+        {% endif %}
 
-        <!-- Gear & Terrain -->
+        <!-- Profile -->
         <div class="profile-group">
-            <h2 class="profile-group-header">Gear & Terrain</h2>
+            <h2 class="profile-group-label">Profile</h2>
+            <div class="profile-card">
+                <a href="{{ url_for('edit_profile') }}" class="profile-row">
+                    <span class="profile-row-label">Profile Details</span>
+                    <div class="profile-row-right">
+                        <span class="profile-row-chevron">›</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Equipment & Mountains -->
+        <div class="profile-group">
+            <h2 class="profile-group-label">Equipment & Mountains</h2>
             <div class="profile-card">
                 <a href="{{ url_for('settings_equipment') }}" class="profile-row">
                     <span class="profile-row-label">Equipment</span>
@@ -223,7 +214,7 @@
                     </div>
                 </a>
                 <a href="{{ url_for('settings_wish_list') }}" class="profile-row">
-                    <span class="profile-row-label">Wish List</span>
+                    <span class="profile-row-label">Wish List Destinations</span>
                     <div class="profile-row-right">
                         {% if wish_list_count %}<span class="profile-row-value">{{ wish_list_count }} resort{% if wish_list_count != 1 %}s{% endif %}</span>{% endif %}
                         <span class="profile-row-chevron">›</span>
@@ -232,25 +223,12 @@
             </div>
         </div>
 
-        <!-- Availability -->
-        <div class="profile-group">
-            <h2 class="profile-group-header">Availability</h2>
-            <div class="profile-card">
-                <a href="{{ url_for('add_open_dates') }}" class="profile-row">
-                    <span class="profile-row-label">Open Dates</span>
-                    <div class="profile-row-right">
-                        <span class="profile-row-chevron">›</span>
-                    </div>
-                </a>
-            </div>
-        </div>
-
         <!-- Account -->
         <div class="profile-group">
-            <h2 class="profile-group-header">Account</h2>
+            <h2 class="profile-group-label">Account</h2>
             <div class="profile-card">
                 <a href="{{ url_for('settings_password') }}" class="profile-row">
-                    <span class="profile-row-label">Change Password</span>
+                    <span class="profile-row-label-muted">Change Password</span>
                     <div class="profile-row-right">
                         <span class="profile-row-chevron">›</span>
                     </div>
