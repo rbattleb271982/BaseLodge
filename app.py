@@ -18,7 +18,6 @@ SYSTEM OF RECORD (as of 2026-01-15):
 import os
 import secrets
 from datetime import datetime, date, timedelta
-from types import SimpleNamespace
 
 BASE_URL = os.getenv("BASE_URL", "https://app.baselodgeapp.com").rstrip("/")
 import sqlalchemy as sa
@@ -2714,10 +2713,6 @@ def friends():
     today = date.today()
     today_str = today.strftime('%Y-%m-%d')
     
-    # Get tab parameter (friends, trips, or overlaps) - friends is default
-    active_tab = request.args.get("tab", "friends")
-    filter_type = request.args.get("filter", "All")
-    
     # Load friend relationships
     friend_links = Friend.query.filter_by(user_id=user.id).all()
     friend_ids = [f.friend_id for f in friend_links]
@@ -2778,86 +2773,6 @@ def friends():
                     "friend_id": friend.id,
                     "friend_first_name": friend.first_name
                 })
-    
-    # Group overlaps by destination/date for display
-    grouped_overlaps = []
-    
-    # Group trip overlaps by destination + date
-    trip_overlap_groups = {}
-    for overlap in trip_overlaps:
-        key = (overlap["mountain"], overlap["start_date"].isoformat(), overlap["end_date"].isoformat())
-        if key not in trip_overlap_groups:
-            trip_overlap_groups[key] = {
-                "type": "trip",
-                "mountain": overlap["mountain"],
-                "resort": overlap["resort"],
-                "resort_id": overlap["resort_id"],
-                "start_date": overlap["start_date"],
-                "end_date": overlap["end_date"],
-                "friends": [],
-                "friend_count": 0,
-                "my_trip_id": overlap["my_trip_id"]
-            }
-        trip_overlap_groups[key]["friends"].append({
-            "id": overlap["friend_id"],
-            "first_name": overlap["friend_first_name"]
-        })
-        trip_overlap_groups[key]["friend_count"] = len(trip_overlap_groups[key]["friends"])
-    
-    grouped_overlaps.extend(trip_overlap_groups.values())
-    
-    # Group open date overlaps by date
-    open_overlap_groups = {}
-    for overlap in open_date_overlaps:
-        key = overlap["date_str"]
-        if key not in open_overlap_groups:
-            open_overlap_groups[key] = {
-                "type": "open",
-                "date_str": key,
-                "start_date": datetime.strptime(key, '%Y-%m-%d').date(),
-                "end_date": datetime.strptime(key, '%Y-%m-%d').date(),
-                "friends": [],
-                "friend_count": 0
-            }
-        open_overlap_groups[key]["friends"].append({
-            "id": overlap["friend_id"],
-            "first_name": overlap["friend_first_name"]
-        })
-        open_overlap_groups[key]["friend_count"] = len(open_overlap_groups[key]["friends"])
-    
-    grouped_overlaps.extend(open_overlap_groups.values())
-    
-    # Sort overlaps: soonest date first, then by friend count (higher first)
-    grouped_overlaps.sort(key=lambda x: (x["start_date"], -x["friend_count"]))
-    
-    user_passes = set(p.strip() for p in (user.pass_type or "").split(",") if p.strip())
-    
-    # Calculate relevance score for each friend
-    def calculate_relevance(friend):
-        score = 0
-        
-        # 1. Trip overlap (highest priority) - only count future trips
-        friend_trips_future = SkiTrip.query.filter(
-            SkiTrip.user_id == friend.id,
-            SkiTrip.is_public == True,
-            SkiTrip.end_date >= today
-        ).all()
-        for ut in user_trips:
-            for ft in friend_trips_future:
-                if ut.mountain == ft.mountain and date_ranges_overlap(ut.start_date, ut.end_date, ft.start_date, ft.end_date):
-                    score += 100
-        
-        # 2. Pass compatibility
-        friend_passes = set(p.strip() for p in (friend.pass_type or "").split(",") if p.strip())
-        if user_passes & friend_passes:
-            score += 50
-        
-        # 3. Shared availability - only count future dates
-        friend_open_dates = set(d for d in (friend.open_dates or []) if d >= today_str)
-        shared_dates = user_open_dates & friend_open_dates
-        score += len(shared_dates) * 10
-        
-        return score
     
     # Build a lookup for friendship data (including trip_invites_allowed and created_at)
     friendship_lookup = {f.friend_id: f for f in friend_links}
@@ -2935,8 +2850,13 @@ def friends():
         friend_ov_trips = sorted(trip_overlap_by_friend.get(friend.id, []), key=lambda x: x['start_date'])
         if friend_ov_trips:
             ov = friend_ov_trips[0]
-            ov_proxy = SimpleNamespace(start_date=ov['start_date'], end_date=ov['end_date'])
-            dates_str = format_trip_dates(ov_proxy)
+            sd, ed = ov['start_date'], ov['end_date']
+            if sd == ed:
+                dates_str = sd.strftime('%b %-d')
+            elif sd.month == ed.month:
+                dates_str = f"{sd.strftime('%b %-d')}–{ed.strftime('%-d')}"
+            else:
+                dates_str = f"{sd.strftime('%b %-d')}–{ed.strftime('%b %-d')}"
             friend._overlap_label = f"Overlap at {ov['mountain']} · {dates_str}"
         else:
             friend_open_ovs = sorted(open_overlap_by_friend.get(friend.id, []))
@@ -2948,7 +2868,7 @@ def friends():
         if friend_upcoming_pub:
             ft = friend_upcoming_pub[0]
             resort_name = ft.resort.name if ft.resort else (ft.mountain or '')
-            state = ft.resort.state if ft.resort else (ft.state if hasattr(ft, 'state') else '')
+            state = ft.resort.state if ft.resort else (ft.state or '')
             dates_str = format_trip_dates(ft)
             label = resort_name
             if state:
@@ -2975,43 +2895,6 @@ def friends():
         return (is_new, has_trip, latest_ts, first_name)
     
     all_friends_sorted = sorted(all_friends, key=friend_sort_key)
-    
-    # Get multi-select filter params
-    selected_riders = request.args.getlist("rider")
-    selected_skills = request.args.getlist("skill")
-    selected_passes = request.args.getlist("pass")
-    
-    # Apply optional filters
-    friends_list = all_friends_sorted
-    active_filter_count = 0
-    
-    # Pass filtering (using pass_category helper)
-    if selected_passes and len(selected_passes) < 3:  # Less than all options
-        friends_list = [f for f in friends_list if pass_category(f.pass_type) in selected_passes]
-        active_filter_count += 1
-    
-    # Skill filtering
-    if selected_skills and len(selected_skills) < 4:  # Less than all skill levels
-        friends_list = [f for f in friends_list if f.skill_level in selected_skills]
-        active_filter_count += 1
-    
-    # Rider type filtering using primary_rider_type with fallback
-    if selected_riders and len(selected_riders) < len(RIDER_TYPES):
-        def matches_rider_filter(friend):
-            primary = friend.primary_rider_type or friend.rider_type
-            if not primary:
-                return False
-            # Check primary type
-            if primary in selected_riders:
-                return True
-            # Check secondary types
-            secondaries = friend.secondary_rider_types or []
-            for secondary in secondaries:
-                if secondary in selected_riders:
-                    return True
-            return False
-        friends_list = [f for f in friends_list if matches_rider_filter(f)]
-        active_filter_count += 1
 
     invite_token_obj = get_or_create_invite_token(user)
     invite_url = (
@@ -3022,8 +2905,7 @@ def friends():
     return render_template(
         "friends.html",
         user=user,
-        friends=friends_list,
-        count_all=len(all_friends_sorted),
+        friends=all_friends_sorted,
         invite_url=invite_url,
         format_trip_dates=format_trip_dates,
     )
