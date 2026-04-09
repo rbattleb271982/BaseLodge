@@ -10,136 +10,46 @@
     <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .compact-profile-card {
-            background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-lg);
-            border: 1px solid var(--bl-color-border-soft);
-            padding: 12px 16px;
-            margin-bottom: 8px;
+        /* ── Underline tab bar ───────────────────────── */
+        .tab-bar {
             display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            text-decoration: none;
-            color: inherit;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .compact-profile-card:hover {
-            background: rgba(0, 0, 0, 0.02);
-        }
-        .compact-profile-content {
-            flex: 1;
-        }
-        .compact-profile-name-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .compact-profile-name {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--bl-color-text);
-            line-height: 1.2;
-            margin-bottom: 4px;
-        }
-        .compact-profile-chevron {
-            font-size: 1.5rem;
-            color: var(--bl-color-text-muted);
-            margin-left: 12px;
-            flex-shrink: 0;
-        }
-        .compact-profile-identity {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            line-height: 1.3;
-        }
-        .compact-profile-link {
-            font-size: 0.875rem;
-            color: var(--bl-color-text-muted);
-            margin-top: 6px;
-        }
-
-        .section-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--bl-color-text);
-            margin: 32px 0 12px 0;
-        }
-        .ideas-list {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .idea-row {
-            font-size: 15px;
-            color: var(--bl-color-text);
-            padding: 14px 0;
             border-bottom: 1px solid var(--bl-color-border-soft);
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            margin-bottom: 20px;
         }
-        .idea-row::after {
-            content: '›';
-            font-size: 1.2rem;
-            font-weight: 500;
-            color: var(--bl-color-text-muted);
-            margin-left: 12px;
-            flex-shrink: 0;
-        }
-
-        .page-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--bl-color-text);
-            margin: 0 0 12px 0;
-        }
-
-        .segmented-control {
-            display: flex;
-            background: var(--bl-color-border-soft);
-            border-radius: 8px;
-            padding: 2px;
-            margin-bottom: 12px;
-        }
-        .segment-btn {
+        .tab-btn {
             flex: 1;
-            padding: 8px 12px;
+            padding: 10px 8px;
             border: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
             background: transparent;
             font-size: 14px;
             font-weight: 500;
             color: var(--bl-color-text-muted);
-            border-radius: 6px;
             cursor: pointer;
-            transition: all 0.15s ease;
-            position: relative;
+            text-align: center;
+            white-space: nowrap;
         }
-        .segment-btn.active {
-            background: var(--bl-color-surface);
+        .tab-btn.active {
             color: var(--bl-color-text);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            font-weight: 600;
+            border-bottom-color: var(--bl-color-text);
         }
-        .segment-badge {
+        .tab-badge {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             background: var(--bl-color-primary);
-            color: white;
-            font-size: 11px;
+            color: #fff;
+            font-size: 10px;
             font-weight: 700;
-            min-width: 18px;
-            height: 18px;
-            border-radius: 9px;
-            padding: 0 5px;
-            margin-left: 6px;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            padding: 0 4px;
+            margin-left: 5px;
+            vertical-align: middle;
         }
-
         .segment-content {
             display: none;
         }
@@ -147,565 +57,502 @@
             display: block;
         }
 
-        .section-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            color: var(--bl-color-text-muted);
-            margin: 24px 0 8px 0;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-        .section-label:first-child {
-            margin-top: 8px;
-        }
-
-        .trip-card {
+        /* ── Trips list (upcoming + past) ─────────────── */
+        .trips-list-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: 10px;
-            padding: 12px 16px;
-            margin-bottom: 8px;
+            align-items: baseline;
+            margin-bottom: 2px;
         }
-        .trip-card-content {
+        .trips-list-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0;
+        }
+        .trips-list-count {
+            font-size: 0.82rem;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+        }
+        .trip-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 13px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            text-decoration: none;
+            color: inherit;
+        }
+        .trip-row:first-child {
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+        .trip-row-content {
             flex: 1;
             min-width: 0;
         }
-        .trip-card-line1 {
-            font-size: 15px;
+        .trip-row-dest {
+            font-size: 0.95rem;
             font-weight: 600;
             color: var(--bl-color-text);
-            margin: 0 0 4px 0;
+            margin: 0 0 2px 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .trip-card-line2 {
-            font-size: 14px;
+        .trip-row-dates {
+            font-size: 0.83rem;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 2px 0;
+        }
+        .trip-row-people {
+            font-size: 0.8rem;
             color: var(--bl-color-text-muted);
             margin: 0;
-            line-height: 1.4;
         }
-        .secondary-action {
-            font-size: 0.9rem;
+        .trip-row-cta {
+            font-size: 0.83rem;
             font-weight: 500;
-            color: var(--bl-color-primary);
-            text-decoration: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .trip-card-action {
+            color: var(--bl-color-text-muted);
             flex-shrink: 0;
             margin-left: 12px;
-            font-size: 0.9rem;
-            color: var(--bl-color-primary);
-            font-weight: 500;
         }
 
-        .empty-state-container {
-            text-align: center;
-            padding: 48px 20px;
+        /* ── Hero-style card (shared: upcoming empty + ideas state A) ── */
+        .trips-hero-card {
+            background: #8F011B;
+            border-radius: 16px;
+            padding: 22px 20px;
+            color: #fff;
+            margin-bottom: 14px;
         }
-        .empty-state-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--bl-color-text);
+        .trips-hero-headline {
+            font-size: 1.15rem;
+            font-weight: 700;
             margin: 0 0 8px 0;
+            line-height: 1.25;
         }
-        .empty-state-desc {
-            font-size: 0.95rem;
-            color: var(--bl-color-text-muted);
-            margin: 0;
+        .trips-hero-sub {
+            font-size: 0.88rem;
+            opacity: 0.82;
+            margin: 0 0 20px 0;
+            line-height: 1.45;
         }
-        .inline-empty-message {
-            font-size: 0.95rem;
-            color: var(--bl-color-text-muted);
-            padding: 12px 0;
-        }
-
-        /* Modal Global CSS */
-        .base-lodge-modal-backdrop {
-          position: fixed;
-          inset: 0;
-          background: rgba(0,0,0,0.35);
-          z-index: 999;
-        }
-
-        .base-lodge-modal {
-          position: fixed;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          max-height: 85vh;
-          background: #fff;
-          z-index: 1000;
-          overflow: hidden;
-          border-radius: 20px 20px 0 0;
-          display: flex;
-          flex-direction: column;
-          box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
-        }
-
-        .base-lodge-modal-body {
-          overflow-y: auto;
-          -webkit-overflow-scrolling: touch;
-          flex: 1;
-          padding: 0 20px 20px;
-        }
-
-        .bl-modal-handle-container {
-            padding: 12px 0 8px;
-            cursor: grab;
-        }
-        .bl-modal-handle {
-            width: 36px;
-            height: 4px;
-            background: var(--bl-color-border-soft);
-            border-radius: 2px;
-            margin: 0 auto;
-        }
-        .bl-modal-header {
-            padding: 0 20px 16px;
-            text-align: center;
-        }
-        .bl-modal-footer {
-            padding: 0 20px 20px;
-        }
-        .bl-modal-title {
-            font-size: 16px;
+        .trips-hero-cta {
+            display: inline-block;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 8px;
+            font-size: 0.88rem;
             font-weight: 600;
-            color: var(--bl-color-text);
+            color: #fff;
+            padding: 8px 16px;
+            text-decoration: none;
         }
-        .bl-modal-person-row {
-            padding: 12px 0;
-            border-top: 1px solid var(--bl-color-border-soft);
-        }
-        .bl-modal-person-row:first-child {
-            border-top: none;
-        }
-        .bl-modal-person-name {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin-bottom: 4px;
-        }
-        .bl-modal-person-meta {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-        }
-        .bl-modal-cta {
+
+        /* ── Plan another trip button ─────────────────── */
+        .plan-another-btn {
+            display: block;
             width: 100%;
-            padding: 16px;
-            background: var(--bl-color-primary);
-            color: white;
+            box-sizing: border-box;
+            padding: 13px 20px;
+            background: #3D2A1E;
+            color: #fff;
             border: none;
-            border-radius: 12px;
-            font-size: 16px;
+            border-radius: 10px;
+            font-size: 0.92rem;
             font-weight: 600;
+            text-align: center;
+            text-decoration: none;
+            margin-top: 16px;
             cursor: pointer;
         }
-        .bl-modal-mountain-group {
+
+        /* ── Sub-section labels (invites, requested) ─── */
+        .sub-section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--bl-color-text-muted);
+            margin: 20px 0 4px 0;
+        }
+        .secondary-action-inline {
+            font-size: 0.83rem;
+            font-weight: 500;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+
+        /* ── Ideas tab: empty states ─────────────────── */
+        .ideas-empty-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--bl-color-text-muted);
+            margin: 4px 0 12px 0;
+        }
+        .ideas-white-card {
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: 14px;
+            padding: 18px 20px;
+        }
+        .ideas-white-headline {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 6px 0;
+        }
+        .ideas-white-cta {
+            display: inline-block;
+            background: var(--bl-color-primary);
+            color: #fff;
+            border-radius: 8px;
+            padding: 9px 18px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-decoration: none;
+            margin-top: 14px;
+        }
+        .ideas-text-link {
+            display: block;
+            font-size: 0.83rem;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+            margin-top: 10px;
+        }
+
+        /* ── Ideas tab: populated state ──────────────── */
+        .ideas-best-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #1B8A56;
+            margin: 4px 0 12px 0;
+        }
+        .ideas-overlap-card {
+            background: #F0FBF4;
+            border: 1px solid #A8DDB9;
+            border-radius: 14px;
+            padding: 20px;
             margin-bottom: 20px;
         }
-        .bl-modal-mountain-group:last-child {
-            margin-bottom: 0;
+        .ideas-overlap-headline {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #1B6B3A;
+            margin: 0 0 4px 0;
+            line-height: 1.3;
         }
-        .bl-modal-mountain-name {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin-bottom: 6px;
-        }
-        .bl-modal-person-inline {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-            padding: 4px 0 4px 12px;
-            line-height: 1.4;
-        }
-
-        .wishlist-card {
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: 10px;
-            padding: 12px 16px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .wishlist-card-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .wishlist-card-text {
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: var(--bl-color-text);
+        .ideas-overlap-sub {
+            font-size: 0.83rem;
+            color: #2D7A50;
             margin: 0;
         }
-
-        .new-trip-card {
-            display: block;
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: 10px;
-            padding: 12px 16px;
-            margin-bottom: 8px;
-            text-decoration: none;
-            color: inherit;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .new-trip-card-title {
-            font-size: 15px;
+        .ideas-overlap-cta {
+            display: inline-block;
+            background: #22A86A;
+            color: #fff;
+            border-radius: 8px;
+            padding: 9px 18px;
+            font-size: 0.88rem;
             font-weight: 600;
-            color: var(--bl-color-primary);
+            text-decoration: none;
+            margin-top: 16px;
+        }
+        .ideas-other-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--bl-color-text-muted);
             margin: 0 0 4px 0;
         }
-        .new-trip-card-subtext {
-            font-size: 14px;
+        .ideas-other-row {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            font-size: 0.88rem;
             color: var(--bl-color-text-muted);
+        }
+        .ideas-other-row:first-of-type {
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+        .ideas-see-all {
+            display: block;
+            font-size: 0.82rem;
+            color: var(--bl-color-text-muted);
+            text-decoration: none;
+            margin-top: 14px;
+            text-align: center;
+        }
+
+        /* ── Past list (muted) ───────────────────────── */
+        .past-row {
+            display: flex;
+            align-items: center;
+            padding: 13px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+        .past-row:first-child {
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+        .past-row-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .past-row-dest {
+            font-size: 0.92rem;
+            font-weight: 500;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 2px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .past-row-dates {
+            font-size: 0.82rem;
+            color: var(--bl-color-text-muted);
+            opacity: 0.75;
+            margin: 0 0 2px 0;
+        }
+        .past-row-people {
+            font-size: 0.78rem;
+            color: var(--bl-color-text-muted);
+            opacity: 0.6;
             margin: 0;
         }
     </style>
 </head>
 <body>
-    <div class="page-container" style="padding: 16px 16px 88px;">
-        <div class="bl-header">My Trips</div>
-        {% if user %}
-        <a href="{{ url_for('profile') }}" class="compact-profile-card">
-            <div class="compact-profile-content">
-                <div class="compact-profile-name">{{ user.first_name }}{% if user.last_name %} {{ user.last_name }}{% endif %}</div>
-                {% set identity = user|identity_line %}
-                {% if identity %}
-                <div class="compact-profile-identity">{{ identity }}</div>
-                {% endif %}
-                <div class="compact-profile-link">View profile →</div>
-            </div>
-            <span class="compact-profile-chevron">›</span>
-        </a>
-        {% endif %}
+    <div class="page-container" style="padding: 20px 16px 88px;">
 
+        <!-- Tab bar — underline style, no pills -->
         {% set ns = namespace(invite_count=0) %}
-        {% if invited_trips %}
-            {% for trip in invited_trips %}
-                {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
-                    {% set ns.invite_count = ns.invite_count + 1 %}
-                {% endif %}
-            {% endfor %}
-        {% endif %}
+        {% for trip in (invited_trips or []) %}
+            {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
+                {% set ns.invite_count = ns.invite_count + 1 %}
+            {% endif %}
+        {% endfor %}
 
-        <div class="segmented-control">
-            <button type="button" class="segment-btn active" data-segment="upcoming">
-                Upcoming{% if ns.invite_count > 0 %}<span class="segment-badge">{{ ns.invite_count }}</span>{% endif %}
+        <div class="tab-bar">
+            <button type="button" class="tab-btn active" data-tab="upcoming">
+                Upcoming{% if ns.invite_count > 0 %}<span class="tab-badge">{{ ns.invite_count }}</span>{% endif %}
             </button>
-            <button type="button" class="segment-btn" data-segment="ideas">Ideas</button>
-            <button type="button" class="segment-btn" data-segment="past">Past</button>
+            <button type="button" class="tab-btn" data-tab="ideas">Ideas</button>
+            <button type="button" class="tab-btn" data-tab="past">Past</button>
         </div>
 
+        <!-- ── UPCOMING TAB ─────────────────────────────── -->
         <div id="segment-upcoming" class="segment-content active">
-            {% set all_my_trips = (upcoming_trips or []) + (accepted_guest_trips or []) %}
-            {% if all_my_trips|length > 0 %}
-                <p class="section-label">Confirmed Trips</p>
-                <div class="trips-list">
-                    {% for trip in all_my_trips|sort(attribute='start_date') %}
-                    {% if trip and trip.id %}
-                    <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                        <div class="trip-card">
-                            <div class="trip-card-content">
-                                <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% elif trip.mountain %}{{ trip.mountain }}{% else %}Mountain TBD{% endif %}{% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-                                {% set pass_brands = trip.resort|mountain_passes if trip.resort else '' %}
-                                {% set accepted_count = trip.accepted_count %}
-                                <p class="trip-card-line2">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}{% if pass_brands %} · {{ pass_brands }}{% endif %}{% if accepted_count > 1 %} · {{ accepted_count }} going{% endif %}</p>
-                            </div>
-                            <span class="trip-card-action">View</span>
+            {% set all_upcoming = ((upcoming_trips or []) + (accepted_guest_trips or []))|sort(attribute='start_date') %}
+
+            {% if all_upcoming|length > 0 %}
+                <div class="trips-list-header">
+                    <p class="trips-list-title">Your trips</p>
+                    <p class="trips-list-count">{{ all_upcoming|length }} upcoming</p>
+                </div>
+
+                {% for trip in all_upcoming[:3] %}
+                    {% set resort = trip.resort %}
+                    {% set mountain_name = resort.name if resort else (trip.mountain or 'Mountain TBD') %}
+                    {% set state_abbr = resort|state_abbrev if resort else trip.state %}
+                    {% set people = trip.accepted_count %}
+                    <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" class="trip-row">
+                        <div class="trip-row-content">
+                            <p class="trip-row-dest">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+                            <p class="trip-row-dates">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
+                            {% if people and people > 1 %}
+                            <p class="trip-row-people">{{ people }} going</p>
+                            {% endif %}
                         </div>
+                        <span class="trip-row-cta">View →</span>
                     </a>
-                    {% endif %}
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="empty-state-container" style="padding-top: 32px;">
-                    <p class="empty-state-title">No upcoming trips yet</p>
-                    <p class="empty-state-desc">Head to the Ideas tab to start planning</p>
-                </div>
-            {% endif %}
-
-            <a href="{{ url_for('add_trip') }}" class="new-trip-card" style="margin-top: 16px;">
-                <p class="new-trip-card-title">Plan a new trip</p>
-                <p class="new-trip-card-subtext">Choose dates, a mountain, and who's coming</p>
-            </a>
-
-            {% if invited_trips %}
-                {% set visible_invites = [] %}
-                {% for trip in invited_trips %}
-                    {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
-                        {% set _ = visible_invites.append(trip) %}
-                    {% endif %}
                 {% endfor %}
-                {% if visible_invites %}
-                <p class="section-label">Pending Invites</p>
-                <div class="trips-list">
-                    {% for trip in visible_invites %}
-                    <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                        <div class="trip-card">
-                            <div class="trip-card-content">
-                                <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}{% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-                                {% set pass_brands = trip.resort|mountain_passes if trip.resort else '' %}
-                                {% set accepted_count = trip.accepted_count %}
-                                <p class="trip-card-line2">{{ format_trip_dates(trip) }}{% if pass_brands %} · {{ pass_brands }}{% endif %}{% if accepted_count > 1 %} · {{ accepted_count }} going{% endif %}</p>
-                            </div>
-                            <span class="secondary-action">View</span>
-                        </div>
-                    </a>
-                    {% endfor %}
+
+                <a href="{{ url_for('add_trip') }}" class="plan-another-btn">Plan another trip →</a>
+
+            {% else %}
+                <!-- Empty state -->
+                <div class="trips-hero-card">
+                    <p class="trips-hero-headline">Plan your first trip</p>
+                    <p class="trips-hero-sub">Pick a mountain, choose your dates, and invite friends to join you</p>
+                    <a href="{{ url_for('add_trip') }}" class="trips-hero-cta">Plan a trip →</a>
                 </div>
-                {% endif %}
             {% endif %}
 
+            <!-- Pending invites -->
+            {% set visible_invites = [] %}
+            {% for trip in (invited_trips or []) %}
+                {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
+                    {% set _ = visible_invites.append(trip) %}
+                {% endif %}
+            {% endfor %}
+            {% if visible_invites %}
+            <p class="sub-section-label">Pending Invites</p>
+            {% for trip in visible_invites %}
+                {% set resort = trip.resort %}
+                {% set mountain_name = resort.name if resort else (trip.mountain or 'Mountain TBD') %}
+                {% set state_abbr = resort|state_abbrev if resort else trip.state %}
+                <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" class="trip-row">
+                    <div class="trip-row-content">
+                        <p class="trip-row-dest">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+                        <p class="trip-row-dates">{{ format_trip_dates(trip) }}</p>
+                    </div>
+                    <span class="secondary-action-inline">View invite →</span>
+                </a>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Requested trips -->
             {% if requested_trips %}
-            <p class="section-label">Requested</p>
-            <div class="trips-list">
-                {% for req in requested_trips %}
-                <div class="trip-card" onclick="window.location.href='{{ url_for('friend_trip_details', trip_id=req.trip.id) }}'" style="cursor: pointer;">
-                    <div class="trip-card-content">
-                        <p class="trip-card-line1">{% if req.trip.resort %}{{ req.trip.resort.name }}{% else %}{{ req.trip.mountain }}{% endif %} · {{ format_trip_dates(req.trip) }}</p>
-                        <p class="trip-card-line2">
-                            {{ req.owner.first_name }} {{ req.owner.last_name or '' }} · 
-                            <span style="font-weight: 600; color: {% if req.status == 'Pending' %}var(--bl-color-primary){% elif req.status == 'Accepted' %}#28a745{% else %}var(--bl-color-text-muted){% endif %};">
-                                {{ req.status }}
-                            </span>
-                        </p>
+            <p class="sub-section-label">Requested</p>
+            {% for req in requested_trips %}
+                <div class="trip-row" style="cursor: pointer;" onclick="window.location.href='{{ url_for('friend_trip_details', trip_id=req.trip.id) }}'">
+                    <div class="trip-row-content">
+                        <p class="trip-row-dest">{% if req.trip.resort %}{{ req.trip.resort.name }}{% else %}{{ req.trip.mountain }}{% endif %}</p>
+                        <p class="trip-row-dates">{{ format_trip_dates(req.trip) }} · {{ req.owner.first_name }} {{ req.owner.last_name or '' }}</p>
+                        <p class="trip-row-people" style="color: {% if req.status == 'Pending' %}var(--bl-color-primary){% elif req.status == 'Accepted' %}#1B8A56{% else %}var(--bl-color-text-muted){% endif %};">{{ req.status }}</p>
                     </div>
                     {% if req.status == 'Pending' %}
-                    <form action="{{ url_for('cancel_join_request', request_id=req.invitation_id) }}" method="POST" onsubmit="return confirm('Cancel request?');" onclick="event.stopPropagation();">
-                        <button type="submit" class="secondary-action" style="background: none; border: none; padding: 0; cursor: pointer;">Cancel request</button>
+                    <form action="{{ url_for('cancel_join_request', request_id=req.invitation_id) }}" method="POST"
+                          onsubmit="return confirm('Cancel request?');" onclick="event.stopPropagation();">
+                        <button type="submit" class="secondary-action-inline" style="background: none; border: none; padding: 0; cursor: pointer;">Cancel</button>
                     </form>
                     {% endif %}
                 </div>
-                {% endfor %}
-            </div>
+            {% endfor %}
             {% endif %}
         </div>
 
+        <!-- ── IDEAS TAB ──────────────────────────────────── -->
         <div id="segment-ideas" class="segment-content">
-            {% if (not trip_ideas) and (not wishlist_overlaps) %}
-                <div class="empty-state-container" style="padding-top: 32px;">
-                    <p class="empty-state-title">No trip ideas yet</p>
-                    
-                    {% if not user_open_dates or user_open_dates|length == 0 %}
-                        <p class="empty-state-desc" style="margin-bottom: 24px;">Add your open availability to see when your friends are also free.</p>
-                        <a href="{{ url_for('add_open_dates') }}" class="bl-modal-cta" style="display: block; text-decoration: none; text-align: center;">Set my availability</a>
-                    {% elif not user.wish_list_resorts %}
-                        <p class="empty-state-desc" style="margin-bottom: 24px;">Add mountains to your wishlist to find friends who want to ski the same places.</p>
-                        <a href="{{ url_for('settings_wish_list') }}" class="bl-modal-cta" style="display: block; text-decoration: none; text-align: center;">Add wishlist destinations</a>
-                    {% else %}
-                        <p class="empty-state-desc">We'll show you shared availability and wishlist matches once your friends add their info.</p>
-                    {% endif %}
-                </div>
-            {% else %}
-                <p class="section-label">My Availability</p>
-                <div class="wishlist-card" style="margin-bottom: 8px; cursor: default;">
-                    <div class="wishlist-card-row">
-                        <p class="wishlist-card-text">
-                            Open availability · {% if user_open_dates and user_open_dates|length > 0 %}{{ user_open_dates|length }} day{% if user_open_dates|length != 1 %}s{% endif %}{% else %}0 days{% endif %}
-                        </p>
-                        <a href="{{ url_for('add_open_dates') }}" class="secondary-action">Edit</a>
-                    </div>
+            {% if not user_open_dates or user_open_dates|length == 0 %}
+                <!-- State A: No availability set -->
+                <p class="ideas-empty-label">No Ideas Yet</p>
+                <div class="trips-hero-card">
+                    <p class="trips-hero-headline">Add your availability</p>
+                    <p class="trips-hero-sub">Mark the days you're free and we'll show you when friends are available too</p>
+                    <a href="{{ url_for('add_open_dates') }}" class="trips-hero-cta">Add availability →</a>
                 </div>
 
-                {% if wishlist_overlaps and wishlist_overlaps|length > 0 %}
-                    <div class="wishlist-card" onclick='openWishlistModal({{ wishlist_overlaps|tojson }})'>
-                        <div class="wishlist-card-row">
-                            <p class="wishlist-card-text">Wishlist · {{ wishlist_overlaps|length }} match{% if wishlist_overlaps|length != 1 %}es{% endif %}</p>
-                            <span class="secondary-action">View</span>
+            {% elif not trip_ideas %}
+                <!-- State B: Has availability, no friend overlaps -->
+                <p class="ideas-empty-label">No Overlaps Yet</p>
+                <div class="ideas-white-card">
+                    <p class="ideas-white-headline">Your friends aren't free yet</p>
+                    <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">Add more dates or invite more friends to find a match.</p>
+                    <a href="{{ url_for('add_open_dates') }}" class="ideas-white-cta">Expand availability</a>
+                    <a href="{{ url_for('friends') }}" class="ideas-text-link">Invite more friends</a>
+                </div>
+
+            {% else %}
+                <!-- Populated: Best overlap + quiet list -->
+                {% set best = trip_ideas[0] %}
+                {% if best.overlapping_people|length == 1 %}
+                    {% set best_headline = "You and " + best.overlapping_people[0].first_name + " are free " + best.display_date %}
+                {% else %}
+                    {% set best_headline = "You and " + (best.overlapping_people|length)|string + " friends are free " + best.display_date %}
+                {% endif %}
+
+                <p class="ideas-best-label">Best Overlap</p>
+                <div class="ideas-overlap-card">
+                    <p class="ideas-overlap-headline">{{ best_headline }}</p>
+                    <p class="ideas-overlap-sub">Your schedules line up — make it a trip</p>
+                    <a href="{{ url_for('add_trip') }}" class="ideas-overlap-cta">Plan something together →</a>
+                </div>
+
+                {% if trip_ideas|length > 1 %}
+                <p class="ideas-other-label">Other overlaps</p>
+                {% for idea in trip_ideas[1:4] %}
+                    {% if idea.overlapping_people|length == 1 %}
+                        {% set row_label = "You and " + idea.overlapping_people[0].first_name + " · " + idea.display_date %}
+                    {% else %}
+                        {% set row_label = "You and " + (idea.overlapping_people|length)|string + " friends · " + idea.display_date %}
+                    {% endif %}
+                    <div class="ideas-other-row">{{ row_label }}</div>
+                {% endfor %}
+                {% endif %}
+
+                <a href="{{ url_for('add_open_dates') }}" class="ideas-see-all">See all availability →</a>
+            {% endif %}
+        </div>
+
+        <!-- ── PAST TAB ───────────────────────────────────── -->
+        <div id="segment-past" class="segment-content">
+            {% if past_trips %}
+                <div class="trips-list-header" style="margin-bottom: 2px;">
+                    <p class="trips-list-title">Trips taken</p>
+                    <p class="trips-list-count">{{ past_trips|length }} total</p>
+                </div>
+
+                {% for trip in past_trips %}
+                {% if trip and trip.id %}
+                    {% set resort = trip.resort %}
+                    {% set mountain_name = resort.name if resort else (trip.mountain or 'Mountain TBD') %}
+                    {% set state_abbr = resort|state_abbrev if resort else trip.state %}
+                    {% set people = trip.accepted_count %}
+                    <div class="past-row">
+                        <div class="past-row-content">
+                            <p class="past-row-dest">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+                            <p class="past-row-dates">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
+                            {% if people and people > 1 %}
+                            <p class="past-row-people">{{ people }} went</p>
+                            {% endif %}
                         </div>
                     </div>
                 {% endif %}
-                
-                <h2 class="section-title">Trip Ideas</h2>
-                <div class="ideas-list">
-                    {% if trip_ideas %}
-                        {% for idea in trip_ideas[:6] %}
-                            <div class="idea-row" onclick='openIdeaModal({{ idea|tojson }})'>
-                                <div style="flex: 1; min-width: 0;">
-                                    <div class="trip-card-line1">{{ idea.display_date }}</div>
-                                    <div class="trip-card-line2">You and {% if idea.overlapping_people|length == 1 %}{{ idea.overlapping_people[0].first_name }} {{ idea.overlapping_people[0].last_name }}{% else %}{{ idea.overlapping_people|length }} friends{% endif %} are free</div>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="inline-empty-message">No shared availability matches yet.</div>
-                    {% endif %}
+                {% endfor %}
+
+            {% else %}
+                <div style="padding-top: 40px; text-align: center;">
+                    <p style="font-size: 1rem; font-weight: 600; color: var(--bl-color-text); margin: 0 0 6px 0;">No past trips yet</p>
+                    <p style="font-size: 0.88rem; color: var(--bl-color-text-muted); margin: 0;">Your completed trips will appear here</p>
                 </div>
             {% endif %}
         </div>
 
-        <div id="segment-past" class="segment-content">
-            {% if past_trips %}
-                <p class="section-label">Completed Trips</p>
-                <div class="trips-list">
-                    {% for trip in past_trips %}
-                    {% if trip and trip.id %}
-                    <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                        <div class="trip-card">
-                            <div class="trip-card-content">
-                                <p class="trip-card-line1">{% if trip.resort and trip.resort.name %}{{ trip.resort.name }}{% elif trip.mountain %}{{ trip.mountain }}{% else %}Mountain TBD{% endif %}{% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-                                {% set pass_brands = trip.resort|mountain_passes if trip.resort else '' %}
-                                {% set accepted_count = trip.accepted_count %}
-                                <p class="trip-card-line2">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}{% if pass_brands %} · {{ pass_brands }}{% endif %}{% if accepted_count > 1 %} · {{ accepted_count }} went{% endif %}</p>
-                            </div>
-                            <span class="trip-card-action">View</span>
-                        </div>
-                    </a>
-                    {% endif %}
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="empty-state-container" style="padding-top: 32px;">
-                    <p class="empty-state-title">No past trips yet</p>
-                    <p class="empty-state-desc">Your completed trips will appear here.</p>
-                </div>
-            {% endif %}
-        </div>
     </div>
 
-    <div id="base-lodge-modal-root"></div>
     {% include 'components/bottom_nav.html' %}
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const STORAGE_KEY = 'my_trips_active_tab';
-            const segmentBtns = document.querySelectorAll('.segment-btn');
-            const contents = document.querySelectorAll('.segment-content');
+    document.addEventListener('DOMContentLoaded', function() {
+        var STORAGE_KEY = 'my_trips_active_tab';
+        var tabBtns = document.querySelectorAll('.tab-btn');
+        var contents = document.querySelectorAll('.segment-content');
 
-            function selectTab(tabName, shouldPersist = true) {
-                segmentBtns.forEach(b => b.classList.remove('active'));
-                contents.forEach(c => b = c.classList.remove('active'));
-                const btn = document.querySelector(`[data-segment="${tabName}"]`);
-                const content = document.getElementById('segment-' + tabName);
-                if (btn && content) {
-                    btn.classList.add('active');
-                    content.classList.add('active');
-                    if (shouldPersist) sessionStorage.setItem(STORAGE_KEY, tabName);
-                }
+        function selectTab(tabName, persist) {
+            tabBtns.forEach(function(b) { b.classList.remove('active'); });
+            contents.forEach(function(c) { c.classList.remove('active'); });
+            var btn = document.querySelector('[data-tab="' + tabName + '"]');
+            var content = document.getElementById('segment-' + tabName);
+            if (btn && content) {
+                btn.classList.add('active');
+                content.classList.add('active');
+                if (persist !== false) sessionStorage.setItem(STORAGE_KEY, tabName);
             }
+        }
 
-            segmentBtns.forEach(btn => btn.addEventListener('click', function() {
-                selectTab(this.getAttribute('data-segment'));
-            }));
-
-            const savedTab = sessionStorage.getItem(STORAGE_KEY);
-            let tab = new URLSearchParams(window.location.search).get('tab');
-            if (tab === 'planning') tab = 'ideas';
-            if (tab === 'ideas' || tab === 'past') selectTab(tab);
-            else if (savedTab) selectTab(savedTab, false);
-
-            window.BaseLodgeModal = {
-                root: document.getElementById('base-lodge-modal-root'),
-                isOpen: false,
-                startY: 0,
-                currentY: 0,
-                isDragging: false,
-
-                open: function(config) {
-                    this.root.innerHTML = `
-                        <div class="base-lodge-modal-backdrop" onclick="BaseLodgeModal.close()"></div>
-                        <div class="base-lodge-modal">
-                            <div class="bl-modal-handle-container" onmousedown="BaseLodgeModal.startDrag(event)" ontouchstart="BaseLodgeModal.startDrag(event)">
-                                <div class="bl-modal-handle"></div>
-                            </div>
-                            <div class="bl-modal-header">${config.header || ''}</div>
-                            <div class="bl-modal-body base-lodge-modal-body">${config.body || ''}</div>
-                            <div class="bl-modal-footer">${config.footer || ''}</div>
-                        </div>
-                    `;
-                    document.body.style.overflow = 'hidden';
-                    this.isOpen = true;
-                    if (!this._escListener) {
-                        this._escListener = (e) => { if (e.key === 'Escape' && this.isOpen) this.close(); };
-                        window.addEventListener('keydown', this._escListener);
-                    }
-                },
-                close: function() {
-                    this.root.innerHTML = '';
-                    document.body.style.overflow = '';
-                    this.isOpen = false;
-                },
-                startDrag: function(e) {
-                    this.isDragging = true;
-                    this.startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-                    const onDrag = (e) => this.drag(e);
-                    const onEnd = () => {
-                        this.endDrag();
-                        document.removeEventListener('mousemove', onDrag);
-                        document.removeEventListener('touchmove', onDrag);
-                        document.removeEventListener('mouseup', onEnd);
-                        document.removeEventListener('touchend', onEnd);
-                    };
-                    document.addEventListener('mousemove', onDrag);
-                    document.addEventListener('touchmove', onDrag, { passive: false });
-                    document.addEventListener('mouseup', onEnd);
-                    document.addEventListener('touchend', onEnd);
-                },
-                drag: function(e) {
-                    if (!this.isDragging) return;
-                    if (e.type === 'touchmove') e.preventDefault();
-                    const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-                    const deltaY = clientY - this.startY;
-                    if (deltaY > 0) {
-                        const sheet = this.root.querySelector('.base-lodge-modal');
-                        if (sheet) { sheet.style.transform = `translateY(${deltaY}px)`; this.currentY = deltaY; }
-                    }
-                },
-                endDrag: function() {
-                    this.isDragging = false;
-                    if (this.currentY > 100) this.close();
-                    else { const sheet = this.root.querySelector('.base-lodge-modal'); if (sheet) sheet.style.transform = 'translateY(0)'; }
-                    this.currentY = 0;
-                }
-            };
-
-            window.openIdeaModal = function(idea) {
-                if (!idea) return;
-                window.currentIdea = idea;
-                let bodyHtml = '<div class="bl-modal-people-list">';
-                idea.overlapping_people.forEach(p => {
-                    bodyHtml += `<div class="bl-modal-person-row"><div class="bl-modal-person-name">${p.first_name} ${p.last_name}</div><div class="bl-modal-person-meta">${p.rider_type || 'Rider'} · ${p.skill_level || 'Skill'} · ${p.pass_type || 'No Pass'}</div></div>`;
-                });
-                bodyHtml += '</div>';
-                BaseLodgeModal.open({
-                    header: `<div class="bl-modal-title">Trip idea</div>`,
-                    body: bodyHtml,
-                    footer: `<button class="bl-modal-cta" onclick="planTrip()">Plan this trip</button>`
-                });
-            };
-
-            window.planTrip = function() {
-                if (!window.currentIdea) return;
-                BaseLodgeModal.close();
-                window.location.href = `{{ url_for('add_trip') }}?start_date=${window.currentIdea.date_str}&end_date=${window.currentIdea.date_str}`;
-            };
-
-            window.openWishlistModal = function(overlaps) {
-                let bodyHtml = '';
-                overlaps.forEach(m => {
-                    if (!m.overlapping_people || !m.overlapping_people.length) return;
-                    bodyHtml += `<div class="bl-modal-mountain-group"><div class="bl-modal-mountain-name">${m.resort_name}</div>`;
-                    m.overlapping_people.forEach(p => {
-                        const parts = [];
-                        parts.push(`${p.first_name || ''}${p.last_name ? ' ' + p.last_name : ''}`.trim());
-                        if (p.rider_type) parts.push(p.rider_type);
-                        if (p.skill_level) parts.push(p.skill_level);
-                        if (p.pass_type) parts.push(p.pass_type);
-                        bodyHtml += `<div class="bl-modal-person-inline">${parts.join(' · ')}</div>`;
-                    });
-                    bodyHtml += `</div>`;
-                });
-                BaseLodgeModal.open({ header: `<div class="bl-modal-title">Mountains on your wishlist</div>`, body: bodyHtml });
-            };
+        tabBtns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                selectTab(this.getAttribute('data-tab'));
+            });
         });
+
+        var urlTab = new URLSearchParams(window.location.search).get('tab');
+        if (urlTab === 'planning') urlTab = 'ideas';
+        if (urlTab === 'ideas' || urlTab === 'past') {
+            selectTab(urlTab);
+        } else {
+            var saved = sessionStorage.getItem(STORAGE_KEY);
+            if (saved && saved !== 'upcoming') selectTab(saved, false);
+        }
+    });
     </script>
 </body>
 </html>
