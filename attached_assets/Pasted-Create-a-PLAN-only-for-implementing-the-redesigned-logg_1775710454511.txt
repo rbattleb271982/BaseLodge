@@ -1,0 +1,158 @@
+Create a PLAN only for implementing the redesigned logged-in Home screen for BaseLodge. Do not code yet. Do not make any file changes yet. I want a written implementation plan first.
+
+This plan must be based on the existing BaseLodge codebase and current design direction we already finalized.
+
+OBJECTIVE
+
+Redesign the logged-in Home screen so it feels premium, calm, useful, and mobile-first.
+
+The structure is now:
+
+1. Conditional trip invite banner at the top
+2. Identity header
+3. Stable hero card
+4. One secondary card max
+5. One subtle summary row max
+
+Do not propose new sections, new tabs, or a totally different layout.
+
+FINAL PRODUCT LOGIC
+
+1. BANNER = TRIP INVITE ONLY
+- The top interruptive banner is reserved only for pending trip invites
+- Not for connect invites
+- If multiple trip invites exist, show only one
+- Show the soonest-dated trip invite
+- Include a subtle count if more exist, like “1 of 2 trip invites” or “+1 more invite”
+- Banner should be compact and not card-like
+
+2. HERO CARD = ALWAYS STABLE
+- If user has an upcoming trip, show the soonest upcoming trip
+- This includes trips the user created or joined
+- If user has no upcoming trip, show an empty-state version of the same hero card slot
+
+3. SECONDARY CARD = ONE SLOT ONLY
+Priority should be:
+- pending connect invite
+- date overlap
+- friend created trip
+- friend joined trip
+
+4. SUMMARY ROW = OPTIONAL
+- Only show if there is more additional activity beyond the secondary card
+- Must be subtle, text-only, no card styling
+
+IMPORTANT PRODUCT RULES
+
+- Users cannot browse or discover strangers on BaseLodge
+- They can only invite friends
+- Connect invites are different from trip invites
+- Trip invites are time-sensitive and should own the banner
+- Connect invites should live in the secondary card slot, not the banner
+- Do not stack multiple banners
+- Do not stack multiple activity cards
+- Do not turn Home into a feed
+
+EMPTY STATE HERO CONTENT
+
+If no upcoming trip exists, hero card should say:
+
+Headline:
+Plan your first trip
+
+Subtext:
+Pick a mountain, choose your dates, and invite friends to join you
+
+Primary CTA:
+Plan a trip →
+
+Secondary text link:
+Invite friends to BaseLodge to plan together
+
+DESIGN / UI CONSTRAINTS
+
+Use the existing BaseLodge design system and current styling direction already in the codebase.
+
+Color and styling requirements:
+- Do not use black for the invite banner
+- Use the app’s existing warm neutral / premium color family
+- Hero card should use the existing warm brown family already established in the product
+- White cards for secondary content
+- Green accent for overlap
+- Purple accent for friend activity
+- Deep red should be used sparingly and not as a large surface color unless already intentionally defined in the current system
+
+Spacing and hierarchy requirements:
+- Invite banner should be compact and clearly shorter than the hero card
+- Hero card should be the tallest element, but not oversized
+- Empty-state hero should feel like the same component as the populated hero
+- Secondary card should be lighter and slightly shorter than hero
+- Summary row should sit close to the secondary card and feel subtle
+- Overall screen should feel tight, intentional, and premium, not airy or cartoony
+
+WHAT I WANT IN THE PLAN
+
+Please inspect the current codebase and then give me a detailed implementation plan that includes:
+
+1. Current-state audit
+- Which route currently powers the logged-in Home screen
+- Which template currently renders it
+- What data is already being computed for Home
+- What existing models and relationships will be needed for:
+  - upcoming trips
+  - trip invites
+  - connect invites
+  - overlaps
+  - friend activity
+- What helper methods or properties already exist that can be reused
+
+2. Data logic plan
+- How to determine the single upcoming “next trip”
+- How to determine the primary trip invite banner
+- How to determine whether more trip invites exist
+- How to determine the secondary card content using the agreed priority
+- How to determine the optional summary row
+- Any ambiguities or missing data structures you find in the current code
+
+3. Template/UI plan
+- What exact sections in the template need to be rewritten
+- Whether the current Home template should be refactored in place or partially replaced
+- How to structure the banner, hero, secondary card, and summary row cleanly
+- How to preserve mobile-first behavior
+
+4. Styling/CSS plan
+- Which CSS files or sections currently control Home styling
+- Whether styles are inline, template-scoped, or centralized
+- What needs to be changed to match the new hierarchy, proportions, and card heights
+- Call out any current color values that conflict with the approved direction, especially if the banner is using black or near-black
+
+5. Implementation order
+Give me the safest sequence of work, step by step, for example:
+- backend logic first
+- then template structure
+- then CSS refinement
+- then QA
+
+6. QA checklist
+I want a specific QA list for:
+- user with one trip invite
+- user with multiple trip invites
+- user with connect invite only
+- user with both trip invite and connect invite
+- user with next trip only
+- user with no trip and no activity
+- mobile layout behavior
+- banner height and card height consistency
+
+IMPORTANT INSTRUCTIONS
+
+- PLAN only. Do not code yet.
+- Do not use checkpoints unless I explicitly ask.
+- Do not over-engineer.
+- Reuse existing code and patterns where possible.
+- Keep the plan grounded in the real codebase, not hypothetical architecture.
+- If the codebase already has partial logic for any of this, call it out clearly.
+- If there are conflicts between current implementation and the desired product logic, identify them explicitly.
+
+End with:
+A concise recommendation on whether this should be done in one pass or split into 2 phases.

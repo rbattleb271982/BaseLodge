@@ -1,0 +1,238 @@
+Implement the redesigned logged-in Home screen for BaseLodge.
+
+Do the implementation now. Do not just plan. Do not use checkpoints unless I explicitly ask. Keep this grounded in the existing codebase and reuse current patterns where possible.
+
+OBJECTIVE
+
+Redesign the logged-in Home screen so it feels premium, calm, useful, and mobile-first.
+
+Final structure:
+1. Conditional trip invite banner at the top
+2. Identity header
+3. Stable hero card
+4. One secondary card max
+5. No feed behavior
+6. No stacked cards
+
+FINAL PRODUCT LOGIC
+
+1. BANNER = TRIP INVITE ONLY
+- The top interruptive banner is reserved only for pending trip invites
+- Not for connect invites
+- If multiple trip invites exist, show only one
+- Show the soonest-dated trip invite
+- Show count copy when more exist:
+  - Example: “2 invites waiting”
+- Banner actions must work inline:
+  - Accept
+  - Decline
+- Accept / Decline should update without navigating away if possible
+- Banner should disappear/update after action
+- Banner should feel compact and clearly shorter than the hero card
+- Banner should NOT look like a full card
+
+2. HERO CARD = ALWAYS STABLE
+- If user has an upcoming trip, show the soonest upcoming trip
+- This includes trips the user created or joined
+- If user has no upcoming trip, show the empty-state version of the same hero slot
+
+3. SECONDARY CARD = ONE SLOT ONLY
+Priority order:
+1. pending connect invite
+2. date overlap
+3. friend created trip
+
+Do NOT implement friend-joined trip logic right now.
+
+4. NO SUMMARY ROW FOR THIS PASS
+- Do not build the optional summary row yet
+- Keep the screen simpler for this first implementation
+
+INTERACTION DECISIONS
+
+1. Trip invite banner actions
+- Accept / Decline should happen inline if possible
+- Do not redirect user to /my-trips just to respond
+
+2. Connect invite secondary card
+- Main CTA should be immediate Accept
+- No need to add a View Profile CTA in this pass
+
+3. Overlap CTA
+- Goes to the existing overlaps destination:
+  /friends?tab=overlaps
+
+4. Friend-created trip CTA
+- Goes to the friend trip detail page / the most direct existing trip detail destination already used in the codebase
+- Reuse existing route patterns if already available
+
+5. Empty-state CTA
+- “Plan a trip →” goes to the existing add trip flow
+
+EMPTY STATE HERO CONTENT
+
+If no upcoming trip exists, hero card must say:
+
+Headline:
+Plan your first trip
+
+Subtext:
+Pick a mountain, choose your dates, and invite friends to join you
+
+Primary CTA:
+Plan a trip →
+
+Secondary text link:
+Invite friends to BaseLodge to plan together
+
+Users cannot browse/discover strangers on BaseLodge.
+Only invited friends can connect.
+Make sure the copy reflects that.
+
+VISUAL / DESIGN CONSTRAINTS
+
+This must follow the current BaseLodge premium design direction.
+
+Color rules:
+- Do NOT use black for the banner
+- Do NOT use loud red as a large surface color
+- Keep the hero card in the existing warm brown / maroon family already established in the product
+- Banner should use a lighter warm neutral / warm tinted surface so it reads as an interrupt without visually competing with the hero
+- Secondary content cards should be white
+- Overlap accent = green
+- Friend activity accent = purple
+- Deep red should be used sparingly, only if already intentionally part of the existing system, not as the main card/background color for this Home redesign
+
+Spacing / hierarchy rules:
+- Invite banner must be compact and clearly shorter than hero
+- Hero card should be the tallest element, but not oversized
+- Empty-state hero must feel like the same component as the populated hero
+- Secondary card should feel lighter and slightly shorter than hero
+- Overall screen should feel tight, intentional, and premium
+- Avoid airy, oversized spacing
+- Avoid cartoony styling
+- No gradients
+- No playful UI
+
+IMPLEMENTATION SCOPE
+
+A. BACKEND / ROUTE LOGIC
+Inspect the current /home route and extend it to compute and pass:
+
+1. banner_invite
+- pending trip invite only
+- based on existing trip invite data structures in the codebase
+- choose the soonest active invite
+
+2. banner_invite_count
+- total pending trip invites for the user
+- use this to show “2 invites waiting” if count > 1
+
+3. secondary_card
+Build a single dict/object for the template based on this priority:
+- connect invite
+- overlap
+- friend created trip
+
+Do not compute or pass multiple secondary cards.
+
+Reuse existing logic where possible for:
+- next_trip
+- countdown
+- overlaps
+- friend ids / friend relationships
+- existing invite/status enums
+
+B. TEMPLATE
+Update the existing Home template in place.
+
+Top-to-bottom structure:
+1. conditional trip invite banner
+2. identity header
+3. hero card
+4. conditional secondary card
+
+Banner requirements:
+- compact strip above header
+- show inviter name, destination, dates if available
+- show count text if more than one invite exists
+- inline Accept / Decline controls
+- must not look like a floating card
+
+Hero requirements:
+- keep current structural role
+- populated and empty states must feel like the same component
+- use the required empty-state copy exactly
+
+Secondary card requirements:
+Switch by type:
+1. connect_invite
+   - copy tone: “[Name] wants to connect”
+   - CTA: Accept
+2. overlap
+   - overlap-focused copy
+   - CTA goes to /friends?tab=overlaps
+3. friend_trip
+   - friend-created trip copy
+   - CTA goes to the appropriate friend trip detail destination already supported in the app
+
+C. CSS / STYLING
+Use the current Home styling approach already used in the template/codebase.
+
+Required styling adjustments:
+- banner compact, warm-toned, non-black, non-card-like
+- hero card remains dominant and premium
+- hero should use warm brown/maroon family already established
+- secondary card white and lighter
+- overlap accent green
+- friend activity accent purple
+- tighten vertical spacing so nothing feels oversized
+- make banner noticeably shorter than hero
+- make empty-state hero visually consistent with populated hero
+
+If color values in current code conflict with this direction, replace them and call that out in your summary.
+
+D. QA
+After implementing, test these scenarios:
+
+1. User with one trip invite
+- banner visible
+- inline Accept / Decline works
+
+2. User with multiple trip invites
+- banner shows only one
+- count text says “X invites waiting”
+
+3. User with connect invite only
+- no banner
+- connect invite appears as secondary card
+
+4. User with both trip invite and connect invite
+- trip invite in banner
+- connect invite in secondary card
+
+5. User with next trip only
+- no banner
+- hero visible
+- no broken secondary card state
+
+6. User with no trip and no activity
+- empty-state hero shows exact required copy
+- no extra dead UI
+
+7. Mobile layout
+- banner compact
+- hero dominant
+- no overflow
+- spacing consistent
+
+OUTPUT FORMAT
+
+When done, report back with:
+1. What files you changed
+2. What route logic you added/changed
+3. How invite actions work inline
+4. Any assumptions you had to make
+5. Any color values you changed because they conflicted with the approved direction
+
+Do not finish until you have fully tested the Home screen states you can verify from the codebase and confirmed there are no template/render errors. Only use checkpoints if I explicitly say so.
