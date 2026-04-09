@@ -235,6 +235,42 @@
             text-decoration: none;
             white-space: nowrap;
         }
+
+        /* ── Stat row ────────────────────────────────── */
+        .stat-row {
+            display: flex;
+            align-items: center;
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: 12px;
+            padding: 12px 0;
+            margin-bottom: 14px;
+        }
+        .stat-row-tile {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        .stat-row-value {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--bl-color-text);
+            line-height: 1.2;
+        }
+        .stat-row-label {
+            font-size: 0.72rem;
+            color: var(--bl-color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        .stat-row-divider {
+            width: 1px;
+            height: 28px;
+            background: var(--bl-color-border-soft);
+            flex-shrink: 0;
+        }
     </style>
 </head>
 <body>
@@ -302,6 +338,9 @@
                 <a href="{{ url_for('add_trip') }}" class="hero-cta">Plan a trip →</a>
             </div>
         {% endif %}
+
+        <!-- Stat row -->
+        {% include 'components/stat_row.html' %}
 
         <!-- Secondary Card — one slot, type-driven -->
         {% if secondary_card %}

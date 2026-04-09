@@ -1,0 +1,27 @@
+{% set _has_upcoming = stat_upcoming and stat_upcoming > 0 %}
+{% set _has_mountains = stat_mountains and stat_mountains > 0 %}
+{% set _has_past = stat_past and stat_past > 0 %}
+{% if _has_upcoming or _has_mountains or _has_past %}
+<div class="stat-row">
+    {% if _has_upcoming %}
+    <div class="stat-row-tile">
+        <span class="stat-row-value">{{ stat_upcoming }}</span>
+        <span class="stat-row-label">Upcoming</span>
+    </div>
+    {% endif %}
+    {% if _has_mountains %}
+    {% if _has_upcoming %}<div class="stat-row-divider"></div>{% endif %}
+    <div class="stat-row-tile">
+        <span class="stat-row-value">{{ stat_mountains }}</span>
+        <span class="stat-row-label">Mountains</span>
+    </div>
+    {% endif %}
+    {% if _has_past %}
+    {% if _has_upcoming or _has_mountains %}<div class="stat-row-divider"></div>{% endif %}
+    <div class="stat-row-tile">
+        <span class="stat-row-value">{{ stat_past }}</span>
+        <span class="stat-row-label">Past trips</span>
+    </div>
+    {% endif %}
+</div>
+{% endif %}

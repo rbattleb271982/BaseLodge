@@ -244,6 +244,16 @@ def get_upcoming_trip_count(user):
     return len(all_upcoming_trips)
 
 
+def get_past_trip_count(user):
+    """Returns the count of trips owned by user that have already ended."""
+    if not user:
+        return 0
+    return SkiTrip.query.filter(
+        SkiTrip.user_id == user.id,
+        SkiTrip.end_date < date.today()
+    ).count()
+
+
 @app.template_filter('display_name')
 def display_name_filter(user, current_user_id=None):
     """
@@ -3046,7 +3056,10 @@ def friend_profile(friend_id):
         wish_list_overlap=wish_list_overlap,
         visited_resorts=friend_visited_resorts,
         wishlist_resorts=friend_wishlist_resorts,
-        overlap_context=overlap_context
+        overlap_context=overlap_context,
+        stat_upcoming=len(trips),
+        stat_mountains=friend.visited_resorts_count,
+        stat_past=get_past_trip_count(friend),
     )
 
 @app.route("/profile/<int:user_id>")
@@ -3750,6 +3763,9 @@ def home():
         banner_invite=banner_invite,
         banner_invite_count=banner_invite_count,
         secondary_card=secondary_card,
+        stat_upcoming=get_upcoming_trip_count(user),
+        stat_mountains=user.visited_resorts_count,
+        stat_past=get_past_trip_count(user),
     )
 
 
@@ -4064,7 +4080,8 @@ def profile():
                            has_equipment=has_equipment,
                            equipment_summary=equipment_summary,
                            wish_list_count=wish_list_count,
-                           wish_list_resorts=wish_list_resorts)
+                           wish_list_resorts=wish_list_resorts,
+                           upcoming_trip_count=get_upcoming_trip_count(current_user))
 
 @app.route("/settings")
 @login_required

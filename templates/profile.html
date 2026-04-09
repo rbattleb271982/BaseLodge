@@ -3,128 +3,266 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge - {{ page_title or 'Settings' }}</title>
+    <title>Profile - BaseLodge</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .settings-card {
-            background: var(--bl-color-surface);
-            border-radius: 12px;
-            margin-bottom: 16px;
+        /* ── Identity card ───────────────────────────── */
+        .identity-card {
+            background: #252320;
+            border-radius: 16px;
+            padding: 20px 16px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .identity-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: #8F011B;
+            color: #fff;
+            font-size: 1.35rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .identity-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .identity-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            margin: 0 0 3px 0;
+            line-height: 1.2;
+        }
+        .identity-context {
+            font-size: 0.83rem;
+            color: rgba(255,255,255,0.55);
+            margin: 0;
+            line-height: 1.4;
+            white-space: nowrap;
             overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .settings-section-header {
-            font-size: 12px;
+        .identity-edit {
+            font-size: 0.82rem;
             font-weight: 600;
-            color: var(--bl-color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-            margin: 0 0 8px 4px;
+            color: rgba(255,255,255,0.55);
+            text-decoration: none;
+            flex-shrink: 0;
+            padding: 4px 0 4px 8px;
         }
-        .settings-row {
+        .identity-edit:active {
+            opacity: 0.6;
+        }
+
+        /* ── Trips pill ──────────────────────────────── */
+        .trips-pill {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            min-height: 44px;
-            padding: 12px 16px;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: 12px;
+            padding: 13px 16px;
+            margin-bottom: 22px;
             text-decoration: none;
             color: inherit;
-            background: var(--bl-color-surface);
+            -webkit-tap-highlight-color: transparent;
         }
-        .settings-row:last-child {
-            border-bottom: none;
+        .trips-pill:active {
+            opacity: 0.75;
         }
-        .settings-row:active {
-            background: rgba(0, 0, 0, 0.02);
+        .trips-pill-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        .settings-row-label {
-            font-size: 16px;
+        .trips-pill-label {
+            font-size: 0.95rem;
+            font-weight: 600;
             color: var(--bl-color-text);
         }
-        .settings-row-value {
-            font-size: 14px;
+        .trips-pill-count {
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: var(--bl-color-primary);
+            color: #fff;
+            border-radius: 20px;
+            padding: 2px 9px;
+            line-height: 1.5;
+        }
+        .trips-pill-chevron {
+            font-size: 0.95rem;
+            color: var(--bl-color-primary);
+            font-weight: 500;
+        }
+
+        /* ── Settings groups ─────────────────────────── */
+        .profile-group {
+            margin-bottom: 24px;
+        }
+        .profile-group-header {
+            font-size: 11px;
+            font-weight: 700;
             color: var(--bl-color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 8px 4px;
+        }
+        .profile-card {
+            background: var(--bl-color-surface);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .profile-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 48px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .profile-row:last-child {
+            border-bottom: none;
+        }
+        .profile-row:active {
+            background: rgba(0,0,0,0.03);
+        }
+        .profile-row-label {
+            font-size: 0.95rem;
+            color: var(--bl-color-text);
+        }
+        .profile-row-right {
             display: flex;
             align-items: center;
             gap: 6px;
         }
-        .settings-row-chevron {
+        .profile-row-value {
+            font-size: 0.85rem;
             color: var(--bl-color-text-muted);
-            font-size: 16px;
-            opacity: 0.4;
+            max-width: 160px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: right;
         }
-        .settings-group {
-            margin-bottom: 24px;
+        .profile-row-chevron {
+            color: var(--bl-color-text-muted);
+            font-size: 1rem;
+            opacity: 0.4;
+            flex-shrink: 0;
+        }
+        .profile-row-label-danger {
+            font-size: 0.95rem;
+            color: var(--bl-color-primary);
         }
     </style>
 </head>
 <body>
-    <div class="page-container">
-        <div class="bl-header">{{ page_title or 'Settings' }}</div>
-        
-        <div class="settings-group">
-            <h2 class="settings-section-header">Profile</h2>
-            <div class="settings-card">
-                <a href="{{ url_for('settings_profile') }}" class="settings-row">
-                    <span class="settings-row-label">Profile Details</span>
-                    <span class="settings-row-value">
-                        <span class="settings-row-chevron">›</span>
-                    </span>
+    <div class="page-container" style="padding: 20px 16px 88px;">
+
+        <!-- Identity card -->
+        {% set rider_types = current_user.rider_types or [] %}
+        {% set rider_label = rider_types[0] if rider_types else '' %}
+        {% set ctx_parts = [] %}
+        {% if rider_label %}{% set _ = ctx_parts.append(rider_label) %}{% endif %}
+        {% if current_user.skill_level %}{% set _ = ctx_parts.append(current_user.skill_level | capitalize) %}{% endif %}
+        {% if current_user.pass_type %}{% set _ = ctx_parts.append(current_user.pass_type) %}{% endif %}
+
+        <div class="identity-card">
+            <div class="identity-avatar">{{ current_user.first_name[0] | upper }}</div>
+            <div class="identity-info">
+                <p class="identity-name">{{ current_user.first_name }} {{ current_user.last_name or '' }}</p>
+                {% if ctx_parts %}
+                <p class="identity-context">{{ ctx_parts | join(' · ') }}</p>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('edit_profile') }}" class="identity-edit">Edit</a>
+        </div>
+
+        <!-- Trips pill -->
+        <a href="{{ url_for('my_trips') }}" class="trips-pill">
+            <div class="trips-pill-left">
+                <span class="trips-pill-label">My Trips</span>
+                {% if upcoming_trip_count and upcoming_trip_count > 0 %}
+                <span class="trips-pill-count">{{ upcoming_trip_count }} upcoming</span>
+                {% endif %}
+            </div>
+            <span class="trips-pill-chevron">→</span>
+        </a>
+
+        <!-- Gear & Terrain -->
+        <div class="profile-group">
+            <h2 class="profile-group-header">Gear & Terrain</h2>
+            <div class="profile-card">
+                <a href="{{ url_for('settings_equipment') }}" class="profile-row">
+                    <span class="profile-row-label">Equipment</span>
+                    <div class="profile-row-right">
+                        {% if has_equipment %}<span class="profile-row-value">{{ equipment_summary }}</span>{% endif %}
+                        <span class="profile-row-chevron">›</span>
+                    </div>
+                </a>
+                <a href="{{ url_for('settings_mountains') }}" class="profile-row">
+                    <span class="profile-row-label">Mountains Visited</span>
+                    <div class="profile-row-right">
+                        {% if mountains_visited_count %}<span class="profile-row-value">{{ mountains_visited_count }}</span>{% endif %}
+                        <span class="profile-row-chevron">›</span>
+                    </div>
+                </a>
+                <a href="{{ url_for('settings_wish_list') }}" class="profile-row">
+                    <span class="profile-row-label">Wish List</span>
+                    <div class="profile-row-right">
+                        {% if wish_list_count %}<span class="profile-row-value">{{ wish_list_count }} resort{% if wish_list_count != 1 %}s{% endif %}</span>{% endif %}
+                        <span class="profile-row-chevron">›</span>
+                    </div>
                 </a>
             </div>
         </div>
-        
-        <div class="settings-group">
-            <h2 class="settings-section-header">Equipment & Activity</h2>
-            <div class="settings-card">
-                <a href="{{ url_for('settings_equipment') }}" class="settings-row">
-                    <span class="settings-row-label">Equipment</span>
-                    <span class="settings-row-value">
-                        <!-- Single source of truth: Equipment setup is owned by the Profile -->
-                        {% if has_equipment %}{{ equipment_summary }}{% endif %}
-                        <span class="settings-row-chevron">›</span>
-                    </span>
-                </a>
-                <a href="{{ url_for('settings_mountains') }}" class="settings-row">
-                    <span class="settings-row-label">Mountains Visited</span>
-                    <span class="settings-row-value">
-                        {% if mountains_visited_count %}{{ mountains_visited_count }} selected{% endif %}
-                        <span class="settings-row-chevron">›</span>
-                    </span>
-                </a>
-                <a href="{{ url_for('settings_wish_list') }}" class="settings-row">
-                    <span class="settings-row-label">Wish List Destinations</span>
-                    <span class="settings-row-value">
-                        {% if wish_list_count %}{{ wish_list_count }} resort{% if wish_list_count != 1 %}s{% endif %}{% endif %}
-                        <span class="settings-row-chevron">›</span>
-                    </span>
+
+        <!-- Availability -->
+        <div class="profile-group">
+            <h2 class="profile-group-header">Availability</h2>
+            <div class="profile-card">
+                <a href="{{ url_for('add_open_dates') }}" class="profile-row">
+                    <span class="profile-row-label">Open Dates</span>
+                    <div class="profile-row-right">
+                        <span class="profile-row-chevron">›</span>
+                    </div>
                 </a>
             </div>
         </div>
-        
-        <div class="settings-group">
-            <h2 class="settings-section-header">Account</h2>
-            <div class="settings-card">
-                <a href="{{ url_for('settings_password') }}" class="settings-row">
-                    <span class="settings-row-label">Change Password</span>
-                    <span class="settings-row-value">
-                        <span class="settings-row-chevron">›</span>
-                    </span>
+
+        <!-- Account -->
+        <div class="profile-group">
+            <h2 class="profile-group-header">Account</h2>
+            <div class="profile-card">
+                <a href="{{ url_for('settings_password') }}" class="profile-row">
+                    <span class="profile-row-label">Change Password</span>
+                    <div class="profile-row-right">
+                        <span class="profile-row-chevron">›</span>
+                    </div>
                 </a>
-                <a href="{{ url_for('logout') }}" class="settings-row">
-                    <span class="settings-row-label">Log Out</span>
-                    <span class="settings-row-value">
-                        <span class="settings-row-chevron">›</span>
-                    </span>
+                <a href="{{ url_for('logout') }}" class="profile-row">
+                    <span class="profile-row-label-danger">Log Out</span>
                 </a>
             </div>
         </div>
+
     </div>
-    
+
     {% include 'components/bottom_nav.html' %}
 </body>
 </html>
