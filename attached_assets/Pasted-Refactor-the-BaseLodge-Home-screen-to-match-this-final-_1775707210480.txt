@@ -1,0 +1,142 @@
+Refactor the BaseLodge Home screen to match this final product structure.
+
+Do not add new features. Keep changes minimal and grounded in the existing codebase.
+
+GOAL:
+Home should contain only:
+1. A lightweight identity header
+2. A next-trip hero card
+3. A conditional friend activity summary card
+
+Do NOT include Nearby Mountains or any placeholder section.
+
+---
+
+HOME STRUCTURE
+
+1. Identity header at the top
+- Replace the current large profile tile/card on Home
+- This should NOT be a card anymore
+- Keep it lightweight and compact
+- Layout:
+  - User name on the left
+  - Avatar / initial on the right
+  - Rider context underneath in muted text
+- Example content:
+  - Richard Test1
+  - Skier · Beginner · Epic
+- Do NOT say "Good morning"
+- Make the header tappable to Profile if easy, but this is secondary
+- Its main purpose is orientation, not action
+
+2. Next trip hero card
+If the user has an upcoming trip:
+- Show the next trip as the primary hero card
+- Include:
+  - countdown / days away
+  - destination
+  - dates
+  - people count / who’s coming if already available
+- One CTA only:
+  - "View trip"
+
+If the user has NO upcoming trip:
+- Show an empty state hero card
+- Use this exact copy:
+  - Title: "No trips planned yet"
+  - Subtext: "Your next powder day is one tap away"
+  - CTA: "Plan a trip"
+
+Important:
+- This is the primary action surface on Home
+- No text telling users to go elsewhere
+- No Ideas list
+- No editing controls on Home
+
+3. Friend activity summary card
+- This is NOT a feed
+- This is a signal card only
+- Render it only when there is actual actionable friend activity
+- Hide it completely if no friends / no relevant activity
+
+Use this copy:
+- Title: "Your friends are making plans"
+- Subtext: "See their trips and overlaps →"
+
+Behavior:
+- Tapping the card should NOT go to the Friends root list
+- Link to the most relevant existing destination:
+  - Overlaps if that view exists and is the best available option
+  - otherwise Friends’ Trips
+
+Important:
+- Do NOT show raw activity items on Home
+- Do NOT show notification counts
+- Do NOT show a feed preview
+- The card should be consistent and simple
+
+---
+
+REMOVE FROM HOME
+
+- Remove the Nearby Mountains / Explore section entirely
+- Remove any placeholder “coming soon” content
+- Remove any extra dashboard-style content
+- Remove any large profile tile/card if still present
+
+---
+
+DESIGN / UX RULES
+
+- Keep Home visually light and focused
+- The next-trip card should be the most visually important element
+- The identity header should be lighter than the trip card
+- The friend activity card should feel secondary but still visible
+- Maximum Home complexity:
+  - header
+  - trip card
+  - friend card
+- No extra sections
+
+State rules:
+1. New user, no trips, no friend activity
+- Show only:
+  - identity header
+  - empty trip hero
+
+2. User with no trips but with friend activity
+- Show:
+  - identity header
+  - empty trip hero
+  - friend activity card
+
+3. User with upcoming trip and friend activity
+- Show:
+  - identity header
+  - next trip hero
+  - friend activity card
+
+---
+
+IMPLEMENTATION NOTES
+
+- Reuse the existing /home route and existing computed data where possible
+- Do not add new backend models
+- Keep backend changes minimal
+- If the existing friend activity logic needs to choose between Overlaps and Friends’ Trips, use the best existing route available with the least complexity
+- Keep the current navigation structure:
+  - Home
+  - Trips
+  - Friends
+  - Profile
+
+---
+
+AT THE END, TELL ME:
+1. which files changed
+2. what was removed from Home
+3. how the friend activity card decides whether to render
+4. where the friend activity card links
+5. whether any backend route logic was changed
+
+Only use checkpoints if truly necessary.
