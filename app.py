@@ -918,6 +918,11 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
 migrate = Migrate(app, db)
+
+# Auto-create tables for SQLite (local development only)
+if "sqlite" in app.config.get("SQLALCHEMY_DATABASE_URI", ""):
+    with app.app_context():
+        db.create_all()
 app.register_blueprint(debug_bp)
 
 # ============================================================================
