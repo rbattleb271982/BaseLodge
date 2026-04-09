@@ -3671,7 +3671,7 @@ def home():
     user = current_user
     today = date.today()
 
-    # --- Next Trip ---
+    # --- Next Trip (created or accepted) ---
     try:
         my_trips = SkiTrip.query.filter(
             SkiTrip.user_id == user.id,
@@ -3713,7 +3713,34 @@ def home():
     except Exception:
         friend_ids = []
 
-    # --- Availability Nudge ---
+    # --- Trip Invite Banner (soonest active pending trip invite) ---
+    banner_invite = None
+    banner_invite_count = 0
+    try:
+        invited_participations = SkiTripParticipant.query.filter(
+            SkiTripParticipant.user_id == user.id,
+            SkiTripParticipant.status == GuestStatus.INVITED
+        ).all()
+        active_invites = sorted(
+            [p for p in invited_participations if p.trip and p.trip.end_date >= today],
+            key=lambda p: p.trip.start_date
+        )
+        banner_invite_count = len(active_invites)
+        if active_invites:
+            p = active_invites[0]
+            trip = p.trip
+            inviter = User.query.get(trip.user_id)
+            resort = trip.resort
+            banner_invite = {
+                'trip_id': trip.id,
+                'trip': trip,
+                'resort': resort,
+                'inviter_name': inviter.first_name if inviter else 'Someone',
+            }
+    except Exception:
+        pass
+
+    # --- Availability Nudge (open date overlap with friends) ---
     availability_nudge = None
     try:
         my_open_dates = {d for d in (user.open_dates or []) if d >= today.strftime('%Y-%m-%d')}
@@ -3740,53 +3767,58 @@ def home():
     except Exception:
         availability_nudge = None
 
-    # --- Weekend Day-Trip Signal ---
-    weekend_daytrip_signal = None
+    # --- Secondary Card (priority: connect_invite > overlap > friend_trip) ---
+    secondary_card = None
     try:
-        if friend_ids:
-            weekday = today.weekday()
-            days_to_friday = (4 - weekday) % 7
-            weekend_friday = today + timedelta(days=days_to_friday)
-            weekend_sunday = weekend_friday + timedelta(days=2)
-            weekend_daytrips = SkiTrip.query.filter(
-                SkiTrip.user_id.in_(friend_ids),
-                SkiTrip.is_public == True,
-                SkiTrip.trip_duration == 'day_trip',
-                SkiTrip.start_date >= weekend_friday,
-                SkiTrip.start_date <= weekend_sunday,
-                SkiTrip.end_date >= today
-            ).all()
-            if weekend_daytrips:
-                resort_counts = {}
-                for trip in weekend_daytrips:
-                    name = trip.resort.name if trip.resort else trip.mountain
-                    resort_counts.setdefault(name, set()).add(trip.user_id)
-                top = max(resort_counts, key=lambda r: len(resort_counts[r]))
-                count = len(resort_counts[top])
-                if count > 0:
-                    weekend_daytrip_signal = {'count': count, 'resort': top}
+        connect_inv = Invitation.query.filter_by(
+            receiver_id=user.id,
+            status='pending'
+        ).filter(Invitation.trip_id == None).first()
+        if connect_inv:
+            sender = User.query.get(connect_inv.sender_id)
+            secondary_card = {
+                'type': 'connect_invite',
+                'invitation_id': connect_inv.id,
+                'sender_name': sender.first_name if sender else 'Someone',
+            }
     except Exception:
-        weekend_daytrip_signal = None
+        pass
 
-    # --- Friend Activity Flag (broad: overlap, weekend signal, or any public friend trip) ---
-    friends_have_activity = bool(availability_nudge or weekend_daytrip_signal)
-    if not friends_have_activity and friend_ids:
+    if not secondary_card and availability_nudge:
+        secondary_card = {
+            'type': 'overlap',
+            'text': availability_nudge['text'],
+            'href': availability_nudge['href'],
+        }
+
+    if not secondary_card and friend_ids:
         try:
-            any_friend_trip = SkiTrip.query.filter(
+            friend_trip = SkiTrip.query.filter(
                 SkiTrip.user_id.in_(friend_ids),
                 SkiTrip.is_public == True,
                 SkiTrip.end_date >= today
-            ).first()
-            friends_have_activity = any_friend_trip is not None
+            ).order_by(SkiTrip.start_date.asc()).first()
+            if friend_trip:
+                trip_friend = User.query.get(friend_trip.user_id)
+                trip_resort = friend_trip.resort
+                mountain_name = trip_resort.name if trip_resort else friend_trip.mountain
+                secondary_card = {
+                    'type': 'friend_trip',
+                    'trip_id': friend_trip.id,
+                    'friend_name': trip_friend.first_name if trip_friend else 'A friend',
+                    'mountain': mountain_name,
+                }
         except Exception:
-            friends_have_activity = False
+            pass
 
     return render_template(
         'home.html',
         user=user,
         next_trip=next_trip,
         next_trip_countdown=next_trip_countdown,
-        friends_have_activity=friends_have_activity,
+        banner_invite=banner_invite,
+        banner_invite_count=banner_invite_count,
+        secondary_card=secondary_card,
     )
 
 
