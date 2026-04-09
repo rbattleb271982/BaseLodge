@@ -1627,7 +1627,7 @@ def auth():
                         # Redirect to friends page to show the new connection
                         return redirect(url_for("friends"))
                 
-                return redirect("/my-trips")
+                return redirect(url_for("home"))
             
             flash("Invalid email or password.", "error")
 
@@ -3668,363 +3668,115 @@ def format_availability_ranges(ranges):
 @app.route("/home")
 @login_required
 def home():
-    return redirect("/my-trips")
-    
-    # My upcoming trips (owned + accepted participations)
-    my_trips = SkiTrip.query.filter(
-        db.or_(
-            SkiTrip.user_id == user.id,
-            SkiTrip.id.in_(accepted_participation_trip_ids)
-        ),
-        SkiTrip.start_date >= today
-    ).order_by(SkiTrip.start_date.asc()).all()
-    
-    # Friends' upcoming trips
-    friends = Friend.query.filter_by(user_id=user.id).all()
-    friend_ids = [f.friend_id for f in friends]
-    
-    friend_trips = []
-    if friend_ids:
-        friend_trips = SkiTrip.query.filter(
-            SkiTrip.user_id.in_(friend_ids),
-            SkiTrip.start_date >= today,
-            SkiTrip.is_public == True
-        ).order_by(SkiTrip.start_date.asc()).all()
-    
-    # Build overlaps list
-    overlaps = []
-    for my in my_trips:
-        for friend_trip in friend_trips:
-            if my.user_id != friend_trip.user_id:
-                if my.mountain == friend_trip.mountain:
-                    if date_ranges_overlap(my.start_date, my.end_date, friend_trip.start_date, friend_trip.end_date):
-                        # Get resort info from my trip (or friend's trip if mine doesn't have it)
-                        resort = my.resort or friend_trip.resort
-                        friend_full_name = friend_trip.user.first_name
-                        if friend_trip.user.last_name:
-                            friend_full_name += " " + friend_trip.user.last_name
-                        overlaps.append({
-                            "my_trip_id": my.id,
-                            "friend_name": friend_full_name,
-                            "friend_first_name": friend_trip.user.first_name,
-                            "friend_id": friend_trip.user_id,
-                            "mountain": resort.name if resort else my.mountain,
-                            "state": resort.state if resort else my.state,
-                            "brand": resort.brand if resort else None,
-                            "resort_id": resort.id if resort else None,
-                            "start_date": max(my.start_date, friend_trip.start_date),
-                            "end_date": min(my.end_date, friend_trip.end_date)
-                        })
-    
-    # Calculate friends who can ski at each of user's trips (pass compatibility)
-    friends_data = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
-    for trip in my_trips:
-        trip.friends_can_ski = 0
-        if trip.resort:
-            # Use pass_brands if available, fallback to brand
-            resort_pass_str = trip.resort.pass_brands or trip.resort.brand
-            if resort_pass_str:
-                resort_passes = set(p.strip() for p in resort_pass_str.split(','))
-                for friend in friends_data:
-                    if friend.pass_type:
-                        friend_passes = set(p.strip() for p in friend.pass_type.split(','))
-                        if friend_passes & resort_passes:
-                            trip.friends_can_ski += 1
-    
-    # Open dates from JSON field (list of YYYY-MM-DD strings)
-    my_open_dates = set(user.open_dates or [])
-    # Filter to only future/today dates
-    my_open_dates = {d for d in my_open_dates if d >= today.strftime('%Y-%m-%d')}
-    
-    # Build open date overlaps grouped by date
-    open_date_matches = []  # List of {date, friends: [{name, id, pass_type}]}
-    
-    if my_open_dates and friend_ids:
-        friends_with_open = User.query.filter(User.id.in_(friend_ids)).all()
-        
-        for date_str in sorted(my_open_dates):
-            matching_friends = []
-            for friend in friends_with_open:
-                friend_dates = set(friend.open_dates or [])
-                if date_str in friend_dates:
-                    # Determine pass compatibility (safely handle None/empty)
-                    user_pass = user.pass_type.strip() if user.pass_type else None
-                    friend_pass = friend.pass_type.strip() if friend.pass_type else None
-                    
-                    if user_pass and friend_pass:
-                        if user_pass == friend_pass:
-                            pass_info = user_pass
-                        else:
-                            pass_info = f"{user_pass} · {friend_pass} (different passes)"
-                    elif user_pass or friend_pass:
-                        # Only one has a pass
-                        pass_info = user_pass or friend_pass
-                    else:
-                        pass_info = None
-                    
-                    matching_friends.append({
-                        "name": friend.first_name,
-                        "id": friend.id,
-                        "pass_type": friend.pass_type,
-                        "skill_level": friend.skill_level,
-                        "pass_info": pass_info,
-                        "can_propose_trip": check_trip_invite_eligibility(user.id, friend.id)
-                    })
-            
-            if matching_friends:
-                # Parse date for display
-                date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-                open_date_matches.append({
-                    "date_str": date_str,
-                    "date_obj": date_obj,
-                    "day_name": date_obj.strftime('%A'),  # Saturday, Sunday, etc.
-                    "display_date": date_obj.strftime('%b %d'),  # Dec 14
-                    "friends": matching_friends
-                })
-    
-    # Format user's open dates for display
-    user_open_dates_display = format_open_dates_summary(sorted(my_open_dates)) if my_open_dates else None
-    
-    # Get user's mountains visited
-    user_mountains = user.mountains_visited or []
-    user_mountains_sorted = sorted([m.name if hasattr(m, 'name') else m for m in user_mountains])
-    
-    # Get Resort objects for profile card (new unified component)
-    visited_resorts = user.get_visited_resorts()
-    wishlist_resorts = user.get_wishlist_resorts()
-    
-    # Count friends with open date overlaps
-    open_friends_count, user_has_open_dates = count_friends_open_on_same_dates(user)
-    
-    # Combined list for All Trips (upcoming only)
-    all_trips = (my_trips or []) + (friend_trips or [])
+    user = current_user
+    today = date.today()
+
+    # --- Next Trip ---
     try:
-        all_trips = sorted(all_trips, key=lambda t: t.start_date)
+        my_trips = SkiTrip.query.filter(
+            SkiTrip.user_id == user.id,
+            SkiTrip.end_date >= today
+        ).order_by(SkiTrip.start_date.asc()).all()
     except Exception:
-        pass
-    
-    # Get equipment for profile card
-    primary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.PRIMARY).first()
-    secondary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.SECONDARY).first()
-    
-    # Sort overlaps by start date and get first for highlight
-    overlaps_sorted = sorted(overlaps, key=lambda x: x['start_date']) if overlaps else []
-    first_overlap = overlaps_sorted[0] if overlaps_sorted else None
-    
-    # Countdown to next trip (host or guest) + get next trip object
+        my_trips = []
+
+    try:
+        accepted_participations = SkiTripParticipant.query.filter(
+            SkiTripParticipant.user_id == user.id,
+            SkiTripParticipant.status == GuestStatus.ACCEPTED
+        ).all()
+        accepted_trip_ids = [p.trip_id for p in accepted_participations]
+        accepted_guest_trips = SkiTrip.query.filter(
+            SkiTrip.id.in_(accepted_trip_ids),
+            SkiTrip.user_id != user.id,
+            SkiTrip.end_date >= today
+        ).order_by(SkiTrip.start_date.asc()).all() if accepted_trip_ids else []
+    except Exception:
+        accepted_guest_trips = []
+
+    all_upcoming = sorted(my_trips + accepted_guest_trips, key=lambda t: t.start_date)
+    next_trip = all_upcoming[0] if all_upcoming else None
     next_trip_countdown = None
-    next_trip = None
-    all_user_trips = []
-    trip_objects = {}
-    
-    # Add user's own trips
-    for trip in my_trips:
-        all_user_trips.append(trip.start_date)
-        trip_objects[trip.start_date] = trip
-    
-    # Add group trips where user is host
-    hosted_trips = GroupTrip.query.filter(
-        GroupTrip.host_id == user.id,
-        GroupTrip.start_date >= today
-    ).all()
-    for trip in hosted_trips:
-        all_user_trips.append(trip.start_date)
-        trip_objects[trip.start_date] = trip
-    
-    # Add group trips where user is guest (accepted)
-    guest_memberships = TripGuest.query.filter(
-        TripGuest.user_id == user.id,
-        TripGuest.status == GuestStatus.ACCEPTED
-    ).all()
-    for membership in guest_memberships:
-        if membership.trip and membership.trip.start_date >= today:
-            all_user_trips.append(membership.trip.start_date)
-            trip_objects[membership.trip.start_date] = membership.trip
-    
-    if all_user_trips:
-        next_trip_date = min(all_user_trips)
-        days_until = (next_trip_date - today).days
+    if next_trip:
+        days_until = (next_trip.start_date - today).days
         if days_until == 0:
             next_trip_countdown = "Starts today"
         elif days_until == 1:
-            next_trip_countdown = "Your next trip starts in 1 day"
+            next_trip_countdown = "Tomorrow"
         else:
-            next_trip_countdown = f"Your next trip starts in {days_until} days"
-        next_trip = trip_objects.get(next_trip_date)
-    
-    # Availability match nudge
+            next_trip_countdown = f"In {days_until} days"
+
+    # --- Friend IDs ---
+    try:
+        friend_links = Friend.query.filter_by(user_id=user.id).all()
+        friend_ids = [f.friend_id for f in friend_links]
+    except Exception:
+        friend_ids = []
+
+    # --- Availability Nudge ---
     availability_nudge = None
-    if my_open_dates and open_date_matches:
-        # Find the best date range with most friends
-        best_match = max(open_date_matches, key=lambda m: len(m['friends']))
-        if best_match['friends']:
-            nudge_date = best_match['date_obj']
-            
-            # Check if this date range was already dismissed
-            dismissed = DismissedNudge.query.filter(
-                DismissedNudge.user_id == user.id,
-                DismissedNudge.date_range_start <= nudge_date,
-                DismissedNudge.date_range_end >= nudge_date
-            ).first()
-            
-            if not dismissed:
-                friend_count = len(best_match['friends'])
-                top_friend = best_match['friends'][0]
-                display_date = best_match['display_date']
-                
-                if friend_count == 1:
-                    nudge_text = f"You and {top_friend['name']} are free {display_date}"
+    try:
+        my_open_dates = {d for d in (user.open_dates or []) if d >= today.strftime('%Y-%m-%d')}
+        if my_open_dates and friend_ids:
+            friends_with_open = User.query.filter(User.id.in_(friend_ids)).all()
+            best_date = None
+            best_friends = []
+            for date_str in sorted(my_open_dates):
+                matching = [f for f in friends_with_open if date_str in set(f.open_dates or [])]
+                if len(matching) > len(best_friends):
+                    best_date = date_str
+                    best_friends = matching
+            if best_date and best_friends:
+                date_obj = datetime.strptime(best_date, '%Y-%m-%d').date()
+                display = date_obj.strftime('%b %-d')
+                if len(best_friends) == 1:
+                    nudge_text = f"You and {best_friends[0].first_name} are free {display}"
                 else:
-                    nudge_text = f"You and {friend_count} friends are free {display_date}"
-                
+                    nudge_text = f"You and {len(best_friends)} friends are free {display}"
                 availability_nudge = {
                     'text': nudge_text,
-                    'date': nudge_date.isoformat(),
-                    'friend_id': top_friend['id']
+                    'href': url_for('friends', tab='overlaps')
                 }
-    
-    # Shared Interest calculation
-    shared_interests = []
-    user_wish_list = user.wish_list_resorts or []
-    
-    if user_wish_list:
-        # Get all users who have any of the same resorts on their wishlist
-        all_users = User.query.filter(User.id != user.id).all()
-        
-        # Count how many users have each resort on their wishlist
-        resort_counts = {}
-        for resort_id in user_wish_list:
-            count = 0
-            for other_user in all_users:
-                other_wish_list = other_user.wish_list_resorts or []
-                if resort_id in other_wish_list:
-                    count += 1
-            if count > 0:  # At least 1 other user has this resort
-                resort_counts[resort_id] = count
-        
-        # Get resort details and sort by count (desc), then by user's add order (desc)
-        if resort_counts:
-            for resort_id in user_wish_list:
-                if resort_id in resort_counts:
-                    resort = Resort.query.get(resort_id)
-                    if resort:
-                        # Get country display name
-                        country_names = {'US': 'USA', 'CA': 'Canada', 'JP': 'Japan', 
-                                        'FR': 'France', 'CH': 'Switzerland', 'AT': 'Austria', 'IT': 'Italy'}
-                        country_display = country_names.get(resort.country, resort.country)
-                        
-                        shared_interests.append({
-                            'resort_id': resort_id,
-                            'name': resort.name,
-                            'country': country_display,
-                            'count': resort_counts[resort_id]
-                        })
-            
-            # Sort by count (desc) - user's add order is preserved as secondary
-            shared_interests.sort(key=lambda x: -x['count'])
-    
-    # Get wishlist resorts for profile card display
-    user_wishlist_resorts = []
-    if user_wish_list:
-        wishlist_resorts_query = Resort.query.filter(Resort.id.in_(user_wish_list)).all()
-        user_wishlist_resorts = [{'id': r.id, 'name': r.name} for r in wishlist_resorts_query]
-    
-    # Weekend day-trip signal for home screen
+    except Exception:
+        availability_nudge = None
+
+    # --- Weekend Day-Trip Signal ---
     weekend_daytrip_signal = None
-    if friend_ids:
-        # Calculate weekend window
-        # Mon-Thu: upcoming Fri-Sun; Fri-Sun: current Fri-Sun
-        weekday = today.weekday()  # 0 = Monday, 6 = Sunday
-        
-        if weekday <= 3:  # Mon-Thu: use upcoming Fri-Sun
-            days_to_friday = 4 - weekday
+    try:
+        if friend_ids:
+            weekday = today.weekday()
+            days_to_friday = (4 - weekday) % 7
             weekend_friday = today + timedelta(days=days_to_friday)
-        else:  # Fri-Sun: use current Fri-Sun
-            # Friday = weekday 4, Saturday = 5, Sunday = 6
-            days_since_friday = weekday - 4
-            weekend_friday = today - timedelta(days=days_since_friday)
-        
-        weekend_sunday = weekend_friday + timedelta(days=2)
-        
-        # Find friends' day trips within this weekend
-        weekend_daytrips = SkiTrip.query.filter(
-            SkiTrip.user_id.in_(friend_ids),
-            SkiTrip.is_public == True,
-            SkiTrip.trip_duration == 'day_trip',
-            SkiTrip.start_date >= weekend_friday,
-            SkiTrip.start_date <= weekend_sunday,
-            SkiTrip.end_date >= today  # Must be active
-        ).all()
-        
-        if weekend_daytrips:
-            # Group by resort to find the most popular destination
-            resort_counts = {}
-            for trip in weekend_daytrips:
-                resort_name = trip.resort.name if trip.resort else trip.mountain
-                if resort_name not in resort_counts:
-                    resort_counts[resort_name] = set()
-                resort_counts[resort_name].add(trip.user_id)
-            
-            # Find the resort with the most friends
-            if resort_counts:
-                top_resort = max(resort_counts.keys(), key=lambda r: len(resort_counts[r]))
-                friend_count = len(resort_counts[top_resort])
-                if friend_count > 0:
-                    weekend_daytrip_signal = {
-                        'count': friend_count,
-                        'resort': top_resort
-                    }
-    
-    # Welcome modal - shown once after FULL onboarding is complete:
-    # Requires: rider_types, pass_type, skill_level (core profile) PLUS home_state
-    is_onboarding_complete = user.is_core_profile_complete and bool(user.home_state)
-    show_welcome_screen = is_onboarding_complete and not user.welcome_modal_seen_at
-    
-    # Get pending trip invites for the user
-    pending_invites = []
-    invite_participants = SkiTripParticipant.query.filter_by(
-        user_id=user.id,
-        status=GuestStatus.INVITED
-    ).all()
-    for p in invite_participants:
-        trip = p.trip
-        if trip and trip.end_date >= today:
-            inviter = User.query.get(trip.user_id)
-            pending_invites.append({
-                'trip': trip,
-                'inviter': inviter,
-                'participant_id': p.id
-            })
-    
+            weekend_sunday = weekend_friday + timedelta(days=2)
+            weekend_daytrips = SkiTrip.query.filter(
+                SkiTrip.user_id.in_(friend_ids),
+                SkiTrip.is_public == True,
+                SkiTrip.trip_duration == 'day_trip',
+                SkiTrip.start_date >= weekend_friday,
+                SkiTrip.start_date <= weekend_sunday,
+                SkiTrip.end_date >= today
+            ).all()
+            if weekend_daytrips:
+                resort_counts = {}
+                for trip in weekend_daytrips:
+                    name = trip.resort.name if trip.resort else trip.mountain
+                    resort_counts.setdefault(name, set()).add(trip.user_id)
+                top = max(resort_counts, key=lambda r: len(resort_counts[r]))
+                count = len(resort_counts[top])
+                if count > 0:
+                    weekend_daytrip_signal = {'count': count, 'resort': top}
+    except Exception:
+        weekend_daytrip_signal = None
+
     return render_template(
         'home.html',
         user=user,
-        upcoming_trips=upcoming_trips,
-        my_trips=my_trips,
-        friend_trips=friend_trips,
-        all_trips=all_trips,
-        overlaps=overlaps_sorted,
-        first_overlap=first_overlap,
-        open_date_matches=open_date_matches,
-        user_open_dates=sorted(my_open_dates) if my_open_dates else [],
-        user_open_dates_display=user_open_dates_display,
-        user_mountains=user_mountains_sorted,
-        open_friends_count=open_friends_count,
-        user_has_open_dates=user_has_open_dates,
-        state_abbr=STATE_ABBR,
-        primary_equipment=primary_equipment,
-        secondary_equipment=secondary_equipment,
-        next_trip_countdown=next_trip_countdown,
         next_trip=next_trip,
+        next_trip_countdown=next_trip_countdown,
         availability_nudge=availability_nudge,
-        shared_interests=shared_interests,
         weekend_daytrip_signal=weekend_daytrip_signal,
-        user_wishlist_resorts=user_wishlist_resorts,
-        visited_resorts=visited_resorts,
-        wishlist_resorts=wishlist_resorts,
-        show_welcome_screen=show_welcome_screen,
-        pending_invites=pending_invites
     )
+
 
 @app.route("/onboarding/equipment", methods=["POST"])
 @login_required
