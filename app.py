@@ -1645,39 +1645,41 @@ def identity_setup():
     if request.method == "POST":
         rider_types = request.form.getlist("rider_types")
         skill_level = request.form.get("skill_level", "").strip()
-        pass_types = request.form.getlist("pass_types")
-        
+        pass_type = request.form.get("pass_type", "").strip()
+        home_state = request.form.get("home_state", "").strip()
+
         # Validate required fields
         if not rider_types:
-            flash("Please select at least one rider type.", "error")
-            return render_template("identity_setup.html")
-        
-        # Skill level is only optional if Social is the ONLY rider type
-        is_social_only = rider_types == ["Social"]
-        if not is_social_only and not skill_level:
-            flash("Please select your skill level.", "error")
-            return render_template("identity_setup.html")
-        
-        if not pass_types:
-            flash("Please select at least one pass option.", "error")
-            return render_template("identity_setup.html")
-        
-        # Save identity data
+            flash("Please select your rider type.")
+            return render_template("identity_setup.html", grouped_locations=get_grouped_locations())
+
+        if not skill_level:
+            flash("Please select your skill level.")
+            return render_template("identity_setup.html", grouped_locations=get_grouped_locations())
+
+        if not pass_type:
+            flash("Please select a pass option.")
+            return render_template("identity_setup.html", grouped_locations=get_grouped_locations())
+
+        if not home_state:
+            flash("Please select your home state or province.")
+            return render_template("identity_setup.html", grouped_locations=get_grouped_locations())
+
+        # Save all onboarding data in one shot
         current_user.rider_types = rider_types
-        # Clear skill_level only for Social-only users
-        current_user.skill_level = None if is_social_only else skill_level
-        # Store pass_type as comma-separated for backward compatibility, or first pass if single
-        if len(pass_types) == 1:
-            current_user.pass_type = pass_types[0]
-        else:
-            current_user.pass_type = ", ".join(pass_types)
-        
+        current_user.skill_level = skill_level
+        current_user.pass_type = pass_type
+        current_user.home_state = home_state
+
         db.session.commit()
-        
-        # Redirect to location setup (step 2 of onboarding)
-        return redirect(url_for("location_setup"))
-    
-    return render_template("identity_setup.html")
+
+        # Redirect directly to home (location-setup is no longer needed)
+        next_url = session.pop("next_after_setup", None)
+        if next_url:
+            return redirect(next_url)
+        return redirect(url_for("home"))
+
+    return render_template("identity_setup.html", grouped_locations=get_grouped_locations())
 
 
 @app.route("/location-setup", methods=["GET", "POST"])

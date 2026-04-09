@@ -3,323 +3,519 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Set Up Your Profile - BaseLodge</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>Get Started — BaseLodge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .identity-container {
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #EBEBF0;
             min-height: 100vh;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: var(--bl-color-bg);
-            padding: var(--bl-space-6);
         }
-        
-        .identity-card {
+
+        .ob-outer {
             width: 100%;
-            max-width: 500px;
-            background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-lg);
-            border: 1px solid var(--bl-color-border-soft);
-            box-shadow: var(--bl-shadow-soft);
-            padding: var(--bl-space-8);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        
-        .identity-header {
-            text-align: center;
-            margin-bottom: var(--bl-space-8);
+
+        .ob-frame {
+            width: 375px;
+            height: 100vh;
+            background: #FFFFFF;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 8px 48px rgba(0,0,0,0.14);
         }
-        
-        .identity-title {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--bl-color-text);
-            margin-bottom: var(--bl-space-2);
+
+        @media (max-width: 375px) {
+            body { background: #FFFFFF; }
+            .ob-frame { width: 100vw; box-shadow: none; }
         }
-        
-        .identity-subtitle {
-            font-size: 14px;
-            color: var(--bl-color-text-muted);
-            line-height: 1.5;
+
+        .ob-viewport {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
         }
-        
-        .form-group {
-            margin-bottom: var(--bl-space-6);
+
+        .ob-slider {
+            display: flex;
+            width: 400%;
+            height: 100%;
+            transition: transform 0.38s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
-        .form-label {
-            display: block;
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin-bottom: var(--bl-space-3);
-        }
-        
-        .form-row-2col {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: var(--bl-space-6);
-        }
-        
-        @media (max-width: 480px) {
-            .form-row-2col {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        .checkbox-group, .radio-group {
+
+        .ob-step {
+            width: 25%;
+            height: 100%;
             display: flex;
             flex-direction: column;
-            gap: var(--bl-space-2);
+            flex-shrink: 0;
         }
-        
-        .checkbox-group.compact, .radio-group.compact {
-            gap: var(--bl-space-1);
+
+        /* ── Progress bar ── */
+        .ob-progress {
+            display: flex;
+            gap: 5px;
+            padding: 20px 24px 0;
+            flex-shrink: 0;
         }
-        
-        .checkbox-label, .radio-label {
+
+        .ob-seg {
+            flex: 1;
+            height: 3px;
+            border-radius: 99px;
+            background: #E5E5E5;
+            transition: background 0.3s ease;
+        }
+
+        .ob-seg.on { background: #3C3489; }
+
+        /* ── Nav row ── */
+        .ob-nav {
             display: flex;
             align-items: center;
-            gap: var(--bl-space-2);
-            font-size: 14px;
-            color: var(--bl-color-text);
-            cursor: pointer;
+            padding: 14px 20px 0;
+            flex-shrink: 0;
+            min-height: 44px;
         }
-        
-        .checkbox-label input, .radio-label input {
-            width: 16px;
-            height: 16px;
-            accent-color: var(--bl-color-primary);
-            cursor: pointer;
-        }
-        
-        .pass-options {
+
+        .ob-back {
             display: flex;
-            flex-wrap: wrap;
-            gap: var(--bl-space-3);
-        }
-        
-        .pass-chip {
-            display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 8px 14px;
-            border: 1px solid var(--bl-color-border);
-            border-radius: 999px;
-            font-size: 14px;
-            color: var(--bl-color-text);
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #F8F8F8;
+            border: none;
             cursor: pointer;
-            transition: all 0.15s ease;
-            background: var(--bl-color-surface);
+            color: #1A1A1A;
+            flex-shrink: 0;
+            transition: background 0.15s;
         }
-        
-        .pass-chip:hover {
-            border-color: var(--bl-color-primary);
+
+        .ob-back:hover { background: #EEEDFE; }
+        .ob-back.invis { visibility: hidden; pointer-events: none; }
+
+        /* ── Header ── */
+        .ob-header {
+            padding: 22px 24px 6px;
+            flex-shrink: 0;
         }
-        
-        .pass-chip input {
-            display: none;
+
+        .ob-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1A1A1A;
+            line-height: 1.25;
+            margin-bottom: 8px;
         }
-        
-        .pass-chip.selected {
-            background: var(--bl-color-primary);
-            border-color: var(--bl-color-primary);
-            color: #FFFFFF;
+
+        .ob-subtitle {
+            font-size: 14px;
+            color: #888888;
+            line-height: 1.55;
         }
-        
-        .form-submit {
+
+        /* ── Options scroll area ── */
+        .ob-options {
+            flex: 1;
+            overflow-y: auto;
+            padding: 18px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* ── Pills ── */
+        .ob-pill {
+            display: flex;
+            align-items: center;
             width: 100%;
-            margin-bottom: var(--bl-space-4);
+            height: 48px;
+            padding: 0 18px;
+            border-radius: 999px;
+            border: 1px solid #E5E5E5;
+            background: #F8F8F8;
+            color: #1A1A1A;
+            font-size: 15px;
+            font-family: inherit;
+            font-weight: 400;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s, color 0.15s;
+            text-align: left;
+            flex-shrink: 0;
         }
-        
-        .form-footer {
-            text-align: center;
-            font-size: 12px;
-            color: var(--bl-color-text-muted);
+
+        .ob-pill:hover { border-color: #7F77DD; }
+
+        .ob-pill.sel {
+            background: #EEEDFE;
+            border: 1.5px solid #7F77DD;
+            color: #3C3489;
+            font-weight: 500;
         }
-        
-        .form-error {
-            background: #FFEBEE;
-            border: 1px solid var(--bl-color-error);
-            border-radius: var(--bl-radius-md);
-            padding: var(--bl-space-5);
-            margin-bottom: var(--bl-space-6);
+
+        .ob-emoji {
+            margin-right: 10px;
+            font-size: 17px;
+            line-height: 1;
+        }
+
+        .ob-hint {
+            margin-left: auto;
             font-size: 13px;
-            color: var(--bl-color-error);
+            color: #888888;
+            font-weight: 400;
         }
-        
-        .required-asterisk {
-            color: var(--bl-color-error, #dc2626);
+
+        .ob-pill.sel .ob-hint { color: #7F77DD; }
+
+        /* ── CTA footer ── */
+        .ob-footer {
+            padding: 12px 24px 36px;
+            flex-shrink: 0;
+        }
+
+        .ob-btn {
+            display: block;
+            width: 100%;
+            height: 52px;
+            border-radius: 999px;
+            background: #3C3489;
+            color: #FFFFFF;
+            font-size: 16px;
+            font-family: inherit;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+
+        .ob-btn:disabled { opacity: 0.38; cursor: not-allowed; }
+        .ob-btn:not(:disabled):hover { opacity: 0.88; }
+
+        /* ── State/province select ── */
+        .ob-sel-wrap {
+            position: relative;
+            width: 100%;
+            height: 48px;
+            border-radius: 999px;
+            border: 1px solid #E5E5E5;
+            background: #F8F8F8;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: border 0.15s, background 0.15s;
+            overflow: hidden;
+        }
+
+        .ob-sel-wrap.has-val {
+            background: #EEEDFE;
+            border: 1.5px solid #7F77DD;
+        }
+
+        .ob-sel-icon {
+            position: absolute;
+            left: 16px;
+            font-size: 16px;
+            pointer-events: none;
+            z-index: 1;
+            line-height: 1;
+        }
+
+        .ob-sel-chevron {
+            position: absolute;
+            right: 16px;
+            pointer-events: none;
+            z-index: 1;
+            color: #888888;
+            display: flex;
+            align-items: center;
+        }
+
+        .ob-sel-label {
+            position: absolute;
+            left: 42px;
+            right: 40px;
+            font-size: 15px;
+            color: #888888;
+            font-family: inherit;
+            pointer-events: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            z-index: 1;
+        }
+
+        .ob-sel-wrap.has-val .ob-sel-label {
+            color: #3C3489;
+            font-weight: 500;
+        }
+
+        .ob-sel-wrap select {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            font-size: 16px;
+            border: none;
+            background: transparent;
+        }
+
+        /* ── Flash error ── */
+        .ob-flash {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            z-index: 10;
+            margin: 12px 16px 0;
+            padding: 12px 16px;
+            background: #FFEBEE;
+            border: 1px solid #dc2626;
+            border-radius: 12px;
+            font-size: 13px;
+            color: #dc2626;
         }
     </style>
 </head>
 <body>
-    <div class="identity-container">
-        <div class="identity-card">
-            <div class="step-indicator" style="font-size: 12px; color: var(--bl-color-text-muted); text-align: center; margin-bottom: var(--bl-space-4);">Step 1 of 2</div>
-            <div class="identity-header">
-                <h1 class="identity-title">Tell us a bit about yourself</h1>
-                <p class="identity-subtitle">This helps personalize your BaseLodge experience.</p>
-            </div>
-            
-            {% with messages = get_flashed_messages() %}
-                {% if messages %}
-                    <div class="form-error">
-                        {% for message in messages %}
-                            {{ message }}<br>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            {% endwith %}
-            
-            <form method="POST" action="{{ url_for('identity_setup') }}">
-                <div class="form-row-2col">
-                    <div class="form-group">
-                        <label class="form-label">I am a... <span class="required-asterisk">*</span></label>
-                        <div class="checkbox-group compact">
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="rider_types" value="Skier" id="rider_skier"> Skier
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="rider_types" value="Snowboarder" id="rider_snowboarder"> Snowboarder
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="rider_types" value="Telemark" id="rider_telemark"> Telemark
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="rider_types" value="Cross-Country" id="rider_crosscountry"> Cross-Country
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="rider_types" value="Adaptive" id="rider_adaptive"> Adaptive
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="rider_types" value="Social" id="rider_social"> Social (Along for the experience)
-                            </label>
+<div class="ob-outer">
+    <div class="ob-frame">
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="ob-flash">
+                    {% for msg in messages %}{{ msg }}<br>{% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form id="ob-form" method="POST" action="{{ url_for('identity_setup') }}">
+            <input type="hidden" name="rider_types" id="h-rider" value="">
+            <input type="hidden" name="skill_level" id="h-skill" value="">
+            <input type="hidden" name="pass_type"   id="h-pass"  value="">
+
+            <div class="ob-viewport">
+                <div class="ob-slider" id="ob-slider">
+
+                    <!-- ── Step 1: Rider Type ── -->
+                    <div class="ob-step">
+                        <div class="ob-progress">
+                            <div class="ob-seg on"></div>
+                            <div class="ob-seg"></div>
+                            <div class="ob-seg"></div>
+                            <div class="ob-seg"></div>
+                        </div>
+                        <div class="ob-nav">
+                            <button type="button" class="ob-back invis" aria-label="Back">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8L10 3" stroke="#1A1A1A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                        </div>
+                        <div class="ob-header">
+                            <h1 class="ob-title">How do you ride?</h1>
+                            <p class="ob-subtitle">We'll personalize your experience around your style.</p>
+                        </div>
+                        <div class="ob-options">
+                            <button type="button" class="ob-pill" data-grp="rider" data-val="Skier" data-target="h-rider">
+                                <span class="ob-emoji">⛷</span> Skier
+                            </button>
+                            <button type="button" class="ob-pill" data-grp="rider" data-val="Snowboarder" data-target="h-rider">
+                                <span class="ob-emoji">🏂</span> Snowboarder
+                            </button>
+                            <button type="button" class="ob-pill" data-grp="rider" data-val="Telemark" data-target="h-rider">
+                                <span class="ob-emoji">🎿</span> Telemark
+                            </button>
+                            <button type="button" class="ob-pill" data-grp="rider" data-val="Cross-Country" data-target="h-rider">
+                                <span class="ob-emoji">🌲</span> Cross-country
+                            </button>
+                            <button type="button" class="ob-pill" data-grp="rider" data-val="Adaptive" data-target="h-rider">
+                                <span class="ob-emoji">♿</span> Adaptive
+                            </button>
+                            <button type="button" class="ob-pill" data-grp="rider" data-val="Social" data-target="h-rider">
+                                <span class="ob-emoji">☕</span> Social / après
+                            </button>
+                        </div>
+                        <div class="ob-footer">
+                            <button type="button" class="ob-btn" id="cta-1" disabled onclick="goNext(1)">Continue</button>
                         </div>
                     </div>
-                    
-                    <div class="form-group" id="skill-level-group">
-                        <label class="form-label">Skill Level <span class="required-asterisk">*</span></label>
-                        <div class="radio-group compact">
-                            <label class="radio-label">
-                                <input type="radio" name="skill_level" value="Beginner" id="skill_beginner"> Beginner
-                            </label>
-                            <label class="radio-label">
-                                <input type="radio" name="skill_level" value="Intermediate" id="skill_intermediate"> Intermediate
-                            </label>
-                            <label class="radio-label">
-                                <input type="radio" name="skill_level" value="Advanced" id="skill_advanced"> Advanced
-                            </label>
-                            <label class="radio-label">
-                                <input type="radio" name="skill_level" value="Expert" id="skill_expert"> Expert
-                            </label>
+
+                    <!-- ── Step 2: Skill Level ── -->
+                    <div class="ob-step">
+                        <div class="ob-progress">
+                            <div class="ob-seg on"></div>
+                            <div class="ob-seg on"></div>
+                            <div class="ob-seg"></div>
+                            <div class="ob-seg"></div>
+                        </div>
+                        <div class="ob-nav">
+                            <button type="button" class="ob-back" onclick="goBack(2)" aria-label="Back">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8L10 3" stroke="#1A1A1A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                        </div>
+                        <div class="ob-header">
+                            <h1 class="ob-title">What's your level?</h1>
+                            <p class="ob-subtitle">We'll tailor the experience to the terrain and trips that fit you best.</p>
+                        </div>
+                        <div class="ob-options">
+                            <button type="button" class="ob-pill" data-grp="skill" data-val="Beginner" data-target="h-skill">
+                                Beginner <span class="ob-hint">Green runs</span>
+                            </button>
+                            <button type="button" class="ob-pill" data-grp="skill" data-val="Intermediate" data-target="h-skill">
+                                Intermediate <span class="ob-hint">Blue runs</span>
+                            </button>
+                            <button type="button" class="ob-pill" data-grp="skill" data-val="Advanced" data-target="h-skill">
+                                Advanced <span class="ob-hint">Black runs</span>
+                            </button>
+                            <button type="button" class="ob-pill" data-grp="skill" data-val="Expert" data-target="h-skill">
+                                Expert <span class="ob-hint">Double black</span>
+                            </button>
+                        </div>
+                        <div class="ob-footer">
+                            <button type="button" class="ob-btn" id="cta-2" disabled onclick="goNext(2)">Continue</button>
                         </div>
                     </div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Pass <span class="required-asterisk">*</span></label>
-                    <div class="pass-options" id="pass-options">
-                        <label class="pass-chip">
-                            <input type="checkbox" name="pass_types" value="Epic"> Epic
-                        </label>
-                        <label class="pass-chip">
-                            <input type="checkbox" name="pass_types" value="Ikon"> Ikon
-                        </label>
-                        <label class="pass-chip">
-                            <input type="checkbox" name="pass_types" value="Indy"> Indy
-                        </label>
-                        <label class="pass-chip">
-                            <input type="checkbox" name="pass_types" value="Mountain Collective"> Mountain Collective
-                        </label>
-                        <label class="pass-chip">
-                            <input type="checkbox" name="pass_types" value="Powder Alliance"> Powder Alliance
-                        </label>
-                        <label class="pass-chip">
-                            <input type="checkbox" name="pass_types" value="Freedom"> Freedom
-                        </label>
-                        <label class="pass-chip">
-                            <input type="checkbox" name="pass_types" value="Ski California"> Ski California
-                        </label>
-                        <label class="pass-chip">
-                            <input type="checkbox" name="pass_types" value="Other"> Other
-                        </label>
-                        <label class="pass-chip">
-                            <input type="checkbox" name="pass_types" value="No Pass"> No Pass
-                        </label>
+
+                    <!-- ── Step 3: Pass Selection ── -->
+                    <div class="ob-step">
+                        <div class="ob-progress">
+                            <div class="ob-seg on"></div>
+                            <div class="ob-seg on"></div>
+                            <div class="ob-seg on"></div>
+                            <div class="ob-seg"></div>
+                        </div>
+                        <div class="ob-nav">
+                            <button type="button" class="ob-back" onclick="goBack(3)" aria-label="Back">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8L10 3" stroke="#1A1A1A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                        </div>
+                        <div class="ob-header">
+                            <h1 class="ob-title">Which pass do you have?</h1>
+                            <p class="ob-subtitle">This helps us show the mountains that are most relevant to you.</p>
+                        </div>
+                        <div class="ob-options">
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="Epic" data-target="h-pass">Epic</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="Ikon" data-target="h-pass">Ikon</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="Freedom" data-target="h-pass">Freedom</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="Indy" data-target="h-pass">Indy</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="Mountain Collective" data-target="h-pass">Mountain Collective</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="Powder Alliance" data-target="h-pass">Powder Alliance</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="Ski California" data-target="h-pass">Ski California</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="Other" data-target="h-pass">Other</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="No Pass" data-target="h-pass">No Pass</button>
+                        </div>
+                        <div class="ob-footer">
+                            <button type="button" class="ob-btn" id="cta-3" disabled onclick="goNext(3)">Continue</button>
+                        </div>
                     </div>
-                </div>
-                
-                <button type="submit" class="bl-btn-primary form-submit">Continue</button>
-                
-                <p class="form-footer">You can change these later in your profile.</p>
-            </form>
-        </div>
-    </div>
-    
-    <script>
-        document.querySelectorAll('.pass-chip').forEach(chip => {
-            const input = chip.querySelector('input');
-            
-            if (input.checked) {
-                chip.classList.add('selected');
-            }
-            
-            input.addEventListener('change', () => {
-                chip.classList.toggle('selected', input.checked);
-                
-                const noPassChip = document.querySelector('.pass-chip input[value="No Pass"]');
-                const noPassLabel = noPassChip.closest('.pass-chip');
-                
-                if (input.value === 'No Pass' && input.checked) {
-                    document.querySelectorAll('.pass-chip input').forEach(other => {
-                        if (other !== input) {
-                            other.checked = false;
-                            other.closest('.pass-chip').classList.remove('selected');
-                        }
-                    });
-                } else if (input.value !== 'No Pass' && input.checked) {
-                    noPassChip.checked = false;
-                    noPassLabel.classList.remove('selected');
-                }
+
+                    <!-- ── Step 4: Home State / Province ── -->
+                    <div class="ob-step">
+                        <div class="ob-progress">
+                            <div class="ob-seg on"></div>
+                            <div class="ob-seg on"></div>
+                            <div class="ob-seg on"></div>
+                            <div class="ob-seg on"></div>
+                        </div>
+                        <div class="ob-nav">
+                            <button type="button" class="ob-back" onclick="goBack(4)" aria-label="Back">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8L10 3" stroke="#1A1A1A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                        </div>
+                        <div class="ob-header">
+                            <h1 class="ob-title">Where are you based?</h1>
+                            <p class="ob-subtitle">This helps us surface nearby resorts and local conditions.</p>
+                        </div>
+                        <div class="ob-options">
+                            <div class="ob-sel-wrap" id="state-wrap">
+                                <span class="ob-sel-icon">📍</span>
+                                <span class="ob-sel-label" id="state-label">Select your state or province</span>
+                                <span class="ob-sel-chevron">
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5L7 9L11 5" stroke="#888888" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </span>
+                                <select name="home_state" id="state-select" onchange="onStateChange(this)">
+                                    <option value="">Select your state or province</option>
+                                    <optgroup label="United States">
+                                        {% for code, name in grouped_locations['United States'] %}
+                                        <option value="{{ code }}">{{ name }}</option>
+                                        {% endfor %}
+                                    </optgroup>
+                                    <optgroup label="Canada">
+                                        {% for code, name in grouped_locations['Canada'] %}
+                                        <option value="{{ code }}">{{ name }}</option>
+                                        {% endfor %}
+                                    </optgroup>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="ob-footer">
+                            <button type="submit" class="ob-btn" id="cta-4" disabled>Let's go</button>
+                        </div>
+                    </div>
+
+                </div><!-- /ob-slider -->
+            </div><!-- /ob-viewport -->
+        </form>
+    </div><!-- /ob-frame -->
+</div><!-- /ob-outer -->
+
+<script>
+    var slider = document.getElementById('ob-slider');
+    var currentStep = 1;
+
+    function slideTo(n) {
+        slider.style.transform = 'translateX(' + (-(n - 1) * 25) + '%)';
+        currentStep = n;
+    }
+
+    function goNext(from) { slideTo(from + 1); }
+    function goBack(from) { slideTo(from - 1); }
+
+    document.querySelectorAll('.ob-pill').forEach(function(pill) {
+        pill.addEventListener('click', function() {
+            var grp = this.dataset.grp;
+            var val = this.dataset.val;
+            var targetId = this.dataset.target;
+
+            document.querySelectorAll('.ob-pill[data-grp="' + grp + '"]').forEach(function(p) {
+                p.classList.remove('sel');
             });
+            this.classList.add('sel');
+
+            document.getElementById(targetId).value = val;
+
+            var ctaMap = { rider: 'cta-1', skill: 'cta-2', pass: 'cta-3' };
+            var ctaId = ctaMap[grp];
+            if (ctaId) document.getElementById(ctaId).disabled = false;
         });
-        
-        // Social rider type handling: hide skill level when Social is selected alone
-        const riderCheckboxes = document.querySelectorAll('input[name="rider_types"]');
-        const skillLevelGroup = document.getElementById('skill-level-group');
-        const skillRadios = document.querySelectorAll('input[name="skill_level"]');
-        
-        function updateSkillLevelVisibility() {
-            const checked = Array.from(riderCheckboxes).filter(cb => cb.checked);
-            const checkedValues = checked.map(cb => cb.value);
-            
-            // Hide skill level ONLY if Social is the sole selection
-            const isSocialOnly = checkedValues.length === 1 && checkedValues[0] === 'Social';
-            
-            if (isSocialOnly) {
-                skillLevelGroup.style.display = 'none';
-                // Clear any skill level selection and remove required
-                skillRadios.forEach(r => {
-                    r.checked = false;
-                    r.removeAttribute('required');
-                });
-            } else {
-                skillLevelGroup.style.display = '';
-                // Restore required on first radio if skill level is visible
-                if (skillRadios.length > 0) {
-                    skillRadios[0].setAttribute('required', 'required');
-                }
-            }
+    });
+
+    function onStateChange(select) {
+        var wrap = document.getElementById('state-wrap');
+        var label = document.getElementById('state-label');
+        var cta = document.getElementById('cta-4');
+        if (select.value) {
+            label.textContent = select.options[select.selectedIndex].text;
+            wrap.classList.add('has-val');
+            cta.disabled = false;
+        } else {
+            label.textContent = 'Select your state or province';
+            wrap.classList.remove('has-val');
+            cta.disabled = true;
         }
-        
-        riderCheckboxes.forEach(cb => {
-            cb.addEventListener('change', updateSkillLevelVisibility);
-        });
-        
-        // Initial check on page load
-        updateSkillLevelVisibility();
-    </script>
+    }
+</script>
 </body>
 </html>

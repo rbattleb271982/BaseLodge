@@ -1,0 +1,144 @@
+Build a new mobile-first onboarding flow for BaseLodge and replace the current onboarding UI with this structure.
+
+Tech:
+- React + Tailwind CSS
+- Single-page flow
+- Use React useState for onboarding state
+- No backend changes
+- Keep all existing onboarding data/field meanings intact
+- This is a frontend flow/layout refactor only
+
+Goal:
+Turn the current onboarding into 4 screens instead of the current combined flow.
+
+Flow order:
+1. Rider Type
+2. Skill Level
+3. Pass Selection
+4. Home State / Province
+5. Confirmation screen
+
+General requirements:
+- Mobile-first
+- Treat the UI as a centered 375px phone frame on desktop
+- Each step should fill the viewport height inside the phone frame
+- No vertical page scrolling
+- Smooth horizontal slide transition between steps
+- Back arrow on steps 2–4 only
+- CTA disabled until a valid selection is made on that step
+- Keep styling premium, clean, and minimal
+
+Design system:
+- Primary color: #3C3489
+- Light accent: #EEEDFE
+- Mid accent: #7F77DD
+- Background: #FFFFFF
+- Surface: #F8F8F8
+- Font: Inter
+
+Progress bar:
+- 4 thin segments at top
+- Filled: #3C3489
+- Unfilled: #E5E5E5
+- Animate on step advance
+
+Selection pill styles:
+- Full width
+- Rounded full pill
+- Height 48px
+- Padding 0 18px
+- Default: bg #F8F8F8, border 1px solid #E5E5E5, text #1A1A1A
+- Selected: bg #EEEDFE, border 1.5px solid #7F77DD, text #3C3489, font-weight 500
+
+CTA button:
+- Full width
+- Height 52px
+- Pill shaped
+- Background #3C3489
+- White text
+- Font weight 500
+- Font size 16px
+- Disabled state opacity 0.4
+
+Step 1 — Rider Type
+Title: "How do you ride?"
+Subtitle: "We’ll personalize your experience around your style."
+Options, single-select, vertical pills:
+- ⛷ Skier
+- 🏂 Snowboarder
+- 🎿 Telemark
+- 🌲 Cross-country
+- ♿ Adaptive
+- ☕ Social / après
+CTA: "Continue"
+
+Step 2 — Skill Level
+Title: "What’s your level?"
+Subtitle: "We’ll tailor the experience to the terrain and trips that fit you best."
+Options, single-select, vertical pills:
+- Beginner — hint on right: "Green runs"
+- Intermediate — hint on right: "Blue runs"
+- Advanced — hint on right: "Black runs"
+- Expert — hint on right: "Double black"
+Right-side hint:
+- color #888888
+- font-size 13px
+CTA: "Continue"
+
+Step 3 — Pass Selection
+Title: "Which pass do you have?"
+Subtitle: "This helps us show the mountains that are most relevant to you."
+Single-select, vertical pill list only.
+Do NOT group into sections.
+Do NOT add badges.
+Do NOT add explanatory chips.
+
+Exact order:
+- Epic
+- Ikon
+- Freedom
+- Indy
+- Mountain Collective
+- Powder Alliance
+- Ski California
+- Other
+- No Pass
+
+CTA: "Continue"
+
+Step 4 — Home State / Province
+Title: "Where are you based?"
+Subtitle: "This helps us surface nearby resorts and local conditions."
+Use one full-width styled dropdown/pill input.
+Placeholder:
+- "Select your state or province"
+Include:
+- 📍 icon on left
+- chevron on right
+List all US states and Canadian provinces alphabetically.
+No geolocation button.
+CTA: "Let’s go"
+
+Confirmation screen
+After tapping "Let’s go":
+- centered layout
+- checkmark icon in #3C3489
+- heading: "You’re all set."
+- subtext: "Welcome to BaseLodge, [riderType]."
+- full-width button: "Open BaseLodge"
+Button can be non-functional for now
+
+Important implementation notes:
+- Keep all existing onboarding field names / data compatibility intact
+- This should not break the current user creation/profile setup flow
+- If the current onboarding is split across multiple templates/routes, consolidate the user-facing experience cleanly but preserve existing save behavior
+- Reuse existing values where possible
+- Do not add new backend requirements
+- Do not add geolocation
+- Do not add new product features
+- Do not over-design
+
+At the end, tell me:
+1. which files you changed
+2. how the step state is managed
+3. whether anything in the existing onboarding flow was kept for compatibility

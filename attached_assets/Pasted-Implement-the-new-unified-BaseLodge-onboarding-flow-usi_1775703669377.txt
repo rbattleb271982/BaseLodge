@@ -1,0 +1,121 @@
+Implement the new unified BaseLodge onboarding flow using Option A.
+
+Decision:
+- Do NOT show a temporary confirmation interstitial screen
+- On the final step, submitting "Let’s go" should save the onboarding data and redirect directly into the real app flow
+- Keep it simple
+
+Use the plan exactly as proposed, with these requirements locked:
+
+1. Tech / architecture
+- Keep the existing Flask + Jinja2 setup
+- Do NOT add React, Vite, Node, or a build pipeline
+- Use the existing onboarding route structure as the safest base
+
+2. File changes
+- templates/identity_setup.html → replace with the new unified 4-step onboarding UI
+- app.py → make only the minimal POST-handler changes needed in identity_setup()
+- leave templates/location_setup.html intact and unused as fallback
+- do not change models.py
+- do not change migrations
+
+3. New onboarding flow inside templates/identity_setup.html
+Single-page, mobile-first, 4 steps:
+- Step 1: Rider Type
+- Step 2: Skill Level
+- Step 3: Pass Selection
+- Step 4: Home State / Province
+
+Requirements:
+- centered 375px mobile frame on desktop
+- full-height step experience inside the frame
+- no page scrolling
+- smooth horizontal slide transition between steps
+- back arrow on steps 2–4
+- progress indicator at top
+- CTA disabled until valid step selection is made
+- premium, clean styling matching the design direction we discussed
+
+4. Step details
+
+Step 1 — Rider Type
+Title: "How do you ride?"
+Subtitle: "We’ll personalize your experience around your style."
+Options:
+- ⛷ Skier
+- 🏂 Snowboarder
+- 🎿 Telemark
+- 🌲 Cross-country
+- ♿ Adaptive
+- ☕ Social / après
+
+Compatibility:
+- preserve backend storage compatibility for rider_types
+- save the selected rider type in the existing rider_types-compatible format
+
+Step 2 — Skill Level
+Title: "What’s your level?"
+Subtitle: "We’ll tailor the experience to the terrain and trips that fit you best."
+Options:
+- Beginner — Green runs
+- Intermediate — Blue runs
+- Advanced — Black runs
+- Expert — Double black
+
+Important:
+- remove the old Social-only exception
+- everyone goes through this step
+
+Step 3 — Pass Selection
+Title: "Which pass do you have?"
+Subtitle: "This helps us show the mountains that are most relevant to you."
+Single-select vertical list only
+Exact order:
+- Epic
+- Ikon
+- Freedom
+- Indy
+- Mountain Collective
+- Powder Alliance
+- Ski California
+- Other
+- No Pass
+
+Important:
+- onboarding UX is single-select
+- backend should save a single pass_type value cleanly
+- remove the old pass multi-select fallback in this flow
+
+Step 4 — Home State / Province
+Title: "Where are you based?"
+Subtitle: "This helps us surface nearby resorts and local conditions."
+Use one styled dropdown/select
+- all US states
+- all Canadian provinces
+- alphabetical
+CTA: "Let’s go"
+
+5. Backend change in app.py
+In identity_setup() POST handling:
+- accept home_state from the same form submission
+- save home_state there
+- save rider_types, skill_level, and pass_type from the new unified form
+- redirect directly to /home after save
+- do not redirect to /location-setup anymore from this new onboarding path
+- keep /location-setup route intact for fallback compatibility
+
+6. Important constraints
+- minimal backend changes only
+- keep existing field names and compatibility intact where possible
+- do not break current user creation/login flow
+- do not introduce new product features
+- do not overengineer
+- do not add a temporary confirmation screen
+
+7. At the end tell me:
+- which files changed
+- exactly what was changed in identity_setup() POST logic
+- how rider_types compatibility was preserved
+- whether /location-setup still exists untouched
+
+Only use checkpoints if truly necessary.
