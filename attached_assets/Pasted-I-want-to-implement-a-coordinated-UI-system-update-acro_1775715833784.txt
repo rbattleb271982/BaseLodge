@@ -1,0 +1,109 @@
+I want to implement a coordinated UI/system update across Profile, Home, and Friend Profile so these screens feel like part of the same product system.
+Overall goal
+Keep each screen focused on its job:
+Home = my dashboard / progress
+Friends tab = coordination only
+Friend Profile = identity + social proof + planning context
+Profile = my identity + my setup + settings
+This plan should cover the UI changes, route/template impact, data needs, and the order of implementation before writing code.
+Scope of changes
+1. Profile page redesign
+Refactor the Profile page so it no longer feels like a generic settings screen.
+Required changes
+Add a top identity card
+dark hero background (#252320) consistent with Home/Trips
+maroon avatar
+user name
+secondary line: rider type · skill level · pass type
+quiet Edit text link in the top-right
+Keep V1 behavior for profile stats:
+show a single inline pill like 3 trips planned
+hide this if zero
+do not add the 3-box stat row on Profile
+Replace the current heavy section headings with small, subtle uppercase gray labels above sections
+Keep three grouped sections:
+Profile Details
+Equipment / Mountains Visited / Wish List Destinations
+Change Password / Log Out
+Keep rows clean:
+left-aligned label
+right chevron
+subtle dividers
+Use visual hierarchy:
+Log out in brand red
+Change password muted gray
+Keep layout mobile-first and top-aligned
+2. Add stat tiles to Home only
+Add the 3-box stat row to the Home page, not the Friends tab.
+Stats
+Upcoming
+Mountains
+Past trips
+Placement
+directly below the Home identity/hero area
+Behavior
+reuse the same component style that will also be used on Friend Profile
+hide any tile where the value is zero
+keep labels consistent across screens
+3. Add stat tiles to Friend Profile only
+When I tap into a friend’s profile/detail view, show the same stat row near the top.
+Placement
+directly below that friend’s identity block
+Stats
+Upcoming
+Mountains
+Past trips
+Behavior
+same component as Home
+hide zero-value tiles
+this is for social proof/context
+do not add these stats to the main Friends tab/activity list
+4. Keep Friends tab clean
+This is just for clarity while planning:
+the Friends tab itself should not get stat tiles
+it should remain focused on invite + friend list + lightweight signals
+What I want from the plan
+Please produce a concrete implementation plan that includes:
+A. File impact
+Identify which templates/routes/components/styles are likely affected for:
+Profile
+Home
+Friend Profile
+B. Data mapping
+Identify what data is needed for:
+trips planned pill on Profile
+Upcoming / Mountains / Past trips stat tiles on Home
+same stat tiles on Friend Profile
+Clarify whether existing queries/helpers/models already support these or whether small helper functions are needed.
+C. Component strategy
+Recommend whether the stat row should be built as:
+one reusable partial/component
+or duplicated lightly
+I strongly prefer reuse if it does not create unnecessary complexity.
+D. Order of implementation
+Recommend the best implementation sequence so we don’t create churn.
+I assume this is something like:
+reusable stats logic/component
+Home
+Friend Profile
+Profile redesign
+But confirm or improve that ordering.
+E. Risks / edge cases
+Call out anything that needs special attention, such as:
+zero states
+missing rider/pass data
+friend profile routes not currently exposing enough data
+layout issues on mobile
+keeping styling consistent with the rest of the app
+Important constraints
+This is a planning pass only
+Do not start coding
+Do not over-engineer
+Use checkpoints sparingly
+Keep implementation light and realistic for the current BaseLodge structure
+Prefer reusing existing logic over inventing new systems
+At the end, give me:
+recommended implementation order
+files likely to change
+data/helpers likely needed
+anything that should be decided before coding
