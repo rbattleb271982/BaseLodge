@@ -3768,13 +3768,25 @@ def home():
     except Exception:
         weekend_daytrip_signal = None
 
+    # --- Friend Activity Flag (broad: overlap, weekend signal, or any public friend trip) ---
+    friends_have_activity = bool(availability_nudge or weekend_daytrip_signal)
+    if not friends_have_activity and friend_ids:
+        try:
+            any_friend_trip = SkiTrip.query.filter(
+                SkiTrip.user_id.in_(friend_ids),
+                SkiTrip.is_public == True,
+                SkiTrip.end_date >= today
+            ).first()
+            friends_have_activity = any_friend_trip is not None
+        except Exception:
+            friends_have_activity = False
+
     return render_template(
         'home.html',
         user=user,
         next_trip=next_trip,
         next_trip_countdown=next_trip_countdown,
-        availability_nudge=availability_nudge,
-        weekend_daytrip_signal=weekend_daytrip_signal,
+        friends_have_activity=friends_have_activity,
     )
 
 

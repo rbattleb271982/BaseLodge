@@ -10,35 +10,64 @@
     <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .home-section-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        /* Identity header */
+        .home-identity {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            text-decoration: none;
+            color: inherit;
+        }
+        .home-identity-name {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--bl-color-text);
+            margin: 0 0 4px 0;
+            line-height: 1.2;
+        }
+        .home-identity-context {
+            font-size: 0.85rem;
             color: var(--bl-color-text-muted);
-            margin: 0 0 10px 0;
+            margin: 0;
+        }
+        .home-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bl-color-primary);
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-left: 12px;
         }
 
-        /* Next trip hero */
+        /* Next trip hero card */
         .hero-card {
             background: var(--bl-color-primary);
-            border-radius: 14px;
-            padding: 20px 20px 18px;
-            margin-bottom: 24px;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
             color: #fff;
             text-decoration: none;
             display: block;
         }
-        .hero-card-empty {
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: 14px;
-            padding: 20px 20px 18px;
-            margin-bottom: 24px;
-            text-align: center;
+        .hero-countdown-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 3px 10px;
+            margin-bottom: 12px;
+            letter-spacing: 0.2px;
         }
         .hero-mountain {
-            font-size: 1.3rem;
+            font-size: 1.4rem;
             font-weight: 700;
             margin: 0 0 4px 0;
             line-height: 1.2;
@@ -46,138 +75,124 @@
         .hero-dates {
             font-size: 0.9rem;
             opacity: 0.85;
-            margin: 0 0 14px 0;
+            margin: 0 0 4px 0;
         }
-        .hero-countdown {
+        .hero-people {
+            font-size: 0.85rem;
+            opacity: 0.75;
+            margin: 0 0 16px 0;
+        }
+        .hero-cta {
             display: inline-block;
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-            font-size: 0.85rem;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            font-size: 0.9rem;
             font-weight: 600;
-            padding: 4px 10px;
-        }
-        .hero-friends-row {
-            margin-top: 12px;
-            font-size: 0.85rem;
-            opacity: 0.85;
+            color: #fff;
+            padding: 8px 16px;
+            text-decoration: none;
         }
 
-        /* Friend activity */
-        .activity-card {
+        /* Empty hero card */
+        .hero-card-empty {
             background: var(--bl-color-surface);
             border: 1px solid var(--bl-color-border-soft);
-            border-radius: 10px;
-            padding: 14px 16px;
-            margin-bottom: 10px;
+            border-radius: 16px;
+            padding: 28px 20px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .hero-empty-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 6px 0;
+        }
+        .hero-empty-sub {
+            font-size: 0.88rem;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 18px 0;
+        }
+
+        /* Friend activity card */
+        .friend-activity-card {
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: 12px;
+            padding: 16px;
             text-decoration: none;
             color: inherit;
             display: block;
         }
-        .activity-card-text {
+        .friend-activity-title {
             font-size: 0.95rem;
-            font-weight: 500;
+            font-weight: 600;
             color: var(--bl-color-text);
             margin: 0 0 3px 0;
         }
-        .activity-card-cta {
+        .friend-activity-sub {
             font-size: 0.85rem;
             color: var(--bl-color-primary);
             margin: 0;
         }
-
-        /* Nearby mountains placeholder */
-        .nearby-placeholder {
-            background: var(--bl-color-surface);
-            border: 1px dashed var(--bl-color-border-soft);
-            border-radius: 10px;
-            padding: 18px 16px;
-            text-align: center;
-        }
-        .nearby-placeholder-title {
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: var(--bl-color-text);
-            margin: 0 0 4px 0;
-        }
-        .nearby-placeholder-sub {
-            font-size: 0.85rem;
-            color: var(--bl-color-text-muted);
-            margin: 0;
-        }
-
-        .home-section {
-            margin-bottom: 28px;
-        }
     </style>
 </head>
 <body>
-    <div class="page-container" style="padding: 16px 16px 88px;">
+    <div class="page-container" style="padding: 20px 16px 88px;">
 
-        <div class="bl-header">Home</div>
+        <!-- Identity Header -->
+        {% set rider_types = user.rider_types or [] %}
+        {% set rider_label = rider_types | join(' & ') if rider_types else '' %}
+        {% set context_parts = [] %}
+        {% if rider_label %}{% set _ = context_parts.append(rider_label) %}{% endif %}
+        {% if user.skill_level %}{% set _ = context_parts.append(user.skill_level | capitalize) %}{% endif %}
+        {% if user.pass_type %}{% set _ = context_parts.append(user.pass_type) %}{% endif %}
 
-        <!-- ── Section 1: Next Trip ─────────────────────── -->
-        <div class="home-section">
-            <p class="home-section-label">Next trip</p>
+        <a href="{{ url_for('profile') }}" class="home-identity">
+            <div>
+                <p class="home-identity-name">{{ user.first_name }} {{ user.last_name or '' }}</p>
+                {% if context_parts %}
+                <p class="home-identity-context">{{ context_parts | join(' · ') }}</p>
+                {% endif %}
+            </div>
+            <div class="home-avatar">{{ user.first_name[0] | upper }}</div>
+        </a>
 
-            {% if next_trip %}
-                {% set resort = next_trip.resort %}
-                {% set mountain_name = resort.name if resort else next_trip.mountain %}
-                {% set state_abbr = resort|state_abbrev if resort else next_trip.state %}
-                <a href="{{ url_for('trip_detail', trip_id=next_trip.id) }}" class="hero-card">
-                    <p class="hero-mountain">
-                        {{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}
-                    </p>
-                    <p class="hero-dates">{{ format_trip_dates(next_trip) }}</p>
-                    {% if next_trip_countdown %}
-                        <span class="hero-countdown">{{ next_trip_countdown }}</span>
-                    {% endif %}
-                    {% set pass_brands = resort|mountain_passes if resort else '' %}
-                    {% if pass_brands %}
-                        <p class="hero-friends-row">{{ pass_brands }}</p>
-                    {% endif %}
-                </a>
-            {% else %}
-                <div class="hero-card-empty">
-                    <p style="font-size:0.95rem;font-weight:500;color:var(--bl-color-text);margin:0 0 8px 0;">No trips planned yet</p>
-                    <p style="font-size:0.85rem;color:var(--bl-color-text-muted);margin:0 0 14px 0;">Add your first trip and see it here.</p>
-                    <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="display:inline-block;text-decoration:none;padding:10px 20px;font-size:0.9rem;">+ Add trip</a>
-                </div>
-            {% endif %}
-        </div>
-
-        <!-- ── Section 2: Friend Activity ──────────────── -->
-        {% if availability_nudge or weekend_daytrip_signal %}
-        <div class="home-section">
-            <p class="home-section-label">Friends</p>
-
-            {% if availability_nudge %}
-            <a href="{{ availability_nudge.href }}" class="activity-card">
-                <p class="activity-card-text">{{ availability_nudge.text }}</p>
-                <p class="activity-card-cta">See overlaps →</p>
-            </a>
-            {% endif %}
-
-            {% if weekend_daytrip_signal %}
-            <a href="{{ url_for('friends') }}" class="activity-card">
-                <p class="activity-card-text">
-                    {{ weekend_daytrip_signal.count }} friend{% if weekend_daytrip_signal.count != 1 %}s{% endif %}
-                    {% if weekend_daytrip_signal.count == 1 %}is{% else %}are{% endif %}
-                    day-tripping {{ weekend_daytrip_signal.resort }} this weekend
+        <!-- Next Trip Hero Card -->
+        {% if next_trip %}
+            {% set resort = next_trip.resort %}
+            {% set mountain_name = resort.name if resort else next_trip.mountain %}
+            {% set state_abbr = resort|state_abbrev if resort else next_trip.state %}
+            {% set people = next_trip.accepted_count %}
+            <a href="{{ url_for('trip_detail', trip_id=next_trip.id) }}" class="hero-card">
+                {% if next_trip_countdown %}
+                    <span class="hero-countdown-badge">{{ next_trip_countdown }}</span>
+                {% endif %}
+                <p class="hero-mountain">
+                    {{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}
                 </p>
-                <p class="activity-card-cta">View friends →</p>
+                <p class="hero-dates">{{ format_trip_dates(next_trip) }}</p>
+                {% if people and people > 1 %}
+                    <p class="hero-people">{{ people }} going</p>
+                {% endif %}
+                <span class="hero-cta">View trip →</span>
             </a>
-            {% endif %}
-        </div>
+        {% else %}
+            <div class="hero-card-empty">
+                <p class="hero-empty-title">No trips planned yet</p>
+                <p class="hero-empty-sub">Your next powder day is one tap away</p>
+                <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="display:inline-block;text-decoration:none;padding:11px 24px;font-size:0.9rem;">Plan a trip</a>
+            </div>
         {% endif %}
 
-        <!-- ── Section 3: Nearby Mountains ─────────────── -->
-        <div class="home-section">
-            <p class="home-section-label">Explore</p>
-            <div class="nearby-placeholder">
-                <p class="nearby-placeholder-title">Nearby mountains</p>
-                <p class="nearby-placeholder-sub">Mountain discovery coming soon</p>
-            </div>
-        </div>
+        <!-- Friend Activity Card (conditional) -->
+        {% if friends_have_activity %}
+        <a href="{{ url_for('friends', tab='overlaps') }}" class="friend-activity-card">
+            <p class="friend-activity-title">Your friends are making plans</p>
+            <p class="friend-activity-sub">See their trips and overlaps →</p>
+        </a>
+        {% endif %}
 
     </div>
 
