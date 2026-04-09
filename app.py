@@ -18,6 +18,7 @@ SYSTEM OF RECORD (as of 2026-01-15):
 import os
 import secrets
 from datetime import datetime, date, timedelta
+from types import SimpleNamespace
 
 BASE_URL = os.getenv("BASE_URL", "https://app.baselodgeapp.com").rstrip("/")
 import sqlalchemy as sa
@@ -2860,6 +2861,28 @@ def friends():
     
     # Build a lookup for friendship data (including trip_invites_allowed and created_at)
     friendship_lookup = {f.friend_id: f for f in friend_links}
+
+    # Build per-friend label lookups
+    trip_overlap_by_friend = {}
+    for ov in trip_overlaps:
+        fid = ov['friend_id']
+        if fid not in trip_overlap_by_friend:
+            trip_overlap_by_friend[fid] = []
+        trip_overlap_by_friend[fid].append(ov)
+
+    open_overlap_by_friend = {}
+    for ov in open_date_overlaps:
+        fid = ov['friend_id']
+        if fid not in open_overlap_by_friend:
+            open_overlap_by_friend[fid] = []
+        open_overlap_by_friend[fid].append(ov['date_str'])
+
+    friend_trips_by_id = {}
+    for ft in friend_trips:
+        fid = ft.user_id
+        if fid not in friend_trips_by_id:
+            friend_trips_by_id[fid] = []
+        friend_trips_by_id[fid].append(ft)
     
     # Calculate sorting data for each friend
     seven_days_ago = datetime.utcnow() - timedelta(days=7)
@@ -2904,7 +2927,36 @@ def friends():
             friend._latest_upcoming_trip_created_at = latest_created
         else:
             friend._latest_upcoming_trip_created_at = None
-    
+
+        # Compute display labels for friend list row
+        friend._overlap_label = None
+        friend._next_trip_label = None
+
+        friend_ov_trips = sorted(trip_overlap_by_friend.get(friend.id, []), key=lambda x: x['start_date'])
+        if friend_ov_trips:
+            ov = friend_ov_trips[0]
+            ov_proxy = SimpleNamespace(start_date=ov['start_date'], end_date=ov['end_date'])
+            dates_str = format_trip_dates(ov_proxy)
+            friend._overlap_label = f"Overlap at {ov['mountain']} · {dates_str}"
+        else:
+            friend_open_ovs = sorted(open_overlap_by_friend.get(friend.id, []))
+            if friend_open_ovs:
+                d = datetime.strptime(friend_open_ovs[0], '%Y-%m-%d').date()
+                friend._overlap_label = f"Both free {d.strftime('%b %-d')}"
+
+        friend_upcoming_pub = sorted(friend_trips_by_id.get(friend.id, []), key=lambda t: t.start_date)
+        if friend_upcoming_pub:
+            ft = friend_upcoming_pub[0]
+            resort_name = ft.resort.name if ft.resort else (ft.mountain or '')
+            state = ft.resort.state if ft.resort else (ft.state if hasattr(ft, 'state') else '')
+            dates_str = format_trip_dates(ft)
+            label = resort_name
+            if state:
+                label += f", {state}"
+            if dates_str:
+                label += f" · {dates_str}"
+            friend._next_trip_label = label
+
     # Sort friends by:
     # 1. New friends first (is_new_friend DESC)
     # 2. Has upcoming trip (DESC)
@@ -2960,23 +3012,20 @@ def friends():
             return False
         friends_list = [f for f in friends_list if matches_rider_filter(f)]
         active_filter_count += 1
-    
+
+    invite_token_obj = get_or_create_invite_token(user)
+    invite_url = (
+        f"{BASE_URL}{url_for('invite_token_landing', token=invite_token_obj.token)}"
+        if invite_token_obj else None
+    )
+
     return render_template(
         "friends.html",
         user=user,
         friends=friends_list,
         count_all=len(all_friends_sorted),
-        active_filter_count=active_filter_count,
-        selected_riders=selected_riders,
-        selected_skills=selected_skills,
-        selected_passes=selected_passes,
-        rider_types=RIDER_TYPES,
-        active_tab=active_tab,
-        friend_trips=friend_trips,
-        grouped_overlaps=grouped_overlaps,
+        invite_url=invite_url,
         format_trip_dates=format_trip_dates,
-        now=datetime.now,
-        all_users=all_friends
     )
 
 @app.route("/friends/<int:friend_id>")

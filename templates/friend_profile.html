@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ friend.first_name }} {{ friend.last_name }} - BaseLodge</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
+    <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
         .back-link {
@@ -13,453 +17,245 @@
             text-decoration: none;
             font-size: 16px;
         }
-        
-        /* 4-Row Card Structure */
-        .profile-header-card {
-            background: var(--bl-color-surface);
+        .back-link:hover {
+            color: var(--bl-color-text);
+        }
+
+        /* ── Shared context block ─────────────────────── */
+        .context-block {
+            background: rgba(143, 1, 27, 0.06);
             border-radius: 12px;
-            padding: 12px 16px;
-            margin-bottom: 24px;
+            padding: 14px 16px;
+            margin-bottom: 20px;
         }
-        
-        /* Row 1: Header */
-        .card-header-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-        }
-        .card-name {
-            font-size: 1.1rem;
+        .context-block-label {
+            font-size: 11px;
             font-weight: 600;
+            color: var(--bl-color-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 8px 0;
+        }
+        .context-overlap-row {
+            font-size: 0.9rem;
+            color: var(--bl-color-text);
+            margin: 0 0 4px 0;
+            line-height: 1.4;
+        }
+        .context-overlap-row:last-child {
+            margin-bottom: 0;
+        }
+        .context-avail-text {
+            font-size: 0.9rem;
             color: var(--bl-color-text);
             margin: 0;
-            line-height: 1.3;
+            line-height: 1.4;
         }
-        .card-status {
-            font-size: 0.9rem;
+
+        /* ── Upcoming trips flat list ─────────────────── */
+        .section-label {
+            font-size: 13px;
+            font-weight: 700;
             color: var(--bl-color-text-muted);
-            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 10px 0;
         }
-        .card-status-active {
+        .trips-section {
+            margin-bottom: 24px;
+        }
+        .trip-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 13px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .trip-row:first-child {
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+        .trip-row:active {
+            opacity: 0.7;
+        }
+        .trip-row-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .trip-row-dest {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 2px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .trip-row-dates {
+            font-size: 0.85rem;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+        }
+        .trip-row-overlap-tag {
+            font-size: 0.8rem;
+            color: var(--bl-color-primary);
+            font-weight: 500;
+            margin-top: 2px;
+        }
+        .trip-row-chevron {
+            flex-shrink: 0;
+            margin-left: 12px;
+            font-size: 0.875rem;
             color: var(--bl-color-primary);
             font-weight: 500;
         }
-        
-        /* Row 2: Identity */
-        .card-identity-row {
-            font-size: 0.95rem;
-            color: var(--bl-color-text-muted);
-            margin-bottom: 6px;
-            line-height: 1.4;
-        }
-        
-        /* Row 2b: Terrain Preferences */
-        .card-terrain-row {
+        .trips-empty {
             font-size: 0.9rem;
             color: var(--bl-color-text-muted);
-            margin-bottom: 6px;
-            line-height: 1.4;
+            padding: 16px 0;
         }
-        
-        /* Row 3: Equipment */
-        .card-equipment-row {
+
+        /* ── Profile section ──────────────────────────── */
+        .profile-section {
+            margin-bottom: 24px;
+        }
+        .profile-card {
+            background: var(--bl-color-surface);
+            border-radius: 12px;
+            padding: 14px 16px;
+        }
+        .profile-card-name {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 4px 0;
+            line-height: 1.3;
+        }
+        .profile-card-identity {
             font-size: 0.9rem;
             color: var(--bl-color-text-muted);
-            margin-bottom: 6px;
+            margin: 0 0 4px 0;
             line-height: 1.4;
         }
-        
-        /* Row 4: Stats with vertical dividers */
-        .card-stats-row {
+        .profile-card-stats {
             display: flex;
             justify-content: space-between;
             border-top: 1px solid var(--bl-color-border-soft);
             margin-top: 10px;
             padding-top: 10px;
         }
-        .card-stat-col {
+        .profile-stat-col {
             flex: 1;
             text-align: center;
             padding: 0 4px;
         }
-        .card-stat-col:not(:last-child) {
+        .profile-stat-col:not(:last-child) {
             border-right: 1px solid var(--bl-color-border-soft);
         }
-        .card-stat-label {
-            font-size: 0.75rem;
+        .profile-stat-label {
+            font-size: 0.7rem;
             color: var(--bl-color-text-muted);
             text-transform: uppercase;
             letter-spacing: 0.3px;
             margin-bottom: 2px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 3px;
         }
-        .card-stat-label .stat-icon {
-            width: 12px;
-            height: 12px;
-            stroke-width: 2;
-            stroke: var(--bl-color-text-muted);
-            flex-shrink: 0;
-        }
-        .card-stat-value {
-            font-size: 1.15rem;
+        .profile-stat-value {
+            font-size: 1.1rem;
             font-weight: 600;
             color: var(--bl-color-text);
         }
-        
-        /* Pass compatibility badge */
-        .pass-compat-badge {
-            display: inline-block;
-            margin-top: 10px;
-            padding: 6px 12px;
-            background: rgba(143, 1, 27, 0.08);
-            border-radius: 16px;
-            font-size: 13px;
-            color: var(--bl-color-primary);
-            font-weight: 500;
-        }
-        
-        .section-header {
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--bl-color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin: 0 0 12px 0;
-        }
-        .equipment-section {
+
+        /* Wish list overlap */
+        .wishlist-section {
             margin-bottom: 24px;
         }
-        .trips-section {
-            margin-bottom: 24px;
-        }
-        .trip-card {
-            background: var(--bl-color-surface);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 8px;
-        }
-        .trip-card-line1 {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin: 0 0 4px 0;
-        }
-        .trip-card-line2 {
-            font-size: 14px;
-            color: var(--bl-color-text-muted);
-            margin: 0;
-        }
-        .trip-overlap-indicator {
-            font-size: 13px;
-            color: var(--bl-color-primary);
-            font-weight: 500;
-            margin-top: 8px;
-        }
-        .overlap-callout {
-            background: rgba(143, 1, 27, 0.06);
-            border-radius: 10px;
-            padding: 14px 16px;
-            margin-bottom: 12px;
-        }
-        .overlap-callout-text {
-            font-size: 14px;
-            color: var(--bl-color-text);
-            margin: 0;
-        }
-        .availability-callout {
-            background: rgba(143, 1, 27, 0.06);
-            border-radius: 10px;
-            padding: 14px 16px;
-            margin-bottom: 12px;
-        }
-        .availability-callout-text {
-            font-size: 14px;
-            color: var(--bl-color-text);
-            margin: 0;
-        }
-        .context-banner {
-            background: rgba(143, 1, 27, 0.06);
-            border-radius: 8px;
-            padding: 10px 14px;
-            margin-bottom: 16px;
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-        }
-        .empty-state {
-            text-align: center;
-            padding: 24px;
-            color: var(--bl-color-text-muted);
-            font-size: 15px;
-        }
-        
-        /* Segmented Toggle */
-        .view-toggle {
-            display: flex;
-            background: var(--bl-color-border-soft, #e5e5e5);
-            border-radius: 8px;
-            padding: 3px;
-            margin-bottom: 16px;
-        }
-        @media (prefers-color-scheme: dark) {
-            .view-toggle {
-                background: rgba(255,255,255,0.1);
-            }
-        }
-        .view-toggle-btn {
-            flex: 1;
-            padding: 8px 16px;
-            border: none;
-            background: transparent;
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--bl-color-text-muted);
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-        .view-toggle-btn.active {
-            background: var(--bl-color-surface);
-            color: var(--bl-color-text);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        /* Calendar Styles */
-        .calendar-view {
-            display: none;
-        }
-        .calendar-view.active {
-            display: block;
-        }
-        .list-view {
-            display: block;
-        }
-        .list-view.hidden {
-            display: none;
-        }
-        
-        .calendar-month {
-            margin-bottom: 24px;
-        }
-        .calendar-month-header {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin: 0 0 12px 0;
-        }
-        .calendar-weekdays {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 2px;
-            margin-bottom: 4px;
-        }
-        .calendar-weekday {
-            text-align: center;
-            font-size: 11px;
-            font-weight: 600;
+        .wishlist-item {
+            font-size: 0.9rem;
             color: var(--bl-color-text-muted);
             padding: 4px 0;
-            text-transform: uppercase;
-        }
-        .calendar-days {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 2px;
-        }
-        .calendar-day {
-            aspect-ratio: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            color: var(--bl-color-text);
-            border-radius: 6px;
-            position: relative;
-        }
-        .calendar-day.empty {
-            visibility: hidden;
-        }
-        .calendar-day.past {
-            color: var(--bl-color-text-muted);
-            opacity: 0.5;
-        }
-        .calendar-day.has-trip {
-            background: rgba(143, 1, 27, 0.15);
-            color: var(--bl-color-primary);
-            font-weight: 600;
-            cursor: pointer;
-        }
-        @media (prefers-color-scheme: dark) {
-            .calendar-day.has-trip {
-                background: rgba(255, 107, 122, 0.2);
-            }
-        }
-        .calendar-day.has-trip:hover {
-            background: rgba(143, 1, 27, 0.25);
-        }
-        
-        /* Trip Modal */
-        .trip-modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .trip-modal-overlay.active {
-            display: flex;
-        }
-        .trip-modal {
-            background: var(--bl-color-surface);
-            border-radius: 16px;
-            width: 100%;
-            max-width: 320px;
-            padding: 20px;
-        }
-        .trip-modal-header {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin: 0 0 16px 0;
-        }
-        .trip-modal-item {
-            padding: 12px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
-        }
-        .trip-modal-item:last-child {
-            border-bottom: none;
-        }
-        .trip-modal-item-name {
-            font-size: 15px;
-            font-weight: 500;
-            color: var(--bl-color-text);
-            margin: 0 0 4px 0;
-        }
-        .trip-modal-item-dates {
-            font-size: 14px;
-            color: var(--bl-color-text-muted);
-            margin: 0;
-        }
-        .trip-modal-close {
-            width: 100%;
-            margin-top: 16px;
-            padding: 12px;
-            background: var(--bl-color-border-soft);
-            border: none;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 500;
-            color: var(--bl-color-text);
-            cursor: pointer;
-        }
-        .trip-modal-view-link {
-            display: block;
-            text-decoration: none;
-            color: inherit;
-        }
-        .trip-modal-view-link:hover .trip-modal-item-name {
-            color: var(--bl-color-primary);
         }
     </style>
 </head>
 <body>
     <div class="page-container">
         <div class="bl-header"><a href="{{ url_for('home') }}">BaseLodge</a></div>
-        <a href="{{ url_for('friends') }}" class="back-link">← Back</a>
-        
-        {% if overlap_context %}
-        <div class="context-banner">
-            You overlap on {{ overlap_context.resort_name }} · {{ format_trip_dates(overlap_context) }}
+        <a href="{{ url_for('friends') }}" class="back-link">← Friends</a>
+
+        <!-- ── Shared context (top, only when present) ── -->
+        {% if trip_overlaps or has_availability_overlap %}
+        <div class="context-block">
+            <p class="context-block-label">You + {{ friend.first_name }}</p>
+            {% for overlap in trip_overlaps %}
+            <p class="context-overlap-row">You'll both be at {{ overlap.mountain }}{% if overlap.state %}, {{ overlap.state }}{% endif %} · {% if overlap.start_date == overlap.end_date %}{{ overlap.start_date.strftime('%b %-d') }}{% elif overlap.start_date.month == overlap.end_date.month %}{{ overlap.start_date.strftime('%b %-d') }}–{{ overlap.end_date.strftime('%-d') }}{% else %}{{ overlap.start_date.strftime('%b %-d') }}–{{ overlap.end_date.strftime('%b %-d') }}{% endif %}</p>
+            {% endfor %}
+            {% if has_availability_overlap %}
+            <p class="context-avail-text">Both free: {{ availability_display }}{% if availability_remaining > 0 %} +{{ availability_remaining }} more{% endif %}</p>
+            {% endif %}
         </div>
         {% endif %}
-        
-        <!-- Friend Profile Card -->
-        {% set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.boot_brand)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.boot_brand)) else none) %}
-        {% with profile_user=friend, is_owner=false, upcoming_trips_count=trips|length if trips else 0, equipment=eq, visited_resorts=visited_resorts, wishlist_resorts=wishlist_resorts %}
-            {% include 'components/profile_card.html' %}
-        {% endwith %}
-        
-        {% if trip_overlaps and trip_overlaps|length > 0 %}
-        <div class="section-header" style="margin-top: 0;">Trip Overlaps</div>
-        {% for overlap in trip_overlaps %}
-        <div class="overlap-callout">
-            <p class="overlap-callout-text">You'll both be at {{ overlap.mountain }} · {{ format_trip_dates(overlap) }}</p>
-        </div>
-        {% endfor %}
-        {% endif %}
-        
+
+        <!-- ── Upcoming trips ─────────────────────────── -->
         <div class="trips-section">
-            <h2 class="section-header">Upcoming Trips</h2>
-            
+            <h2 class="section-label">{{ friend.first_name }}'s Upcoming Trips</h2>
             {% if trips and trips|length > 0 %}
-            <!-- View Toggle -->
-            <div class="view-toggle">
-                <button class="view-toggle-btn active" id="list-toggle-btn" onclick="setView('list')">List</button>
-                <button class="view-toggle-btn" id="calendar-toggle-btn" onclick="setView('calendar')">Calendar</button>
-            </div>
-            
-            <!-- List View (Default) -->
-            <div class="list-view" id="list-view">
+            <div>
                 {% for trip in trips %}
-                <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" style="text-decoration: none; color: inherit;">
-                    <div class="trip-card" style="padding: 14px 16px;">
-                        <p class="trip-card-line1" style="margin: 0; font-size: 15px;">
-                            {{ format_trip_dates(trip) }} · {% if trip.resort %}{{ trip.resort.name }}, {{ trip.resort.state }}{% else %}{{ trip.mountain }}, {{ trip.state }}{% endif %} · {% if trip.resort and trip.resort.brand %}{{ trip.resort.brand }}{% else %}Other{% endif %}
-                        </p>
+                <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="trip-row">
+                    <div class="trip-row-content">
+                        <p class="trip-row-dest">{% if trip.resort %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% else %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% endif %}</p>
+                        <p class="trip-row-dates">{{ format_trip_dates(trip) }}</p>
                         {% if trip.has_trip_overlap %}
-                        <p class="trip-overlap-indicator" style="margin: 4px 0 0 0; font-size: 13px;">You're both attending</p>
+                        <p class="trip-row-overlap-tag">You're both going</p>
                         {% endif %}
                     </div>
+                    <span class="trip-row-chevron">View →</span>
                 </a>
                 {% endfor %}
             </div>
-            
-            <!-- Calendar View -->
-            <div class="calendar-view" id="calendar-view"></div>
             {% else %}
-                <div class="empty-state">No upcoming public trips</div>
+            <p class="trips-empty">No upcoming public trips</p>
             {% endif %}
         </div>
-        
-        <!-- Trip Modal -->
-        <div class="trip-modal-overlay" id="trip-modal-overlay">
-            <div class="trip-modal">
-                <h3 class="trip-modal-header" id="trip-modal-header">Trip Details</h3>
-                <div id="trip-modal-content"></div>
-                <button class="trip-modal-close" onclick="closeModal()">Close</button>
+
+        <!-- ── Profile info (secondary) ───────────────── -->
+        <div class="profile-section">
+            <h2 class="section-label">Profile</h2>
+            <div class="profile-card">
+                <p class="profile-card-name">{{ friend.first_name }} {{ friend.last_name }}</p>
+                <p class="profile-card-identity">{{ friend|identity_line }}</p>
+                {% if friend.pass_type %}
+                <p class="profile-card-identity">{{ friend.pass_type }}</p>
+                {% endif %}
+                {% set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.boot_brand)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.boot_brand)) else none) %}
+                {% if eq %}
+                <p class="profile-card-identity">
+                    {% if eq.brand %}{{ eq.brand }}{% endif %}{% if eq.brand and eq.boot_brand %} · {% endif %}{% if eq.boot_brand %}{{ eq.boot_brand }} boots{% endif %}
+                </p>
+                {% endif %}
+                <div class="profile-card-stats">
+                    <div class="profile-stat-col">
+                        <div class="profile-stat-label">Mountains</div>
+                        <div class="profile-stat-value">{{ friend_mountains_count }}</div>
+                    </div>
+                    <div class="profile-stat-col">
+                        <div class="profile-stat-label">Trips</div>
+                        <div class="profile-stat-value">{{ trips|length }}</div>
+                    </div>
+                </div>
             </div>
         </div>
-        
-        {% if has_availability_overlap %}
-        <div style="margin-bottom: 24px;">
-            <h2 class="section-header">Open Availability</h2>
-            <div class="availability-callout">
-                <p class="availability-callout-text">You're both open: {{ availability_display }}{% if availability_remaining > 0 %} (+{{ availability_remaining }} more){% endif %}</p>
-            </div>
-        </div>
-        {% endif %}
-        
+
         {% if wish_list_overlap and wish_list_overlap|length > 0 %}
-        <div style="margin-bottom: 24px;">
-            <h2 class="section-header">Wish List Overlap</h2>
-            <ul style="list-style: none; padding: 0; margin: 0;">
-                {% for resort in wish_list_overlap %}
-                <li style="font-size: 15px; color: var(--bl-color-text-muted); padding: 4px 0;">{{ resort.name }}</li>
-                {% endfor %}
-            </ul>
+        <div class="wishlist-section">
+            <h2 class="section-label">Wish List Overlap</h2>
+            {% for resort in wish_list_overlap %}
+            <p class="wishlist-item">{{ resort.name }}</p>
+            {% endfor %}
         </div>
         {% endif %}
-        
-        
+
         {% if show_connect_button %}
         <div style="margin-top: 20px;">
             <form method="POST" action="{{ url_for('connect_from_trip', user_id=friend.id) }}" style="margin: 0;">
@@ -470,222 +266,7 @@
         </div>
         {% endif %}
     </div>
-    
+
     {% include 'components/bottom_nav.html' %}
-    
-    <script>
-        let equipmentExpanded = false;
-        let mountainsExpanded = false;
-        
-        function toggleEquipment() {
-            const collapsed = document.getElementById('equipment-collapsed');
-            const expanded = document.getElementById('equipment-expanded');
-            if (!collapsed || !expanded) return;
-            equipmentExpanded = !equipmentExpanded;
-            collapsed.style.display = equipmentExpanded ? 'none' : 'inline';
-            expanded.style.display = equipmentExpanded ? 'inline' : 'none';
-        }
-        
-        function toggleMountains() {
-            const collapsed = document.getElementById('mountains-collapsed');
-            const expanded = document.getElementById('mountains-expanded');
-            if (!collapsed || !expanded) return;
-            mountainsExpanded = !mountainsExpanded;
-            collapsed.style.display = mountainsExpanded ? 'none' : 'inline';
-            expanded.style.display = mountainsExpanded ? 'block' : 'none';
-        }
-        
-        // Calendar View Toggle
-        let currentView = 'list';
-        
-        function setView(view) {
-            currentView = view;
-            const listView = document.getElementById('list-view');
-            const calendarView = document.getElementById('calendar-view');
-            const listBtn = document.getElementById('list-toggle-btn');
-            const calendarBtn = document.getElementById('calendar-toggle-btn');
-            
-            if (!listView || !calendarView) return;
-            
-            if (view === 'list') {
-                listView.classList.remove('hidden');
-                calendarView.classList.remove('active');
-                listBtn.classList.add('active');
-                calendarBtn.classList.remove('active');
-            } else {
-                listView.classList.add('hidden');
-                calendarView.classList.add('active');
-                listBtn.classList.remove('active');
-                calendarBtn.classList.add('active');
-                renderCalendar();
-            }
-        }
-        
-        // Trip data from server
-        const trips = [
-            {% for trip in trips %}
-            {
-                id: {{ trip.id }},
-                startDate: "{{ trip.start_date.strftime('%Y-%m-%d') if trip.start_date else '' }}",
-                endDate: "{{ trip.end_date.strftime('%Y-%m-%d') if trip.end_date else '' }}",
-                resortName: "{{ trip.resort.name if trip.resort else trip.mountain }}",
-                displayDates: "{{ format_trip_dates(trip) }}",
-                detailUrl: "{{ url_for('friend_trip_details', trip_id=trip.id) }}"
-            }{% if not loop.last %},{% endif %}
-            {% endfor %}
-        ];
-        
-        // Get all dates covered by trips
-        function getTripDates() {
-            const dateMap = {};
-            
-            trips.forEach(trip => {
-                if (!trip.startDate || !trip.endDate) return;
-                
-                const start = new Date(trip.startDate + 'T00:00:00');
-                const end = new Date(trip.endDate + 'T00:00:00');
-                
-                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                    const dateStr = d.toISOString().split('T')[0];
-                    if (!dateMap[dateStr]) {
-                        dateMap[dateStr] = [];
-                    }
-                    dateMap[dateStr].push(trip);
-                }
-            });
-            
-            return dateMap;
-        }
-        
-        // Find the range of months to render
-        function getMonthRange() {
-            if (trips.length === 0) return [];
-            
-            const now = new Date();
-            const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            
-            let maxDate = currentMonth;
-            trips.forEach(trip => {
-                if (trip.endDate) {
-                    const end = new Date(trip.endDate + 'T00:00:00');
-                    if (end > maxDate) {
-                        maxDate = end;
-                    }
-                }
-            });
-            
-            const months = [];
-            let current = new Date(currentMonth);
-            while (current <= maxDate) {
-                months.push(new Date(current));
-                current.setMonth(current.getMonth() + 1);
-            }
-            
-            return months;
-        }
-        
-        // Render the calendar
-        function renderCalendar() {
-            const container = document.getElementById('calendar-view');
-            if (!container) return;
-            
-            const tripDates = getTripDates();
-            const months = getMonthRange();
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                               'July', 'August', 'September', 'October', 'November', 'December'];
-            
-            let html = '';
-            
-            months.forEach(monthDate => {
-                const year = monthDate.getFullYear();
-                const month = monthDate.getMonth();
-                const firstDay = new Date(year, month, 1).getDay();
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                
-                html += `<div class="calendar-month">`;
-                html += `<h4 class="calendar-month-header">${monthNames[month]} ${year}</h4>`;
-                
-                // Weekday headers
-                html += `<div class="calendar-weekdays">`;
-                weekdays.forEach(day => {
-                    html += `<div class="calendar-weekday">${day}</div>`;
-                });
-                html += `</div>`;
-                
-                // Day cells
-                html += `<div class="calendar-days">`;
-                
-                // Empty cells before first day
-                for (let i = 0; i < firstDay; i++) {
-                    html += `<div class="calendar-day empty"></div>`;
-                }
-                
-                // Day cells
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    const thisDate = new Date(year, month, day);
-                    const isPast = thisDate < today;
-                    const hasTrip = tripDates[dateStr] && tripDates[dateStr].length > 0;
-                    
-                    let classes = 'calendar-day';
-                    if (isPast) classes += ' past';
-                    if (hasTrip) classes += ' has-trip';
-                    
-                    if (hasTrip) {
-                        html += `<div class="${classes}" onclick="showTripModal('${dateStr}')">${day}</div>`;
-                    } else {
-                        html += `<div class="${classes}">${day}</div>`;
-                    }
-                }
-                
-                html += `</div></div>`;
-            });
-            
-            container.innerHTML = html;
-        }
-        
-        // Show trip modal for a date
-        function showTripModal(dateStr) {
-            const tripDates = getTripDates();
-            const tripsOnDate = tripDates[dateStr] || [];
-            
-            if (tripsOnDate.length === 0) return;
-            
-            const modal = document.getElementById('trip-modal-overlay');
-            const header = document.getElementById('trip-modal-header');
-            const content = document.getElementById('trip-modal-content');
-            
-            // Format date for header
-            const d = new Date(dateStr + 'T00:00:00');
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            header.textContent = `${monthNames[d.getMonth()]} ${d.getDate()}`;
-            
-            // Build content
-            let html = '';
-            tripsOnDate.forEach(trip => {
-                html += `
-                    <a href="${trip.detailUrl}" class="trip-modal-view-link">
-                        <div class="trip-modal-item">
-                            <p class="trip-modal-item-name">${trip.resortName}</p>
-                            <p class="trip-modal-item-dates">${trip.displayDates}</p>
-                        </div>
-                    </a>
-                `;
-            });
-            content.innerHTML = html;
-            
-            modal.classList.add('active');
-        }
-        
-        // Close modal
-        function closeModal() {
-            const modal = document.getElementById('trip-modal-overlay');
-            modal.classList.remove('active');
-        }
-    </script>
 </body>
 </html>
