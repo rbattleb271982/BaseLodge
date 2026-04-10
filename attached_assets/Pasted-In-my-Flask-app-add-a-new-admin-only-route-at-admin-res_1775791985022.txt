@@ -1,0 +1,22 @@
+In my Flask app, add a new admin-only route at /admin/resorts/duplicates that finds duplicate resorts, then call it from within the dev environment using Flask's test client and return the JSON response in chat.
+Requirements for the route:
+
+Method: GET
+Protected by the existing @login_required and @admin_required decorators, imported the same way other admin routes in this codebase do
+Use SQLAlchemy ORM only — no raw SQL
+Group resorts by the normalized key (lower(trim(name)), upper(trim(state_code)), upper(trim(coalesce(country_code, 'US')))) and return only groups with more than one row
+For each duplicate group, return the normalized key fields, the count, and a list of matching resorts with id, name, state_code, country_code, slug, and is_active
+Return JSON shaped like {"status": "success", "duplicate_group_count": N, "total_duplicate_rows": M, "groups": [...]}
+Wrap in try/except, returning {"status": "error", "message": str(e)} with HTTP 500 on failure
+Register it alongside the other /admin/* routes in the same file, matching their style
+
+Then, to invoke it without any manual login or browser steps, write a one-off Python script at scripts/call_duplicates_route.py that:
+
+Imports the Flask app and db from this codebase
+Inside app.app_context(), looks up an existing admin user from the database (find the first user whose email matches the same admin check used by @admin_required — do not create a user, do not hardcode a password, do not modify any user record)
+Uses app.test_client() to issue the request, logging that user in via Flask-Login's session by using with client.session_transaction() as sess and setting sess['_user_id'] = str(admin_user.id) and sess['_fresh'] = True — this is the standard Flask-Login test pattern and only works in-process, so it cannot weaken production auth
+Calls client.get('/admin/resorts/duplicates')
+Prints the JSON response body to stdout, pretty-printed with json.dumps(..., indent=2)
+
+Then run python scripts/call_duplicates_route.py in the Replit shell yourself and paste the full stdout output back to me in chat.
+Do not modify the @admin_required decorator, do not add any dev-mode auth bypass to the route itself, do not create migrations, do not modify models, do not install packages, and do not create any new admin users. The script is a dev-only test harness — it must not be imported by the app and must not change any production code paths.
