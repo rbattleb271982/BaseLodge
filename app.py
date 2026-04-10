@@ -2324,7 +2324,10 @@ def create_trip():
     # Resolve resort — canonical source of truth for mountain/state
     resolved_resort = None
     if resort_id_raw:
-        resolved_resort = Resort.query.get(int(resort_id_raw))
+        try:
+            resolved_resort = Resort.query.get(int(resort_id_raw))
+        except (ValueError, TypeError):
+            resolved_resort = None
         if resolved_resort:
             mountain = resolved_resort.name
             state = resolved_resort.state_code or resolved_resort.state
@@ -4798,9 +4801,25 @@ def trip_detail(trip_id):
                 if not other_user:
                     continue
                 
-                # Get their ACTIVE trips (not past, at same resort, overlapping dates)
-                # Prefer resort_id match (canonical); fall back to mountain string for legacy trips
-                if trip.resort_id:
+                # Get their ACTIVE trips (not past, at same resort, overlapping dates).
+                # When the current trip has resort_id, match by resort_id OR by mountain string
+                # for legacy participant trips that share the same mountain but lack resort_id.
+                # This handles mixed canonical/legacy data in the same query.
+                if trip.resort_id and trip.mountain:
+                    other_trips = SkiTrip.query.filter(
+                        SkiTrip.user_id == user_id,
+                        db.or_(
+                            SkiTrip.resort_id == trip.resort_id,
+                            db.and_(
+                                SkiTrip.resort_id.is_(None),
+                                SkiTrip.mountain == trip.mountain
+                            )
+                        ),
+                        SkiTrip.start_date <= trip.end_date,
+                        SkiTrip.end_date >= trip.start_date,
+                        SkiTrip.end_date >= today
+                    ).all()
+                elif trip.resort_id:
                     other_trips = SkiTrip.query.filter(
                         SkiTrip.user_id == user_id,
                         SkiTrip.resort_id == trip.resort_id,
