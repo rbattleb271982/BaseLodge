@@ -884,6 +884,14 @@ def emit_availability_overlap_activities_for_trip(trip):
 # Database Configuration
 supabase_url = os.environ.get("SUPABASE_DATABASE_URL")
 if supabase_url:
+    # Normalize URL: SQLAlchemy requires 'postgresql://' not 'postgres://'
+    # Also strip any unsupported driver prefixes (asyncpg, etc.)
+    if supabase_url.startswith("postgres://"):
+        supabase_url = "postgresql://" + supabase_url[len("postgres://"):]
+    # Replace unsupported async driver specs with plain psycopg2
+    for bad_prefix in ["postgresql+asyncpg://", "postgresql+aiopg://"]:
+        if supabase_url.startswith(bad_prefix):
+            supabase_url = "postgresql://" + supabase_url[len(bad_prefix):]
     app.config["SQLALCHEMY_DATABASE_URI"] = supabase_url
 else:
     if is_production:
