@@ -1,0 +1,78 @@
+PUT THIS IN AGENT
+
+Use the diagnostic below as the source of truth and implement the fix. Do not ask me follow-up questions. Make the changes directly in dev so local resort data matches production structure as closely as possible without needing live production access.
+
+Objective:
+Replace the incomplete 118-resort local bootstrap with a self-contained import flow that loads the full 693-resort dataset from `prod_resorts_full.xlsx` in the repo root into local SQLite.
+
+What to build:
+
+1. Create a one-time/import-safe script that reads `prod_resorts_full.xlsx` and upserts resorts into the local database.
+
+2. Use the existing `generate_resort_slug` helper for slug generation.
+
+3. Map fields as follows:
+
+   * `Name` -> `name`
+   * `Country` -> `country_code`
+   * `Country Name` -> `country_name`
+   * `State / Region` -> `state_code`
+   * derive `state_name`
+   * `Pass Brands` -> `pass_brands`
+   * derive `pass_brands_json`
+   * `Status` -> `is_active` (`ACTIVE` = true)
+
+4. Derive `state_name` this way:
+
+   * for US/CA 2-letter codes, use the existing `STATE_ABBR_MAP`
+   * for international rows, use the region value as-is
+
+5. Derive `pass_brands_json` by splitting the comma-separated `pass_brands` string into a clean JSON list.
+
+6. Upsert by `slug` so the import is idempotent.
+
+7. Do not rely on production DB access.
+
+8. Do not use the spreadsheet ID column as the local DB primary key.
+
+9. Keep this compatible with local SQLite dev.
+
+Then update the local bootstrap flow:
+
+10. Refactor `/admin/init-db` so it no longer seeds the old hardcoded ~118 US-only resorts.
+
+11. Make `/admin/init-db` call or delegate to the new import flow so local dev gets the full dataset.
+
+12. Preserve any non-resort setup that `/admin/init-db` still needs to do.
+
+Also harden the canonical sync path:
+
+13. Update `/admin/sync-from-canonical` so that when canonical data is used in the future, it also writes:
+
+* `country_name`
+* `state_name`
+* `pass_brands_json`
+
+14. Keep all existing add/update/deactivate behavior intact.
+
+Validation requirements:
+
+15. After implementation, verify and report:
+
+* total resorts in local dev
+* number of countries represented
+* whether `country_code`, `country_name`, `state_code`, `state_name`, and `pass_brands_json` are populated
+* whether international resorts now exist locally
+* whether rerunning the import avoids creating duplicates
+
+16. Confirm the local total is 693 unless the source file itself says otherwise.
+
+17. Show me exactly which files were changed.
+
+18. Use checkpoints sparingly.
+
+Important:
+
+* Make the smallest clean change set that solves this correctly.
+* Do not leave behind dead code from the old hardcoded bootstrap if it is no longer needed.
+* Do not stop at code changes only. Run the import locally and verify the results end to end.
