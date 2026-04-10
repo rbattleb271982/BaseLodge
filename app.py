@@ -7271,6 +7271,8 @@ def fix_seeded_users():
 
 
 @app.route("/admin/version", methods=["GET"])
+@login_required
+@admin_required
 def admin_version():
     """Simple version check endpoint to verify production deployment."""
     return jsonify({
