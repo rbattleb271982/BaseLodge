@@ -7287,6 +7287,8 @@ def admin_version():
 
 
 @app.route("/admin/resorts-audit", methods=["GET"])
+@login_required
+@admin_required
 def resorts_audit():
     """Read-only endpoint to fetch all resorts for audit comparison."""
     resorts = Resort.query.all()
@@ -7305,6 +7307,8 @@ def resorts_audit():
 
 
 @app.route("/admin/backfill-country-codes", methods=["GET", "POST"])
+@login_required
+@admin_required
 def backfill_country_codes():
     """
     Backfill country_code and state_code for resorts based on state field.
