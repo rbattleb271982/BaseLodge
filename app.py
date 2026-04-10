@@ -7278,6 +7278,32 @@ def admin_version():
     })
 
 
+@app.route("/admin/debug-users", methods=["GET"])
+@login_required
+@admin_required
+def debug_users():
+    """Inspect production database: user count, first 20 users, and DB URI in use."""
+    db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "not set")
+    # Mask password from URI for safe display
+    import re
+    safe_uri = re.sub(r'(:)[^:@]+(@)', r'\1***\2', db_uri)
+    users = User.query.order_by(User.id).limit(20).all()
+    total = User.query.count()
+    return jsonify({
+        "database_uri": safe_uri,
+        "total_user_count": total,
+        "first_20_users": [
+            {
+                "id": u.id,
+                "email": u.email,
+                "first_name": u.first_name,
+                "last_name": u.last_name,
+            }
+            for u in users
+        ]
+    })
+
+
 @app.route("/admin/resorts-audit", methods=["GET"])
 @login_required
 @admin_required
