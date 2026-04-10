@@ -22,7 +22,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('trip_id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
-    sa.Column('status', sa.Enum('INVITED', 'ACCEPTED', 'DECLINED', name='ski_trip_participant_status_enum', create_constraint=True), nullable=False),
+    sa.Column('status', sa.Enum('invited', 'accepted', 'declined', name='ski_trip_participant_status_enum', create_constraint=True), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['trip_id'], ['ski_trip.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
