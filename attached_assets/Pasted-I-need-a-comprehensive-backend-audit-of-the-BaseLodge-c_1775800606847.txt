@@ -1,0 +1,391 @@
+I need a comprehensive backend audit of the BaseLodge codebase and 
+production database. This is the third audit in a series — please 
+treat it as a fresh, complete pass. Do not assume I have context 
+from previous audits.
+
+Please answer every question in the same numbered format below. 
+Where a question asks for a count or percentage, run the actual 
+SQL query and paste the real result. Where a question asks about 
+code behavior, walk through the actual code and quote relevant 
+lines if helpful. Where you genuinely don't know an answer, say 
+"unknown" rather than guessing — "unknown" is a useful answer.
+
+Do not editorialize, do not recommend changes, do not summarize. 
+I just need the factual current state of the code and data.
+
+============================================================
+PART 1 — PRODUCTION DATA COUNTS
+============================================================
+
+Run these SQL queries against the production database and paste 
+the actual results. If a table or column name is wrong for the 
+real schema, correct it, tell me what the actual name is, and 
+run the corrected query.
+
+Q1. Total users:
+    SELECT COUNT(*) FROM "user";
+
+Q2. Total SkiTrip records:
+    SELECT COUNT(*) FROM ski_trip;
+
+Q3. Total SkiTripParticipant rows:
+    SELECT COUNT(*) FROM ski_trip_participant;
+
+Q4. Distinct SkiTrips that have at least one SkiTripParticipant:
+    SELECT COUNT(DISTINCT trip_id) FROM ski_trip_participant;
+
+Q5. SkiTrips with more than one SkiTripParticipant 
+    (actually shared trips):
+    SELECT COUNT(*) FROM (
+      SELECT trip_id FROM ski_trip_participant 
+      GROUP BY trip_id HAVING COUNT(*) > 1
+    ) AS shared;
+
+Q6. SkiTrips whose owner does NOT have a corresponding 
+    SkiTripParticipant row with role=OWNER:
+    SELECT COUNT(*) FROM ski_trip st
+    WHERE NOT EXISTS (
+      SELECT 1 FROM ski_trip_participant stp
+      WHERE stp.trip_id = st.id 
+        AND stp.user_id = st.user_id 
+        AND stp.role = 'OWNER'
+    );
+    Tell me what the actual stored value for the OWNER role is 
+    if it differs from 'OWNER'.
+
+Q7. SkiTrips with more than one OWNER participant row 
+    (would violate "exactly one owner" constraint):
+    SELECT COUNT(*) FROM (
+      SELECT trip_id FROM ski_trip_participant 
+      WHERE role = 'OWNER'
+      GROUP BY trip_id HAVING COUNT(*) > 1
+    ) AS multi_owner;
+
+Q8. Duplicate (trip_id, user_id) participant rows 
+    (would violate "one row per user per trip" constraint):
+    SELECT COUNT(*) FROM (
+      SELECT trip_id, user_id FROM ski_trip_participant 
+      GROUP BY trip_id, user_id HAVING COUNT(*) > 1
+    ) AS dupes;
+
+Q9. Total GroupTrip records:
+    SELECT COUNT(*) FROM group_trip;
+
+Q10. Total TripGuest records:
+     SELECT COUNT(*) FROM trip_guest;
+
+Q11. Total Friend rows:
+     SELECT COUNT(*) FROM friend;
+
+Q12. Number of mutual friendships (both directions exist):
+     SELECT COUNT(*) FROM friend f1
+     WHERE EXISTS (
+       SELECT 1 FROM friend f2
+       WHERE f2.user_id = f1.friend_id 
+         AND f2.friend_id = f1.user_id
+     );
+
+Q13. Number of one-way friendships (only one direction exists):
+     SELECT COUNT(*) FROM friend f1
+     WHERE NOT EXISTS (
+       SELECT 1 FROM friend f2
+       WHERE f2.user_id = f1.friend_id 
+         AND f2.friend_id = f1.user_id
+     );
+
+Q14. Total Invitation records, grouped by type and status:
+     SELECT invite_type, status, COUNT(*) 
+     FROM invitation 
+     GROUP BY invite_type, status;
+
+Q15. Total Event records (if the Event table exists):
+     SELECT COUNT(*) FROM event;
+     If it exists, also run:
+     SELECT event_name, COUNT(*) FROM event GROUP BY event_name;
+
+Q16. Total Activity records:
+     SELECT COUNT(*) FROM activity;
+     If it exists, also run:
+     SELECT activity_type, COUNT(*) FROM activity 
+     GROUP BY activity_type;
+
+============================================================
+PART 2 — SCHEMA AUDIT: USER MODEL FIELDS
+============================================================
+
+Q17. List every column on the User table with its data type. 
+     For each column, tell me whether it's nullable, what its 
+     default value is (if any), and whether it has a foreign 
+     key relationship.
+
+Q18. Specifically confirm whether each of these fields exists 
+     on the User model. For each, answer Yes/No, and if Yes, 
+     tell me the data type and whether it's currently populated 
+     by any code path:
+     
+     Lifecycle fields:
+     - created_at
+     - last_active_at
+     - lifecycle_stage
+     - onboarding_completed_at
+     - profile_completed_at
+     - first_connection_at
+     - first_trip_created_at
+     - is_seeded
+     
+     Email preference fields:
+     - email_opt_in
+     - email_transactional
+     - email_social
+     - email_digest
+     
+     Consent/governance fields:
+     - terms_version_accepted
+     - privacy_policy_version_accepted
+     - analytics_opt_in
+     - research_opt_in
+     - account_deleted_at
+     - analytics_suppressed_at
+     
+     Profile fields:
+     - pass_type
+     - rider_type
+     - skill_level
+     - home_location / home_state / state
+     - birth_year
+
+============================================================
+PART 3 — FREE TEXT VS STRUCTURED FIELDS AUDIT
+============================================================
+
+Q19. For each of the following fields, tell me whether it is 
+     stored as: (a) free text string, (b) Python enum, 
+     (c) database enum, or (d) foreign key to a lookup table. 
+     If it's an enum, list the allowed values.
+     
+     User model:
+     - pass_type
+     - rider_type
+     - skill_level
+     - home_location / home_state
+     
+     SkiTrip model:
+     - mountain (legacy field — does it still exist?)
+     - resort_id (canonical FK — does it exist?)
+     - state / state_code
+     - status (if it exists as a stored field)
+     - visibility / is_public
+     
+     Equipment model (or equivalent):
+     - rider_type
+     - brand
+     - binding_type
+     - boot_brand
+     
+     Resort model:
+     - name
+     - state
+     - country
+     - region
+
+Q20. Are there any other fields in the codebase that store 
+     structured concepts (like categories, types, or statuses) 
+     as free text strings? If yes, list them.
+
+============================================================
+PART 4 — ID TYPE AUDIT
+============================================================
+
+Q21. For each of these tables, tell me whether the primary key 
+     is: (a) sequential integer, (b) UUID, or (c) something else. 
+     If sequential int, also tell me whether the IDs are exposed 
+     in URLs.
+     
+     - User
+     - SkiTrip
+     - SkiTripParticipant
+     - Friend
+     - Invitation
+     - InviteToken
+     - Resort
+     - GroupTrip
+     - TripGuest
+     - Activity
+     - Event (if it exists)
+     - EmailLog (if it exists)
+
+Q22. Are there any tables in the schema that already use UUIDs? 
+     If yes, which ones and why were they chosen?
+
+============================================================
+PART 5 — IDENTITY-LEAKING-INTO-BEHAVIOR AUDIT
+============================================================
+
+Q23. For each of the following tables, list all columns. Then 
+     flag any column that stores user identity data (name, 
+     email, profile fields) instead of just a user_id foreign 
+     key. The principle being checked: behavioral tables should 
+     reference users via FK only, never denormalize identity.
+     
+     - Activity
+     - Event (if it exists)
+     - EmailLog (if it exists)
+     - Invitation
+     - SkiTripParticipant
+     - TripGuest
+     - InviteToken
+     
+     For each table, the answer should look like:
+     "Table: Activity
+      Columns: id, user_id, activity_type, payload, created_at
+      Identity leakage: None — user_id FK only.
+      OR
+      Identity leakage: payload column may contain user names — 
+      examples include..."
+
+Q24. Does any table store recipient email addresses for invites 
+     or notifications? If yes, which table and which column?
+
+============================================================
+PART 6 — VISIBILITY / PERMISSIONS AUDIT
+============================================================
+
+The previous audit confirmed that /trips/<trip_id> returns 404 
+via abort(404) when the viewer is not the owner, not an accepted 
+participant, and not invited. Good.
+
+I need the same line-by-line trace for the routes below. For each, 
+walk through the actual code and tell me what happens for the 
+specified scenario.
+
+Q25. /friend-trip/<trip_id>
+     Scenario A: User A is logged in. User A is NOT friends with 
+     trip owner B. User A is NOT a participant. Trip visibility 
+     is Private (or is_public=False).
+     
+     What does the route return? Trace the code.
+
+Q26. /friend-trip/<trip_id>
+     Scenario B: User A IS friends with trip owner B. User A is 
+     NOT a participant. Trip visibility is Private.
+     
+     What does the route return? Does friendship alone grant 
+     visibility, or is the Private flag respected?
+
+Q27. /profile/<user_id>
+     Scenario: User A is logged in. User A is NOT friends with 
+     User B. User A navigates to /profile/<B's_id>.
+     
+     What does the route return? What user data is exposed 
+     (name, identity line, trips, equipment, mountains visited, 
+     wish list, friends list)?
+
+Q28. /group-trip/<trip_id>
+     Scenario: User A is logged in. User A is NOT a guest on the 
+     group trip. User A is NOT the host.
+     
+     What does the route return?
+
+Q29. List every API endpoint in the codebase that starts with 
+     /api/. For each, provide:
+     - HTTP method
+     - URL pattern
+     - What it returns (one line)
+     - Whether it requires authentication
+     - Whether it enforces visibility/authorization beyond 
+       authentication
+     - Whether the response could leak data the user shouldn't 
+       see if accessed without proper auth checks
+
+Q30. Is there a single function or helper in the codebase that 
+     answers "can user X see trip Y" or "can user X see profile Y"? 
+     Or is that logic implemented inline in each route handler? 
+     If inline, roughly how many places implement their own 
+     version of visibility checking? List the route handlers 
+     where visibility checks live.
+
+============================================================
+PART 7 — SERVER-RENDERED VS API ARCHITECTURE
+============================================================
+
+Q31. Roughly what percentage of route handlers in the codebase 
+     return HTML templates vs JSON? Give an approximate ratio.
+
+Q32. Are there any places in the codebase where critical state 
+     is derived from the request session and NOT persisted to 
+     the database? Examples to look for:
+     - Multi-step trip creation flows storing partial data in 
+       session
+     - Onboarding flows holding form data in session between 
+       steps
+     - Anything that would break if the user switched devices 
+       mid-flow
+     
+     List any session-based state holders you find, with the 
+     route or function name.
+
+Q33. Does the codebase have a service layer or helpers directory 
+     for reusable business logic, or is most logic inline in 
+     route handlers? If a service layer exists, give 3-5 example 
+     function names. If not, name the functions that come closest 
+     to acting like a service layer (e.g., _connect_pending_inviter, 
+     get_or_create_invite_token).
+
+============================================================
+PART 8 — EVENT SYSTEM AUDIT
+============================================================
+
+Q34. Does an Event model/table exist? If yes:
+     - List every column on the Event table with data type
+     - List every event_name value currently in the database 
+       (from the COUNT query in Q15)
+     - List every place in the code that calls emit_event() or 
+       equivalent — file and function name
+     - Are events stored with payloads? If yes, what's in the 
+       payloads? Quote one or two examples.
+
+Q35. Does the Activity model exist as a separate concept from 
+     Event? If yes:
+     - List every column on the Activity table
+     - List every activity_type value currently in the database
+     - List every place in the code that creates Activity 
+       records — file and function name
+     - Is Activity used for in-app feed display, push notifications, 
+       analytics, or something else?
+
+Q36. Are there any "emit_*" or "log_*" functions in the codebase 
+     that look like event emission but don't actually write to 
+     a database table? List them.
+
+============================================================
+PART 9 — MIGRATIONS AND TESTING
+============================================================
+
+Q37. Does the project use Alembic migrations? If yes, when was 
+     the most recent migration created, and how many migration 
+     files exist in total?
+
+Q38. Have any schema changes been made directly to the database 
+     outside of Alembic migrations? (If you can detect this — e.g., 
+     models that don't match migration history.)
+
+Q39. Does the project have any test files? If yes, roughly how 
+     many tests exist, and what areas do they cover (auth, trips, 
+     friends, invites, etc.)?
+
+Q40. Does Supabase Row Level Security (RLS) currently protect 
+     any tables in the production database? If yes, which tables 
+     and what policies?
+
+============================================================
+FORMAT
+============================================================
+
+Please return all answers in the same numbered format above. 
+Keep each answer focused and factual. Quote code or paste query 
+results where relevant. If a question doesn't apply (e.g., a 
+table doesn't exist), say so explicitly rather than skipping.
+
+Do not editorialize, recommend changes, or summarize. I just 
+need the current state of the code and data. I will make 
+recommendations separately based on your answers.
