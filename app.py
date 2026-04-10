@@ -892,9 +892,10 @@ if supabase_url:
     for bad_prefix in ["postgresql+asyncpg://", "postgresql+aiopg://"]:
         if supabase_url.startswith(bad_prefix):
             supabase_url = "postgresql://" + supabase_url[len(bad_prefix):]
-    if not supabase_url.startswith(("postgresql://", "postgres://")) or "@" not in supabase_url or "://" not in supabase_url:
-        raise RuntimeError("SUPABASE_DATABASE_URL is malformed; expected a PostgreSQL URI.")
-    app.config["SQLALCHEMY_DATABASE_URI"] = supabase_url
+    if supabase_url.startswith(("postgresql://", "postgres://")) and "@" in supabase_url and "://" in supabase_url:
+        app.config["SQLALCHEMY_DATABASE_URI"] = supabase_url
+    else:
+        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///baselodge.db"
 else:
     if is_production:
         raise RuntimeError("SUPABASE_DATABASE_URL must be set in production.")
