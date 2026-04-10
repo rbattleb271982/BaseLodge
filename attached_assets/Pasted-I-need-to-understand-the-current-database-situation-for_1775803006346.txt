@@ -1,0 +1,129 @@
+I need to understand the current database situation for BaseLodge. 
+The Supabase database is empty (0 rows in auth.users, 0 rows in 
+ski_trip), but the app appears to have ~50 real users somewhere. 
+I need to figure out where the app is actually reading and writing 
+data right now.
+
+Please answer all of the following directly and factually. Where 
+you can run a query or check a config value, do so. Where you 
+genuinely don't know, say "unknown."
+
+=== DATABASE CONNECTION ===
+
+Q1. What is the value of the DATABASE_URL environment variable 
+in the current Replit environment? Mask the password if there is 
+one, but tell me:
+   - The database type (postgres, sqlite, etc.)
+   - The host (e.g., localhost, ep-xxx.supabase.co, replit 
+     internal, etc.)
+   - The database name
+   - Whether it's the same as SUPABASE_DATABASE_URL or different
+
+Q2. Does the app currently use DATABASE_URL or SUPABASE_DATABASE_URL 
+when running? Look in app.py, config.py, or wherever the SQLAlchemy 
+engine is configured. Tell me which environment variable the app 
+actually reads from when it starts.
+
+Q3. If you connect to the database that the app is currently using 
+(whatever DATABASE_URL points to), how many rows are in:
+   - "user" table
+   - ski_trip table
+   - friend table
+   - ski_trip_participant table
+   - invitation table
+   - event table
+   - activity table
+   
+Run actual SELECT COUNT(*) queries against the live database the 
+app is using right now. Paste the real numbers.
+
+Q4. Is the database the app is currently using the same physical 
+database as the Supabase project that has the schema but no data? 
+Or is it a different database entirely (e.g., a local SQLite file, 
+a Replit-internal Postgres, a different Supabase project)?
+
+=== DATA LOCATION ===
+
+Q5. If you find that the app is using a different database than 
+Supabase, can you tell me:
+   - Where that database physically lives (Replit storage, 
+     external host, etc.)
+   - Whether it has automatic backups
+   - Whether it's the production database or a dev database
+   - Approximately when it was last written to (most recent 
+     created_at on user or ski_trip table)
+
+Q6. Are there any references in the codebase to multiple database 
+URLs or database switching logic? E.g., does the app read 
+DATABASE_URL in development and SUPABASE_DATABASE_URL in production, 
+or anything similar? Search for "DATABASE_URL" and 
+"SUPABASE_DATABASE_URL" across the codebase and tell me where 
+each appears.
+
+Q7. Is there any data migration script or process that moves 
+data from one database to another? Search for files named 
+"migrate", "import", "export", "sync", or "backfill" and tell 
+me what each does.
+
+=== SCHEMA CONSISTENCY ===
+
+Q8. The Replit code audit said 49 Alembic migration files exist. 
+Run "alembic current" or check the alembic_version table in 
+whichever database the app is actually using. Tell me:
+   - What revision the database is currently on
+   - Whether that matches the latest migration file in the 
+     migrations folder
+   - If not, which migrations are pending
+
+Q9. Run the same "alembic current" or alembic_version check 
+against the Supabase database (the one that's empty). Tell me:
+   - What revision Supabase is on
+   - Whether Supabase is fully up to date with all 49 migrations
+   - Whether the schema in Supabase matches the schema the app 
+     code expects
+
+Q10. Are there any schema differences between the database the 
+app is currently using and the Supabase database? E.g., tables 
+that exist in one but not the other, columns that exist in one 
+but not the other, enums with different values, etc. If you can 
+detect this, list the differences. If you can't detect it from 
+this environment, say so.
+
+=== RUNTIME ENVIRONMENT ===
+
+Q11. Where does the app run today? Specifically:
+   - Is it deployed to Replit's "Always On" or similar?
+   - Is it running on a custom domain?
+   - What URL do real users access BaseLodge at?
+   - Are there separate dev and production environments, or 
+     just one?
+
+Q12. If there are multiple environments, do they share a database 
+or have separate databases? E.g., does dev write to the same 
+database that real users read from?
+
+Q13. Are there any environment variables related to environments 
+(FLASK_ENV, ENV, ENVIRONMENT, etc.)? What are they set to in 
+the current Replit environment?
+
+=== BACKUPS AND DATA SAFETY ===
+
+Q14. Is there any backup of the current production data anywhere? 
+   - Database dump files
+   - Replit checkpoints
+   - Manual exports
+   - Anything else
+   
+If yes, where and when was the most recent backup taken?
+
+Q15. If we needed to migrate data from the current database to 
+Supabase, is there any existing tooling or script for doing that? 
+Or would it need to be built from scratch?
+
+=== FORMAT ===
+
+Please return all answers in the same numbered format above. Be 
+factual and specific. Quote config values, file paths, and query 
+results where relevant. Do not editorialize or recommend changes. 
+I just need to understand the current state of the database 
+situation.
