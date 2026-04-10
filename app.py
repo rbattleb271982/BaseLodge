@@ -8554,5 +8554,40 @@ def admin_sync_from_canonical():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+# TEMP DEBUG ROUTE — safe to remove after use
+@app.route("/admin/debug-resort-duplicates", methods=["GET"])
+@login_required
+@admin_required
+def debug_resort_duplicates():
+    """Temporary route to detect duplicate resorts by (name, state_code, country_code)."""
+    from sqlalchemy import func
+
+    rows = (
+        db.session.query(
+            Resort.name,
+            Resort.state_code,
+            Resort.country_code,
+            func.count(Resort.id).label("cnt")
+        )
+        .group_by(Resort.name, Resort.state_code, Resort.country_code)
+        .having(func.count(Resort.id) > 1)
+        .order_by(func.count(Resort.id).desc())
+        .all()
+    )
+
+    if not rows:
+        return jsonify({"status": "ok", "duplicates": []})
+
+    return jsonify([
+        {
+            "name": row.name,
+            "state_code": row.state_code,
+            "country_code": row.country_code,
+            "count": row.cnt
+        }
+        for row in rows
+    ])
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
