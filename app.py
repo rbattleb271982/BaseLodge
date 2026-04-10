@@ -200,7 +200,7 @@ def get_upcoming_trip_count(user):
         .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
         .filter(
             SkiTripParticipant.user_id == user.id,
-            SkiTripParticipant.status == 'ACCEPTED',
+            SkiTripParticipant.status == GuestStatus.ACCEPTED,
             SkiTrip.start_date > today
         )
         .all()
@@ -2839,7 +2839,7 @@ def friends():
             .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
             .filter(
                 SkiTripParticipant.user_id == friend.id,
-                SkiTripParticipant.status == 'ACCEPTED',
+                SkiTripParticipant.status == GuestStatus.ACCEPTED,
                 SkiTrip.end_date >= today
             )
             .all()
@@ -3628,6 +3628,7 @@ def home():
             SkiTrip.end_date >= today
         ).order_by(SkiTrip.start_date.asc()).all()
     except Exception:
+        db.session.rollback()
         my_trips = []
 
     try:
@@ -3642,6 +3643,7 @@ def home():
             SkiTrip.end_date >= today
         ).order_by(SkiTrip.start_date.asc()).all() if accepted_trip_ids else []
     except Exception:
+        db.session.rollback()
         accepted_guest_trips = []
 
     all_upcoming = sorted(my_trips + accepted_guest_trips, key=lambda t: t.start_date)
@@ -3661,6 +3663,7 @@ def home():
         friend_links = Friend.query.filter_by(user_id=user.id).all()
         friend_ids = [f.friend_id for f in friend_links]
     except Exception:
+        db.session.rollback()
         friend_ids = []
 
     # --- Trip Invite Banner (soonest active pending trip invite) ---
@@ -3688,7 +3691,7 @@ def home():
                 'inviter_name': inviter.first_name if inviter else 'Someone',
             }
     except Exception:
-        pass
+        db.session.rollback()
 
     # --- Availability Nudge (open date overlap with friends) ---
     availability_nudge = None
@@ -3715,6 +3718,7 @@ def home():
                     'href': url_for('friends', tab='overlaps')
                 }
     except Exception:
+        db.session.rollback()
         availability_nudge = None
 
     # --- Secondary Card (priority: connect_invite > overlap > friend_trip) ---
@@ -3732,7 +3736,7 @@ def home():
                 'sender_name': sender.first_name if sender else 'Someone',
             }
     except Exception:
-        pass
+        db.session.rollback()
 
     if not secondary_card and availability_nudge:
         secondary_card = {
@@ -3759,7 +3763,7 @@ def home():
                     'mountain': mountain_name,
                 }
         except Exception:
-            pass
+            db.session.rollback()
 
     return render_template(
         'home.html',

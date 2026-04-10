@@ -703,21 +703,21 @@ class SkiTripParticipant(db.Model):
     trip_id = db.Column(db.Integer, db.ForeignKey('ski_trip.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     status = db.Column(
-        db.Enum(GuestStatus, name='ski_trip_participant_status_enum', create_constraint=True),
+        db.Enum(GuestStatus, name='ski_trip_participant_status_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
         default=GuestStatus.INVITED,
         nullable=False
     )
     role = db.Column(
-        db.Enum(ParticipantRole, name='participant_role_enum', create_constraint=True),
+        db.Enum(ParticipantRole, name='participant_role_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
         default=ParticipantRole.GUEST,
         nullable=False
     )
     transportation_status = db.Column(
-        db.Enum(ParticipantTransportation, name='participant_transportation_enum', create_constraint=True),
+        db.Enum(ParticipantTransportation, name='participant_transportation_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
         nullable=True
     )
     equipment_status = db.Column(
-        db.Enum(ParticipantEquipment, name='participant_equipment_enum', create_constraint=True),
+        db.Enum(ParticipantEquipment, name='participant_equipment_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
         nullable=True
     )
     taking_lesson = db.Column(
@@ -727,7 +727,7 @@ class SkiTripParticipant(db.Model):
         server_default='no'
     )
     carpool_role = db.Column(
-        db.Enum(CarpoolRole, name='carpool_role_enum', create_constraint=True),
+        db.Enum(CarpoolRole, name='carpool_role_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
         nullable=True
     )
     carpool_seats = db.Column(db.Integer, nullable=True)
@@ -789,7 +789,7 @@ class Invitation(db.Model):
     receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     trip_id = db.Column(db.Integer, db.ForeignKey('ski_trip.id'), nullable=True)
     invite_type = db.Column(
-        db.Enum(InviteType, name='invite_type_enum', create_constraint=True),
+        db.Enum(InviteType, name='invite_type_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
         default=InviteType.OUTBOUND,
         nullable=False,
         server_default='outbound'
@@ -838,11 +838,11 @@ class GroupTrip(db.Model):
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     accommodation_status = db.Column(
-        db.Enum(AccommodationStatus, name='accommodation_status_enum', create_constraint=True),
+        db.Enum(AccommodationStatus, name='accommodation_status_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
         nullable=True
     )
     transportation_status = db.Column(
-        db.Enum(TransportationStatus, name='transportation_status_enum', create_constraint=True),
+        db.Enum(TransportationStatus, name='transportation_status_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
         nullable=True
     )
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -862,7 +862,7 @@ class TripGuest(db.Model):
     trip_id = db.Column(db.Integer, db.ForeignKey('group_trip.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     status = db.Column(
-        db.Enum(GuestStatus, name='guest_status_enum', create_constraint=True),
+        db.Enum(GuestStatus, name='guest_status_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
         default=GuestStatus.INVITED,
         nullable=False
     )
@@ -886,11 +886,11 @@ class EquipmentSetup(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     slot = db.Column(
-        db.Enum(EquipmentSlot, name='equipment_slot_enum', create_constraint=True),
+        db.Enum(EquipmentSlot, name='equipment_slot_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
         nullable=True  # Made nullable for onboarding flow
     )
     discipline = db.Column(
-        db.Enum(EquipmentDiscipline, name='equipment_discipline_enum', create_constraint=True),
+        db.Enum(EquipmentDiscipline, name='equipment_discipline_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
         nullable=True  # Made nullable for onboarding flow
     )
     brand = db.Column(db.String(100), nullable=True)
