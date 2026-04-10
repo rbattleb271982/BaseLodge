@@ -5837,19 +5837,19 @@ def force_create_base_users():
 
     return {"status": "success", "result": created}
 
-@app.route("/admin/init-db", methods=["GET", "POST"])
+@app.route("/admin/init-db", methods=["POST"])
+@login_required
+@admin_required
 def init_db_http():
     """
     HTTP endpoint for database initialization (backup method for deployment).
     Can be called after deployment to initialize the database.
     
     Usage after deployment:
-    GET https://yourapp.replit.dev/admin/init-db
+    POST https://yourapp.replit.dev/admin/init-db
     
     This will:
-    - Create all database tables
     - Seed all resorts (idempotent)
-    - Create/verify primary user (Richard)
     - Be idempotent (safe to call multiple times)
     """
     try:
@@ -5874,27 +5874,6 @@ def init_db_http():
                     messages.append("WARNING: prod_resorts_full.xlsx not found — resort seeding skipped")
             else:
                 messages.append(f"Resorts already exist ({resort_count})")
-            
-            # Ensure primary user exists and is valid
-            primary_user = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
-            if not primary_user:
-                primary_user = User(
-                    first_name="Richard",
-                    last_name="Battle-Baxter",
-                    email="richardbattlebaxter@gmail.com",
-                    primary_rider_type="Skier",
-                    secondary_rider_types=[],
-                    pass_type="Epic",
-                    skill_level="Advanced",
-                    home_state="Colorado",
-                    birth_year=1985
-                )
-                primary_user.set_password("12345678")
-                db.session.add(primary_user)
-                db.session.commit()
-                messages.append("Primary user created")
-            else:
-                messages.append("Primary user verified")
             
             return jsonify({
                 "status": "success",
