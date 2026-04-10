@@ -1981,19 +1981,25 @@ def my_trips():
         for my in upcoming_trips:
             for friend_trip in friend_trips:
                 if my.user_id != friend_trip.user_id:
-                    my_mountain = my.mountain if my.mountain else (my.resort.name if my.resort else None)
-                    friend_mountain = friend_trip.mountain if friend_trip.mountain else (friend_trip.resort.name if friend_trip.resort else None)
-                    if my_mountain and friend_mountain and my_mountain == friend_mountain:
+                    # Resort match: prefer resort_id (canonical), fall back to mountain string
+                    if my.resort_id and friend_trip.resort_id:
+                        same_resort = (my.resort_id == friend_trip.resort_id)
+                    else:
+                        my_mountain = my.mountain if my.mountain else (my.resort.name if my.resort else None)
+                        friend_mountain = friend_trip.mountain if friend_trip.mountain else (friend_trip.resort.name if friend_trip.resort else None)
+                        same_resort = bool(my_mountain and friend_mountain and my_mountain == friend_mountain)
+                    if same_resort:
                         if my.start_date and my.end_date and friend_trip.start_date and friend_trip.end_date:
                             if date_ranges_overlap(my.start_date, my.end_date, friend_trip.start_date, friend_trip.end_date):
                                 resort = my.resort or friend_trip.resort
+                                my_mountain_str = my.mountain if my.mountain else (my.resort.name if my.resort else None)
                                 friend_first_name = friend_trip.user.first_name if friend_trip.user else "Friend"
                                 overlaps.append({
                                     "my_trip_id": my.id,
                                     "friend_name": friend_first_name,
                                     "friend_first_name": friend_first_name,
                                     "friend_id": friend_trip.user_id,
-                                    "mountain": resort.name if resort else my_mountain,
+                                    "mountain": resort.name if resort else my_mountain_str,
                                     "state": resort.state if resort else (my.state or ""),
                                     "brand": resort.brand if resort else None,
                                     "resort_id": resort.id if resort else None,
@@ -2307,13 +2313,22 @@ def create_trip():
     user = current_user
     
     data = request.get_json()
+    resort_id_raw = data.get("resort_id")
     state = data.get("state")
     mountain = data.get("mountain")
     start_date_str = data.get("start_date")
     end_date_str = data.get("end_date")
     pass_type = data.get("pass_type", user.pass_type or "No Pass")
     is_public = data.get("is_public", True)
-    
+
+    # Resolve resort — canonical source of truth for mountain/state
+    resolved_resort = None
+    if resort_id_raw:
+        resolved_resort = Resort.query.get(int(resort_id_raw))
+        if resolved_resort:
+            mountain = resolved_resort.name
+            state = resolved_resort.state_code or resolved_resort.state
+
     start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date() if start_date_str else None
     end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date() if end_date_str else None
     
@@ -2338,6 +2353,7 @@ def create_trip():
     
     trip = SkiTrip(
         user_id=user.id,
+        resort_id=resolved_resort.id if resolved_resort else None,
         state=state,
         mountain=mountain,
         start_date=start_date,
@@ -2380,6 +2396,7 @@ def create_trip():
         "success": True,
         "trip": {
             "id": trip.id,
+            "resort_id": trip.resort_id,
             "state": trip.state,
             "state_abbr": STATE_ABBR.get(trip.state, trip.state),
             "mountain": trip.mountain,
@@ -2964,7 +2981,12 @@ def friend_profile(friend_id):
     for trip in trips:
         trip.has_trip_overlap = False
         for user_trip in user_trips:
-            if trip.mountain == user_trip.mountain:
+            # Resort match: prefer resort_id (canonical), fall back to mountain string
+            if trip.resort_id and user_trip.resort_id:
+                same_resort = (trip.resort_id == user_trip.resort_id)
+            else:
+                same_resort = bool(trip.mountain and user_trip.mountain and trip.mountain == user_trip.mountain)
+            if same_resort:
                 if date_ranges_overlap(trip.start_date, trip.end_date, user_trip.start_date, user_trip.end_date):
                     trip.has_trip_overlap = True
                     overlap_start = max(trip.start_date, user_trip.start_date)
@@ -4777,13 +4799,25 @@ def trip_detail(trip_id):
                     continue
                 
                 # Get their ACTIVE trips (not past, at same resort, overlapping dates)
-                other_trips = SkiTrip.query.filter(
-                    SkiTrip.user_id == user_id,
-                    SkiTrip.resort_id == trip.resort_id,
-                    SkiTrip.start_date <= trip.end_date,
-                    SkiTrip.end_date >= trip.start_date,
-                    SkiTrip.end_date >= today  # Active trips only
-                ).all()
+                # Prefer resort_id match (canonical); fall back to mountain string for legacy trips
+                if trip.resort_id:
+                    other_trips = SkiTrip.query.filter(
+                        SkiTrip.user_id == user_id,
+                        SkiTrip.resort_id == trip.resort_id,
+                        SkiTrip.start_date <= trip.end_date,
+                        SkiTrip.end_date >= trip.start_date,
+                        SkiTrip.end_date >= today
+                    ).all()
+                elif trip.mountain:
+                    other_trips = SkiTrip.query.filter(
+                        SkiTrip.user_id == user_id,
+                        SkiTrip.mountain == trip.mountain,
+                        SkiTrip.start_date <= trip.end_date,
+                        SkiTrip.end_date >= trip.start_date,
+                        SkiTrip.end_date >= today
+                    ).all()
+                else:
+                    other_trips = []
                 
                 if other_trips:
                     # Calculate overlap days using a SET to avoid double-counting
