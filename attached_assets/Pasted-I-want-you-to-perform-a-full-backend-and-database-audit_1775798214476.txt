@@ -1,0 +1,185 @@
+I want you to perform a full backend and database audit of my BaseLodge application based on a new product spec I am implementing.
+
+Your goal is to identify ALL potential backend risks, schema mismatches, performance issues, and edge cases BEFORE I start building.
+
+DO NOT be high-level. Be specific, technical, and critical. Assume things will break.
+
+Structure your response in the exact sections below.
+
+---
+
+SECTION 1: DATA MODEL AUDIT
+
+1. Trip Model
+- Does my current schema support:
+  - Multiple participants per trip (single Trip record, not duplicates)?
+  - Participant statuses (invited, accepted)?
+  - Owner vs participant distinction?
+- If not, what exactly needs to change?
+- What existing logic would break?
+
+2. Invite System
+- Do I currently have:
+  - Separate models for friend invites vs trip invites?
+  - Or a unified invite model?
+- Should these be unified?
+- What edge cases exist with token reuse across:
+  - friend invites
+  - trip invites
+  - QR / email / SMS flows?
+
+3. Friend Graph
+- Are friendships guaranteed to be bidirectional?
+- Can duplicate or one-way friendships exist?
+- Are there any routes that bypass invite-only constraints?
+
+4. Visibility
+- Where is visibility enforced (query vs template)?
+- Can a user access another user’s data without being friends?
+
+---
+
+SECTION 2: DERIVED STATE & LOGIC RISKS
+
+1. Trip Status
+- Is trip status currently stored or derived?
+- Where is it used in the codebase?
+- What breaks if we move to fully date-derived status?
+
+2. Mountains Visited Auto-Population
+- What is the safest implementation approach:
+  - request-time logic
+  - cron job
+  - DB trigger
+- How do we ensure idempotency and avoid duplicates?
+
+3. Participant State Model
+- List ALL possible states of a user relative to a trip:
+  (owner, invited, accepted, declined, etc.)
+- Identify any ambiguous or conflicting states.
+
+---
+
+SECTION 3: QUERY & PERFORMANCE AUDIT
+
+1. Home Screen
+- Evaluate complexity of:
+  - pending invites
+  - imminent trip
+  - grouped friend trips
+- Should this be:
+  - multiple queries
+  - a single aggregated query
+  - cached
+
+2. Friend Trip Grouping
+- Should grouping by (resort, start_date, end_date) be done:
+  - in SQL
+  - in Python
+- Which is more efficient and why?
+
+3. Ideas Ranking System
+- Evaluate performance of computing:
+  - friend overlaps
+  - availability overlaps
+  - wishlist matches
+- Will this create N+1 query issues?
+- Recommend optimization strategy if needed.
+
+---
+
+SECTION 4: BACKEND HELPERS GAP ANALYSIS
+
+List ALL backend helpers required by the new spec that DO NOT currently exist.
+
+For each helper:
+- What it needs to do
+- What models it depends on
+- Estimated complexity (low / medium / high)
+- Any schema changes required
+
+Examples:
+- get_pending_invites_for(user)
+- get_friend_trips_grouped(user)
+- get_ideas_for(user)
+- get_trip_participants(trip)
+
+---
+
+SECTION 5: LEGACY CODE & MIGRATION RISKS
+
+1. Ideas Tab Migration
+- What breaks if I remove Ideas from Trips?
+- List all affected routes, templates, and logic.
+
+2. GroupTrip Model
+- Where is GroupTrip currently used?
+- What breaks if I stop using it?
+
+3. Connect / Invite Routes
+- Audit all routes related to:
+  - /connect/*
+  - /invite/*
+- Are any still reachable or unsafe?
+
+---
+
+SECTION 6: INVITE SYSTEM END-TO-END AUDIT
+
+Map the full lifecycle:
+- token creation
+- token usage
+- expiration
+- reuse
+- linking to user accounts
+
+Identify risks:
+- duplicate friendships
+- invalid states
+- token abuse
+- broken redirects
+
+---
+
+SECTION 7: AUTH & EDGE CASES
+
+Audit all flows for:
+- logged out users
+- logged in users
+- invalid or expired tokens
+- users scanning their own QR
+
+Ensure every path results in a valid, deterministic state.
+
+---
+
+SECTION 8: SCHEMA CHANGES REQUIRED
+
+List the TOP 5 required database/schema changes needed to support this new product direction.
+
+Be explicit:
+- new tables
+- new columns
+- relationship changes
+- constraints
+
+---
+
+SECTION 9: HONEST RISK ASSESSMENT
+
+Based on my CURRENT backend:
+
+- What parts of this spec are:
+  - safe to implement immediately
+  - risky
+  - likely to break things
+
+- What would you sequence FIRST to minimize risk?
+
+---
+
+IMPORTANT RULES:
+- Do NOT give generic advice
+- Reference my actual models, routes, and code patterns
+- Be critical and assume production impact
+- Prioritize real risks over theoretical ones
