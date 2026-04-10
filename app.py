@@ -8589,5 +8589,71 @@ def debug_resort_duplicates():
     ])
 
 
+@app.route("/admin/resorts/duplicates", methods=["GET"])
+@login_required
+@admin_required
+def admin_resorts_duplicates():
+    """Find duplicate resorts grouped by normalized (name, state_code, country_code)."""
+    try:
+        norm_name = func.lower(func.trim(Resort.name))
+        norm_state = func.upper(func.trim(Resort.state_code))
+        norm_country = func.upper(func.trim(func.coalesce(Resort.country_code, 'US')))
+
+        groups = (
+            db.session.query(
+                func.lower(func.trim(Resort.name)).label("norm_name"),
+                func.upper(func.trim(Resort.state_code)).label("norm_state"),
+                func.upper(func.trim(func.coalesce(Resort.country_code, 'US'))).label("norm_country"),
+                func.count(Resort.id).label("cnt")
+            )
+            .group_by(
+                func.lower(func.trim(Resort.name)),
+                func.upper(func.trim(Resort.state_code)),
+                func.upper(func.trim(func.coalesce(Resort.country_code, 'US')))
+            )
+            .having(func.count(Resort.id) > 1)
+            .order_by(func.count(Resort.id).desc())
+            .all()
+        )
+
+        result_groups = []
+        total_duplicate_rows = 0
+
+        for g in groups:
+            matches = Resort.query.filter(
+                func.lower(func.trim(Resort.name)) == g.norm_name,
+                func.upper(func.trim(Resort.state_code)) == g.norm_state,
+                func.upper(func.trim(func.coalesce(Resort.country_code, 'US'))) == g.norm_country
+            ).all()
+
+            total_duplicate_rows += len(matches)
+            result_groups.append({
+                "name": g.norm_name,
+                "state_code": g.norm_state,
+                "country_code": g.norm_country,
+                "count": g.cnt,
+                "resorts": [
+                    {
+                        "id": r.id,
+                        "name": r.name,
+                        "state_code": r.state_code,
+                        "country_code": r.country_code,
+                        "slug": r.slug,
+                        "is_active": r.is_active
+                    }
+                    for r in matches
+                ]
+            })
+
+        return jsonify({
+            "status": "success",
+            "duplicate_group_count": len(result_groups),
+            "total_duplicate_rows": total_duplicate_rows,
+            "groups": result_groups
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
