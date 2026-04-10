@@ -1,0 +1,89 @@
+I need to find two specific users in BaseLodge's databases. Both 
+users exist in the live production app at app.baselodgeapp.com. 
+I need to figure out which database the production app is actually 
+reading from.
+
+The users I'm looking for:
+- Brennan Gibbons
+- Justin Rosenthal
+
+Please do all of the following:
+
+Q1. Confirm whether these users exist in instance/baselodge.db by 
+running:
+    SELECT id, first_name, last_name, email, created_at 
+    FROM "user" 
+    WHERE (first_name ILIKE 'Brennan' AND last_name ILIKE 'Gibbons')
+       OR (first_name ILIKE 'Justin' AND last_name ILIKE 'Rosenthal');
+    
+    Paste the result. If zero rows, say so explicitly.
+
+Q2. Check the SUPABASE_DATABASE_URL secret in the Replit 
+environment. Without revealing the password, tell me:
+    - Does this secret exist?
+    - What is the host portion of the URL? (e.g., 
+      db.xxxxx.supabase.co or aws-0-us-east-1.pooler.supabase.com)
+    - What is the database name?
+    - What is the username?
+    - What is the project reference (the xxxxx part of the host)?
+
+Q3. Try to connect to SUPABASE_DATABASE_URL directly using psql 
+or a Python script with psycopg2. If you can connect, run:
+    SELECT COUNT(*) FROM "user";
+    SELECT id, first_name, last_name, email, created_at 
+    FROM "user" 
+    WHERE (first_name ILIKE 'Brennan' AND last_name ILIKE 'Gibbons')
+       OR (first_name ILIKE 'Justin' AND last_name ILIKE 'Rosenthal');
+    
+    Paste both results. If you cannot connect, paste the exact 
+    error message.
+
+Q4. List all secrets in the Replit environment whose names contain 
+any of these substrings: DATABASE, POSTGRES, DB_, SUPABASE, PROD, 
+LIVE. List only the secret names, not values. I want to see if 
+there's another database connection string I don't know about.
+
+Q5. The production app runs at app.baselodgeapp.com. Determine 
+where it is deployed:
+    - Look for these files and tell me which exist: .replit, 
+      replit.nix, replit.deploy, vercel.json, render.yaml, 
+      Procfile, Dockerfile, fly.toml, netlify.toml, railway.json
+    - If .replit exists, paste its contents
+    - Check if there's a Replit Deployments configuration for 
+      this project
+    - Tell me the deployment target (Replit Deployments, Vercel, 
+      Render, Railway, Fly, etc.)
+
+Q6. Determine whether the current Replit workspace is the same 
+environment as the deployed production app, or a separate dev 
+workspace:
+    - Check if there's a deployment URL different from the 
+      workspace URL
+    - Check if changes pushed to this workspace would automatically 
+      affect app.baselodgeapp.com
+    - Tell me clearly: is this workspace connected to production, 
+      or separated from it?
+
+Q7. If Replit Deployments is being used for this project, look 
+at the deployment configuration and tell me:
+    - What environment variables are set on the deployment 
+      (just names, not values)
+    - Whether the deployment's DATABASE_URL or SUPABASE_DATABASE_URL 
+      is different from the workspace's
+    - When the deployment was last updated or rebuilt
+    - The deployment's run command
+
+Q8. Search the codebase for any reference to "baselodgeapp.com" 
+to find where the production domain is configured. Paste any 
+relevant lines.
+
+Q9. Check the DNS / hosting situation: when a request hits 
+app.baselodgeapp.com, where does it actually go? If you can 
+determine this from the codebase or config files, tell me. If 
+not, say unknown.
+
+Format: numbered answers, factual, no recommendations or suggested 
+fixes. I am trying to locate where Brennan Gibbons and Justin 
+Rosenthal's user records actually live. They are real users in 
+the production app, so their data exists in some database 
+somewhere — I need to find which one.
