@@ -1,0 +1,121 @@
+Great — now I want to go deeper on the highest-risk areas from the audit.
+
+Focus ONLY on the following 5 areas and give concrete, code-aware answers.
+
+Do not give generic advice — ground everything in the current codebase.
+
+--------------------------------------------------
+SECTION 1 — EVENT SYSTEM DESIGN (CRITICAL)
+--------------------------------------------------
+
+We currently have NO Event table.
+
+1. Based on the current codebase (routes, models, activity logging, email flows), list ALL user actions that should be captured as events.
+
+Examples to consider:
+- user signup
+- profile update
+- friend added
+- trip created
+- trip joined
+- invite sent
+- invite accepted
+- trip viewed
+- etc.
+
+2. For each action:
+- where it currently happens in the code
+- whether any logging already exists
+
+3. Propose a MINIMAL Event table schema that:
+- fits our current architecture
+- avoids breaking existing code
+- supports future analytics + anonymization
+
+4. Identify EXACTLY where in the codebase we would need to add event emission (file + function level)
+
+--------------------------------------------------
+SECTION 2 — IDENTITY VS BEHAVIOR CLEANUP
+--------------------------------------------------
+
+We identified that identity leaks into behavior tables (e.g. EmailLog).
+
+1. List all tables where PII (email, name, etc.) is stored outside the User table
+
+2. For each:
+- why it is currently stored that way (based on code usage)
+- whether it is safe to remove or refactor
+
+3. For EmailLog specifically:
+- what fields are required for functionality
+- what fields could be removed or replaced with user_id or metadata
+
+4. Recommend a SAFE transition approach that does NOT break current functionality
+
+--------------------------------------------------
+SECTION 3 — FREE TEXT → STRUCTURED DATA
+--------------------------------------------------
+
+We identified multiple free-text fields.
+
+1. List all fields that are currently free text but should be:
+- enum OR
+- foreign key to lookup table
+
+2. For each field:
+- where it is used in forms/templates
+- whether there are validation constraints already
+
+3. Identify which ones are:
+- EASY to convert now
+- RISKY to convert (due to existing data)
+
+4. Propose a phased migration approach:
+- step 1 (safe, no breaking changes)
+- step 2 (enforce structure)
+- step 3 (cleanup legacy data)
+
+--------------------------------------------------
+SECTION 4 — VISIBILITY / PERMISSION CENTRALIZATION
+--------------------------------------------------
+
+We identified that visibility logic is scattered.
+
+1. List all places where permission logic currently exists (route-level checks, helpers, etc.)
+
+2. Identify patterns:
+- duplicated logic
+- inconsistent enforcement
+
+3. Propose a centralized approach:
+- what helper/service should exist
+- what inputs it would take (user_id, trip_id, etc.)
+- how routes should call it
+
+4. Identify highest-risk routes for data leakage
+
+--------------------------------------------------
+SECTION 5 — API READINESS FOR MOBILE
+--------------------------------------------------
+
+We identified that the app is mostly server-rendered.
+
+1. List the TOP 10 user actions that a mobile app would need APIs for
+
+2. For each:
+- does an API already exist?
+- if not, which route currently handles it (HTML)
+
+3. Identify:
+- which APIs can be easily exposed
+- which require refactoring
+
+4. Recommend the FIRST 5 APIs we should build to begin moving toward mobile readiness
+
+--------------------------------------------------
+FINAL OUTPUT
+--------------------------------------------------
+
+End with:
+- Top 5 immediate backend improvements (low effort, high impact)
+- Top 5 things we should NOT touch yet
