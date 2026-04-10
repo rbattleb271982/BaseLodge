@@ -1,0 +1,404 @@
+I need a deep technical audit of the current BaseLodge codebase and database so I can answer architecture questions for a revised product/data spec.
+
+Your job is to inspect the ACTUAL codebase, models, migrations, routes, Supabase/Postgres setup, and live schema assumptions and give me grounded answers.
+
+IMPORTANT:
+- Do not give generic recommendations.
+- Do not speculate unless you clearly label something as “cannot confirm from current codebase.”
+- If you can answer with direct evidence from models/routes/migrations, do so.
+- If SQL queries are needed, write the exact SQL I should run or, if you have access, run the equivalent inspection and report the result.
+- Structure your response EXACTLY in the sections below.
+- Be thorough and specific.
+
+--------------------------------------------------
+SECTION 0 — IMPORTANT BOUNDARY
+--------------------------------------------------
+
+Do NOT answer these strategic questions. These are for product/leadership, not you:
+- timeline for analytics
+- timeline for native apps
+- whether leadership wants RLS now vs later
+- analytics consent UX preference
+- hidden roadmap features
+- native app scope
+
+Only answer the technical/backend audit questions below.
+
+--------------------------------------------------
+SECTION 1 — PRODUCTION / DATA COUNTS
+--------------------------------------------------
+
+Inspect the database schema and current data assumptions. If you can query directly, do so. If not, provide exact SQL and identify where each table/model exists.
+
+Answer all of the following:
+
+1. Total SkiTrip count
+   - equivalent of: SELECT COUNT(*) FROM ski_trip;
+
+2. Total SkiTripParticipant count
+   - equivalent of: SELECT COUNT(*) FROM ski_trip_participant;
+
+3. Count of SkiTrips with more than one participant
+
+4. Count/list of SkiTrips whose owner does NOT have a corresponding owner participant row
+
+5. Count/list of any SkiTrip with multiple OWNER participant rows
+
+6. Count/list of any duplicate participant rows by (trip_id, user_id)
+
+7. Total GroupTrip records
+
+8. Total TripGuest records
+
+9. Friend relationship counts:
+   - total Friend rows
+   - estimated mutual count
+   - estimated one-way count
+
+10. Invitation counts grouped by invite_type and status
+
+11. Total real users
+   - if possible, explain how to distinguish seeded/test users from real users
+   - identify whether there is an is_seeded or similar flag
+
+For each answer:
+- provide the result if available
+- otherwise provide exact SQL to get it
+- identify table/model names used
+
+--------------------------------------------------
+SECTION 2 — SCHEMA FOUNDATION AUDIT
+--------------------------------------------------
+
+I need to know whether the underlying foundation already exists.
+
+Answer all of the following:
+
+12. Does an Event table exist today?
+If yes:
+- exact table/model name
+- all columns
+- whether anything currently writes to it
+- which code paths or functions write to it
+- what event types currently exist
+
+13. Does the User table currently have any of these fields:
+- terms_version_accepted
+- privacy_policy_version_accepted
+- analytics_opt_in
+- research_opt_in
+- account_deleted_at
+- analytics_suppressed_at
+
+List:
+- which exist
+- which do not exist
+- column types if they exist
+
+14. Does the User table currently have any of these lifecycle fields:
+- created_at
+- last_active_at
+- lifecycle_stage
+- onboarding_completed_at
+- profile_completed_at
+- first_connection_at
+- first_trip_created_at
+- is_seeded
+
+For each:
+- whether it exists
+- type
+- whether current code appears to populate it
+
+--------------------------------------------------
+SECTION 3 — IDENTITY LEAKING INTO BEHAVIOR AUDIT
+--------------------------------------------------
+
+For each of these tables/models, list all columns and flag any columns that store user identity data directly (name, email, profile fields, etc.) instead of only a user_id foreign key:
+
+- Activity
+- EmailLog
+- Invitation
+- Event (if it exists)
+- SkiTripParticipant
+- TripGuest
+- InviteToken
+- Friend
+- SkiTrip
+- GroupTrip
+- any other user-related behavior or logging tables you find
+
+For each table:
+- list columns
+- mark columns as:
+  - FK only
+  - identity-bearing
+  - behavioral metadata
+- explicitly call out any denormalization that would conflict with “identity separated from behavior”
+
+--------------------------------------------------
+SECTION 4 — STRUCTURED VS FREE-TEXT DIMENSIONS AUDIT
+--------------------------------------------------
+
+For each of the following fields, tell me whether the value is currently stored as:
+- free text string
+- enum
+- integer/UUID foreign key to lookup table
+- hybrid / legacy mixed pattern
+
+Fields to inspect:
+
+User:
+- pass_type
+- rider_type
+- skill_level
+- home_location / home_state / country or similar
+
+SkiTrip:
+- mountain (legacy field)
+- resort_id
+- state / state_code
+- visibility field(s)
+
+Equipment-related models/tables:
+- brand
+- binding_type
+- boot_brand
+- boot_model
+- any other dimension-like attributes
+
+Also answer:
+- which fields should ideally be enum or FK but are currently free text
+- which tables already behave like proper dimensions / lookup tables
+
+--------------------------------------------------
+SECTION 5 — PRIMARY KEY / ID TYPE AUDIT
+--------------------------------------------------
+
+For each of these tables/models, tell me whether the primary key is:
+- sequential integer
+- UUID
+- string token
+- composite key
+- something else
+
+Inspect:
+
+- User
+- SkiTrip
+- SkiTripParticipant
+- Friend
+- Invitation
+- InviteToken
+- Resort
+- GroupTrip
+- TripGuest
+- Activity
+- Event (if it exists)
+- Equipment-related tables
+- any major join tables not listed above
+
+Then summarize:
+- how much of the current schema uses sequential integer IDs
+- what would be most painful to migrate to UUIDs later
+
+--------------------------------------------------
+SECTION 6 — VISIBILITY / PERMISSION ENFORCEMENT AUDIT
+--------------------------------------------------
+
+I need a route-by-route audit of actual visibility enforcement.
+
+For each of the following routes, trace what happens when a logged-in stranger accesses it:
+
+1. /friend-trip/<trip_id> when viewer is NOT friends with owner
+2. /friend-trip/<trip_id> when viewer IS friends with owner but the trip is Private
+3. /profile/<user_id> when viewer is NOT friends
+4. /group-trip/<trip_id> when viewer is not invited
+5. Any /api/... endpoints that return trip or profile-related data
+
+For each route:
+- identify route file and function
+- state whether authentication is required
+- state whether authorization/visibility is enforced
+- explain how it is enforced
+- identify what happens for unauthorized access:
+  - redirect
+  - 403
+  - 404
+  - partial render
+  - data leak
+- identify any fields that may still be exposed even when access is denied or partially allowed
+
+Also summarize:
+- whether visibility logic is centralized or scattered
+- whether there is any existing helper/service for authorization
+
+--------------------------------------------------
+SECTION 7 — API INVENTORY
+--------------------------------------------------
+
+List every route in the codebase that begins with /api/.
+
+For each endpoint, provide:
+- full route path
+- HTTP method(s)
+- route file / handler function
+- what it returns (brief summary)
+- whether authentication is required
+- whether authorization beyond authentication is enforced
+- whether it looks reusable for a future native mobile client
+
+Then summarize:
+- how much usable API surface already exists
+- where the biggest API gaps are for a future iOS/Android app
+
+--------------------------------------------------
+SECTION 8 — SERVER-RENDERED / SESSION-DEPENDENT LOGIC AUDIT
+--------------------------------------------------
+
+I need to know where critical state is derived from session/request state instead of persisted to the database.
+
+Audit the codebase for:
+- multi-step flows using session
+- pending invite/session bridges
+- trip planning state stored temporarily in session
+- any flow that would break if a user switched devices mid-process
+- any state that exists only in templates/forms until final submit
+
+Examples to look for:
+- invite token in session
+- trip creation wizard state
+- onboarding state
+- partial form state
+- flash-driven implicit workflows
+
+For each case:
+- identify route(s) / file(s)
+- describe the state being held
+- say whether it is critical state or temporary UX state
+- assess whether it would be a problem for a future native app
+
+--------------------------------------------------
+SECTION 9 — RENDERING LAYER AUDIT
+--------------------------------------------------
+
+Roughly estimate the current architecture balance between:
+- HTML template-rendering routes
+- JSON/API routes
+
+Give:
+- approximate count of template-rendering routes
+- approximate count of JSON/API routes
+- whether new feature development currently happens mostly in server-rendered pages or API endpoints
+- your grounded view of how hard an API-first migration would be from current state
+
+--------------------------------------------------
+SECTION 10 — MIGRATIONS / SUPABASE / RLS AUDIT
+--------------------------------------------------
+
+Inspect whether the schema is managed cleanly.
+
+Answer:
+
+1. Does the project appear to use Alembic migrations consistently?
+- Are models and migrations aligned?
+- Are there signs of schema drift or manual DB changes outside migrations?
+
+2. Is Supabase RLS enabled on any tables today?
+- If yes, which tables?
+- What policies exist?
+- Are they being relied on by current application code?
+
+3. Are there any existing DB grants / policies / auth-context assumptions already in place that would matter if we move toward stronger RLS later?
+
+--------------------------------------------------
+SECTION 11 — EVENT / ACTIVITY EMISSION AUDIT
+--------------------------------------------------
+
+I need to understand what event-like infrastructure already exists.
+
+Inspect for:
+- emit_* functions
+- activity creation functions
+- event logging helpers
+- notification hooks
+- email log writes
+- analytics/event tracking code
+
+For each relevant pattern/function:
+- identify file/function
+- say whether it writes to DB or just performs side effects
+- say whether it could evolve into a future event layer
+- identify current event/activity types already captured
+
+--------------------------------------------------
+SECTION 12 — EMAIL INVITE STORAGE / PII AUDIT
+--------------------------------------------------
+
+I need to know the safest likely direction for the future email invite feature.
+
+Inspect any current email sending patterns (SendGrid or otherwise) and answer:
+
+- Where are outbound email addresses currently stored, if anywhere?
+- Is there an EmailLog or similar table?
+- Does it store recipient PII directly?
+- Based on current architecture, what would be the safest implementation pattern for invite-by-email?
+  - pass recipient email directly to email provider and log only metadata?
+  - or current patterns imply recipient email would be stored locally?
+
+Ground this in the current codebase, not general advice.
+
+--------------------------------------------------
+SECTION 13 — TEST COVERAGE / HARDENING READINESS
+--------------------------------------------------
+
+Do we currently have any automated tests or structured validation around the routes/models most affected by:
+- visibility hardening
+- participant normalization
+- invite flow cleanup
+- API-first refactors
+
+If yes:
+- where
+- what is covered
+
+If no:
+- say so clearly
+
+--------------------------------------------------
+SECTION 14 — FINAL SYNTHESIS
+--------------------------------------------------
+
+Give me a blunt summary of the current backend reality in these categories:
+
+1. PARTICIPATION MODEL
+- clean / partially clean / messy
+- why
+
+2. INVITE MODEL
+- clean / partially clean / messy
+- why
+
+3. FRIEND GRAPH INTEGRITY
+- strong / medium / weak
+- why
+
+4. VISIBILITY / PERMISSIONS
+- strong / medium / weak
+- why
+
+5. API-READINESS FOR NATIVE APPS
+- high / medium / low
+- why
+
+6. EVENT-LAYER READINESS
+- high / medium / low
+- why
+
+7. DATA-ARCHITECTURE READINESS FOR FUTURE AGGREGATE ANALYTICS
+- high / medium / low
+- why
+
+Then finish with:
+- the top 5 most important technical truths I should carry into the next architecture revision
+- the top 5 things that are safe to defer for now
