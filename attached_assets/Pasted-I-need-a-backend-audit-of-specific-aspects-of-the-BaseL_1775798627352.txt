@@ -1,0 +1,103 @@
+I need a backend audit of specific aspects of the BaseLodge codebase 
+and database. Please answer each question directly and concretely. 
+Where a question asks for a count or percentage, give actual numbers 
+from the production database if possible, or your best estimate based 
+on the code if not. Where a question asks about behavior, describe 
+what the code actually does today, not what it should do.
+
+Please answer in the same numbered format below. Keep each answer 
+short and specific. If you don't know an answer, say "unknown" rather 
+than guessing.
+
+=== TRIP MODEL & PARTICIPATION ===
+
+1. When a SkiTrip is created today, is a SkiTripParticipant row also 
+created for the owner (with role=OWNER, status=ACCEPTED)? 
+Always / sometimes / never? If sometimes, which code paths create 
+the owner participant row and which don't?
+
+2. How many SkiTrip records exist in the production database today? 
+How many SkiTripParticipant rows exist? How many distinct SkiTrips 
+have at least one SkiTripParticipant row?
+
+3. How many SkiTrips have more than one SkiTripParticipant (i.e., 
+trips that are actually shared between multiple users)? Is multi-
+participant trip usage a real thing in production today, or is the 
+table mostly empty/owner-only?
+
+4. If we added a database constraint enforcing "exactly one 
+SkiTripParticipant with role=OWNER per SkiTrip" and "at most one 
+SkiTripParticipant per (trip, user) pair", would that constraint 
+fail on any existing data? If yes, roughly how many rows would 
+need to be cleaned up first?
+
+=== INVITE SYSTEMS ===
+
+5. Is the Invitation model still being written to by any active code 
+path today? If yes, list the routes or functions that create 
+Invitation rows. If no, confirm it is read-only / legacy.
+
+6. When a user invites a friend to a trip in the current UI, what 
+exactly happens in the database? Specifically:
+   a) Is an Invitation row created?
+   b) Is a SkiTripParticipant row created with status=INVITED?
+   c) Both?
+   d) Neither (some other mechanism)?
+   Walk through the actual code path for the trip invite flow.
+
+7. Does TripGuest have any active write paths today other than the 
+GroupTrip routes? How many GroupTrip records exist in production 
+relative to SkiTrip?
+
+=== FRIEND GRAPH ===
+
+8. Of existing Friend rows in the production database, what fraction 
+are mutual (both directions exist) vs one-way (only one direction 
+exists)? Give actual numbers if possible: total Friend rows, number 
+of (user_a, user_b) pairs that have both directions, number that 
+have only one direction.
+
+9. Of these routes that bypass invite-gating, which ones currently 
+have UI entry points (i.e., a template or button somewhere in the 
+app links to them) vs which ones are dead routes that nothing in 
+the UI references:
+   - /connect/<user_id>
+   - /connect/<user_id>/add
+   - /invite/<user_id>
+   - /connect-from-trip/<user_id>
+   - any seed or admin routes that create friendships
+
+=== VISIBILITY & PRIVACY ===
+
+10. If a logged-in user navigates directly to /trips/<some_trip_id> 
+for a trip they do not own and were not invited to (and the trip's 
+is_public is False), what happens today? Does the route return 
+403, 404, redirect, or render the trip data anyway? Walk through 
+the actual code in the trip detail route.
+
+11. Is there a single function or helper in the codebase today that 
+answers "can user X see trip Y" or "can user X see profile Y"? 
+Or is that logic implemented inline in each route handler? If 
+inline, roughly how many places implement their own version of 
+visibility checking?
+
+=== IDEAS / OVERLAP PERFORMANCE ===
+
+12. For a user with ~10 friends and ~5 upcoming trips, what is the 
+approximate number of database queries executed when loading 
+/trip-ideas, /planning, and /overlap-detail? Are there any 
+observed N+1 patterns in those routes today, or is the concern 
+theoretical?
+
+13. Does the codebase currently have a service or helper layer 
+(e.g., services/ or helpers/ directory with reusable business 
+logic functions), or is most logic inline in route handlers in 
+app.py / routes.py / similar? If a service layer exists, give 
+me 2-3 example function names so I can see the pattern.
+
+=== FORMAT ===
+
+Please return answers as plain text in the same numbered format. 
+Do not summarize, do not editorialize, do not recommend changes — 
+I just need the factual current state of the code and data. I will 
+make recommendations separately based on your answers.
