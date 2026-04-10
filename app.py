@@ -7304,6 +7304,65 @@ def debug_users():
     })
 
 
+@app.route("/admin/export-live-data", methods=["GET"])
+@login_required
+@admin_required
+def export_live_data():
+    """Read-only full data rescue export. Returns all critical user-linked table rows as JSON."""
+    import enum as _enum
+
+    def _val(v):
+        """Serialize a column value to a JSON-safe primitive."""
+        if v is None:
+            return None
+        if isinstance(v, _enum.Enum):
+            return v.value
+        if hasattr(v, 'isoformat'):
+            return v.isoformat()
+        return v
+
+    def _row(obj, exclude=None):
+        exclude = set(exclude or [])
+        return {
+            c.name: _val(getattr(obj, c.name))
+            for c in obj.__table__.columns
+            if c.name not in exclude
+        }
+
+    users           = User.query.order_by(User.id).all()
+    trips           = SkiTrip.query.order_by(SkiTrip.id).all()
+    friends         = Friend.query.order_by(Friend.id).all()
+    participants    = SkiTripParticipant.query.order_by(SkiTripParticipant.id).all()
+    invitations     = Invitation.query.order_by(Invitation.id).all()
+    invite_tokens   = InviteToken.query.order_by(InviteToken.id).all()
+    group_trips     = GroupTrip.query.order_by(GroupTrip.id).all()
+    trip_guests     = TripGuest.query.order_by(TripGuest.id).all()
+
+    return jsonify({
+        "exported_at": datetime.utcnow().isoformat(),
+        "database_uri": re.sub(r'(:)[^:@]+(@)', r'\1***\2',
+                               app.config.get("SQLALCHEMY_DATABASE_URI", "not set")),
+        "counts": {
+            "users":            len(users),
+            "ski_trips":        len(trips),
+            "friends":          len(friends),
+            "ski_trip_participants": len(participants),
+            "invitations":      len(invitations),
+            "invite_tokens":    len(invite_tokens),
+            "group_trips":      len(group_trips),
+            "trip_guests":      len(trip_guests),
+        },
+        "users":            [_row(u, exclude=["password_hash"]) for u in users],
+        "ski_trips":        [_row(t) for t in trips],
+        "friends":          [_row(f) for f in friends],
+        "ski_trip_participants": [_row(p) for p in participants],
+        "invitations":      [_row(i) for i in invitations],
+        "invite_tokens":    [_row(t) for t in invite_tokens],
+        "group_trips":      [_row(g) for g in group_trips],
+        "trip_guests":      [_row(g) for g in trip_guests],
+    })
+
+
 @app.route("/admin/resorts-audit", methods=["GET"])
 @login_required
 @admin_required
