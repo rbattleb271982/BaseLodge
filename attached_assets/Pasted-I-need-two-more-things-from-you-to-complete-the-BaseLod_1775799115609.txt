@@ -1,0 +1,164 @@
+I need two more things from you to complete the BaseLodge backend audit. 
+Part 1 is SQL queries against the production database. Part 2 is a code 
+trace of three additional routes. Please answer both parts in the same 
+response, in the same numbered format.
+
+=== PART 1: PRODUCTION DATA COUNTS ===
+
+Run these queries against the production database and paste the actual 
+result for each. If a query fails, paste the error. Do not estimate — 
+I need real numbers.
+
+Q1. Total SkiTrip records:
+    SELECT COUNT(*) FROM ski_trip;
+
+Q2. Total SkiTripParticipant rows:
+    SELECT COUNT(*) FROM ski_trip_participant;
+
+Q3. SkiTrips that have at least one SkiTripParticipant row:
+    SELECT COUNT(DISTINCT trip_id) FROM ski_trip_participant;
+
+Q4. SkiTrips that have MORE than one SkiTripParticipant row 
+    (i.e., actually shared trips):
+    SELECT COUNT(*) FROM (
+      SELECT trip_id FROM ski_trip_participant 
+      GROUP BY trip_id HAVING COUNT(*) > 1
+    ) AS shared;
+
+Q5. SkiTrips whose owner does NOT have a corresponding 
+    SkiTripParticipant row with role=OWNER:
+    SELECT COUNT(*) FROM ski_trip st
+    WHERE NOT EXISTS (
+      SELECT 1 FROM ski_trip_participant stp
+      WHERE stp.trip_id = st.id 
+        AND stp.user_id = st.user_id 
+        AND stp.role = 'OWNER'
+    );
+    (Adjust the role enum value if it's stored differently — 
+    tell me what the actual stored value is.)
+
+Q6. Any SkiTrip with more than one OWNER participant row 
+    (would violate the proposed constraint):
+    SELECT COUNT(*) FROM (
+      SELECT trip_id FROM ski_trip_participant 
+      WHERE role = 'OWNER'
+      GROUP BY trip_id HAVING COUNT(*) > 1
+    ) AS multi_owner;
+
+Q7. Any (trip_id, user_id) pair with more than one participant row 
+    (would also violate the proposed constraint):
+    SELECT COUNT(*) FROM (
+      SELECT trip_id, user_id FROM ski_trip_participant 
+      GROUP BY trip_id, user_id HAVING COUNT(*) > 1
+    ) AS dupes;
+
+Q8. Total GroupTrip records:
+    SELECT COUNT(*) FROM group_trip;
+    (If the table is named differently, use the actual name and 
+    tell me what it is.)
+
+Q9. Total TripGuest records:
+    SELECT COUNT(*) FROM trip_guest;
+
+Q10. Total Friend rows:
+     SELECT COUNT(*) FROM friend;
+
+Q11. Number of mutual friendships (both directions exist):
+     SELECT COUNT(*) / 2 FROM friend f1
+     WHERE EXISTS (
+       SELECT 1 FROM friend f2
+       WHERE f2.user_id = f1.friend_id 
+         AND f2.friend_id = f1.user_id
+     );
+
+Q12. Number of one-way friendships (only one direction exists):
+     SELECT COUNT(*) FROM friend f1
+     WHERE NOT EXISTS (
+       SELECT 1 FROM friend f2
+       WHERE f2.user_id = f1.friend_id 
+         AND f2.friend_id = f1.user_id
+     );
+
+Q13. Total Invitation records, grouped by type and status:
+     SELECT invite_type, status, COUNT(*) 
+     FROM invitation 
+     GROUP BY invite_type, status;
+
+Q14. Total real (non-test) users:
+     SELECT COUNT(*) FROM "user";
+     (Or whatever the user table is named. Tell me if you can 
+     distinguish test users from real users programmatically.)
+
+If any table or column name in these queries is wrong for the actual 
+schema, correct it and tell me what the right name is, then run the 
+corrected query.
+
+=== PART 2: VISIBILITY AUDIT — ADDITIONAL ROUTES ===
+
+The previous audit confirmed that /trips/<trip_id> returns 404 for 
+a logged-in user who is not the owner, not a participant, and not 
+invited. Good.
+
+I need the same line-by-line trace for three more routes. For each 
+route below, walk through the actual code in the route handler and 
+tell me exactly what happens in the specified scenario.
+
+Q15. /friend-trip/<trip_id>
+     Scenario: User A is logged in. User A is NOT friends with the 
+     trip owner (User B). User A is NOT a participant on the trip. 
+     The trip's visibility is set to Private (or is_public=False, 
+     whichever the actual field is).
+     
+     What does the route return? Trace the code.
+     - Does it 403, 404, redirect, render full data, or render a 
+       partial/sanitized view?
+     - What checks are performed in what order?
+     - Is there a separate check for visibility/is_public, or only 
+       for friendship?
+
+Q16. /friend-trip/<trip_id>
+     Same route, different scenario: User A IS friends with User B. 
+     User A is NOT a participant. The trip's visibility is set to 
+     Private.
+     
+     What does the route return? Specifically: does friendship alone 
+     grant visibility, or is the Private flag respected?
+
+Q17. /profile/<user_id>
+     Scenario: User A is logged in. User A is NOT friends with User B. 
+     User A navigates to /profile/<B's_id>.
+     
+     What does the route return? Trace the code.
+     - Full profile with all fields?
+     - Sanitized public view?
+     - 403 / 404?
+     - What user data is exposed in each case (name, identity line, 
+       trips, equipment, mountains visited, wish list, friends list)?
+
+Q18. Are there any API endpoints (/api/...) that return trip data 
+     or profile data? If yes, list them and for each one tell me 
+     what visibility checks they perform. I'm specifically worried 
+     about JSON endpoints that might be less guarded than the HTML 
+     routes.
+
+Q19. The /trips/<id> route uses sequential integer IDs with no rate 
+     limiting. Do any of the following ALSO use sequential integer 
+     IDs in their URLs?
+     - /friend-trip/<id>
+     - /profile/<user_id>
+     - /group-trip/<id>
+     - /trips/<id>/invite
+     - /trips/<id>/respond
+     For each, tell me whether the ID is sequential int, UUID, or 
+     something else.
+
+=== FORMAT ===
+
+Please return all answers in the same numbered format above. For 
+Part 1, paste the raw query result (the count or the table). For 
+Part 2, walk through the code as concretely as you can — quoting 
+the relevant lines if helpful. 
+
+Do not editorialize or make recommendations. I just need the facts 
+of the current state. I'll make recommendations separately based on 
+your answers.
