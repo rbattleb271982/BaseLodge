@@ -1,0 +1,161 @@
+PUT THIS IN AGENT
+
+Execute **Backend Code Quality Cleanup (#5)** as a **strict, scoped cleanup pass**. Do not expand scope. Do not refactor beyond what is explicitly listed.
+
+## Goal
+
+Remove duplicate code, dead routes, and deprecated scripts to reduce confusion, eliminate security risks, and improve maintainability — **without changing behavior**.
+
+---
+
+## Scope (ONLY do these)
+
+### 1. Remove duplicate function definitions in `app.py`
+
+There are duplicate definitions at the top of the file.
+
+* Remove the **first block** (lines ~46–128)
+* Keep the **second block** (lines ~131–178) as the authoritative version
+
+Functions involved:
+
+* `redirect_to_canonical_domain`
+* `inject_countries`
+* `normalize_country_code`
+* `generate_resort_slug`
+
+### Requirements
+
+* Confirm both versions are identical or that the second version is the correct one
+* Do not modify logic — only remove the duplicate definitions
+* Ensure no import or reference depends on the removed block
+
+---
+
+### 2. Remove unprotected debug/seed routes
+
+Delete the following routes completely:
+
+* `/seed_dummy_data`
+* `/debug/trip-form-data`
+* `/force-reset-passwords`
+
+Also:
+
+* Locate `/open-data-debug`
+* If it exists, confirm whether it is protected
+* If it is unprotected, either:
+
+  * add proper protection (admin/auth), OR
+  * flag it in the output if unsure (do NOT guess)
+
+---
+
+### 3. Remove 410 admin seed stub routes
+
+Delete all routes that only return `abort(410)` and serve no purpose.
+
+Specifically:
+
+* `/admin/seed-colorado-resorts`
+* `/admin/seed-utah-resorts`
+* `/admin/seed-wa-ca-resorts`
+* `/admin/seed-western-resorts`
+* `/admin/seed-eastern-resorts`
+* `/admin/seed-canadian-resorts`
+* `/admin/sync-resorts-from-dev`
+* `/admin/sync-resorts-from-canonical`
+
+### Requirements
+
+* Confirm these routes have no logic beyond returning 410
+* Confirm they are not referenced anywhere else before deletion
+
+---
+
+### 4. Delete deprecated scripts
+
+Delete these files:
+
+* `scripts/backfill_country.py`
+* `scripts/sync_resorts_to_prod.py`
+* `scripts/upsert_ikon_resorts.py`
+
+### Requirements
+
+* Confirm these scripts are not imported or referenced anywhere
+* These scripts are deprecated and should be fully removed
+
+---
+
+## Safety checks (IMPORTANT)
+
+Before deleting anything:
+
+1. Search the codebase for references to:
+
+   * each function being removed
+   * each route
+   * each script file
+
+2. Confirm:
+
+   * no active imports
+   * no runtime dependencies
+   * no template references
+   * no CLI usage
+
+If anything is referenced:
+
+* STOP and report instead of deleting
+
+---
+
+## QA (must complete before finishing)
+
+After cleanup:
+
+1. Restart Flask server
+2. Verify no startup errors
+
+Then manually test:
+
+* Home
+* Add Trip
+* Edit Trip
+* Friends
+* Profile
+
+Confirm:
+
+* no route errors
+* no missing imports
+* no broken flows
+
+---
+
+## Constraints
+
+* Do NOT refactor unrelated code
+* Do NOT rename functions
+* Do NOT modify logic
+* Do NOT touch models or schema
+* Do NOT expand scope beyond this list
+* Use checkpoints sparingly
+
+---
+
+## Output format
+
+When done, report:
+
+1. functions removed (with line ranges)
+2. routes deleted
+3. scripts deleted
+4. any references checked (confirm none existed)
+5. any issues encountered
+6. QA results (what you tested and outcome)
+
+---
+
+This should be a **clean, surgical removal pass — not a redesign**.

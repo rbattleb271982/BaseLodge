@@ -1,0 +1,142 @@
+I want to start with a structured audit and integrity review of the BaseLodge backend and data setup before doing more feature work.
+This planning pass should cover two parallel goals:
+Goal 1 — Full backend / data / QA audit
+I want a realistic audit plan for the current BaseLodge codebase that helps us determine:
+whether the backend is structurally sound
+where legacy or deprecated logic still exists
+whether there are silent fallbacks, dead routes, duplicated helpers, or mismatched data contracts
+whether the major product flows are functionally correct end to end
+what should be cleaned up, in what order, without breaking the app
+This should be a planning/reporting pass only. Do not code yet.
+Audit scope
+Break the audit plan into these three layers:
+1. Backend / architecture audit
+Questions to answer:
+Which models, routes, helpers, and templates are active vs legacy?
+Are there deprecated or duplicated code paths still in use?
+Are there broad try/except or silent fallback patterns hiding broken dependencies?
+Are there environment-specific assumptions making local/dev differ too much from production?
+Are bootstrap/seed/init flows aligned with the current data model?
+Are there dead admin/debug routes, old scripts, JSON fallbacks, or migration leftovers that should be reviewed?
+2. Data integrity / data contract audit
+For each core entity, identify:
+source of truth
+where data is written
+where it is read
+whether legacy/duplicate fields still exist
+whether contradictory or inconsistent values are possible
+whether backend → template/frontend contracts are clean
+Core entities to cover:
+User
+Resort
+SkiTrip
+Trip participants / participation records
+Friend relationships
+Invite / trip invite flows
+Profile-related fields
+Stats/count logic used on Home, Friends, Profile, and Friend Profile
+Questions to answer:
+Are required fields consistently populated?
+Are normalized relationships used consistently?
+Are old fields still written but no longer read, or read but no longer written?
+Are counts and derived stats computed consistently across screens?
+3. End-to-end product QA audit
+Include the major flows:
+sign up / login
+onboarding / profile setup
+Home
+Plan a Trip
+Edit Trip
+trip detail
+Friends tab
+Friend Profile
+invite flow
+profile/settings
+any relevant admin/bootstrap flows needed for correctness
+For each flow, define:
+what should be tested
+what data assumptions it depends on
+what regressions are most likely
+which related routes/templates/helpers are involved
+Goal 2 — Resort parity between prod and dev
+I also want you to explicitly investigate why all resorts from production are not present in dev, and include this in the plan.
+We already know this matters because resort data drives core flows like country/state/resort selection on Plan a Trip.
+For this resort parity portion, answer:
+What is the current source of truth for resort data?
+How is production populated today?
+How is local/dev populated today?
+Why is dev missing production resorts?
+Is dev using only a partial bootstrap seed while production uses the full Supabase dataset?
+Are there any old sync/import scripts, deprecated JSON files, or one-time migration paths involved?
+What is the cleanest long-term way to make dev structurally correct here?
+I want the plan to compare options such as:
+syncing/copying the full production resort dataset into dev
+replacing the partial local seed with a more complete bootstrap/import path
+formalizing a canonical resort import process for local/dev
+removing outdated resort bootstrap logic if it no longer matches the source of truth
+For each option, explain:
+pros
+cons
+architectural fit
+risk
+What I want from this planning pass
+A. Recommended audit sequence
+Tell me the best order to do this work.
+I expect something like:
+architecture inventory
+resort data parity investigation
+model/data contract tracing
+route/template dependency review
+QA walkthrough mapping
+cleanup prioritization
+If you think there is a better order, recommend it.
+B. Output categories for the future audit report
+Define how the eventual audit findings should be categorized:
+Active and structurally sound
+Legacy but harmless
+Legacy and risky
+Duplicated logic
+Silent failure / masking behavior
+Data contract mismatch
+Dev/prod environment drift
+QA regression risk
+Cleanup candidates
+C. Risk prioritization
+Explain how we should prioritize findings:
+safe cleanup now
+cleanup after validation
+refactor later
+leave as-is for now
+D. Likely codebase areas to inspect
+Call out the main files/areas likely involved:
+models
+routes
+templates
+helper/util files
+seed/init/bootstrap logic
+resort import/sync scripts
+admin/debug endpoints
+migrations/scripts
+CSS/JS only where tightly coupled to backend data logic
+E. Guardrails
+This audit plan should ensure:
+nothing gets deleted prematurely
+we do not clean as we inspect
+hidden dependencies are surfaced before cleanup
+dev/prod resort drift is treated as a structural issue, not a patch
+cleanup can later happen in controlled batches
+Constraints
+This is a planning-only request
+Do not code yet
+Do not remove anything yet
+Do not over-engineer
+Keep it specific to the current BaseLodge codebase, not a generic software audit checklist
+Use checkpoints sparingly
+Final deliverable
+At the end, give me:
+the recommended audit sequence
+the categories the audit report should use
+the major codebase areas to inspect
+the key risks to watch for
+the recommended path to fix dev/prod resort parity cleanly
+the recommended way to move from audit → cleanup → QA without causing damage
