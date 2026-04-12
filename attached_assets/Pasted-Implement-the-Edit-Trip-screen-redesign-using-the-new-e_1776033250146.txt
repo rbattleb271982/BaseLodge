@@ -1,0 +1,118 @@
+Implement the Edit Trip screen redesign using the new editorial direction. This should feel like a trip detail page with edit affordances, not a generic form.
+Goal
+Redesign the existing Edit Trip screen so it matches the BaseLodge design language and improves usability.
+Product direction
+This screen is for editing an existing trip, and edits are likely rare, not constant. The user should immediately understand:
+what trip they are editing
+what parts of it can be changed
+how to save changes easily
+The page should be:
+simple
+explicit
+intuitive
+non-redundant
+mobile-first
+premium/editorial in tone
+Design rules
+Follow the BaseLodge design system:
+warm cream background
+serif headline
+clean sans-serif body
+hairline dividers
+deep red accent for the primary action
+no heavy form styling
+no stacked dropdown boxes everywhere
+no generic admin-form feel
+New layout structure
+Refactor the Edit Trip page into this structure:
+Top header area
+back chevron
+small eyebrow: EDIT TRIP
+large serif trip title, using the selected resort/mountain name
+smaller subtitle with trip dates and trip length
+example: Apr 15 → Apr 17 · 3 nights
+Lightweight editable rows
+Use light section structure so the page is explicit and easy to scan, but do not make it feel form-heavy.
+Sections:
+LOCATION
+DATES
+PRIVACY
+Rows:
+LOCATION → Beaver Creek, Colorado with chevron
+DATES → Apr 15 → Apr 17 with chevron, plus small subtext 3 nights
+PRIVACY → Visible to friends with chevron
+Important:
+remove redundant inline labels if they make the screen feel form-like
+no duplicate mountain field
+no visible country/state/mountain dropdown stack on the main screen
+no always-open embedded calendar on the main screen
+Interaction model
+Use this behavior:
+Location row
+Tapping the location row should open the location editor flow instead of exposing all location inputs inline on the main page.
+You do not need to fully redesign the whole location flow in this task, but the main Edit Trip page should support this pattern cleanly. If the current implementation requires the existing country/state/resort controls, move them into a secondary editing surface or progressive reveal state rather than leaving them as the default main layout.
+
+Dates row
+Tapping the dates row should open the date editor UI.
+The main Edit Trip page should only show the summary:
+
+date range
+number of nights
+Do not keep the full calendar open by default on the main page.
+Privacy row
+Tapping privacy should let the user edit visibility in a simple way.
+The main Edit Trip page should show only the summary state:
+Visible to friends
+or
+Private
+Save button behavior
+Implement option 1:
+Sticky Save button
+Use a sticky bottom Save changes button.
+Requirements:
+
+it should be visually clean and understated, not clunky
+it should sit above the bottom nav safely on mobile
+it should feel like a floating confirmation action, not a giant shouting CTA
+it should be hidden by default if nothing changed, or clearly disabled until a change occurs
+once the user changes any editable value, it should appear or activate
+smooth transition is preferred
+Also include:
+a Delete trip secondary action below or near the sticky save area, but visually subordinate
+Technical implementation requirements
+keep this compatible with Flask + Jinja + existing BaseLodge stack
+do not introduce Tailwind
+use existing CSS architecture/patterns where possible
+preserve existing backend trip update functionality
+do not break current edit/save behavior
+wire the redesign into the real trip data
+Important UX requirement
+This page must no longer feel like:
+a generic form
+a stack of dropdowns
+a settings dump
+It should feel like:
+a real trip detail page
+with clean edit affordances
+and a clear save action
+What to change
+Audit the current Edit Trip template, CSS, and JS
+Refactor the page structure to the new layout above
+Remove or hide redundant inline controls from the main surface
+Replace the current default layout with summary rows
+Add sticky save behavior that activates only after changes
+Keep all underlying editing and saving logic working
+Make sure mobile spacing, sticky behavior, and bottom-nav overlap are handled correctly
+QA requirements
+Test all of the following:
+Edit Trip screen loads correctly on mobile width
+Existing trip data populates correctly
+No duplicate resort field appears
+Date summary renders correctly
+Privacy summary renders correctly
+Sticky save button does not overlap the bottom nav
+Sticky save button only appears or activates after a change
+Save still persists updates correctly
+Delete trip action still works
+No regressions to trip editing backend behavior
+Do not finish until you have fully tested the implementation yourself in the Replit preview and confirmed the page works end to end. Only use checkpoints if I say so.

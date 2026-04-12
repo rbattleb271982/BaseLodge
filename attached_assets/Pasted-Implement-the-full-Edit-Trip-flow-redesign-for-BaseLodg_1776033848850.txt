@@ -1,0 +1,271 @@
+Implement the full Edit Trip flow redesign for BaseLodge so it feels like editing a real trip object, not filling out a form.
+This includes:
+the main Edit Trip screen
+the Location editor
+the Dates editor
+the Privacy editor
+sticky Save behavior
+delete flow
+unsaved changes handling
+Do this as a surgical refactor, not a rewrite.
+GOAL
+Replace the current Edit Trip experience, which feels like a generic form with stacked dropdowns and an always-open calendar, with a clean, mobile-first, editorial flow.
+The new experience should feel:
+simple
+explicit
+intuitive
+non-redundant
+calm
+premium
+This screen is for editing an existing trip, not creating one. Users likely edit trips rarely and intentionally, so the UI should reflect that.
+PRODUCT DIRECTION
+The main screen should feel like a trip detail page with edit affordances.
+A user should immediately understand:
+what trip they are editing
+what can be changed
+how to save changes
+The app’s broader design language is calm and editorial, not motion-heavy. Use minimal transitions only:
+bottom sheets can slide up
+overlays can appear cleanly
+sticky Save can fade in
+no flashy animation, bounce, or decorative motion
+DESIGN SYSTEM
+Follow the existing BaseLodge design language:
+warm cream background: #F5F1E8
+deep red primary accent: #5C1219
+blush surface accent: #F0DDD8
+soft border: #E5DFD0
+muted text: #6B665A
+serif headline: Georgia-style
+clean sans-serif body
+hairline dividers (0.5px)
+minimal containers
+no Tailwind
+no heavy form styling
+no generic admin/settings-page feel
+Use inline <style> in the template for this implementation. Do not modify static/styles.css.
+MAIN EDIT TRIP SCREEN
+Create a dedicated edit_trip.html and stop reusing add_trip.html for edit mode.
+Header area
+Show:
+back chevron
+small eyebrow: EDIT TRIP
+large serif trip title using the selected resort name
+subtitle using date range + trip length
+Example:
+Apr 15 → Apr 17 · 3 nights
+If dates are missing, show a clear placeholder such as:
+Add dates
+Main content
+Use light section structure for clarity, but keep section headers visually subtle and low emphasis so the rows carry the visual weight.
+Sections:
+LOCATION
+DATES
+PRIVACY
+Rows:
+LOCATION → Beaver Creek, Colorado with chevron
+DATES → Apr 15 → Apr 17 with chevron, plus subtext 3 nights
+PRIVACY → Visible to friends or Private with chevron
+Requirements:
+no country/state/mountain dropdown stack on the main screen
+no duplicate resort/mountain field
+no always-open embedded calendar on the main screen
+each row should feel like a tappable summary state
+do not make the screen feel like a form or settings dump
+INTERACTION MODEL
+Use this exact structure:
+tapping LOCATION opens a full-screen location editor
+tapping DATES opens a bottom-sheet date editor
+tapping PRIVACY opens a bottom-sheet privacy editor
+Main screen only shows summary values.
+All editors should return the user to the Edit Trip screen, and the final save happens from the sticky Save button on the main screen.
+Do not mix autosave and manual-save patterns.
+LOCATION EDITOR
+Use a full-screen overlay/editor.
+Behavior
+opens from tapping the LOCATION row
+search input should be visually primary
+search should auto-focus on open
+keyboard should open immediately
+visible list of resorts should also be present beneath search
+search filters the list live
+result rows should be large, simple, and tappable
+tapping a result applies the pending location change and returns to the main Edit Trip screen
+Requirements
+this is a search-first, list-supported experience
+do not use the old stacked country/state/mountain dropdown UI
+use existing resorts data already passed by the route
+no dependent dropdown cascade on this editor
+simplify country/state handling behind the scenes where possible
+summary row on main screen should update immediately after a confirmed selection
+Only confirmed selection should update the main screen.
+DATE EDITOR
+Use a bottom sheet.
+Behavior
+opens from tapping the DATES row
+use the existing 7-column calendar logic/pattern from add_trip.html as the functional base
+keep the visual presentation simple and editorial
+user selects start date and end date
+show selected date range clearly
+show trip length live, for example 3 nights
+use large tap targets
+no booking-style clutter
+no pricing
+no badges
+no extra metadata
+no dense visual treatment
+Confirmation
+user must explicitly tap Done
+only then should the main screen update
+dismissing the sheet without tapping Done must not persist changes
+Edge state
+If dates are currently empty, the main row should show a placeholder like:
+Add dates
+Trip length should be auto-calculated live after selection.
+PRIVACY EDITOR
+Use a bottom sheet.
+Options
+Visible to friends
+Private
+Behavior
+tapping a privacy option should apply it immediately and close the sheet
+main screen summary row updates immediately after selection
+no extra Done button
+keep this extremely lightweight
+Visual treatment
+no switches
+no checkboxes
+just large clean tap targets with obvious selected state
+If the user dismisses without selecting a new option, nothing changes.
+SAVE BUTTON
+Implement a sticky bottom Save changes button.
+Behavior
+hidden or clearly disabled by default
+becomes visible or active only when actual changes have been made
+use minimal motion only, such as a subtle fade-in
+not bulky or loud
+should feel like a floating confirmation action, not a giant CTA
+Dirty state logic
+Do not trigger Save based on mere interaction.
+Instead:
+compare current values to the initial values on page load
+only activate the sticky Save button if values truly changed
+Track:
+resort_id
+start_date
+end_date
+is_public
+Layout
+sticky Save must not overlap the bottom nav
+add enough bottom padding to the page
+position the sticky bar above the nav using proper bottom offset and z-index
+On save
+submit through the existing edit POST route
+preserve current backend validation and DB update logic
+on success, redirect to the Trip Detail page
+show a small success flash/message such as:
+Changes saved
+DELETE TRIP
+Include a visually subordinate Delete trip action near the sticky save area.
+Behavior
+open a confirmation modal before delete
+deleting should POST to the existing delete route
+after deletion, send the user to My Trips
+keep delete visually secondary to Save
+UNSAVED CHANGES
+If the user:
+changes something
+then taps back
+Show a confirmation prompt:
+Discard changes?
+Options:
+Discard
+Keep editing
+Do not silently throw away changes.
+Also:
+dismissing the Location editor, Date sheet, or Privacy sheet without confirming should not persist unconfirmed changes
+only confirmed actions should update pending main-screen state
+ROUTE / BACKEND REQUIREMENTS
+Use the existing backend trip update logic.
+Do not change:
+validation logic
+overlap logic
+DB write logic
+add trip flow
+database schema
+backend model structure
+Do change:
+edit_trip_form GET should render edit_trip.html instead of add_trip.html
+all POST error render paths for edit mode should also render edit_trip.html
+pass all required variables consistently in every render call
+on successful edit POST, redirect to trip_detail instead of my_trips
+Required template context
+Ensure countries_map and states_map are passed in all render calls for edit_trip.html.
+Use existing resort data from the route.
+Delete should continue using the existing delete route.
+FILES TO WORK IN
+Relevant files include:
+templates/add_trip.html
+app.py
+templates/trip_detail.html
+templates/components/bottom_nav.html
+Create:
+templates/edit_trip.html
+Important:
+add_trip.html must remain untouched
+do not modify the Add Trip flow
+IMPLEMENTATION NOTES
+Flask + Jinja2 only
+vanilla CSS + JS only
+no React
+no Vite
+no Tailwind
+use inline CSS in the template
+keep this as a surgical refactor
+QA REQUIREMENTS
+Test the full flow end to end in Replit preview.
+Main screen
+Edit Trip loads correctly
+existing trip data populates correctly
+no duplicate resort field appears
+no dropdown clutter remains
+no always-visible calendar remains
+Location
+tapping LOCATION opens full-screen editor
+search auto-focuses
+search filters results live
+tapping a resort returns to main screen and updates summary row
+Dates
+tapping DATES opens bottom sheet
+selecting range works correctly
+nights count updates correctly
+tapping Done returns to main screen and updates summary row
+dismissing without Done does not persist changes
+Privacy
+tapping PRIVACY opens bottom sheet
+selecting option closes the sheet
+main summary updates correctly
+Save
+sticky Save does not overlap bottom nav
+sticky Save only activates after actual changes
+sticky Save persists updates correctly
+success flow returns user to Trip Detail page with small success message
+Delete
+delete confirmation appears
+delete works correctly
+redirect goes to My Trips
+Unsaved changes
+back navigation after edits shows discard confirmation
+discard works correctly
+keep editing works correctly
+Stability
+no console errors
+no broken routes
+no regressions to existing trip update functionality
+Add Trip remains completely unaffected
+FINAL REQUIREMENT
+Do not finish until:
+the entire Edit Trip flow has been tested end to end in Replit preview
+the experience feels clean, simple, and non-redundant
+the page no longer feels like a generic form
+Only use checkpoints if I say so.

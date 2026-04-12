@@ -4782,7 +4782,7 @@ def edit_trip_form(trip_id):
             for e in errors:
                 flash(e, "error")
             return render_template(
-                "add_trip.html",
+                "edit_trip.html",
                 trip=trip,
                 resorts=resorts,
                 countries_map=countries_map,
@@ -4803,16 +4803,15 @@ def edit_trip_form(trip_id):
         ).first()
         
         if overlapping:
+            flash("You already have a trip that overlaps these dates.", "error")
             return render_template(
-                "add_trip.html",
+                "edit_trip.html",
                 trip=trip,
                 resorts=resorts,
                 countries_map=countries_map,
                 states_map=states_map,
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
-                overlap_trip=overlapping,
-                overlap_resort_name=resort.name,
                 user_passes=user_passes,
                 my_transportation=my_transportation,
             )
@@ -4840,15 +4839,18 @@ def edit_trip_form(trip_id):
         try:
             emit_trip_updated_activities(trip, current_user.id, dates_changed=dates_changed)
             db.session.commit()
-            return redirect(url_for("my_trips"))
+            flash("Changes saved.", "trip")
+            return redirect(url_for("trip_detail", trip_id=trip.id))
         except Exception as e:
             db.session.rollback()
             print(f"Error updating trip: {e}")
             flash("Something went wrong while saving your trip. Please try again.", "error")
             return render_template(
-                "add_trip.html",
+                "edit_trip.html",
                 trip=trip,
                 resorts=resorts,
+                countries_map=countries_map,
+                states_map=states_map,
                 user=current_user,
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
                 user_passes=user_passes,
@@ -4856,9 +4858,11 @@ def edit_trip_form(trip_id):
             )
 
     return render_template(
-        "add_trip.html",
+        "edit_trip.html",
         trip=trip,
         resorts=resorts,
+        countries_map=countries_map,
+        states_map=states_map,
         user=current_user,
         form_action=url_for("edit_trip_form", trip_id=trip.id),
         user_passes=user_passes,

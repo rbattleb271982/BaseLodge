@@ -1,0 +1,182 @@
+Redesign the full Edit Trip flow (main screen + all downstream editors) so it matches the BaseLodge design system and interaction model.
+This must feel like editing a real trip object, not filling out a form.
+🎯 GOAL
+Transform the current Edit Trip experience from:
+a generic form
+stacked dropdowns
+always-open calendar
+Into:
+a clean, mobile-first, editorial detail page with edit affordances
+simple, intuitive, non-redundant
+consistent across all editing surfaces
+🧠 PRODUCT CONTEXT
+BaseLodge is a ski/snowboard social app.
+Users:
+plan trips
+see where friends are going
+coordinate overlap
+This screen is for editing an existing trip, not creating one.
+Edits are:
+relatively rare
+intentional
+focused (usually changing 1 thing)
+🎨 DESIGN SYSTEM (STRICT)
+Follow this everywhere:
+Background: warm cream (#F5F1E8)
+Primary accent: deep red (#A8152B / #5C1219)
+Serif headlines (Georgia-style)
+Clean sans-serif body
+Hairline dividers (0.5px)
+Minimal containers (avoid heavy cards)
+No Tailwind
+No generic form UI
+Mobile-first spacing
+Tone:
+calm
+premium
+editorial (Soho House x Apple)
+🧱 PART 1 — MAIN EDIT TRIP SCREEN
+Structure
+Replace the current layout with:
+Header:
+back chevron
+small eyebrow: EDIT TRIP
+large serif trip name (mountain/resort)
+subtitle: date range + trip length
+Example: Apr 15 → Apr 17 · 3 nights
+Content:
+Use light sections for clarity, but keep them subtle (not boxy or form-like).
+LOCATION
+Beaver Creek, Colorado        ›
+
+DATES
+Apr 15 → Apr 17               ›
+3 nights
+
+PRIVACY
+Visible to friends            ›
+Footer:
+sticky Save changes button
+Delete trip secondary action
+Requirements
+Remove all dropdown stacks (country/state/mountain) from the main screen
+Remove always-visible calendar from the main screen
+Remove duplicate mountain/resort fields
+Show only summary values
+Each row must feel tappable (chevron on right)
+Do not make this feel like a settings form
+🔁 PART 2 — INTERACTION MODEL
+Location row
+tapping opens a full-screen location editor
+do NOT expose raw dropdowns on the main screen
+Dates row
+tapping opens a date editing surface
+main screen only shows:
+date range
+trip length
+Privacy row
+tapping opens a simple selection UI
+main screen shows only:
+Visible to friends or Private
+📅 PART 3 — DATE EDITOR
+Pattern
+Use a bottom sheet OR full-screen modal (choose the best for mobile + simplicity).
+Requirements
+user selects:
+start date
+end date
+show selected range clearly
+show computed trip length (e.g., 3 nights)
+no cluttered booking-style UI
+must feel lightweight and clean
+Behavior
+user taps dates → editor opens
+user selects range → taps Done/Save
+return to Edit Trip screen
+update summary row
+Do NOT leave calendar permanently visible anywhere outside this editor.
+🔒 PART 4 — PRIVACY EDITOR
+Pattern
+Use a bottom sheet
+Options
+Visible to friends
+Private
+Requirements
+extremely simple UI
+clear selection state
+no switches or clutter
+tap → select → close → update main screen
+🏔 PART 5 — LOCATION EDITOR
+Pattern
+Use a full-screen editor
+Requirements
+remove current stacked dropdown experience from default flow
+user should:
+search/select resort (primary action)
+not feel like they are filling out multiple dependent fields
+simplify country/state handling behind the scenes where possible
+Behavior
+tap location → open editor
+select new resort/location
+return to Edit Trip screen
+update summary row
+💾 PART 6 — SAVE SYSTEM (IMPORTANT)
+Sticky Save Button
+Implement:
+sticky bottom Save changes button
+must NOT overlap bottom nav
+must feel subtle and clean (not bulky)
+Behavior
+hidden OR disabled by default
+activates when any field changes
+smooth appearance (fade/slide preferred)
+tapping Save:
+persists all changes
+returns user to trip detail page OR shows confirmation
+Delete
+include Delete trip as secondary action
+visually subordinate (text or subtle button)
+confirm before deleting
+🔁 PART 7 — CONSISTENT FLOW RULES
+Across ALL editors:
+user taps row → opens editor
+user edits → confirms
+returns to Edit Trip screen
+final save happens via sticky Save button
+Important:
+do NOT mix autosave and manual save patterns
+keep one consistent model
+⚙️ TECHNICAL REQUIREMENTS
+Must work with Flask + Jinja
+Use existing backend trip update logic
+Do NOT break current routes or data model
+Use vanilla CSS and JS
+Reuse existing components where possible
+🧪 QA REQUIREMENTS
+Test all flows end-to-end:
+Main screen
+loads correctly
+correct trip data shown
+no duplicate fields
+no dropdown clutter
+no visible calendar
+Interactions
+tapping Location opens editor
+tapping Dates opens editor
+tapping Privacy opens editor
+Updates
+changes reflect back on main screen
+sticky Save activates correctly
+Save persists data correctly
+UI
+mobile spacing is clean
+sticky Save does not overlap bottom nav
+no layout breakage
+Delete
+delete works correctly with confirmation
+🚨 FINAL REQUIREMENT
+Do not finish until:
+you have tested the entire Edit Trip flow in Replit preview
+the experience feels clean, simple, and non-redundant
+the page no longer feels like a generic form
+Only use checkpoints if I say so.

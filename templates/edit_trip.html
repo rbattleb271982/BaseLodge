@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Trip — BaseLodge</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <style>
+    /* ===== BASE ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #F5F1E8; color: #1A1A1A; font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+    button { font-family: inherit; }
+
+    /* ===== PAGE ===== */
+    .et-page { max-width: 480px; margin: 0 auto; padding-bottom: 148px; }
+
+    /* ===== HEADER ===== */
+    .et-header { padding: 16px 20px 20px; }
+    .et-back {
+      background: none; border: none; font-size: 24px; color: #5C1219;
+      cursor: pointer; padding: 0; line-height: 1;
+      display: flex; align-items: center; gap: 4px;
+      margin-bottom: 20px;
+    }
+    .et-back-label { font-size: 16px; font-weight: 500; }
+    .et-eyebrow {
+      display: block; font-size: 11px; font-weight: 600;
+      letter-spacing: 1.5px; color: #6B665A; text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .et-header-title {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 28px; font-weight: normal; color: #1A1A1A;
+      line-height: 1.2; margin-bottom: 6px;
+    }
+    .et-header-dates { font-size: 15px; color: #6B665A; }
+
+    /* ===== FLASH MESSAGES ===== */
+    .et-flash-wrap { padding: 0 20px 12px; }
+    .et-flash {
+      padding: 12px 16px; background: rgba(220,53,69,0.07);
+      border: 1px solid rgba(220,53,69,0.2); border-radius: 10px;
+      font-size: 14px; color: #c0392b; margin-bottom: 8px;
+    }
+
+    /* ===== SECTION DIVIDER ===== */
+    .et-hairline { height: 0.5px; background: #E5DFD0; }
+
+    /* ===== SECTION ===== */
+    .et-section { padding: 0 20px; }
+    .et-section-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
+      color: #6B665A; text-transform: uppercase;
+      padding-top: 20px; margin-bottom: 10px;
+    }
+
+    /* ===== ROWS ===== */
+    .et-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0 18px; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; user-select: none;
+    }
+    .et-row:active { opacity: 0.65; }
+    .et-row-body { display: flex; flex-direction: column; gap: 4px; }
+    .et-row-val { font-size: 17px; color: #1A1A1A; }
+    .et-row-val--muted { color: #B5AFA5; }
+    .et-row-sub { font-size: 14px; color: #6B665A; }
+    .et-chev { font-size: 20px; color: #B5AFA5; line-height: 1; flex-shrink: 0; margin-left: 12px; }
+
+    /* ===== DELETE ===== */
+    .et-delete-section { margin-top: 40px; text-align: center; padding: 0 20px; }
+    .et-delete-btn {
+      background: none; border: none; color: #B5AFA5;
+      font-size: 14px; cursor: pointer; padding: 12px;
+    }
+    .et-delete-btn:active { color: #c0392b; }
+
+    /* ===== SAVE BAR ===== */
+    #et-save-bar {
+      position: fixed; bottom: 60px; left: 0; right: 0;
+      background: #F5F1E8; border-top: 0.5px solid #E5DFD0;
+      padding: 12px 20px;
+      z-index: 200;
+      opacity: 0; transform: translateY(6px);
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+    #et-save-bar.et-save-bar--visible {
+      opacity: 1; transform: translateY(0);
+      pointer-events: all;
+    }
+    .et-save-btn {
+      width: 100%; padding: 14px;
+      background: #5C1219; color: white; border: none;
+      border-radius: 10px; font-size: 16px; font-weight: 600;
+      cursor: pointer; letter-spacing: 0.2px;
+    }
+    .et-save-btn:active { opacity: 0.82; }
+
+    /* ===== LOCATION OVERLAY (FULL SCREEN, SLIDES RIGHT) ===== */
+    #et-loc-overlay {
+      position: fixed; inset: 0; background: #F5F1E8;
+      z-index: 500;
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.32,0.72,0,1);
+      display: flex; flex-direction: column;
+    }
+    #et-loc-overlay.et-overlay--open { transform: translateX(0); }
+
+    .et-overlay-nav {
+      display: flex; align-items: center;
+      padding: 16px 20px;
+      border-bottom: 0.5px solid #E5DFD0;
+      flex-shrink: 0;
+    }
+    .et-overlay-back {
+      background: none; border: none; font-size: 17px; color: #5C1219;
+      cursor: pointer; padding: 0; margin-right: 12px;
+      display: flex; align-items: center; gap: 4px; font-weight: 500;
+    }
+    .et-overlay-title { font-size: 17px; font-weight: 600; color: #1A1A1A; }
+
+    .et-search-wrap {
+      padding: 12px 20px;
+      border-bottom: 0.5px solid #E5DFD0;
+      flex-shrink: 0;
+    }
+    .et-search-input {
+      width: 100%; padding: 12px 14px;
+      border: 1px solid #E5DFD0; border-radius: 10px;
+      font-size: 16px; background: white; color: #1A1A1A;
+      outline: none; -webkit-appearance: none;
+    }
+    .et-search-input:focus { border-color: #5C1219; }
+
+    .et-resort-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .et-resort-item {
+      display: flex; flex-direction: column;
+      padding: 14px 20px; border-bottom: 0.5px solid #E5DFD0;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .et-resort-item:active { background: #F0DDD8; }
+    .et-resort-name { font-size: 16px; color: #1A1A1A; }
+    .et-resort-loc { font-size: 13px; color: #6B665A; margin-top: 2px; }
+    .et-no-results { padding: 32px 20px; text-align: center; font-size: 15px; color: #6B665A; }
+
+    /* ===== BOTTOM SHEETS ===== */
+    .et-sheet {
+      position: fixed; inset: 0; z-index: 400;
+      pointer-events: none;
+    }
+    .et-sheet.et-sheet--open { pointer-events: all; }
+
+    .et-sheet-backdrop {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0);
+      transition: background 0.3s ease;
+      cursor: pointer;
+    }
+    .et-sheet--open .et-sheet-backdrop { background: rgba(0,0,0,0.35); }
+
+    .et-sheet-panel {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      background: #F5F1E8;
+      border-radius: 18px 18px 0 0;
+      transform: translateY(100%);
+      transition: transform 0.32s cubic-bezier(0.32,0.72,0,1);
+      max-height: 88vh;
+      overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .et-sheet--open .et-sheet-panel { transform: translateY(0); }
+
+    .et-sheet-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 0.5px solid #E5DFD0;
+      flex-shrink: 0;
+    }
+    .et-sheet-title { font-size: 16px; font-weight: 600; color: #1A1A1A; }
+    .et-sheet-close {
+      background: none; border: none; font-size: 18px;
+      color: #6B665A; cursor: pointer; padding: 4px; line-height: 1;
+    }
+    .et-sheet-done {
+      background: none; border: none; font-size: 16px;
+      font-weight: 600; color: #5C1219; cursor: pointer; padding: 4px;
+    }
+    .et-sheet-done:disabled { color: #B5AFA5; cursor: default; }
+
+    /* ===== CALENDAR ===== */
+    .et-cal-nights {
+      font-size: 14px; color: #6B665A; text-align: center;
+      padding: 12px 20px; border-bottom: 0.5px solid #E5DFD0;
+      min-height: 44px; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0;
+    }
+    .et-cal-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px 20px 24px; }
+    .et-cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .et-cal-nav {
+      background: none; border: none; font-size: 22px;
+      color: #1A1A1A; cursor: pointer; padding: 4px 10px; line-height: 1;
+    }
+    .et-cal-nav:disabled { opacity: 0.3; cursor: default; }
+    .et-cal-label { font-size: 16px; font-weight: 600; color: #1A1A1A; }
+
+    .et-cal-weekdays {
+      display: grid; grid-template-columns: repeat(7,1fr);
+      text-align: center; margin-bottom: 6px;
+    }
+    .et-cal-weekday { font-size: 12px; color: #6B665A; padding: 4px 0; }
+
+    .et-cal-days { display: grid; grid-template-columns: repeat(7,1fr); }
+    .et-cal-day {
+      aspect-ratio: 1; border: none; background: none;
+      font-size: 14px; cursor: pointer;
+      color: #1A1A1A; border-radius: 0;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .et-cal-day:hover:not(:disabled):not(.et-cal-start):not(.et-cal-end):not(.et-cal-range) {
+      background: #F0DDD8; border-radius: 50%;
+    }
+    .et-cal-blank { visibility: hidden; pointer-events: none; }
+    .et-cal-disabled { color: #B5AFA5; opacity: 0.4; cursor: default; }
+    .et-cal-today:not(.et-cal-start):not(.et-cal-end):not(.et-cal-range) {
+      box-shadow: inset 0 0 0 1.5px #5C1219; border-radius: 50%; font-weight: 600;
+    }
+    .et-cal-start, .et-cal-end {
+      background: #5C1219 !important; color: white !important; font-weight: 600;
+    }
+    .et-cal-start:not(.et-cal-end) { border-radius: 50% 0 0 50%; }
+    .et-cal-end:not(.et-cal-start) { border-radius: 0 50% 50% 0; }
+    .et-cal-start.et-cal-end { border-radius: 50%; }
+    .et-cal-range {
+      background: rgba(92,18,25,0.12); color: #1A1A1A; border-radius: 0;
+    }
+
+    /* ===== PRIVACY OPTIONS ===== */
+    .et-priv-options { padding: 8px 0 40px; overflow-y: auto; }
+    .et-priv-option {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 20px; border-bottom: 0.5px solid #E5DFD0;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .et-priv-option:active { background: #F0DDD8; }
+    .et-priv-label { font-size: 17px; color: #1A1A1A; }
+    .et-priv-check { font-size: 18px; color: #5C1219; font-weight: 700; }
+
+    /* ===== MODALS ===== */
+    .et-modal {
+      position: fixed; inset: 0; z-index: 600;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      visibility: hidden; opacity: 0;
+      transition: opacity 0.2s ease, visibility 0.2s ease;
+    }
+    .et-modal.et-modal--open { visibility: visible; opacity: 1; }
+    .et-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.4); }
+    .et-modal-box {
+      position: relative; background: white;
+      border-radius: 14px; padding: 24px 20px 20px;
+      max-width: 300px; width: 100%; text-align: center;
+    }
+    .et-modal-box h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; color: #1A1A1A; }
+    .et-modal-box p { font-size: 14px; color: #6B665A; margin-bottom: 20px; line-height: 1.4; }
+    .et-modal-actions { display: flex; gap: 10px; }
+    .et-modal-cancel {
+      flex: 1; padding: 12px;
+      background: #F5F1E8; border: 1px solid #E5DFD0;
+      border-radius: 10px; font-size: 15px; cursor: pointer; color: #1A1A1A;
+    }
+    .et-modal-confirm {
+      flex: 1; padding: 12px;
+      background: #5C1219; color: white; border: none;
+      border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+    }
+    .et-modal-confirm--danger { background: #c0392b; }
+    .et-modal-actions form { flex: 1; display: flex; }
+    .et-modal-actions form button { width: 100%; }
+  </style>
+</head>
+<body>
+
+{% set resort_name_init = trip.resort.name if trip.resort else (trip.mountain or '') %}
+{% set resort_state_init = trip.resort.state_code if trip.resort else (trip.state or '') %}
+{% set resort_country_init = trip.resort.country_code if trip.resort else '' %}
+{% set location_display_init = (resort_name_init + ', ' + states_map.get(resort_state_init, resort_state_init)) if resort_state_init else resort_name_init %}
+
+{% if trip.start_date and trip.end_date %}
+  {% set nights_count = (trip.end_date - trip.start_date).days %}
+  {% set dates_val_init = trip.start_date.strftime('%b %-d') + ' → ' + trip.end_date.strftime('%b %-d') %}
+  {% set nights_val_init = nights_count|string + ' night' + ('' if nights_count == 1 else 's') %}
+  {% set header_dates_init = dates_val_init + ' · ' + nights_val_init %}
+{% else %}
+  {% set dates_val_init = '' %}
+  {% set nights_val_init = '' %}
+  {% set header_dates_init = 'Add dates' %}
+{% endif %}
+
+{% set privacy_display_init = 'Visible to friends' if trip.is_public else 'Private' %}
+
+<div class="et-page">
+
+  <!-- HEADER -->
+  <div class="et-header">
+    <button class="et-back" id="et-back-btn" type="button">
+      <span>‹</span>
+      <span class="et-back-label">Back</span>
+    </button>
+    <span class="et-eyebrow">Edit Trip</span>
+    <h1 class="et-header-title" id="et-header-title">{{ resort_name_init or 'Select location' }}</h1>
+    <div class="et-header-dates" id="et-header-dates">{{ header_dates_init }}</div>
+  </div>
+
+  <!-- FLASH MESSAGES (POST errors) -->
+  {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}
+    <div class="et-flash-wrap">
+      {% for category, message in messages %}
+        <div class="et-flash">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- LOCATION SECTION -->
+  <div class="et-hairline"></div>
+  <div class="et-section">
+    <div class="et-section-label">Location</div>
+    <div class="et-row" id="et-location-row" onclick="openLocationOverlay()" role="button" tabindex="0">
+      <div class="et-row-body">
+        <span class="et-row-val {{ '' if trip.resort_id else 'et-row-val--muted' }}" id="et-location-val">
+          {{ location_display_init if trip.resort_id else 'Select location' }}
+        </span>
+      </div>
+      <span class="et-chev">›</span>
+    </div>
+  </div>
+
+  <!-- DATES SECTION -->
+  <div class="et-hairline"></div>
+  <div class="et-section">
+    <div class="et-section-label">Dates</div>
+    <div class="et-row" id="et-dates-row" onclick="openDatesSheet()" role="button" tabindex="0">
+      <div class="et-row-body">
+        <span class="et-row-val {{ '' if dates_val_init else 'et-row-val--muted' }}" id="et-dates-val">
+          {{ dates_val_init or 'Add dates' }}
+        </span>
+        <span class="et-row-sub" id="et-nights-sub" {% if not nights_val_init %}style="display:none"{% endif %}>
+          {{ nights_val_init }}
+        </span>
+      </div>
+      <span class="et-chev">›</span>
+    </div>
+  </div>
+
+  <!-- PRIVACY SECTION -->
+  <div class="et-hairline"></div>
+  <div class="et-section">
+    <div class="et-section-label">Privacy</div>
+    <div class="et-row" id="et-privacy-row" onclick="openPrivacySheet()" role="button" tabindex="0">
+      <div class="et-row-body">
+        <span class="et-row-val" id="et-privacy-val">{{ privacy_display_init }}</span>
+      </div>
+      <span class="et-chev">›</span>
+    </div>
+  </div>
+  <div class="et-hairline"></div>
+
+  <!-- DELETE -->
+  <div class="et-delete-section">
+    <button class="et-delete-btn" type="button" onclick="showDeleteModal()">Delete trip</button>
+  </div>
+
+</div><!-- .et-page -->
+
+<!-- ===== STICKY SAVE BAR ===== -->
+<div id="et-save-bar">
+  <button class="et-save-btn" type="button" onclick="handleSave()">Save changes</button>
+</div>
+
+<!-- ===== LOCATION OVERLAY ===== -->
+<div id="et-loc-overlay">
+  <div class="et-overlay-nav">
+    <button class="et-overlay-back" type="button" onclick="closeLocationOverlay()">
+      <span>‹</span> <span>Back</span>
+    </button>
+    <span class="et-overlay-title">Location</span>
+  </div>
+  <div class="et-search-wrap">
+    <input
+      type="text" id="et-resort-search" class="et-search-input"
+      placeholder="Search resorts…"
+      autocomplete="off" autocorrect="off" spellcheck="false"
+      oninput="filterResorts(this.value)"
+    >
+  </div>
+  <div id="et-resort-list" class="et-resort-list"></div>
+</div>
+
+<!-- ===== DATES BOTTOM SHEET ===== -->
+<div class="et-sheet" id="et-dates-sheet">
+  <div class="et-sheet-backdrop" onclick="closeDatesSheet()"></div>
+  <div class="et-sheet-panel">
+    <div class="et-sheet-header">
+      <button class="et-sheet-close" type="button" onclick="closeDatesSheet()">✕</button>
+      <span class="et-sheet-title">Select dates</span>
+      <button class="et-sheet-done" type="button" id="et-dates-done" onclick="confirmDates()" disabled>Done</button>
+    </div>
+    <div class="et-cal-nights" id="et-cal-nights">Select your dates</div>
+    <div class="et-cal-body">
+      <div class="et-cal-header">
+        <button class="et-cal-nav" type="button" id="et-cal-prev" onclick="calPrevMonth()">‹</button>
+        <div class="et-cal-label" id="et-cal-label"></div>
+        <button class="et-cal-nav" type="button" id="et-cal-next" onclick="calNextMonth()">›</button>
+      </div>
+      <div class="et-cal-weekdays">
+        <div class="et-cal-weekday">Su</div>
+        <div class="et-cal-weekday">Mo</div>
+        <div class="et-cal-weekday">Tu</div>
+        <div class="et-cal-weekday">We</div>
+        <div class="et-cal-weekday">Th</div>
+        <div class="et-cal-weekday">Fr</div>
+        <div class="et-cal-weekday">Sa</div>
+      </div>
+      <div class="et-cal-days" id="et-cal-days"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PRIVACY BOTTOM SHEET ===== -->
+<div class="et-sheet" id="et-priv-sheet">
+  <div class="et-sheet-backdrop" onclick="closePrivacySheet()"></div>
+  <div class="et-sheet-panel">
+    <div class="et-sheet-header">
+      <button class="et-sheet-close" type="button" onclick="closePrivacySheet()">✕</button>
+      <span class="et-sheet-title">Privacy</span>
+      <span></span>
+    </div>
+    <div class="et-priv-options">
+      <div class="et-priv-option" id="et-priv-friends" onclick="selectPrivacy(true)" role="button">
+        <span class="et-priv-label">Visible to friends</span>
+        <span class="et-priv-check" id="et-check-friends">✓</span>
+      </div>
+      <div class="et-priv-option" id="et-priv-private" onclick="selectPrivacy(false)" role="button">
+        <span class="et-priv-label">Private</span>
+        <span class="et-priv-check" id="et-check-private">✓</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DELETE MODAL ===== -->
+<div class="et-modal" id="et-delete-modal">
+  <div class="et-modal-backdrop" onclick="closeDeleteModal()"></div>
+  <div class="et-modal-box">
+    <h3>Delete trip?</h3>
+    <p>This action cannot be undone.</p>
+    <div class="et-modal-actions">
+      <button class="et-modal-cancel" type="button" onclick="closeDeleteModal()">Cancel</button>
+      <form method="POST" action="{{ url_for('delete_trip_form', trip_id=trip.id) }}">
+        <button class="et-modal-confirm et-modal-confirm--danger" type="submit">Delete</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DISCARD MODAL ===== -->
+<div class="et-modal" id="et-discard-modal">
+  <div class="et-modal-backdrop"></div>
+  <div class="et-modal-box">
+    <h3>Discard changes?</h3>
+    <p>Your changes haven't been saved yet.</p>
+    <div class="et-modal-actions">
+      <button class="et-modal-cancel" type="button" onclick="closeDiscardModal()">Keep editing</button>
+      <button class="et-modal-confirm" type="button" onclick="discardAndGoBack()">Discard</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== HIDDEN SAVE FORM ===== -->
+<form id="et-save-form" method="POST" action="{{ form_action }}" style="display:none">
+  <input type="hidden" name="resort_id" id="et-f-resort">
+  <input type="hidden" name="start_date" id="et-f-start">
+  <input type="hidden" name="end_date" id="et-f-end">
+  <input type="hidden" name="transportation_status" value="{{ my_transportation or '' }}">
+  <input type="hidden" name="trip_equipment_status" value="{{ trip.trip_equipment_status or 'use_default' }}">
+</form>
+
+{% include 'components/bottom_nav.html' %}
+
+<script>
+  // ===== DATA FROM BACKEND =====
+  const RESORTS = {{ resorts|tojson }};
+  const STATE_NAMES = {{ states_map|tojson }};
+  const COUNTRY_NAMES = {{ countries_map|tojson if countries_map else '{}' }};
+  const BACK_URL = {{ url_for('trip_detail', trip_id=trip.id)|tojson }};
+
+  // ===== INITIAL TRIP STATE =====
+  const INIT = {
+    resort_id: {{ trip.resort_id|tojson }},
+    resort_name: {{ (trip.resort.name if trip.resort else (trip.mountain or ''))|tojson }},
+    resort_state: {{ (trip.resort.state_code if trip.resort else (trip.state or ''))|tojson }},
+    resort_country: {{ (trip.resort.country_code if trip.resort else '')|tojson }},
+    start_date: {{ (trip.start_date.isoformat() if trip.start_date else none)|tojson }},
+    end_date: {{ (trip.end_date.isoformat() if trip.end_date else none)|tojson }},
+    is_public: {{ trip.is_public|tojson }},
+  };
+
+  // ===== PENDING STATE (what will be saved) =====
+  const pending = {
+    resort_id: INIT.resort_id,
+    resort_name: INIT.resort_name,
+    resort_state: INIT.resort_state,
+    resort_country: INIT.resort_country,
+    start_date: INIT.start_date,
+    end_date: INIT.end_date,
+    is_public: INIT.is_public,
+  };
+
+  // ===== DIRTY CHECK =====
+  function isDirty() {
+    return pending.resort_id !== INIT.resort_id
+        || pending.start_date !== INIT.start_date
+        || pending.end_date !== INIT.end_date
+        || pending.is_public !== INIT.is_public;
+  }
+
+  // ===== FORMAT HELPERS =====
+  function fmtDate(iso) {
+    if (!iso) return null;
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  function fmtNights(start, end) {
+    if (!start || !end) return '';
+    const [sy, sm, sd] = start.split('-').map(Number);
+    const [ey, em, ed] = end.split('-').map(Number);
+    const n = Math.round((new Date(ey, em - 1, ed) - new Date(sy, sm - 1, sd)) / 86400000);
+    return n === 1 ? '1 night' : n + ' nights';
+  }
+
+  function isoDate(dt) {
+    return dt.getFullYear() + '-'
+      + String(dt.getMonth() + 1).padStart(2, '0') + '-'
+      + String(dt.getDate()).padStart(2, '0');
+  }
+
+  function getLocDisplay(name, stateCode, countryCode) {
+    if (!name) return '';
+    const loc = STATE_NAMES[stateCode] || COUNTRY_NAMES[countryCode] || stateCode || countryCode || '';
+    return loc ? name + ', ' + loc : name;
+  }
+
+  // ===== SYNC MAIN SCREEN =====
+  function syncMainScreen() {
+    // Header title
+    const title = pending.resort_name || 'Select location';
+    document.getElementById('et-header-title').textContent = title;
+
+    // Header date subtitle
+    const hd = document.getElementById('et-header-dates');
+    if (pending.start_date && pending.end_date) {
+      hd.textContent = fmtDate(pending.start_date) + ' → ' + fmtDate(pending.end_date)
+        + ' · ' + fmtNights(pending.start_date, pending.end_date);
+    } else {
+      hd.textContent = 'Add dates';
+    }
+
+    // Location row
+    const locVal = document.getElementById('et-location-val');
+    if (pending.resort_id) {
+      locVal.textContent = getLocDisplay(pending.resort_name, pending.resort_state, pending.resort_country);
+      locVal.classList.remove('et-row-val--muted');
+    } else {
+      locVal.textContent = 'Select location';
+      locVal.classList.add('et-row-val--muted');
+    }
+
+    // Dates row
+    const datesVal = document.getElementById('et-dates-val');
+    const nightsSub = document.getElementById('et-nights-sub');
+    if (pending.start_date && pending.end_date) {
+      datesVal.textContent = fmtDate(pending.start_date) + ' → ' + fmtDate(pending.end_date);
+      datesVal.classList.remove('et-row-val--muted');
+      nightsSub.textContent = fmtNights(pending.start_date, pending.end_date);
+      nightsSub.style.display = '';
+    } else {
+      datesVal.textContent = 'Add dates';
+      datesVal.classList.add('et-row-val--muted');
+      nightsSub.style.display = 'none';
+    }
+
+    // Privacy row
+    document.getElementById('et-privacy-val').textContent = pending.is_public ? 'Visible to friends' : 'Private';
+
+    // Save bar
+    const bar = document.getElementById('et-save-bar');
+    bar.classList.toggle('et-save-bar--visible', isDirty());
+  }
+
+  // ===== BACK BUTTON =====
+  document.getElementById('et-back-btn').addEventListener('click', function () {
+    if (isDirty()) {
+      showDiscardModal();
+    } else {
+      window.location.href = BACK_URL;
+    }
+  });
+
+  // Keyboard accessibility for rows
+  document.querySelectorAll('.et-row').forEach(function (row) {
+    row.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); row.click(); }
+    });
+  });
+
+  // ===================================================
+  // LOCATION OVERLAY
+  // ===================================================
+  function openLocationOverlay() {
+    document.getElementById('et-loc-overlay').classList.add('et-overlay--open');
+    const inp = document.getElementById('et-resort-search');
+    inp.value = '';
+    filterResorts('');
+    // Auto-focus after transition starts
+    setTimeout(function () { inp.focus(); }, 80);
+  }
+
+  function closeLocationOverlay() {
+    document.getElementById('et-loc-overlay').classList.remove('et-overlay--open');
+  }
+
+  function filterResorts(query) {
+    const q = query.toLowerCase().trim();
+    const list = document.getElementById('et-resort-list');
+    list.innerHTML = '';
+
+    let filtered = RESORTS;
+    if (q) {
+      filtered = RESORTS.filter(function (r) {
+        const stateName = (STATE_NAMES[r.state_code] || '').toLowerCase();
+        const countryName = (COUNTRY_NAMES[r.country_code] || '').toLowerCase();
+        return r.name.toLowerCase().includes(q)
+            || stateName.includes(q)
+            || countryName.includes(q);
+      });
+    }
+
+    if (filtered.length === 0) {
+      const msg = document.createElement('div');
+      msg.className = 'et-no-results';
+      msg.textContent = 'No resorts found.';
+      list.appendChild(msg);
+      return;
+    }
+
+    // Show up to 150 results
+    filtered.slice(0, 150).forEach(function (r) {
+      const locStr = STATE_NAMES[r.state_code] || COUNTRY_NAMES[r.country_code] || r.state_code || '';
+      const item = document.createElement('div');
+      item.className = 'et-resort-item';
+      item.innerHTML =
+        '<span class="et-resort-name">' + escapeHtml(r.name) + '</span>' +
+        (locStr ? '<span class="et-resort-loc">' + escapeHtml(locStr) + '</span>' : '');
+      item.addEventListener('click', function () { selectResort(r); });
+      list.appendChild(item);
+    });
+  }
+
+  function selectResort(r) {
+    pending.resort_id = r.id;
+    pending.resort_name = r.name;
+    pending.resort_state = r.state_code;
+    pending.resort_country = r.country_code;
+    closeLocationOverlay();
+    syncMainScreen();
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // ===================================================
+  // DATES BOTTOM SHEET
+  // ===================================================
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+
+  const cal = {
+    year: 0, month: 0,
+    tempStart: null, tempEnd: null,
+  };
+
+  function openDatesSheet() {
+    cal.tempStart = pending.start_date;
+    cal.tempEnd = pending.end_date;
+
+    // Navigate to the month containing the start date, or current month
+    if (cal.tempStart) {
+      const parts = cal.tempStart.split('-');
+      cal.year = parseInt(parts[0]); cal.month = parseInt(parts[1]) - 1;
+    } else {
+      const now = new Date();
+      cal.year = now.getFullYear(); cal.month = now.getMonth();
+    }
+
+    renderCalendar();
+    syncCalNights();
+    document.getElementById('et-dates-sheet').classList.add('et-sheet--open');
+  }
+
+  function closeDatesSheet() {
+    document.getElementById('et-dates-sheet').classList.remove('et-sheet--open');
+    // Temp state is discarded — pending is unchanged
+  }
+
+  function confirmDates() {
+    if (!cal.tempStart || !cal.tempEnd) return;
+    pending.start_date = cal.tempStart;
+    pending.end_date = cal.tempEnd;
+    closeDatesSheet();
+    syncMainScreen();
+  }
+
+  function calPrevMonth() {
+    cal.month--;
+    if (cal.month < 0) { cal.month = 11; cal.year--; }
+    renderCalendar();
+  }
+
+  function calNextMonth() {
+    cal.month++;
+    if (cal.month > 11) { cal.month = 0; cal.year++; }
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    document.getElementById('et-cal-label').textContent = MONTHS[cal.month] + ' ' + cal.year;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayIso = isoDate(today);
+
+    const firstDay = new Date(cal.year, cal.month, 1);
+    const lastDate = new Date(cal.year, cal.month + 1, 0).getDate();
+    const startDow = firstDay.getDay();
+
+    const container = document.getElementById('et-cal-days');
+    container.innerHTML = '';
+
+    // Blanks before first day
+    for (let i = 0; i < startDow; i++) {
+      const blank = document.createElement('div');
+      blank.className = 'et-cal-day et-cal-blank';
+      container.appendChild(blank);
+    }
+
+    for (let d = 1; d <= lastDate; d++) {
+      const dt = new Date(cal.year, cal.month, d);
+      dt.setHours(0, 0, 0, 0);
+      const iso = isoDate(dt);
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = d;
+      btn.dataset.iso = iso;
+
+      const classes = ['et-cal-day'];
+
+      if (dt < today) {
+        classes.push('et-cal-disabled');
+        btn.disabled = true;
+      }
+      if (iso === todayIso) classes.push('et-cal-today');
+      if (cal.tempStart && iso === cal.tempStart) classes.push('et-cal-start');
+      if (cal.tempEnd && iso === cal.tempEnd) classes.push('et-cal-end');
+      if (cal.tempStart && cal.tempEnd && iso > cal.tempStart && iso < cal.tempEnd) classes.push('et-cal-range');
+      if (cal.tempStart && cal.tempEnd && iso === cal.tempStart && iso === cal.tempEnd) classes.push('et-cal-single');
+
+      btn.className = classes.join(' ');
+      btn.addEventListener('click', function () { handleDayClick(iso); });
+      container.appendChild(btn);
+    }
+
+    // Prev-month button: disable if this month <= current month
+    const prevBtn = document.getElementById('et-cal-prev');
+    const thisMonthStart = new Date(cal.year, cal.month, 1);
+    const curMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    prevBtn.disabled = thisMonthStart <= curMonthStart;
+  }
+
+  function handleDayClick(iso) {
+    if (!cal.tempStart || (cal.tempStart && cal.tempEnd)) {
+      // Start fresh selection
+      cal.tempStart = iso;
+      cal.tempEnd = null;
+    } else if (iso === cal.tempStart) {
+      // Tap start again → clear
+      cal.tempStart = null;
+      cal.tempEnd = null;
+    } else if (iso < cal.tempStart) {
+      // Tapped before start → restart
+      cal.tempStart = iso;
+      cal.tempEnd = null;
+    } else {
+      // Set end
+      cal.tempEnd = iso;
+    }
+    renderCalendar();
+    syncCalNights();
+  }
+
+  function syncCalNights() {
+    const el = document.getElementById('et-cal-nights');
+    const done = document.getElementById('et-dates-done');
+    if (cal.tempStart && cal.tempEnd) {
+      el.textContent = fmtDate(cal.tempStart) + ' → ' + fmtDate(cal.tempEnd)
+        + '  ·  ' + fmtNights(cal.tempStart, cal.tempEnd);
+      done.disabled = false;
+    } else if (cal.tempStart) {
+      el.textContent = fmtDate(cal.tempStart) + ' → select end date';
+      done.disabled = true;
+    } else {
+      el.textContent = 'Select your dates';
+      done.disabled = true;
+    }
+  }
+
+  // ===================================================
+  // PRIVACY BOTTOM SHEET
+  // ===================================================
+  function openPrivacySheet() {
+    document.getElementById('et-check-friends').style.visibility = pending.is_public ? 'visible' : 'hidden';
+    document.getElementById('et-check-private').style.visibility = pending.is_public ? 'hidden' : 'visible';
+    document.getElementById('et-priv-sheet').classList.add('et-sheet--open');
+  }
+
+  function closePrivacySheet() {
+    document.getElementById('et-priv-sheet').classList.remove('et-sheet--open');
+  }
+
+  function selectPrivacy(isPublic) {
+    pending.is_public = isPublic;
+    closePrivacySheet();
+    syncMainScreen();
+  }
+
+  // ===================================================
+  // SAVE
+  // ===================================================
+  function handleSave() {
+    if (!isDirty()) return;
+
+    const form = document.getElementById('et-save-form');
+    document.getElementById('et-f-resort').value = pending.resort_id || '';
+    document.getElementById('et-f-start').value = pending.start_date || '';
+    document.getElementById('et-f-end').value = pending.end_date || '';
+
+    // is_public: "on" → True in Flask; absent → False
+    const prev = form.querySelector('input[name="is_public"]');
+    if (prev) prev.remove();
+    if (pending.is_public) {
+      const inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = 'is_public'; inp.value = 'on';
+      form.appendChild(inp);
+    }
+
+    form.submit();
+  }
+
+  // ===================================================
+  // DELETE
+  // ===================================================
+  function showDeleteModal() {
+    document.getElementById('et-delete-modal').classList.add('et-modal--open');
+  }
+  function closeDeleteModal() {
+    document.getElementById('et-delete-modal').classList.remove('et-modal--open');
+  }
+
+  // ===================================================
+  // DISCARD
+  // ===================================================
+  function showDiscardModal() {
+    document.getElementById('et-discard-modal').classList.add('et-modal--open');
+  }
+  function closeDiscardModal() {
+    document.getElementById('et-discard-modal').classList.remove('et-modal--open');
+  }
+  function discardAndGoBack() {
+    window.location.href = BACK_URL;
+  }
+
+  // ===================================================
+  // INIT
+  // ===================================================
+  filterResorts('');   // Pre-populate resort list
+  syncMainScreen();    // Sync initial display
+</script>
+</body>
+</html>
