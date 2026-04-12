@@ -28,7 +28,7 @@
             line-height: 1.55;
         }
 
-        /* ── Get More Ideas panel ── */
+        /* ── Setup panel ── */
         .ideas-setup-panel {
             background: var(--bl-color-surface);
             border: 1px solid var(--bl-color-border-soft);
@@ -78,7 +78,17 @@
             line-height: 1.45;
         }
 
-        /* ── Wishlist section ── */
+        /* ── Section label ── */
+        .section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 12px 0;
+        }
+
+        /* ── Wishlist collapsible ── */
         .collapsible-section {
             margin-bottom: 24px;
             border: 1px solid var(--bl-color-border-soft);
@@ -156,178 +166,6 @@
             border-top: none;
         }
 
-        /* ── Ideas list ── */
-        .section-label {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.7px;
-            text-transform: uppercase;
-            color: var(--bl-color-text-muted);
-            margin: 0 0 12px 0;
-        }
-
-        .ideas-list {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .idea-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 14px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .idea-row:first-child {
-            border-top: 1px solid var(--bl-color-border-soft);
-        }
-
-        .idea-row:active {
-            opacity: 0.7;
-        }
-
-        .idea-row-content {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .idea-row-date {
-            font-family: Georgia, 'Times New Roman', serif;
-            font-size: 15px;
-            color: var(--bl-color-text);
-            margin: 0 0 2px 0;
-        }
-
-        .idea-row-sub {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-            margin: 0;
-        }
-
-        .idea-row-arrow {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-            flex-shrink: 0;
-            margin-left: 12px;
-        }
-
-        /* ── Empty state ── */
-        .empty-state {
-            text-align: center;
-            padding: 40px 0 24px;
-        }
-
-        .empty-state-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin: 0 0 8px 0;
-        }
-
-        .empty-state-sub {
-            font-size: 14px;
-            color: var(--bl-color-text-muted);
-            margin: 0;
-            line-height: 1.5;
-        }
-
-        /* ── Modal ── */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            align-items: flex-end;
-            justify-content: center;
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-            opacity: 1;
-        }
-
-        .modal-sheet {
-            width: 100%;
-            max-width: 500px;
-            background: var(--bl-color-background);
-            border-radius: 20px 20px 0 0;
-            padding: 20px;
-            transform: translateY(100%);
-            transition: transform 0.3s ease-out;
-            padding-bottom: env(safe-area-inset-bottom, 20px);
-        }
-
-        .modal-overlay.active .modal-sheet {
-            transform: translateY(0);
-        }
-
-        .modal-handle {
-            width: 40px;
-            height: 4px;
-            background: var(--bl-color-border-soft);
-            border-radius: 2px;
-            margin: 0 auto 20px;
-        }
-
-        .modal-header {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin-bottom: 24px;
-            text-align: center;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-
-        .modal-people-list {
-            margin-bottom: 24px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .modal-person-row {
-            padding: 12px 0;
-            border-top: 1px solid var(--bl-color-border-soft);
-        }
-
-        .modal-person-row:first-child {
-            border-top: none;
-        }
-
-        .modal-person-name {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin-bottom: 4px;
-        }
-
-        .modal-person-meta {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-        }
-
-        .modal-cta {
-            width: 100%;
-            padding: 16px;
-            background: var(--bl-color-primary);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        /* Prevent wishlist items from being clickable */
         .collapsible-section *,
         .mountain-group *,
         .person-row * {
@@ -343,10 +181,21 @@
 <body>
     <div class="page-container">
 
-        <h1 class="page-title">Trip Ideas</h1>
-        <p class="page-subtext">Ideas surface the best windows to ski with your friends, based on when your schedules overlap. The more friends you connect and the more availability you add, the better your ideas get.</p>
+        <h1 class="page-title">{% if ideas_state == 'populated' %}Ideas{% else %}Trip Ideas{% endif %}</h1>
 
-        <!-- Always-visible setup panel -->
+        {% if ideas_state == 'setup' %}
+        {# ─────────────────────────────── SETUP STATE ─────────────────────────────── #}
+
+        <p class="page-subtext">
+            {% if not has_friends and not has_availability %}
+                Add your availability and invite friends to get started.
+            {% elif not has_friends %}
+                Connect with friends to start seeing overlap windows.
+            {% else %}
+                Add your open dates so your friends can see when you're free.
+            {% endif %}
+        </p>
+
         <div class="ideas-setup-panel">
             <p class="ideas-setup-title">Get better ideas</p>
 
@@ -367,12 +216,25 @@
             </div>
         </div>
 
-        <!-- Wishlist matches (collapsible) -->
+        {% elif ideas_state == 'reengagement' %}
+        {# ─────────────────────────────── RE-ENGAGEMENT STATE ─────────────────────── #}
+
+        <p class="page-subtext">Windows where your crew overlaps.</p>
+
+        <div class="ideas-reeng-section">
+            <h2 class="ideas-reeng-title">Your crew's calendars are quiet.</h2>
+            <p class="ideas-reeng-sub">No overlapping windows right now. Add more availability or invite more friends to surface new windows.</p>
+            <div class="ideas-reeng-actions">
+                <a href="{{ url_for('add_open_dates') }}" class="bl-btn-primary" style="display: block; text-align: center; text-decoration: none; padding: 12px 20px; font-size: 15px;">Add Availability</a>
+                <a href="{{ url_for('invite') }}" class="bl-btn-secondary" style="display: block; text-align: center; text-decoration: none; padding: 12px 20px; font-size: 15px;">Invite Friends</a>
+            </div>
+        </div>
+
         {% if wishlist_overlaps %}
-        <div class="collapsible-section" id="wishlist-section">
+        <div class="collapsible-section" id="wishlist-section" style="margin-top: 16px;">
             <div class="collapsible-header" onclick="document.getElementById('wishlist-section').classList.toggle('expanded')">
                 <div class="collapsible-title">
-                    Wishlist <span class="collapsible-count">{{ wishlist_overlaps|length }} matches</span>
+                    Wishlist <span class="collapsible-count">{{ wishlist_overlaps|length }} match{{ 'es' if wishlist_overlaps|length > 1 }}</span>
                 </div>
                 <div class="collapsible-chevron">›</div>
             </div>
@@ -391,106 +253,61 @@
         </div>
         {% endif %}
 
-        <!-- Trip Ideas -->
-        {% if has_overlaps %}
-            <p class="section-label">Overlapping Dates</p>
-            <div class="ideas-list">
-                {% for idea in trip_ideas %}
-                    <div class="idea-row" onclick='openIdeaModal({{ idea|tojson }})'>
-                        <div class="idea-row-content">
-                            <p class="idea-row-date">{{ idea.display_date }}</p>
-                            <p class="idea-row-sub">You and {% if idea.overlapping_people|length == 1 %}{{ idea.overlapping_people[0].first_name }}{% else %}{{ idea.overlapping_people|length }} friends{% endif %} are free</p>
-                        </div>
-                        <span class="idea-row-arrow">→</span>
+        {% else %}
+        {# ─────────────────────────────── POPULATED STATE ─────────────────────────── #}
+
+        <p class="page-subtext">
+            {% if window_count == 1 %}1 window where your crew overlaps.
+            {% elif window_count > 1 %}{{ window_count }} windows where your crew overlaps.
+            {% else %}Windows where your crew overlaps.{% endif %}
+        </p>
+
+        <p class="section-label">Windows for your crew</p>
+
+        <div class="ideas-windows-list">
+            {% for w in overlap_windows %}
+            <a href="{{ url_for('add_trip') }}?start_date={{ w.start_date }}&end_date={{ w.end_date }}{% if w.anchor_friend_id %}&friend_id={{ w.anchor_friend_id }}{% endif %}"
+               class="ideas-window-row{% if w.is_first_row %} ideas-window-row--first{% endif %}">
+                <div class="ideas-window-body">
+                    <p class="ideas-window-eyebrow{% if w.is_first_row %} ideas-window-eyebrow--first{% endif %}">{{ w.display_date_range }}</p>
+                    <p class="ideas-window-title">{{ w.descriptor_title }}</p>
+                    {% if w.supporting_line %}
+                    <p class="ideas-window-sub">{{ w.supporting_line }}</p>
+                    {% endif %}
+                </div>
+                <span class="ideas-window-cta">Plan →</span>
+            </a>
+            {% endfor %}
+        </div>
+
+        {% if wishlist_overlaps %}
+        <div class="collapsible-section" id="wishlist-section" style="margin-top: 28px;">
+            <div class="collapsible-header" onclick="document.getElementById('wishlist-section').classList.toggle('expanded')">
+                <div class="collapsible-title">
+                    Wishlist <span class="collapsible-count">{{ wishlist_overlaps|length }} match{{ 'es' if wishlist_overlaps|length > 1 }}</span>
+                </div>
+                <div class="collapsible-chevron">›</div>
+            </div>
+            <div class="collapsible-content">
+                {% for mountain in wishlist_overlaps %}
+                    <div class="mountain-group">
+                        <div class="mountain-name">{{ mountain.resort_name }}</div>
+                        {% for person in mountain.overlapping_people %}
+                            <div class="person-row">
+                                {{ person.first_name }} {{ person.last_name }} · {{ person.rider_type or 'Rider' }} · {{ person.skill_level or 'Skill' }} · {{ person.pass_type or 'No Pass' }}
+                            </div>
+                        {% endfor %}
                     </div>
                 {% endfor %}
             </div>
-        {% else %}
-            <div class="empty-state">
-                {% if not has_friends %}
-                    <p class="empty-state-title">No friends connected yet</p>
-                    <p class="empty-state-sub">Add friends above to start seeing when you're all free to ski together.</p>
-                {% elif not has_availability %}
-                    <p class="empty-state-title">No availability added yet</p>
-                    <p class="empty-state-sub">Add your open dates above and we'll show you when your friends are free too.</p>
-                {% else %}
-                    <p class="empty-state-title">No overlapping dates yet</p>
-                    <p class="empty-state-sub">None of your friends are free on the same days right now. Check back as more people add their availability.</p>
-                {% endif %}
-            </div>
+        </div>
+        {% endif %}
+
+        <p class="ideas-footer">Refine your ideas — <a href="{{ url_for('add_open_dates') }}">Add availability</a> · <a href="{{ url_for('invite') }}">Invite friends</a></p>
+
         {% endif %}
 
     </div>
-
-    <!-- Context Modal -->
-    <div id="idea-modal" class="modal-overlay" onclick="closeIdeaModal(event)">
-        <div class="modal-sheet" onclick="event.stopPropagation()">
-            <div class="modal-handle"></div>
-            <div id="modal-header" class="modal-header"></div>
-            <div id="modal-people-list" class="modal-people-list"></div>
-            <button id="modal-cta" class="modal-cta" onclick="planTrip()">Plan this trip</button>
-        </div>
-    </div>
-
-    <script>
-        let currentIdea = null;
-
-        function openIdeaModal(idea) {
-            currentIdea = idea;
-            const overlay = document.getElementById('idea-modal');
-            const header = document.getElementById('modal-header');
-            const list = document.getElementById('modal-people-list');
-
-            const n = idea.overlapping_people.length;
-            const names = n === 1
-                ? `${idea.overlapping_people[0].first_name} ${idea.overlapping_people[0].last_name}`
-                : `${n} friends`;
-            header.innerText = `${idea.display_date} · You and ${names} are free`;
-
-            list.innerHTML = '';
-            idea.overlapping_people.forEach(person => {
-                const row = document.createElement('div');
-                row.className = 'modal-person-row';
-                row.innerHTML = `
-                    <div class="modal-person-name">${person.first_name} ${person.last_name}</div>
-                    <div class="modal-person-meta">${person.rider_type || 'Rider'} · ${person.skill_level || 'Skill'} · ${person.pass_type || 'No Pass'}</div>
-                `;
-                list.appendChild(row);
-            });
-
-            overlay.style.display = 'flex';
-            setTimeout(() => overlay.classList.add('active'), 10);
-        }
-
-        function closeIdeaModal(event) {
-            const overlay = document.getElementById('idea-modal');
-            overlay.classList.remove('active');
-            setTimeout(() => {
-                overlay.style.display = 'none';
-                currentIdea = null;
-            }, 300);
-        }
-
-        function planTrip() {
-            if (!currentIdea) return;
-            const baseUrl = "{{ url_for('add_trip') }}";
-            const params = new URLSearchParams({
-                start_date: currentIdea.date_str,
-                end_date: currentIdea.date_str
-            });
-            window.location.href = `${baseUrl}?${params.toString()}`;
-        }
-
-        // Swipe down to close
-        let touchStart = 0;
-        document.querySelector('.modal-sheet').addEventListener('touchstart', e => {
-            touchStart = e.touches[0].clientY;
-        });
-        document.querySelector('.modal-sheet').addEventListener('touchmove', e => {
-            const delta = e.touches[0].clientY - touchStart;
-            if (delta > 100) closeIdeaModal();
-        });
-    </script>
 
     {% include 'components/bottom_nav.html' %}
 </body>

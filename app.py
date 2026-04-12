@@ -2225,10 +2225,142 @@ def overlap_detail():
         date_str=date_str or (start_date_str if start_date_str else '')
     )
 
+
+def _build_overlap_windows(matches, user_pass_type):
+    """
+    Transforms a flat list of open-date matches into display-ready overlap windows.
+
+    Input: output of get_open_date_matches() — list of dicts with keys:
+        date, friend_id, friend_name, friend_pass, same_pass
+
+    Output: list of window dicts ready for the template, sorted date asc.
+    """
+    from collections import Counter as _Counter
+
+    if not matches:
+        return []
+
+    BAD_PASSES = {None, "", "I don't have a pass", "Other"}
+
+    # Step 1: group matches by date, dedupe friends by friend_id
+    date_to_friends = {}
+    for m in matches:
+        d = m["date"]
+        if d not in date_to_friends:
+            date_to_friends[d] = {}
+        fid = m["friend_id"]
+        if fid not in date_to_friends[d]:
+            date_to_friends[d][fid] = {
+                "friend_id": m["friend_id"],
+                "friend_name": m["friend_name"],
+                "friend_pass": m["friend_pass"],
+                "same_pass": m["same_pass"],
+            }
+
+    sorted_dates = sorted(date_to_friends.keys())
+
+    # Step 2: group consecutive dates into windows
+    raw_windows = []
+    window_dates = [sorted_dates[0]]
+    for i in range(1, len(sorted_dates)):
+        prev = date.fromisoformat(sorted_dates[i - 1])
+        curr = date.fromisoformat(sorted_dates[i])
+        if (curr - prev).days == 1:
+            window_dates.append(sorted_dates[i])
+        else:
+            raw_windows.append(window_dates)
+            window_dates = [sorted_dates[i]]
+    raw_windows.append(window_dates)
+
+    # Step 3: build view model for each window
+    num_words = {1: "One", 2: "Two", 3: "Three", 4: "Four",
+                 5: "Five", 6: "Six", 7: "Seven", 8: "Eight",
+                 9: "Nine", 10: "Ten"}
+
+    result = []
+    for idx, wdates in enumerate(raw_windows):
+        start_str = wdates[0]
+        end_str = wdates[-1]
+        start_obj = date.fromisoformat(start_str)
+        end_obj = date.fromisoformat(end_str)
+
+        # Collect unique friends across all dates in window (preserve encounter order)
+        seen_ids = {}
+        for d_str in wdates:
+            for fid, f in date_to_friends[d_str].items():
+                if fid not in seen_ids:
+                    seen_ids[fid] = f
+        friends = sorted(seen_ids.values(), key=lambda f: (f["friend_name"] or ""))
+
+        # Anchor friend — alphabetically first valid friend
+        anchor_friend_id = friends[0]["friend_id"] if friends else None
+
+        # Window length phrase
+        n_days = (end_obj - start_obj).days + 1
+        if n_days == 1:
+            length_phrase = "A day"
+        elif n_days == 2:
+            length_phrase = "A weekend"
+        elif n_days == 3:
+            length_phrase = "A long weekend"
+        else:
+            length_phrase = f"{num_words.get(n_days, str(n_days))} days"
+
+        # Descriptor
+        if not friends:
+            descriptor = "A good time to go"
+        elif len(friends) == 1:
+            descriptor = f"{length_phrase} with {friends[0]['friend_name']}"
+        else:
+            descriptor = f"{length_phrase}, {len(friends)} friends free"
+
+        # Supporting line
+        if not friends:
+            supporting = ""
+        elif len(friends) == 1:
+            f = friends[0]
+            if f["same_pass"] and f["friend_pass"] not in BAD_PASSES:
+                supporting = f"{f['friend_name']} also has {f['friend_pass']}"
+            else:
+                supporting = "Make it a trip."
+        else:
+            passes = [f["friend_pass"] for f in friends if f["friend_pass"] not in BAD_PASSES]
+            if passes:
+                counts = _Counter(passes)
+                top_pass, top_count = counts.most_common(1)[0]
+                if top_count >= 2:
+                    supporting = f"{top_count} share {top_pass}"
+                else:
+                    supporting = f"{len(friends)} friends free"
+            else:
+                supporting = f"{len(friends)} friends free"
+
+        # Display date range
+        if start_obj == end_obj:
+            display_range = start_obj.strftime("%a %b %-d").upper()
+        else:
+            display_range = (
+                f"{start_obj.strftime('%a %b %-d').upper()} "
+                f"→ {end_obj.strftime('%a %b %-d').upper()}"
+            )
+
+        result.append({
+            "start_date": start_str,
+            "end_date": end_str,
+            "display_date_range": display_range,
+            "descriptor_title": descriptor,
+            "supporting_line": supporting,
+            "anchor_friend_id": anchor_friend_id,
+            "is_first_row": idx == 0,
+        })
+
+    return result
+
+
 @app.route("/trip-ideas")
 @login_required
 def trip_ideas():
-    """Trip Ideas page - suggestions based on overlapping open availability and wishlist matches."""
+    """Trip Ideas page — 3-state system: setup / reengagement / populated."""
     from services.open_dates import get_open_date_matches, get_available_dates_for_user
     user = current_user
 
@@ -2238,37 +2370,24 @@ def trip_ideas():
     all_friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
     has_friends = bool(friend_ids)
 
-    # ── Task 1: Trip Ideas via availability service ───────────────────────────
+    # ── Availability & Overlap Matches ────────────────────────────────────────
     matches = get_open_date_matches(user)
-    # has_availability is True if user has any future dates at all (even without friend overlap)
     has_availability = bool(get_available_dates_for_user(user))
+    has_overlaps = bool(matches)
 
-    # Group matches by date → build trip_ideas_list
-    date_to_friends = {}
-    for m in matches:
-        match_date = m["date"]
-        if match_date not in date_to_friends:
-            date_to_friends[match_date] = []
-        date_to_friends[match_date].append({
-            "id": m["friend_id"],
-            "first_name": m["friend_name"],
-            "last_name": "",
-            "rider_type": None,
-            "skill_level": None,
-            "pass_type": m["friend_pass"]
-        })
+    # ── State determination ───────────────────────────────────────────────────
+    if not has_friends or not has_availability:
+        ideas_state = "setup"
+    elif not has_overlaps:
+        ideas_state = "reengagement"
+    else:
+        ideas_state = "populated"
 
-    trip_ideas_list = []
-    for match_date in sorted(date_to_friends):
-        trip_ideas_list.append({
-            "date_str": match_date,
-            "display_date": datetime.strptime(match_date, '%Y-%m-%d').strftime('%b %-d'),
-            "overlapping_people": date_to_friends[match_date]
-        })
+    # ── Overlap Windows (populated state only, harmless to build always) ──────
+    overlap_windows = _build_overlap_windows(matches, user.pass_type)
+    window_count = len(overlap_windows)
 
-    has_overlaps = bool(trip_ideas_list)
-
-    # ── Task 2: Wishlist Overlaps (unchanged logic) ───────────────────────────
+    # ── Wishlist Overlaps (preserved — shown in populated + reengagement) ─────
     user_wishlist = set(user.wish_list_resorts or [])
     wishlist_overlaps = {}
 
@@ -2286,7 +2405,6 @@ def trip_ideas():
                         "skill_level": friend.skill_level,
                         "pass_type": friend.pass_type
                     })
-
             if overlapping_friends:
                 resort = Resort.query.get(resort_id)
                 if resort:
@@ -2296,19 +2414,16 @@ def trip_ideas():
                         "overlapping_people": overlapping_friends
                     }
 
-    # QA Logging
-    print(f"[QA] Trip Ideas (Availability) count: {len(trip_ideas_list)}, has_friends={has_friends}, has_availability={has_availability}")
-    print(f"[QA] Wishlist overlaps count: {len(wishlist_overlaps)}")
-
     return render_template(
         "trip_ideas.html",
         user=user,
-        trip_ideas=trip_ideas_list,
+        ideas_state=ideas_state,
+        overlap_windows=overlap_windows,
+        window_count=window_count,
         wishlist_overlaps=list(wishlist_overlaps.values()),
-        wishlist_count=len(wishlist_overlaps),
         has_friends=has_friends,
         has_availability=has_availability,
-        has_overlaps=has_overlaps
+        has_overlaps=has_overlaps,
     )
 
 @app.route("/api/mountains/<state>")

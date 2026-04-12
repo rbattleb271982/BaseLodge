@@ -1,0 +1,268 @@
+Implement the Ideas page 3-state redesign using the selected direction:
+Populated state: Editorial List
+Re-engagement state: Guided
+Setup transition: Disappear completely
+Pass intelligence: Included in the supporting line
+Do not redesign the existing empty/setup state beyond what is needed for state transitions. Preserve the current premium editorial design language. Use checkpoints sparingly.
+Goal
+Turn the Ideas page into a clean 3-state system:
+Setup state
+shown when the user does not yet have enough input data
+existing numbered setup ladder remains the UX for this state
+Populated state
+shown when the user has enough data and actual overlap windows exist
+uses an editorial date-range list
+no hero card
+no duplication of Home’s Best Match
+Re-engagement state
+shown when the user has friends + availability but currently no overlap windows
+slightly guided copy with recovery CTAs
+State logic
+Implement this state logic in the Ideas route/template flow:
+if user has no friends OR no availability:
+show setup state
+elif user has friends + availability but overlap count = 0:
+show re-engagement state
+else:
+show populated state
+Pass a single explicit state variable such as ideas_state to the template:
+"setup"
+"reengagement"
+"populated"
+Do not leave multiple states partially visible at once.
+Route / helper implementation
+1. Keep existing overlap source intact
+Do not rewrite get_open_date_matches.
+Do not rebuild overlap logic from scratch.
+Use the current overlap data as the source of truth.
+2. Add a Python helper for window shaping
+In Python, add a helper such as _build_overlap_windows(matches, user_pass_type) that transforms the existing flat match list into display-ready overlap windows for the template.
+Do this in Python, not Jinja.
+Each window row should produce a display model like:
+start_date
+end_date
+display_date_range
+descriptor_title
+supporting_line
+anchor_friend_id
+is_first_row
+Example shape:
+start_date: "2026-02-08"
+end_date: "2026-02-09"
+display_date_range: "SAT FEB 8 → SUN FEB 9"
+descriptor_title: "A weekend with Alex"
+supporting_line: "Alex also has Epic"
+anchor_friend_id: 42
+is_first_row: True
+3. Window grouping logic
+Keep this simple and stable:
+group matches by date
+dedupe friends within each date by friend_id
+sort dates ascending
+consecutive dates = same window
+any date gap = start a new window
+Do not overcomplicate edge cases in this phase.
+4. Descriptor builder logic
+This is critical. Build it in Python and make it degrade gracefully.
+Use date ranges/windows as the primary unit.
+For one friend:
+use the actual name
+examples:
+A weekend with Alex
+A long weekend with Maya
+Four days with Sam
+For multiple friends:
+do not list multiple names by default
+use count-based phrasing
+examples:
+A weekend, 4 friends free
+A long weekend, 3 friends free
+Four days, 5 friends free
+Window phrasing:
+1 day → A day
+2 days → A weekend
+3 days → A long weekend
+4+ days → "N days" or readable equivalent
+Guardrails:
+if no valid friends are found for a window, degrade cleanly to something like:
+A good time to go
+do not ship awkward phrasing like:
+1 friend free
+weekend with Friend123
+2 friends available on overlap
+5. Supporting line logic
+Include pass intelligence when possible, but keep it restrained.
+Examples:
+one friend with shared pass:
+Alex also has Epic
+multiple friends with strong pass signal:
+3 share Ikon
+2 share Epic
+fallback:
+4 friends free
+Rules:
+ignore null pass values
+ignore "I don't have a pass"-style values
+only surface pass intelligence when it is actually useful
+for multiple friends, only mention a pass if at least 2 share it
+otherwise fallback to a clean friend-count support line
+6. Anchor friend logic
+If a row needs a friend_id for /add_trip, use a deterministic anchor friend.
+Do not make this random.
+Use a stable rule such as:
+alphabetically first valid friend
+or
+earliest valid friend in the sorted window list
+7. Keep old per-day data temporarily
+Do not delete the old trip_ideas data shaping yet if it already exists.
+Just stop using it in the template.
+Keep it temporarily for safety/debugging during this phase.
+Template changes
+Update templates/trip_ideas.html into a clean state-based template.
+Use one top-level branch:
+if ideas_state == 'setup'
+elif ideas_state == 'reengagement'
+else populated
+No scattered state conditionals across the template.
+Each state block should be self-contained.
+Setup state
+Reuse the existing numbered setup ladder structure.
+Adjust the support copy based on what is missing:
+no friends:
+Connect with friends to start seeing overlap windows.
+no availability:
+Add your open dates so your friends can see when you're free.
+both missing:
+Add your availability and invite friends to get started.
+The setup ladder should disappear completely as soon as the state is no longer "setup".
+No collapsed “setup complete” module.
+No persistent checklist.
+Re-engagement state
+Use the same page shell and header.
+Show:
+a serif headline:
+Your crew’s calendars are quiet.
+a short explanatory line:
+No overlapping windows right now. Add more availability or invite more friends to surface new windows.
+two recovery CTAs:
+Add Availability
+Invite Friends
+Do not make this look like an error state.
+If wishlist overlaps already exist and are easy to preserve, keep them as a soft secondary section below.
+Populated state
+Keep the existing page header structure and sparkle identity.
+Use:
+Title: Ideas
+Subtitle:
+dynamic if possible:
+"7 windows where your crew overlaps."
+fallback:
+"Windows where your crew overlaps."
+Then show:
+section eyebrow:
+Windows for your crew
+Then render the editorial list of overlap rows.
+Each row should include:
+date eyebrow
+serif descriptor title
+supporting line
+inline Plan → CTA
+Entire row should be clickable.
+Do not add a hero card.
+Do not duplicate Home’s Best Match.
+Do not group by month in this phase.
+Populated footer
+At the bottom of populated state, include a subtle low-priority footer:
+short sentence about improving ideas
+text links for:
+Add availability
+Invite friends
+This should be understated, not button-heavy.
+CTA behavior
+Each populated-state overlap row should go directly to /add_trip.
+Prefill what is currently supported and stable:
+start_date
+end_date
+friend_id when available
+Do not invent multi-friend trip creation in this phase.
+If a row contains multiple friends, use the stable anchor friend only.
+Guard against missing params and render links safely.
+Styling
+Move Ideas-page styling into static/styles.css.
+Do not leave the new populated/re-engagement styling inline in the template.
+Add classes for the new editorial list and re-engagement state, including at minimum:
+.ideas-window-row
+.ideas-window-row--first
+.ideas-window-body
+.ideas-window-eyebrow
+.ideas-window-eyebrow--first
+.ideas-window-title
+.ideas-window-sub
+.ideas-window-cta
+.ideas-reeng-title
+.ideas-reeng-sub
+.ideas-reeng-actions
+.ideas-footer
+Styling intent:
+calm, editorial, mobile-first
+first row gets subtle emphasis only:
+stronger top border
+bordeaux eyebrow
+no hero treatment
+no dashboard feel
+When removing old inline styles, make sure spacing and padding are recreated properly in CSS so the page does not visually regress.
+What to remove
+From trip_ideas.html, remove old UI that is no longer part of the design:
+modal overlay
+modal JS
+open/close modal functions
+planTrip JS
+swipe-to-close listener
+always-visible setup panel
+old mixed-state overlap block
+Only preserve old behavior where it is still actually used, such as wishlist overlap functionality if already working and still relevant.
+Files to inspect/update
+At minimum inspect and update:
+app.py
+any helper/service currently used by the Ideas route
+templates/trip_ideas.html
+static/styles.css
+Do not touch Home route or Home template in this phase.
+Final verification before stopping
+Setup state
+Verify:
+user with no friends
+user with no availability
+numbered ladder still appears correctly
+no populated/re-engagement fragments leak through
+Re-engagement state
+Verify:
+user with friends + availability but no overlaps
+guided copy renders correctly
+Add Availability and Invite Friends CTAs work
+Populated state
+Verify:
+user with overlap windows
+rows render as an editorial list
+first row gets subtle emphasis
+descriptor headlines read naturally
+pass intelligence appears when available
+populated state does not duplicate Home’s Best Match
+entire row click goes to /add_trip with stable prefill behavior
+Edge cases
+Verify:
+single-day overlap renders cleanly
+multi-day consecutive overlap renders as one window
+descriptor fallback does not produce broken language
+missing/weak pass data falls back cleanly
+Regression checks
+Verify:
+bottom nav still correct
+sparkle icon still correct
+setup state still matches current design language
+Home Best Match remains unchanged
+Add Trip flow still works from Ideas row click
+wishlist collapsible still works if preserved
+no console or template errors
+mobile spacing looks intentional
+Do not finish until all three states are implemented and visually checked end to end.
