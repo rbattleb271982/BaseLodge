@@ -3,90 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>You’re invited to BaseLodge</title>
+    <title>You're invited to BaseLodge</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="/static/icons/favicon.ico">
-    <meta property="og:title" content="You’re invited to BaseLodge" />
+    <meta property="og:title" content="You're invited to BaseLodge" />
     <meta property="og:description" content="Plan ski trips with friends." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://app.baselodgeapp.com{{ request.path }}" />
     <meta property="og:image" content="https://app.baselodgeapp.com/static/images/og-invite.png">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .invite-landing-page {
+        .invite-landing-wrap {
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             background: var(--bl-color-bg);
-            padding: var(--bl-space-6);
+            padding: 24px 20px;
         }
-        
-        .invite-card {
-            background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-md);
-            border: 1px solid var(--bl-color-border-soft);
-            box-shadow: var(--bl-shadow-soft);
-            padding: var(--bl-space-5);
-            max-width: 400px;
+        .invite-landing-card {
             width: 100%;
+            max-width: 400px;
         }
-        
-        .invite-headline {
-            font-size: 20px; /* text-xl */
-            font-weight: 700;
+        .invite-landing-logo {
+            font-family: var(--bl-font-serif);
+            font-size: 15px;
+            font-weight: 400;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 20px 0;
+        }
+        .invite-landing-hero {
+            background: var(--bl-color-surface-blush);
+            border: 0.5px solid var(--bl-color-primary);
+            border-radius: var(--bl-radius-md);
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .invite-landing-name {
+            font-family: var(--bl-font-serif);
+            font-size: 22px;
+            font-weight: 400;
             color: var(--bl-color-text);
             margin: 0 0 4px 0;
-            line-height: 1.2;
         }
-        
-        .invite-identity {
-            font-size: 14px;
-            color: #4b5563; /* gray-600 */
+        .invite-landing-identity {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
             margin: 0 0 2px 0;
         }
-        
-        .invite-stat {
-            font-size: 14px;
-            color: #4b5563; /* gray-600 */
-            margin: 0 0 16px 0;
+        .invite-landing-trips {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 14px 0;
         }
-        
-        .invite-description {
+        .invite-landing-desc {
             font-size: 15px;
             color: var(--bl-color-text);
             line-height: 1.5;
-            margin: 0 0 24px 0;
+            margin: 0;
         }
-
-        .invite-description b {
+        .invite-landing-desc b {
             font-weight: 600;
         }
-        
-        .invite-cta-primary {
+        .invite-landing-cta-primary {
             display: block;
             width: 100%;
             padding: 14px 16px;
             background: var(--bl-color-primary);
             color: white;
             border: none;
-            border-radius: var(--bl-radius-lg);
+            border-radius: var(--bl-radius-md);
             font-size: 16px;
             font-weight: 600;
             text-decoration: none;
             text-align: center;
             cursor: pointer;
-            transition: background 0.2s ease;
             margin-bottom: 12px;
+            box-sizing: border-box;
         }
-        
-        .invite-cta-primary:hover {
-            background: #720115;
-        }
-        
-        .invite-cta-secondary {
+        .invite-landing-cta-secondary {
             display: block;
             width: 100%;
             font-size: 14px;
@@ -94,32 +91,35 @@
             text-align: center;
             text-decoration: none;
         }
-        
-        .invite-cta-secondary:hover {
+        .invite-landing-cta-secondary:hover {
             color: var(--bl-color-primary);
         }
     </style>
 </head>
 <body>
-    <div class="invite-landing-page">
-        <div class="invite-card">
-            <h1 class="invite-headline">{{ inviter.first_name }}{% if inviter.last_name %} {{ inviter.last_name }}{% endif %}</h1>
-            
-            {% if inviter is defined %}
-                {% set identity = inviter|identity_line %}
-            {% else %}
-                {% set identity = "" %}
-            {% endif %}
-            {% if identity %}
-            <p class="invite-identity">{{ identity }}</p>
-            {% endif %}
-            
-            <p class="invite-stat">{{ inviter_trips_count }} upcoming trip{{ 's' if inviter_trips_count != 1 else '' }}</p>
-            
-            <p class="invite-description"><b>Wants to connect on BaseLodge</b> to see when you're both heading to the mountains.</p>
-            
-            <a href="{{ url_for('auth') }}" class="invite-cta-primary">Create account to connect</a>
-            <a href="{{ url_for('auth') }}" class="invite-cta-secondary">Already have an account? Log in</a>
+    <div class="invite-landing-wrap">
+        <div class="invite-landing-card">
+            <p class="invite-landing-logo">BaseLodge</p>
+
+            <div class="invite-landing-hero">
+                <h1 class="invite-landing-name">{{ inviter.first_name }}{% if inviter.last_name %} {{ inviter.last_name }}{% endif %}</h1>
+
+                {% if inviter is defined %}
+                    {% set identity = inviter|identity_line %}
+                {% else %}
+                    {% set identity = "" %}
+                {% endif %}
+                {% if identity %}
+                <p class="invite-landing-identity">{{ identity }}</p>
+                {% endif %}
+
+                <p class="invite-landing-trips">{{ inviter_trips_count }} upcoming trip{{ 's' if inviter_trips_count != 1 else '' }}</p>
+
+                <p class="invite-landing-desc"><b>Wants to connect on BaseLodge</b> to see when you're both heading to the mountains.</p>
+            </div>
+
+            <a href="{{ url_for('auth') }}" class="invite-landing-cta-primary">Create account to connect</a>
+            <a href="{{ url_for('auth') }}" class="invite-landing-cta-secondary">Already have an account? Log in</a>
         </div>
     </div>
 </body>

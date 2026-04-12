@@ -3,82 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invite not found - BaseLodge</title>
+    <title>Invite not found — BaseLodge</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
+    <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .invite-invalid-page {
+        .edge-wrap {
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             background: var(--bl-color-bg);
-            padding: var(--bl-space-6);
+            padding: 24px 20px;
         }
-        
-        .invite-invalid-card {
-            background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-lg);
-            padding: var(--bl-space-8);
+        .edge-card {
+            width: 100%;
             max-width: 400px;
-            width: 100%;
-            text-align: center;
-            box-shadow: var(--bl-shadow-soft);
         }
-        
-        .invite-invalid-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--bl-color-primary);
-            margin-bottom: var(--bl-space-4);
-        }
-        
-        .invite-invalid-subtitle {
-            font-size: 18px;
-            color: var(--bl-color-text);
-            margin-bottom: var(--bl-space-4);
-            font-weight: 600;
-        }
-        
-        .invite-invalid-description {
+        .edge-logo {
+            font-family: var(--bl-font-serif);
             font-size: 15px;
+            font-weight: 400;
             color: var(--bl-color-text-muted);
-            line-height: 1.6;
-            margin-bottom: var(--bl-space-8);
+            margin: 0 0 20px 0;
         }
-        
-        .invite-invalid-button {
-            display: block;
-            width: 100%;
-            padding: var(--bl-space-5);
-            background: var(--bl-color-primary);
-            color: white;
-            border: none;
+        .edge-hero {
+            background: var(--bl-color-surface-blush);
+            border: 0.5px solid var(--bl-color-primary);
             border-radius: var(--bl-radius-md);
-            font-size: 16px;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
-            transition: background 0.2s ease;
+            padding: 20px;
+            margin-bottom: 24px;
         }
-        
-        .invite-invalid-button:hover {
-            background: #720115;
+        .edge-title {
+            font-family: var(--bl-font-serif);
+            font-size: 20px;
+            font-weight: 400;
+            color: var(--bl-color-text);
+            margin: 0 0 8px 0;
+        }
+        .edge-desc {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            line-height: 1.55;
+            margin: 0;
         }
     </style>
 </head>
 <body>
-    <div class="invite-invalid-page">
-        <div class="invite-invalid-card">
-            <h1 class="invite-invalid-title">BaseLodge</h1>
-            <p class="invite-invalid-subtitle">
-                {{ message | default("This invite link is no longer valid.") }}
-            </p>
-            <p class="invite-invalid-description">
-                You can still join BaseLodge to connect with friends and plan trips.
-            </p>
-            <a href="{{ url_for('auth') }}" class="invite-invalid-button">
-                Go to sign up / log in
-            </a>
+    <div class="edge-wrap">
+        <div class="edge-card">
+            <p class="edge-logo">BaseLodge</p>
+            <div class="edge-hero">
+                <h1 class="edge-title">{{ message | default("This invite link is no longer valid.") }}</h1>
+                <p class="edge-desc">You can still join BaseLodge to connect with friends and plan trips.</p>
+            </div>
+            <a href="{{ url_for('auth') }}" class="bl-btn-primary" style="display: block; width: 100%; text-align: center; text-decoration: none; box-sizing: border-box;">Sign up or log in</a>
         </div>
     </div>
 </body>

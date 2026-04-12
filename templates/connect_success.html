@@ -3,17 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge - Connected</title>
+    <title>Connected — BaseLodge</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
+    <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .success-wrap {
+            padding: 32px 20px 88px;
+            max-width: 480px;
+            margin: 0 auto;
+        }
+        .success-hero {
+            background: var(--bl-color-surface-blush);
+            border: 0.5px solid var(--bl-color-primary);
+            border-radius: var(--bl-radius-md);
+            padding: 20px;
+            margin-bottom: 28px;
+        }
+        .success-hero-title {
+            font-family: var(--bl-font-serif);
+            font-size: 22px;
+            font-weight: 400;
+            color: var(--bl-color-text);
+            margin: 0 0 6px 0;
+        }
+        .success-hero-sub {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+            line-height: 1.5;
+        }
+    </style>
 </head>
 <body>
-    <div class="page-container" style="padding: var(--bl-space-8); max-width: 500px; margin: 0 auto;">
-        <div style="text-align: center; margin-bottom: var(--bl-space-8);">
-            <h2 style="font-size: 24px; font-weight: 700; color: var(--bl-color-text); margin-bottom: var(--bl-space-4);">You're now connected!</h2>
-            <p style="font-size: 15px; color: var(--bl-color-text-muted);">You and {{ friend.first_name }} {{ friend.last_name }} are now friends on BaseLodge. You'll see each other's trips on your home screen.</p>
+    <div class="page-container">
+        <div class="success-wrap">
+            <div class="success-hero">
+                <h1 class="success-hero-title">You're now connected</h1>
+                <p class="success-hero-sub">You and {{ friend.first_name }} {{ friend.last_name }} are now friends on BaseLodge. You'll see each other's trips on your home screen.</p>
+            </div>
+
+            <a href="{{ url_for('home') }}" class="bl-btn-primary" style="display: block; width: 100%; text-align: center; text-decoration: none; box-sizing: border-box;">Go to Home</a>
         </div>
-        
-        <a href="{{ url_for('home') }}" class="bl-btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none;">Go to Home</a>
     </div>
     {% include 'components/bottom_nav.html' %}
 </body>

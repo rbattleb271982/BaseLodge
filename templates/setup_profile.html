@@ -7,129 +7,66 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
         .setup-section {
-            margin-bottom: var(--bl-space-5);
+            margin-bottom: var(--bl-space-6);
         }
-        
+
         .setup-label {
             display: block;
             font-size: 13px;
             font-weight: 500;
             color: var(--bl-color-text);
-            margin-bottom: var(--bl-space-3);
+            margin-bottom: var(--bl-space-2);
         }
-        
-        .segmented-control {
-            display: flex;
-            background: #F7F4EF;
-            border-radius: 999px;
-            padding: 4px;
-        }
-        
-        .segmented-control.wrap {
-            flex-wrap: wrap;
-            border-radius: var(--bl-radius-md);
-            gap: 4px;
-        }
-        
-        .segment-btn {
-            flex: 1;
-            background: transparent;
-            border: none;
-            padding: 10px 12px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
+
+        .setup-hint {
+            font-size: 12px;
             color: var(--bl-color-text-muted);
-            border-radius: 999px;
-            transition: all 0.2s ease;
-            white-space: nowrap;
+            margin: 0 0 var(--bl-space-3) 0;
         }
-        
-        .segmented-control.wrap .segment-btn {
-            flex: 0 0 auto;
-            min-width: calc(50% - 4px);
-        }
-        
-        .segment-btn.active {
-            background: var(--bl-color-primary);
-            color: #FFFFFF;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-        }
-        
-        .segment-btn:not(.active):hover {
-            color: var(--bl-color-text);
-        }
-        
+
         .checkbox-group {
             display: flex;
             flex-direction: column;
             gap: 6px;
         }
-        
+
         .checkbox-item {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
         }
-        
+
+        .checkbox-item:last-child {
+            border-bottom: none;
+        }
+
         .checkbox-item input[type="checkbox"] {
             cursor: pointer;
             accent-color: var(--bl-color-primary);
             width: 18px;
             height: 18px;
+            flex-shrink: 0;
         }
-        
+
         .checkbox-item label {
             cursor: pointer;
-            font-size: 13px;
+            font-size: 14px;
             flex: 1;
             margin: 0;
+            color: var(--bl-color-text);
         }
-        
-        .radio-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-        }
-        
-        .radio-label {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 0;
-            min-height: 36px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        
-        .radio-label input[type="radio"] {
-            width: 18px;
-            height: 18px;
-            accent-color: var(--bl-color-primary);
-            cursor: pointer;
-            margin: 0;
-        }
-        
-        .radio-label span {
-            font-size: 14px;
-        }
-        
-        .pass-description {
-            font-size: 11px;
-            color: var(--bl-color-text-muted);
-            margin: 0 0 8px 0;
-        }
-        
+
         .form-submit {
             width: 100%;
             margin-top: var(--bl-space-4);
         }
-        
+
         .form-submit:disabled {
-            background: var(--bl-color-text-muted);
+            opacity: 0.45;
             cursor: not-allowed;
         }
-        
     </style>
 </head>
 <body>
@@ -139,11 +76,11 @@
                 <h1 class="auth-title">BaseLodge</h1>
                 <p class="auth-subtitle">Tell us a bit about yourself to get started.</p>
             </div>
-            
+
             <form method="POST" action="{{ url_for('setup_profile') }}" id="setup-form">
                 <div class="setup-section">
                     <label class="setup-label">Rider type</label>
-                    <p class="pass-description">How you ride</p>
+                    <p class="setup-hint">Select all that apply.</p>
                     <div class="checkbox-group" id="rider-types-group">
                         {% for rider_type in rider_types %}
                         <div class="checkbox-item">
@@ -153,10 +90,10 @@
                         {% endfor %}
                     </div>
                 </div>
-                
+
                 <div class="setup-section">
                     <label class="setup-label">Which passes do you have?</label>
-                    <p class="pass-description">Select all that apply.</p>
+                    <p class="setup-hint">Select all that apply.</p>
                     <div class="checkbox-group">
                         {% for pass in pass_options %}
                         <div class="checkbox-item">
@@ -166,29 +103,29 @@
                         {% endfor %}
                     </div>
                 </div>
-                
+
                 <button type="submit" class="bl-btn-primary form-submit" id="continue-btn" disabled>Continue</button>
-                
+
                 <p class="auth-footer">You can change these later in your profile.</p>
             </form>
         </div>
     </div>
-    
+
     <script>
         const riderTypeCheckboxes = document.querySelectorAll('input[name="rider_types"]');
         const passCheckboxes = document.querySelectorAll('input[name="pass_type"]');
         const continueBtn = document.getElementById('continue-btn');
-        
+
         function updateContinueButton() {
             const riderSelected = Array.from(riderTypeCheckboxes).some(cb => cb.checked);
             const passSelected = Array.from(passCheckboxes).some(cb => cb.checked);
             continueBtn.disabled = !(riderSelected && passSelected);
         }
-        
+
         riderTypeCheckboxes.forEach(checkbox => {
             checkbox.addEventListener('change', updateContinueButton);
         });
-        
+
         passCheckboxes.forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 if (this.value === "I don't have a pass" && this.checked) {
@@ -205,11 +142,11 @@
                 updateContinueButton();
             });
         });
-        
+
         document.getElementById('setup-form').addEventListener('submit', (e) => {
             const selectedRiders = Array.from(riderTypeCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
             const selectedPasses = Array.from(passCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
-            
+
             if (selectedRiders.length === 0) {
                 e.preventDefault();
                 alert('Please select at least one rider type.');
@@ -220,8 +157,7 @@
                 alert('Please select at least one pass.');
             }
         });
-        
-        updateSecondaryVisibility();
+
         updateContinueButton();
     </script>
 </body>

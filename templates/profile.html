@@ -3,122 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profile - BaseLodge</title>
+    <title>Profile — BaseLodge</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        /* ── Identity card ───────────────────────────── */
-        .identity-card {
-            background: #252320;
-            border-radius: 16px;
-            padding: 20px 16px;
-            margin-bottom: 12px;
+        /* ── Profile hero ─────────────────────────────── */
+        .profile-hero {
+            background: var(--bl-color-surface-blush);
+            border: 0.5px solid var(--bl-color-primary);
+            border-radius: var(--bl-radius-md);
+            padding: 20px;
+            margin-bottom: 24px;
             display: flex;
             align-items: center;
             gap: 14px;
         }
-        .identity-avatar {
-            width: 52px;
-            height: 52px;
+        .profile-avatar {
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
             background: var(--bl-color-primary);
             color: #fff;
-            font-size: 1.35rem;
-            font-weight: 700;
+            font-size: 1.25rem;
+            font-weight: 600;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            font-family: var(--bl-font-serif);
         }
-        .identity-info {
+        .profile-hero-info {
             flex: 1;
             min-width: 0;
         }
-        .identity-name {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: #fff;
-            margin: 0 0 3px 0;
-            line-height: 1.2;
+        .profile-hero-name {
+            font-family: var(--bl-font-serif);
+            font-size: 18px;
+            font-weight: 400;
+            color: var(--bl-color-text);
+            margin: 0 0 2px 0;
         }
-        .identity-context {
-            font-size: 0.83rem;
-            color: rgba(255,255,255,0.55);
+        .profile-hero-context {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
             margin: 0;
-            line-height: 1.4;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .identity-edit {
-            font-size: 0.82rem;
-            font-weight: 600;
-            color: rgba(255,255,255,0.55);
+        .profile-hero-edit {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--bl-color-primary);
             text-decoration: none;
             flex-shrink: 0;
-            padding: 4px 0 4px 8px;
-        }
-        .identity-edit:active {
-            opacity: 0.6;
+            padding: 4px 0 4px 12px;
         }
 
-        /* ── Trips inline pill ───────────────────────── */
-        .trips-inline-pill {
+        /* ── Trips pill ───────────────────────────────── */
+        .trips-pill {
             display: inline-flex;
             align-items: center;
-            background: var(--bl-color-surface);
             border: 1px solid var(--bl-color-border-soft);
             border-radius: 20px;
             padding: 5px 14px;
             margin-bottom: 24px;
             text-decoration: none;
-            -webkit-tap-highlight-color: transparent;
         }
-        .trips-inline-pill:active {
-            opacity: 0.7;
-        }
-        .trips-inline-pill-text {
-            font-size: 0.82rem;
-            font-weight: 600;
+        .trips-pill-text {
+            font-size: 13px;
+            font-weight: 500;
             color: var(--bl-color-primary);
         }
 
-        /* ── Profile groups ──────────────────────────── */
+        /* ── Profile groups (hairline) ────────────────── */
         .profile-group {
-            margin-bottom: 24px;
+            margin-bottom: 28px;
         }
         .profile-group-label {
             font-size: 11px;
-            font-weight: 700;
+            font-weight: 600;
             color: var(--bl-color-text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin: 0 0 8px 4px;
-        }
-        .profile-card {
-            background: var(--bl-color-surface);
-            border-radius: 12px;
-            overflow: hidden;
+            margin: 0 0 8px 0;
         }
         .profile-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
             min-height: 48px;
-            padding: 12px 16px;
+            padding: 12px 0;
             border-bottom: 1px solid var(--bl-color-border-soft);
             text-decoration: none;
             color: inherit;
             -webkit-tap-highlight-color: transparent;
         }
-        .profile-row:last-child {
-            border-bottom: none;
-        }
-        .profile-row:active {
-            background: rgba(0,0,0,0.03);
+        .profile-row:first-child {
+            border-top: 1px solid var(--bl-color-border-soft);
         }
         .profile-row-label {
             font-size: 0.95rem;
@@ -155,9 +140,9 @@
     </style>
 </head>
 <body>
-    <div class="page-container" style="padding: 20px 16px 88px;">
+    <div class="page-container" style="padding: 24px 16px 88px;">
 
-        <!-- Identity card -->
+        <!-- Identity hero -->
         {% set rider_types = current_user.rider_types or [] %}
         {% set rider_label = rider_types[0] if rider_types else '' %}
         {% set ctx_parts = [] %}
@@ -165,82 +150,76 @@
         {% if current_user.skill_level %}{% set _ = ctx_parts.append(current_user.skill_level | capitalize) %}{% endif %}
         {% if current_user.pass_type %}{% set _ = ctx_parts.append(current_user.pass_type) %}{% endif %}
 
-        <div class="identity-card">
-            <div class="identity-avatar">{{ current_user.first_name[0] | upper }}</div>
-            <div class="identity-info">
-                <p class="identity-name">{{ current_user.first_name }} {{ current_user.last_name or '' }}</p>
+        <div class="profile-hero">
+            <div class="profile-avatar">{{ current_user.first_name[0] | upper }}</div>
+            <div class="profile-hero-info">
+                <p class="profile-hero-name">{{ current_user.first_name }} {{ current_user.last_name or '' }}</p>
                 {% if ctx_parts %}
-                <p class="identity-context">{{ ctx_parts | join(' · ') }}</p>
+                <p class="profile-hero-context">{{ ctx_parts | join(' · ') }}</p>
                 {% endif %}
             </div>
-            <a href="{{ url_for('edit_profile') }}" class="identity-edit">Edit</a>
+            <a href="{{ url_for('edit_profile') }}" class="profile-hero-edit">Edit</a>
         </div>
 
-        <!-- Trips inline pill — hidden if zero -->
+        <!-- Trips pill -->
         {% if upcoming_count and upcoming_count > 0 %}
-        <a href="{{ url_for('my_trips') }}" class="trips-inline-pill">
-            <span class="trips-inline-pill-text">{{ upcoming_count }} trip{{ 's' if upcoming_count != 1 else '' }} planned</span>
+        <a href="{{ url_for('my_trips') }}" class="trips-pill">
+            <span class="trips-pill-text">{{ upcoming_count }} trip{{ 's' if upcoming_count != 1 else '' }} planned</span>
         </a>
         {% endif %}
 
-        <!-- Profile -->
+        <!-- Profile group -->
         <div class="profile-group">
             <h2 class="profile-group-label">Profile</h2>
-            <div class="profile-card">
-                <a href="{{ url_for('edit_profile') }}" class="profile-row">
-                    <span class="profile-row-label">Profile Details</span>
-                    <div class="profile-row-right">
-                        <span class="profile-row-chevron">›</span>
-                    </div>
-                </a>
-            </div>
+            <a href="{{ url_for('edit_profile') }}" class="profile-row">
+                <span class="profile-row-label">Profile Details</span>
+                <div class="profile-row-right">
+                    <span class="profile-row-chevron">›</span>
+                </div>
+            </a>
         </div>
 
-        <!-- Equipment & Mountains -->
+        <!-- Equipment & Mountains group -->
         <div class="profile-group">
             <h2 class="profile-group-label">Equipment & Mountains</h2>
-            <div class="profile-card">
-                <a href="{{ url_for('settings_equipment') }}" class="profile-row">
-                    <span class="profile-row-label">Equipment</span>
-                    <div class="profile-row-right">
-                        {% if has_equipment %}<span class="profile-row-value">{{ equipment_summary }}</span>{% endif %}
-                        <span class="profile-row-chevron">›</span>
-                    </div>
-                </a>
-                <a href="{{ url_for('settings_mountains') }}" class="profile-row">
-                    <span class="profile-row-label">Mountains Visited</span>
-                    <div class="profile-row-right">
-                        {% if mountains_visited_count %}<span class="profile-row-value">{{ mountains_visited_count }}</span>{% endif %}
-                        <span class="profile-row-chevron">›</span>
-                    </div>
-                </a>
-                <a href="{{ url_for('settings_wish_list') }}" class="profile-row">
-                    <span class="profile-row-label">Wish List Destinations</span>
-                    <div class="profile-row-right">
-                        {% if wish_list_count %}<span class="profile-row-value">{{ wish_list_count }} resort{% if wish_list_count != 1 %}s{% endif %}</span>{% endif %}
-                        <span class="profile-row-chevron">›</span>
-                    </div>
-                </a>
-            </div>
+            <a href="{{ url_for('settings_equipment') }}" class="profile-row">
+                <span class="profile-row-label">Equipment</span>
+                <div class="profile-row-right">
+                    {% if has_equipment %}<span class="profile-row-value">{{ equipment_summary }}</span>{% endif %}
+                    <span class="profile-row-chevron">›</span>
+                </div>
+            </a>
+            <a href="{{ url_for('settings_mountains') }}" class="profile-row">
+                <span class="profile-row-label">Mountains Visited</span>
+                <div class="profile-row-right">
+                    {% if mountains_visited_count %}<span class="profile-row-value">{{ mountains_visited_count }}</span>{% endif %}
+                    <span class="profile-row-chevron">›</span>
+                </div>
+            </a>
+            <a href="{{ url_for('settings_wish_list') }}" class="profile-row">
+                <span class="profile-row-label">Wish List</span>
+                <div class="profile-row-right">
+                    {% if wish_list_count %}<span class="profile-row-value">{{ wish_list_count }} resort{% if wish_list_count != 1 %}s{% endif %}</span>{% endif %}
+                    <span class="profile-row-chevron">›</span>
+                </div>
+            </a>
         </div>
 
-        <!-- Account -->
+        <!-- Account group -->
         <div class="profile-group">
             <h2 class="profile-group-label">Account</h2>
-            <div class="profile-card">
-                <a href="{{ url_for('settings_password') }}" class="profile-row">
-                    <span class="profile-row-label-muted">Change Password</span>
-                    <div class="profile-row-right">
-                        <span class="profile-row-chevron">›</span>
-                    </div>
-                </a>
-                <a href="{{ url_for('logout') }}" class="profile-row">
-                    <span class="profile-row-label-danger">Log Out</span>
-                    <div class="profile-row-right">
-                        <span class="profile-row-chevron">›</span>
-                    </div>
-                </a>
-            </div>
+            <a href="{{ url_for('settings_password') }}" class="profile-row">
+                <span class="profile-row-label-muted">Change Password</span>
+                <div class="profile-row-right">
+                    <span class="profile-row-chevron">›</span>
+                </div>
+            </a>
+            <a href="{{ url_for('logout') }}" class="profile-row">
+                <span class="profile-row-label-danger">Log Out</span>
+                <div class="profile-row-right">
+                    <span class="profile-row-chevron">›</span>
+                </div>
+            </a>
         </div>
 
     </div>
