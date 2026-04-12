@@ -1,0 +1,182 @@
+Implement Profile Option 03 — Practical Premium.
+This is a focused Profile redesign. Do not redesign the whole app. Remove the current top identity block and rebuild the page as a more useful, text-first profile surface.
+Goal
+Make Profile feel:
+practical
+premium
+editorial
+consistent with the rest of BaseLodge
+It should give the user a quick sense of their BaseLodge presence without using:
+avatar
+profile card
+top-right Edit link
+Core direction
+Use the Option 03 structure:
+small eyebrow: PROFILE
+serif name headline
+compact stat row using serif numerals
+section rows with useful metadata subtitles
+quieter Account section
+Do not let this turn into a dense dashboard. Keep it restrained.
+1. Remove the current top identity block
+Delete the current top header treatment that includes:
+avatar
+name/meta layout built around the avatar
+Edit link
+trip pill as a separate floating stat
+Do not leave behind spacing gaps or empty containers.
+2. Add the new top-of-page structure
+A. Header eyebrow
+At the top of the page, use:
+PROFILE
+Keep it in the same restrained eyebrow style used elsewhere in the app.
+B. Name headline
+Below the eyebrow, show the user’s first name only as the page headline in serif.
+Examples:
+Richard
+not
+Richard test4
+If the current display name contains extra tokens, derive a clean first-name display safely in presentation logic.
+C. Compact stat row
+Under the name, add a 3-stat row with quiet editorial styling.
+Use three stats:
+Trips planned
+Friends
+Mountains visited
+Each stat should use:
+serif numeral
+small uppercase or quiet label beneath
+Example structure:
+1
+TRIP PLANNED
+0
+FRIENDS
+3
+MOUNTAINS
+Keep this row restrained:
+no colored cards
+no tiles
+no boxed widgets
+use spacing / dividers / typography only
+If pluralization is needed, handle it cleanly.
+D. No Edit link at top
+Do not place Edit in the header.
+Editing should happen through the first profile row instead.
+3. Rework the main rows to include metadata subtitles
+Profile section
+Keep the section eyebrow:
+PROFILE
+Make the first row:
+Profile details
+Add a subtitle beneath it showing the user’s current profile identity summary, such as:
+Skier, snowboarder · Intermediate · Epic
+Use clean formatting:
+proper comma spacing
+muted subtitle styling
+concise line, truncated cleanly if necessary
+Equipment row
+Row label:
+Equipment
+Subtitle:
+show current status, for example:
+Not added yet
+or summary if data exists
+Mountains visited row
+Row label:
+Mountains visited
+Subtitle:
+show summary count or status, for example:
+3 this season
+or None yet
+Wish list row
+Row label:
+Wish list
+Subtitle:
+show summary count or status, for example:
+2 mountains saved
+or Nothing saved yet
+Use real available data where possible.
+If not available, use clean fallback copy.
+Important
+Do not overcomplicate data gathering in this pass.
+Use data already available to the template/route where possible.
+If a subtitle cannot be computed cleanly with current data, use a minimal fallback rather than introducing new heavy backend work.
+4. Account section should be quieter
+Keep the section eyebrow:
+ACCOUNT
+Rows:
+Change password
+Log out
+These should be visually quieter than the Profile section rows.
+Guidance:
+smaller or less prominent text treatment
+no strong bordeaux emphasis on Log out
+avoid making Account actions look like primary navigation destinations
+If appropriate, reduce or remove chevron emphasis for Account rows compared with the main Profile rows.
+5. Styling guidance
+Overall
+no top card
+no avatar
+no pill floating between header and sections
+no loud container styling
+cream background stays
+serif for primary headline and numerals
+sans for supporting labels and subtitles
+thin dividers
+editorial spacing
+Stat row
+The stat row should feel like:
+a quiet overview
+not a dashboard grid
+not separate cards
+Use:
+serif numerals
+restrained labels
+simple horizontal alignment
+Main rows
+The Profile section rows can remain more prominent because they are the main destinations.
+Account rows
+More muted and less visually inviting.
+6. Keep these constraints
+Do not:
+reintroduce avatar
+reintroduce Edit in the header
+add a blush card
+redesign bottom nav
+redesign the whole page structure outside this scope
+add new major backend systems just to support subtitles
+Do:
+keep it mobile-first
+keep it elegant
+keep it consistent with Home, Trips, Ideas, and Friends
+7. Files to inspect/update
+At minimum inspect:
+templates/profile.html
+static/styles.css
+If small route/template data shaping is needed to support:
+first-name extraction
+counts
+subtitle strings
+inspect the relevant route too, but keep backend changes light.
+8. Final verification before stopping
+Verify:
+Top of page
+avatar is gone
+Edit link is gone
+first name only is used as the headline
+stat row appears and feels restrained
+no leftover spacing from the old header
+Profile section
+Profile details row has a clean metadata subtitle
+Equipment / Mountains visited / Wish list have useful subtitles
+typography hierarchy feels intentional
+Account section
+quieter than main profile rows
+Log out no longer feels like a primary brand action
+Overall
+page feels cohesive with the rest of the app
+no dashboard feel
+no card/widget feel
+mobile spacing is clean
+no regressions to row navigation
+Do not finish until the Profile page feels like a practical premium surface rather than a leftover profile widget.

@@ -10,74 +10,65 @@
     <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        /* ── Profile hero ─────────────────────────────── */
-        .profile-hero {
-            padding: 0 0 20px 0;
-            margin-bottom: 24px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
+        /* ── Eyebrow ──────────────────────────────────── */
+        .prof-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 6px 0;
         }
-        .profile-avatar {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background: var(--bl-color-primary);
-            color: #fff;
-            font-size: 1.25rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            font-family: var(--bl-font-serif);
-        }
-        .profile-hero-info {
-            flex: 1;
-            min-width: 0;
-        }
-        .profile-hero-name {
-            font-family: var(--bl-font-serif);
-            font-size: 18px;
+
+        /* ── Name headline ────────────────────────────── */
+        .prof-name {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 32px;
             font-weight: 400;
             color: var(--bl-color-text);
-            margin: 0 0 2px 0;
-        }
-        .profile-hero-context {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-            margin: 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .profile-hero-edit {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--bl-color-primary);
-            text-decoration: underline;
-            text-underline-offset: 2px;
-            flex-shrink: 0;
-            padding: 4px 0 4px 12px;
+            margin: 0 0 0 0;
+            line-height: 1.15;
         }
 
-        /* ── Trips pill ───────────────────────────────── */
-        .trips-pill {
-            display: inline-flex;
+        /* ── Stat row ─────────────────────────────────── */
+        .prof-stat-row {
+            display: flex;
             align-items: center;
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: 20px;
-            padding: 5px 14px;
-            margin-bottom: 24px;
-            text-decoration: none;
+            margin: 20px 0 28px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--bl-color-border-soft);
         }
-        .trips-pill-text {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--bl-color-primary);
+        .prof-stat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        .prof-stat-num {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 30px;
+            font-weight: 400;
+            color: var(--bl-color-text);
+            line-height: 1;
+        }
+        .prof-stat-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--bl-color-text-muted);
+            text-align: center;
+            line-height: 1.3;
+        }
+        .prof-stat-divider {
+            width: 1px;
+            height: 28px;
+            background: var(--bl-color-border-soft);
+            flex-shrink: 0;
         }
 
-        /* ── Profile groups (hairline) ────────────────── */
+        /* ── Profile groups ───────────────────────────── */
         .profile-group {
             margin-bottom: 28px;
         }
@@ -89,11 +80,14 @@
             letter-spacing: 0.5px;
             margin: 0 0 8px 0;
         }
+
+        /* ── Main profile rows (navigable) ────────────── */
         .profile-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            min-height: 48px;
+            gap: 12px;
+            min-height: 56px;
             padding: 12px 0;
             border-bottom: 1px solid var(--bl-color-border-soft);
             text-decoration: none;
@@ -103,44 +97,58 @@
         .profile-row:first-child {
             border-top: 1px solid var(--bl-color-border-soft);
         }
+        .profile-row-left {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
         .profile-row-label {
             font-size: 0.95rem;
             color: var(--bl-color-text);
+            line-height: 1.3;
         }
-        .profile-row-label-muted {
-            font-size: 0.95rem;
+        .profile-row-sub {
+            font-size: 12px;
             color: var(--bl-color-text-muted);
-        }
-        .profile-row-label-danger {
-            font-size: 0.95rem;
-            color: var(--bl-color-text-muted);
-        }
-        .profile-row-right {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .profile-row-value {
-            font-size: 0.85rem;
-            color: var(--bl-color-text-muted);
-            max-width: 160px;
+            margin-top: 2px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            text-align: right;
+            line-height: 1.35;
+        }
+        .profile-row-right {
+            flex-shrink: 0;
         }
         .profile-row-chevron {
             color: var(--bl-color-text-muted);
-            font-size: 1rem;
+            font-size: 1.1rem;
             opacity: 0.4;
-            flex-shrink: 0;
+        }
+
+        /* ── Account rows (quieter) ───────────────────── */
+        .account-row {
+            display: flex;
+            align-items: center;
+            min-height: 44px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .account-row:first-child {
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+        .account-row-label {
+            font-size: 0.875rem;
+            color: var(--bl-color-text-muted);
         }
     </style>
 </head>
 <body>
-    <div class="page-container" style="padding: 24px 16px 88px;">
+    <div class="page-container" style="padding: 28px 16px 88px;">
 
-        <!-- Identity hero -->
         {% set rider_types = current_user.rider_types or [] %}
         {% set rider_label = (rider_types[0] if rider_types else '') | replace(',', ', ') %}
         {% set ctx_parts = [] %}
@@ -148,83 +156,81 @@
         {% if current_user.skill_level %}{% set _ = ctx_parts.append(current_user.skill_level | capitalize) %}{% endif %}
         {% if current_user.pass_type %}{% set _ = ctx_parts.append(current_user.pass_type) %}{% endif %}
 
-        <div class="profile-hero">
-            <div class="profile-avatar">{{ current_user.first_name[0] | upper }}</div>
-            <div class="profile-hero-info">
-                <p class="profile-hero-name">{{ current_user.first_name }} {{ current_user.last_name or '' }}</p>
-                {% if ctx_parts %}
-                <p class="profile-hero-context">{{ ctx_parts | join(' · ') }}</p>
-                {% endif %}
+        <!-- Eyebrow + name headline -->
+        <p class="prof-eyebrow">Profile</p>
+        <h1 class="prof-name">{{ current_user.first_name }}</h1>
+
+        <!-- Compact stat row -->
+        <div class="prof-stat-row">
+            <div class="prof-stat">
+                <span class="prof-stat-num">{{ upcoming_count }}</span>
+                <span class="prof-stat-label">Trip{{ 's' if upcoming_count != 1 else '' }}<br>planned</span>
             </div>
-            <a href="{{ url_for('edit_profile') }}" class="profile-hero-edit">Edit</a>
+            <div class="prof-stat-divider"></div>
+            <div class="prof-stat">
+                <span class="prof-stat-num">{{ friends_count }}</span>
+                <span class="prof-stat-label">Friend{{ 's' if friends_count != 1 else '' }}</span>
+            </div>
+            <div class="prof-stat-divider"></div>
+            <div class="prof-stat">
+                <span class="prof-stat-num">{{ mountains_visited_count }}</span>
+                <span class="prof-stat-label">Mountain{{ 's' if mountains_visited_count != 1 else '' }}<br>visited</span>
+            </div>
         </div>
 
-        <!-- Trips pill -->
-        {% if upcoming_count and upcoming_count > 0 %}
-        <a href="{{ url_for('my_trips') }}" class="trips-pill">
-            <span class="trips-pill-text">{{ upcoming_count }} trip{{ 's' if upcoming_count != 1 else '' }} planned</span>
-        </a>
-        {% endif %}
-
-        <!-- Profile group -->
+        <!-- Profile section -->
         <div class="profile-group">
             <h2 class="profile-group-label">Profile</h2>
+
             <a href="{{ url_for('edit_profile') }}" class="profile-row">
-                <span class="profile-row-label">Profile Details</span>
+                <div class="profile-row-left">
+                    <span class="profile-row-label">Profile details</span>
+                    <span class="profile-row-sub">{% if ctx_parts %}{{ ctx_parts | join(' · ') }}{% else %}Not set yet{% endif %}</span>
+                </div>
                 <div class="profile-row-right">
                     <span class="profile-row-chevron">›</span>
                 </div>
             </a>
-            {% if current_user.previous_pass %}
-            <div class="profile-row" style="cursor: default;">
-                <span class="profile-row-label">Last Season's Pass</span>
-                <div class="profile-row-right">
-                    <span class="profile-row-value">{{ current_user.previous_pass }}</span>
-                </div>
-            </div>
-            {% endif %}
-        </div>
 
-        <!-- Equipment & Mountains group -->
-        <div class="profile-group">
-            <h2 class="profile-group-label">Equipment & Mountains</h2>
             <a href="{{ url_for('settings_equipment') }}" class="profile-row">
-                <span class="profile-row-label">Equipment</span>
+                <div class="profile-row-left">
+                    <span class="profile-row-label">Equipment</span>
+                    <span class="profile-row-sub">{% if has_equipment %}{{ equipment_summary }}{% else %}Not added yet{% endif %}</span>
+                </div>
                 <div class="profile-row-right">
-                    {% if has_equipment %}<span class="profile-row-value">{{ equipment_summary }}</span>{% endif %}
                     <span class="profile-row-chevron">›</span>
                 </div>
             </a>
+
             <a href="{{ url_for('settings_mountains') }}" class="profile-row">
-                <span class="profile-row-label">Mountains Visited</span>
+                <div class="profile-row-left">
+                    <span class="profile-row-label">Mountains visited</span>
+                    <span class="profile-row-sub">{% if mountains_visited_count %}{{ mountains_visited_count }} mountain{{ 's' if mountains_visited_count != 1 else '' }}{% else %}None yet{% endif %}</span>
+                </div>
                 <div class="profile-row-right">
-                    {% if mountains_visited_count %}<span class="profile-row-value">{{ mountains_visited_count }}</span>{% endif %}
                     <span class="profile-row-chevron">›</span>
                 </div>
             </a>
+
             <a href="{{ url_for('settings_wish_list') }}" class="profile-row">
-                <span class="profile-row-label">Wish List</span>
+                <div class="profile-row-left">
+                    <span class="profile-row-label">Wish list</span>
+                    <span class="profile-row-sub">{% if wish_list_count %}{{ wish_list_count }} mountain{{ 's' if wish_list_count != 1 else '' }} saved{% else %}Nothing saved yet{% endif %}</span>
+                </div>
                 <div class="profile-row-right">
-                    {% if wish_list_count %}<span class="profile-row-value">{{ wish_list_count }} resort{% if wish_list_count != 1 %}s{% endif %}</span>{% endif %}
                     <span class="profile-row-chevron">›</span>
                 </div>
             </a>
         </div>
 
-        <!-- Account group -->
+        <!-- Account section (quieter) -->
         <div class="profile-group">
             <h2 class="profile-group-label">Account</h2>
-            <a href="{{ url_for('settings_password') }}" class="profile-row">
-                <span class="profile-row-label-muted">Change Password</span>
-                <div class="profile-row-right">
-                    <span class="profile-row-chevron">›</span>
-                </div>
+            <a href="{{ url_for('settings_password') }}" class="account-row">
+                <span class="account-row-label">Change password</span>
             </a>
-            <a href="{{ url_for('logout') }}" class="profile-row">
-                <span class="profile-row-label-danger">Log Out</span>
-                <div class="profile-row-right">
-                    <span class="profile-row-chevron">›</span>
-                </div>
+            <a href="{{ url_for('logout') }}" class="account-row">
+                <span class="account-row-label">Log out</span>
             </a>
         </div>
 

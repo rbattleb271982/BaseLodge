@@ -4211,7 +4211,9 @@ def profile():
     wish_list_ids = current_user.wish_list_resorts or []
     wish_list_count = len(wish_list_ids)
     wish_list_resorts = Resort.query.filter(Resort.id.in_(wish_list_ids)).all() if wish_list_ids else []
-    
+
+    friends_count = Friend.query.filter_by(user_id=current_user.id).count()
+
     return render_template("profile.html",
                            page_title="Profile",
                            mountains_visited_count=mountains_visited_count,
@@ -4219,6 +4221,7 @@ def profile():
                            equipment_summary=equipment_summary,
                            wish_list_count=wish_list_count,
                            wish_list_resorts=wish_list_resorts,
+                           friends_count=friends_count,
                            upcoming_count=get_upcoming_trip_count(current_user))
 
 @app.route("/settings")
