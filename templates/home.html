@@ -10,45 +10,39 @@
     <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        /* ── Banner ──────────────────────────────────── */
+        /* ── Invite banner ── */
         .home-banner {
-            background: #FBF0E0;
+            background: #F0DDD8;
+            border: 1px solid #D9D2BF;
             border-radius: 8px;
             padding: 10px 14px;
-            margin-bottom: 14px;
+            margin-bottom: 20px;
             display: flex;
             align-items: center;
             gap: 12px;
         }
-        .home-banner-body {
-            flex: 1;
-            min-width: 0;
-        }
+        .home-banner-body { flex: 1; min-width: 0; }
         .home-banner-headline {
             font-size: 0.88rem;
             font-weight: 600;
-            color: #3D2A1E;
+            color: #1A1A1A;
             margin: 0 0 2px 0;
             line-height: 1.35;
         }
         .home-banner-sub {
             font-size: 0.8rem;
-            color: #7A5C3E;
+            color: #6B665A;
             margin: 0;
         }
         .home-banner-count {
             font-size: 0.78rem;
             font-weight: 600;
-            color: #C8862A;
+            color: #5C1219;
             margin: 3px 0 0 0;
         }
-        .home-banner-actions {
-            display: flex;
-            gap: 6px;
-            flex-shrink: 0;
-        }
+        .home-banner-actions { display: flex; gap: 6px; flex-shrink: 0; }
         .banner-btn-accept {
-            background: #3D2A1E;
+            background: #5C1219;
             color: #fff;
             border: none;
             border-radius: 6px;
@@ -61,8 +55,8 @@
         }
         .banner-btn-decline {
             background: transparent;
-            color: #7A5C3E;
-            border: 1px solid #D4A96A;
+            color: #6B665A;
+            border: 1px solid #D9D2BF;
             border-radius: 6px;
             padding: 6px 12px;
             font-size: 0.8rem;
@@ -72,211 +66,190 @@
             line-height: 1;
         }
 
-        /* ── Identity header ─────────────────────────── */
-        .home-identity {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            margin-bottom: 14px;
-            text-decoration: none;
-            color: inherit;
-        }
-        .home-identity-name {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: var(--bl-color-text);
-            margin: 0 0 4px 0;
+        /* ── Greeting ── */
+        .home-welcome {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 26px;
+            font-weight: 400;
+            color: #1A1A1A;
             line-height: 1.2;
+            margin-bottom: 6px;
         }
-        .home-identity-context {
-            font-size: 0.85rem;
-            color: var(--bl-color-text-muted);
-            margin: 0;
+        .home-welcome-sub {
+            font-size: 15px;
+            color: #6B665A;
+            margin-bottom: 24px;
+            line-height: 1.45;
         }
-        .home-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--bl-color-primary);
-            color: #fff;
-            font-size: 1rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            margin-left: 12px;
+        .home-greeting {
+            font-size: 16px;
+            color: #6B665A;
+            margin-bottom: 20px;
         }
 
-        /* ── Hero card (populated + empty, same surface) ── */
-        .hero-card {
-            background: #8F011B;
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 14px;
-            color: #fff;
-            text-decoration: none;
-            display: block;
-        }
-        .hero-countdown-badge {
-            display: inline-block;
-            background: rgba(255,255,255,0.15);
-            border-radius: 20px;
-            font-size: 0.78rem;
-            font-weight: 600;
-            padding: 3px 10px;
+        /* ── Section label ── */
+        .home-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #8A857A;
+            text-transform: uppercase;
             margin-bottom: 10px;
-            letter-spacing: 0.2px;
         }
-        .hero-mountain {
-            font-size: 1.4rem;
-            font-weight: 700;
-            margin: 0 0 4px 0;
-            line-height: 1.2;
-        }
-        .hero-dates {
-            font-size: 0.9rem;
-            opacity: 0.85;
-            margin: 0 0 4px 0;
-        }
-        .hero-people {
-            font-size: 0.85rem;
-            opacity: 0.7;
-            margin: 0 0 16px 0;
-        }
-        .hero-cta {
-            display: inline-block;
-            background: rgba(255,255,255,0.15);
-            border: 1px solid rgba(255,255,255,0.25);
+
+        /* ── Blush hero block ── */
+        .home-hero {
+            background: #F0DDD8;
+            border: 1px solid rgba(92, 18, 25, 0.35);
             border-radius: 8px;
-            font-size: 0.88rem;
-            font-weight: 600;
-            color: #fff;
-            padding: 8px 16px;
-            text-decoration: none;
-        }
-        .hero-empty-headline {
-            font-size: 1.15rem;
-            font-weight: 700;
-            margin: 0 0 8px 0;
-            line-height: 1.25;
-        }
-        .hero-empty-sub {
-            font-size: 0.88rem;
-            opacity: 0.8;
-            margin: 0 0 20px 0;
-            line-height: 1.5;
-        }
-        /* ── Secondary card ─────────────────────────── */
-        .secondary-card {
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: 12px;
-            padding: 14px 16px;
-            margin-bottom: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
             display: block;
             text-decoration: none;
             color: inherit;
         }
-        .secondary-card-overlap {
-            border-left: 3px solid #22A86A;
-        }
-        .secondary-card-friend-trip {
-            border-left: 3px solid #7C3AED;
-        }
-        .secondary-card-label {
-            font-size: 0.73rem;
-            font-weight: 600;
+        .home-hero-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #5C1219;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin: 0 0 6px 0;
+            margin-bottom: 8px;
         }
-        .secondary-card-label-overlap {
-            color: #1B8A56;
+        .home-hero-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 22px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin-bottom: 6px;
+            line-height: 1.25;
         }
-        .secondary-card-label-friend-trip {
-            color: #6D2ED1;
+        .home-hero-sub {
+            font-size: 14px;
+            color: #6B665A;
+            margin-bottom: 4px;
         }
-        .secondary-card-body {
+        .home-hero-meta {
+            font-size: 13px;
+            color: #8A857A;
+            margin-bottom: 16px;
+        }
+        .home-hero-cta {
+            display: inline-block;
+            padding: 8px 16px;
+            border: 1px solid #5C1219;
+            border-radius: 4px;
+            color: #5C1219;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            background: transparent;
+        }
+
+        /* ── Empty modules (friends, invites) ── */
+        .home-module {
+            padding: 18px 0;
+            border-top: 1px solid #E5DFD0;
+        }
+        .home-module:last-child {
+            border-bottom: 1px solid #E5DFD0;
+        }
+        .home-module-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .home-module-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 18px;
+            font-weight: 400;
+            color: #1A1A1A;
+        }
+        .home-module-tag {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.7px;
+            color: #8A857A;
+            text-transform: uppercase;
+        }
+        .home-module-empty-text {
+            font-size: 14px;
+            color: #6B665A;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        .home-module-cta {
+            font-size: 14px;
+            font-weight: 600;
+            color: #5C1219;
+            text-decoration: none;
+        }
+
+        /* ── Activity rows (populated: friend activity) ── */
+        .home-activity-rows {
+            margin-bottom: 20px;
+        }
+        .home-activity-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
+            padding: 14px 0;
+            border-bottom: 1px solid #E5DFD0;
+            text-decoration: none;
+            color: inherit;
         }
-        .secondary-card-text {
-            font-size: 0.92rem;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin: 0 0 3px 0;
+        .home-activity-row:first-child {
+            border-top: 1px solid #E5DFD0;
+        }
+        .home-activity-content { flex: 1; min-width: 0; }
+        .home-activity-tag {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #8A857A;
+            margin-bottom: 3px;
+        }
+        .home-activity-tag-overlap { color: #1B7A4E; }
+        .home-activity-tag-friend { color: #5C1219; }
+        .home-activity-text {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1A1A1A;
+            margin-bottom: 2px;
             line-height: 1.3;
         }
-        .secondary-card-sub {
-            font-size: 0.82rem;
-            color: var(--bl-color-text-muted);
-            margin: 0;
+        .home-activity-sub {
+            font-size: 13px;
+            color: #6B665A;
         }
-        .secondary-card-cta {
-            flex-shrink: 0;
-        }
-        .secondary-btn-accept {
-            background: var(--bl-color-primary);
+        .home-activity-action { flex-shrink: 0; }
+        .home-activity-btn {
+            background: #5C1219;
             color: #fff;
             border: none;
-            border-radius: 7px;
+            border-radius: 6px;
             padding: 7px 14px;
             font-size: 0.82rem;
             font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
         }
-        .secondary-link-cta {
-            font-size: 0.85rem;
+        .home-activity-link {
+            font-size: 13px;
             font-weight: 600;
+            color: #5C1219;
             text-decoration: none;
             white-space: nowrap;
-        }
-
-        /* ── Stat row ────────────────────────────────── */
-        .stat-row {
-            display: flex;
-            align-items: center;
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: 12px;
-            padding: 12px 0;
-            margin-bottom: 14px;
-        }
-        .stat-row-tile {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-        }
-        .stat-row-value {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: var(--bl-color-text);
-            line-height: 1.2;
-        }
-        .stat-row-label {
-            font-size: 0.72rem;
-            color: var(--bl-color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-        }
-        .stat-row-divider {
-            width: 1px;
-            height: 28px;
-            background: var(--bl-color-border-soft);
-            flex-shrink: 0;
         }
     </style>
 </head>
 <body>
-    <div class="page-container" style="padding: 20px 16px 88px;">
+    <div class="page-container" style="padding: 24px 16px 96px;">
 
-        <!-- Trip Invite Banner — compact strip, above identity, trip invites only -->
+        <!-- Trip Invite Banner — preserved exactly, JS depends on home-banner ID -->
         {% if banner_invite %}
         <div class="home-banner" id="home-banner">
             <div class="home-banner-body">
@@ -296,91 +269,108 @@
         </div>
         {% endif %}
 
-        <!-- Identity Header -->
-        {% set rider_types = user.rider_types or [] %}
-        {% set rider_label = rider_types[0] if rider_types else '' %}
-        {% set context_parts = [] %}
-        {% if rider_label %}{% set _ = context_parts.append(rider_label) %}{% endif %}
-        {% if user.skill_level %}{% set _ = context_parts.append(user.skill_level | capitalize) %}{% endif %}
-        {% if user.pass_type %}{% set _ = context_parts.append(user.pass_type) %}{% endif %}
-
-        <a href="{{ url_for('profile') }}" class="home-identity">
-            <div>
-                <p class="home-identity-name">{{ user.first_name }} {{ user.last_name or '' }}</p>
-                {% if context_parts %}
-                <p class="home-identity-context">{{ context_parts | join(' · ') }}</p>
-                {% endif %}
-            </div>
-            <div class="home-avatar">{{ user.first_name[0] | upper }}</div>
-        </a>
-
-        <!-- Hero Card — always present, populated or empty -->
         {% if next_trip %}
+            {# ────────────────────────────────────────────────── #}
+            {# POPULATED STATE                                    #}
+            {# ────────────────────────────────────────────────── #}
+
+            <p class="home-greeting">Hi, {{ user.first_name }}.</p>
+
+            <p class="home-section-label">Next Up</p>
+
             {% set resort = next_trip.resort %}
             {% set mountain_name = resort.name if resort else next_trip.mountain %}
             {% set state_abbr = resort|state_abbrev if resort else next_trip.state %}
             {% set people = next_trip.accepted_count %}
-            <a href="{{ url_for('trip_detail', trip_id=next_trip.id) }}" class="hero-card">
+
+            <a href="{{ url_for('trip_detail', trip_id=next_trip.id) }}" class="home-hero">
                 {% if next_trip_countdown %}
-                    <span class="hero-countdown-badge">{{ next_trip_countdown }}</span>
+                    <p class="home-hero-eyebrow">{{ next_trip_countdown }}</p>
                 {% endif %}
-                <p class="hero-mountain">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-                <p class="hero-dates">{{ format_trip_dates(next_trip) }}</p>
+                <p class="home-hero-title">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+                <p class="home-hero-sub">{{ format_trip_dates(next_trip) }}</p>
                 {% if people and people > 1 %}
-                    <p class="hero-people">{{ people }} going</p>
+                    <p class="home-hero-meta">{{ people }} going</p>
                 {% endif %}
-                <span class="hero-cta">View trip →</span>
+                <span class="home-hero-cta">View trip →</span>
             </a>
-        {% else %}
-            <div class="hero-card">
-                <p class="hero-empty-headline">Plan your first trip</p>
-                <p class="hero-empty-sub">Pick a mountain, choose your dates, and invite friends to join you</p>
-                <a href="{{ url_for('add_trip') }}" class="hero-cta">Plan a trip →</a>
+
+            {% if secondary_card %}
+            <p class="home-section-label">Friend Activity</p>
+
+            <div class="home-activity-rows">
+                {% if secondary_card.type == 'connect_invite' %}
+                <div class="home-activity-row" id="secondary-card">
+                    <div class="home-activity-content">
+                        <p class="home-activity-tag">New connection</p>
+                        <p class="home-activity-text">{{ secondary_card.sender_name }} wants to connect</p>
+                        <p class="home-activity-sub">Connect to plan trips together</p>
+                    </div>
+                    <div class="home-activity-action">
+                        <button class="home-activity-btn" onclick="acceptConnectInvite({{ secondary_card.invitation_id }})">Accept</button>
+                    </div>
+                </div>
+
+                {% elif secondary_card.type == 'overlap' %}
+                <a href="{{ secondary_card.href }}" class="home-activity-row">
+                    <div class="home-activity-content">
+                        <p class="home-activity-tag home-activity-tag-overlap">Open Dates</p>
+                        <p class="home-activity-text">{{ secondary_card.text }}</p>
+                        <p class="home-activity-sub">Pick a mountain and make it official</p>
+                    </div>
+                    <div class="home-activity-action">
+                        <span class="home-activity-link">See overlaps →</span>
+                    </div>
+                </a>
+
+                {% elif secondary_card.type == 'friend_trip' %}
+                <a href="{{ url_for('trip_detail', trip_id=secondary_card.trip_id) }}" class="home-activity-row">
+                    <div class="home-activity-content">
+                        <p class="home-activity-tag home-activity-tag-friend">Friend's Trip</p>
+                        <p class="home-activity-text">{{ secondary_card.friend_name }} is heading to {{ secondary_card.mountain }}</p>
+                        <p class="home-activity-sub">See their trip details</p>
+                    </div>
+                    <div class="home-activity-action">
+                        <span class="home-activity-link">View →</span>
+                    </div>
+                </a>
+                {% endif %}
             </div>
-        {% endif %}
-
-        <!-- Stat row -->
-        {% include 'components/stat_row.html' %}
-
-        <!-- Secondary Card — one slot, type-driven -->
-        {% if secondary_card %}
-            {% if secondary_card.type == 'connect_invite' %}
-            <div class="secondary-card" id="secondary-card">
-                <div class="secondary-card-body">
-                    <div>
-                        <p class="secondary-card-text">{{ secondary_card.sender_name }} wants to connect</p>
-                        <p class="secondary-card-sub">Connect to plan trips together</p>
-                    </div>
-                    <div class="secondary-card-cta">
-                        <button class="secondary-btn-accept" onclick="acceptConnectInvite({{ secondary_card.invitation_id }})">Accept</button>
-                    </div>
-                </div>
-            </div>
-
-            {% elif secondary_card.type == 'overlap' %}
-            <a href="{{ secondary_card.href }}" class="secondary-card secondary-card-overlap">
-                <p class="secondary-card-label secondary-card-label-overlap">Open Dates</p>
-                <div class="secondary-card-body">
-                    <div>
-                        <p class="secondary-card-text">{{ secondary_card.text }}</p>
-                        <p class="secondary-card-sub">Pick a mountain and make it official</p>
-                    </div>
-                    <span class="secondary-link-cta" style="color: #1B8A56;">See overlaps →</span>
-                </div>
-            </a>
-
-            {% elif secondary_card.type == 'friend_trip' %}
-            <a href="{{ url_for('trip_detail', trip_id=secondary_card.trip_id) }}" class="secondary-card secondary-card-friend-trip">
-                <p class="secondary-card-label secondary-card-label-friend-trip">Friend's Trip</p>
-                <div class="secondary-card-body">
-                    <div>
-                        <p class="secondary-card-text">{{ secondary_card.friend_name }} is heading to {{ secondary_card.mountain }}</p>
-                        <p class="secondary-card-sub">See their trip details</p>
-                    </div>
-                    <span class="secondary-link-cta" style="color: #6D2ED1;">View trip →</span>
-                </div>
-            </a>
             {% endif %}
+
+            {% include 'components/stat_row.html' %}
+
+        {% else %}
+            {# ────────────────────────────────────────────────── #}
+            {# FIRST-TIME / EMPTY STATE                          #}
+            {# ────────────────────────────────────────────────── #}
+
+            <h1 class="home-welcome">Welcome, {{ user.first_name }}.</h1>
+            <p class="home-welcome-sub">Let's get your first trip on the calendar.</p>
+
+            <div class="home-hero">
+                <p class="home-hero-eyebrow">Get Started</p>
+                <p class="home-hero-title">Plan your first trip</p>
+                <a href="{{ url_for('add_trip') }}" class="home-hero-cta">Plan a trip →</a>
+            </div>
+
+            <div class="home-module">
+                <div class="home-module-header">
+                    <h2 class="home-module-title">Friends</h2>
+                    <span class="home-module-tag">Empty</span>
+                </div>
+                <p class="home-module-empty-text">Connect with friends to see each other's trips and plan together.</p>
+                <a href="{{ url_for('invite') }}" class="home-module-cta">Add friends →</a>
+            </div>
+
+            <div class="home-module">
+                <div class="home-module-header">
+                    <h2 class="home-module-title">Invites</h2>
+                    <span class="home-module-tag">Empty</span>
+                </div>
+                <p class="home-module-empty-text">Trip invites from friends will appear here.</p>
+            </div>
+
         {% endif %}
 
     </div>

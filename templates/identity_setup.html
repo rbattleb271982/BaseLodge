@@ -4,14 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Get Started — BaseLodge</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #EBEBF0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #F5F1E8;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -32,12 +30,11 @@
             background: #FFFFFF;
             overflow: hidden;
             position: relative;
-            box-shadow: 0 8px 48px rgba(0,0,0,0.14);
         }
 
         @media (max-width: 375px) {
             body { background: #FFFFFF; }
-            .ob-frame { width: 100vw; box-shadow: none; }
+            .ob-frame { width: 100vw; }
         }
 
         .ob-viewport {
@@ -71,13 +68,12 @@
 
         .ob-seg {
             flex: 1;
-            height: 3px;
-            border-radius: 99px;
-            background: #E5E5E5;
+            height: 2px;
+            background: #E5DFD0;
             transition: background 0.3s ease;
         }
 
-        .ob-seg.on { background: #3C3489; }
+        .ob-seg.on { background: #5C1219; }
 
         /* ── Nav row ── */
         .ob-nav {
@@ -95,7 +91,7 @@
             width: 36px;
             height: 36px;
             border-radius: 50%;
-            background: #F8F8F8;
+            background: #F5F1E8;
             border: none;
             cursor: pointer;
             color: #1A1A1A;
@@ -103,26 +99,27 @@
             transition: background 0.15s;
         }
 
-        .ob-back:hover { background: #EEEDFE; }
+        .ob-back:hover { background: #F0DDD8; }
         .ob-back.invis { visibility: hidden; pointer-events: none; }
 
         /* ── Header ── */
         .ob-header {
-            padding: 22px 24px 6px;
+            padding: 20px 24px 6px;
             flex-shrink: 0;
         }
 
         .ob-title {
-            font-size: 24px;
-            font-weight: 700;
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 22px;
+            font-weight: 400;
             color: #1A1A1A;
             line-height: 1.25;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .ob-subtitle {
-            font-size: 14px;
-            color: #888888;
+            font-size: 13px;
+            color: #8A857A;
             line-height: 1.55;
         }
 
@@ -130,39 +127,42 @@
         .ob-options {
             flex: 1;
             overflow-y: auto;
-            padding: 18px 24px;
+            padding: 16px 24px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             -webkit-overflow-scrolling: touch;
         }
 
-        /* ── Pills ── */
+        /* ── Selection rows ── */
         .ob-pill {
             display: flex;
             align-items: center;
             width: 100%;
-            height: 48px;
-            padding: 0 18px;
-            border-radius: 999px;
-            border: 1px solid #E5E5E5;
-            background: #F8F8F8;
+            min-height: 48px;
+            padding: 12px 18px;
+            border-radius: 8px;
+            border: 1px solid #E5DFD0;
+            background: #FAFAF8;
             color: #1A1A1A;
             font-size: 15px;
             font-family: inherit;
             font-weight: 400;
             cursor: pointer;
-            transition: border-color 0.15s, background 0.15s, color 0.15s;
+            transition: border-color 0.15s, background 0.15s;
             text-align: left;
             flex-shrink: 0;
         }
 
-        .ob-pill:hover { border-color: #7F77DD; }
+        .ob-pill:hover {
+            border-color: #5C1219;
+            background: #FDF9F8;
+        }
 
         .ob-pill.sel {
-            background: #EEEDFE;
-            border: 1.5px solid #7F77DD;
-            color: #3C3489;
+            background: #F0DDD8;
+            border: 1px solid #5C1219;
+            color: #1A1A1A;
             font-weight: 500;
         }
 
@@ -174,12 +174,12 @@
 
         .ob-hint {
             margin-left: auto;
-            font-size: 13px;
-            color: #888888;
+            font-size: 12px;
+            color: #8A857A;
             font-weight: 400;
         }
 
-        .ob-pill.sel .ob-hint { color: #7F77DD; }
+        .ob-pill.sel .ob-hint { color: #5C1219; }
 
         /* ── CTA footer ── */
         .ob-footer {
@@ -190,29 +190,34 @@
         .ob-btn {
             display: block;
             width: 100%;
-            height: 52px;
-            border-radius: 999px;
-            background: #3C3489;
+            height: 50px;
+            border-radius: 12px;
+            background: #5C1219;
             color: #FFFFFF;
-            font-size: 16px;
+            font-size: 15px;
             font-family: inherit;
-            font-weight: 500;
+            font-weight: 600;
             border: none;
             cursor: pointer;
-            transition: opacity 0.15s;
+            transition: background 0.15s;
         }
 
-        .ob-btn:disabled { opacity: 0.38; cursor: not-allowed; }
-        .ob-btn:not(:disabled):hover { opacity: 0.88; }
+        .ob-btn:disabled {
+            background: #D9D2BF;
+            color: #8A857A;
+            cursor: not-allowed;
+        }
+
+        .ob-btn:not(:disabled):hover { background: #3F0C11; }
 
         /* ── State/province select ── */
         .ob-sel-wrap {
             position: relative;
             width: 100%;
             height: 48px;
-            border-radius: 999px;
-            border: 1px solid #E5E5E5;
-            background: #F8F8F8;
+            border-radius: 8px;
+            border: 1px solid #E5DFD0;
+            background: #FAFAF8;
             display: flex;
             align-items: center;
             cursor: pointer;
@@ -221,8 +226,8 @@
         }
 
         .ob-sel-wrap.has-val {
-            background: #EEEDFE;
-            border: 1.5px solid #7F77DD;
+            background: #F0DDD8;
+            border: 1px solid #5C1219;
         }
 
         .ob-sel-icon {
@@ -239,7 +244,7 @@
             right: 16px;
             pointer-events: none;
             z-index: 1;
-            color: #888888;
+            color: #8A857A;
             display: flex;
             align-items: center;
         }
@@ -249,7 +254,7 @@
             left: 42px;
             right: 40px;
             font-size: 15px;
-            color: #888888;
+            color: #8A857A;
             font-family: inherit;
             pointer-events: none;
             white-space: nowrap;
@@ -259,7 +264,7 @@
         }
 
         .ob-sel-wrap.has-val .ob-sel-label {
-            color: #3C3489;
+            color: #1A1A1A;
             font-weight: 500;
         }
 
@@ -283,10 +288,10 @@
             margin: 12px 16px 0;
             padding: 12px 16px;
             background: #FFEBEE;
-            border: 1px solid #dc2626;
-            border-radius: 12px;
+            border: 1px solid #C62828;
+            border-radius: 8px;
             font-size: 13px;
-            color: #dc2626;
+            color: #C62828;
         }
     </style>
 </head>
@@ -325,7 +330,7 @@
                         </div>
                         <div class="ob-header">
                             <h1 class="ob-title">How do you ride?</h1>
-                            <p class="ob-subtitle">We'll personalize your experience around your style.</p>
+                            <p class="ob-subtitle">Pick up to 2 — many people do more than one.</p>
                         </div>
                         <div class="ob-options">
                             <button type="button" class="ob-pill" data-grp="rider" data-val="Skier" data-target="h-rider">
@@ -403,7 +408,7 @@
                         </div>
                         <div class="ob-header">
                             <h1 class="ob-title">Which pass do you have?</h1>
-                            <p class="ob-subtitle">This helps us show the mountains that are most relevant to you.</p>
+                            <p class="ob-subtitle">Pick up to 2 if you have multiple.</p>
                         </div>
                         <div class="ob-options">
                             <button type="button" class="ob-pill" data-grp="pass" data-val="Epic" data-target="h-pass">Epic</button>
@@ -436,14 +441,14 @@
                         </div>
                         <div class="ob-header">
                             <h1 class="ob-title">Where are you based?</h1>
-                            <p class="ob-subtitle">This helps us surface nearby resorts and local conditions.</p>
+                            <p class="ob-subtitle">Knowing your home base helps us match you with nearby riders and trips you could realistically join.</p>
                         </div>
                         <div class="ob-options">
                             <div class="ob-sel-wrap" id="state-wrap">
                                 <span class="ob-sel-icon">📍</span>
                                 <span class="ob-sel-label" id="state-label">Select your state or province</span>
                                 <span class="ob-sel-chevron">
-                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5L7 9L11 5" stroke="#888888" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5L7 9L11 5" stroke="#8A857A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 </span>
                                 <select name="home_state" id="state-select" onchange="onStateChange(this)">
                                     <option value="">Select your state or province</option>
@@ -483,22 +488,49 @@
     function goNext(from) { slideTo(from + 1); }
     function goBack(from) { slideTo(from - 1); }
 
+    /* Multi-select groups with max allowed selections */
+    var MULTI_MAX = { rider: 2, pass: 2 };
+
     document.querySelectorAll('.ob-pill').forEach(function(pill) {
         pill.addEventListener('click', function() {
             var grp = this.dataset.grp;
-            var val = this.dataset.val;
             var targetId = this.dataset.target;
+            var isMulti = grp in MULTI_MAX;
 
-            document.querySelectorAll('.ob-pill[data-grp="' + grp + '"]').forEach(function(p) {
-                p.classList.remove('sel');
-            });
-            this.classList.add('sel');
+            if (!isMulti) {
+                /* Single-select: deselect all in group, select this */
+                document.querySelectorAll('.ob-pill[data-grp="' + grp + '"]').forEach(function(p) {
+                    p.classList.remove('sel');
+                });
+                this.classList.add('sel');
+                document.getElementById(targetId).value = this.dataset.val;
+            } else {
+                /* Multi-select with cap */
+                var alreadySel = this.classList.contains('sel');
+                var selCount = document.querySelectorAll('.ob-pill[data-grp="' + grp + '"].sel').length;
 
-            document.getElementById(targetId).value = val;
+                if (alreadySel) {
+                    this.classList.remove('sel');
+                } else if (selCount < MULTI_MAX[grp]) {
+                    this.classList.add('sel');
+                }
+                /* At cap — ignore the click */
 
+                /* Rebuild hidden input as comma-separated values */
+                var selected = [];
+                document.querySelectorAll('.ob-pill[data-grp="' + grp + '"].sel').forEach(function(p) {
+                    selected.push(p.dataset.val);
+                });
+                document.getElementById(targetId).value = selected.join(',');
+            }
+
+            /* Enable/disable the step's Continue button */
             var ctaMap = { rider: 'cta-1', skill: 'cta-2', pass: 'cta-3' };
             var ctaId = ctaMap[grp];
-            if (ctaId) document.getElementById(ctaId).disabled = false;
+            if (ctaId) {
+                var hasSelection = document.querySelectorAll('.ob-pill[data-grp="' + grp + '"].sel').length > 0;
+                document.getElementById(ctaId).disabled = !hasSelection;
+            }
         });
     });
 

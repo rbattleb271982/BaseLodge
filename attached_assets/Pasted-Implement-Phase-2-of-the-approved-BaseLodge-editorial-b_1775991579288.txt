@@ -1,0 +1,194 @@
+Implement Phase 2 of the approved BaseLodge editorial / blush-maroon redesign.
+
+Phase 2 scope only:
+- identity_setup.html
+- location_setup.html
+- home.html
+
+Do not touch other screens in this phase.
+Do not change backend logic, routes, or JS behavior unless absolutely required to support the approved UI.
+
+GOAL
+Apply the approved editorial system to:
+1. onboarding
+2. first-time home
+3. populated home
+
+Use the shared Phase 1 foundation already in styles.css where possible, but keep identity_setup.html self-contained as needed.
+
+APPROVED DESIGN SYSTEM
+Colors
+- cream page background: #F5F1E8
+- blush hero surface: #F0DDD8
+- bordeaux accent: #5C1219
+- primary text: #1A1A1A
+- secondary text: #6B665A
+- tertiary text: #8A857A
+- soft border: #E5DFD0
+- quiet border: #D9D2BF
+- legacy red #A8152B = logo only, not product UI
+
+Typography
+- serif for key titles and moments using Georgia fallback
+- sans-serif for body, labels, metadata, nav
+- editorial hierarchy, not generic app styling
+
+Global styling rules
+- no gradients
+- no shadows
+- no glows
+- hairline borders
+- premium editorial spacing
+- mobile-first
+- no pill-heavy product UI language unless required for onboarding selection controls
+
+--------------------------------
+PART A — IDENTITY SETUP
+--------------------------------
+
+Template:
+- templates/identity_setup.html
+
+Important:
+This template is isolated and self-contained. Update it in place. Do not import styles.css into it as part of this phase unless absolutely necessary.
+
+Requirements:
+1. Redesign the onboarding flow to align visually with the approved editorial/blush-maroon system
+2. Keep the current onboarding logic intact
+3. Rider type = multi-select, max 2
+4. Pass = multi-select, max 2
+5. Level = single select
+6. Continue button must stay disabled until required selection is made on that step
+7. Progress indicator must feel consistent and editorial
+8. Use calmer selected states:
+   - blush/soft fill
+   - bordeaux accent
+   - no aggressive red border
+9. Helper text should use tertiary/secondary tone, not bright accent red
+10. Titles should feel more premium and editorial, with serif where appropriate
+11. Keep mobile width and spacing clean and realistic
+
+Content/interaction expectations:
+- Rider Type helper:
+  “Pick up to 2 — many people do more than one.”
+- Pass helper:
+  “Pick up to 2 if you have multiple.”
+- Disabled Continue should feel on-brand, not generic gray
+- Preserve all existing step logic and form submission behavior
+
+--------------------------------
+PART B — LOCATION SETUP
+--------------------------------
+
+Template:
+- templates/location_setup.html
+
+Requirements:
+1. Bring this screen into the same editorial onboarding system
+2. Replace any copy that implies tracking, local conditions, or weather if present
+3. Use socially relevant copy aligned to the approved direction
+4. Keep location selector behavior intact
+5. Match auth/onboarding visual language:
+   - cream page
+   - serif title
+   - refined spacing
+   - bordeaux action treatment
+6. Make this screen feel like part of the same onboarding journey as identity_setup
+
+Preferred subtitle direction:
+“Knowing your home base helps us match you with nearby riders and trips you could realistically join.”
+
+If there is reassurance copy, keep it light and tasteful.
+
+--------------------------------
+PART C — HOME
+--------------------------------
+
+Template:
+- templates/home.html
+
+Requirements:
+Implement the approved editorial Home system for both:
+1. first-time empty state
+2. populated state
+
+Keep existing data logic intact and only redesign structure/styling.
+
+FIRST-TIME HOME
+Use this structure:
+1. small top header line with BaseLodge wordmark/date if feasible within current template
+2. large serif welcome:
+   “Welcome, [First Name].”
+3. subtext:
+   “Let’s get your first trip on the calendar.”
+4. blush hero block with hairline bordeaux border:
+   - eyebrow: GET STARTED
+   - headline: Plan your first trip
+   - outlined CTA button: Plan a trip →
+5. Friends empty module:
+   - serif title: Friends
+   - right-side EMPTY label
+   - explanatory copy
+   - inline CTA: Add friends →
+6. Invites empty module:
+   - serif title: Invites
+   - right-side EMPTY label
+   - explanatory copy
+   - no heavy button
+7. remove redundant avatar/profile summary content from Home if currently shown
+
+POPULATED HOME
+Use this structure:
+1. greeting:
+   “Hi, [First Name].”
+2. NEXT UP section
+3. single blush hero block for the next trip only:
+   - eyebrow metadata like IN 12 DAYS / count going if data exists
+   - serif trip name
+   - supporting line with dates / companions if available
+   - stacked avatars only if current data supports it cleanly
+4. FRIEND ACTIVITY section below
+5. friend activity should use row-based hairline layout, not card soup
+6. use subtle editorial signal treatment for socially relevant rows such as overlap states
+7. keep rows clearly tappable
+
+HOME DESIGN RULES
+- only one hero block max on the screen
+- no large black CTA block
+- use blush hero (#F0DDD8) with 0.5px bordeaux border
+- no shadows
+- no heavy boxed dashboard styling
+- preserve clarity and tappability
+
+--------------------------------
+IMPLEMENTATION SAFETY RULES
+--------------------------------
+
+1. Preserve all existing JS behavior in home.html
+2. Do not rename JS-dependent classes unless unavoidable
+3. Do not break friend request accept/decline behavior
+4. Do not break onboarding submission flow
+5. Keep mobile layout stable and scroll behavior correct
+6. If an exact visual element from the spec is too risky in this phase, implement the closest safe version and note it clearly in the report
+
+--------------------------------
+QA REQUIREMENTS
+--------------------------------
+
+Test and confirm:
+1. identity_setup onboarding flow still works end-to-end
+2. rider type max-2 selection works
+3. pass max-2 selection works
+4. level single-select works
+5. continue button enable/disable states work correctly
+6. location setup still submits correctly
+7. first-time home renders correctly for a new user
+8. populated home renders correctly for a user with trip/friend data
+9. all existing home interactions still work
+10. mobile layout has no broken spacing, overflow, or unusable tap targets
+
+DELIVERABLES
+1. List exactly which files changed
+2. Summarize what was implemented for identity setup, location setup, and home
+3. Note any compromises or items deferred to later phases
+4. Do not finish until the phase has been tested in the running app
