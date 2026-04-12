@@ -407,6 +407,12 @@ def relative_time_filter(dt):
     return dt.strftime('%b %d')
 
 
+@app.template_filter('format_name')
+def format_name_filter(name):
+    from utils.formatting import format_name
+    return format_name(name)
+
+
 @app.before_request
 def before_request_handlers():
     import sys
@@ -2285,11 +2291,12 @@ def _build_overlap_windows(matches, user_pass_type):
         end_obj = date.fromisoformat(end_str)
 
         # Collect unique friends across all dates in window (preserve encounter order)
+        from utils.formatting import format_name as _fmt
         seen_ids = {}
         for d_str in wdates:
             for fid, f in date_to_friends[d_str].items():
                 if fid not in seen_ids:
-                    seen_ids[fid] = f
+                    seen_ids[fid] = dict(f, friend_name=_fmt(f["friend_name"]))
         friends = sorted(seen_ids.values(), key=lambda f: (f["friend_name"] or ""))
 
         # Anchor friend — alphabetically first valid friend

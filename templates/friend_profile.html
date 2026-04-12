@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ friend.first_name }} {{ friend.last_name }} — BaseLodge</title>
+    <title>{{ friend.first_name | format_name }} {{ friend.last_name | format_name }} — BaseLodge</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
@@ -219,7 +219,7 @@
         </div>
 
         <!-- Friend name as page title -->
-        <h1 class="fp-name">{{ friend.first_name }} {{ friend.last_name }}</h1>
+        <h1 class="fp-name">{{ friend.first_name | format_name }} {{ friend.last_name | format_name }}</h1>
         {% set friend_identity = friend|identity_line %}
         {% if friend_identity %}
         <p class="fp-identity">{{ friend_identity }}</p>
@@ -230,7 +230,7 @@
         <!-- Shared context (trip overlap / availability) -->
         {% if trip_overlaps or has_availability_overlap %}
         <div class="fp-hero">
-            <p class="fp-hero-eyebrow">You + {{ friend.first_name }}</p>
+            <p class="fp-hero-eyebrow">You + {{ friend.first_name | format_name }}</p>
             {% for overlap in trip_overlaps %}
             <p class="fp-hero-row">You'll both be at {{ overlap.mountain }}{% if overlap.state %}, {{ overlap.state }}{% endif %} · {% if overlap.start_date == overlap.end_date %}{{ overlap.start_date.strftime('%b %-d') }}{% elif overlap.start_date.month == overlap.end_date.month %}{{ overlap.start_date.strftime('%b %-d') }}–{{ overlap.end_date.strftime('%-d') }}{% else %}{{ overlap.start_date.strftime('%b %-d') }}–{{ overlap.end_date.strftime('%b %-d') }}{% endif %}</p>
             {% endfor %}
@@ -244,7 +244,7 @@
         {% include 'components/stat_row.html' %}
 
         <!-- Upcoming trips -->
-        <p class="fp-section-label">{{ friend.first_name }}'s Upcoming Trips</p>
+        <p class="fp-section-label">{{ friend.first_name | format_name }}'s Upcoming Trips</p>
         {% if trips and trips|length > 0 %}
             {% for trip in trips %}
             <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="fp-trip-row">

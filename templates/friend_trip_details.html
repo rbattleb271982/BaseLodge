@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ friend.first_name }}'s Trip — BaseLodge</title>
+    <title>{{ friend.first_name | format_name }}'s Trip — BaseLodge</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
         /* ── Nav ── */
@@ -137,18 +137,18 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
-                {{ friend.first_name }}
+                {{ friend.first_name | format_name }}
             </a>
         </div>
 
-        <h1 class="ftd-title">{{ friend.first_name }}'s Trip</h1>
+        <h1 class="ftd-title">{{ friend.first_name | format_name }}'s Trip</h1>
 
         <!-- Blush hero with mountain + dates -->
         {% set mountain_name = trip.resort.name if trip.resort else trip.mountain %}
         {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
 
         <div class="ftd-hero">
-            <p class="ftd-hero-eyebrow">{{ friend.first_name }}'s Trip</p>
+            <p class="ftd-hero-eyebrow">{{ friend.first_name | format_name }}'s Trip</p>
             <p class="ftd-hero-mountain">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
             <p class="ftd-hero-sub">{{ format_trip_dates(trip) }}</p>
         </div>
@@ -230,7 +230,7 @@
         <!-- View friend's profile link -->
         <div style="margin-top: 24px;">
             <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="bl-btn-secondary" style="display: block; text-align: center; text-decoration: none;">
-                View {{ friend.first_name }}'s Profile
+                View {{ friend.first_name | format_name }}'s Profile
             </a>
         </div>
 

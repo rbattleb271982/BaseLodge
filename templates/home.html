@@ -284,7 +284,7 @@
             {# POPULATED STATE                                    #}
             {# ────────────────────────────────────────────────── #}
 
-            <h1 class="home-welcome" style="margin-bottom: 20px;">Hi, {{ user.first_name | capitalize }}.</h1>
+            <h1 class="home-welcome" style="margin-bottom: 20px;">Hi, {{ user.first_name | format_name }}.</h1>
 
             <p class="home-section-label">Next Up</p>
 
@@ -308,7 +308,7 @@
             {% if has_overlaps and next_match %}
             <p class="home-match-section-label">Best Match</p>
             <div class="home-match-card">
-                <p class="home-match-line1">You and {{ next_match.friend_name }} are both free</p>
+                <p class="home-match-line1">You and {{ next_match.friend_name | format_name }} are both free</p>
                 <p class="home-match-date">{{ next_match.display_date }}</p>
                 {% if next_match.same_day_count > 0 %}
                 <p class="home-match-meta">+{{ next_match.same_day_count }} other{{ 's' if next_match.same_day_count > 1 }} free that day</p>
@@ -353,7 +353,7 @@
                 <a href="{{ url_for('trip_detail', trip_id=secondary_card.trip_id) }}" class="home-activity-row">
                     <div class="home-activity-content">
                         <p class="home-activity-tag">Friend's Trip</p>
-                        <p class="home-activity-text">{{ secondary_card.friend_name }} is heading to {{ secondary_card.mountain }}</p>
+                        <p class="home-activity-text">{{ secondary_card.friend_name | format_name }} is heading to {{ secondary_card.mountain }}</p>
                         <p class="home-activity-sub">See their trip details</p>
                     </div>
                     <div class="home-activity-action">
@@ -371,7 +371,7 @@
             {# FIRST-TIME / EMPTY STATE                          #}
             {# ────────────────────────────────────────────────── #}
 
-            <h1 class="home-welcome">Welcome, {{ user.first_name | capitalize }}.</h1>
+            <h1 class="home-welcome">Welcome, {{ user.first_name | format_name }}.</h1>
             <p class="home-welcome-sub">Let's get your first trip on the calendar.</p>
 
             <div class="home-hero">
@@ -383,7 +383,7 @@
             {% if has_overlaps and next_match %}
             <p class="home-match-section-label">Best Match</p>
             <div class="home-match-card">
-                <p class="home-match-line1">You and {{ next_match.friend_name }} are both free</p>
+                <p class="home-match-line1">You and {{ next_match.friend_name | format_name }} are both free</p>
                 <p class="home-match-date">{{ next_match.display_date }}</p>
                 {% if next_match.same_day_count > 0 %}
                 <p class="home-match-meta">+{{ next_match.same_day_count }} other{{ 's' if next_match.same_day_count > 1 }} free that day</p>

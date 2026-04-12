@@ -387,7 +387,7 @@
                 <div class="trip-row" style="cursor: pointer;" onclick="window.location.href='{{ url_for('friend_trip_details', trip_id=req.trip.id) }}'">
                     <div class="trip-row-content">
                         <p class="trip-row-dest">{% if req.trip.resort %}{{ req.trip.resort.name }}{% else %}{{ req.trip.mountain }}{% endif %}</p>
-                        <p class="trip-row-dates">{{ format_trip_dates(req.trip) }} · {{ req.owner.first_name }} {{ req.owner.last_name or '' }}</p>
+                        <p class="trip-row-dates">{{ format_trip_dates(req.trip) }} · {{ req.owner.first_name | format_name }} {{ req.owner.last_name | format_name }}</p>
                         <p class="trip-row-people" style="color: {% if req.status == 'Pending' %}#5C1219{% elif req.status == 'Accepted' %}#1B7A4E{% else %}#8A857A{% endif %};">{{ req.status }}</p>
                     </div>
                     {% if req.status == 'Pending' %}
@@ -435,7 +435,7 @@
                             <p class="trip-row-dest">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
                             <p class="trip-row-dates">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
                             {% if trip.user %}
-                            <p class="trip-row-people">{{ trip.user.first_name }} {{ trip.user.last_name or '' }}</p>
+                            <p class="trip-row-people">{{ trip.user.first_name | format_name }} {{ trip.user.last_name | format_name }}</p>
                             {% endif %}
                         </div>
                         <span class="trip-row-cta">→</span>

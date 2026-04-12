@@ -400,7 +400,7 @@
 
         <div class="td-hero">
             {% if is_invited %}
-            <p class="td-hero-eyebrow">{{ owner.first_name if owner else 'Someone' }} invited you</p>
+            <p class="td-hero-eyebrow">{{ (owner.first_name if owner else 'Someone') | format_name }} invited you</p>
             {% elif is_owner or is_guest %}
             <p class="td-hero-eyebrow">Upcoming</p>
             {% endif %}
@@ -410,7 +410,7 @@
             <p class="td-hero-meta">{{ people }} going</p>
             {% endif %}
             {% if is_invited %}
-            <p class="td-hero-meta" style="margin-top: 4px;">{{ owner.first_name if owner else 'The organizer' }} wants you to join.</p>
+            <p class="td-hero-meta" style="margin-top: 4px;">{{ (owner.first_name if owner else 'The organizer') | format_name }} wants you to join.</p>
             {% endif %}
         </div>
 
@@ -643,7 +643,7 @@
                 {% for req in pending_requests %}
                 <div class="td-person-row">
                     <div class="td-person-info">
-                        <p class="td-person-name">{{ req.sender.first_name }} {{ req.sender.last_name }}</p>
+                        <p class="td-person-name">{{ req.sender.first_name | format_name }} {{ req.sender.last_name | format_name }}</p>
                         <p class="td-person-meta">{{ req.sender|identity_line }}</p>
                         <p class="td-person-status-tag">Requested to Join</p>
                     </div>
@@ -728,7 +728,7 @@
                     <div class="friend-select-row {% if f.disabled %}disabled{% endif %}" data-full-name="{{ f.user.first_name|lower }} {{ (f.user.last_name or '')|lower }}">
                         <input type="checkbox" name="friend_ids" value="{{ f.user.id }}" id="friend_{{ f.user.id }}" {% if f.disabled %}disabled{% endif %} onchange="updateSelectionState()">
                         <div class="friend-select-info">
-                            <p class="friend-select-name">{{ f.user.first_name }} {{ f.user.last_name or '' }}</p>
+                            <p class="friend-select-name">{{ f.user.first_name | format_name }} {{ f.user.last_name | format_name }}</p>
                             <p class="friend-select-identity">{{ f.user|identity_line }}</p>
                         </div>
                     </div>

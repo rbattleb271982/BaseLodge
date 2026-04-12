@@ -393,7 +393,7 @@
 
             <div class="tid-hero">
                 {% if not is_accepted and participant.status.value != 'declined' %}
-                <p class="tid-hero-eyebrow">{{ owner.first_name if owner else 'Someone' }} invited you</p>
+                <p class="tid-hero-eyebrow">{{ (owner.first_name if owner else 'Someone') | format_name }} invited you</p>
                 {% elif is_accepted %}
                 <p class="tid-hero-eyebrow">Confirmed</p>
                 {% endif %}
@@ -415,7 +415,7 @@
             <!-- From section -->
             <p class="tid-section-label" style="margin-top: 0;">From</p>
             <div class="tid-person-row">
-                <span class="tid-person-name">{{ owner.first_name if owner else 'Organizer' }}{% if owner and owner.last_name %} {{ owner.last_name }}{% endif %}</span>
+                <span class="tid-person-name">{{ (owner.first_name if owner else 'Organizer') | format_name }}{% if owner and owner.last_name %} {{ owner.last_name | format_name }}{% endif %}</span>
                 <span class="tid-person-meta">Organizer</span>
             </div>
 
@@ -424,7 +424,7 @@
             {% for p in accepted_participants %}
                 {% if p.user %}
                 <div class="tid-person-row">
-                    <span class="tid-person-name">{{ p.user.first_name }}</span>
+                    <span class="tid-person-name">{{ p.user.first_name | format_name }}</span>
                     <span class="tid-person-meta">{{ p.user|identity_line }}</span>
                 </div>
                 {% endif %}
@@ -546,7 +546,7 @@
     <div class="decline-modal-overlay" id="decline-modal">
         <div class="decline-modal">
             <h3>Decline this invite?</h3>
-            <p>You can always ask {{ owner.first_name if owner else 'the organizer' }} to invite you again.</p>
+            <p>You can always ask {{ (owner.first_name if owner else 'the organizer') | format_name }} to invite you again.</p>
             <div class="decline-modal-actions">
                 <button type="button" class="btn-cancel-modal" onclick="hideDeclineModal()">Cancel</button>
                 <form method="POST" action="/trips/{{ trip.id }}/respond" style="flex: 1;">
