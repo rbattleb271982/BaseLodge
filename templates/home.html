@@ -100,7 +100,7 @@
         /* ── Blush hero block ── */
         .home-hero {
             background: #F0DDD8;
-            border: 1px solid rgba(92, 18, 25, 0.35);
+            border: 0.5px solid #5C1219;
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
@@ -209,11 +209,21 @@
             font-weight: 700;
             letter-spacing: 0.5px;
             text-transform: uppercase;
-            color: #8A857A;
+            color: #5C1219;
             margin-bottom: 3px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
-        .home-activity-tag-overlap { color: #1B7A4E; }
-        .home-activity-tag-friend { color: #5C1219; }
+        .home-activity-tag::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #5C1219;
+            flex-shrink: 0;
+        }
         .home-activity-text {
             font-size: 14px;
             font-weight: 500;
@@ -302,7 +312,7 @@
                 {% if secondary_card.type == 'connect_invite' %}
                 <div class="home-activity-row" id="secondary-card">
                     <div class="home-activity-content">
-                        <p class="home-activity-tag">New connection</p>
+                        <p class="home-activity-tag">New Connection</p>
                         <p class="home-activity-text">{{ secondary_card.sender_name }} wants to connect</p>
                         <p class="home-activity-sub">Connect to plan trips together</p>
                     </div>
@@ -314,7 +324,7 @@
                 {% elif secondary_card.type == 'overlap' %}
                 <a href="{{ secondary_card.href }}" class="home-activity-row">
                     <div class="home-activity-content">
-                        <p class="home-activity-tag home-activity-tag-overlap">Open Dates</p>
+                        <p class="home-activity-tag">Dates Overlap</p>
                         <p class="home-activity-text">{{ secondary_card.text }}</p>
                         <p class="home-activity-sub">Pick a mountain and make it official</p>
                     </div>
@@ -326,7 +336,7 @@
                 {% elif secondary_card.type == 'friend_trip' %}
                 <a href="{{ url_for('trip_detail', trip_id=secondary_card.trip_id) }}" class="home-activity-row">
                     <div class="home-activity-content">
-                        <p class="home-activity-tag home-activity-tag-friend">Friend's Trip</p>
+                        <p class="home-activity-tag">Friend's Trip</p>
                         <p class="home-activity-text">{{ secondary_card.friend_name }} is heading to {{ secondary_card.mountain }}</p>
                         <p class="home-activity-sub">See their trip details</p>
                     </div>
