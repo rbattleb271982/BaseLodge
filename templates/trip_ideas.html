@@ -280,22 +280,37 @@
         {% endif %}
 
         <!-- 3) Trip Ideas -->
+        {% if has_overlaps %}
         <h2 class="section-title">Trip Ideas</h2>
         <div class="ideas-list">
-            {% if trip_ideas %}
-                {% for idea in trip_ideas %}
-                    <div class="idea-row" 
-                         onclick='openIdeaModal({{ idea|tojson }})'>
-                        <div style="flex: 1; min-width: 0;">
-                            <div class="trip-card-line1">{{ idea.display_date }}</div>
-                            <div class="trip-card-line2">You and {% if idea.overlapping_people|length == 1 %}{{ idea.overlapping_people[0].first_name }} {{ idea.overlapping_people[0].last_name }}{% else %}{{ idea.overlapping_people|length }} friends{% endif %} are free</div>
-                        </div>
+            {% for idea in trip_ideas %}
+                <div class="idea-row"
+                     onclick='openIdeaModal({{ idea|tojson }})'>
+                    <div style="flex: 1; min-width: 0;">
+                        <div class="trip-card-line1">{{ idea.display_date }}</div>
+                        <div class="trip-card-line2">You and {% if idea.overlapping_people|length == 1 %}{{ idea.overlapping_people[0].first_name }}{% else %}{{ idea.overlapping_people|length }} friends{% endif %} are free</div>
                     </div>
-                {% endfor %}
-            {% else %}
-                <div class="empty-state">No availability-based ideas yet.</div>
-            {% endif %}
+                </div>
+            {% endfor %}
         </div>
+        {% elif not has_friends %}
+        <div class="empty-state">
+            <p style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 8px 0;">No friends yet</p>
+            <p style="font-size: 14px; margin: 0 0 16px 0;">Add friends to start seeing when you're all free to ski together.</p>
+            <a href="{{ url_for('friends') }}" class="invite-cta">Find friends</a>
+        </div>
+        {% elif not has_availability %}
+        <div class="empty-state">
+            <p style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 8px 0;">No availability set</p>
+            <p style="font-size: 14px; margin: 0 0 16px 0;">Add the dates you're free to ski and we'll show you when your friends are available too.</p>
+            <a href="{{ url_for('add_open_dates') }}" class="invite-cta">Add availability</a>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 8px 0;">No overlapping dates yet</p>
+            <p style="font-size: 14px; margin: 0;">None of your friends are free on the same days right now. Check back as more people add their availability.</p>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Context Modal -->

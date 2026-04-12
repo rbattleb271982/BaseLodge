@@ -1,0 +1,55 @@
+Review and plan #12 - Phase 2: Availability System & Ideas Tab before making changes.
+Goal
+Create a concise implementation plan for replacing fragile user.open_dates JSON reads with a proper UserAvailability table, while preserving backward compatibility and keeping the /trip-ideas experience stable.
+Scope to plan
+Plan only. Do not edit code yet.
+Review these files and identify exactly what will need to change:
+models.py
+services/open_dates.py
+app.py:2228-2313
+templates/trip_ideas.html
+templates/components/bottom_nav.html
+migrations/
+What to confirm in the plan
+Model design
+Where UserAvailability should live in models.py
+Relationship wiring to User
+Exact table name
+Exact unique constraint definition for (user_id, date)
+Migration impact
+Whether any existing naming conventions or migration patterns need to be followed
+Whether any backfill is required now or whether fallback to open_dates is sufficient
+Service contract
+Inspect services/open_dates.py and confirm the current output structure of get_open_date_matches
+Identify every caller that depends on that output structure
+Confirm how to preserve it exactly while switching data source priority to:
+UserAvailability
+fallback to legacy user.open_dates
+Route changes
+Inspect /trip-ideas in app.py
+Identify all inline reads of user.open_dates
+Identify which logic should move to the service and which should remain in the route
+Confirm wishlist overlap logic remains untouched
+Template states
+Audit trip_ideas.html
+Identify how to support all four states cleanly:
+no friends
+friends but no availability
+availability but no overlapping dates
+overlaps present
+Confirm whether any headings/containers currently render empty or orphaned
+Regression checks from Phase 1
+Confirm what needs to be re-tested after Phase 2:
+invite link opens /auth with Sign Up active
+onboarding still redirects invite users to /friends
+5-tab nav still works
+Ideas tab active state still works
+previous_pass, backcountry_capable, and avi_certified remain intact
+Deliverable
+Return:
+A short implementation plan in the recommended order of operations
+Any risks or ambiguities found
+Any small Phase 1 regression fixes that should be bundled into Phase 2 if discovered
+A list of exact files to edit
+A brief test plan for after implementation
+Do not write code yet. Only produce the plan.

@@ -1,0 +1,95 @@
+Phase 2: Availability System & Ideas Tab
+Implement this only after confirming Phase 1 is stable.
+Use checkpoints sparingly. Do not stop at partial edits. Finish the model, migration, service fallback, route wiring, template states, and regression checks before stopping.
+Goal
+Replace the fragile JSON-only availability dependency with a proper UserAvailability table while preserving backward compatibility. Wire /trip-ideas to use the updated availability service.
+Required outcomes
+A new user_availability table exists and is migrated
+/trip-ideas uses the new availability service
+The Ideas tab loads correctly and shows date overlaps with friends
+Empty states are handled gracefully
+Wishlist overlaps continue to work
+Existing users with legacy open_dates still work because of fallback logic
+Phase 1 invite-aware onboarding behavior remains intact
+Implement exactly
+1) Add model
+Create UserAvailability in models.py with:
+id
+user_id FK to user
+date Date
+is_available Boolean default True
+note nullable string
+created_at
+Add a unique constraint on (user_id, date).
+Add relationship wiring if useful and consistent with current model patterns.
+2) Create migration
+Generate and apply a proper Flask-Migrate migration for UserAvailability.
+Make sure the table name is explicit and clean if the project uses naming conventions.
+3) Update availability service
+In services/open_dates.py, extend the service so it:
+first checks UserAvailability
+if rows exist for that user, uses those rows
+if no rows exist, falls back to legacy user.open_dates JSON
+preserves the exact output shape expected by existing callers
+Important:
+Do not break old callers
+Do not silently change return structure
+Filter on is_available=True unless the existing service expects all rows and handles filtering elsewhere
+Keep the code readable and easy to extend later
+4) Wire /trip-ideas
+Update the trip_ideas route to use the updated availability service.
+Ensure:
+friend overlap logic uses the new service output
+wishlist overlap logic still works
+route handles users with no friends
+route handles users with no availability
+route handles users with friends but no overlaps
+Do not redesign the ranking logic. Just make the existing route reliable.
+5) Template review
+Audit templates/trip_ideas.html.
+Make sure it cleanly handles:
+availability overlap list
+wishlist overlap list
+empty state when user has no friends
+empty state when user has no availability
+empty state when there are no overlaps
+Do not leave any broken blank sections or orphaned headings.
+6) Phase 1 regression checks
+While doing this phase, also verify and preserve these Phase 1 behaviors:
+invite arrivals to /auth still default to the Sign Up tab
+after invite signup and /identity-setup, the user still lands on /friends
+the 5-tab bottom nav still renders correctly
+the Ideas tab is still active on /trip-ideas
+Profile and Friends active states still work on sub-pages
+previous_pass, backcountry_capable, and avi_certified changes remain intact
+If you find a small regression from Phase 1 while implementing Phase 2, fix it as part of this phase rather than stopping.
+Files to inspect/update
+app.py:2217-2302
+services/open_dates.py
+models.py
+templates/trip_ideas.html
+templates/components/bottom_nav.html
+Also inspect any helper/service files currently used by trip_ideas if needed.
+Final verification before stopping
+Do not finish until all of the following are verified:
+Data/model verification
+user_availability table exists
+migration is generated and applied cleanly
+duplicate (user_id, date) rows are prevented
+Service verification
+user with UserAvailability rows gets availability from the new table
+user with no UserAvailability rows falls back to legacy open_dates
+output structure is unchanged for callers
+Route/template verification
+/trip-ideas renders for a user with no friends
+/trip-ideas renders for a user with friends but no availability
+/trip-ideas renders for a user with availability overlaps
+wishlist overlaps still render
+Ideas tab active state works
+Phase 1 regression verification
+invite link → /auth opens with Sign Up active
+invite signup → /identity-setup → redirects to /friends
+bottom nav still shows 5 tabs correctly on mobile
+Profile tab still resolves directly without redirect-chain behavior
+Search for any code paths still directly depending on raw user.open_dates inside the ideas flow and update them if needed.
+Do not finish until you have fully implemented the new table, migration, fallback service, route wiring, template handling, and regression-checked the relevant Phase 1 flows.

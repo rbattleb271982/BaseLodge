@@ -36,6 +36,8 @@ The application employs a mobile-first responsive design with an editorial "Base
 ### Technical Implementations
 The backend is built with Flask, utilizing SQLAlchemy for ORM and Werkzeug for password hashing. Jinja2 is used for templating, complemented by custom CSS and Vanilla JS for interactivity and AJAX. Flask-Login handles session-based authentication. An event system captures user actions for notifications. User lifecycle stages (`new`, `onboarding`, `active`) and canonical states (`is_core_profile_complete`, `has_started_planning`, `is_active_user`) dictate UI and feature availability. Supabase is the single system of record for all resort data.
 
+**Availability system (Phase 2):** User availability is stored in the `UserAvailability` table (model in `models.py`). The `services/open_dates.py` service reads from `UserAvailability` first; if no rows exist for a user, it falls back to the legacy `user.open_dates` JSON column. The `/trip-ideas` route uses this service exclusively — no direct `user.open_dates` reads. The `get_open_date_matches(user)` function output structure (list of dicts with `date`, `friend_id`, `friend_name`, `friend_pass`, `same_pass`) is unchanged for all callers.
+
 ### Template Filters for Consistent Display
 Centralized Jinja2 filters in `app.py` ensure consistent formatting across all templates:
 -   **`mountain_passes`**: Formats resort pass brands (e.g., "Epic · Ikon") without "Pass" suffix. Returns empty string if no pass.

@@ -419,6 +419,26 @@ class User(UserMixin, db.Model):
         return login_count <= 2
 
 
+class UserAvailability(db.Model):
+    """Per-day availability for a user. Replaces the legacy open_dates JSON column."""
+    __tablename__ = 'user_availability'
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'date', name='uq_user_availability_user_date'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    is_available = db.Column(db.Boolean, default=True, nullable=False)
+    note = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('availability_rows', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<UserAvailability user_id={self.user_id} date={self.date}>'
+
+
 class Resort(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)

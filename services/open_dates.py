@@ -2,6 +2,10 @@
 Open Dates Service
 Provides deterministic query logic for computing open date overlaps between users and friends.
 
+Data source priority:
+1. UserAvailability table (rows with is_available=True)
+2. Legacy user.open_dates JSON column (fallback when no table rows exist)
+
 This is the foundation for:
 - Open tab display
 - Pass compatibility badges
@@ -9,13 +13,49 @@ This is the foundation for:
 - "Who's open this weekend?" (future)
 """
 
-from models import db, User, Friend
+from datetime import date as date_cls
+from models import db, User, Friend, UserAvailability
+
+
+def get_available_dates_for_user(user):
+    """
+    Returns a set of future "YYYY-MM-DD" strings representing the user's available dates.
+
+    Priority:
+    1. Query UserAvailability table for rows with is_available=True.
+       If any rows exist, use those exclusively.
+    2. If no UserAvailability rows exist, fall back to the legacy user.open_dates JSON list.
+
+    Always filters to today and future dates only.
+    Always returns YYYY-MM-DD strings.
+    """
+    today_str = date_cls.today().isoformat()
+
+    rows = (
+        UserAvailability.query
+        .filter_by(user_id=user.id, is_available=True)
+        .all()
+    )
+
+    if rows:
+        return {
+            row.date.isoformat()
+            for row in rows
+            if row.date.isoformat() >= today_str
+        }
+
+    # Fallback: legacy open_dates JSON
+    legacy = user.open_dates or []
+    return {
+        d for d in legacy
+        if isinstance(d, str) and len(d) == 10 and d >= today_str
+    }
 
 
 def get_open_date_matches(current_user):
     """
     Returns a list of open-date overlaps between current_user and their friends.
-    
+
     Output structure (one entry per overlapping date per friend):
     [
       {
@@ -27,57 +67,51 @@ def get_open_date_matches(current_user):
       },
       ...
     ]
-    
+
     Matching rules:
     - Date-by-date comparison
-    - Open ↔ Open only (no trips)
+    - Open <-> Open only (no trips)
     - No scoring or filtering by pass
-    - Skip friends with no/empty/invalid open_dates
+    - Skip friends with no/empty available dates
+    - Uses UserAvailability table first; falls back to legacy open_dates JSON per user
     """
-    
-    # Step 1: Normalize current user dates
-    my_dates = set(current_user.open_dates or [])
+
+    # Step 1: Get current user's available dates
+    my_dates = get_available_dates_for_user(current_user)
     if not my_dates:
         return []
-    
+
     # Step 2: Fetch friends (single query)
-    # Friendship is bidirectional in our model, so we query where user_id = current_user.id
     friends = (
         db.session.query(User)
         .join(Friend, Friend.friend_id == User.id)
         .filter(Friend.user_id == current_user.id)
         .all()
     )
-    
-    # Step 3: Compute overlaps in Python (intentional - explicit and debuggable)
+
+    # Step 3: Compute overlaps in Python (intentional — explicit and debuggable)
     matches = []
-    
+
     for friend in friends:
-        friend_dates = set(friend.open_dates or [])
-        
-        # Skip friends with no open dates
+        friend_dates = get_available_dates_for_user(friend)
+
         if not friend_dates:
             continue
-        
-        # Find overlapping dates
+
         overlapping = my_dates & friend_dates
-        
-        for date in overlapping:
-            # Validate date format (skip invalid)
-            if not isinstance(date, str) or len(date) != 10:
-                continue
-            
+
+        for match_date in overlapping:
             matches.append({
-                "date": date,
+                "date": match_date,
                 "friend_id": friend.id,
                 "friend_name": friend.first_name,
                 "friend_pass": friend.pass_type,
                 "same_pass": friend.pass_type == current_user.pass_type
             })
-    
-    # Step 4: Sort results - date ascending, then friend name ascending
+
+    # Step 4: Sort results — date ascending, then friend name ascending
     matches.sort(key=lambda x: (x["date"], x["friend_name"] or ""))
-    
+
     return matches
 
 

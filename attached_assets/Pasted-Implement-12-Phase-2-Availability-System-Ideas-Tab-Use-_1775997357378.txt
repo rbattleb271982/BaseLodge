@@ -1,0 +1,90 @@
+Implement #12 - Phase 2: Availability System & Ideas Tab.
+Use checkpoints sparingly. Do not stop at partial edits. Complete model, migration, service, route wiring, template states, and regression checks before finishing.
+Goal
+Replace user.open_dates JSON dependency with UserAvailability table while preserving backward compatibility and keeping /trip-ideas stable.
+1) Add UserAvailability model
+Add to models.py after User:
+id (PK)
+user_id (FK → user.id, not nullable)
+date (Date, not nullable)
+is_available (Boolean, default True, not nullable)
+note (String 200, nullable)
+created_at (DateTime, default datetime.utcnow)
+Add:
+__table_args__ = (
+    db.UniqueConstraint('user_id', 'date', name='uq_user_availability_user_date'),
+)
+2) Migration
+Run:
+flask db migrate -m "add_user_availability_table"
+flask db upgrade
+Confirm table + constraint exist.
+3) Update availability service
+In services/open_dates.py:
+Add helper:
+get_available_dates_for_user(user)
+Logic:
+Query UserAvailability where:
+user_id = user.id
+is_available = True
+If rows exist:
+return list of dates formatted as "YYYY-MM-DD"
+Else:
+return user.open_dates JSON (fallback)
+Filter to future dates ONLY inside this helper
+Normalize all dates to "YYYY-MM-DD" strings
+Update:
+get_open_date_matches(current_user)
+Use get_available_dates_for_user() for:
+current user
+each friend
+DO NOT change output structure:
+{
+  "date": "YYYY-MM-DD",
+  "friend_id": ...,
+  "friend_name": ...,
+  "friend_pass": ...,
+  "same_pass": ...
+}
+4) Update /trip-ideas route
+In app.py:2228–2313:
+Remove all inline user.open_dates usage
+Call get_open_date_matches(user)
+Group matches by date (reuse compute_available_windows pattern)
+Add template flags:
+has_friends
+has_availability
+has_overlaps
+DO NOT modify wishlist overlap logic
+Fix variable naming:
+use today_str
+use match_date in loops
+5) Update template
+In templates/trip_ideas.html:
+Implement clean states:
+No friends → show message about adding friends
+No availability → show message about adding availability
+No overlaps → show message about no matches yet
+Overlaps → render normally
+Ensure:
+no empty sections
+no orphaned headings
+6) Phase 1 regression checks
+Verify:
+invite → /auth opens with Sign Up active
+invite onboarding → /friends
+5-tab nav intact
+Ideas tab active on /trip-ideas
+profile fields still persist
+Fix any regressions found.
+Final verification before stopping
+Table exists + constraint enforced
+Service works with:
+UserAvailability rows
+fallback JSON
+/trip-ideas renders all 4 states correctly
+Wishlist still works
+No crashes
+No duplicate logic
+No leftover user.open_dates usage in this route
+Do not finish until all of the above are verified end to end.

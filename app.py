@@ -2229,48 +2229,49 @@ def overlap_detail():
 @login_required
 def trip_ideas():
     """Trip Ideas page - suggestions based on overlapping open availability and wishlist matches."""
+    from services.open_dates import get_open_date_matches, get_available_dates_for_user
     user = current_user
-    today = date.today()
-    today_str = today.strftime('%Y-%m-%d')
-    
-    # Get user's friends
+
+    # ── Friends ────────────────────────────────────────────────────────────────
     friend_links = Friend.query.filter_by(user_id=user.id).all()
     friend_ids = [f.friend_id for f in friend_links]
     all_friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
-    
-    # Task 1: Trip Ideas (Availability Only)
-    user_open_dates = set(d for d in (user.open_dates or []) if d >= today_str)
-    trip_ideas_list = []
-    
-    if user_open_dates and friend_ids:
-        date_to_friends = {}
-        for date_str in sorted(user_open_dates):
-            friends_on_date = []
-            for friend in all_friends:
-                friend_dates = set(d for d in (friend.open_dates or []) if d >= today_str)
-                if date_str in friend_dates:
-                    friends_on_date.append({
-                        "id": friend.id,
-                        "first_name": friend.first_name,
-                        "last_name": friend.last_name or "",
-                        "rider_type": friend.rider_type,
-                        "skill_level": friend.skill_level,
-                        "pass_type": friend.pass_type
-                    })
-            if friends_on_date:
-                date_to_friends[date_str] = friends_on_date
-        
-        for date_str, friends in date_to_friends.items():
-            trip_ideas_list.append({
-                "date_str": date_str,
-                "display_date": datetime.strptime(date_str, '%Y-%m-%d').strftime('%b %-d'),
-                "overlapping_people": friends
-            })
+    has_friends = bool(friend_ids)
 
-    # Task 2: Wishlist Overlaps (Grouped by Mountain)
+    # ── Task 1: Trip Ideas via availability service ───────────────────────────
+    matches = get_open_date_matches(user)
+    # has_availability is True if user has any future dates at all (even without friend overlap)
+    has_availability = bool(get_available_dates_for_user(user))
+
+    # Group matches by date → build trip_ideas_list
+    date_to_friends = {}
+    for m in matches:
+        match_date = m["date"]
+        if match_date not in date_to_friends:
+            date_to_friends[match_date] = []
+        date_to_friends[match_date].append({
+            "id": m["friend_id"],
+            "first_name": m["friend_name"],
+            "last_name": "",
+            "rider_type": None,
+            "skill_level": None,
+            "pass_type": m["friend_pass"]
+        })
+
+    trip_ideas_list = []
+    for match_date in sorted(date_to_friends):
+        trip_ideas_list.append({
+            "date_str": match_date,
+            "display_date": datetime.strptime(match_date, '%Y-%m-%d').strftime('%b %-d'),
+            "overlapping_people": date_to_friends[match_date]
+        })
+
+    has_overlaps = bool(trip_ideas_list)
+
+    # ── Task 2: Wishlist Overlaps (unchanged logic) ───────────────────────────
     user_wishlist = set(user.wish_list_resorts or [])
     wishlist_overlaps = {}
-    
+
     if user_wishlist and all_friends:
         for resort_id in user_wishlist:
             overlapping_friends = []
@@ -2285,7 +2286,7 @@ def trip_ideas():
                         "skill_level": friend.skill_level,
                         "pass_type": friend.pass_type
                     })
-            
+
             if overlapping_friends:
                 resort = Resort.query.get(resort_id)
                 if resort:
@@ -2296,20 +2297,18 @@ def trip_ideas():
                     }
 
     # QA Logging
-    print(f"[QA] Trip Ideas (Availability) count: {len(trip_ideas_list)}")
+    print(f"[QA] Trip Ideas (Availability) count: {len(trip_ideas_list)}, has_friends={has_friends}, has_availability={has_availability}")
     print(f"[QA] Wishlist overlaps count: {len(wishlist_overlaps)}")
-    if trip_ideas_list:
-        print(f"[QA] Example Trip Idea: {trip_ideas_list[0]}")
-    if wishlist_overlaps:
-        example_resort_id = next(iter(wishlist_overlaps))
-        print(f"[QA] Example Wishlist Overlap: {wishlist_overlaps[example_resort_id]}")
 
     return render_template(
         "trip_ideas.html",
         user=user,
         trip_ideas=trip_ideas_list,
         wishlist_overlaps=list(wishlist_overlaps.values()),
-        wishlist_count=len(wishlist_overlaps)
+        wishlist_count=len(wishlist_overlaps),
+        has_friends=has_friends,
+        has_availability=has_availability,
+        has_overlaps=has_overlaps
     )
 
 @app.route("/api/mountains/<state>")
