@@ -2313,6 +2313,8 @@ def trip_ideas():
 
 @app.route("/api/mountains/<state>")
 def get_mountains(state):
+    # DEPRECATED: Not called by any current UI. Kept for external compatibility only.
+    # The active Add Trip UI derives states/resorts from the Resort table via get_resorts_for_trip_form().
     state_code = state.upper()
     mountains = MOUNTAINS_BY_STATE.get(state_code, [])
     return jsonify(mountains)
@@ -3119,30 +3121,9 @@ def update_profile():
 @app.route("/create-trip")
 @login_required
 def create_trip_page():
-    user = current_user
-    
-    # Get pre-filled parameters from "Propose a trip" flow
-    prefill_friend_id = request.args.get('friend_id', type=int)
-    prefill_start_date = request.args.get('start_date')
-    prefill_end_date = request.args.get('end_date')
-    is_group = request.args.get('is_group') == '1'
-    
-    prefill_friend = None
-    if prefill_friend_id:
-        prefill_friend = User.query.get(prefill_friend_id)
-    
-    states = sorted(MOUNTAINS_BY_STATE.keys())
-    return render_template(
-        "create_trip.html", 
-        user=user, 
-        states=states, 
-        mountains_by_state=MOUNTAINS_BY_STATE, 
-        pass_options=PASS_OPTIONS,
-        prefill_start_date=prefill_start_date,
-        prefill_end_date=prefill_end_date,
-        prefill_friend=prefill_friend,
-        is_group=is_group
-    )
+    # Legacy route — retired. Redirect to canonical /add_trip, preserving all prefill params.
+    params = {k: v for k, v in request.args.items()}
+    return redirect(url_for("add_trip", **params), 302)
 
 # ============================================================================
 # PLANNING FEATURE
@@ -4410,11 +4391,7 @@ def add_trip():
     prefill_resort = None
     if prefill_resort_id is not None:
         prefill_resort = Resort.query.get(prefill_resort_id)
-    
-    # Also handle wishlist resort via resort_id param
-    if not prefill_resort and prefill_resort_id is not None:
-        prefill_resort = Resort.query.get(prefill_resort_id)
-    
+
     if request.method == "POST":
         resort_id = request.form.get("resort_id")
         start_date_str = request.form.get("start_date")
@@ -4548,17 +4525,7 @@ def add_trip():
 
     # GET - render the add trip form
     # ⚠️ CONTRACT LOCK: countries_map must ALWAYS be passed to template.
-    # The country dropdown is now server-rendered from COUNTRIES.
-    # Log verification data for Step 3:
-    print(f"[VERIFY] countries_map type: {type(countries_map)}")
-    print(f"[VERIFY] countries_map size: {len(countries_map)}")
-    print(f"[VERIFY] 'US' in map: {'US' in countries_map}")
-    
-    # QA Check: Routes rendering add_trip.html:
-    # 1. /add_trip (GET/POST)
-    # 2. /trips/<int:trip_id>/edit (GET/POST)
-    # Confirm: /add-open-dates does NOT render add_trip.html (fixed previously)
-    
+    # The country dropdown is server-rendered from COUNTRIES (not derived from resorts).
     return render_template(
         "add_trip.html",
         trip=None,

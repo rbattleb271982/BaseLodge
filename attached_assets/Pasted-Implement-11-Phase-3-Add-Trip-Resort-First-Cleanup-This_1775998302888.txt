@@ -1,0 +1,79 @@
+Implement #11 - Phase 3: Add Trip Resort-First Cleanup.
+This is a cleanup phase, not a full refactor. The goal is to solidify /add_trip as the canonical route and safely retire unused legacy paths without breaking existing functionality.
+Use checkpoints sparingly. Complete all steps and verify behavior end-to-end before finishing.
+Goal
+Make /add_trip the single canonical trip creation route
+Safely retire /create-trip
+Remove dead/debug code
+Preserve all existing behavior, especially:
+resort-first flow
+prefill parameters
+edit-trip flow
+Phase 1 and Phase 2 features
+1) Replace /create-trip route
+In app.py:
+Replace the body of create_trip_page with a redirect to /add_trip
+Use 302 redirect, not 301
+Pass through all query params unchanged:
+friend_id
+resort_id (if present)
+start_date
+end_date
+is_group
+Result:
+/create-trip?... → /add_trip?...
+2) Do NOT modify /add_trip core logic
+Do not change route logic
+Do not change POST handling
+Do not change cascade UI
+Do not remove country/state/resort selection
+This UI is already backed by the Resort table and is correct.
+3) Template cleanup
+In templates/add_trip.html:
+Remove the "TEMPORARY" console.log verification block (lines 940–954)
+Do not modify any other UI or JS logic
+4) Code cleanup in app.py
+Remove duplicate prefill_resort lookup (keep only one)
+Remove debug print statements labeled "TEMPORARY"
+Ensure no logic depends on removed debug code
+5) Leave /api/mountains/<state> in place
+Do NOT delete it
+Add a comment marking it as deprecated / unused by current UI
+6) Ensure entry points remain correct
+Confirm all Add Trip entry points still use url_for('add_trip')
+Do not modify working links
+7) Regression checks (critical)
+Verify all of the following before finishing:
+Routing
+Visiting /create-trip redirects to /add_trip
+Query params persist correctly after redirect
+Trip creation
+Create trip without any prefill params → works
+Create trip with:
+resort_id
+start_date/end_date
+friend_id
+is_group
+All flows work end-to-end
+Edit flow
+/trips/<id>/edit still works
+Prefill restores correctly
+No JS cascade issues
+UI behavior
+Resort selector works
+State filtering works
+Search works
+No console errors
+Phase 1 + 2 regressions
+5-tab bottom nav intact
+Ideas tab still works
+/trip-ideas unchanged
+invite → signup → /friends flow intact
+profile fields still persist
+Final verification before stopping
+No references to /create-trip remain in active use
+/create-trip safely redirects
+No UI regressions in Add Trip
+No errors in console
+No duplicate logic left behind
+Do not finish until all checks pass end-to-end.

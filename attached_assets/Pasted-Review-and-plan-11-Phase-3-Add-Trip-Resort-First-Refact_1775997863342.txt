@@ -1,0 +1,79 @@
+Review and plan #11 - Phase 3: Add Trip Resort-First Refactor before making changes.
+Goal
+Create a concise implementation plan for consolidating trip creation on /add_trip, retiring the legacy /create-trip flow, removing any remaining state/mountain cascade UI, and making /add_trip the single canonical trip-creation entry point across the app.
+Scope to plan
+Plan only. Do not edit code yet.
+Review these files and any directly connected helpers/templates/routes they rely on:
+app.py:3109-3135
+app.py:2310-2360
+app.py:4362-4560
+templates/add_trip.html
+templates/create_trip.html
+Also search for all references to:
+url_for('create_trip_page')
+url_for('create_trip')
+'/create-trip'
+MOUNTAINS_BY_STATE
+What to confirm in the plan
+1. Canonical route behavior
+Inspect the current /add_trip route and confirm:
+which query params it already accepts
+how friend_id, resort_id, start_date, end_date, and is_group are handled
+whether any additional prefill logic exists that must be preserved
+Confirm whether /add_trip is already fully resort-first in both backend and template behavior
+Identify any assumptions in the route that still depend on legacy state/mountain inputs
+2. Legacy /create-trip route retirement
+Inspect create_trip_page at /create-trip
+Confirm the safest way to convert it into a 301 redirect to /add_trip
+Confirm how query params should be passed through unchanged
+Confirm whether any legacy parsing or transformation currently happens there that would be lost in a simple redirect
+Identify all references to MOUNTAINS_BY_STATE in that route and whether they can be removed entirely
+3. Template cleanup
+Audit templates/add_trip.html for any remaining legacy destination UI, including:
+state dropdowns
+mountain dropdowns
+hidden fields tied to state/mountain cascade
+old JavaScript supporting the cascade
+Confirm the resort selector component is already sufficient as the only destination input
+Inspect templates/create_trip.html and determine whether it should:
+be fully retired from active use
+become a minimal redirect stub
+remain only for compatibility, if absolutely necessary
+4. Entry point audit
+Search the full codebase for all Add Trip entry points
+Identify every button, CTA, nav item, card action, or redirect that still points to:
+create_trip_page
+create_trip
+/create-trip
+Determine which should be replaced directly with url_for('add_trip')
+Confirm whether any old links appear in templates, route redirects, or JavaScript
+5. Prefill and compatibility risk
+Confirm that these prefill parameters continue to work through the canonical route:
+friend_id
+resort_id
+start_date
+end_date
+is_group
+Identify whether any current flows rely on mountain, state, or similar legacy params and whether those can be safely dropped or need compatibility handling
+Confirm whether old deep links using /create-trip?... will still land the user in the correct prefilled state after redirect
+6. Regression checks from Phases 1 and 2
+This phase should stay focused on trip creation, but the plan should explicitly note regression checks for:
+5-tab bottom nav still intact
+Ideas tab active state still works
+invite-aware signup/onboarding flow remains intact
+/trip-ideas still works after Phase 3 changes
+no regression to any trip-related flows that depend on the new availability service
+existing trip creation still works for current users after removing legacy UI
+Deliverable
+Return:
+A short implementation plan in the recommended order of operations
+Any risks or ambiguities found
+Any legacy compatibility concerns that should be preserved during refactor
+A list of exact files to edit
+A brief test plan for after implementation
+Important constraints
+Do not redesign the Add Trip UX beyond removing legacy state/mountain inputs
+Do not add autocomplete or multi-resort support
+Do not broaden scope into unrelated trip editing flows unless the current Add Trip flow depends on them
+Prefer full removal of dead legacy code where safe, but identify any compatibility stubs that are still needed before deleting anything
+Do not write code yet. Only produce the plan.
