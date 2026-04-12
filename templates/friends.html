@@ -10,7 +10,6 @@
     <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        /* ── Page title ── */
         .fr-page-title {
             font-family: Georgia, 'Times New Roman', serif;
             font-size: 24px;
@@ -19,7 +18,6 @@
             margin: 0 0 20px 0;
         }
 
-        /* ── Invite strip ── */
         .fr-invite-strip {
             display: flex;
             align-items: center;
@@ -40,25 +38,7 @@
             text-decoration: none;
             white-space: nowrap;
         }
-        .fr-invite-divider {
-            width: 1px;
-            height: 14px;
-            background: #E5DFD0;
-            flex-shrink: 0;
-        }
-        .fr-invite-copy {
-            font-size: 14px;
-            font-weight: 500;
-            color: #8A857A;
-            background: none;
-            border: none;
-            padding: 0;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-        .fr-invite-copy:hover { color: #5C1219; }
 
-        /* ── Friend rows ── */
         .flat-list {
             display: flex;
             flex-direction: column;
@@ -106,22 +86,6 @@
             font-size: 13px;
             color: #8A857A;
         }
-
-        /* ── Empty state ── */
-        .fr-empty-text {
-            font-size: 14px;
-            color: #8A857A;
-            margin: 0 0 6px 0;
-            line-height: 1.5;
-        }
-        .fr-empty-cta {
-            display: inline-block;
-            margin-top: 14px;
-            font-size: 14px;
-            font-weight: 600;
-            color: #5C1219;
-            text-decoration: none;
-        }
     </style>
 </head>
 <body>
@@ -129,17 +93,14 @@
 
         <h1 class="fr-page-title">Friends</h1>
 
-        <!-- Invite strip -->
+        <!-- Header strip: label + single invite action -->
         <div class="fr-invite-strip">
             <span class="fr-invite-label">Plan trips with friends</span>
             <a href="{{ url_for('invite') }}" class="fr-invite-cta">Invite →</a>
-            {% if invite_url %}
-            <div class="fr-invite-divider"></div>
-            <button class="fr-invite-copy" onclick="copyInviteLink(this)">Copy link</button>
-            {% endif %}
         </div>
 
         {% if friends and friends|length > 0 %}
+        <!-- Has-friends state: friend list -->
         <div class="flat-list">
             {% for friend in friends %}
             <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="flat-row">
@@ -157,10 +118,32 @@
             </a>
             {% endfor %}
         </div>
+
+        <!-- QR toggle: revealed inline on tap -->
+        {% if invite_url %}
+        <div class="fr-qr-toggle-wrap">
+            <button class="fr-show-qr-btn" onclick="toggleFriendQR(this)">Show QR →</button>
+            <div class="fr-qr-inline" id="fr-qr-inline">
+                <img src="{{ url_for('my_qr') }}" alt="Scan to connect" class="fr-qr-img">
+                <div class="fr-copy-wrap">
+                    <button onclick="copyInviteLink(this)" class="fr-copy-link">Copy invite link →</button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         {% else %}
-        <p class="fr-empty-text">Add a friend to start planning trips together.</p>
-        <p class="fr-empty-text">Send your invite link to get started.</p>
-        <a href="{{ url_for('invite') }}" class="fr-empty-cta">Invite a friend →</a>
+        <!-- Empty state: QR as primary invite surface -->
+        <h2 class="fr-empty-headline">Add a friend</h2>
+        <p class="fr-empty-sub">Scan to connect instantly or share your link.</p>
+        {% if invite_url %}
+        <div class="fr-qr-block">
+            <img src="{{ url_for('my_qr') }}" alt="Scan to connect" class="fr-qr-img">
+        </div>
+        <div class="fr-copy-wrap">
+            <button onclick="copyInviteLink(this)" class="fr-copy-link">Copy invite link →</button>
+        </div>
+        {% endif %}
         {% endif %}
 
     </div>
@@ -169,17 +152,19 @@
 
     <script>
     {% if invite_url %}
+    var _inviteUrl = {{ invite_url|tojson }};
+
     function copyInviteLink(btn) {
-        const url = {{ invite_url|tojson }};
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(url).then(function() {
+            navigator.clipboard.writeText(_inviteUrl).then(function() {
                 btn.textContent = 'Copied!';
-                setTimeout(function() { btn.textContent = 'Copy link'; }, 2000);
-            }).catch(function() { fallbackCopy(url, btn); });
+                setTimeout(function() { btn.textContent = 'Copy invite link →'; }, 2000);
+            }).catch(function() { fallbackCopy(_inviteUrl, btn); });
         } else {
-            fallbackCopy(url, btn);
+            fallbackCopy(_inviteUrl, btn);
         }
     }
+
     function fallbackCopy(text, btn) {
         var el = document.createElement('textarea');
         el.value = text;
@@ -191,7 +176,18 @@
         try { document.execCommand('copy'); } catch(e) {}
         document.body.removeChild(el);
         btn.textContent = 'Copied!';
-        setTimeout(function() { btn.textContent = 'Copy link'; }, 2000);
+        setTimeout(function() { btn.textContent = 'Copy invite link →'; }, 2000);
+    }
+
+    function toggleFriendQR(btn) {
+        var block = document.getElementById('fr-qr-inline');
+        if (block.style.display === 'none' || block.style.display === '') {
+            block.style.display = 'block';
+            btn.textContent = 'Hide QR ↑';
+        } else {
+            block.style.display = 'none';
+            btn.textContent = 'Show QR →';
+        }
     }
     {% endif %}
     </script>

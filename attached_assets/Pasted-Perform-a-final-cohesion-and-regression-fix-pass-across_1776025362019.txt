@@ -1,0 +1,139 @@
+Perform a final cohesion and regression fix pass across Home, Friends, and Profile.
+This is not a redesign. Do not change the overall layout or introduce new features. Only fix the specific issues below to align the product into a consistent system.
+Use checkpoints sparingly.
+1. Restore QR code as primary invite mechanism (Friends page)
+This is the highest priority fix.
+Current problem
+QR code is missing
+“Copy link” is acting as primary invite
+page feels empty and incomplete
+Fix
+Implement a proper Friends empty state with QR as the centerpiece
+Structure:
+Title: Friends
+Subtitle: Plan trips with friends
+Then:
+Serif headline:
+Add a friend
+Short body:
+Scan to connect instantly or share your invite link.
+Centered QR code (primary action)
+~200–220px square
+uses existing invite link
+Below QR:
+small inline link:
+Copy invite link →
+Additional fixes
+Remove duplicate “Invite a friend →” link below body copy
+In header:
+keep either:
+Invite →
+OR Copy link
+but do not duplicate the same action in multiple places
+Behavior
+When user HAS friends:
+hide QR by default
+add:
+Show QR (toggle or link)
+QR appears inline when tapped
+2. Fix Home “Best Match” logic
+Current problem
+“Best Match” is actually a setup nudge
+duplicates Ideas page purpose
+visually competes with real trip
+Fix
+Update Home behavior:
+Case A — user has NO overlap data
+REMOVE the Best Match card entirely
+show only:
+Next Up (blush hero)
+Upcoming section
+Case B — user HAS overlap data
+SHOW Best Match card
+but convert it to real overlap:
+Structure:
+bordeaux eyebrow (date)
+serif descriptor
+supporting line
+single CTA:
+Plan this trip →
+No dual-button setup CTA here
+3. Unify card system (critical system fix)
+Define and enforce:
+A. Blush Hero Card (used sparingly)
+Use ONLY for:
+Home → Next Up
+(future) top-priority moments
+B. Standard Content (no card)
+Use for:
+Trips list
+Ideas list
+Friends
+Profile sections
+C. REMOVE misuse
+Profile page
+REMOVE blush card from profile header
+Replace with:
+Structure:
+avatar (circle)
+name (serif)
+meta line (sans)
+no border container
+4. Fix CTA hierarchy across screens
+Define and enforce:
+Primary CTA
+filled bordeaux
+only ONE per screen
+Secondary CTA
+outlined bordeaux
+Tertiary CTA
+inline text with arrow
+Apply fixes:
+Home
+“View trip” → use outlined button (match Trips)
+Ideas
+Step 02 → convert to outlined pill (not plain text)
+Friends
+QR = primary action
+copy link = tertiary
+5. Fix small polish issues
+Profile
+fix:
+Skier,Snowboarder → add space
+make:
+Edit → underlined or clearer link
+change:
+Log Out → NOT bordeaux
+use muted or warning tone
+Friends
+remove duplicate invite CTA
+Ideas
+slightly increase size of:
+01
+02
+6. Do NOT touch
+Ideas populated state logic
+overlap window system
+Trips structure
+bottom nav layout
+Final verification
+Before finishing:
+Friends
+QR visible in empty state
+copy link works
+no duplicate CTAs
+Home
+Best Match removed when no data
+appears correctly when data exists
+Profile
+no blush hero card
+spacing + hierarchy clean
+Ideas
+setup state intact
+numbering improved
+CTA hierarchy correct
+Global
+consistent CTA hierarchy
+consistent card usage
+no visual conflicts
+Do not finish until all fixes are verified on mobile.

@@ -1,0 +1,236 @@
+Perform a final cohesion and regression fix pass across Friends, Home, Profile, and Ideas.
+This is not a redesign. Do not change the overall layout or introduce new features. Only fix the specific cohesion issues and regressions below to align the product into a more consistent system.
+Use checkpoints sparingly.
+Goal
+Tighten the product so it feels like one cohesive system by fixing:
+missing QR-based invite flow on Friends
+redundant / misplaced Best Match behavior on Home
+profile header using the wrong hero/card treatment
+small CTA hierarchy inconsistencies on Ideas
+a few remaining polish issues
+Do not touch the Trips structure or the Ideas populated-state logic.
+1. Friends page — restore QR as the primary invite mechanism
+Current problems
+QR code is missing
+“Invite a friend →” is duplicated
+“Copy link” is overexposed in the header
+page feels incomplete and too empty
+Fix
+A. Header strip
+In the Friends header action strip:
+keep only Invite →
+remove Copy link from the header strip
+do not remove the strip entirely
+B. Empty state
+Replace the current empty-state body with a QR-centered invite surface.
+Structure:
+serif headline:
+Add a friend
+short body:
+Scan to connect instantly or share your link.
+Then show:
+centered QR code as the primary action
+approximate size: 200–220px square
+use the existing QR endpoint/route already available in the app
+do not create a new route
+do not introduce new models
+do not use an external QR service
+Below the QR:
+show a small tertiary control:
+Copy invite link →
+Use a button or link styled as tertiary text, not a large button.
+C. Has-friends state
+When the user already has friends:
+keep the friend list as-is
+add a subtle Show QR → control lower on the page
+tapping it reveals the same QR block inline
+below the inline QR, show:
+Copy invite link →
+Implementation note:
+use minimal inline show/hide JS only
+do not introduce a new JS file
+do not use a framework
+simple toggle behavior is enough
+D. Remove duplicate CTA
+Remove the duplicate lower-page:
+Invite a friend →
+Do not show multiple invite CTAs for the same action in competing places.
+E. Styling
+Add Friends QR-specific classes to static/styles.css.
+Do not leave this as inline styling unless absolutely necessary for a tiny one-off.
+Suggested class family:
+.fr-empty-headline
+.fr-empty-sub
+.fr-qr-block
+.fr-copy-wrap
+.fr-copy-link
+.fr-qr-toggle-wrap
+.fr-show-qr-btn
+.fr-qr-inline
+2. Home — fix Best Match rendering behavior
+Current problems
+Best Match sometimes acts like a setup nudge instead of a real match
+setup-nudge behavior duplicates Ideas
+dual CTA behavior is too heavy
+card hierarchy competes with the real upcoming trip
+Fix
+A. No overlap data
+When the user has no overlap data:
+do not render the Best Match block at all
+remove the fallback/nudge card entirely from Home
+Home should just show:
+greeting
+Next Up / hero
+upcoming section
+any other existing non-Ideas-specific content
+B. Has overlap data
+When has_overlaps and next_match are present:
+render the Best Match section
+make it a real match card only
+no setup-nudge copy
+no dual-button “complete setup” treatment
+C. CTA simplification
+For Best Match when real data exists:
+keep only one CTA
+Plan this trip
+remove the secondary:
+See all ideas →
+D. Important constraint
+Do not modify how has_overlaps or next_match are computed
+Only change rendering logic
+do not change the Home route’s overlap data contract in this pass
+E. Hero CTA
+The existing View trip button in the blush hero already uses the correct outlined treatment.
+Leave it unless absolutely necessary.
+3. Profile — remove misuse of blush hero treatment
+Current problems
+profile header is using the blush/bordeaux hero card pattern
+that hero treatment should be reserved for true action moments, not identity display
+Edit is too quiet
+Log Out is too emphasized
+rider label formatting can look sloppy
+Fix
+A. Profile header visual treatment
+Remove the blush hero-card treatment from the top profile block.
+Update .profile-hero styling so it becomes a quiet identity header:
+no blush background
+no bordeaux border
+no hero-card feel
+preserve spacing, alignment, and hierarchy
+keep:
+avatar
+name
+meta line
+edit action
+B. Important constraint
+Do not use inline style overrides
+update the actual CSS class / style definition for .profile-hero
+C. Edit affordance
+Make Edit feel like a real control:
+underline or otherwise improve affordance
+keep it subtle but clearly interactive
+D. Log Out
+De-emphasize Log Out:
+it should not be bordeaux
+use a more muted/neutral treatment
+do not make it look like a primary brand action
+E. Rider meta polish
+If the rider meta line can render something like:
+Skier,Snowboarder
+fix spacing so it becomes:
+Skier, Snowboarder
+Do this safely in presentation logic if possible.
+Do not mutate stored data unless necessary.
+4. Ideas — small setup-state polish only
+Do not change the new 3-state architecture.
+Do not change populated-state overlap windows.
+Do not touch ranking/scoring.
+Only make the following small polish improvements to the setup state:
+A. Numerals
+Increase the size of:
+01
+02
+They should act as stronger editorial anchors.
+B. Step 02 CTA
+Convert Step 02 from a plain text link into a small outlined pill.
+Keep the CTA text as:
+Invite friends →
+So it stays consistent with Step 01’s directional cue.
+C. Keep Step 01 as-is
+Step 01 can remain the stronger active action.
+5. CTA hierarchy consistency
+Apply this hierarchy consistently in the touched screens:
+Primary CTA
+filled bordeaux
+only one strong primary action per screen when possible
+Secondary CTA
+outlined bordeaux
+Tertiary CTA
+inline text with arrow
+Do not over-apply this globally. Only use it where relevant in this pass:
+Friends
+Home Best Match
+Profile edit/logout emphasis
+Ideas setup Step 02
+6. Files to inspect/update
+At minimum inspect and update:
+templates/friends.html
+templates/home.html
+templates/profile.html
+templates/trip_ideas.html
+static/styles.css
+Also inspect any related inline <style> or tiny JS blocks embedded in those templates.
+Do not touch:
+Trips structure
+Ideas populated-state logic
+Home overlap computation
+new overlap-window helper logic
+bottom nav layout beyond preserving current behavior
+7. What not to do
+Do not redesign the app
+Do not add new models
+Do not add new routes for QR if one already exists
+Do not bring back old modal behavior on Ideas
+Do not change Trips page structure
+Do not touch Ideas ranking/scoring yet
+Do not introduce a new JS framework or new JS file for QR toggle
+Do not use inline style overrides where proper CSS updates should be made
+8. Final verification before stopping
+Friends
+Verify:
+QR appears in empty state as the primary invite mechanism
+QR uses existing app invite/QR path
+copy link still works
+duplicate invite CTA is gone
+has-friends state can reveal QR via Show QR →
+QR can be scanned successfully on a real mobile device
+header strip still has only Invite →
+Home
+Verify:
+when there is no overlap data, Best Match block does not render
+when there is overlap data, Best Match renders as a real match only
+Best Match has one CTA only
+no setup-nudge card remains on Home
+Next Up hero remains intact
+Profile
+Verify:
+profile header no longer uses blush hero card treatment
+avatar/name/meta still render cleanly
+Edit is clearer
+Log Out is de-emphasized
+rider meta spacing looks correct
+Ideas
+Verify:
+setup state still works
+01 and 02 are slightly larger
+Step 02 uses an outlined pill
+populated state unchanged
+re-engagement state unchanged
+Global
+Verify:
+bottom nav still correct
+sparkle icon still correct
+no template or console errors
+mobile spacing looks intentional
+no new regressions introduced on untouched screens
+Do not finish until all fixes are visually checked on mobile and functioning correctly.

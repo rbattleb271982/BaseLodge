@@ -12,10 +12,7 @@
     <style>
         /* ── Profile hero ─────────────────────────────── */
         .profile-hero {
-            background: var(--bl-color-surface-blush);
-            border: 0.5px solid var(--bl-color-primary);
-            border-radius: var(--bl-radius-md);
-            padding: 20px;
+            padding: 0 0 20px 0;
             margin-bottom: 24px;
             display: flex;
             align-items: center;
@@ -58,7 +55,8 @@
             font-size: 13px;
             font-weight: 500;
             color: var(--bl-color-primary);
-            text-decoration: none;
+            text-decoration: underline;
+            text-underline-offset: 2px;
             flex-shrink: 0;
             padding: 4px 0 4px 12px;
         }
@@ -115,7 +113,7 @@
         }
         .profile-row-label-danger {
             font-size: 0.95rem;
-            color: var(--bl-color-primary);
+            color: var(--bl-color-text-muted);
         }
         .profile-row-right {
             display: flex;
@@ -144,7 +142,7 @@
 
         <!-- Identity hero -->
         {% set rider_types = current_user.rider_types or [] %}
-        {% set rider_label = rider_types[0] if rider_types else '' %}
+        {% set rider_label = (rider_types[0] if rider_types else '') | replace(',', ', ') %}
         {% set ctx_parts = [] %}
         {% if rider_label %}{% set _ = ctx_parts.append(rider_label) %}{% endif %}
         {% if current_user.skill_level %}{% set _ = ctx_parts.append(current_user.skill_level | capitalize) %}{% endif %}
