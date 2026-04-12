@@ -1,0 +1,170 @@
+Ideas Ranking — Planning Recommendation
+A. What signals the current codebase already supports
+These exist today and are grounded in actual data the app already has in memory at Ideas route request time.
+
+Signal	Source	Reliable?	Easy to use?
+same_pass	get_open_date_matches() — friend.pass_type == user.pass_type	Yes, when pass_type is set	Yes — already in every match dict
+Window length (days)	_build_overlap_windows() — n_days already computed	Yes	Yes — already in every window
+Friend count per window	_build_overlap_windows() — len(friends) already computed	Yes	Yes
+Date proximity	Current sort is date-ascending; days-until derivable from start_date	Yes	Yes — one subtraction
+Day of week	Derivable from start_obj.weekday()	Yes	Yes — pure Python
+Weekend containment	Does window span a Sat (5) or Sun (6)?	Yes	Yes — iterate window dates
+Friend's pass type	m["friend_pass"] in every match dict	Partial — not all users set it	Yes — already present
+User's pass type	user.pass_type passed to _build_overlap_windows()	Partial	Yes
+Wishlist resort overlap	wishlist_overlaps computed in trip_ideas route	Yes	Light join needed to link to windows
+Friend.trip_invites_allowed	Friend.trip_invites_allowed on the model	Yes	Needs one extra query or preload
+Friend.created_at	Friend.created_at on the model	Yes	Needs friendships preloaded
+Friends' available date count	Already retrieved per friend in get_available_dates_for_user()	Yes	Slightly more expensive — returned sets
+User's prior trips	SkiTrip table filtered by user_id	Yes	One query
+Shared prior trips with friend	Cross-join SkiTrip by user + friend at same mountain	Yes	Light query
+B. Candidate ranking variables (full list)
+Timing quality
+
+Window length — n_days. More days = more trip-worthy. 2-4 days hits the planning sweet spot (weekend to long weekend).
+Days until window — (start_date - today).days. Too soon (<7 days) is hard to plan. A bell curve around 14–45 days is ideal.
+Weekend containment — does the window include a Saturday or Sunday? A mid-week window of 4 days is less actionable than a 2-day weekend.
+Position in week — is the start or end day a Friday/Monday (enables add-on)?
+Social strength
+
+Friend count in window — more friends free = better social proof, with diminishing returns (1→2 is a big jump, 5→6 is not).
+Shared prior trip — have user and this friend ever both logged a trip at the same mountain? A strong trust signal.
+Friend.trip_invites_allowed — this friend has explicitly unlocked trip invites. Meaningful social intent signal.
+Friendship recency — Friend.created_at. A new friend who has an immediate overlap is a strong engagement moment.
+Pass compatibility
+
+same_pass — direct match on pass_type string. The strongest single signal.
+Pass coverage of wishlist — does user's pass (Epic/Ikon) cover any resort in the shared wishlist that also appears in window friends' wish lists? Requires Resort.pass_brands_json lookup.
+Friend pass quality — is friend's pass a known major pass (Epic, Ikon) vs. null/"Other"/"I don't have a pass"? The BAD_PASSES set already used in _build_overlap_windows() captures this.
+Trip feasibility
+
+User has no booked trip in window — cross-reference SkiTrip for date conflicts. A window that collides with an existing trip is not actionable.
+Mutual wishlist resort — user and at least one window friend share a resort on their wish list. Already in wishlist_overlaps, needs linking.
+Pass-accessible resort within wishlist — subset of above: shared wishlist resort IS accessible via user's pass.
+User context
+
+Skill compatibility — user.skill_level vs. friend.skill_level. Same or adjacent level = more compatible trip.
+Rider type match — user.rider_types vs. friend's rider_types. Both skiers, or skier + snowboarder, matters for some resorts/terrain choices.
+Urgency
+
+Very near window (<7 days) — should be filtered out or labeled "this week" rather than ranked normally.
+Window already fully past — must be hard-excluded.
+Historical behavior
+
+Repeat overlap frequency — has user had open-date overlaps with this friend across many prior queries? Not currently tracked.
+Action rate on overlaps — has user ever clicked "Plan this trip" for a window? Not currently tracked. Deferred.
+C. MVP vs. later
+MVP (implement now — available with light work):
+
+Variable	Status
+Window length	Available
+Weekend containment	Available
+Days until window	Available
+Friend count per window	Available
+same_pass per window	Available
+Friend pass quality (BAD_PASSES check)	Available
+Mutual wishlist resort in window	Available — light join
+User has no conflicting trip	Available — one query
+V2 (light new work needed):
+
+Variable	What's needed
+Shared prior trip with friend	Query cross-join on SkiTrip
+trip_invites_allowed	Preload Friend rows, add field to window
+Friendship recency	Preload Friend rows with created_at
+Pass coverage of wishlist resort	Resort.pass_brands_json lookup
+Skill/rider type compatibility	Preload friends' profiles into window data
+Deferred (missing data or requires tracking infrastructure):
+
+User action history on Ideas (no click tracking)
+Repeat overlap frequency across sessions (no session log)
+Resort crowd/snow conditions (no external data)
+Geographic proximity to user (no location data stored)
+D. Recommended ranking architecture
+Simple weighted score, applied after window construction, with hard pre-filters.
+
+This is the right fit for three reasons:
+
+Small N. The average user will have 2–15 overlap windows. A sophisticated staged filter or ML model adds complexity without meaningful benefit at this scale. A transparent score on a 0–100 range is sufficient.
+
+In-memory computation is already the pattern. _build_overlap_windows() already processes everything in Python after one service call. Adding a _score_overlap_windows() step slots in naturally without touching the DB layer.
+
+Explainability matters at this stage. Ranking decisions should be debuggable and adjustable without retraining or migrating anything. A weighted score with named coefficients achieves this.
+
+Not recommended:
+
+ML scoring — no training data, premature
+DB-level ranking (SQL ORDER BY on computed fields) — logic belongs in Python, not the query
+Staged filter → score → sort — the window count is too small for this to matter
+E. Proposed first-pass weighted scoring model
+Step 0 — Hard filters (pre-score, exclude entirely):
+
+Window starts in fewer than 3 days → exclude (too soon to act)
+Window start date is in the past → exclude
+User has a booked trip that fully overlaps the window → exclude or flag as conflicted
+Step 1 — Score each window (0–100):
+
+score = 0
+# Timing (35 pts max)
+  window_length_score     = min(n_days / 4, 1.0) * 15   # peaks at 4+ day windows
+  weekend_bonus           = 10 if window_contains_weekend else 0
+  proximity_score         = proximity_curve(days_until_start) * 10
+    # proximity_curve: 0 at <3d, ramps to 1.0 at 14d, holds to 45d, decays to 0 at 90d+
+# Social (30 pts max)
+  friend_count_score      = min(len(window_friends) / 3, 1.0) * 15
+  same_pass_ratio         = friends_with_same_pass / len(window_friends)
+  pass_score              = same_pass_ratio * 15
+# Destination relevance (20 pts max)
+  wishlist_overlap_bonus  = 15 if any window friend shares a wishlist resort with user else 0
+  pass_quality_bonus      = 5 if all window friends have a known pass (not BAD_PASSES) else 0
+# Feasibility (15 pts max)
+  no_conflict_bonus       = 10   (applied unless excluded by hard filter above)
+  length_feasibility      = 5 if n_days >= 2 else 0   (multi-day = can make a real trip)
+score = sum of above, capped at 100
+
+Step 2 — Tie-breakers (for windows with within-5-point scores):
+
+Earliest start date
+More friends free
+Larger same_pass count
+Output: overlap_windows list re-sorted by score descending, score stored on each window dict (used for debug/future display).
+
+F. Risks, unknowns, missing data
+1. Duplication with Home Best Match
+
+The home route currently takes overlap_matches[0] — the chronologically first match — as "Best Match." If Ideas ranking changes the order, home and Ideas will show different "best" windows. This is a product decision: should they converge (same ranked #1), or serve different purposes (home = most urgent/soonest, ideas = highest quality)?
+
+2. same_pass dominates at low friend counts
+
+With one or two friends, same_pass is binary (0 or 1). A solo window with a same-pass friend scores 15/15 on pass, while a two-friend window where one doesn't match scores 7.5/15. At small scales, this one signal can drive the whole ranking. Guard with capping and normalization.
+
+3. Ranking instability over time
+
+days_until_start changes every day, so a window that ranked #1 two weeks ago may rank #4 today. The Ideas list could feel different every session without any user action. This is especially pronounced near the 45-day → decay threshold of the proximity curve.
+
+4. Weekend compounding
+
+A 3-day window starting Friday contains a weekend, gets the window_length_score AND weekend_bonus. Make sure the combined signal reflects intent (longer weekend windows genuinely are better) and doesn't artificially over-weight short windows that happen to fall Sat–Sun.
+
+5. Wishlist decoupling
+
+wishlist_overlaps is currently computed as a separate dict and displayed in a different section of the Ideas page. Linking it to window scoring means joining two currently independent data paths. This is doable but needs care to avoid a second pass over the same data.
+
+6. No evaluation baseline
+
+There's no click-through data, conversion data, or A/B infrastructure. Once ranking is live, there's no automatic way to know if it's better. Build in a debug mode (log scores per window) from day one so the ranking can be inspected and tuned.
+
+7. Overcomplication risk
+
+With only a handful of windows per user, even a perfect ranking system improves the experience marginally. Keep the formula simple enough to explain in a sentence. If a user asked "why is this window #1?", the answer should be natural: "It's a long weekend, you both have Epic Pass, and Steamboat is on both your wish lists."
+
+G. What needs to be decided before implementation
+Should Home Best Match consume the Ideas ranked #1 window, or stay independently date-sorted? This is the most consequential architectural decision. Shared logic = consistency, but the two surfaces have different jobs (home = urgent/upcoming, ideas = quality/worth planning).
+
+What is the planning horizon boundary? Is a window 90 days out too far to surface? What about 6 months? The proximity curve shape depends on this.
+
+Should "too soon" windows be hidden or just moved to the bottom? Hiding removes them entirely; de-ranking lets users still see them.
+
+How many windows should be shown at maximum? If it's 3–5, ranking matters a lot. If it's unlimited (all windows), ranking matters less because users scroll.
+
+Should the score ever be exposed to the user (a "why this?" surface, or a label like "Great timing")? Or is it purely a backend ordering concern?
+
+Where should the scoring function live? Inside _build_overlap_windows() (tight coupling, simpler) or as a separate services/ideas_ranking.py module (more testable, more isolated)?

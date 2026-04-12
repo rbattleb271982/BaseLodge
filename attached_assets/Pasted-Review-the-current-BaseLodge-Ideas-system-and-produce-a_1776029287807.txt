@@ -1,0 +1,93 @@
+Review the current BaseLodge Ideas system and produce a planning recommendation for an intelligent ranking/scoring system for overlap opportunities.
+Do not code yet. Plan only.
+Goal
+Help determine what variables should go into the Ideas ranking system, how they should be prioritized, and what implementation shape makes the most sense for the current codebase.
+Context
+The Ideas feature already identifies overlap opportunities between users and friends based on availability. We now want to rank those opportunities more intelligently instead of relying on simple ordering.
+The ranking system should help surface the overlap opportunities that are most likely to be:
+relevant
+socially compelling
+feasible to act on
+worth planning around
+What to inspect
+Review the existing code and data structures relevant to:
+Ideas overlap generation
+overlap windows
+friend matching
+availability
+pass information
+trip creation flow
+any current helper functions used for Best Match or overlap sorting
+Inspect the relevant files/routes/helpers currently used for:
+Home Best Match
+Ideas populated state
+overlap window generation
+add_trip prefills
+user/friend/pass/trip context
+What to produce
+1. Current-state assessment
+Explain what the system already knows today that could be used as ranking inputs.
+I want a grounded list based on the actual codebase, not generic brainstorming only.
+For each available signal, explain:
+where it comes from
+whether it is already reliable
+whether it is easy to use now
+2. Candidate ranking variables
+Create a full list of potential ranking variables.
+Group them into categories such as:
+timing quality
+social strength
+pass compatibility
+trip feasibility
+user context
+urgency
+historical behavior
+any others you find relevant
+For each variable, say whether it is:
+available now
+derivable with light logic
+missing / future work
+3. Recommend ranking architecture
+Tell me what kind of ranking system best fits the current product and codebase:
+simple weighted score
+staged filter + score
+hard rules + tie-breakers
+something else
+Explain why that is the best fit right now.
+4. Suggest an MVP scoring model
+Recommend a first-pass ranking model for the current BaseLodge app.
+I want:
+the best candidate variables for MVP
+which ones should matter most
+which ones should be hard filters
+which ones should be tie-breakers
+what should be deferred to a later version
+5. Call out risks
+Tell me what could go wrong if we implement ranking poorly.
+Specifically call out:
+brittle signals
+misleading scores
+overcomplication
+duplicate logic with Home Best Match
+places where ranking might conflict with product intent
+6. Deliverable format
+Return:
+A. What signals the current codebase already supports
+B. What variables should go into the ranking system
+C. Which variables are MVP vs later
+D. Recommended ranking architecture
+E. Proposed first-pass weighted scoring model
+F. Risks / unknowns / missing data
+G. What needs to be decided before implementation
+Important constraints
+Do not write code yet
+Do not redesign the Ideas feature
+Keep recommendations practical for the current stack
+Base recommendations on actual codebase reality first, then product logic
+Prioritize explainable ranking over overly complex scoring
+Final objective
+I want a clear recommendation for:
+what should be ranked
+what should influence the score
+what matters most
+what can wait

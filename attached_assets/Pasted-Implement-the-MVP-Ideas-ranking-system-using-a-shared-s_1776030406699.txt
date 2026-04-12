@@ -1,0 +1,121 @@
+Implement the MVP Ideas ranking system using a shared scoring model across Ideas and Home.
+This ranking should determine:
+the order of windows on the Ideas page
+the Best Match on Home (must be the same #1)
+Do not redesign UI. Do not add new database models.
+Use checkpoints sparingly.
+1. Implementation structure
+Create a helper:
+_score_overlap_windows(windows, user)
+Place:
+near _build_overlap_windows()
+OR
+in services/ideas_ranking.py (preferred for clarity)
+2. Minimal filtering
+Before scoring:
+exclude windows where start_date < today
+Do NOT filter out:
+near-term windows
+far-out windows
+3. Compute required variables per window
+For each window, compute:
+n_days
+friend_count
+friends_with_same_pass
+same_pass_ratio
+days_until_start
+includes_weekend
+shared_wishlist (if available or easy to derive)
+4. Implement scoring model (FINAL)
+import random
+
+# PASS ALIGNMENT (25)
+pass_score = same_pass_ratio * 25
+
+# WINDOW QUALITY (20)
+if n_days == 1:
+    length_score = 5
+elif n_days == 2:
+    length_score = 12
+elif n_days == 3:
+    length_score = 18
+else:
+    length_score = 20
+
+weekend_bonus = 8 if includes_weekend else 0
+window_score = min(length_score + weekend_bonus, 20)
+
+# FRIEND COUNT (15, diminishing)
+friend_score = min(friend_count / 3, 1.0) * 15
+
+# TIMING PROXIMITY (15)
+if days_until_start < 3:
+    proximity = 0.6
+elif 3 <= days_until_start <= 30:
+    proximity = 1.0
+elif 30 < days_until_start <= 90:
+    proximity = 0.7
+else:
+    proximity = 0.4
+
+proximity_score = proximity * 15
+
+# WISHLIST (10)
+wishlist_score = 10 if shared_wishlist else 0
+
+# FEASIBILITY (10)
+feasibility_score = 10 if n_days >= 2 else 3
+
+# VARIATION (5)
+variation_score = random.uniform(0, 5)
+
+score = (
+    pass_score +
+    window_score +
+    friend_score +
+    proximity_score +
+    wishlist_score +
+    feasibility_score +
+    variation_score
+)
+Store:
+window["score"] = score
+5. Sort windows
+Replace any existing ordering:
+windows.sort(key=lambda w: w["score"], reverse=True)
+6. Tie-breakers (important)
+If scores are close:
+earlier start date wins
+more friends wins
+longer window wins
+7. Connect to Home (CRITICAL)
+Update Home route:
+Instead of:
+picking earliest overlap
+Use:
+best_match = ranked_windows[0]
+👉 This must match Ideas #1 exactly
+8. Do NOT
+do not change templates
+do not change UI
+do not introduce new models
+do not track user behavior yet
+do not over-engineer
+do not create separate ranking logic for Home
+9. Final verification
+Verify:
+Ideas
+better trips surface first
+weekend + multi-day rank higher
+same-pass windows clearly boosted
+more friends helps but does not dominate
+near-term and far-out both appear appropriately
+Home
+Best Match = Ideas #1
+no mismatch between screens
+General
+no errors in scoring
+no broken windows
+no performance issues
+results feel intuitive
+Do not finish until ranking clearly improves perceived quality.

@@ -2351,6 +2351,9 @@ def _build_overlap_windows(matches, user_pass_type):
             "descriptor_title": descriptor,
             "supporting_line": supporting,
             "anchor_friend_id": anchor_friend_id,
+            "anchor_friend_name": friends[0]["friend_name"] if friends else None,
+            "friend_count": len(friends),
+            "friends_in_window": friends,
             "is_first_row": idx == 0,
         })
 
@@ -2385,6 +2388,16 @@ def trip_ideas():
 
     # ── Overlap Windows (populated state only, harmless to build always) ──────
     overlap_windows = _build_overlap_windows(matches, user.pass_type)
+
+    # ── Rank windows by quality score ────────────────────────────────────────
+    from services.ideas_ranking import score_overlap_windows as _rank_windows
+    user_wishlist_set = set(user.wish_list_resorts or [])
+    shared_wishlist_friend_ids = set()
+    if user_wishlist_set and all_friends:
+        for _f in all_friends:
+            if user_wishlist_set & set(_f.wish_list_resorts or []):
+                shared_wishlist_friend_ids.add(_f.id)
+    overlap_windows = _rank_windows(overlap_windows, user, shared_wishlist_friend_ids)
     window_count = len(overlap_windows)
 
     # ── Wishlist Overlaps (preserved — shown in populated + reengagement) ─────
@@ -3844,23 +3857,38 @@ def home():
     except Exception:
         db.session.rollback()
 
-    # --- Next Best Match (canonical availability service) ---
+    # --- Next Best Match (ranked — same #1 as Ideas page) ---
     next_match = None
     has_overlaps = False
     try:
+        from services.ideas_ranking import score_overlap_windows as _rank_home
         overlap_matches = get_open_date_matches(user)
         if overlap_matches:
             has_overlaps = True
-            best = overlap_matches[0]
-            date_obj = datetime.strptime(best["date"], "%Y-%m-%d").date()
-            same_day_count = len([m for m in overlap_matches if m["date"] == best["date"]]) - 1
-            next_match = {
-                "match_date": best["date"],
-                "display_date": date_obj.strftime("%A · %b %-d"),
-                "friend_name": best["friend_name"],
-                "friend_id": best["friend_id"],
-                "same_day_count": same_day_count,
-            }
+            home_windows = _build_overlap_windows(overlap_matches, user.pass_type)
+            home_friend_users = (
+                User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
+            )
+            home_wishlist_set = set(user.wish_list_resorts or [])
+            home_shared_wishlist_ids = set()
+            if home_wishlist_set:
+                for _hf in home_friend_users:
+                    if home_wishlist_set & set(_hf.wish_list_resorts or []):
+                        home_shared_wishlist_ids.add(_hf.id)
+            home_windows = _rank_home(home_windows, user, home_shared_wishlist_ids)
+            if home_windows:
+                best_win = home_windows[0]
+                start_obj = date.fromisoformat(best_win["start_date"])
+                anchor_name = best_win.get("anchor_friend_name") or "a friend"
+                anchor_id = best_win.get("anchor_friend_id")
+                extra_friends = max(best_win.get("friend_count", 1) - 1, 0)
+                next_match = {
+                    "match_date": best_win["start_date"],
+                    "display_date": start_obj.strftime("%A · %b %-d"),
+                    "friend_name": anchor_name,
+                    "friend_id": anchor_id,
+                    "same_day_count": extra_friends,
+                }
     except Exception:
         db.session.rollback()
 
