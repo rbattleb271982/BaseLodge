@@ -90,6 +90,10 @@
         .td-info-row:first-child { border-top: 1px solid #E5DFD0; }
         .td-info-label { font-size: 13px; color: #6B665A; }
         .td-info-value { font-size: 13px; font-weight: 500; color: #1A1A1A; text-align: right; }
+        .td-info-row--tappable { cursor: pointer; text-decoration: none; color: inherit; }
+        .td-info-row--tappable:active { background: rgba(92, 18, 25, 0.04); }
+        .td-info-value-group { display: flex; align-items: center; gap: 5px; }
+        .td-info-chevron { font-size: 15px; color: #B5AFA5; line-height: 1; }
 
         /* ── Invite CTA (outlined) ── */
         .invite-cta {
@@ -433,6 +437,22 @@
             <span class="td-info-value">{{ pass_display }}</span>
         </div>
         {% endif %}
+        {% if is_owner %}
+        <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="td-info-row td-info-row--tappable">
+            <span class="td-info-label">Trip Length</span>
+            <span class="td-info-value-group">
+                <span class="td-info-value">{{ trip.duration_display }}</span>
+                <span class="td-info-chevron">›</span>
+            </span>
+        </a>
+        <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="td-info-row td-info-row--tappable">
+            <span class="td-info-label">Visibility</span>
+            <span class="td-info-value-group">
+                <span class="td-info-value">{{ 'Public' if trip.is_public else 'Private' }}</span>
+                <span class="td-info-chevron">›</span>
+            </span>
+        </a>
+        {% else %}
         <div class="td-info-row">
             <span class="td-info-label">Trip Length</span>
             <span class="td-info-value">{{ trip.duration_display }}</span>
@@ -441,6 +461,7 @@
             <span class="td-info-label">Visibility</span>
             <span class="td-info-value">{{ 'Public' if trip.is_public else 'Private' }}</span>
         </div>
+        {% endif %}
 
         <!-- Invite friends CTA (owner or accepted guest) -->
         {% if is_owner or is_guest %}

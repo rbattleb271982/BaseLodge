@@ -1,0 +1,60 @@
+Make the Trip Length and Visibility rows on the Trip Detail screen tappable so they take the user into the existing edit flow for that trip.
+This is a small UX improvement. Do not redesign the page and do not change the edit flow itself. Only make these rows behave like editable settings rows.
+Use checkpoints sparingly.
+Goal
+On the Trip Detail screen, the user should be able to tap:
+Trip Length / its value (2 nights)
+Visibility / its value (Public or Private)
+and be taken to the existing edit screen for that trip, just like using the top-right Edit action.
+What to change
+1. Make the Trip Length row tappable
+On the Trip Detail page:
+make the entire Trip Length row clickable
+tapping anywhere on that row should route to the existing trip edit page
+This includes:
+the label
+the displayed value (2 nights)
+the row area itself
+2. Make the Visibility row tappable
+On the Trip Detail page:
+make the entire Visibility row clickable
+tapping anywhere on that row should route to the existing trip edit page
+This includes:
+the label
+the displayed value (Public / Private)
+the row area itself
+3. Keep behavior consistent with the rest of the page
+These rows should feel like editable rows, consistent with other tappable list/settings rows in the app.
+If appropriate:
+add the same chevron/right-arrow affordance already used on editable rows elsewhere
+keep styling subtle and consistent
+do not create a new component pattern if an existing one already fits
+4. Use the existing edit route
+Do not invent a new route.
+Use the same destination the top-right Edit button already uses for this trip.
+If the current top-right Edit action points to:
+url_for(...) for the trip edit screen
+then these rows should route there as well.
+What NOT to do
+Do not redesign the Trip Detail page
+Do not change the existing edit form
+Do not create separate edit screens for length or visibility
+Do not change other rows unless they already share the same intended edit behavior
+Do not break the top-right Edit action
+Files to inspect/update
+At minimum inspect:
+the Trip Detail template
+any styles used for row-level navigation/tap targets
+the route or link currently used by the top-right Edit action
+Likely includes:
+templates/trip_detail.html or equivalent
+static/styles.css if needed
+Final verification before stopping
+Verify:
+tapping Trip Length row opens the existing edit trip screen
+tapping Visibility row opens the existing edit trip screen
+top-right Edit still works
+layout still looks clean on mobile
+tappable rows feel visually consistent with other editable rows in the app
+no console or template errors
+Do not finish until both rows are tappable and correctly route into the existing edit flow.
