@@ -1,0 +1,99 @@
+Implement UI/UX Cleanup Pass (Trips, Ideas, Nav, Home).
+This is a front-end restructuring and design alignment pass. Do not modify backend logic. Preserve all existing data flows.
+Use checkpoints sparingly. Complete all changes and verify end-to-end before finishing.
+1) Home greeting fix
+In templates/home.html:
+Replace the small muted .home-greeting with a larger, prominent style
+Match the scale and feel of .home-welcome
+Use serif (Georgia) and increased font size
+2) Bottom nav icons
+In static/styles.css:
+Change .nav-icon { display: none } → visible (flex/inline-flex)
+Set icon size (~22px)
+Ensure icons appear ABOVE labels
+Increase nav height (~60px)
+Add spacing between icon and label
+Active state:
+Ensure icon + text clearly reflect active tab
+Only remove the dot indicator if no longer needed visually
+3) Trips tab restructure
+In templates/my_trips.html:
+Tabs:
+Replace:
+Upcoming → My Trips
+Remove Ideas tab
+Remove Past tab
+Add:
+Friends’ Trips
+Content:
+My Trips:
+Keep current upcoming + accepted guest trips logic
+Friends’ Trips:
+Use existing friend_trips
+Render using same card pattern
+Link to friend_trip_details
+Empty state:
+Add:
+short message
+“Invite Friends” CTA (url_for('invite'))
+supporting copy
+Cleanup:
+Remove Ideas segment entirely from DOM
+Remove Past segment entirely from DOM
+JS:
+Remove references to:
+?tab=ideas
+?tab=planning
+If stored tab is invalid → default to My Trips
+4) Ideas page redesign
+In templates/trip_ideas.html:
+Header:
+Add serif title (Georgia)
+Add short explanatory paragraph
+CTA section:
+Always show (especially when no overlaps):
+Add Availability
+Primary button → url_for('add_open_dates')
+short explanation
+Invite Friends
+Secondary button → url_for('invite')
+short explanation
+Use existing button classes (no custom inline styles)
+Empty states:
+Replace multiple mutually exclusive states with a unified layout
+Show helpful messaging + both CTAs
+Overlaps present:
+Keep idea cards
+Keep CTA section visible but visually secondary
+Cleanup:
+Remove inline styles
+Use design tokens
+Improve spacing and hierarchy
+5) Regression checks
+Verify:
+Navigation
+5-tab nav intact
+icons visible and aligned
+active states correct
+Trips
+My Trips loads correctly
+Friends’ Trips loads correctly
+no JS errors from removed tabs
+Ideas
+loads correctly
+empty + populated states render properly
+CTAs work
+Flows
+Add Trip still works
+Edit Trip still works
+Ideas → Add Trip → back works correctly
+Phase 1 + 2
+invite flow unchanged
+profile fields persist
+availability system intact
+Final verification before stopping
+No orphaned DOM sections
+No console errors
+No broken tab states
+No layout regressions on mobile
+Do not finish until all checks pass end-to-end.

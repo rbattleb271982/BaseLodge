@@ -301,9 +301,9 @@
 <body>
     <div class="page-container" style="padding: 20px 16px 88px;">
 
-        <h1 class="mt-page-title">My trips</h1>
+        <h1 class="mt-page-title">Trips</h1>
 
-        <!-- Tab bar — Upcoming / Ideas / Past -->
+        <!-- Tab bar — My Trips / Friends' Trips -->
         {% set ns = namespace(invite_count=0) %}
         {% for trip in (invited_trips or []) %}
             {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
@@ -313,10 +313,9 @@
 
         <div class="tab-bar">
             <button type="button" class="tab-btn active" data-tab="upcoming">
-                Upcoming{% if ns.invite_count > 0 %}<span class="tab-badge">{{ ns.invite_count }}</span>{% endif %}
+                My Trips{% if ns.invite_count > 0 %}<span class="tab-badge">{{ ns.invite_count }}</span>{% endif %}
             </button>
-            <button type="button" class="tab-btn" data-tab="ideas">Ideas</button>
-            <button type="button" class="tab-btn" data-tab="past">Past</button>
+            <button type="button" class="tab-btn" data-tab="friends">Friends' Trips</button>
         </div>
 
         <!-- ── UPCOMING ── -->
@@ -402,89 +401,47 @@
             {% endif %}
         </div>
 
-        <!-- ── IDEAS ── -->
-        <div id="segment-ideas" class="segment-content">
-            {% if not user_open_dates or user_open_dates|length == 0 %}
-                <!-- State A: No availability set -->
+        <!-- ── FRIENDS' TRIPS ── -->
+        <div id="segment-friends" class="segment-content">
+            {% if not friend_trips %}
+                {% if not friends %}
+                <!-- No friends yet -->
                 <div class="mt-hero">
-                    <p class="mt-hero-eyebrow">No ideas yet</p>
-                    <p class="mt-hero-title">Add your availability</p>
-                    <p class="mt-hero-sub">Mark the days you're free and we'll show you when friends are available too.</p>
-                    <a href="{{ url_for('add_open_dates') }}" class="mt-hero-cta">Add availability</a>
+                    <p class="mt-hero-eyebrow">No connections yet</p>
+                    <p class="mt-hero-title">Invite your ski crew</p>
+                    <p class="mt-hero-sub">Connect with friends to see where they're headed and plan trips together.</p>
+                    <a href="{{ url_for('invite') }}" class="mt-hero-cta">Invite Friends</a>
                 </div>
-
-            {% elif not trip_ideas %}
-                <!-- State B: Has availability, no friend overlaps -->
-                <div class="mt-ideas-module">
-                    <p class="mt-ideas-module-title">No overlaps yet</p>
-                    <p class="mt-ideas-module-sub">Add more dates or invite more friends to find a match.</p>
-                    <a href="{{ url_for('add_open_dates') }}" class="mt-hero-cta" style="display: inline-block; text-decoration: none;">Expand availability</a>
-                    <a href="{{ url_for('friends') }}" class="mt-ideas-link">Invite more friends</a>
-                </div>
-
-            {% else %}
-                <!-- Populated: best overlap + quiet list -->
-                {% set best = trip_ideas[0] %}
-                {% if best.overlapping_people|length == 1 %}
-                    {% set best_headline = "You and " + best.overlapping_people[0].first_name + " are free " + best.display_date %}
                 {% else %}
-                    {% set best_headline = "You and " + (best.overlapping_people|length)|string + " friends are free " + best.display_date %}
-                {% endif %}
-
-                <div class="mt-hero">
-                    <p class="mt-hero-eyebrow">Best overlap</p>
-                    <p class="mt-hero-title">{{ best_headline }}</p>
-                    <p class="mt-hero-sub">Your schedules line up — make it a trip.</p>
-                    <a href="{{ url_for('add_trip') }}" class="mt-hero-cta">Plan something together</a>
+                <!-- Has friends, but no upcoming friend trips -->
+                <div style="padding-top: 32px; text-align: center;">
+                    <p style="font-size: 15px; font-weight: 500; color: #1A1A1A; margin: 0 0 8px 0;">No friend trips yet</p>
+                    <p style="font-size: 14px; color: #6B665A; margin: 0 0 20px 0; line-height: 1.5;">None of your friends have upcoming trips right now.</p>
+                    <a href="{{ url_for('invite') }}" class="mt-plan-btn" style="display: inline-block; width: auto; padding: 10px 24px;">Invite more friends</a>
                 </div>
-
-                {% if trip_ideas|length > 1 %}
-                <p class="mt-ideas-other-label">Other overlaps</p>
-                {% for idea in trip_ideas[1:4] %}
-                    {% if idea.overlapping_people|length == 1 %}
-                        {% set row_label = "You and " + idea.overlapping_people[0].first_name + " · " + idea.display_date %}
-                    {% else %}
-                        {% set row_label = "You and " + (idea.overlapping_people|length)|string + " friends · " + idea.display_date %}
-                    {% endif %}
-                    <div class="mt-ideas-other-row">{{ row_label }}</div>
-                {% endfor %}
                 {% endif %}
-
-                <a href="{{ url_for('add_open_dates') }}" class="mt-ideas-see-all">See all availability →</a>
-            {% endif %}
-        </div>
-
-        <!-- ── PAST ── -->
-        <div id="segment-past" class="segment-content">
-            {% if past_trips %}
+            {% else %}
                 <div class="mt-section-header">
-                    <p class="mt-section-title">Trips taken</p>
-                    <p class="mt-section-count">{{ past_trips|length }}</p>
+                    <p class="mt-section-title">Friends' Upcoming</p>
+                    <p class="mt-section-count">{{ friend_trips|length }}</p>
                 </div>
-
-                {% for trip in past_trips %}
-                {% if trip and trip.id %}
+                {% for trip in friend_trips %}
+                    {% if trip and trip.id %}
                     {% set resort = trip.resort %}
                     {% set mountain_name = resort.name if resort else (trip.mountain or 'Mountain TBD') %}
                     {% set state_abbr = resort|state_abbrev if resort else trip.state %}
-                    {% set people = trip.accepted_count %}
-                    <div class="past-row">
-                        <div class="past-row-content">
-                            <p class="past-row-dest">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-                            <p class="past-row-dates">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
-                            {% if people and people > 1 %}
-                            <p class="past-row-people">{{ people }} went</p>
+                    <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="trip-row">
+                        <div class="trip-row-content">
+                            <p class="trip-row-dest">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+                            <p class="trip-row-dates">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
+                            {% if trip.user %}
+                            <p class="trip-row-people">{{ trip.user.first_name }} {{ trip.user.last_name or '' }}</p>
                             {% endif %}
                         </div>
-                    </div>
-                {% endif %}
+                        <span class="trip-row-cta">→</span>
+                    </a>
+                    {% endif %}
                 {% endfor %}
-
-            {% else %}
-                <div style="padding-top: 40px; text-align: center;">
-                    <p style="font-size: 15px; font-weight: 500; color: #1A1A1A; margin: 0 0 6px 0;">No past trips yet</p>
-                    <p style="font-size: 14px; color: #8A857A; margin: 0;">Your completed trips will appear here.</p>
-                </div>
             {% endif %}
         </div>
 
@@ -495,10 +452,12 @@
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         var STORAGE_KEY = 'my_trips_active_tab';
+        var VALID_TABS = ['upcoming', 'friends'];
         var tabBtns = document.querySelectorAll('.tab-btn');
         var contents = document.querySelectorAll('.segment-content');
 
         function selectTab(tabName, persist) {
+            if (!VALID_TABS.includes(tabName)) tabName = 'upcoming';
             tabBtns.forEach(function(b) { b.classList.remove('active'); });
             contents.forEach(function(c) { c.classList.remove('active'); });
             var btn = document.querySelector('[data-tab="' + tabName + '"]');
@@ -517,9 +476,8 @@
         });
 
         var urlTab = new URLSearchParams(window.location.search).get('tab');
-        if (urlTab === 'planning') urlTab = 'ideas';
-        if (urlTab === 'ideas' || urlTab === 'past') {
-            selectTab(urlTab);
+        if (urlTab === 'friends') {
+            selectTab('friends');
         } else {
             var saved = sessionStorage.getItem(STORAGE_KEY);
             if (saved && saved !== 'upcoming') selectTab(saved, false);
