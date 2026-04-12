@@ -161,12 +161,12 @@
             {% endwith %}
 
             <div class="auth-tabs">
-                <button class="auth-tab-btn active" id="tab-login">Log In</button>
-                <button class="auth-tab-btn" id="tab-signup">Sign Up</button>
+                <button class="auth-tab-btn {% if not has_invite %}active{% endif %}" id="tab-login">Log In</button>
+                <button class="auth-tab-btn {% if has_invite %}active{% endif %}" id="tab-signup">Sign Up</button>
             </div>
 
             <!-- Login Form -->
-            <form class="auth-form active" id="login-form" method="POST" action="{{ url_for('auth') }}">
+            <form class="auth-form {% if not has_invite %}active{% endif %}" id="login-form" method="POST" action="{{ url_for('auth') }}">
                 <input type="hidden" name="form_type" value="login">
 
                 <div class="form-group">
@@ -185,12 +185,12 @@
                 <button type="submit" class="bl-btn-primary form-submit">Log In</button>
             </form>
 
-            <div id="forgot-password-link" style="text-align: right; margin-top: -12px; margin-bottom: 24px; display: block;">
+            <div id="forgot-password-link" style="text-align: right; margin-top: -12px; margin-bottom: 24px; display: {% if has_invite %}none{% else %}block{% endif %};">
                 <a href="{{ url_for('forgot_password') }}" style="color: var(--bl-color-primary); text-decoration: none; font-size: 13px;">Forgot password?</a>
             </div>
 
             <!-- Signup Form -->
-            <form class="auth-form" id="signup-form" method="POST" action="{{ url_for('auth') }}">
+            <form class="auth-form {% if has_invite %}active{% endif %}" id="signup-form" method="POST" action="{{ url_for('auth') }}">
                 <input type="hidden" name="form_type" value="signup">
 
                 <div class="form-group">

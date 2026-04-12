@@ -45,17 +45,33 @@
 
         .ob-slider {
             display: flex;
-            width: 400%;
+            width: 500%;
             height: 100%;
             transition: transform 0.38s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .ob-step {
-            width: 25%;
+            width: 20%;
             height: 100%;
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
+        }
+
+        /* Avi question - hidden until backcountry=yes */
+        .ob-avi-section {
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .ob-avi-section.visible {
+            display: flex;
+        }
+        .ob-avi-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #5C1219;
+            margin: 4px 0 0 0;
         }
 
         /* ── Progress bar ── */
@@ -311,9 +327,11 @@
         {% endwith %}
 
         <form id="ob-form" method="POST" action="{{ url_for('identity_setup') }}">
-            <input type="hidden" name="rider_types" id="h-rider" value="">
-            <input type="hidden" name="skill_level" id="h-skill" value="">
-            <input type="hidden" name="pass_type"   id="h-pass"  value="">
+            <input type="hidden" name="rider_types"         id="h-rider"       value="">
+            <input type="hidden" name="skill_level"         id="h-skill"       value="">
+            <input type="hidden" name="pass_type"           id="h-pass"        value="">
+            <input type="hidden" name="backcountry_capable" id="h-backcountry" value="">
+            <input type="hidden" name="avi_certified"       id="h-avi"         value="">
 
             <div class="ob-viewport">
                 <div class="ob-slider" id="ob-slider">
@@ -322,6 +340,7 @@
                     <div class="ob-step">
                         <div class="ob-progress">
                             <div class="ob-seg on"></div>
+                            <div class="ob-seg"></div>
                             <div class="ob-seg"></div>
                             <div class="ob-seg"></div>
                             <div class="ob-seg"></div>
@@ -367,6 +386,7 @@
                             <div class="ob-seg on"></div>
                             <div class="ob-seg"></div>
                             <div class="ob-seg"></div>
+                            <div class="ob-seg"></div>
                         </div>
                         <div class="ob-nav">
                             <button type="button" class="ob-back" onclick="goBack(2)" aria-label="Back">
@@ -403,6 +423,7 @@
                             <div class="ob-seg on"></div>
                             <div class="ob-seg on"></div>
                             <div class="ob-seg"></div>
+                            <div class="ob-seg"></div>
                         </div>
                         <div class="ob-nav">
                             <button type="button" class="ob-back" onclick="goBack(3)" aria-label="Back">
@@ -429,16 +450,57 @@
                         </div>
                     </div>
 
-                    <!-- ── Step 4: Home State / Province ── -->
+                    <!-- ── Step 4: Backcountry + Avi ── -->
                     <div class="ob-step">
                         <div class="ob-progress">
                             <div class="ob-seg on"></div>
                             <div class="ob-seg on"></div>
                             <div class="ob-seg on"></div>
                             <div class="ob-seg on"></div>
+                            <div class="ob-seg"></div>
                         </div>
                         <div class="ob-nav">
                             <button type="button" class="ob-back" onclick="goBack(4)" aria-label="Back">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8L10 3" stroke="#1A1A1A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                        </div>
+                        <div class="ob-header">
+                            <h1 class="ob-title">Do you ski backcountry?</h1>
+                            <p class="ob-subtitle">Off-piste, side country, or slackcountry counts.</p>
+                        </div>
+                        <div class="ob-options">
+                            <button type="button" class="ob-pill" data-grp="backcountry" data-val="1" data-target="h-backcountry">
+                                Yes, I ski backcountry
+                            </button>
+                            <button type="button" class="ob-pill" data-grp="backcountry" data-val="0" data-target="h-backcountry">
+                                No, I stick to resorts
+                            </button>
+                            <div class="ob-avi-section" id="avi-section">
+                                <p class="ob-avi-label">Are you avalanche certified?</p>
+                                <button type="button" class="ob-pill" data-grp="avi" data-val="1" data-target="h-avi">
+                                    Yes, I'm avi certified
+                                </button>
+                                <button type="button" class="ob-pill" data-grp="avi" data-val="0" data-target="h-avi">
+                                    No, not yet
+                                </button>
+                            </div>
+                        </div>
+                        <div class="ob-footer">
+                            <button type="button" class="ob-btn" id="cta-4" disabled onclick="goNext(4)">Continue</button>
+                        </div>
+                    </div>
+
+                    <!-- ── Step 5: Home State / Province ── -->
+                    <div class="ob-step">
+                        <div class="ob-progress">
+                            <div class="ob-seg on"></div>
+                            <div class="ob-seg on"></div>
+                            <div class="ob-seg on"></div>
+                            <div class="ob-seg on"></div>
+                            <div class="ob-seg on"></div>
+                        </div>
+                        <div class="ob-nav">
+                            <button type="button" class="ob-back" onclick="goBack(5)" aria-label="Back">
                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8L10 3" stroke="#1A1A1A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             </button>
                         </div>
@@ -469,7 +531,7 @@
                             </div>
                         </div>
                         <div class="ob-footer">
-                            <button type="submit" class="ob-btn" id="cta-4" disabled>Let's go</button>
+                            <button type="submit" class="ob-btn" id="cta-5" disabled>Let's go</button>
                         </div>
                     </div>
 
@@ -484,7 +546,7 @@
     var currentStep = 1;
 
     function slideTo(n) {
-        slider.style.transform = 'translateX(' + (-(n - 1) * 25) + '%)';
+        slider.style.transform = 'translateX(' + (-(n - 1) * 20) + '%)';
         currentStep = n;
     }
 
@@ -493,6 +555,21 @@
 
     /* Multi-select groups with max allowed selections */
     var MULTI_MAX = { rider: 2, pass: 2 };
+
+    function updateBackcountryCta() {
+        var backcountryVal = document.getElementById('h-backcountry').value;
+        var aviVal = document.getElementById('h-avi').value;
+        var cta = document.getElementById('cta-4');
+        if (backcountryVal === '') {
+            cta.disabled = true;
+        } else if (backcountryVal === '1') {
+            /* Backcountry = yes — avi answer also required */
+            cta.disabled = (aviVal === '');
+        } else {
+            /* Backcountry = no — avi not needed */
+            cta.disabled = false;
+        }
+    }
 
     document.querySelectorAll('.ob-pill').forEach(function(pill) {
         pill.addEventListener('click', function() {
@@ -507,6 +584,25 @@
                 });
                 this.classList.add('sel');
                 document.getElementById(targetId).value = this.dataset.val;
+
+                /* Backcountry-specific: show/hide avi section */
+                if (grp === 'backcountry') {
+                    var aviSection = document.getElementById('avi-section');
+                    if (this.dataset.val === '1') {
+                        aviSection.classList.add('visible');
+                    } else {
+                        aviSection.classList.remove('visible');
+                        /* Clear avi selection */
+                        document.querySelectorAll('.ob-pill[data-grp="avi"]').forEach(function(p) {
+                            p.classList.remove('sel');
+                        });
+                        document.getElementById('h-avi').value = '';
+                    }
+                    updateBackcountryCta();
+                }
+                if (grp === 'avi') {
+                    updateBackcountryCta();
+                }
             } else {
                 /* Multi-select with cap */
                 var alreadySel = this.classList.contains('sel');
@@ -540,7 +636,7 @@
     function onStateChange(select) {
         var wrap = document.getElementById('state-wrap');
         var label = document.getElementById('state-label');
-        var cta = document.getElementById('cta-4');
+        var cta = document.getElementById('cta-5');
         if (select.value) {
             label.textContent = select.options[select.selectedIndex].text;
             wrap.classList.add('has-val');

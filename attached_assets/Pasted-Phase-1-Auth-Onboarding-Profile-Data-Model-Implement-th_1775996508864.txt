@@ -1,0 +1,75 @@
+Phase 1: Auth, Onboarding & Profile Data Model
+Implement the following changes in the current BaseLodge codebase.
+Goal
+Lay the foundation for invite-aware auth, new onboarding/profile fields, friend equipment visibility, and bottom nav corrections.
+Required outcomes
+A user arriving via an invite link sees the Sign Up tab active by default on /auth
+After that user completes /identity-setup, they land on /friends instead of /home
+/identity-setup shows:
+“Do you ski backcountry?”
+“Are you avalanche certified?” only if backcountry is selected
+Users can select a last year’s pass field during or after onboarding
+friend_profile shows the friend’s equipment gear
+Bottom nav has 5 tabs including Ideas
+Profile tab goes directly to url_for('profile') with no redirect chain
+Ideas tab routes to /trip-ideas
+Active state works correctly for all 5 tabs
+Icons render at the correct size
+Bottom nav layout works cleanly with 5 tabs
+Implement exactly
+Invite-aware auth routing
+In the auth route, pass a has_invite boolean to auth.html when session["invite_token"] is present
+Use that in templates/auth.html so the Sign Up tab is active by default for invite arrivals
+After successful signup + invite connect, store:
+session["post_onboarding_redirect"] = url_for("friends")
+Do that before clearing the invite token so identity_setup can use it
+New User fields
+Add these columns to User in models.py:
+backcountry_capable → Boolean, default False or nullable if needed for backward compatibility
+avi_certified → Boolean, nullable
+previous_pass → String(100), nullable
+Create a proper Flask-Migrate migration for these fields
+Identity setup
+Update templates/identity_setup.html to include toggle-chip style controls for:
+backcountry
+avalanche certified
+Only show avalanche certification when backcountry is selected
+Update the /identity-setup POST handler to save all values correctly
+Preserve existing onboarding behavior otherwise
+At the end of onboarding, respect session["post_onboarding_redirect"] if present, then clear it after use
+Edit profile + profile surfaces
+Update templates/edit_profile.html to include a “Last season’s pass” dropdown
+Reuse the same pass options list already used elsewhere in the app
+Show previous_pass in the Rider Details section of templates/profile.html
+Show previous_pass on templates/friend_profile.html if it exists
+Friend equipment visibility
+The friend_profile route already fetches primary and secondary EquipmentSetup
+Add an Equipment section to templates/friend_profile.html
+Show discipline + brand/model if present
+If neither setup exists, show a clean fallback: “No equipment on file”
+Bottom nav fixes
+Update templates/components/bottom_nav.html
+Remove the redirect-chain logic for Profile and link it directly to url_for('profile')
+Add a fifth tab called Ideas linked to url_for('trip_ideas')
+Active logic should correctly detect trip_ideas
+Check icon classes / SVG rendering and fix sizing issues
+Update static/styles.css so 5 tabs fit correctly and remain visually balanced on mobile
+Files to inspect/update
+app.py:1560-1674
+app.py:4051-4094
+templates/auth.html
+templates/identity_setup.html
+templates/profile.html
+templates/friend_profile.html
+templates/edit_profile.html
+templates/components/bottom_nav.html
+static/styles.css
+models.py:106-170
+Final verification before stopping
+Search all references to profile/more/settings bottom nav targets and confirm nav now points directly to profile
+Confirm invite signup lands on /friends after identity setup
+Confirm non-invite signup still follows normal flow
+Confirm all 5 nav tabs render correctly on mobile
+Confirm migration is generated and applied cleanly
+Confirm no template errors from missing fields on existing users
+Do not finish until you have fully implemented the code, checked all route/template references, and verified the expected flow end to end.

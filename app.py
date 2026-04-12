@@ -1570,16 +1570,16 @@ def auth():
             
             if not first_name or not last_name or not email or not password:
                 flash("Please fill in all fields.", "error")
-                return render_template("auth.html")
+                return render_template("auth.html", has_invite=("invite_token" in session))
             
             if len(password) < 8:
                 flash("Password must be at least 8 characters.", "error")
-                return render_template("auth.html")
+                return render_template("auth.html", has_invite=("invite_token" in session))
             
             existing_user = User.query.filter_by(email=email).first()
             if existing_user:
                 flash("An account with this email already exists.", "error")
-                return render_template("auth.html")
+                return render_template("auth.html", has_invite=("invite_token" in session))
             
             new_user = User(
                 first_name=first_name,
@@ -1597,6 +1597,8 @@ def auth():
             
             # Connect with inviter if coming from invite link
             if "invite_token" in session:
+                # Pre-set post-onboarding redirect to friends before token is consumed
+                session["post_onboarding_redirect"] = url_for("friends")
                 _connect_pending_inviter(new_user)
             
             return redirect(url_for("identity_setup"))
@@ -1622,7 +1624,7 @@ def auth():
             
             flash("Invalid email or password.", "error")
 
-    return render_template("auth.html")
+    return render_template("auth.html", has_invite=("invite_token" in session))
 
 
 @app.route("/identity-setup", methods=["GET", "POST"])
@@ -1638,6 +1640,9 @@ def identity_setup():
         skill_level = request.form.get("skill_level", "").strip()
         pass_type = request.form.get("pass_type", "").strip()
         home_state = request.form.get("home_state", "").strip()
+        backcountry_capable = request.form.get("backcountry_capable") == "1"
+        avi_certified_raw = request.form.get("avi_certified")
+        avi_certified = (avi_certified_raw == "1") if backcountry_capable else None
 
         # Validate required fields
         if not rider_types:
@@ -1661,11 +1666,16 @@ def identity_setup():
         current_user.skill_level = skill_level
         current_user.pass_type = pass_type
         current_user.home_state = home_state
+        current_user.backcountry_capable = backcountry_capable
+        current_user.avi_certified = avi_certified
 
         db.session.commit()
 
-        # Redirect directly to home (location-setup is no longer needed)
-        next_url = session.pop("next_after_setup", None)
+        # Redirect — invite signups go to friends, others go to home
+        next_url = (
+            session.pop("post_onboarding_redirect", None)
+            or session.pop("next_after_setup", None)
+        )
         if next_url:
             return redirect(next_url)
         return redirect(url_for("home"))
@@ -1851,6 +1861,7 @@ def edit_profile():
         terrain_raw = request.form.get("terrain_preferences", "")
         terrain_list = [t.strip() for t in terrain_raw.split(",") if t.strip()][:2]
         user.terrain_preferences = terrain_list if terrain_list else []
+        user.previous_pass = request.form.get("previous_pass") or None
         user.profile_completed_at = datetime.utcnow()
         user.update_lifecycle_stage()
         

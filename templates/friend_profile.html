@@ -270,15 +270,23 @@
             <span class="fp-info-value">{{ friend.pass_type }}</span>
         </div>
         {% endif %}
+        {% if friend.previous_pass %}
+        <div class="fp-info-row">
+            <span class="fp-info-label">Last season's pass</span>
+            <span class="fp-info-value">{{ friend.previous_pass }}</span>
+        </div>
+        {% endif %}
         {% set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.boot_brand)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.boot_brand)) else none) %}
-        {% if eq %}
         <div class="fp-info-row">
             <span class="fp-info-label">Gear</span>
             <span class="fp-info-value">
-                {% if eq.brand %}{{ eq.brand }}{% endif %}{% if eq.brand and eq.boot_brand %} · {% endif %}{% if eq.boot_brand %}{{ eq.boot_brand }} boots{% endif %}
+                {% if eq %}
+                    {% if eq.brand %}{{ eq.brand }}{% endif %}{% if eq.brand and eq.boot_brand %} · {% endif %}{% if eq.boot_brand %}{{ eq.boot_brand }} boots{% endif %}
+                {% else %}
+                    No equipment on file
+                {% endif %}
             </span>
         </div>
-        {% endif %}
         <div class="fp-info-row">
             <span class="fp-info-label">Mountains skied</span>
             <span class="fp-info-value">{{ friend_mountains_count }}</span>

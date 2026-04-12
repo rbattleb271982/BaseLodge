@@ -418,6 +418,19 @@
             </label>
         </div>
         {% endfor %}
+        <div style="margin-top: 16px; border-top: 1px solid var(--bl-color-border-soft); padding-top: 16px;">
+            <label style="display: block; font-size: 13px; font-weight: 600; color: var(--bl-color-text); margin-bottom: 8px;">Last Season's Pass</label>
+            <select id="previous_pass_select" onchange="document.getElementById('previous_pass_hidden').value = this.value"
+                    style="width: 100%; padding: 10px 12px; border: 1px solid var(--bl-color-border); border-radius: 8px; background: var(--bl-color-bg); color: var(--bl-color-text); font-size: 14px; appearance: none; -webkit-appearance: none;">
+                <option value="">None</option>
+                {% for pass in pass_options %}
+                <option value="{{ pass }}" {% if current_user.previous_pass == pass %}selected{% endif %}>
+                    {% if pass == "I don't have a pass" %}I don't have a pass
+                    {% else %}{{ pass.replace('MountainCollective', 'Mountain Collective').replace('PowderAlliance', 'Powder Alliance').replace('SkiCalifornia', 'Ski California') }}{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
     </div>
 
 </div>
@@ -432,6 +445,7 @@
     <input type="hidden" name="home_resort_id" id="home_resort_id_hidden" value="{{ current_user.home_resort_id or '' }}">
     <input type="hidden" name="gear" id="gear_hidden" value="{{ current_user.gear or '' }}">
     <input type="hidden" name="terrain_preferences" id="terrain_preferences_hidden" value="{{ (current_user.terrain_preferences or [])|join(',') }}">
+    <input type="hidden" name="previous_pass" id="previous_pass_hidden" value="{{ current_user.previous_pass or '' }}">
 </form>
 
 <div class="floating-save">

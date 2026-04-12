@@ -1,0 +1,150 @@
+We are planning a structured product update for BaseLodge. Do NOT implement anything yet.
+
+Goal:
+Plan all required changes across frontend, backend, database, and routing before writing code.
+
+Scope includes:
+- invite-aware auth flow
+- onboarding updates (backcountry + avi certified)
+- profile data model expansion (avi cert, backcountry, last year pass)
+- friend equipment visibility
+- bottom navigation fixes (icons + Ideas tab)
+- availability system (new data entity)
+- Ideas tab foundation (no AI, no ranking yet)
+- Add Trip flow refactor (resort-first)
+- routing updates (especially invite-driven users)
+
+--------------------------------------------------
+PART 1 — CURRENT SYSTEM MAPPING
+--------------------------------------------------
+
+Analyze the existing codebase and clearly document:
+
+1. Auth flow
+- login route
+- signup route
+- how auth.html works (tabs, defaults)
+- how redirects are handled after login/signup
+- whether invite tokens are currently supported
+
+2. Onboarding flow
+- identity_setup.html
+- location_setup.html
+- any backend routes tied to onboarding
+- how user data is saved during onboarding
+
+3. User model
+- all current fields on User
+- how rider type, level, pass are stored
+- whether profile editing uses same fields
+
+4. Friend system
+- how friendships are stored
+- how friend profiles are rendered
+- where equipment data is stored and accessed
+
+5. Trips system
+- how trips are created
+- what fields exist (resort, dates, etc.)
+- how resort selection currently works
+
+6. Navigation
+- bottom nav implementation
+- how active tabs are determined
+- why icons may not be rendering
+
+--------------------------------------------------
+PART 2 — REQUIRED CHANGES (NO CODE YET)
+--------------------------------------------------
+
+For each feature below, explain:
+
+- what needs to change (frontend + backend)
+- what files are impacted
+- what database/model changes are required
+- any routing changes
+- any risks
+
+Features:
+
+1. Invite-aware auth flow
+- default to signup when coming from invite
+- preserve invite token through auth + onboarding
+- route new users to Friends after onboarding
+
+2. Onboarding updates
+- add backcountry_capable (boolean)
+- add avi_certified (boolean, conditional)
+- update onboarding UI flow accordingly
+
+3. Profile model expansion
+- add previous_pass field
+- add backcountry + avi display in profile
+- define Rider Details section
+
+4. Friend equipment visibility
+- add link from friend profile → equipment page
+- confirm existing routes
+
+5. Availability system (NEW)
+- propose new table structure
+- define relationship to user
+- define how it will be queried
+
+6. Ideas tab (FOUNDATION ONLY)
+- new route/page
+- required queries (overlap logic)
+- dependencies on availability + trips + friendships
+
+7. Add Trip refactor
+- remove location hierarchy inputs
+- switch to resort-first search
+- identify where this logic currently lives
+
+8. Bottom nav fixes
+- fix icon rendering
+- add Ideas tab
+- ensure active state works
+
+--------------------------------------------------
+PART 3 — DEPENDENCY ORDER
+--------------------------------------------------
+
+Propose the correct implementation order.
+
+Group into phases like:
+- Phase 1: critical UX + data model changes
+- Phase 2: availability + Ideas foundation
+- Phase 3: Add Trip refactor
+
+Explain:
+- why each phase must come before the next
+- what breaks if order is wrong
+
+--------------------------------------------------
+PART 4 — RISK & EDGE CASES
+--------------------------------------------------
+
+Call out:
+
+- where invite flow could break
+- where onboarding data might not save correctly
+- where null/empty data could break Ideas
+- where routing could misfire
+
+--------------------------------------------------
+PART 5 — FINAL EXECUTION PLAN
+--------------------------------------------------
+
+Provide:
+
+1. clean step-by-step implementation plan
+2. which steps are safe for Agent
+3. which steps require careful handling
+4. where manual testing is critical
+
+Do NOT write code.
+Do NOT modify files.
+Do NOT skip analysis.
+
+This is a planning step only.
