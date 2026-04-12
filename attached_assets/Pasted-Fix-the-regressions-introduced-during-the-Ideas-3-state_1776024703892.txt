@@ -1,0 +1,77 @@
+Fix the regressions introduced during the Ideas 3-state implementation. This is a targeted cleanup pass, not a redesign. Preserve the new 3-state logic and populated/re-engagement implementation. Only fix the regressions and restore the intended UI.
+Use checkpoints sparingly.
+Regressions to fix
+1. Ideas setup state is rendering the old card UI
+The setup state on /trip-ideas is still showing the older boxed “Get Better Ideas” card instead of the selected editorial numbered setup layout.
+Fix this so the setup state matches the approved design direction:
+page title should be Ideas
+not Trip Ideas
+use the editorial numbered setup ladder:
+01 Add availability
+02 Invite friends
+keep the premium serif + sans hierarchy
+do not use the old large boxed CTA card layout
+preserve the existing setup-state logic and CTA destinations
+Important:
+only replace the setup-state markup/styling
+do not break populated state
+do not break re-engagement state
+2. Replace the Ideas bottom-nav lightbulb with the sparkle icon
+The bottom nav still shows the lightbulb for Ideas.
+Fix the Ideas tab icon so it uses the approved sparkle icon instead:
+use the sparkle SVG already discussed/added if present
+if not present, replace the Ideas icon markup/CSS with the sparkle version
+preserve active/inactive color behavior
+do not change the other nav icons
+3. Home greeting capitalization
+The Home greeting currently renders as:
+Hi, richard.
+Fix it so the displayed first name is properly capitalized:
+Hi, Richard.
+Do this safely:
+avoid hardcoding the user’s name
+normalize/present the user’s first name cleanly in the template or route
+do not alter stored user data unless necessary
+if there is already a display-name helper, use that
+4. Restore Ideas page naming consistency
+Where appropriate in the Ideas page shell, use:
+Ideas
+not
+Trip Ideas
+Keep copy consistent across:
+setup state
+populated state
+re-engagement state
+What to inspect
+At minimum inspect:
+templates/trip_ideas.html
+templates/components/bottom_nav.html
+static/styles.css
+the route/template logic for home greeting in app.py / templates/home.html
+Important constraints
+Do not undo the new 3-state Ideas logic
+Do not remove populated-state overlap windows
+Do not remove re-engagement state
+Do not redesign Trips, Friends, or Profile
+Keep this focused on regression repair
+Final verification before stopping
+Verify all of these:
+Ideas setup state
+/trip-ideas with no friends and/or no availability shows the editorial numbered setup layout
+title is Ideas
+no old boxed “Get Better Ideas” card remains
+Ideas populated state
+populated windows list still works
+first row emphasis still works
+no modal returns
+Ideas re-engagement state
+guided empty state still works
+CTAs still work
+Bottom nav
+Ideas tab uses sparkle icon
+other icons unchanged
+active state still correct
+Home
+greeting shows properly capitalized first name
+no other Home regressions
+Do not finish until the regressions are fixed and visually rechecked on mobile.
