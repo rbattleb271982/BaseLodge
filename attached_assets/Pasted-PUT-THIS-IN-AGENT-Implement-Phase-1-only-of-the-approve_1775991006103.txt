@@ -1,0 +1,74 @@
+PUT THIS IN AGENT
+
+Implement Phase 1 only of the approved BaseLodge editorial / blush-maroon redesign.
+
+Do not redesign individual screens yet beyond what is necessary for the shared foundation.
+Do not change backend logic, routes, or JS behavior.
+
+GOAL
+Set up the shared design system so later screen-by-screen implementation is safe, consistent, and maintainable.
+
+FILES TO UPDATE
+- static/styles.css
+- templates/components/bottom_nav.html
+- auth.html and setup_profile.html only as needed to remove duplicated shared auth styling from inline styles and move it into styles.css
+
+DESIGN SYSTEM TO IMPLEMENT
+Use this as the new shared foundation:
+
+Colors
+- cream page background: #F5F1E8
+- blush hero surface: #F0DDD8
+- bordeaux accent: #5C1219
+- primary text: #1A1A1A
+- secondary text: #6B665A
+- tertiary text: #8A857A
+- soft border: #E5DFD0
+- quiet border: #D9D2BF
+- legacy red #A8152B should be reserved only for logo/minimal branding use, not product UI
+
+Typography
+- serif headings for page titles, destination names, and key moments
+- use Georgia as serif fallback for now
+- sans-serif for body, labels, metadata, nav
+- support only regular and medium weights where practical
+
+Global style direction
+- no gradients
+- no shadows/glows
+- hairline borders
+- cleaner editorial spacing
+- premium mobile-first look
+- no pill-heavy styling
+
+BOTTOM NAV SYSTEM
+Update bottom nav to match the approved system:
+- transparent background sitting on cream
+- top hairline border
+- text-only tabs
+- active state uses bordeaux text and a small dot above the label
+- remove icon-led emphasis if current structure allows without breaking layout
+- if removing icons fully is too risky in Phase 1, keep structure stable but restyle toward the new system and note what remains for Phase 2
+
+AUTH SHARED STYLES
+Move the duplicated shared auth container/card styling out of inline template CSS and into styles.css so auth.html and setup_profile.html can share one foundation.
+Do not redesign the auth screens yet beyond aligning them to the new shared token system.
+
+IMPLEMENTATION RULES
+1. Update CSS custom properties / root tokens first
+2. Add shared typography utility styles if needed
+3. Add shared divider, border-radius, button, and spacing rules needed for the new system
+4. Preserve dark mode behavior unless it obviously conflicts; if adjusted, keep it coherent and readable
+5. Do not touch identity_setup.html in this phase
+6. Do not redesign home, trips, friends, invite, or trip detail in this phase
+7. Do not rename JS-dependent classes unless absolutely necessary
+
+QA REQUIREMENTS
+1. Confirm all major screens still render after the token update
+2. Confirm bottom nav still works and remains fixed correctly
+3. Confirm auth.html and setup_profile.html still render correctly after moving shared styles
+4. Confirm no JS behavior breaks
+5. Report exactly which files changed
+6. Report what is now ready for Phase 2
+
+Do not finish until you have tested the app and verified the shared foundation is stable.
