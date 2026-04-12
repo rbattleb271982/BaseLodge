@@ -3,179 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ friend.first_name }} {{ friend.last_name }} - BaseLodge</title>
+    <title>{{ friend.first_name }} {{ friend.last_name }} — BaseLodge</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .back-link {
-            display: inline-block;
-            margin-bottom: 16px;
-            color: var(--bl-color-text-muted);
-            text-decoration: none;
-            font-size: 16px;
-        }
-        .back-link:hover {
-            color: var(--bl-color-text);
-        }
-
-        /* ── Shared context block ─────────────────────── */
-        .context-block {
-            background: rgba(143, 1, 27, 0.06);
-            border-radius: 12px;
-            padding: 14px 16px;
+        /* ── Nav ── */
+        .fp-nav {
+            display: flex;
+            align-items: center;
             margin-bottom: 20px;
         }
-        .context-block-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--bl-color-primary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin: 0 0 8px 0;
+        .fp-back {
+            display: flex;
+            align-items: center;
+            color: #6B665A;
+            text-decoration: none;
+            font-size: 14px;
+            gap: 4px;
         }
-        .context-overlap-row {
-            font-size: 0.9rem;
-            color: var(--bl-color-text);
+        .fp-back:hover { color: #1A1A1A; }
+
+        /* ── Page title (friend name) ── */
+        .fp-name {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 24px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin: 0 0 4px 0;
+            line-height: 1.2;
+        }
+        .fp-identity {
+            font-size: 14px;
+            color: #6B665A;
+            margin: 0 0 20px 0;
+        }
+
+        /* ── Shared context hero (overlap) ── */
+        .fp-hero {
+            background: #F0DDD8;
+            border: 0.5px solid #5C1219;
+            border-radius: 8px;
+            padding: 18px 20px;
+            margin-bottom: 24px;
+        }
+        .fp-hero-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #5C1219;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .fp-hero-row {
+            font-size: 14px;
+            color: #1A1A1A;
             margin: 0 0 4px 0;
             line-height: 1.4;
         }
-        .context-overlap-row:last-child {
+        .fp-hero-row:last-child { margin-bottom: 0; }
+
+        /* ── Section labels ── */
+        .fp-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+            color: #8A857A;
+            margin: 24px 0 0 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #E5DFD0;
+        }
+        .fp-section-label:first-of-type { margin-top: 0; }
+
+        /* ── Inline stats ── */
+        .fp-stats-row {
+            display: flex;
+            align-items: baseline;
+            gap: 20px;
+            padding: 12px 0;
+            border-bottom: 1px solid #E5DFD0;
             margin-bottom: 0;
         }
-        .context-avail-text {
-            font-size: 0.9rem;
-            color: var(--bl-color-text);
-            margin: 0;
-            line-height: 1.4;
+        .fp-stat {
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+        }
+        .fp-stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1A1A1A;
+        }
+        .fp-stat-label {
+            font-size: 12px;
+            color: #8A857A;
         }
 
-        /* ── Upcoming trips flat list ─────────────────── */
-        .section-label {
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--bl-color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin: 0 0 10px 0;
-        }
-        .trips-section {
-            margin-bottom: 24px;
-        }
-        .trip-row {
+        /* ── Trip rows ── */
+        .fp-trip-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 13px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            padding: 12px 0;
+            border-bottom: 1px solid #E5DFD0;
             text-decoration: none;
             color: inherit;
             -webkit-tap-highlight-color: transparent;
         }
-        .trip-row:first-child {
-            border-top: 1px solid var(--bl-color-border-soft);
-        }
-        .trip-row:active {
-            opacity: 0.7;
-        }
-        .trip-row-content {
-            flex: 1;
-            min-width: 0;
-        }
-        .trip-row-dest {
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: var(--bl-color-text);
+        .fp-trip-row:active { opacity: 0.7; }
+        .fp-trip-content { flex: 1; min-width: 0; }
+        .fp-trip-dest {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 15px;
+            font-weight: 400;
+            color: #1A1A1A;
             margin: 0 0 2px 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .trip-row-dates {
-            font-size: 0.85rem;
-            color: var(--bl-color-text-muted);
+        .fp-trip-dates {
+            font-size: 13px;
+            color: #6B665A;
             margin: 0;
         }
-        .trip-row-overlap-tag {
-            font-size: 0.8rem;
-            color: var(--bl-color-primary);
+        .fp-trip-overlap {
+            font-size: 12px;
+            color: #5C1219;
             font-weight: 500;
             margin-top: 2px;
         }
-        .trip-row-chevron {
+        .fp-trip-chevron {
             flex-shrink: 0;
             margin-left: 12px;
-            font-size: 0.875rem;
-            color: var(--bl-color-primary);
-            font-weight: 500;
+            font-size: 13px;
+            color: #8A857A;
         }
-        .trips-empty {
-            font-size: 0.9rem;
-            color: var(--bl-color-text-muted);
-            padding: 16px 0;
+        .fp-trips-empty {
+            font-size: 14px;
+            color: #8A857A;
+            padding: 12px 0;
         }
 
-        /* ── Profile section ──────────────────────────── */
-        .profile-section {
-            margin-bottom: 24px;
-        }
-        .profile-card {
-            background: var(--bl-color-surface);
-            border-radius: 12px;
-            padding: 14px 16px;
-        }
-        .profile-card-name {
-            font-size: 1.05rem;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin: 0 0 4px 0;
-            line-height: 1.3;
-        }
-        .profile-card-identity {
-            font-size: 0.9rem;
-            color: var(--bl-color-text-muted);
-            margin: 0 0 4px 0;
-            line-height: 1.4;
-        }
-        .profile-card-stats {
+        /* ── Profile info rows ── */
+        .fp-info-row {
             display: flex;
             justify-content: space-between;
-            border-top: 1px solid var(--bl-color-border-soft);
-            margin-top: 10px;
-            padding-top: 10px;
+            align-items: baseline;
+            padding: 11px 0;
+            border-bottom: 1px solid #E5DFD0;
         }
-        .profile-stat-col {
-            flex: 1;
-            text-align: center;
-            padding: 0 4px;
-        }
-        .profile-stat-col:not(:last-child) {
-            border-right: 1px solid var(--bl-color-border-soft);
-        }
-        .profile-stat-label {
-            font-size: 0.7rem;
-            color: var(--bl-color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-            margin-bottom: 2px;
-        }
-        .profile-stat-value {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--bl-color-text);
+        .fp-info-label { font-size: 13px; color: #6B665A; }
+        .fp-info-value { font-size: 13px; color: #1A1A1A; font-weight: 500; text-align: right; }
+
+        /* ── Wishlist overlap ── */
+        .fp-wishlist-item {
+            font-size: 14px;
+            color: #6B665A;
+            padding: 8px 0;
+            border-bottom: 1px solid #E5DFD0;
         }
 
-        /* ── Stat row ────────────────────────────────── */
+        /* ── stat_row.html override ── */
         .stat-row {
             display: flex;
             align-items: center;
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: 12px;
+            background: transparent;
+            border: none;
+            border-radius: 0;
             padding: 12px 0;
-            margin-bottom: 20px;
+            margin-bottom: 0;
+            border-bottom: 1px solid #E5DFD0;
         }
         .stat-row-tile {
             flex: 1;
@@ -185,49 +186,56 @@
             gap: 2px;
         }
         .stat-row-value {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: var(--bl-color-text);
+            font-size: 18px;
+            font-weight: 600;
+            color: #1A1A1A;
             line-height: 1.2;
         }
         .stat-row-label {
-            font-size: 0.72rem;
-            color: var(--bl-color-text-muted);
+            font-size: 11px;
+            color: #8A857A;
             text-transform: uppercase;
             letter-spacing: 0.4px;
         }
         .stat-row-divider {
             width: 1px;
-            height: 28px;
-            background: var(--bl-color-border-soft);
+            height: 24px;
+            background: #E5DFD0;
             flex-shrink: 0;
-        }
-
-        /* Wish list overlap */
-        .wishlist-section {
-            margin-bottom: 24px;
-        }
-        .wishlist-item {
-            font-size: 0.9rem;
-            color: var(--bl-color-text-muted);
-            padding: 4px 0;
         }
     </style>
 </head>
 <body>
-    <div class="page-container">
-        <div class="bl-header"><a href="{{ url_for('home') }}">BaseLodge</a></div>
-        <a href="{{ url_for('friends') }}" class="back-link">← Friends</a>
+    <div class="page-container" style="padding: 20px 16px 88px;">
 
-        <!-- ── Shared context (top, only when present) ── -->
+        <!-- Back nav -->
+        <div class="fp-nav">
+            <a href="{{ url_for('friends') }}" class="fp-back">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+                Friends
+            </a>
+        </div>
+
+        <!-- Friend name as page title -->
+        <h1 class="fp-name">{{ friend.first_name }} {{ friend.last_name }}</h1>
+        {% set friend_identity = friend|identity_line %}
+        {% if friend_identity %}
+        <p class="fp-identity">{{ friend_identity }}</p>
+        {% else %}
+        <div style="margin-bottom: 20px;"></div>
+        {% endif %}
+
+        <!-- Shared context (trip overlap / availability) -->
         {% if trip_overlaps or has_availability_overlap %}
-        <div class="context-block">
-            <p class="context-block-label">You + {{ friend.first_name }}</p>
+        <div class="fp-hero">
+            <p class="fp-hero-eyebrow">You + {{ friend.first_name }}</p>
             {% for overlap in trip_overlaps %}
-            <p class="context-overlap-row">You'll both be at {{ overlap.mountain }}{% if overlap.state %}, {{ overlap.state }}{% endif %} · {% if overlap.start_date == overlap.end_date %}{{ overlap.start_date.strftime('%b %-d') }}{% elif overlap.start_date.month == overlap.end_date.month %}{{ overlap.start_date.strftime('%b %-d') }}–{{ overlap.end_date.strftime('%-d') }}{% else %}{{ overlap.start_date.strftime('%b %-d') }}–{{ overlap.end_date.strftime('%b %-d') }}{% endif %}</p>
+            <p class="fp-hero-row">You'll both be at {{ overlap.mountain }}{% if overlap.state %}, {{ overlap.state }}{% endif %} · {% if overlap.start_date == overlap.end_date %}{{ overlap.start_date.strftime('%b %-d') }}{% elif overlap.start_date.month == overlap.end_date.month %}{{ overlap.start_date.strftime('%b %-d') }}–{{ overlap.end_date.strftime('%-d') }}{% else %}{{ overlap.start_date.strftime('%b %-d') }}–{{ overlap.end_date.strftime('%b %-d') }}{% endif %}</p>
             {% endfor %}
             {% if has_availability_overlap %}
-            <p class="context-avail-text">Both free: {{ availability_display }}{% if availability_remaining > 0 %} +{{ availability_remaining }} more{% endif %}</p>
+            <p class="fp-hero-row">Both free: {{ availability_display }}{% if availability_remaining > 0 %} +{{ availability_remaining }} more{% endif %}</p>
             {% endif %}
         </div>
         {% endif %}
@@ -235,75 +243,70 @@
         <!-- Stat row -->
         {% include 'components/stat_row.html' %}
 
-        <!-- ── Upcoming trips ─────────────────────────── -->
-        <div class="trips-section">
-            <h2 class="section-label">{{ friend.first_name }}'s Upcoming Trips</h2>
-            {% if trips and trips|length > 0 %}
-            <div>
-                {% for trip in trips %}
-                <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="trip-row">
-                    <div class="trip-row-content">
-                        <p class="trip-row-dest">{% if trip.resort %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% else %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% endif %}</p>
-                        <p class="trip-row-dates">{{ format_trip_dates(trip) }}</p>
-                        {% if trip.has_trip_overlap %}
-                        <p class="trip-row-overlap-tag">You're both going</p>
-                        {% endif %}
-                    </div>
-                    <span class="trip-row-chevron">View →</span>
-                </a>
-                {% endfor %}
-            </div>
-            {% else %}
-            <p class="trips-empty">No upcoming public trips</p>
-            {% endif %}
-        </div>
-
-        <!-- ── Profile info (secondary) ───────────────── -->
-        <div class="profile-section">
-            <h2 class="section-label">Profile</h2>
-            <div class="profile-card">
-                <p class="profile-card-name">{{ friend.first_name }} {{ friend.last_name }}</p>
-                <p class="profile-card-identity">{{ friend|identity_line }}</p>
-                {% if friend.pass_type %}
-                <p class="profile-card-identity">{{ friend.pass_type }}</p>
-                {% endif %}
-                {% set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.boot_brand)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.boot_brand)) else none) %}
-                {% if eq %}
-                <p class="profile-card-identity">
-                    {% if eq.brand %}{{ eq.brand }}{% endif %}{% if eq.brand and eq.boot_brand %} · {% endif %}{% if eq.boot_brand %}{{ eq.boot_brand }} boots{% endif %}
-                </p>
-                {% endif %}
-                <div class="profile-card-stats">
-                    <div class="profile-stat-col">
-                        <div class="profile-stat-label">Mountains</div>
-                        <div class="profile-stat-value">{{ friend_mountains_count }}</div>
-                    </div>
-                    <div class="profile-stat-col">
-                        <div class="profile-stat-label">Trips</div>
-                        <div class="profile-stat-value">{{ trips|length }}</div>
-                    </div>
+        <!-- Upcoming trips -->
+        <p class="fp-section-label">{{ friend.first_name }}'s Upcoming Trips</p>
+        {% if trips and trips|length > 0 %}
+            {% for trip in trips %}
+            <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="fp-trip-row">
+                <div class="fp-trip-content">
+                    <p class="fp-trip-dest">{% if trip.resort %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% else %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% endif %}</p>
+                    <p class="fp-trip-dates">{{ format_trip_dates(trip) }}</p>
+                    {% if trip.has_trip_overlap %}
+                    <p class="fp-trip-overlap">You're both going</p>
+                    {% endif %}
                 </div>
-            </div>
-        </div>
-
-        {% if wish_list_overlap and wish_list_overlap|length > 0 %}
-        <div class="wishlist-section">
-            <h2 class="section-label">Wish List Overlap</h2>
-            {% for resort in wish_list_overlap %}
-            <p class="wishlist-item">{{ resort.name }}</p>
+                <span class="fp-trip-chevron">→</span>
+            </a>
             {% endfor %}
-        </div>
+        {% else %}
+        <p class="fp-trips-empty">No upcoming public trips</p>
         {% endif %}
 
+        <!-- Profile info -->
+        <p class="fp-section-label">Profile</p>
+        {% if friend.pass_type %}
+        <div class="fp-info-row">
+            <span class="fp-info-label">Pass</span>
+            <span class="fp-info-value">{{ friend.pass_type }}</span>
+        </div>
+        {% endif %}
+        {% set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.boot_brand)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.boot_brand)) else none) %}
+        {% if eq %}
+        <div class="fp-info-row">
+            <span class="fp-info-label">Gear</span>
+            <span class="fp-info-value">
+                {% if eq.brand %}{{ eq.brand }}{% endif %}{% if eq.brand and eq.boot_brand %} · {% endif %}{% if eq.boot_brand %}{{ eq.boot_brand }} boots{% endif %}
+            </span>
+        </div>
+        {% endif %}
+        <div class="fp-info-row">
+            <span class="fp-info-label">Mountains skied</span>
+            <span class="fp-info-value">{{ friend_mountains_count }}</span>
+        </div>
+        <div class="fp-info-row">
+            <span class="fp-info-label">Upcoming trips</span>
+            <span class="fp-info-value">{{ trips|length }}</span>
+        </div>
+
+        <!-- Wishlist overlap -->
+        {% if wish_list_overlap and wish_list_overlap|length > 0 %}
+        <p class="fp-section-label">Wish List Overlap</p>
+        {% for resort in wish_list_overlap %}
+        <div class="fp-wishlist-item">{{ resort.name }}</div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Connect button -->
         {% if show_connect_button %}
-        <div style="margin-top: 20px;">
+        <div style="margin-top: 24px;">
             <form method="POST" action="{{ url_for('connect_from_trip', user_id=friend.id) }}" style="margin: 0;">
-                <button type="submit" class="bl-btn-primary" style="width: 100%; padding: 14px; font-size: 16px;">
+                <button type="submit" class="bl-btn-primary" style="width: 100%; padding: 14px; font-size: 15px;">
                     Connect
                 </button>
             </form>
         </div>
         {% endif %}
+
     </div>
 
     {% include 'components/bottom_nav.html' %}

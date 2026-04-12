@@ -1,0 +1,175 @@
+PUT THIS IN AGENT
+
+Implement Phase 4 of the approved BaseLodge editorial / blush-maroon redesign.
+
+Phase 4 scope only:
+- templates/my_trips.html
+- templates/friends.html
+- templates/friend_profile.html
+- templates/friend_trip_details.html
+- templates/components/trip_row.html
+- templates/components/stat_row.html
+- templates/components/friend_row.html
+- static/styles.css only if needed to support these screens cleanly
+
+Do not touch other screens in this phase.
+Do not change backend logic, routes, or JS behavior unless absolutely required to support the approved UI.
+
+GOAL
+Apply the approved editorial system to:
+1. My Trips
+2. Friends
+3. Friend profile / friend trip supporting views
+4. Shared row patterns used by those screens
+
+These screens should feel calm, premium, and consistent with Home + Trip Detail + Invite.
+
+APPROVED DESIGN SYSTEM
+Colors
+- cream page background: #F5F1E8
+- blush hero surface: #F0DDD8
+- bordeaux accent: #5C1219
+- primary text: #1A1A1A
+- secondary text: #6B665A
+- tertiary text: #8A857A
+- soft border: #E5DFD0
+- quiet border: #D9D2BF
+- legacy red #A8152B = logo only, not product UI
+
+Typography
+- serif for page titles, trip names, and key moments using Georgia fallback
+- sans-serif for body, metadata, labels, controls
+- editorial spacing and hierarchy
+
+Global styling rules
+- no gradients
+- no shadows
+- no glows
+- hairline borders
+- one blush hero max per screen
+- row-based structure over card soup
+- mobile-first
+- preserve usability and tappability
+
+--------------------------------
+PART A — MY TRIPS
+--------------------------------
+
+Template:
+- templates/my_trips.html
+- templates/components/trip_row.html if used
+
+Requirements:
+1. Redesign My Trips to match the approved editorial system
+2. Use:
+   - serif page title: “My trips”
+   - calmer segmented tabs for Upcoming / Ideas
+   - one blush hero max for the next most important trip only
+3. All other trips should become clean hairline rows, not stacked heavy cards
+4. Use editorial status treatment:
+   - subtle eyebrow labels
+   - countdown / date metadata
+   - serif trip names
+5. Preserve existing tab-switching JS exactly
+6. Keep rows clearly tappable
+7. If stats or badges exist, reduce them into calmer metadata rather than loud pills
+
+My Trips rules:
+- only one hero max
+- no repeated hero/card treatment for every trip
+- no bright status tags
+- preserve scanability on mobile
+
+--------------------------------
+PART B — FRIENDS
+--------------------------------
+
+Template:
+- templates/friends.html
+- templates/components/friend_row.html if used
+
+Requirements:
+1. Redesign Friends as the social heart of the app
+2. Use:
+   - serif page title: “Friends”
+   - segmented tabs if current structure supports feed/list views
+   - row-based feed with hairline dividers
+3. Friend activity should feel editorial:
+   - friend name + timestamp/meta
+   - trip/destination on its own line where appropriate
+   - signal indicator only when meaningful
+4. Remove bulky invite cards / card clutter where safe
+5. Keep all existing friend request accept/decline interactions intact
+6. Make every relevant row clearly tappable
+
+Friends rules:
+- social signal should feel useful, not noisy
+- use one consistent signal treatment
+- avoid multiple competing card styles
+
+--------------------------------
+PART C — FRIEND PROFILE / FRIEND TRIP SUPPORTING SCREENS
+--------------------------------
+
+Templates:
+- templates/friend_profile.html
+- templates/friend_trip_details.html
+- templates/components/stat_row.html if used there
+
+Requirements:
+1. Bring these screens into the same editorial language
+2. Use serif for names / trip names / important screen titles
+3. Convert white cards into cleaner hairline sections or restrained modules where safe
+4. Keep any trip rows, stats, and profile summaries visually aligned with the new My Trips / Home system
+5. Preserve all existing functionality and links
+6. Make these feel like part of the same product, not legacy side screens
+
+--------------------------------
+SHARED PATTERN REFINEMENT
+--------------------------------
+
+If needed, update:
+- trip_row.html
+- stat_row.html
+- friend_row.html
+
+So they support:
+- hairline row treatment
+- editorial typography
+- calmer metadata
+- consistent spacing
+
+Do not over-generalize. Only update shared components if it safely improves consistency across the scoped screens.
+
+--------------------------------
+IMPLEMENTATION SAFETY RULES
+--------------------------------
+
+1. Preserve all JS behavior exactly
+2. Do not rename JS-dependent classes unless unavoidable
+3. If a rename is unavoidable, update the JS carefully and test it
+4. Do not remove functionality
+5. Keep all tap targets mobile-safe
+6. If an exact design move is too risky, implement the closest safe editorial version and note it clearly
+
+--------------------------------
+QA REQUIREMENTS
+--------------------------------
+
+Test and confirm:
+1. My Trips renders correctly
+2. Upcoming / Ideas tab switching still works
+3. Trip rows are tappable and route correctly
+4. Friends renders correctly
+5. Friend request actions still work
+6. Friend profile renders correctly
+7. Friend trip details renders correctly
+8. No JS regressions
+9. No mobile overflow or broken spacing
+10. Hero usage is restrained and consistent
+
+DELIVERABLES
+1. List exactly which files changed
+2. Summarize what was implemented for My Trips, Friends, and supporting friend screens
+3. Note any compromises or deferred items
+4. Do not finish until this phase has been tested in the running app

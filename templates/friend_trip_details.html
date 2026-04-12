@@ -3,178 +3,276 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge - Trip Details</title>
+    <title>{{ friend.first_name }}'s Trip — BaseLodge</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .overlap-box {
-            background: #F5F9FF;
-            border: 1px solid #D0E2FF;
-            padding: 12px 14px;
-            border-radius: 10px;
-            margin-top: 12px;
-            color: #223;
+        /* ── Nav ── */
+        .ftd-nav {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
         }
-        .overlap-box p {
-            margin: 0;
+        .ftd-back {
+            display: flex;
+            align-items: center;
+            color: #6B665A;
+            text-decoration: none;
+            font-size: 14px;
+            gap: 4px;
         }
+        .ftd-back:hover { color: #1A1A1A; }
+
+        /* ── Page title ── */
+        .ftd-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 22px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin: 0 0 20px 0;
+            line-height: 1.25;
+        }
+
+        /* ── Blush hero ── */
+        .ftd-hero {
+            background: #F0DDD8;
+            border: 0.5px solid #5C1219;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .ftd-hero-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #5C1219;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .ftd-hero-mountain {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 24px;
+            font-weight: 400;
+            color: #1A1A1A;
+            line-height: 1.2;
+            margin-bottom: 6px;
+        }
+        .ftd-hero-sub {
+            font-size: 14px;
+            color: #6B665A;
+            margin-bottom: 0;
+        }
+
+        /* ── Info rows ── */
+        .ftd-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 11px 0;
+            border-bottom: 1px solid #E5DFD0;
+        }
+        .ftd-info-row:first-child { border-top: 1px solid #E5DFD0; }
+        .ftd-info-label { font-size: 13px; color: #6B665A; }
+        .ftd-info-value { font-size: 13px; font-weight: 500; color: #1A1A1A; text-align: right; }
+
+        /* ── Overlap note ── */
+        .ftd-overlap {
+            background: #F0DDD8;
+            border: 0.5px solid #5C1219;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-top: 16px;
+            font-size: 14px;
+            color: #5C1219;
+            font-weight: 500;
+        }
+
+        /* ── Friends available module ── */
+        .ftd-avail-module {
+            margin-top: 20px;
+            padding: 16px 0;
+            border-top: 1px solid #E5DFD0;
+        }
+        .ftd-avail-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+            color: #8A857A;
+            margin: 0 0 10px 0;
+        }
+        .ftd-avail-row {
+            display: block;
+            font-size: 14px;
+            color: #1A1A1A;
+            text-decoration: none;
+            padding: 6px 0;
+            border-bottom: 1px solid #E5DFD0;
+        }
+        .ftd-avail-row:last-of-type { border-bottom: none; }
+        .ftd-avail-more {
+            font-size: 13px;
+            color: #8A857A;
+            margin: 6px 0 0 0;
+        }
+        .ftd-avail-cta {
+            display: inline-block;
+            margin-top: 14px;
+            background: #5C1219;
+            color: white;
+            border-radius: 7px;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .ftd-avail-cta:hover { background: #3F0C11; }
     </style>
 </head>
 <body>
-    <div class="page-container">
-        <a href="{{ url_for('home', tab='friends') }}" class="back-link">← Back</a>
-        
-        <h1 class="page-title">{{ friend.first_name }}{% if friend.last_name %} {{ friend.last_name }}{% endif %}'s Trip</h1>
-        
-        <div class="trip-detail-card">
-            <div class="trip-detail-row">
-                <span class="trip-detail-label">Mountain</span>
-                <span class="trip-detail-value">
-                    {% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}
-                </span>
-            </div>
-            
-            {% set location_display = trip.resort|state_fullname if trip.resort else trip.state %}
-            {% if location_display %}
-            <div class="trip-detail-row">
-                <span class="trip-detail-label">Location</span>
-                <span class="trip-detail-value">
-                    {{ location_display }}{% if trip.resort and trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}
-                </span>
-            </div>
-            {% endif %}
-            
-            <div class="trip-detail-row">
-                <span class="trip-detail-label">Dates</span>
-                <span class="trip-detail-value">
-                    {{ format_trip_dates(trip) }}
-                </span>
-            </div>
-            
-            {% set pass_display = trip.resort|mountain_passes %}
-            {% if pass_display %}
-            <div class="trip-detail-row">
-                <span class="trip-detail-label">Pass</span>
-                <span class="trip-detail-value">{{ pass_display }}</span>
-            </div>
-            {% endif %}
-            
-            <div class="trip-detail-row">
-                <span class="trip-detail-label">Trip Length</span>
-                <span class="trip-detail-value">
-                    {{ trip.duration_display }}
-                </span>
-            </div>
-            
-            <div class="trip-detail-row">
-                <span class="trip-detail-label">Equipment</span>
-                <span class="trip-detail-value">
-                    {{ trip.equipment_display }}
-                </span>
-            </div>
-            
-            <div class="trip-detail-row">
-                <span class="trip-detail-label">Ride Status</span>
-                <span class="trip-detail-value">
-                    {% if trip.ride_intent == 'can_offer' %}🚗 Has space for more{% elif trip.ride_intent == 'need_ride' %}🙋 Needs a ride{% else %}Not specified{% endif %}
-                </span>
-            </div>
+    <div class="page-container" style="padding: 20px 16px 88px;">
+
+        <!-- Back nav -->
+        <div class="ftd-nav">
+            <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="ftd-back">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+                {{ friend.first_name }}
+            </a>
         </div>
-        
+
+        <h1 class="ftd-title">{{ friend.first_name }}'s Trip</h1>
+
+        <!-- Blush hero with mountain + dates -->
+        {% set mountain_name = trip.resort.name if trip.resort else trip.mountain %}
+        {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
+
+        <div class="ftd-hero">
+            <p class="ftd-hero-eyebrow">{{ friend.first_name }}'s Trip</p>
+            <p class="ftd-hero-mountain">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+            <p class="ftd-hero-sub">{{ format_trip_dates(trip) }}</p>
+        </div>
+
+        <!-- Info rows -->
+        {% set location_display = trip.resort|state_fullname if trip.resort else trip.state %}
+        {% if location_display %}
+        <div class="ftd-info-row">
+            <span class="ftd-info-label">Location</span>
+            <span class="ftd-info-value">{{ location_display }}{% if trip.resort and trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}</span>
+        </div>
+        {% endif %}
+        {% set pass_display = trip.resort|mountain_passes %}
+        {% if pass_display %}
+        <div class="ftd-info-row">
+            <span class="ftd-info-label">Pass</span>
+            <span class="ftd-info-value">{{ pass_display }}</span>
+        </div>
+        {% endif %}
+        <div class="ftd-info-row">
+            <span class="ftd-info-label">Trip Length</span>
+            <span class="ftd-info-value">{{ trip.duration_display }}</span>
+        </div>
+        <div class="ftd-info-row">
+            <span class="ftd-info-label">Equipment</span>
+            <span class="ftd-info-value">{{ trip.equipment_display }}</span>
+        </div>
+        <div class="ftd-info-row">
+            <span class="ftd-info-label">Ride Status</span>
+            <span class="ftd-info-value">
+                {% if trip.ride_intent == 'can_offer' %}Has space for more{% elif trip.ride_intent == 'need_ride' %}Needs a ride{% else %}Not specified{% endif %}
+            </span>
+        </div>
+
+        <!-- Overlap note -->
         {% if has_overlap %}
-        <div class="overlap-box">
-            {% if overlap_days == 1 %}
-                <p><strong>You'll both be there 1 day.</strong></p>
-            {% else %}
-                <p><strong>You'll both be there {{ overlap_days }} days.</strong></p>
-            {% endif %}
+        <div class="ftd-overlap">
+            {% if overlap_days == 1 %}You'll both be there 1 day.{% else %}You'll both be there {{ overlap_days }} days.{% endif %}
         </div>
         {% endif %}
 
+        <!-- Join / request / status buttons -->
         {% if is_accepted %}
-        <div style="margin-top: 16px;">
-            <button class="bl-btn-outline" style="width: 100%; padding: 14px; font-size: 1rem; opacity: 0.7;" disabled>
+        <div style="margin-top: 20px;">
+            <button class="bl-btn-outline" style="width: 100%; padding: 14px; font-size: 15px; opacity: 0.7;" disabled>
                 You're Going
             </button>
         </div>
         {% elif can_request_join %}
-        <div id="join-request-container" style="margin-top: 16px;">
-            <button id="request-join-btn" class="bl-btn-primary" style="width: 100%; padding: 14px; font-size: 1rem;" onclick="requestToJoin({{ trip.id }})">
+        <div id="join-request-container" style="margin-top: 20px;">
+            <button id="request-join-btn" class="bl-btn-primary" style="width: 100%; padding: 14px; font-size: 15px;" onclick="requestToJoin({{ trip.id }})">
                 Request to Join
             </button>
         </div>
         {% elif has_pending_request %}
-        <div style="margin-top: 16px;">
-            <button class="bl-btn-outline" style="width: 100%; padding: 14px; font-size: 1rem; opacity: 0.7;" disabled>
+        <div style="margin-top: 20px;">
+            <button class="bl-btn-outline" style="width: 100%; padding: 14px; font-size: 15px; opacity: 0.7;" disabled>
                 Request Sent
             </button>
         </div>
         {% endif %}
 
-        {% if can_request_join %}
-        <script>
-            function requestToJoin(tripId) {
-                const btn = document.getElementById('request-join-btn');
-                if (!btn || btn.disabled) return;
-                
-                btn.disabled = true;
-                btn.innerText = 'Sending...';
-                
-                fetch(`/trips/${tripId}/request-join`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        btn.innerText = 'Request Sent';
-                        btn.classList.remove('bl-btn-primary');
-                        btn.classList.add('bl-btn-outline');
-                        btn.style.opacity = '0.7';
-                        btn.disabled = true;
-                    } else {
-                        btn.disabled = false;
-                        btn.innerText = 'Request to Join';
-                        alert(data.error || 'Something went wrong. Please try again.');
-                    }
-                })
-                .catch(err => {
-                    console.error('Error requesting to join:', err);
-                    btn.disabled = false;
-                    btn.innerText = 'Request to Join';
-                    alert('Something went wrong. Please try again.');
-                });
-            }
-        </script>
-        {% endif %}
-        
+        <!-- Friends available during these dates -->
         {% if friends_open_on_trip and friends_open_on_trip|length > 0 %}
-        <div style="margin-top: 16px; background: linear-gradient(135deg, rgba(143, 1, 27, 0.08), rgba(143, 1, 27, 0.04)); border: 1px solid rgba(143, 1, 27, 0.2); border-radius: 12px; padding: 16px;">
-            <p style="font-size: 0.95rem; font-weight: 600; margin: 0 0 8px 0; color: #8F011B;">
-                {{ friends_open_on_trip|length }} friend{% if friends_open_on_trip|length != 1 %}s{% endif %} available during these dates
-            </p>
-            <div style="margin-bottom: 12px;">
-                {% for f in friends_open_on_trip[:5] %}
-                <a href="{{ url_for('friend_profile', friend_id=f.id) }}" style="font-size: 0.85rem; color: var(--bl-color-text); text-decoration: none; display: block; padding: 4px 0;">
-                    {{ f.name }}{% if f.pass_type %} · {{ f.pass_type }}{% endif %}
-                </a>
-                {% endfor %}
-                {% if friends_open_on_trip|length > 5 %}
-                <p style="font-size: 0.8rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">+{{ friends_open_on_trip|length - 5 }} more</p>
-                {% endif %}
-            </div>
-            <a href="{{ url_for('add_trip') }}" class="bl-btn-primary" style="display: inline-block; text-decoration: none; padding: 10px 20px; font-size: 0.9rem;">Create a trip</a>
+        <div class="ftd-avail-module">
+            <p class="ftd-avail-label">{{ friends_open_on_trip|length }} friend{% if friends_open_on_trip|length != 1 %}s{% endif %} available</p>
+            {% for f in friends_open_on_trip[:5] %}
+            <a href="{{ url_for('friend_profile', friend_id=f.id) }}" class="ftd-avail-row">
+                {{ f.name }}{% if f.pass_type %} · {{ f.pass_type }}{% endif %}
+            </a>
+            {% endfor %}
+            {% if friends_open_on_trip|length > 5 %}
+            <p class="ftd-avail-more">+{{ friends_open_on_trip|length - 5 }} more</p>
+            {% endif %}
+            <a href="{{ url_for('add_trip') }}" class="ftd-avail-cta">Create a trip</a>
         </div>
         {% endif %}
-        
-        <div style="margin-top: var(--bl-space-8);">
+
+        <!-- View friend's profile link -->
+        <div style="margin-top: 24px;">
             <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="bl-btn-secondary" style="display: block; text-align: center; text-decoration: none;">
-                View {{ friend.first_name }}{% if friend.last_name %} {{ friend.last_name }}{% endif %}'s Profile
+                View {{ friend.first_name }}'s Profile
             </a>
         </div>
+
     </div>
-    
+
     {% include 'components/bottom_nav.html' %}
+
+    {% if can_request_join %}
+    <script>
+        function requestToJoin(tripId) {
+            const btn = document.getElementById('request-join-btn');
+            if (!btn || btn.disabled) return;
+
+            btn.disabled = true;
+            btn.innerText = 'Sending...';
+
+            fetch(`/trips/${tripId}/request-join`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    btn.innerText = 'Request Sent';
+                    btn.classList.remove('bl-btn-primary');
+                    btn.classList.add('bl-btn-outline');
+                    btn.style.opacity = '0.7';
+                    btn.disabled = true;
+                } else {
+                    btn.disabled = false;
+                    btn.innerText = 'Request to Join';
+                    alert(data.error || 'Something went wrong. Please try again.');
+                }
+            })
+            .catch(err => {
+                console.error('Error requesting to join:', err);
+                btn.disabled = false;
+                btn.innerText = 'Request to Join';
+                alert('Something went wrong. Please try again.');
+            });
+        }
+    </script>
+    {% endif %}
 </body>
 </html>

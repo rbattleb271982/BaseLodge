@@ -3,58 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge - Friends</title>
+    <title>BaseLodge — Friends</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .invite-card {
-            background: var(--bl-color-surface);
-            border-radius: 12px;
-            padding: 14px 16px;
-            margin-bottom: 20px;
+        /* ── Page title ── */
+        .fr-page-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 24px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin: 0 0 20px 0;
         }
-        .invite-card-title {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin: 0 0 10px 0;
-        }
-        .invite-card-actions {
+
+        /* ── Invite strip ── */
+        .fr-invite-strip {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid #E5DFD0;
+            margin-bottom: 20px;
         }
-        .invite-action-primary {
-            font-size: 0.9rem;
+        .fr-invite-label {
+            flex: 1;
+            font-size: 14px;
+            color: #6B665A;
+        }
+        .fr-invite-cta {
+            font-size: 14px;
             font-weight: 600;
-            color: var(--bl-color-primary);
+            color: #5C1219;
             text-decoration: none;
+            white-space: nowrap;
         }
-        .invite-action-primary:hover {
-            opacity: 0.8;
-        }
-        .invite-action-divider {
+        .fr-invite-divider {
             width: 1px;
             height: 14px;
-            background: var(--bl-color-border-soft);
+            background: #E5DFD0;
             flex-shrink: 0;
         }
-        .invite-action-secondary {
-            font-size: 0.9rem;
+        .fr-invite-copy {
+            font-size: 14px;
             font-weight: 500;
-            color: var(--bl-color-text-muted);
+            color: #8A857A;
             background: none;
             border: none;
             padding: 0;
             cursor: pointer;
+            white-space: nowrap;
         }
-        .invite-action-secondary:hover {
-            color: var(--bl-color-text);
-        }
+        .fr-invite-copy:hover { color: #5C1219; }
 
+        /* ── Friend rows ── */
         .flat-list {
             display: flex;
             flex-direction: column;
@@ -65,31 +69,27 @@
             justify-content: space-between;
             min-height: 56px;
             padding: 12px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            border-bottom: 1px solid #E5DFD0;
             text-decoration: none;
             color: inherit;
             -webkit-tap-highlight-color: transparent;
         }
-        .flat-row:first-child {
-            border-top: 1px solid var(--bl-color-border-soft);
-        }
-        .flat-row:active {
-            opacity: 0.7;
-        }
+        .flat-row:first-child { border-top: 1px solid #E5DFD0; }
+        .flat-row:active { opacity: 0.7; }
         .flat-row-content {
             flex: 1;
             min-width: 0;
         }
         .flat-row-name {
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--bl-color-text);
+            font-size: 15px;
+            font-weight: 500;
+            color: #1A1A1A;
             margin: 0 0 2px 0;
             line-height: 1.3;
         }
         .flat-row-signal {
-            font-size: 0.875rem;
-            color: var(--bl-color-text-muted);
+            font-size: 13px;
+            color: #8A857A;
             margin: 0;
             line-height: 1.4;
             white-space: nowrap;
@@ -97,38 +97,46 @@
             text-overflow: ellipsis;
         }
         .flat-row-signal-overlap {
-            color: var(--bl-color-primary);
+            color: #5C1219;
             font-weight: 500;
         }
         .flat-row-chevron {
             flex-shrink: 0;
             margin-left: 12px;
-            font-size: 0.875rem;
-            color: var(--bl-color-primary);
-            font-weight: 500;
+            font-size: 13px;
+            color: #8A857A;
         }
 
-        .friends-empty-text {
-            font-size: 0.9rem;
-            color: var(--bl-color-text-muted);
+        /* ── Empty state ── */
+        .fr-empty-text {
+            font-size: 14px;
+            color: #8A857A;
             margin: 0 0 6px 0;
             line-height: 1.5;
+        }
+        .fr-empty-cta {
+            display: inline-block;
+            margin-top: 14px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #5C1219;
+            text-decoration: none;
         }
     </style>
 </head>
 <body>
-    <div class="page-container">
-        <div class="bl-header">Friends</div>
+    <div class="page-container" style="padding: 20px 16px 88px;">
 
-        <div class="invite-card">
-            <p class="invite-card-title">Plan trips with friends</p>
-            <div class="invite-card-actions">
-                <a href="{{ url_for('invite') }}" class="invite-action-primary">Invite via text →</a>
-                {% if invite_url %}
-                <div class="invite-action-divider"></div>
-                <button class="invite-action-secondary" onclick="copyInviteLink(this)">Copy link</button>
-                {% endif %}
-            </div>
+        <h1 class="fr-page-title">Friends</h1>
+
+        <!-- Invite strip -->
+        <div class="fr-invite-strip">
+            <span class="fr-invite-label">Plan trips with friends</span>
+            <a href="{{ url_for('invite') }}" class="fr-invite-cta">Invite →</a>
+            {% if invite_url %}
+            <div class="fr-invite-divider"></div>
+            <button class="fr-invite-copy" onclick="copyInviteLink(this)">Copy link</button>
+            {% endif %}
         </div>
 
         {% if friends and friends|length > 0 %}
@@ -145,14 +153,16 @@
                     <p class="flat-row-signal">No trips yet</p>
                     {% endif %}
                 </div>
-                <span class="flat-row-chevron">View →</span>
+                <span class="flat-row-chevron">→</span>
             </a>
             {% endfor %}
         </div>
         {% else %}
-        <p class="friends-empty-text">Add a friend to start planning trips together.</p>
-        <p class="friends-empty-text">Send your invite link to get started.</p>
+        <p class="fr-empty-text">Add a friend to start planning trips together.</p>
+        <p class="fr-empty-text">Send your invite link to get started.</p>
+        <a href="{{ url_for('invite') }}" class="fr-empty-cta">Invite a friend →</a>
         {% endif %}
+
     </div>
 
     {% include 'components/bottom_nav.html' %}

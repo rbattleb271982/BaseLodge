@@ -3,17 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge - Trips</title>
+    <title>BaseLodge — My Trips</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        /* ── Underline tab bar ───────────────────────── */
+        /* ── Page title ── */
+        .mt-page-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 24px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin: 0 0 18px 0;
+        }
+
+        /* ── Tab bar ── */
         .tab-bar {
             display: flex;
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            border-bottom: 1px solid #E5DFD0;
             margin-bottom: 20px;
         }
         .tab-btn {
@@ -25,21 +34,21 @@
             background: transparent;
             font-size: 14px;
             font-weight: 500;
-            color: var(--bl-color-text-muted);
+            color: #8A857A;
             cursor: pointer;
             text-align: center;
             white-space: nowrap;
         }
         .tab-btn.active {
-            color: var(--bl-color-text);
+            color: #1A1A1A;
             font-weight: 600;
-            border-bottom-color: var(--bl-color-text);
+            border-bottom-color: #1A1A1A;
         }
         .tab-badge {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: var(--bl-color-primary);
+            background: #5C1219;
             color: #fff;
             font-size: 10px;
             font-weight: 700;
@@ -50,279 +59,240 @@
             margin-left: 5px;
             vertical-align: middle;
         }
-        .segment-content {
-            display: none;
-        }
-        .segment-content.active {
-            display: block;
-        }
+        .segment-content { display: none; }
+        .segment-content.active { display: block; }
 
-        /* ── Trips list (upcoming + past) ─────────────── */
-        .trips-list-header {
+        /* ── Blush hero (empty states, ideas highlight) ── */
+        .mt-hero {
+            background: #F0DDD8;
+            border: 0.5px solid #5C1219;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .mt-hero-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #5C1219;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .mt-hero-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 22px;
+            font-weight: 400;
+            color: #1A1A1A;
+            line-height: 1.25;
+            margin-bottom: 6px;
+        }
+        .mt-hero-sub {
+            font-size: 14px;
+            color: #6B665A;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+        .mt-hero-cta {
+            display: inline-block;
+            background: #5C1219;
+            color: white;
+            border-radius: 7px;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .mt-hero-cta:hover { background: #3F0C11; }
+
+        /* ── Section header ── */
+        .mt-section-header {
             display: flex;
             justify-content: space-between;
             align-items: baseline;
             margin-bottom: 2px;
         }
-        .trips-list-title {
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin: 0;
+        .mt-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+            color: #8A857A;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #E5DFD0;
+            margin: 0 0 0 0;
+            flex: 1;
         }
-        .trips-list-count {
-            font-size: 0.82rem;
-            color: var(--bl-color-text-muted);
+        .mt-section-count {
+            font-size: 12px;
+            color: #8A857A;
             margin: 0;
+            padding-bottom: 8px;
         }
+
+        /* ── Trip rows (upcoming + invites + requested) ── */
         .trip-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 13px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            border-bottom: 1px solid #E5DFD0;
             text-decoration: none;
             color: inherit;
+            -webkit-tap-highlight-color: transparent;
         }
-        .trip-row:first-child {
-            border-top: 1px solid var(--bl-color-border-soft);
-        }
+        .trip-row:first-child { border-top: 1px solid #E5DFD0; }
+        .trip-row:active { opacity: 0.7; }
         .trip-row-content {
             flex: 1;
             min-width: 0;
         }
         .trip-row-dest {
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: var(--bl-color-text);
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 15px;
+            font-weight: 400;
+            color: #1A1A1A;
             margin: 0 0 2px 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
         .trip-row-dates {
-            font-size: 0.83rem;
-            color: var(--bl-color-text-muted);
+            font-size: 13px;
+            color: #6B665A;
             margin: 0 0 2px 0;
         }
         .trip-row-people {
-            font-size: 0.8rem;
-            color: var(--bl-color-text-muted);
+            font-size: 12px;
+            color: #8A857A;
             margin: 0;
         }
         .trip-row-cta {
-            font-size: 0.83rem;
+            font-size: 13px;
+            font-weight: 400;
+            color: #8A857A;
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+        .secondary-action-inline {
+            font-size: 13px;
             font-weight: 500;
-            color: var(--bl-color-text-muted);
+            color: #5C1219;
+            text-decoration: none;
             flex-shrink: 0;
             margin-left: 12px;
         }
 
-        /* ── Hero-style card (shared: upcoming empty + ideas state A) ── */
-        .trips-hero-card {
-            background: #8F011B;
-            border-radius: 16px;
-            padding: 22px 20px;
-            color: #fff;
-            margin-bottom: 14px;
-        }
-        .trips-hero-headline {
-            font-size: 1.15rem;
+        /* ── Sub-section labels ── */
+        .sub-section-label {
+            font-size: 11px;
             font-weight: 700;
-            margin: 0 0 8px 0;
-            line-height: 1.25;
-        }
-        .trips-hero-sub {
-            font-size: 0.88rem;
-            opacity: 0.82;
-            margin: 0 0 20px 0;
-            line-height: 1.45;
-        }
-        .trips-hero-cta {
-            display: inline-block;
-            background: rgba(255,255,255,0.15);
-            border: 1px solid rgba(255,255,255,0.25);
-            border-radius: 8px;
-            font-size: 0.88rem;
-            font-weight: 600;
-            color: #fff;
-            padding: 8px 16px;
-            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #8A857A;
+            margin: 20px 0 0 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #E5DFD0;
         }
 
-        /* ── Plan another trip button ─────────────────── */
-        .plan-another-btn {
+        /* ── Plan another button (outlined bordeaux) ── */
+        .mt-plan-btn {
             display: block;
             width: 100%;
             box-sizing: border-box;
             padding: 13px 20px;
-            background: #3D2A1E;
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            font-size: 0.92rem;
+            background: transparent;
+            color: #5C1219;
+            border: 1px solid #5C1219;
+            border-radius: 8px;
+            font-size: 14px;
             font-weight: 600;
             text-align: center;
             text-decoration: none;
-            margin-top: 16px;
+            margin-top: 20px;
             cursor: pointer;
         }
+        .mt-plan-btn:hover { background: #F5F1E8; }
 
-        /* ── Sub-section labels (invites, requested) ─── */
-        .sub-section-label {
-            font-size: 0.72rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--bl-color-text-muted);
-            margin: 20px 0 4px 0;
-        }
-        .secondary-action-inline {
-            font-size: 0.83rem;
-            font-weight: 500;
-            color: var(--bl-color-primary);
-            text-decoration: none;
-            flex-shrink: 0;
-            margin-left: 12px;
-        }
-
-        /* ── Ideas tab: empty states ─────────────────── */
-        .ideas-empty-label {
-            font-size: 0.72rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--bl-color-text-muted);
-            margin: 4px 0 12px 0;
-        }
-        .ideas-white-card {
+        /* ── Ideas: state B (no overlaps) ── */
+        .mt-ideas-module {
             background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: 14px;
+            border: 1px solid #E5DFD0;
+            border-radius: 8px;
             padding: 18px 20px;
         }
-        .ideas-white-headline {
-            font-size: 1rem;
+        .mt-ideas-module-title {
+            font-size: 15px;
             font-weight: 600;
-            color: var(--bl-color-text);
+            color: #1A1A1A;
             margin: 0 0 6px 0;
         }
-        .ideas-white-cta {
-            display: inline-block;
-            background: var(--bl-color-primary);
-            color: #fff;
-            border-radius: 8px;
-            padding: 9px 18px;
-            font-size: 0.88rem;
-            font-weight: 600;
-            text-decoration: none;
-            margin-top: 14px;
+        .mt-ideas-module-sub {
+            font-size: 14px;
+            color: #6B665A;
+            margin: 0 0 14px 0;
+            line-height: 1.5;
         }
-        .ideas-text-link {
+        .mt-ideas-link {
             display: block;
-            font-size: 0.83rem;
-            color: var(--bl-color-primary);
+            font-size: 13px;
+            color: #5C1219;
             text-decoration: none;
             margin-top: 10px;
         }
 
-        /* ── Ideas tab: populated state ──────────────── */
-        .ideas-best-label {
-            font-size: 0.72rem;
+        /* ── Ideas: other overlaps list ── */
+        .mt-ideas-other-label {
+            font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #1B8A56;
-            margin: 4px 0 12px 0;
+            letter-spacing: 0.6px;
+            color: #8A857A;
+            margin: 20px 0 0 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #E5DFD0;
         }
-        .ideas-overlap-card {
-            background: #F0FBF4;
-            border: 1px solid #A8DDB9;
-            border-radius: 14px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .ideas-overlap-headline {
-            font-size: 1.05rem;
-            font-weight: 700;
-            color: #1B6B3A;
-            margin: 0 0 4px 0;
-            line-height: 1.3;
-        }
-        .ideas-overlap-sub {
-            font-size: 0.83rem;
-            color: #2D7A50;
-            margin: 0;
-        }
-        .ideas-overlap-cta {
-            display: inline-block;
-            background: #22A86A;
-            color: #fff;
-            border-radius: 8px;
-            padding: 9px 18px;
-            font-size: 0.88rem;
-            font-weight: 600;
-            text-decoration: none;
-            margin-top: 16px;
-        }
-        .ideas-other-label {
-            font-size: 0.72rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--bl-color-text-muted);
-            margin: 0 0 4px 0;
-        }
-        .ideas-other-row {
+        .mt-ideas-other-row {
             padding: 10px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
-            font-size: 0.88rem;
-            color: var(--bl-color-text-muted);
+            border-bottom: 1px solid #E5DFD0;
+            font-size: 14px;
+            color: #6B665A;
         }
-        .ideas-other-row:first-of-type {
-            border-top: 1px solid var(--bl-color-border-soft);
-        }
-        .ideas-see-all {
+        .mt-ideas-see-all {
             display: block;
-            font-size: 0.82rem;
-            color: var(--bl-color-text-muted);
+            font-size: 13px;
+            color: #8A857A;
             text-decoration: none;
             margin-top: 14px;
             text-align: center;
         }
 
-        /* ── Past list (muted) ───────────────────────── */
+        /* ── Past trips (muted) ── */
         .past-row {
             display: flex;
             align-items: center;
-            padding: 13px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            padding: 12px 0;
+            border-bottom: 1px solid #E5DFD0;
         }
-        .past-row:first-child {
-            border-top: 1px solid var(--bl-color-border-soft);
-        }
-        .past-row-content {
-            flex: 1;
-            min-width: 0;
-        }
+        .past-row:first-child { border-top: 1px solid #E5DFD0; }
+        .past-row-content { flex: 1; min-width: 0; }
         .past-row-dest {
-            font-size: 0.92rem;
-            font-weight: 500;
-            color: var(--bl-color-text-muted);
+            font-size: 14px;
+            font-weight: 400;
+            color: #8A857A;
             margin: 0 0 2px 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
         .past-row-dates {
-            font-size: 0.82rem;
-            color: var(--bl-color-text-muted);
-            opacity: 0.75;
+            font-size: 12px;
+            color: #8A857A;
+            opacity: 0.8;
             margin: 0 0 2px 0;
         }
         .past-row-people {
-            font-size: 0.78rem;
-            color: var(--bl-color-text-muted);
+            font-size: 12px;
+            color: #8A857A;
             opacity: 0.6;
             margin: 0;
         }
@@ -331,7 +301,9 @@
 <body>
     <div class="page-container" style="padding: 20px 16px 88px;">
 
-        <!-- Tab bar — underline style, no pills -->
+        <h1 class="mt-page-title">My trips</h1>
+
+        <!-- Tab bar — Upcoming / Ideas / Past -->
         {% set ns = namespace(invite_count=0) %}
         {% for trip in (invited_trips or []) %}
             {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
@@ -347,14 +319,14 @@
             <button type="button" class="tab-btn" data-tab="past">Past</button>
         </div>
 
-        <!-- ── UPCOMING TAB ─────────────────────────────── -->
+        <!-- ── UPCOMING ── -->
         <div id="segment-upcoming" class="segment-content active">
             {% set all_upcoming = ((upcoming_trips or []) + (accepted_guest_trips or []))|sort(attribute='start_date') %}
 
             {% if all_upcoming|length > 0 %}
-                <div class="trips-list-header">
-                    <p class="trips-list-title">Your trips</p>
-                    <p class="trips-list-count">{{ all_upcoming|length }} upcoming</p>
+                <div class="mt-section-header">
+                    <p class="mt-section-title">Your trips</p>
+                    <p class="mt-section-count">{{ all_upcoming|length }}</p>
                 </div>
 
                 {% for trip in all_upcoming[:3] %}
@@ -370,18 +342,19 @@
                             <p class="trip-row-people">{{ people }} going</p>
                             {% endif %}
                         </div>
-                        <span class="trip-row-cta">View →</span>
+                        <span class="trip-row-cta">→</span>
                     </a>
                 {% endfor %}
 
-                <a href="{{ url_for('add_trip') }}" class="plan-another-btn">Plan another trip →</a>
+                <a href="{{ url_for('add_trip') }}" class="mt-plan-btn">Plan another trip</a>
 
             {% else %}
-                <!-- Empty state -->
-                <div class="trips-hero-card">
-                    <p class="trips-hero-headline">Plan your first trip</p>
-                    <p class="trips-hero-sub">Pick a mountain, choose your dates, and invite friends to join you</p>
-                    <a href="{{ url_for('add_trip') }}" class="trips-hero-cta">Plan a trip →</a>
+                <!-- Empty state: no upcoming trips -->
+                <div class="mt-hero">
+                    <p class="mt-hero-eyebrow">Get started</p>
+                    <p class="mt-hero-title">Plan your first trip</p>
+                    <p class="mt-hero-sub">Pick a mountain, choose your dates, and invite friends to join you.</p>
+                    <a href="{{ url_for('add_trip') }}" class="mt-hero-cta">Plan a trip</a>
                 </div>
             {% endif %}
 
@@ -403,7 +376,7 @@
                         <p class="trip-row-dest">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
                         <p class="trip-row-dates">{{ format_trip_dates(trip) }}</p>
                     </div>
-                    <span class="secondary-action-inline">View invite →</span>
+                    <span class="secondary-action-inline">View →</span>
                 </a>
             {% endfor %}
             {% endif %}
@@ -416,7 +389,7 @@
                     <div class="trip-row-content">
                         <p class="trip-row-dest">{% if req.trip.resort %}{{ req.trip.resort.name }}{% else %}{{ req.trip.mountain }}{% endif %}</p>
                         <p class="trip-row-dates">{{ format_trip_dates(req.trip) }} · {{ req.owner.first_name }} {{ req.owner.last_name or '' }}</p>
-                        <p class="trip-row-people" style="color: {% if req.status == 'Pending' %}var(--bl-color-primary){% elif req.status == 'Accepted' %}#1B8A56{% else %}var(--bl-color-text-muted){% endif %};">{{ req.status }}</p>
+                        <p class="trip-row-people" style="color: {% if req.status == 'Pending' %}#5C1219{% elif req.status == 'Accepted' %}#1B7A4E{% else %}#8A857A{% endif %};">{{ req.status }}</p>
                     </div>
                     {% if req.status == 'Pending' %}
                     <form action="{{ url_for('cancel_join_request', request_id=req.invitation_id) }}" method="POST"
@@ -429,29 +402,28 @@
             {% endif %}
         </div>
 
-        <!-- ── IDEAS TAB ──────────────────────────────────── -->
+        <!-- ── IDEAS ── -->
         <div id="segment-ideas" class="segment-content">
             {% if not user_open_dates or user_open_dates|length == 0 %}
                 <!-- State A: No availability set -->
-                <p class="ideas-empty-label">No Ideas Yet</p>
-                <div class="trips-hero-card">
-                    <p class="trips-hero-headline">Add your availability</p>
-                    <p class="trips-hero-sub">Mark the days you're free and we'll show you when friends are available too</p>
-                    <a href="{{ url_for('add_open_dates') }}" class="trips-hero-cta">Add availability →</a>
+                <div class="mt-hero">
+                    <p class="mt-hero-eyebrow">No ideas yet</p>
+                    <p class="mt-hero-title">Add your availability</p>
+                    <p class="mt-hero-sub">Mark the days you're free and we'll show you when friends are available too.</p>
+                    <a href="{{ url_for('add_open_dates') }}" class="mt-hero-cta">Add availability</a>
                 </div>
 
             {% elif not trip_ideas %}
                 <!-- State B: Has availability, no friend overlaps -->
-                <p class="ideas-empty-label">No Overlaps Yet</p>
-                <div class="ideas-white-card">
-                    <p class="ideas-white-headline">Your friends aren't free yet</p>
-                    <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 4px 0 0 0;">Add more dates or invite more friends to find a match.</p>
-                    <a href="{{ url_for('add_open_dates') }}" class="ideas-white-cta">Expand availability</a>
-                    <a href="{{ url_for('friends') }}" class="ideas-text-link">Invite more friends</a>
+                <div class="mt-ideas-module">
+                    <p class="mt-ideas-module-title">No overlaps yet</p>
+                    <p class="mt-ideas-module-sub">Add more dates or invite more friends to find a match.</p>
+                    <a href="{{ url_for('add_open_dates') }}" class="mt-hero-cta" style="display: inline-block; text-decoration: none;">Expand availability</a>
+                    <a href="{{ url_for('friends') }}" class="mt-ideas-link">Invite more friends</a>
                 </div>
 
             {% else %}
-                <!-- Populated: Best overlap + quiet list -->
+                <!-- Populated: best overlap + quiet list -->
                 {% set best = trip_ideas[0] %}
                 {% if best.overlapping_people|length == 1 %}
                     {% set best_headline = "You and " + best.overlapping_people[0].first_name + " are free " + best.display_date %}
@@ -459,35 +431,35 @@
                     {% set best_headline = "You and " + (best.overlapping_people|length)|string + " friends are free " + best.display_date %}
                 {% endif %}
 
-                <p class="ideas-best-label">Best Overlap</p>
-                <div class="ideas-overlap-card">
-                    <p class="ideas-overlap-headline">{{ best_headline }}</p>
-                    <p class="ideas-overlap-sub">Your schedules line up — make it a trip</p>
-                    <a href="{{ url_for('add_trip') }}" class="ideas-overlap-cta">Plan something together →</a>
+                <div class="mt-hero">
+                    <p class="mt-hero-eyebrow">Best overlap</p>
+                    <p class="mt-hero-title">{{ best_headline }}</p>
+                    <p class="mt-hero-sub">Your schedules line up — make it a trip.</p>
+                    <a href="{{ url_for('add_trip') }}" class="mt-hero-cta">Plan something together</a>
                 </div>
 
                 {% if trip_ideas|length > 1 %}
-                <p class="ideas-other-label">Other overlaps</p>
+                <p class="mt-ideas-other-label">Other overlaps</p>
                 {% for idea in trip_ideas[1:4] %}
                     {% if idea.overlapping_people|length == 1 %}
                         {% set row_label = "You and " + idea.overlapping_people[0].first_name + " · " + idea.display_date %}
                     {% else %}
                         {% set row_label = "You and " + (idea.overlapping_people|length)|string + " friends · " + idea.display_date %}
                     {% endif %}
-                    <div class="ideas-other-row">{{ row_label }}</div>
+                    <div class="mt-ideas-other-row">{{ row_label }}</div>
                 {% endfor %}
                 {% endif %}
 
-                <a href="{{ url_for('add_open_dates') }}" class="ideas-see-all">See all availability →</a>
+                <a href="{{ url_for('add_open_dates') }}" class="mt-ideas-see-all">See all availability →</a>
             {% endif %}
         </div>
 
-        <!-- ── PAST TAB ───────────────────────────────────── -->
+        <!-- ── PAST ── -->
         <div id="segment-past" class="segment-content">
             {% if past_trips %}
-                <div class="trips-list-header" style="margin-bottom: 2px;">
-                    <p class="trips-list-title">Trips taken</p>
-                    <p class="trips-list-count">{{ past_trips|length }} total</p>
+                <div class="mt-section-header">
+                    <p class="mt-section-title">Trips taken</p>
+                    <p class="mt-section-count">{{ past_trips|length }}</p>
                 </div>
 
                 {% for trip in past_trips %}
@@ -510,8 +482,8 @@
 
             {% else %}
                 <div style="padding-top: 40px; text-align: center;">
-                    <p style="font-size: 1rem; font-weight: 600; color: var(--bl-color-text); margin: 0 0 6px 0;">No past trips yet</p>
-                    <p style="font-size: 0.88rem; color: var(--bl-color-text-muted); margin: 0;">Your completed trips will appear here</p>
+                    <p style="font-size: 15px; font-weight: 500; color: #1A1A1A; margin: 0 0 6px 0;">No past trips yet</p>
+                    <p style="font-size: 14px; color: #8A857A; margin: 0;">Your completed trips will appear here.</p>
                 </div>
             {% endif %}
         </div>
