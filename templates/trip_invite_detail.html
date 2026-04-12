@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Trip Invite - BaseLodge</title>
+    <title>Trip Invite — BaseLodge</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
+        /* ── Nav ── */
         .trip-nav-header {
             display: flex;
             align-items: center;
-            margin-bottom: 12px;
-            position: relative;
+            margin-bottom: 20px;
         }
         .back-chevron {
             display: flex;
@@ -20,113 +20,324 @@
             height: 36px;
             color: var(--bl-color-text);
             text-decoration: none;
-            border-radius: var(--bl-radius-md);
+            border-radius: var(--bl-radius-sm);
         }
-        .back-chevron:hover {
-            background: rgba(0, 0, 0, 0.05);
-        }
-        .trip-title {
-            flex: 1;
-            font-size: 1.25rem;
+        .back-chevron:hover { background: rgba(0,0,0,0.05); }
+        .nav-spacer { width: 36px; }
+
+        /* ── Status banners (accepted / declined) ── */
+        .tid-status-accepted {
+            font-size: 13px;
             font-weight: 600;
-            margin: 0;
-            color: var(--bl-color-text);
+            color: #1B7A4E;
+            background: #EAF5EE;
+            border: 1px solid #B8E0C8;
+            border-radius: 6px;
+            padding: 9px 14px;
+            margin-bottom: 16px;
             text-align: center;
         }
-        .nav-spacer {
-            width: 36px;
-        }
-        
-        .trip-detail-card {
-            background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-lg);
-            padding: 12px 16px;
-            margin-bottom: 12px;
-        }
-        .trip-detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
-        }
-        .trip-detail-row:last-child {
-            border-bottom: none;
-        }
-        .trip-detail-label {
-            font-size: 0.9rem;
+        .tid-status-declined {
+            font-size: 13px;
             color: var(--bl-color-text-muted);
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: 6px;
+            padding: 9px 14px;
+            margin-bottom: 16px;
+            text-align: center;
         }
-        .trip-detail-value {
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: var(--bl-color-text);
-            text-align: right;
+
+        /* ── Blush hero ── */
+        .tid-hero {
+            background: #F0DDD8;
+            border: 0.5px solid #5C1219;
+            border-radius: 8px;
+            padding: 22px 20px 20px;
+            margin-bottom: 28px;
         }
-        
-        .participants-section {
-            margin-top: 12px;
-        }
-        .participants-section h3 {
-            font-size: 0.85rem;
+        .tid-hero-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #5C1219;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--bl-color-text-muted);
-            font-weight: 600;
-            margin: 0 0 8px 0;
+            margin-bottom: 10px;
         }
-        .participant-list {
-            background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-md);
-            padding: 4px 14px;
+        .tid-hero-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 26px;
+            font-weight: 400;
+            color: #1A1A1A;
+            line-height: 1.2;
+            margin-bottom: 8px;
         }
-        .participant-row {
+        .tid-hero-dates {
+            font-size: 14px;
+            color: #6B665A;
+            margin-bottom: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .tid-hero-dates:hover { color: #5C1219; }
+        .tid-hero-loc {
+            font-size: 13px;
+            color: #8A857A;
+            margin-bottom: 0;
+        }
+
+        /* ── Section labels ── */
+        .tid-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+            color: #8A857A;
+            margin: 0 0 0 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #E5DFD0;
+        }
+
+        /* ── Person rows ── */
+        .tid-person-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            padding: 12px 0;
+            border-bottom: 1px solid #E5DFD0;
         }
-        .participant-row:last-child {
-            border-bottom: none;
-        }
-        .participant-name {
-            font-size: 0.95rem;
+        .tid-person-name {
+            font-size: 14px;
             font-weight: 500;
-            color: var(--bl-color-text);
+            color: #1A1A1A;
         }
-        .participant-identity {
-            font-size: 0.85rem;
-            color: var(--bl-color-text-muted);
+        .tid-person-meta {
+            font-size: 13px;
+            color: #8A857A;
         }
 
+        /* ── Detail rows ── */
+        .tid-detail-rows {
+            margin-bottom: 24px;
+        }
+        .tid-detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 11px 0;
+            border-bottom: 1px solid #E5DFD0;
+        }
+        .tid-detail-label {
+            font-size: 13px;
+            color: #6B665A;
+        }
+        .tid-detail-value {
+            font-size: 13px;
+            font-weight: 500;
+            color: #1A1A1A;
+            text-align: right;
+        }
+
+        /* ── Your Trip Details section ── */
+        .your-trip-details-section {
+            margin-bottom: 24px;
+        }
+        .transport-editor-container {
+            border-bottom: 1px solid #E5DFD0;
+        }
+        .transport-editor-container:last-child {
+            border-bottom: none;
+        }
+        .transport-row-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            cursor: pointer;
+        }
+        .transport-summary {
+            font-size: 13px;
+            color: #5C1219;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .chevron-icon {
+            transition: transform 0.2s ease;
+        }
+
+        /* ── Action buttons (sticky bottom) ── */
+        .action-buttons {
+            position: sticky;
+            bottom: calc(64px + env(safe-area-inset-bottom));
+            left: 0;
+            right: 0;
+            background: var(--bl-color-bg);
+            padding: 12px 0 0 0;
+            border-top: 1px solid #E5DFD0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 10;
+        }
+        .btn-accept {
+            display: block;
+            width: 100%;
+            background: #5C1219;
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            letter-spacing: 0.1px;
+        }
+        .btn-accept:hover { background: #3F0C11; }
+        .btn-decline {
+            display: block;
+            width: 100%;
+            text-align: center;
+            background: transparent;
+            color: #8A857A;
+            border: none;
+            padding: 10px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .btn-decline:hover { color: #5C1219; }
+
+        /* ── Decline confirmation modal ── */
+        .decline-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .decline-modal-overlay.active { display: flex; }
+        .decline-modal {
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-lg);
+            padding: 28px 24px;
+            width: 100%;
+            max-width: 320px;
+            text-align: center;
+        }
+        .decline-modal h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1A1A1A;
+        }
+        .decline-modal p {
+            font-size: 14px;
+            color: #6B665A;
+            margin: 0 0 20px 0;
+            line-height: 1.5;
+        }
+        .decline-modal-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .decline-modal-actions button {
+            flex: 1;
+            padding: 12px;
+            border-radius: var(--bl-radius-md);
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-cancel-modal {
+            background: transparent;
+            color: var(--bl-color-text);
+            border: 1px solid var(--bl-color-border);
+        }
+        .btn-confirm-decline {
+            background: #1A1A1A;
+            color: white;
+            border: none;
+        }
+
+        /* ── Selector modals (transportation, equipment, carpool, lesson) ── */
+        .selector-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .selector-modal-overlay.active { display: flex; }
+        .selector-modal {
+            background: var(--bl-color-surface);
+            border-radius: var(--bl-radius-lg) var(--bl-radius-lg) 0 0;
+            width: 100%;
+            max-width: 500px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        .selector-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+        .selector-modal-title { font-weight: 600; font-size: 15px; color: #1A1A1A; }
+        .selector-modal-close {
+            background: none; border: none;
+            font-size: 1.5rem;
+            color: var(--bl-color-text-muted);
+            cursor: pointer; padding: 0; line-height: 1;
+        }
+        .selector-option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            cursor: pointer;
+            font-size: 14px;
+            color: #1A1A1A;
+            transition: background 0.12s;
+        }
+        .selector-option:hover { background: rgba(0,0,0,0.03); }
+        .selector-option:last-child { border-bottom: none; }
+        .selector-option.selected { color: #5C1219; font-weight: 600; }
+
+        /* ── Calendar preview modal ── */
         .calendar-preview-modal {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
             z-index: 1000;
             align-items: center;
             justify-content: center;
             padding: 20px;
         }
-        .calendar-preview-modal.active {
-            display: flex;
-        }
+        .calendar-preview-modal.active { display: flex; }
         .calendar-content {
             background: var(--bl-color-surface);
             border-radius: var(--bl-radius-lg);
             width: 100%;
             max-width: 320px;
-            padding: 16px;
+            padding: 20px;
         }
         .calendar-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
         }
         .calendar-grid {
             display: grid;
@@ -148,295 +359,110 @@
             font-size: 0.85rem;
             border-radius: 4px;
         }
-        .calendar-day.in-range {
-            background: var(--bl-color-primary);
-            color: white;
-        }
-        .calendar-day.range-start {
-            border-radius: 4px 0 0 4px;
-        }
-        .calendar-day.range-end {
-            border-radius: 0 4px 4px 0;
-        }
-        .calendar-day.today {
-            border: 1px solid var(--bl-color-primary);
-        }
-        .calendar-day.muted {
-            color: var(--bl-color-text-muted);
-            opacity: 0.3;
-        }
-
-        .your-trip-details-section {
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: var(--bl-radius-md);
-            padding: 12px 16px;
-            margin-bottom: 16px;
-        }
-        .transport-editor-container {
-            border-bottom: 1px solid var(--bl-color-border-soft);
-        }
-        .transport-editor-container:last-child {
-            border-bottom: none;
-        }
-        .transport-row-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            cursor: pointer;
-        }
-        .transport-summary {
-            font-size: 0.9rem;
-            color: var(--bl-color-primary);
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .chevron-icon {
-            transition: transform 0.2s ease;
-        }
-
-        .action-buttons {
-            position: sticky;
-            bottom: calc(72px + env(safe-area-inset-bottom));
-            left: 0;
-            right: 0;
-            background: var(--bl-color-background);
-            padding: 12px 16px;
-            border-top: 1px solid var(--bl-color-border-soft);
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            z-index: 10;
-        }
-        .action-buttons-row {
-            display: flex;
-            gap: 12px;
-        }
-        .btn-accept {
-            flex: 2;
-            background: var(--bl-color-primary);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: var(--bl-radius-md);
-            font-weight: 600;
-            font-size: 1rem;
-            cursor: pointer;
-        }
-        .btn-decline {
-            flex: 1;
-            background: transparent;
-            color: var(--bl-color-text-muted);
-            border: 1px solid var(--bl-color-border);
-            padding: 12px 16px;
-            border-radius: var(--bl-radius-md);
-            font-weight: 500;
-            font-size: 0.9rem;
-            cursor: pointer;
-        }
-        .decline-modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-            padding: 16px;
-        }
-        .decline-modal-overlay.active {
-            display: flex;
-        }
-        .decline-modal {
-            background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-lg);
-            padding: 24px;
-            width: 100%;
-            max-width: 320px;
-            text-align: center;
-        }
-        .decline-modal h3 {
-            margin: 0 0 16px 0;
-            font-size: 1.1rem;
-        }
-        .decline-modal-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: 20px;
-        }
-        .decline-modal-actions button {
-            flex: 1;
-            padding: 12px;
-            border-radius: var(--bl-radius-md);
-            font-weight: 600;
-            cursor: pointer;
-        }
-        .btn-cancel-modal {
-            background: transparent;
-            color: var(--bl-color-text);
-            border: 1px solid var(--bl-color-border);
-        }
-        .btn-confirm-decline {
-            background: #dc3545;
-            color: white;
-            border: none;
-        }
-        .selector-modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            align-items: flex-end;
-            justify-content: center;
-        }
-        .selector-modal-overlay.active {
-            display: flex;
-        }
-        .selector-modal {
-            background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-lg) var(--bl-radius-lg) 0 0;
-            width: 100%;
-            max-width: 500px;
-            max-height: 60vh;
-            overflow-y: auto;
-        }
-        .selector-modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px;
-            border-bottom: 1px solid var(--bl-color-border-soft);
-        }
-        .selector-modal-title {
-            font-weight: 600;
-            font-size: 1rem;
-        }
-        .selector-modal-close {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            color: var(--bl-color-text-muted);
-            cursor: pointer;
-            padding: 0;
-            line-height: 1;
-        }
-        .selector-option {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--bl-color-border-soft);
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .selector-option:hover {
-            background: rgba(0, 0, 0, 0.03);
-        }
-        .selector-option:last-child {
-            border-bottom: none;
-        }
-        .selector-option.selected {
-            color: var(--bl-color-primary);
-        }
+        .calendar-day.in-range { background: #5C1219; color: white; }
+        .calendar-day.range-start { border-radius: 4px 0 0 4px; }
+        .calendar-day.range-end { border-radius: 0 4px 4px 0; }
+        .calendar-day.today { border: 1px solid #5C1219; }
+        .calendar-day.muted { color: var(--bl-color-text-muted); opacity: 0.3; }
     </style>
 </head>
 <body>
-    <div class="page-container" style="padding: 16px 16px 24px; min-height: 100vh; display: flex; flex-direction: column;">
+    <div class="page-container" style="padding: 20px 16px 0; min-height: 100vh; display: flex; flex-direction: column;">
         <div style="flex: 1;">
+
+            <!-- Nav: back only, no redundant title -->
             <div class="trip-nav-header">
                 <a href="{{ url_for('my_trips') }}" class="back-chevron" aria-label="Back to trips">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="15 18 9 12 15 6"></polyline>
                     </svg>
                 </a>
-                <h1 class="trip-title">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</h1>
-                <div class="nav-spacer"></div>
             </div>
-            
+
+            <!-- Status banners -->
             {% if is_accepted %}
-            <div class="accepted-banner" style="background: #E8F5E9; color: #2E7D32; padding: 12px; border-radius: var(--bl-radius-md); font-weight: 600; text-align: center; margin-bottom: 16px;">You're going!</div>
+            <div class="tid-status-accepted">You're going ✓</div>
             {% elif participant.status.value == 'declined' %}
-            <div class="accepted-banner" style="background: var(--bl-color-surface); color: var(--bl-color-text-muted); padding: 12px; border-radius: var(--bl-radius-md); font-weight: 600; text-align: center; margin-bottom: 16px; border: 1px solid var(--bl-color-border-soft);">You declined this trip</div>
+            <div class="tid-status-declined">You declined this trip</div>
             {% endif %}
-            
-            <div class="trip-detail-card">
-                <div class="trip-detail-row">
-                    <span class="trip-detail-label">Mountain</span>
-                    <span class="trip-detail-value">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</span>
-                </div>
-                {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
-                {% if state_abbr %}
-                <div class="trip-detail-row">
-                    <span class="trip-detail-label">Location</span>
-                    <span class="trip-detail-value">{{ trip.resort|state_fullname if trip.resort else trip.state }}{% if trip.resort and trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}</span>
+
+            <!-- Hero block -->
+            {% set mountain_name = trip.resort.name if trip.resort else trip.mountain %}
+            {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
+            {% set state_full = trip.resort|state_fullname if trip.resort else trip.state %}
+
+            <div class="tid-hero">
+                {% if not is_accepted and participant.status.value != 'declined' %}
+                <p class="tid-hero-eyebrow">{{ owner.first_name if owner else 'Someone' }} invited you</p>
+                {% elif is_accepted %}
+                <p class="tid-hero-eyebrow">Confirmed</p>
+                {% endif %}
+                <p class="tid-hero-title">{{ mountain_name }}</p>
+                <p class="tid-hero-dates" onclick="showDatePreview()">
+                    {{ format_trip_dates(trip) }}
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                </p>
+                {% if state_full %}
+                <p class="tid-hero-loc">{{ state_full }}{% if trip.resort and trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}</p>
+                {% endif %}
+            </div>
+
+            <!-- From section -->
+            <p class="tid-section-label" style="margin-top: 0;">From</p>
+            <div class="tid-person-row">
+                <span class="tid-person-name">{{ owner.first_name if owner else 'Organizer' }}{% if owner and owner.last_name %} {{ owner.last_name }}{% endif %}</span>
+                <span class="tid-person-meta">Organizer</span>
+            </div>
+
+            <!-- Going section -->
+            <p class="tid-section-label" style="margin-top: 20px;">Going</p>
+            {% for p in accepted_participants %}
+                {% if p.user %}
+                <div class="tid-person-row">
+                    <span class="tid-person-name">{{ p.user.first_name }}</span>
+                    <span class="tid-person-meta">{{ p.user|identity_line }}</span>
                 </div>
                 {% endif %}
-                <div class="trip-detail-row" onclick="showDatePreview()" style="cursor: pointer;">
-                    <span class="trip-detail-label">Dates</span>
-                    <span class="trip-detail-value" style="color: var(--bl-color-primary); display: flex; align-items: center; gap: 4px;">
-                        {{ format_trip_dates(trip) }}
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                        </svg>
-                    </span>
-                </div>
-                {% set pass_display = trip.resort|mountain_passes if trip.resort else '' %}
+            {% endfor %}
+            {% if not is_accepted and participant.status.value != 'declined' %}
+            <div class="tid-person-row">
+                <span class="tid-person-name">You</span>
+                <span class="tid-person-meta">Invited</span>
+            </div>
+            {% endif %}
+
+            <!-- Trip details (pass, length) -->
+            {% set pass_display = trip.resort|mountain_passes if trip.resort else '' %}
+            {% if pass_display or trip.duration_display %}
+            <div class="tid-detail-rows" style="margin-top: 20px; margin-bottom: 0;">
+                <p class="tid-section-label">Details</p>
                 {% if pass_display %}
-                <div class="trip-detail-row">
-                    <span class="trip-detail-label">Pass</span>
-                    <span class="trip-detail-value">{{ pass_display }}</span>
+                <div class="tid-detail-row">
+                    <span class="tid-detail-label">Pass</span>
+                    <span class="tid-detail-value">{{ pass_display }}</span>
                 </div>
                 {% endif %}
-                <div class="trip-detail-row">
-                    <span class="trip-detail-label">Trip Length</span>
-                    <span class="trip-detail-value">{{ trip.duration_display }}</span>
+                {% if trip.duration_display %}
+                <div class="tid-detail-row">
+                    <span class="tid-detail-label">Trip Length</span>
+                    <span class="tid-detail-value">{{ trip.duration_display }}</span>
                 </div>
+                {% endif %}
             </div>
-            
-            <div class="participants-section">
-                <h3>Who's Going</h3>
-                <div class="participant-list">
-                    <div class="participant-row">
-                        <span class="participant-name">{{ owner.first_name if owner else 'Organizer' }}</span>
-                        <span class="participant-identity">Organizer</span>
-                    </div>
-                    {% for p in accepted_participants %}
-                        {% if p.user and p.user.id != owner.id %}
-                        <div class="participant-row">
-                            <span class="participant-name">{{ p.user.first_name }}</span>
-                            <span class="participant-identity">{{ p.user|identity_line }}</span>
-                        </div>
-                        {% endif %}
-                    {% endfor %}
-                    {% if not is_accepted and participant.status.value != 'declined' %}
-                    <div class="participant-row">
-                        <span class="participant-name">You (invited)</span>
-                        <span class="participant-identity">Invited</span>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            
+            {% endif %}
+
+            <!-- Your Trip Details — shown after accepting -->
             {% if is_accepted %}
-            <div class="your-trip-details-section" style="margin-top: 24px;">
-                <p style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--bl-color-text-muted); font-weight: 600; margin: 0 0 12px 0;">Your Trip Details</p>
-                
+            <p class="tid-section-label" style="margin-top: 24px;">Your Trip Details</p>
+            <div class="your-trip-details-section">
                 <div class="transport-editor-container">
                     <div class="transport-row-header" onclick="openSelector('transportation')">
-                        <span style="font-size: 0.9rem; color: var(--bl-color-text);">Transportation</span>
+                        <span style="font-size: 14px; color: var(--bl-color-text);">Transportation</span>
                         <span class="transport-summary">
                             <span id="transportation-value">
                                 {% if participant.transportation_status %}
@@ -449,10 +475,9 @@
                         </span>
                     </div>
                 </div>
-
                 <div class="transport-editor-container">
                     <div class="transport-row-header" onclick="openSelector('equipment')">
-                        <span style="font-size: 0.9rem; color: var(--bl-color-text);">Equipment</span>
+                        <span style="font-size: 14px; color: var(--bl-color-text);">Equipment</span>
                         <span class="transport-summary">
                             <span id="equipment-value">
                                 {% if participant.equipment_status %}
@@ -467,10 +492,9 @@
                         </span>
                     </div>
                 </div>
-
                 <div class="transport-editor-container">
                     <div class="transport-row-header" onclick="openSelector('carpool')">
-                        <span style="font-size: 0.9rem; color: var(--bl-color-text);">Carpool</span>
+                        <span style="font-size: 14px; color: var(--bl-color-text);">Carpool</span>
                         <span class="transport-summary">
                             <span id="carpool-value">
                                 {% if participant.carpool_role %}
@@ -483,10 +507,9 @@
                         </span>
                     </div>
                 </div>
-
                 <div class="transport-editor-container">
                     <div class="transport-row-header" onclick="openSelector('lesson')">
-                        <span style="font-size: 0.9rem; color: var(--bl-color-text);">Taking a lesson?</span>
+                        <span style="font-size: 14px; color: var(--bl-color-text);">Taking a lesson?</span>
                         <span class="transport-summary">
                             <span id="lesson-value">
                                 {% if participant.taking_lesson %}
@@ -501,26 +524,29 @@
                 </div>
             </div>
             {% endif %}
-        </div>
-        
+
+        </div><!-- /flex 1 -->
+
+        <!-- Action buttons — shown when invite is pending -->
         {% if not is_accepted and participant.status.value != 'declined' %}
         <div class="action-buttons">
-            <div class="action-buttons-row">
-                <form method="POST" action="/trips/{{ trip.id }}/respond" style="flex: 2;">
-                    <input type="hidden" name="action" value="accept">
-                    <button type="submit" class="btn-accept" style="width: 100%;">Accept Invite</button>
-                </form>
-                <button type="button" class="btn-decline" onclick="showDeclineModal()">Decline</button>
-            </div>
+            <form method="POST" action="/trips/{{ trip.id }}/respond">
+                <input type="hidden" name="action" value="accept">
+                <button type="submit" class="btn-accept">Accept Invite</button>
+            </form>
+            <button type="button" class="btn-decline" onclick="showDeclineModal()">Decline this invite</button>
         </div>
         {% endif %}
-    </div>
+
+    </div><!-- /page-container -->
 
     {% include 'components/bottom_nav.html' %}
-    
+
+    <!-- Decline confirmation modal -->
     <div class="decline-modal-overlay" id="decline-modal">
         <div class="decline-modal">
-            <h3>Decline this trip invite?</h3>
+            <h3>Decline this invite?</h3>
+            <p>You can always ask {{ owner.first_name if owner else 'the organizer' }} to invite you again.</p>
             <div class="decline-modal-actions">
                 <button type="button" class="btn-cancel-modal" onclick="hideDeclineModal()">Cancel</button>
                 <form method="POST" action="/trips/{{ trip.id }}/respond" style="flex: 1;">
@@ -530,7 +556,8 @@
             </div>
         </div>
     </div>
-    
+
+    <!-- Selector modals (transportation, equipment, carpool, lesson) -->
     {% if is_accepted %}
     <div class="selector-modal-overlay" id="transportation-selector">
         <div class="selector-modal">
@@ -544,7 +571,6 @@
             <div class="selector-option" data-field="transportation" data-value="tbd">TBD</div>
         </div>
     </div>
-    
     <div class="selector-modal-overlay" id="equipment-selector">
         <div class="selector-modal">
             <div class="selector-modal-header">
@@ -556,7 +582,6 @@
             <div class="selector-option" data-field="equipment" data-value="">Not set</div>
         </div>
     </div>
-    
     <div class="selector-modal-overlay" id="carpool-selector">
         <div class="selector-modal">
             <div class="selector-modal-header">
@@ -570,7 +595,6 @@
             <div class="selector-option" data-field="carpool" data-value="other">Other</div>
         </div>
     </div>
-    
     <div class="selector-modal-overlay" id="lesson-selector">
         <div class="selector-modal">
             <div class="selector-modal-header">
@@ -583,12 +607,13 @@
         </div>
     </div>
     {% endif %}
-    
+
+    <!-- Calendar preview modal -->
     <div class="calendar-preview-modal" id="date-preview-modal">
         <div class="calendar-content">
             <div class="calendar-header">
-                <span id="calendar-month-year" style="font-weight: 600;"></span>
-                <button onclick="hideDatePreview()" style="background: none; border: none; font-size: 1.25rem; color: var(--bl-color-text-muted); padding: 4px;">&times;</button>
+                <span id="calendar-month-year" style="font-weight: 600; font-size: 15px;"></span>
+                <button onclick="hideDatePreview()" style="background: none; border: none; font-size: 1.25rem; color: var(--bl-color-text-muted); padding: 4px; cursor: pointer;">&times;</button>
             </div>
             <div class="calendar-grid">
                 <div class="calendar-day-label">S</div>
@@ -608,51 +633,49 @@
             const modal = document.getElementById('date-preview-modal');
             const container = document.getElementById('calendar-days');
             const monthYear = document.getElementById('calendar-month-year');
-            
+
             const startDate = new Date('{{ trip.start_date.isoformat() }}');
             const endDate = new Date('{{ trip.end_date.isoformat() }}');
-            
-            // Set to noon to avoid DST issues
+
             startDate.setHours(12, 0, 0, 0);
             endDate.setHours(12, 0, 0, 0);
-            
+
             const month = startDate.getMonth();
             const year = startDate.getFullYear();
-            
+
             monthYear.textContent = startDate.toLocaleDateString('default', { month: 'long', year: 'numeric' });
-            
+
             const firstDay = new Date(year, month, 1);
             const startOffset = firstDay.getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
-            
+
             container.innerHTML = '';
-            
-            // Padding for start of month
+
             for (let i = 0; i < startOffset; i++) {
                 const dayDiv = document.createElement('div');
                 dayDiv.className = 'calendar-day muted';
                 container.appendChild(dayDiv);
             }
-            
+
             for (let d = 1; d <= daysInMonth; d++) {
                 const current = new Date(year, month, d, 12, 0, 0, 0);
                 const dayDiv = document.createElement('div');
                 dayDiv.className = 'calendar-day';
                 dayDiv.textContent = d;
-                
+
                 if (current >= startDate && current <= endDate) {
                     dayDiv.classList.add('in-range');
                     if (current.getTime() === startDate.getTime()) dayDiv.classList.add('range-start');
                     if (current.getTime() === endDate.getTime()) dayDiv.classList.add('range-end');
                 }
-                
+
                 const today = new Date();
                 today.setHours(12, 0, 0, 0);
                 if (current.getTime() === today.getTime()) dayDiv.classList.add('today');
-                
+
                 container.appendChild(dayDiv);
             }
-            
+
             modal.classList.add('active');
         }
 
@@ -673,18 +696,18 @@
         document.getElementById('decline-modal').addEventListener('click', function(e) {
             if (e.target === this) hideDeclineModal();
         });
-        
+
         {% if is_accepted %}
         var tripId = {{ trip.id }};
-        
+
         function openSelector(field) {
             document.getElementById(field + '-selector').classList.add('active');
         }
-        
+
         function closeSelector(field) {
             document.getElementById(field + '-selector').classList.remove('active');
         }
-        
+
         document.querySelectorAll('.selector-modal-overlay').forEach(function(overlay) {
             overlay.addEventListener('click', function(e) {
                 if (e.target === this) {
@@ -692,13 +715,13 @@
                 }
             });
         });
-        
+
         document.querySelectorAll('.selector-option').forEach(function(option) {
             option.addEventListener('click', function() {
                 var field = this.getAttribute('data-field');
                 var value = this.getAttribute('data-value');
                 var displayText = this.textContent.trim();
-                
+
                 var payload = {};
                 if (field === 'transportation') {
                     payload.transportation_status = value;
@@ -709,7 +732,7 @@
                 } else if (field === 'lesson') {
                     payload.taking_lesson = value;
                 }
-                
+
                 fetch('/api/trips/' + tripId + '/participant/signals', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

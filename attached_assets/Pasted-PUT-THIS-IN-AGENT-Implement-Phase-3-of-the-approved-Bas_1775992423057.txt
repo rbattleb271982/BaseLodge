@@ -1,0 +1,150 @@
+PUT THIS IN AGENT
+
+Implement Phase 3 of the approved BaseLodge editorial / blush-maroon redesign.
+
+Phase 3 scope only:
+- templates/trip_detail.html
+- templates/trip_invite_detail.html
+- templates/components/bottom_nav.html only if needed for visual consistency
+- shared styles in static/styles.css only if needed to support these two screens cleanly
+
+Do not touch other screens in this phase.
+Do not change backend logic, routes, or JS behavior unless absolutely required to support the approved UI.
+
+GOAL
+Apply the approved editorial system to the two highest-stakes screens:
+1. Trip detail
+2. Invite detail
+
+These screens should feel premium, emotionally resonant, and clearly actionable.
+
+APPROVED DESIGN SYSTEM
+Colors
+- cream page background: #F5F1E8
+- blush hero surface: #F0DDD8
+- bordeaux accent: #5C1219
+- primary text: #1A1A1A
+- secondary text: #6B665A
+- tertiary text: #8A857A
+- soft border: #E5DFD0
+- quiet border: #D9D2BF
+- legacy red #A8152B = logo only, not product UI
+
+Typography
+- serif for destination names, screen titles, and key moments using Georgia fallback
+- sans-serif for body, labels, metadata, controls
+- editorial hierarchy with calm spacing
+
+Global styling rules
+- no gradients
+- no shadows
+- no glows
+- hairline borders
+- one blush hero max per screen
+- mobile-first
+- preserve usability and tappability
+
+--------------------------------
+PART A — TRIP DETAIL
+--------------------------------
+
+Template:
+- templates/trip_detail.html
+
+Requirements:
+1. Redesign the screen around one large blush hero block near the top
+2. Use:
+   - eyebrow label for countdown/timing if available
+   - large serif destination name
+   - editorial date format if feasible:
+     Thu Nov 20 → Sat Nov 22
+3. Use the blush hero:
+   - background #F0DDD8
+   - 0.5px bordeaux border
+   - consistent spacing with the approved system
+4. Below the hero, convert attendee/group sections into cleaner hairline-separated editorial sections
+5. Going and Maybe states should feel distinct but subtle
+6. Attendee rows should feel tappable, clean, and consistent
+7. Replace heavy card/dashboard styling with row-based structure where safe
+8. Primary action should be:
+   - Invite friends
+   - outlined bordeaux button
+9. Back button and menu button must remain functional and visually clean
+10. Preserve all existing JS behavior exactly unless a class rename is absolutely unavoidable
+
+Trip detail rules:
+- no multiple competing hero blocks
+- no heavy cards stacked everywhere
+- no bright tag soup
+- use typography, spacing, and hairlines to organize information
+- keep complex sections readable, not ornamental
+
+If the screen has accommodation / transportation / equipment sections:
+- do not remove them
+- restyle them into the editorial system as calmly as possible
+- preserve all related JS hooks and interactions
+
+--------------------------------
+PART B — INVITE DETAIL
+--------------------------------
+
+Template:
+- templates/trip_invite_detail.html
+
+Requirements:
+1. This should be one of the strongest screens in the app visually
+2. Use a large blush hero block:
+   - eyebrow like “[Name] invited you”
+   - large serif destination name
+   - editorial date line
+3. Follow with clean hairline sections for:
+   - From
+   - Going / attendees
+4. Visual hierarchy of actions must be:
+   - Accept invite = the single filled button in the app
+   - Maybe = outlined button
+   - Decline = quiet text link
+5. Preserve all invite response behavior exactly
+6. Keep the screen calm, premium, and clear
+7. Remove bulky legacy banner/card treatments if present
+8. Make the social moment feel special, not transactional
+
+Invite rules:
+- only one filled button should dominate
+- filled button uses bordeaux background with white text
+- Maybe uses outlined treatment
+- Decline stays visually quiet
+- section organization should be driven by hairlines and typography, not card clutter
+
+--------------------------------
+IMPLEMENTATION SAFETY RULES
+--------------------------------
+
+1. Preserve all existing JS behavior in both templates
+2. Treat each existing JS block as a boundary
+3. Do not rename JS-dependent classes unless unavoidable
+4. If a rename is unavoidable, update the JS carefully and test it
+5. Do not remove any real data section or functionality
+6. Keep all tap targets mobile-safe
+7. If an exact design move is too risky, implement the closest safe editorial version and note it clearly
+
+--------------------------------
+QA REQUIREMENTS
+--------------------------------
+
+Test and confirm:
+1. trip detail renders correctly
+2. invite detail renders correctly
+3. back button/menu still work
+4. invite response actions still work
+5. accommodation / transportation / equipment interactions still work if present
+6. no JS regressions
+7. no overflow or broken spacing on mobile
+8. hero styling is consistent with Home and onboarding
+9. exactly one filled button appears on invite detail and nowhere else in these screens
+
+DELIVERABLES
+1. List exactly which files changed
+2. Summarize what was implemented for trip detail and invite detail
+3. Note any compromises or deferred items
+4. Do not finish until this phase has been tested in the running app

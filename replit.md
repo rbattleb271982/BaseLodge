@@ -4,21 +4,34 @@
 BaseLodge is a Flask-based ski/snowboard trip planning application. It helps users track ski days, manage resort passes, and connect with friends. The application provides a modern, mobile-first experience focused on user profiles, an invitation-based friends system, and a centralized trip management hub. The vision is to be the primary platform for snow sports enthusiasts to plan, track, and socialize their winter mountain experiences.
 
 ## User Preferences
-- Mobile-first design approach (now supporting both web & mobile)
-- Unified design system using CSS variables for consistency
+- Mobile-first design approach
+- Editorial/blush-maroon design system (v2 active)
 - Reusable component partials for DRY templating
 - Max width 900px for main pages on web
 - Inline modals for trip management (no page navigation)
-- Incremental feature rollout prioritizing mobile
 - Home-first navigation structure (centralized trip management)
-- Segmented controls instead of dropdowns for pass/rider type
-- Bottom navigation across all main pages with emoji icons
-- System font stack (system-ui, -apple-system, BlinkMacSystemFont, etc.)
+- Bottom navigation — text-only with dot indicator (no emojis)
+- Georgia serif for display titles, system-ui for body
+
+## Design System (v2 — Active)
+**Tokens:**
+- Primary: `#5C1219` (bordeaux)
+- Background: `#F5F1E8` (cream)
+- Surface: `#FFFFFF`
+- Surface-blush: `#F0DDD8`
+- Border-soft: `#E5DFD0`
+- Border: `#D9D2BF`
+- Text: `#1A1A1A` | Muted: `#6B665A` | Tertiary: `#8A857A`
+- No shadows. Radii: sm:4px / md:8px / lg:12px
+
+**Hero block standard:** `background: #F0DDD8; border: 0.5px solid #5C1219; border-radius: 8px; padding: 20px`
+**Activity tags:** bordeaux dot `::before` + uppercase label, single color `#5C1219`
+**Selection state (pills):** blush bg + soft neutral border + bold hint text
 
 ## System Architecture
 
 ### UI/UX Decisions
-The application employs a mobile-first responsive design with a unified "BaseLodge" design system and CSS variables. Key UI elements include segmented controls, a 5-tab bottom navigation with SVG icons (Trips, Friends, Invite, Profile, Feedback), and a home-first navigation paradigm. The color scheme features a deep red accent (`#8F011B` light, `#FF6B7A` dark) with clean backgrounds. Dark mode is system-based via `@media (prefers-color-scheme: dark)`, using an Alpine-inspired palette. Card designs for Home and Friend Profiles use a shared `profile_card.html` component. Profile forms are optimized for mobile, and settings use a card-based layout.
+The application employs a mobile-first responsive design with an editorial "BaseLodge" design system (v2). Key UI elements include the blush hero block for primary content, hairline section rows replacing cards, a text-only bottom navigation with dot indicator, and serif (Georgia) headlines for emotional resonance. The color scheme features bordeaux `#5C1219` as primary with cream `#F5F1E8` backgrounds. No dark mode in v2. All main templates link to `static/styles.css` for shared tokens; page-specific overrides live in inline `<style>` blocks.
 
 ### Technical Implementations
 The backend is built with Flask, utilizing SQLAlchemy for ORM and Werkzeug for password hashing. Jinja2 is used for templating, complemented by custom CSS and Vanilla JS for interactivity and AJAX. Flask-Login handles session-based authentication. An event system captures user actions for notifications. User lifecycle stages (`new`, `onboarding`, `active`) and canonical states (`is_core_profile_complete`, `has_started_planning`, `is_active_user`) dictate UI and feature availability. Supabase is the single system of record for all resort data.

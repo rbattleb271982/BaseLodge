@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge - Trip Details</title>
+    <title>BaseLodge — Trip</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
+        /* ── Nav ── */
         .trip-nav-header {
             display: flex;
             align-items: center;
@@ -20,129 +21,124 @@
             height: 40px;
             color: var(--bl-color-text);
             text-decoration: none;
-            border-radius: var(--bl-radius-md);
+            border-radius: var(--bl-radius-sm);
+            flex-shrink: 0;
         }
-        .back-chevron:hover {
-            background: rgba(0, 0, 0, 0.05);
-        }
+        .back-chevron:hover { background: rgba(0,0,0,0.05); }
         .trip-title {
             flex: 1;
-            font-size: 1.25rem;
-            font-weight: 600;
+            font-size: 15px;
+            font-weight: 500;
             margin: 0;
-            color: var(--bl-color-text);
+            color: var(--bl-color-text-muted);
             text-align: center;
         }
-        .nav-spacer {
-            width: 40px;
-        }
+        .nav-spacer { width: 40px; }
         .header-edit-link {
-            font-size: 0.95rem;
+            font-size: 14px;
             color: var(--bl-color-text-muted);
             text-decoration: none;
             padding: 8px;
             min-width: 40px;
             text-align: right;
         }
-        .header-edit-link:hover {
-            color: var(--bl-color-primary);
+        .header-edit-link:hover { color: var(--bl-color-primary); }
+
+        /* ── Blush Hero ── */
+        .td-hero {
+            background: #F0DDD8;
+            border: 0.5px solid #5C1219;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
         }
-        
+        .td-hero-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #5C1219;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .td-hero-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 24px;
+            font-weight: 400;
+            color: #1A1A1A;
+            line-height: 1.2;
+            margin-bottom: 6px;
+        }
+        .td-hero-sub {
+            font-size: 14px;
+            color: #6B665A;
+            margin-bottom: 4px;
+        }
+        .td-hero-meta {
+            font-size: 13px;
+            color: #8A857A;
+            margin-bottom: 0;
+        }
+
+        /* ── Info rows (pass, length, visibility) ── */
+        .td-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 11px 0;
+            border-bottom: 1px solid #E5DFD0;
+        }
+        .td-info-row:first-child { border-top: 1px solid #E5DFD0; }
+        .td-info-label { font-size: 13px; color: #6B665A; }
+        .td-info-value { font-size: 13px; font-weight: 500; color: #1A1A1A; text-align: right; }
+
+        /* ── Invite CTA (outlined) ── */
         .invite-cta {
-            margin-bottom: 20px;
+            margin: 20px 0;
         }
-        .invite-cta .bl-btn-primary {
+        .td-btn-invite {
+            display: block;
             width: 100%;
-            padding: 14px 20px;
-            font-size: 1rem;
+            padding: 13px 20px;
+            background: transparent;
+            border: 1px solid #5C1219;
+            border-radius: 8px;
+            color: #5C1219;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            font-family: inherit;
         }
+        .td-btn-invite:hover { background: #F5F1E8; }
         .invite-count {
-            font-size: 0.85rem;
+            font-size: 13px;
             color: var(--bl-color-text-muted);
             margin-top: 8px;
             text-align: center;
         }
-        
-        .trip-detail-card {
-            background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-lg);
-            padding: 16px;
-            margin-bottom: 16px;
+
+        /* ── Section labels ── */
+        .td-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+            color: #8A857A;
+            margin: 24px 0 0 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #E5DFD0;
         }
-        .trip-detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
-        }
-        .trip-detail-row:last-child {
-            border-bottom: none;
-        }
-        .trip-detail-label {
-            font-size: 0.9rem;
-            color: var(--bl-color-text-muted);
-        }
-        .trip-detail-value {
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: var(--bl-color-text);
-            text-align: right;
-        }
-        
-        .participants-section {
-            margin-top: 20px;
-        }
-        .participants-section h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            margin: 0 0 12px 0;
-            color: var(--bl-color-text);
-        }
-        .participant-card {
-            background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-md);
-            padding: 12px 14px;
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .participant-name {
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: var(--bl-color-text);
-        }
-        .participant-identity {
-            font-size: 0.85rem;
-            color: var(--bl-color-text-muted);
-            margin: 2px 0 0 0;
-        }
-        .participant-badges {
-            font-size: 0.85rem;
-            color: var(--bl-color-text-muted);
-            margin: 4px 0 0 0;
-        }
-        .badge-link {
-            background: none;
-            border: none;
-            padding: 0;
-            font: inherit;
-            color: var(--bl-color-text-muted);
-            cursor: default;
-        }
-        .badge-separator {
-            color: var(--bl-color-text-muted);
-        }
-        
+
+        /* ── Your Trip Details expandable section ── */
         .your-trip-details-section {
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: var(--bl-radius-md);
-            padding: 16px;
-            margin-bottom: 20px;
+            margin-bottom: 4px;
         }
         .transport-editor-container, .lesson-editor-container {
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            border-bottom: 1px solid #E5DFD0;
+        }
+        .lesson-editor-container:last-child,
+        .transport-editor-container:last-child {
+            border-bottom: none;
         }
         .transport-row-header, .lesson-row-header {
             display: flex;
@@ -152,8 +148,8 @@
             cursor: pointer;
         }
         .transport-summary, .lesson-summary {
-            font-size: 0.9rem;
-            color: var(--bl-color-primary);
+            font-size: 13px;
+            color: #5C1219;
             font-weight: 500;
             display: flex;
             align-items: center;
@@ -161,7 +157,7 @@
         }
         .transport-options-inline, .lesson-options-inline {
             display: none;
-            padding: 4px 0 16px 0;
+            padding: 4px 0 14px 0;
         }
         .transport-options-inline.expanded, .lesson-options-inline.expanded {
             display: block;
@@ -169,43 +165,116 @@
         .transport-radio-group, .lesson-radio-group {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 2px;
         }
         .transport-radio-label, .lesson-radio-label {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 10px 0;
+            padding: 9px 0;
             cursor: pointer;
-            font-size: 0.95rem;
+            font-size: 14px;
             color: var(--bl-color-text);
             -webkit-tap-highlight-color: transparent;
         }
-        .transport-radio-label:active, .lesson-radio-label:active {
-            opacity: 0.7;
-        }
+        .transport-radio-label:active, .lesson-radio-label:active { opacity: 0.7; }
         .transport-radio-label input, .lesson-radio-label input {
             width: 20px;
             height: 20px;
             margin: 0;
-            accent-color: var(--bl-color-primary);
+            accent-color: #5C1219;
             cursor: pointer;
         }
-        .chevron-icon {
-            transition: transform 0.2s ease;
+        .chevron-icon { transition: transform 0.2s ease; }
+        .chevron-icon.expanded { transform: rotate(90deg); }
+
+        /* ── Person rows (who's going, pending) ── */
+        .td-person-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #E5DFD0;
         }
-        .chevron-icon.expanded {
-            transform: rotate(90deg);
+        .td-person-row:last-child { border-bottom: none; }
+        .td-person-info { flex: 1; min-width: 0; }
+        .td-person-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1A1A1A;
+            margin-bottom: 2px;
+        }
+        .td-person-meta {
+            font-size: 12px;
+            color: #8A857A;
+        }
+        .td-person-badges {
+            font-size: 12px;
+            color: #8A857A;
+            margin-top: 2px;
+        }
+        .td-person-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+        .td-person-btn-accept {
+            background: #5C1219;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .td-person-btn-decline {
+            background: transparent;
+            color: #8A857A;
+            border: 1px solid #D9D2BF;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .td-person-status-tag {
+            font-size: 11px;
+            font-weight: 600;
+            color: #5C1219;
+        }
+        .td-cancel-link {
+            background: transparent;
+            border: none;
+            color: #8A857A;
+            font-size: 13px;
+            cursor: pointer;
+            padding: 4px 0;
         }
 
-        /* Modal Overlay Styles */
+        /* ── Sticky action bar (for is_invited on trip_detail) ── */
+        .sticky-action-container {
+            position: fixed;
+            bottom: 72px;
+            left: 0;
+            right: 0;
+            background: var(--bl-color-bg);
+            border-top: 1px solid #E5DFD0;
+            padding: 12px 16px;
+            z-index: 90;
+            display: none;
+        }
+        .sticky-action-container.visible { display: block; }
+        .sticky-action-content { max-width: 900px; margin: 0 auto; }
+        .sticky-action-buttons { display: flex; gap: 10px; }
+        .sticky-action-buttons form { flex: 1; }
+
+        /* ── Invite friends modal ── */
         .modal-overlay {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.5);
             z-index: 9999;
             align-items: flex-end;
@@ -213,9 +282,7 @@
             -webkit-backdrop-filter: blur(2px);
             backdrop-filter: blur(2px);
         }
-        .modal-overlay.active {
-            display: flex;
-        }
+        .modal-overlay.active { display: flex; }
         body.modal-open {
             overflow: hidden;
             position: fixed;
@@ -225,29 +292,28 @@
         .modal-sheet {
             background-color: var(--bl-color-surface);
             color: var(--bl-color-text);
-            border-radius: 20px 20px 0 0;
+            border-radius: 16px 16px 0 0;
             width: 100%;
             max-width: 500px;
             max-height: 85vh;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            box-shadow: var(--bl-shadow-card);
         }
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 16px 20px;
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            border-bottom: 1px solid #E5DFD0;
             flex-shrink: 0;
             background-color: var(--bl-color-surface);
         }
         .modal-header h2 {
-            font-size: 1.1rem;
+            font-size: 15px;
             font-weight: 600;
             margin: 0;
-            color: var(--bl-color-text);
+            color: #1A1A1A;
         }
         .modal-close {
             background: none;
@@ -268,19 +334,19 @@
         .modal-footer {
             padding: 16px 20px;
             padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-            border-top: 1px solid var(--bl-color-border-soft);
+            border-top: 1px solid #E5DFD0;
             background-color: var(--bl-color-surface);
             flex-shrink: 0;
         }
         .modal-search {
             padding: 12px 20px;
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            border-bottom: 1px solid #E5DFD0;
             background-color: var(--bl-color-surface);
         }
         .friend-search-input {
             width: 100%;
             padding: 10px 14px;
-            font-size: 0.95rem;
+            font-size: 14px;
             border: 1px solid var(--bl-color-border);
             border-radius: 8px;
             background-color: var(--bl-color-bg);
@@ -291,55 +357,28 @@
             display: flex;
             align-items: center;
             padding: 12px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            border-bottom: 1px solid #E5DFD0;
             gap: 12px;
         }
-        .friend-select-row.disabled {
-            opacity: 0.5;
-        }
-        .friend-select-info {
-            flex: 1;
-        }
+        .friend-select-row.disabled { opacity: 0.5; }
+        .friend-select-info { flex: 1; }
         .friend-select-name {
-            font-size: 0.95rem;
+            font-size: 14px;
             font-weight: 500;
-            color: var(--bl-color-text);
+            color: #1A1A1A;
             margin: 0 0 2px 0;
         }
         .friend-select-identity {
-            font-size: 0.85rem;
+            font-size: 13px;
             color: var(--bl-color-text-muted);
             margin: 0;
-        }
-        .sticky-action-container {
-            position: fixed;
-            bottom: 72px;
-            left: 0;
-            right: 0;
-            background: var(--bl-color-bg);
-            border-top: 1px solid var(--bl-color-border-soft);
-            padding: 12px 16px;
-            z-index: 90;
-            display: none;
-        }
-        .sticky-action-container.visible {
-            display: block;
-        }
-        .sticky-action-content {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-        .sticky-action-buttons {
-            display: flex;
-            gap: 10px;
-        }
-        .sticky-action-buttons form {
-            flex: 1;
         }
     </style>
 </head>
 <body>
-    <div class="page-container{% if is_invited %} page-container-with-sticky{% endif %}">
+    <div class="page-container{% if is_invited %} page-container-with-sticky{% endif %}" style="padding: 20px 16px 96px;">
+
+        <!-- Nav -->
         <div class="trip-nav-header">
             <a href="{{ url_for('home') }}" class="back-chevron" aria-label="Back to home">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -353,84 +392,84 @@
             <div class="nav-spacer"></div>
             {% endif %}
         </div>
-        
-        {% if is_invited %}
-        <div class="invite-banner" style="background: linear-gradient(135deg, rgba(143, 1, 27, 0.06), rgba(143, 1, 27, 0.02)); border: 1px solid rgba(143, 1, 27, 0.15); border-radius: var(--bl-radius-lg); padding: 16px; margin-bottom: 20px;">
-            <p style="font-size: 0.95rem; font-weight: 600; color: var(--bl-color-text); margin: 0 0 4px 0;">You're invited to this trip!</p>
-            <p style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin: 0;">{{ owner.first_name }}{% if owner.last_name %} {{ owner.last_name }}{% endif %} wants you to join.</p>
+
+        <!-- Hero block -->
+        {% set mountain_name = trip.resort.name if trip.resort else trip.mountain %}
+        {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
+        {% set people = all_participants|length if all_participants else 0 %}
+
+        <div class="td-hero">
+            {% if is_invited %}
+            <p class="td-hero-eyebrow">{{ owner.first_name if owner else 'Someone' }} invited you</p>
+            {% elif is_owner or is_guest %}
+            <p class="td-hero-eyebrow">Upcoming</p>
+            {% endif %}
+            <p class="td-hero-title">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+            <p class="td-hero-sub">{{ format_trip_dates(trip) }}</p>
+            {% if people > 1 %}
+            <p class="td-hero-meta">{{ people }} going</p>
+            {% endif %}
+            {% if is_invited %}
+            <p class="td-hero-meta" style="margin-top: 4px;">{{ owner.first_name if owner else 'The organizer' }} wants you to join.</p>
+            {% endif %}
         </div>
-        {% elif is_owner or is_accepted %}
+
+        <!-- Info rows (Pass, Location, Trip Length, Visibility) -->
+        {% if trip.resort and trip.resort|state_fullname %}
+        <div class="td-info-row">
+            <span class="td-info-label">Location</span>
+            <span class="td-info-value">{{ trip.resort|state_fullname }}{% if trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}</span>
+        </div>
+        {% elif trip.state %}
+        <div class="td-info-row">
+            <span class="td-info-label">Location</span>
+            <span class="td-info-value">{{ trip.state }}</span>
+        </div>
+        {% endif %}
+        {% set pass_display = trip.resort|mountain_passes %}
+        {% if pass_display %}
+        <div class="td-info-row">
+            <span class="td-info-label">Pass</span>
+            <span class="td-info-value">{{ pass_display }}</span>
+        </div>
+        {% endif %}
+        <div class="td-info-row">
+            <span class="td-info-label">Trip Length</span>
+            <span class="td-info-value">{{ trip.duration_display }}</span>
+        </div>
+        <div class="td-info-row">
+            <span class="td-info-label">Visibility</span>
+            <span class="td-info-value">{{ 'Public' if trip.is_public else 'Private' }}</span>
+        </div>
+
+        <!-- Invite friends CTA (owner or accepted guest) -->
+        {% if is_owner or is_guest %}
         <div class="invite-cta">
-            <button class="bl-btn-primary" onclick="handleInviteClick()">
-                Invite friends
-            </button>
+            <button class="td-btn-invite" onclick="handleInviteClick()">Invite friends</button>
             {% if invite_count > 0 %}
             <p class="invite-count">{{ invite_count }} invite{{ 's' if invite_count != 1 else '' }} sent</p>
             {% endif %}
         </div>
         {% endif %}
-        
-        {# Trip Summary Section #}
-        <div class="trip-detail-card">
-            <div class="trip-detail-row">
-                <span class="trip-detail-label">Mountain</span>
-                <span class="trip-detail-value">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</span>
-            </div>
-            {% if trip.resort and trip.resort|state_fullname %}
-            <div class="trip-detail-row">
-                <span class="trip-detail-label">Location</span>
-                <span class="trip-detail-value">{{ trip.resort|state_fullname }}{% if trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}</span>
-            </div>
-            {% elif trip.state %}
-            <div class="trip-detail-row">
-                <span class="trip-detail-label">Location</span>
-                <span class="trip-detail-value">{{ trip.state }}</span>
-            </div>
-            {% endif %}
-            <div class="trip-detail-row">
-                <span class="trip-detail-label">Dates</span>
-                <span class="trip-detail-value">{{ format_trip_dates(trip) }}</span>
-            </div>
-            {% set pass_display = trip.resort|mountain_passes %}
-            {% if pass_display %}
-            <div class="trip-detail-row">
-                <span class="trip-detail-label">Pass</span>
-                <span class="trip-detail-value">{{ pass_display }}</span>
-            </div>
-            {% endif %}
-            <div class="trip-detail-row">
-                <span class="trip-detail-label">Trip Length</span>
-                <span class="trip-detail-value">{{ trip.duration_display }}</span>
-            </div>
-            <div class="trip-detail-row" style="border-bottom: none;">
-                <span class="trip-detail-label">Visibility</span>
-                <span class="trip-detail-value">{{ 'Public' if trip.is_public else 'Private' }}</span>
-            </div>
-        </div>
-        
-        {# Removed Join Requests standalone section #}
-        
+
+        <!-- Your Trip Details -->
+        <p class="td-section-label">Your Trip Details</p>
         <div class="your-trip-details-section">
-            <p style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--bl-color-text-muted); font-weight: 600; margin: 0 0 12px 0;">Your Trip Details</p>
-            
-            {# 1. Equipment #}
+
+            {# Equipment #}
             <div class="lesson-editor-container">
                 <div class="lesson-row-header" onclick="{% if is_owner %}toggleEquipmentOverride(){% endif %}">
                     <div style="display: flex; flex-direction: column;">
-                        <span style="font-size: 0.9rem; color: var(--bl-color-text);">Equipment</span>
-                        <p style="font-size: 0.7rem; color: var(--bl-color-text-muted); opacity: 0.7; margin-top: 2px;">
+                        <span style="font-size: 14px; color: var(--bl-color-text);">Equipment</span>
+                        <span style="font-size: 11px; color: var(--bl-color-text-muted); margin-top: 1px;">
                             {% if not trip.equipment_override or trip.equipment_override == 'use_default' %}From profile{% else %}For this trip only{% endif %}
-                        </p>
+                        </span>
                     </div>
                     <span class="lesson-summary" style="{% if not is_owner %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
                         <span id="equipmentSummaryText">
-                            {% if trip.equipment_override == 'have_own_equipment' %}
-                                Have own equipment
-                            {% elif trip.equipment_override == 'renting' %}
-                                Renting equipment
-                            {% else %}
-                                {{ current_user.equipment_status|replace('_', ' ')|capitalize }}
-                            {% endif %}
+                            {% if trip.equipment_override == 'have_own_equipment' %}Have own equipment
+                            {% elif trip.equipment_override == 'renting' %}Renting equipment
+                            {% else %}{{ current_user.equipment_status|replace('_', ' ')|capitalize }}{% endif %}
                         </span>
                         {% if is_owner %}
                         <svg class="chevron-icon" id="equipmentChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
@@ -459,10 +498,10 @@
                 {% endif %}
             </div>
 
-            {# 2. Transportation #}
+            {# Transportation #}
             <div class="transport-editor-container">
                 <div class="transport-row-header" onclick="{% if is_owner %}toggleTransportEditor(){% endif %}">
-                    <span style="font-size: 0.9rem; color: var(--bl-color-text);">Transportation</span>
+                    <span style="font-size: 14px; color: var(--bl-color-text);">Transportation</span>
                     <span class="transport-summary" style="{% if not is_owner %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
                         <span id="trans-summary-text">
                             {% if current_user_participant.transportation_status %}
@@ -501,10 +540,10 @@
                 {% endif %}
             </div>
 
-            {# 3. Accommodations #}
+            {# Accommodations #}
             <div class="lesson-editor-container">
                 <div class="lesson-row-header" onclick="{% if is_owner %}toggleAccommodationEditor(){% endif %}">
-                    <span style="font-size: 0.9rem; color: var(--bl-color-text);">Accommodations</span>
+                    <span style="font-size: 14px; color: var(--bl-color-text);">Accommodations</span>
                     <span class="lesson-summary" style="{% if not is_owner %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
                         <span id="accommodation-summary-text">
                             {% if trip.accommodation_status == 'hotel' %}Hotel{% elif trip.accommodation_status == 'rental' %}Rental{% elif trip.accommodation_status == 'other' %}Other{% else %}Not needed{% endif %}
@@ -540,10 +579,10 @@
                 {% endif %}
             </div>
 
-            {# 4. Lessons #}
+            {# Lessons #}
             <div class="lesson-editor-container" style="border-bottom: none;">
                 <div class="lesson-row-header" onclick="{% if is_owner %}toggleLessonEditor(){% endif %}">
-                    <span style="font-size: 0.9rem; color: var(--bl-color-text);">Lessons</span>
+                    <span style="font-size: 14px; color: var(--bl-color-text);">Lessons</span>
                     <span class="lesson-summary" style="{% if not is_owner %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
                         <span id="lesson-summary-text">
                             {% if current_user_participant.taking_lesson %}
@@ -576,82 +615,83 @@
                 </div>
                 {% endif %}
             </div>
-        </div>
 
+        </div><!-- /your-trip-details-section -->
+
+        <!-- Who's Going -->
         {% if all_participants or invited_participants %}
-        <div class="participants-section" id="participants-section">
-            <h3>Who's Going</h3>
+        <p class="td-section-label">Who's Going</p>
+        <div id="participants-section">
             {% for p in all_participants %}
-            <div class="participant-card">
-                <div class="participant-info">
-                    <span class="participant-name">{{ p.user|display_name(current_user.id) }}{% if p.role and p.role.value == 'owner' %} (Organizer){% endif %}</span>
-                    <p class="participant-identity">{{ p.user|identity_line }}</p>
-                    <p class="participant-badges">{{ p.get_display_transportation() }} · {{ p.get_display_equipment() }}</p>
+            <div class="td-person-row">
+                <div class="td-person-info">
+                    <p class="td-person-name">{{ p.user|display_name(current_user.id) }}{% if p.role and p.role.value == 'owner' %} <span style="font-weight: 400; color: #8A857A; font-size: 12px;">(Organizer)</span>{% endif %}</p>
+                    <p class="td-person-meta">{{ p.user|identity_line }}</p>
+                    <p class="td-person-badges">{{ p.get_display_transportation() }} · {{ p.get_display_equipment() }}</p>
                 </div>
             </div>
             {% endfor %}
         </div>
         {% endif %}
-        
+
+        <!-- Pending Invites (owner view) -->
         {% if is_owner and invited_participants or pending_requests %}
         {# REQUEST-type join requests are intentionally rendered inline with Pending Invites. Do not move without product review. #}
-        <div class="pending-invites-section" style="margin-top: 20px;">
-            <h3 style="font-size: 1rem; font-weight: 600; margin: 0 0 12px 0;">Pending Invites</h3>
-            
-            {# 1. REQUEST-type Join Requests #}
+        <p class="td-section-label">Pending Invites</p>
+        <div>
             {% if pending_requests %}
                 {% for req in pending_requests %}
-                <div class="participant-card">
-                    <div class="participant-info">
-                        <span class="participant-name">{{ req.sender.first_name }} {{ req.sender.last_name }}</span>
-                        <p class="participant-identity">{{ req.sender|identity_line }}</p>
-                        <p style="font-size: 0.85rem; color: var(--bl-color-primary); font-weight: 600; margin: 4px 0 0 0;">Requested to Join</p>
+                <div class="td-person-row">
+                    <div class="td-person-info">
+                        <p class="td-person-name">{{ req.sender.first_name }} {{ req.sender.last_name }}</p>
+                        <p class="td-person-meta">{{ req.sender|identity_line }}</p>
+                        <p class="td-person-status-tag">Requested to Join</p>
                     </div>
                     {% if is_owner %}
-                    <div style="display: flex; gap: 8px;">
-                        <button onclick="respondToJoinRequest({{ req.id }}, 'accept')" style="background: var(--bl-color-primary); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer;">Accept</button>
-                        <button onclick="respondToJoinRequest({{ req.id }}, 'decline')" style="background: transparent; color: var(--bl-color-text-muted); border: 1px solid var(--bl-color-border); padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer;">Decline</button>
+                    <div class="td-person-actions">
+                        <button onclick="respondToJoinRequest({{ req.id }}, 'accept')" class="td-person-btn-accept">Accept</button>
+                        <button onclick="respondToJoinRequest({{ req.id }}, 'decline')" class="td-person-btn-decline">Decline</button>
                     </div>
                     {% endif %}
                 </div>
                 {% endfor %}
             {% endif %}
-
-            {# 2. OUTBOUND-type Pending Invites #}
             {% if invited_participants %}
                 {% for p in invited_participants %}
-                <div class="participant-card">
-                    <div class="participant-info">
-                        <span class="participant-name">{{ p.user|display_name(current_user.id) }}</span>
-                        <p class="participant-identity">{{ p.user|identity_line }}</p>
+                <div class="td-person-row">
+                    <div class="td-person-info">
+                        <p class="td-person-name">{{ p.user|display_name(current_user.id) }}</p>
+                        <p class="td-person-meta">{{ p.user|identity_line }}</p>
                     </div>
                     {% if is_owner %}
                     <form method="POST" action="{{ url_for('cancel_trip_invite', trip_id=trip.id) }}" onsubmit="return confirm('Cancel invite?');">
                         <input type="hidden" name="user_id" value="{{ p.user_id }}">
-                        <button type="submit" style="background: transparent; border: none; color: var(--bl-color-text-muted); font-size: 0.9rem; cursor: pointer;">Cancel</button>
+                        <button type="submit" class="td-cancel-link">Cancel</button>
                     </form>
                     {% endif %}
                 </div>
                 {% endfor %}
             {% endif %}
         </div>
-        {% elif not is_owner and pending_requests %}
-            {# If not owner but a participant, show read-only requested status if any exist (though currently logic only fetches for owner, but following prompt) #}
-             <div class="pending-invites-section" style="margin-top: 20px;">
-                <h3 style="font-size: 1rem; font-weight: 600; margin: 0 0 12px 0;">Pending Invites</h3>
-                {% for req in pending_requests %}
-                <div class="participant-card">
-                    <div class="participant-info">
-                        <span class="participant-name">{{ req.sender.first_name }} {{ req.sender.last_name }}</span>
-                        <p class="participant-identity">{{ req.sender|identity_line }}</p>
-                        <p style="font-size: 0.85rem; color: var(--bl-color-primary); font-weight: 600; margin: 4px 0 0 0;">Requested to Join</p>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
 
+        {% elif not is_owner and pending_requests %}
+        <p class="td-section-label">Pending Invites</p>
+        <div>
+            {% for req in pending_requests %}
+            <div class="td-person-row">
+                <div class="td-person-info">
+                    <p class="td-person-name">{{ req.sender.first_name }} {{ req.sender.last_name }}</p>
+                    <p class="td-person-meta">{{ req.sender|identity_line }}</p>
+                    <p class="td-person-status-tag">Requested to Join</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+    </div><!-- /page-container -->
+
+    <!-- Sticky action bar (for invited guests viewing this page) -->
     {% if is_invited %}
     <div class="sticky-action-container visible">
         <div class="sticky-action-content">
@@ -671,6 +711,7 @@
 
     {% include 'components/bottom_nav.html' %}
 
+    <!-- Invite Friends Modal (owner only) -->
     {% if is_owner %}
     <div class="modal-overlay" id="inviteModal">
         <div class="modal-sheet">
@@ -699,14 +740,14 @@
             </form>
         </div>
     </div>
-    
+
     <div class="modal-overlay" id="confirmInviteModal" style="z-index: 10001;">
         <div style="background: var(--bl-color-surface); border-radius: var(--bl-radius-lg); padding: 24px; width: 100%; max-width: 320px; text-align: center;">
-            <h3 style="margin: 0 0 12px 0; font-size: 1.1rem;">Invite friends</h3>
-            <p style="font-size: 0.95rem; color: var(--bl-color-text-muted); line-height: 1.5; margin: 0 0 20px 0;">This will invite selected friends to join this trip. If they already have a trip for these dates, it will be combined into a shared trip once they accept.</p>
+            <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">Invite friends</h3>
+            <p style="font-size: 14px; color: var(--bl-color-text-muted); line-height: 1.5; margin: 0 0 20px 0;">This will invite selected friends to join this trip. If they already have a trip for these dates, it will be combined into a shared trip once they accept.</p>
             <div style="display: flex; gap: 12px;">
                 <button type="button" onclick="hideConfirmModal()" style="flex: 1; padding: 12px; border-radius: var(--bl-radius-md); font-weight: 600; background: transparent; color: var(--bl-color-text); border: 1px solid var(--bl-color-border); cursor: pointer;">Cancel</button>
-                <button type="button" onclick="submitInvites()" style="flex: 1; padding: 12px; border-radius: var(--bl-radius-md); font-weight: 600; background: var(--bl-color-primary); color: white; border: none; cursor: pointer;">Invite</button>
+                <button type="button" onclick="submitInvites()" style="flex: 1; padding: 12px; border-radius: var(--bl-radius-md); font-weight: 600; background: #5C1219; color: white; border: none; cursor: pointer;">Invite</button>
             </div>
         </div>
     </div>
@@ -758,7 +799,7 @@
                 });
                 if (response.ok) {
                     document.getElementById('equipmentSummaryText').textContent = labels[value] || labels['use_default'];
-                    const subtext = document.querySelector('.lesson-editor-container .lesson-row-header p');
+                    const subtext = document.querySelector('.lesson-editor-container .lesson-row-header span[style]');
                     if (subtext) {
                         subtext.textContent = (value === 'use_default') ? 'From profile' : 'For this trip only';
                     }
@@ -849,29 +890,6 @@
                 row.style.display = row.dataset.fullName.includes(term) ? '' : 'none';
             });
         });
-    </script>
-    <script>
-        function respondToJoinRequest(requestId, action) {
-            fetch(`/trips/requests/${requestId}/respond`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ action: action })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert(data.error || 'Something went wrong');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
-            });
-        }
     </script>
 </body>
 </html>
