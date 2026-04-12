@@ -305,6 +305,32 @@
                 <span class="home-hero-cta">View trip →</span>
             </a>
 
+            <p class="home-match-section-label">Best Match</p>
+            {% if has_overlaps and next_match %}
+            <div class="home-match-card">
+                <p class="home-match-line1">You and {{ next_match.friend_name }} are both free</p>
+                <p class="home-match-date">{{ next_match.display_date }}</p>
+                {% if next_match.same_day_count > 0 %}
+                <p class="home-match-meta">+{{ next_match.same_day_count }} other{{ 's' if next_match.same_day_count > 1 }} free that day</p>
+                {% else %}
+                <p class="home-match-meta">Make it a trip.</p>
+                {% endif %}
+                <div class="home-match-actions">
+                    <a href="{{ url_for('add_trip') }}?start_date={{ next_match.match_date }}&end_date={{ next_match.match_date }}&friend_id={{ next_match.friend_id }}" class="home-match-primary">Plan this trip</a>
+                    <a href="{{ url_for('trip_ideas') }}" class="home-match-secondary">See all ideas →</a>
+                </div>
+            </div>
+            {% else %}
+            <div class="home-nudge-card">
+                <p class="home-nudge-title">Find a window to ski together</p>
+                <p class="home-nudge-sub">Add your availability and invite friends to surface the best dates to go.</p>
+                <div class="home-nudge-actions">
+                    <a href="{{ url_for('add_open_dates') }}" class="home-nudge-primary">Add Availability</a>
+                    <a href="{{ url_for('invite') }}" class="home-nudge-secondary">Invite Friends</a>
+                </div>
+            </div>
+            {% endif %}
+
             {% if secondary_card %}
             <p class="home-section-label">Friend Activity</p>
 
@@ -363,6 +389,32 @@
                 <p class="home-hero-title">Plan your first trip</p>
                 <a href="{{ url_for('add_trip') }}" class="home-hero-cta">Plan a trip →</a>
             </div>
+
+            <p class="home-match-section-label">Best Match</p>
+            {% if has_overlaps and next_match %}
+            <div class="home-match-card">
+                <p class="home-match-line1">You and {{ next_match.friend_name }} are both free</p>
+                <p class="home-match-date">{{ next_match.display_date }}</p>
+                {% if next_match.same_day_count > 0 %}
+                <p class="home-match-meta">+{{ next_match.same_day_count }} other{{ 's' if next_match.same_day_count > 1 }} free that day</p>
+                {% else %}
+                <p class="home-match-meta">Make it a trip.</p>
+                {% endif %}
+                <div class="home-match-actions">
+                    <a href="{{ url_for('add_trip') }}?start_date={{ next_match.match_date }}&end_date={{ next_match.match_date }}&friend_id={{ next_match.friend_id }}" class="home-match-primary">Plan this trip</a>
+                    <a href="{{ url_for('trip_ideas') }}" class="home-match-secondary">See all ideas →</a>
+                </div>
+            </div>
+            {% else %}
+            <div class="home-nudge-card">
+                <p class="home-nudge-title">Find a window to ski together</p>
+                <p class="home-nudge-sub">Add your availability and invite friends to surface the best dates to go.</p>
+                <div class="home-nudge-actions">
+                    <a href="{{ url_for('add_open_dates') }}" class="home-nudge-primary">Add Availability</a>
+                    <a href="{{ url_for('invite') }}" class="home-nudge-secondary">Invite Friends</a>
+                </div>
+            </div>
+            {% endif %}
 
             <div class="home-module">
                 <div class="home-module-header">

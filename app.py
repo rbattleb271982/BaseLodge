@@ -3729,6 +3729,26 @@ def home():
     except Exception:
         db.session.rollback()
 
+    # --- Next Best Match (canonical availability service) ---
+    next_match = None
+    has_overlaps = False
+    try:
+        overlap_matches = get_open_date_matches(user)
+        if overlap_matches:
+            has_overlaps = True
+            best = overlap_matches[0]
+            date_obj = datetime.strptime(best["date"], "%Y-%m-%d").date()
+            same_day_count = len([m for m in overlap_matches if m["date"] == best["date"]]) - 1
+            next_match = {
+                "match_date": best["date"],
+                "display_date": date_obj.strftime("%A · %b %-d"),
+                "friend_name": best["friend_name"],
+                "friend_id": best["friend_id"],
+                "same_day_count": same_day_count,
+            }
+    except Exception:
+        db.session.rollback()
+
     if not secondary_card and availability_nudge:
         secondary_card = {
             'type': 'overlap',
@@ -3764,6 +3784,8 @@ def home():
         banner_invite=banner_invite,
         banner_invite_count=banner_invite_count,
         secondary_card=secondary_card,
+        next_match=next_match,
+        has_overlaps=has_overlaps,
         stat_upcoming=get_upcoming_trip_count(user),
         stat_mountains=user.visited_resorts_count,
         stat_past=get_past_trip_count(user),
