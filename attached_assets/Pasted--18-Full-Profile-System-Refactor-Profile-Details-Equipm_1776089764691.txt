@@ -1,0 +1,670 @@
+#18 - Full Profile System Refactor
+# Profile Details + Equipment + Mountains Visited + Wishlist + Profile Stats Bar + Friend Read-Only Views
+
+==================================================
+OBJECTIVE
+==================================================
+
+Refactor the profile system so it feels like one coherent, editorial, mobile-first product area.
+
+This work includes:
+
+1. Redesigning Profile Details
+2. Redesigning Equipment
+3. Redesigning Mountains Visited
+4. Redesigning Wishlist
+5. Updating the profile stats bar on own and friend profiles
+6. Adding read-only friend views for Mountains Visited and Wishlist
+
+This is not a cosmetic pass. It is a structural UX refactor.
+
+The result should feel aligned with the newer BaseLodge design system already used across:
+- Friends
+- Friends’ Trips
+- Home
+- Invite
+- newer profile direction
+
+Use checkpoints sparingly. Do not overuse them.
+
+==================================================
+GLOBAL PRODUCT RULES
+==================================================
+
+- Use editorial layout:
+  - back chevron
+  - small uppercase eyebrow
+  - serif page headline
+  - short supporting line only when useful
+- No BaseLodge wordmark on these internal pages
+- No giant grey card containers
+- No heavy shadows
+- Use spacing + hairline dividers instead of boxes
+- Warm background, bordeaux accents
+- Mobile-first
+- Keep bottom nav intact
+- Remove “crew” / “squad” language from these surfaces
+- Prefer instant-save interactions wherever appropriate
+- Do not break existing data
+
+==================================================
+PART 1 — PROFILE DETAILS REDESIGN
+==================================================
+
+Goal:
+Turn Profile Details into a calm, editorial edit surface. This is NOT onboarding.
+
+--------------------------------------------------
+PAGE STRUCTURE
+--------------------------------------------------
+
+Top of page:
+- back chevron only
+- eyebrow: PROFILE DETAILS
+- title: Your profile
+- subtitle: This helps others understand how you ride.
+
+Do not use:
+- BaseLodge wordmark
+- “Back” text button
+- “About You”
+- “Riding Details”
+- “crew” language
+
+--------------------------------------------------
+SECTION ORDER
+--------------------------------------------------
+
+Use this order:
+
+1. LOCATION
+2. HOW YOU RIDE
+3. TERRAIN YOU ENJOY
+4. PASSES
+5. LAST SEASON
+
+Remove these fields entirely:
+- Birth Year
+- Gender
+
+Do not leave dead spacing or broken logic behind.
+
+--------------------------------------------------
+SECTION 1: LOCATION
+--------------------------------------------------
+
+Fields:
+- Home state
+- Home mountain
+
+Use drill-in row pattern instead of large inline dropdown boxes.
+
+Each row:
+- label
+- value
+- chevron on right
+- unset state shown as “Not set” in muted text
+
+Behavior:
+- Home state opens state picker / existing selector
+- Home mountain opens mountain/resort picker / existing selector
+- Home mountain remains optional
+
+--------------------------------------------------
+SECTION 2: HOW YOU RIDE
+--------------------------------------------------
+
+Fields:
+- Rider type
+- Skill level
+
+Rider type:
+Use compact pill multi-select UI instead of checkbox rows.
+
+Options:
+- Skier
+- Snowboarder
+- Telemark
+- Cross-country
+- Adaptive
+- Along for the ride
+
+Replace:
+- “Social (Along for the experience)”
+with:
+- “Along for the ride”
+
+Rule:
+- max 2 selections
+- tap selected pill → toggles off
+- if already 2 selected and user taps a 3rd → do nothing
+- no rolling replacement
+- no loud error message
+
+Helper text:
+- Rider type · pick up to 2
+
+Skill level:
+Use a single-select vertical list, not pills.
+
+Options + descriptors:
+- Beginner → Green runs
+- Intermediate → Blue runs
+- Advanced → Black runs
+- Expert → Anything, anywhere
+
+Interaction:
+- tap row to select
+- selected row gets soft blush highlight
+- one selected at a time
+
+--------------------------------------------------
+SECTION 3: TERRAIN YOU ENJOY
+--------------------------------------------------
+
+Use pill multi-select UI.
+
+Options:
+- Groomers
+- Trees
+- Steeps
+- Park
+
+Helper text:
+- Pick up to 2
+
+Rules:
+- max 2
+- tap selected pill toggles off
+- 3rd tap when already at 2 does nothing
+- no loud error
+
+--------------------------------------------------
+SECTION 4: PASSES
+--------------------------------------------------
+
+Use pill multi-select UI.
+
+Helper text:
+- Select all that apply
+
+Visible options:
+- Epic
+- Ikon
+- Indy
+- Mountain Collective
+- Other
+- No pass
+
+Remove these from the visible primary list:
+- Powder Alliance
+- Freedom
+- Ski California
+
+Keep backend compatibility if those values still exist, but do not show them as first-class options in the redesign.
+
+Rules:
+- unlimited selections except:
+- “No pass” is mutually exclusive with all other pass values
+- tapping “No pass” clears all others
+- tapping any other pass clears “No pass”
+
+--------------------------------------------------
+SECTION 5: LAST SEASON
+--------------------------------------------------
+
+Use a quieter drill-in row pattern.
+
+Row:
+- label: Previous pass
+- value: saved value or “None”
+- chevron on right
+
+Keep optional and lower-emphasis than the main profile sections.
+
+--------------------------------------------------
+SAVE / UNSAVED CHANGES
+--------------------------------------------------
+
+Keep:
+- Save profile button near bottom above tab bar
+- not sticky
+
+Behavior:
+- enabled when there are unsaved changes
+- disabled/muted when there are none
+- add unsaved-changes guard on back navigation:
+  - Discard changes?
+  - Discard / Keep editing
+
+Reuse existing edit-page pattern if available.
+
+==================================================
+PART 2 — EQUIPMENT REDESIGN
+==================================================
+
+Goal:
+Keep Equipment as a real feature, but redesign it to match the editorial system.
+
+--------------------------------------------------
+PAGE STRUCTURE
+--------------------------------------------------
+
+Header:
+- eyebrow: EQUIPMENT
+- title: Your gear
+- optional subtitle in neutral language only
+
+--------------------------------------------------
+TOP SELECTOR
+--------------------------------------------------
+
+Replace radio toggle with pill selection:
+
+- I own my gear
+- Rentals
+
+Behavior:
+- instant save on tap
+- selecting Rentals:
+  - disables gear setup UI below
+  - does NOT hide it completely
+  - visually dims the section
+  - shows helper text:
+    “We’ll assume rentals for your trips”
+
+--------------------------------------------------
+SETUP DISPLAY
+--------------------------------------------------
+
+Each saved setup should render as a readable block using hairlines and spacing, not boxed cards.
+
+Example structure:
+
+Jones snowboard  
+Snowboarder · 175cm · 96mm waist  
+Bindings: Standard  
+Boots: Atomic Speedmachine · 120 flex  
+Since 2022  
+
+Edit setup
+
+Keep:
+- support for multiple setups
+- “+ Add another setup” CTA
+
+Use existing edit/add flow where possible.
+Do not redesign the underlying setup-editing flow itself unless necessary.
+
+No Save button on Equipment page.
+Interactions should persist immediately.
+
+==================================================
+PART 3 — MOUNTAINS VISITED REDESIGN
+==================================================
+
+Goal:
+Turn Mountains Visited into a search-first, instant-save page.
+
+--------------------------------------------------
+OWN VIEW
+--------------------------------------------------
+
+Header:
+- eyebrow: MOUNTAINS VISITED
+- title: Where you’ve ridden
+- subtext: “[X] mountains so far”
+
+Search bar at top:
+- placeholder: Add a mountain you’ve skied
+
+Behavior:
+- uses existing mountains/resorts dataset
+- tap result → instantly adds
+- no Save button
+- no checkbox grid
+- no filter dropdowns
+- no giant global browse list
+
+Visited list:
+- grouped by country/state
+- each row shows:
+  - mountain name
+  - region/location subline
+  - right-aligned remove tap target
+
+Remove behavior:
+- instant remove
+- no confirmation modal
+
+==================================================
+PART 4 — WISHLIST REDESIGN
+==================================================
+
+Goal:
+Simple aspirational list of up to 3 mountains.
+
+--------------------------------------------------
+OWN VIEW
+--------------------------------------------------
+
+Header:
+- eyebrow: WISH LIST
+- title: Where you want to go
+
+Search bar:
+- same reusable search component as Mountains Visited
+
+Behavior:
+- tap result → instantly adds
+- max 3 enforced
+- if already at 3, tapping another does nothing
+- no suggestions section
+- no recommendations
+- no Save button
+
+Wishlist rows:
+- mountain name
+- region/location subline
+- right-aligned remove tap target
+
+Remove behavior:
+- instant remove
+- no confirmation
+
+==================================================
+PART 5 — SHARED COMPONENT REQUIREMENT
+==================================================
+
+Mountains Visited and Wishlist should share:
+- search component
+- result row UI
+- mountain list row UI
+
+Implement as:
+- reusable Jinja include, macro, or equivalent shared structure
+
+Do not build two completely separate versions if the UI is fundamentally the same.
+
+==================================================
+PART 6 — PROFILE STATS BAR (OWN + FRIEND PROFILE)
+==================================================
+
+Goal:
+Make the profile stats bar social, consistent, and actionable.
+
+Replace the old inconsistent stat bar with exactly 3 stats:
+
+1. Trips
+2. Mountains visited
+3. Wishlist
+
+Do NOT show Friends in this bar.
+
+--------------------------------------------------
+DISPLAY
+--------------------------------------------------
+
+Each stat shows:
+- large number (serif)
+- uppercase label underneath (small sans)
+
+Layout:
+- horizontal row
+- equal spacing
+- vertical hairline dividers between items
+- no cards/containers
+- always visible even if values are 0
+
+Example:
+
+12
+TRIPS
+
+8
+MOUNTAINS VISITED
+
+3
+WISHLIST
+
+--------------------------------------------------
+OWN PROFILE BEHAVIOR
+--------------------------------------------------
+
+All three stats are tappable:
+
+- Trips → my Trips page
+- Mountains visited → my Mountains Visited page
+- Wishlist → my Wishlist page
+
+--------------------------------------------------
+FRIEND PROFILE BEHAVIOR
+--------------------------------------------------
+
+Stats bar uses the same visual structure.
+
+Stats:
+- Trips
+- Mountains visited
+- Wishlist
+
+Behavior:
+- Mountains visited → tappable → opens read-only friend mountains page
+- Wishlist → tappable → opens read-only friend wishlist page
+- Trips → link to friend's trips if that already exists and is viewable; otherwise leave non-tappable for now
+
+Counts must reflect the friend’s real data:
+- total trips (planning + going)
+- visited count
+- wishlist count
+
+==================================================
+PART 7 — FRIEND READ-ONLY VIEWS
+==================================================
+
+Add read-only views for friend profile exploration.
+
+--------------------------------------------------
+ROUTES
+--------------------------------------------------
+
+Add:
+
+- /mountains-visited/<int:user_id>
+- /wishlist/<int:user_id>
+
+Each route must:
+- verify target user is a confirmed friend of current_user
+- fetch target user's relevant data
+- fetch current_user overlap data for comparison
+- render the existing page template in read-only mode
+
+--------------------------------------------------
+READ-ONLY FRIEND MOUNTAINS VIEW
+--------------------------------------------------
+
+Use same layout as own Mountains Visited page, but:
+
+- hide search bar
+- hide add controls
+- hide remove controls
+- read-only only
+
+List remains grouped by country/state.
+
+For each resort in the friend’s visited list that also appears in current_user’s wishlist:
+- show inline muted text:
+  - On your wishlist
+
+If friend has 0 mountains:
+- show:
+  - No mountains yet
+
+--------------------------------------------------
+READ-ONLY FRIEND WISHLIST VIEW
+--------------------------------------------------
+
+Use same layout as own Wishlist page, but:
+
+- hide search bar
+- hide add controls
+- hide remove controls
+- read-only only
+
+For each resort in the friend’s wishlist that also appears in current_user’s visited mountains:
+- show inline muted text:
+  - You’ve been here
+
+If friend has 0 wishlist mountains:
+- show:
+  - No wishlist yet
+
+Tone should be neutral, not judgmental.
+
+==================================================
+PART 8 — BACKEND / API REQUIREMENTS
+==================================================
+
+Preserve existing models and route contracts where possible.
+Add new AJAX endpoints only where needed for instant-save interactions.
+
+Needed behaviors include:
+
+- add mountains visited
+- remove mountains visited
+- add wishlist mountain
+- remove wishlist mountain
+- equipment own/rentals toggle instant-save
+- equipment setup listing still uses existing data
+
+If endpoints already exist, reuse them.
+If not, add lightweight authenticated JSON endpoints.
+
+All routes/endpoints should require auth where appropriate.
+
+==================================================
+PART 9 — FILES TO REVIEW / MODIFY
+==================================================
+
+Inspect and update the real files in the codebase that power:
+
+- profile page
+- friend profile page
+- profile details page
+- equipment page
+- mountains visited page
+- wishlist page
+- relevant components/macros/includes
+- relevant routes in app.py
+- any shared model/helper logic needed for counts and overlap checks
+
+Relevant files likely include, but are not limited to:
+- templates/profile.html
+- templates/friend_profile.html
+- templates/components/stat_row.html
+- templates/mountains_visited.html
+- templates/settings_wish_list.html
+- templates/settings_equipment.html
+- profile details template
+- app.py routes around profile and mountains/wishlist handling
+- related model helpers
+
+Do not assume filenames blindly; inspect first.
+
+==================================================
+PART 10 — TESTING REQUIRED
+==================================================
+
+Do not finish until the full profile system is tested in the app.
+
+Test all of the following:
+
+--------------------------------------------------
+PROFILE DETAILS
+--------------------------------------------------
+- existing data preloads correctly
+- Birth Year removed
+- Gender removed
+- Home state row works
+- Home mountain row works
+- Rider type max-2 works
+- Terrain max-2 works
+- Skill level single-select works
+- No pass exclusivity works
+- Previous pass row works
+- Save profile works
+- Unsaved-changes guard works
+
+--------------------------------------------------
+EQUIPMENT
+--------------------------------------------------
+- own gear / rentals toggle works
+- rentals disables but does not hide setup area
+- helper text appears correctly
+- multiple setups display correctly
+- edit setup opens correct flow
+- add another setup works
+
+--------------------------------------------------
+MOUNTAINS VISITED (OWN)
+--------------------------------------------------
+- search returns results
+- add works instantly
+- remove works instantly
+- grouping renders correctly
+- no Save button
+- no overflow on mobile
+
+--------------------------------------------------
+WISHLIST (OWN)
+--------------------------------------------------
+- search returns results
+- add works instantly
+- remove works instantly
+- max 3 enforced silently
+- no suggestions
+- no Save button
+- no overflow on mobile
+
+--------------------------------------------------
+PROFILE STATS BAR
+--------------------------------------------------
+- own profile shows Trips / Mountains visited / Wishlist
+- friend profile shows same 3 stats
+- zero values display
+- own links route correctly
+- friend mountains/wishlist links route correctly
+
+--------------------------------------------------
+FRIEND READ-ONLY VIEWS
+--------------------------------------------------
+- access works only for actual friends
+- read-only mode hides search/add/remove
+- “On your wishlist” appears correctly in friend mountains view
+- “You’ve been here” appears correctly in friend wishlist view
+- empty states render correctly
+- no data leakage between users
+
+--------------------------------------------------
+SHARED / MOBILE
+--------------------------------------------------
+- bottom nav intact everywhere
+- no layout overflow
+- no horizontal scroll
+- no broken spacing
+- typography consistent with new editorial system
+
+==================================================
+FINAL OUTPUT
+==================================================
+
+After implementation, report:
+- files changed
+- routes/endpoints added or modified
+- templates/components refactored
+- how shared mountain component is implemented
+- how profile stats are calculated
+- how read-only friend views are guarded
+- any limitations, deferrals, or follow-ups
+
+Do not stop at “implemented.” Fully test the complete system in the app.

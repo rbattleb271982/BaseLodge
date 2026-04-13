@@ -1,0 +1,296 @@
+#16 - Profile Expansion: Equipment, Mountains Visited, Wish List Redesign
+
+What & Why
+
+Redesign three Profile-related pages to match the BaseLodge editorial system and shift from form-based UX to interaction-based UX.
+
+Pages:
+1. Equipment
+2. Mountains Visited
+3. Wish List
+
+The current versions:
+- rely on boxed containers
+- feel form-heavy
+- use outdated UI patterns
+- are inconsistent with newer screens (Friends, Trips, Home, Invite)
+
+This refactor:
+- removes form UX
+- introduces tap-based, instant-save interactions
+- unifies visual language
+- improves usability on mobile
+
+This is a structural + UX upgrade, not just styling.
+
+Use checkpoints sparingly.
+
+--------------------------------------------------
+GLOBAL RULES (ALL 3 PAGES)
+--------------------------------------------------
+
+- Use editorial layout:
+  - back chevron (no "Back" text)
+  - eyebrow (uppercase section label)
+  - serif headline
+  - optional 1-line subtext
+- No BaseLodge wordmark on these pages
+- No large grey card containers
+- Use spacing + hairline dividers instead
+- No shadows
+- Warm background, bordeaux accents
+
+- ALL interactions = instant save
+  - no Save button anywhere on these pages
+
+- Remove mountains:
+  - tap "remove" → immediately removed
+  - no confirmation modal
+
+- Maintain bottom nav
+
+--------------------------------------------------
+PAGE 1: EQUIPMENT
+--------------------------------------------------
+
+Goal:
+Let users define gear setups OR indicate rentals.
+
+----------------------------------------
+STRUCTURE
+----------------------------------------
+
+Header:
+- Eyebrow: EQUIPMENT
+- Title: Your gear
+- Subtitle: Optional, neutral tone (no "crew")
+
+----------------------------------------
+SETUP TYPE (TOP)
+----------------------------------------
+
+Replace radio toggle with pill selection:
+
+Options:
+- I own my gear
+- Rentals
+
+Behavior:
+- selecting Rentals:
+  → disable (NOT hide) gear setup section below
+  → visually dim (opacity ~50%)
+  → show helper text:
+     "We’ll assume rentals for your trips"
+
+----------------------------------------
+GEAR SETUPS
+----------------------------------------
+
+Each setup is a block:
+
+Example:
+
+Jones snowboard
+Snowboarder · 175cm · 96mm waist  
+Bindings: Standard  
+Boots: Atomic Speedmachine · 120 flex  
+Since 2022  
+
+Edit setup
+
+----------------------------------------
+INTERACTIONS
+----------------------------------------
+
+- Tap "Edit setup" → opens edit screen (reuse existing flow if available)
+- "+ Add another setup" stays
+- No Save button — all changes persist immediately
+
+----------------------------------------
+IMPORTANT
+----------------------------------------
+
+- Support multiple setups
+- Do NOT remove existing backend structure
+- Just redesign UI + interaction model
+
+--------------------------------------------------
+PAGE 2: MOUNTAINS VISITED
+--------------------------------------------------
+
+Goal:
+Fast, search-first “mark where you’ve been”
+
+----------------------------------------
+STRUCTURE
+----------------------------------------
+
+Header:
+- Eyebrow: MOUNTAINS VISITED
+- Title: Where you’ve ridden
+- Subtext: "[X] mountains so far"
+
+----------------------------------------
+SEARCH (PRIMARY ACTION)
+----------------------------------------
+
+Search bar at top:
+- Placeholder: "Add a mountain you’ve skied"
+- Uses existing mountains/resorts dataset
+
+----------------------------------------
+SELECTING
+----------------------------------------
+
+- Tap result → instantly added to visited list
+- No confirmation
+- No Save button
+
+----------------------------------------
+VISITED LIST
+----------------------------------------
+
+Group by country or state:
+
+UNITED STATES  
+Vail — Colorado      remove  
+Breckenridge — Colorado  
+Mammoth — California  
+
+AUSTRIA  
+Kitzbühel — Tyrol  
+
+----------------------------------------
+REMOVE
+----------------------------------------
+
+- "remove" right-aligned
+- tap → instant removal
+
+----------------------------------------
+IMPORTANT
+----------------------------------------
+
+- NO giant global list
+- NO checkboxes
+- Search-first only
+
+--------------------------------------------------
+PAGE 3: WISH LIST
+--------------------------------------------------
+
+Goal:
+Let users save up to 3 mountains they want to go to
+
+----------------------------------------
+STRUCTURE
+----------------------------------------
+
+Header:
+- Eyebrow: WISH LIST
+- Title: Where you want to go
+
+----------------------------------------
+RULE
+----------------------------------------
+
+- MAX 3 mountains
+- enforce strictly
+
+----------------------------------------
+SEARCH
+----------------------------------------
+
+Same component as Mountains Visited:
+- Placeholder: "Add a mountain"
+
+----------------------------------------
+ADDING
+----------------------------------------
+
+- Tap search result → instantly added
+- If already 3:
+  → tapping another does nothing
+  → no alert (silent constraint)
+
+----------------------------------------
+LIST
+----------------------------------------
+
+Simple list:
+
+Niseko — Japan        remove  
+Chamonix — France     remove  
+Jackson Hole — USA    remove  
+
+----------------------------------------
+NO SUGGESTIONS
+----------------------------------------
+
+- Do NOT add “Suggested” section
+- Do NOT add recommendations
+- Keep page minimal
+
+--------------------------------------------------
+SHARED COMPONENT REQUIREMENT
+--------------------------------------------------
+
+Mountains Visited + Wish List MUST share:
+
+- search component
+- result row UI
+- mountain list row UI
+
+Implement as reusable template or component logic.
+
+--------------------------------------------------
+DATA + BACKEND
+--------------------------------------------------
+
+- Use existing mountains/resorts dataset
+- Use existing relationships if present
+- Otherwise:
+  - store visited mountains per user
+  - store wishlist mountains per user
+
+- All actions:
+  - POST on add
+  - DELETE on remove
+
+--------------------------------------------------
+TESTING (REQUIRED)
+--------------------------------------------------
+
+Do not finish until fully tested:
+
+Equipment:
+- own vs rentals toggle works
+- rentals disables UI
+- multiple setups display correctly
+
+Mountains Visited:
+- search works
+- add works instantly
+- remove works instantly
+- grouping displays correctly
+
+Wish List:
+- add works instantly
+- max 3 enforced
+- remove works instantly
+
+Shared:
+- mobile layout clean
+- no overflow
+- no broken styles
+- bottom nav intact
+
+--------------------------------------------------
+OUTPUT
+--------------------------------------------------
+
+After completion, report:
+- files changed
+- new components created
+- backend changes (if any)
+- any limitations

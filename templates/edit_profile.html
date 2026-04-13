@@ -1,665 +1,500 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Edit Profile</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Profile Details — BaseLodge</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .edit-profile-container {
+        .ep-wrap {
             max-width: 500px;
             margin: 0 auto;
-            padding: 16px 16px 140px;
+            padding: 20px 16px 140px;
         }
-        
-        .section-card {
-            background: var(--bl-color-surface);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-            overflow: hidden;
+        .ep-back {
+            display: inline-block;
+            font-size: 22px;
+            color: #6B665A;
+            text-decoration: none;
+            margin-bottom: 20px;
+            line-height: 1;
         }
-        
-        .section-title {
+        .ep-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #6B665A;
+            margin: 0 0 6px 0;
+        }
+        .ep-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 28px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin: 0 0 28px 0;
+            line-height: 1.2;
+        }
+        /* Section */
+        .ep-section {
+            margin-bottom: 32px;
+        }
+        .ep-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #6B665A;
+            margin: 0 0 16px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #E5DFD0;
+        }
+        /* Field label */
+        .ep-field {
+            margin-bottom: 20px;
+        }
+        .ep-field-label {
             font-size: 12px;
             font-weight: 600;
-            color: var(--bl-color-text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.4px;
-            margin: 0 0 12px 4px;
-        }
-        
-        .form-row {
-            margin-bottom: 16px;
-        }
-        
-        .form-row:last-child {
-            margin-bottom: 0;
-        }
-        
-        .form-row label {
+            letter-spacing: 0.3px;
+            color: #6B665A;
             display: block;
+            margin-bottom: 8px;
+        }
+        .ep-field-hint {
             font-size: 12px;
-            font-weight: 500;
-            color: var(--bl-color-text-muted);
-            margin-bottom: 6px;
+            color: #8A857A;
+            margin: -4px 0 8px 0;
         }
-        
-        .form-row select,
-        .form-row input[type="number"] {
+        /* Select inputs */
+        .ep-select {
             width: 100%;
-            padding: 12px 10px;
+            padding: 11px 12px;
             font-size: 15px;
-            border: 1px solid var(--bl-color-border);
+            border: 1px solid #E5DFD0;
             border-radius: 8px;
-            background: var(--bl-color-bg);
-            color: var(--bl-color-text);
-            min-height: 44px;
+            background: #F5F1E8;
+            color: #1A1A1A;
             box-sizing: border-box;
-        }
-        
-        .form-row select:focus,
-        .form-row input:focus {
             outline: none;
-            border-color: var(--bl-color-primary);
+            -webkit-appearance: none;
         }
-        
-        .chip-row {
+        .ep-select:focus { border-color: #5C1219; }
+        .ep-select:disabled {
+            color: #8A857A;
+            cursor: default;
+        }
+        /* Pills */
+        .ep-pills {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
         }
-        
-        .profile-chip {
-            padding: 10px 16px;
-            background: var(--bl-color-bg);
-            border: 1px solid var(--bl-color-border);
+        .ep-pill {
+            padding: 9px 18px;
             border-radius: 20px;
+            border: 1px solid #E5DFD0;
+            background: transparent;
             font-size: 14px;
-            font-weight: 500;
+            color: #1A1A1A;
             cursor: pointer;
-            transition: all 0.2s ease;
-            color: var(--bl-color-text);
-            min-height: 40px;
+            -webkit-tap-highlight-color: transparent;
+            transition: background 0.13s, color 0.13s, border-color 0.13s;
+        }
+        .ep-pill.selected {
+            background: #5C1219;
+            color: #fff;
+            border-color: #5C1219;
+        }
+        /* Skill level rows */
+        .ep-skill-rows { display: flex; flex-direction: column; gap: 0; }
+        .ep-skill-row {
             display: flex;
             align-items: center;
-        }
-        
-        .profile-chip.selected {
-            background: var(--bl-color-primary);
-            color: white;
-            border-color: var(--bl-color-primary);
-        }
-        
-        .profile-chip:not(.selected):hover {
-            border-color: var(--bl-color-primary);
-        }
-        
-        .radio-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-        }
-        
-        .radio-label {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 6px 0;
-            min-height: 40px;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #E5DFD0;
             cursor: pointer;
-            font-size: 15px;
+            -webkit-tap-highlight-color: transparent;
         }
-        
-        .radio-label input[type="radio"] {
-            width: 20px;
-            height: 20px;
-            accent-color: var(--bl-color-primary);
-            cursor: pointer;
-            margin: 0;
+        .ep-skill-row:first-child { border-top: 1px solid #E5DFD0; }
+        .ep-skill-name { font-size: 15px; color: #1A1A1A; }
+        .ep-skill-dot {
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            border: 1.5px solid #E5DFD0;
+            flex-shrink: 0;
+            background: transparent;
+            transition: background 0.13s, border-color 0.13s;
         }
-        
-        .radio-label span {
-            font-size: 15px;
+        .ep-skill-dot.selected {
+            background: #5C1219;
+            border-color: #5C1219;
         }
-        
-        .checkbox-row {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 0;
-            min-height: 48px;
-        }
-        
-        .checkbox-row input[type="checkbox"] {
-            width: 22px;
-            height: 22px;
-            accent-color: var(--bl-color-primary);
-            cursor: pointer;
-        }
-        
-        .checkbox-row label {
-            font-size: 16px;
-            cursor: pointer;
-            margin: 0;
-        }
-        
-        .equipment-grid {
-            display: grid;
-            gap: 12px;
-        }
-        
-        .equipment-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-        
-        .equipment-btn-row {
-            display: flex;
-            gap: 10px;
-            margin-top: 16px;
-        }
-        
-        .btn-save-equipment {
-            flex: 1;
-            padding: 14px;
-            background: var(--bl-color-primary);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            min-height: 48px;
-        }
-        
-        .btn-delete-equipment {
-            padding: 14px;
-            background: #EF4444;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            min-height: 48px;
-        }
-        
-        .btn-edit-equipment {
-            flex: 1;
-            padding: 14px;
-            background: var(--bl-color-surface);
-            color: var(--bl-color-primary);
-            border: 2px solid var(--bl-color-primary);
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            min-height: 48px;
-        }
-        
-        .btn-cancel-equipment {
-            padding: 14px;
-            background: var(--bl-color-surface);
-            color: var(--bl-color-text-muted);
-            border: 1px solid var(--bl-color-border);
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            min-height: 48px;
-        }
-        
-        .equipment-display {
-            background: var(--bl-color-bg);
-            border-radius: 10px;
-            padding: 16px;
-        }
-        
-        .equipment-info {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            margin-bottom: 12px;
-        }
-        
-        .equipment-brand {
-            font-size: 17px;
-            font-weight: 600;
-            color: var(--bl-color-text);
-        }
-        
-        .equipment-details {
-            font-size: 14px;
-            color: var(--bl-color-text-muted);
-        }
-        
-        .floating-save {
+        /* Floating save */
+        .ep-floating-save {
             position: fixed;
-            bottom: 70px;
-            left: 0;
-            right: 0;
-            padding: 16px;
-            padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-top: 1px solid var(--bl-color-border-soft);
+            bottom: 66px;
+            left: 0; right: 0;
+            padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+            background: rgba(245,241,232,0.95);
+            border-top: 1px solid #E5DFD0;
             z-index: 100;
         }
-        
-        .floating-save-inner {
+        .ep-floating-save-inner {
             max-width: 500px;
             margin: 0 auto;
         }
-        
-        .floating-save button {
+        .ep-save-btn {
             width: 100%;
-            padding: 16px;
-            background: var(--bl-color-primary);
-            color: white;
+            padding: 14px;
+            background: #5C1219;
+            color: #fff;
             border: none;
             border-radius: 12px;
             font-size: 17px;
             font-weight: 600;
             cursor: pointer;
-            min-height: 52px;
         }
-        
-        .floating-save button:active {
-            background: #6B000F;
-        }
-        
-        .back-link {
-            display: inline-block;
-            margin-bottom: 16px;
-            color: var(--bl-color-text-muted);
-            text-decoration: none;
-            font-size: 16px;
-        }
-        
-        .page-header {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--bl-color-text);
-            margin: 0 0 24px 0;
-        }
+        .ep-save-btn:active { background: #6B000F; }
     </style>
 </head>
-
 <body>
+    <div class="ep-wrap">
+        <a href="{{ url_for('profile') }}" class="ep-back" id="ep-back">‹</a>
 
+        <p class="ep-eyebrow">Profile</p>
+        <h1 class="ep-title">Your details</h1>
 
-<div class="edit-profile-container">
-    <div class="bl-header"><a href="{{ url_for('home') }}">BaseLodge</a></div>
-    <a href="{{ url_for('settings') }}" class="back-link">← Back</a>
-    <h1 class="page-header">Profile details</h1>
+        <!-- 1. Location -->
+        <div class="ep-section">
+            <p class="ep-section-label">Location</p>
 
-    <div class="section-card">
-        <h3 class="section-title">About You</h3>
-        
-        <div class="form-row">
-            <label>Home State / Province</label>
-            {% include 'components/location_selector.html' %}
-            <div class="bl-location-selector" id="home-state-selector">
-                <input type="text" class="bl-location-input" placeholder="Type to search..." autocomplete="off" {% if current_user.home_state %}value="{{ current_user.home_state }}"{% endif %}>
-                <input type="hidden" name="home_state_selector" id="home-state-hidden" value="{{ current_user.home_state or '' }}">
-                <span class="bl-location-chevron">
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-                        <path d="M2.5 4.5L6 8l3.5-3.5"/>
-                    </svg>
-                </span>
-                <div class="bl-location-dropdown">
-                    {% for country, locations in grouped_locations.items() %}
-                    <div class="bl-location-group-header" data-group="{{ country }}">{{ country }}</div>
-                    {% for code, name in locations %}
-                    <div class="bl-location-option" data-value="{{ code }}" data-group="{{ country }}">{{ name }}</div>
+            <div class="ep-field">
+                <label class="ep-field-label">Home state / province</label>
+                {% include 'components/location_selector.html' %}
+                <div class="bl-location-selector" id="home-state-selector">
+                    <input type="text" class="bl-location-input" placeholder="Type to search…"
+                           autocomplete="off"
+                           {% if current_user.home_state %}value="{{ current_user.home_state }}"{% endif %}>
+                    <input type="hidden" name="home_state_selector" id="home-state-hidden" value="{{ current_user.home_state or '' }}">
+                    <span class="bl-location-chevron">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2.5 4.5L6 8l3.5-3.5"/></svg>
+                    </span>
+                    <div class="bl-location-dropdown">
+                        {% for country, locations in grouped_locations.items() %}
+                        <div class="bl-location-group-header" data-group="{{ country }}">{{ country }}</div>
+                        {% for code, name in locations %}
+                        <div class="bl-location-option" data-value="{{ code }}" data-group="{{ country }}">{{ name }}</div>
+                        {% endfor %}
+                        {% endfor %}
+                        <div class="bl-location-no-results">No matches found</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ep-field">
+                <label class="ep-field-label">Home mountain</label>
+                <select name="home_resort_id" id="home_resort_id" class="ep-select"
+                        {% if not current_user.home_state %}disabled{% endif %}>
+                    {% if not current_user.home_state %}
+                        <option value="">Select your home state first</option>
+                    {% elif current_user.home_state in resorts_by_state and resorts_by_state[current_user.home_state]|length > 0 %}
+                        <option value="">Select your home mountain</option>
+                        {% for resort in resorts_by_state[current_user.home_state] %}
+                            <option value="{{ resort.id }}" {% if current_user.home_resort_id == resort.id %}selected{% endif %}>{{ resort.name }}</option>
+                        {% endfor %}
+                    {% else %}
+                        <option value="">No mountains available</option>
+                    {% endif %}
+                </select>
+            </div>
+        </div>
+
+        <!-- 2. Riding Details -->
+        <div class="ep-section">
+            <p class="ep-section-label">Riding details</p>
+
+            <div class="ep-field">
+                <label class="ep-field-label">Rider type</label>
+                <p class="ep-field-hint">Up to 2 — select how you ride</p>
+                <div class="ep-pills" id="rider-pills">
+                    {% set user_riders = current_user.rider_types or [] %}
+                    {% for rt in rider_types %}
+                    <button type="button"
+                            class="ep-pill {% if rt in user_riders %}selected{% endif %}"
+                            data-value="{{ rt }}"
+                            onclick="toggleRiderPill(this)">
+                        {% if rt == 'Social' %}Social (along for the ride){% else %}{{ rt }}{% endif %}
+                    </button>
                     {% endfor %}
+                </div>
+            </div>
+
+            <div class="ep-field" id="skill-field">
+                <label class="ep-field-label">Skill level</label>
+                <div class="ep-skill-rows" id="skill-rows">
+                    {% for lvl in ["Beginner", "Intermediate", "Advanced", "Expert"] %}
+                    <div class="ep-skill-row" onclick="selectSkill('{{ lvl }}')">
+                        <span class="ep-skill-name">{{ lvl }}</span>
+                        <span class="ep-skill-dot {% if current_user.skill_level == lvl %}selected{% endif %}" id="skill-dot-{{ lvl }}"></span>
+                    </div>
                     {% endfor %}
-                    <div class="bl-location-no-results">No matches found</div>
+                </div>
+            </div>
+
+            <div class="ep-field">
+                <label class="ep-field-label">Favorite terrain</label>
+                <p class="ep-field-hint">Up to 2</p>
+                <div class="ep-pills" id="terrain-pills">
+                    {% set user_terrain = current_user.terrain_preferences or [] %}
+                    {% for t in ["Groomers", "Trees", "Steeps", "Park"] %}
+                    <button type="button"
+                            class="ep-pill {% if t in user_terrain %}selected{% endif %}"
+                            data-value="{{ t }}"
+                            onclick="toggleTerrainPill(this)">{{ t }}</button>
+                    {% endfor %}
                 </div>
             </div>
         </div>
-        
-        <div class="form-row">
-            <label>Home Mountain</label>
-            <select name="home_resort_id" id="home_resort_id" {% if not current_user.home_state %}disabled{% endif %}>
-                {% if not current_user.home_state %}
-                    <option value="">Select your home state first</option>
-                {% elif current_user.home_state in resorts_by_state and resorts_by_state[current_user.home_state]|length > 0 %}
-                    <option value="">Select your home mountain</option>
-                    {% for resort in resorts_by_state[current_user.home_state] %}
-                        <option value="{{ resort.id }}" {% if current_user.home_resort_id == resort.id %}selected{% endif %}>{{ resort.name }}</option>
-                    {% endfor %}
-                {% else %}
-                    <option value="">No mountains available in this state</option>
-                {% endif %}
-            </select>
-        </div>
-        
-        <div class="form-row">
-            <label>Birth Year</label>
-            <select name="birth_year" id="birth-year-select">
-                <option value="">Select</option>
-                {% for year in range(1950, 2025) %}
-                <option value="{{ year }}" {% if current_user.birth_year == year %}selected{% endif %}>{{ year }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        
-        <div class="form-row">
-            <label>Gender</label>
-            <select name="gender" id="gender-select">
-                <option value="">Select</option>
-                {% for g in ["Male", "Female", "Non-binary", "Prefer not to say"] %}
-                <option value="{{ g }}" {% if current_user.gender == g %}selected{% endif %}>{{ g }}</option>
-                {% endfor %}
-            </select>
-        </div>
-    </div>
 
-    <div class="section-card">
-        <h3 class="section-title">Riding Details</h3>
-        
-        <div class="form-row">
-            <label>Rider Type</label>
-            <p style="font-size: 12px; color: var(--bl-color-text-muted); margin: 0 0 8px 0;">How you ride</p>
-            {% set user_riders = current_user.rider_types or [] %}
-            {% for rt in rider_types %}
-            <div class="checkbox-row">
-                <input type="checkbox" name="rider_types" value="{{ rt }}" id="rider_type_{{ loop.index }}" 
-                       {% if rt in user_riders %}checked{% endif %}>
-                <label for="rider_type_{{ loop.index }}">{% if rt == 'Social' %}Social (Along for the experience){% else %}{{ rt }}{% endif %}</label>
-            </div>
-            {% endfor %}
-        </div>
-        
-        <div class="form-row" id="skill-level-row">
-            <label>Skill Level</label>
-            <div class="radio-group" id="skill-level-group">
-                {% for lvl in ["Beginner", "Intermediate", "Advanced", "Expert"] %}
-                <label class="radio-label">
-                    <input type="radio" name="skill_level_radio" value="{{ lvl }}"
-                           {% if current_user.skill_level == lvl %}checked{% endif %}>
-                    <span>{{ lvl }}</span>
-                </label>
-                {% endfor %}
-            </div>
-        </div>
-        
-        <div class="form-row">
-            <label>Favorite Terrain</label>
-            <p style="font-size: 13px; color: var(--bl-color-text-muted); margin: 0 0 12px 0;">This helps friends understand how you like to ski. Choose up to 2.</p>
-            {% set user_terrain = current_user.terrain_preferences or [] %}
-            {% for terrain in ["Groomers", "Trees", "Steeps", "Park"] %}
-            <div class="checkbox-row">
-                <input type="checkbox" name="terrain_pref" value="{{ terrain }}" id="terrain_{{ loop.index }}" 
-                       {% if terrain in user_terrain %}checked{% endif %}>
-                <label for="terrain_{{ loop.index }}">{{ terrain }}</label>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-
-    <div class="section-card">
-        <h3 class="section-title">Passes</h3>
-        <p style="font-size: 13px; color: var(--bl-color-text-muted); margin: 0 0 12px 0;">Select all that apply</p>
-        {% set user_passes = current_user.pass_type.split(',') if current_user.pass_type else [] %}
-        {% for pass in pass_options %}
-        <div class="checkbox-row">
-            <input type="checkbox" name="pass_type" value="{{ pass }}" id="pass_{{ loop.index }}" 
-                   {% if pass in user_passes %}checked{% endif %}
-                   data-pass-value="{{ pass }}">
-            <label for="pass_{{ loop.index }}">
-                {% if pass == "I don't have a pass" %}
-                    I don't have a pass
-                {% else %}
-                    {{ pass.replace('Mountain', 'Mountain ').replace('Collective', 'Collective').replace('PowderAlliance', 'Powder Alliance').replace('SkiCalifornia', 'Ski California') }}
-                {% endif %}
-            </label>
-        </div>
-        {% endfor %}
-        <div style="margin-top: 16px; border-top: 1px solid var(--bl-color-border-soft); padding-top: 16px;">
-            <label style="display: block; font-size: 13px; font-weight: 600; color: var(--bl-color-text); margin-bottom: 8px;">Last Season's Pass</label>
-            <select id="previous_pass_select" onchange="document.getElementById('previous_pass_hidden').value = this.value"
-                    style="width: 100%; padding: 10px 12px; border: 1px solid var(--bl-color-border); border-radius: 8px; background: var(--bl-color-bg); color: var(--bl-color-text); font-size: 14px; appearance: none; -webkit-appearance: none;">
-                <option value="">None</option>
+        <!-- 3. Passes -->
+        <div class="ep-section">
+            <p class="ep-section-label">Pass</p>
+            <p class="ep-field-hint" style="margin-bottom:12px;">Select all that apply</p>
+            <div class="ep-pills" id="pass-pills">
+                {% set user_passes = current_user.pass_type.split(',') if current_user.pass_type else [] %}
                 {% for pass in pass_options %}
-                <option value="{{ pass }}" {% if current_user.previous_pass == pass %}selected{% endif %}>
-                    {% if pass == "I don't have a pass" %}I don't have a pass
-                    {% else %}{{ pass.replace('MountainCollective', 'Mountain Collective').replace('PowderAlliance', 'Powder Alliance').replace('SkiCalifornia', 'Ski California') }}{% endif %}
-                </option>
+                <button type="button"
+                        class="ep-pill {% if pass in user_passes %}selected{% endif %}"
+                        data-value="{{ pass }}"
+                        onclick="togglePassPill(this)">
+                    {% if pass == "I don't have a pass" %}No pass{% else %}{{ pass }}{% endif %}
+                </button>
                 {% endfor %}
-            </select>
+            </div>
+
+            <div class="ep-field" style="margin-top: 20px; border-top: 1px solid #E5DFD0; padding-top: 20px;">
+                <label class="ep-field-label">Last season's pass</label>
+                <select id="previous_pass_select" class="ep-select"
+                        onchange="document.getElementById('previous_pass_hidden').value = this.value">
+                    <option value="">None</option>
+                    {% for pass in pass_options %}
+                    <option value="{{ pass }}" {% if current_user.previous_pass == pass %}selected{% endif %}>
+                        {% if pass == "I don't have a pass" %}No pass{% else %}{{ pass }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
         </div>
     </div>
 
-</div>
+    <!-- Hidden form (submitted on Save) -->
+    <form method="POST" action="{{ url_for('edit_profile') }}" id="editProfileForm">
+        <input type="hidden" name="rider_types" id="rider_types_hidden" value="{{ (current_user.rider_types or [])|join(',') }}">
+        <input type="hidden" name="pass_type" id="pass_type_hidden" value="{{ current_user.pass_type or '' }}">
+        <input type="hidden" name="skill_level" id="skill_level_hidden" value="{{ current_user.skill_level or '' }}">
+        <input type="hidden" name="home_state" id="home_state_hidden" value="{{ current_user.home_state or '' }}">
+        <input type="hidden" name="home_resort_id" id="home_resort_id_hidden" value="{{ current_user.home_resort_id or '' }}">
+        <input type="hidden" name="gear" id="gear_hidden" value="{{ current_user.gear or '' }}">
+        <input type="hidden" name="terrain_preferences" id="terrain_preferences_hidden" value="{{ (current_user.terrain_preferences or [])|join(',') }}">
+        <input type="hidden" name="previous_pass" id="previous_pass_hidden" value="{{ current_user.previous_pass or '' }}">
+    </form>
 
-<form method="POST" action="{{ url_for('edit_profile') }}" id="editProfileForm">
-    <input type="hidden" name="rider_types" id="rider_types_hidden" value="{{ (current_user.rider_types or [])|join(',') }}">
-    <input type="hidden" name="pass_type" id="pass_type_hidden" value="{{ current_user.pass_type or '' }}">
-    <input type="hidden" name="skill_level" id="skill_level" value="{{ current_user.skill_level or '' }}">
-    <input type="hidden" name="gender" id="gender" value="{{ current_user.gender or '' }}">
-    <input type="hidden" name="birth_year" id="birth_year" value="{{ current_user.birth_year or '' }}">
-    <input type="hidden" name="home_state" id="home_state" value="{{ current_user.home_state or '' }}">
-    <input type="hidden" name="home_resort_id" id="home_resort_id_hidden" value="{{ current_user.home_resort_id or '' }}">
-    <input type="hidden" name="gear" id="gear_hidden" value="{{ current_user.gear or '' }}">
-    <input type="hidden" name="terrain_preferences" id="terrain_preferences_hidden" value="{{ (current_user.terrain_preferences or [])|join(',') }}">
-    <input type="hidden" name="previous_pass" id="previous_pass_hidden" value="{{ current_user.previous_pass or '' }}">
-</form>
-
-<div class="floating-save">
-    <div class="floating-save-inner">
-        <button type="submit" form="editProfileForm">Save Profile</button>
+    <!-- Floating Save -->
+    <div class="ep-floating-save">
+        <div class="ep-floating-save-inner">
+            <button type="submit" form="editProfileForm" class="ep-save-btn" id="ep-save">Save</button>
+        </div>
     </div>
-</div>
 
-{% include 'components/bottom_nav.html' %}
+    {% include 'components/bottom_nav.html' %}
 
-<script>
-const riderTypesInput = document.getElementById('rider_types_hidden');
-const skillLevelInput = document.getElementById('skill_level');
-const riderTypeCheckboxes = document.querySelectorAll('input[name="rider_types"]');
-const skillLevelRow = document.getElementById('skill-level-row');
-const skillRadios = document.querySelectorAll('input[name="skill_level_radio"]');
-
-function updateRiderTypesHidden() {
-    const checked = Array.from(riderTypeCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
-    riderTypesInput.value = checked.join(',');
-    updateSkillLevelVisibility();
-}
-
-function updateSkillLevelVisibility() {
-    const checked = Array.from(riderTypeCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
-    // Hide skill level ONLY if Social is the sole selection
-    const isSocialOnly = checked.length === 1 && checked[0] === 'Social';
-    
-    if (isSocialOnly) {
-        skillLevelRow.style.display = 'none';
-        // Clear skill level when Social-only is selected
-        skillRadios.forEach(r => r.checked = false);
-        skillLevelInput.value = '';
-    } else {
-        skillLevelRow.style.display = '';
-    }
-}
-
-riderTypeCheckboxes.forEach(cb => {
-    cb.addEventListener('change', updateRiderTypesHidden);
-});
-
-document.querySelectorAll('input[name="skill_level_radio"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        skillLevelInput.value = this.value;
-    });
-});
-
-// Initialize hidden inputs on page load
-(function() {
-    const selectedSkillLevel = document.querySelector('input[name="skill_level_radio"]:checked');
-    if (selectedSkillLevel) skillLevelInput.value = selectedSkillLevel.value;
-    updateRiderTypesHidden();
-})();
-
-document.getElementById('home_resort_id').addEventListener('change', function() {
-    document.getElementById('home_resort_id_hidden').value = this.value;
-});
-
-document.getElementById('gender-select').addEventListener('change', function() {
-    document.getElementById('gender').value = this.value;
-});
-
-document.getElementById('birth-year-select').addEventListener('change', function() {
-    document.getElementById('birth_year').value = this.value;
-});
-
-// Resorts by state mapping from server (contains {id, name} objects)
-const resortsByState = {{ resorts_by_state | tojson | safe }};
-
-function updateResortOptions(stateAbbr, currentResortId) {
-    const homeResortSelect = document.getElementById('home_resort_id');
-    const resorts = resortsByState[stateAbbr] || [];
-    
-    if (resorts.length === 0) {
-        homeResortSelect.innerHTML = '<option value="">No mountains available in this state</option>';
-        homeResortSelect.disabled = true;
-        return;
-    }
-    
-    let html = '<option value="">Select your home mountain</option>';
-    resorts.forEach(resort => {
-        const selected = (currentResortId && parseInt(currentResortId) === resort.id) ? ' selected' : '';
-        html += `<option value="${resort.id}"${selected}>${resort.name}</option>`;
-    });
-    homeResortSelect.innerHTML = html;
-    homeResortSelect.disabled = false;
-}
-
-// Validate home resort matches home state on page load
-(function validateHomeResort() {
-    const homeStateHidden = document.getElementById('home-state-hidden');
-    const homeResortSelect = document.getElementById('home_resort_id');
-    const homeResortHidden = document.getElementById('home_resort_id_hidden');
-    
-    const currentState = homeStateHidden ? homeStateHidden.value : '';
-    const currentResortId = homeResortHidden ? homeResortHidden.value : '';
-    
-    if (currentState && currentResortId) {
-        const validResorts = resortsByState[currentState] || [];
-        const isValid = validResorts.some(r => r.id === parseInt(currentResortId));
-        if (!isValid) {
-            // Mismatch detected - clear the resort
-            homeResortHidden.value = '';
-            if (homeResortSelect) homeResortSelect.value = '';
+    <script>
+    // ── Unsaved-changes guard ──────────────────────────────────────────
+    let formDirty = false;
+    function markDirty() { formDirty = true; }
+    window.addEventListener('beforeunload', function(e) {
+        if (formDirty) {
+            e.preventDefault();
+            e.returnValue = '';
         }
-    }
-})();
+    });
+    // Submitting the form is clean
+    document.getElementById('editProfileForm').addEventListener('submit', function() {
+        formDirty = false;
+    });
+    document.getElementById('ep-save').addEventListener('click', function() {
+        formDirty = false;
+    });
 
-// Initialize location selector with callback for home_resort cascade
-(function() {
-    const container = document.getElementById('home-state-selector');
-    if (container) {
+    // ── Rider type pills (max 2) ───────────────────────────────────────
+    let riderOrder = Array.from(document.querySelectorAll('#rider-pills .ep-pill.selected')).map(p => p.dataset.value);
+
+    function toggleRiderPill(pill) {
+        const val = pill.dataset.value;
+        const idx = riderOrder.indexOf(val);
+        if (idx >= 0) {
+            riderOrder.splice(idx, 1);
+            pill.classList.remove('selected');
+        } else {
+            if (riderOrder.length >= 2) {
+                // Deselect the oldest
+                const toRemove = riderOrder.shift();
+                document.querySelector(`#rider-pills .ep-pill[data-value="${CSS.escape(toRemove)}"]`)?.classList.remove('selected');
+            }
+            riderOrder.push(val);
+            pill.classList.add('selected');
+        }
+        document.getElementById('rider_types_hidden').value = riderOrder.join(',');
+        updateSkillVisibility();
+        markDirty();
+    }
+
+    function updateSkillVisibility() {
+        const isSocialOnly = riderOrder.length === 1 && riderOrder[0] === 'Social';
+        document.getElementById('skill-field').style.display = isSocialOnly ? 'none' : '';
+    }
+    updateSkillVisibility();
+
+    // ── Skill level ───────────────────────────────────────────────────
+    let currentSkill = document.getElementById('skill_level_hidden').value;
+
+    function selectSkill(lvl) {
+        currentSkill = lvl;
+        document.querySelectorAll('.ep-skill-dot').forEach(d => d.classList.remove('selected'));
+        document.getElementById('skill-dot-' + lvl)?.classList.add('selected');
+        document.getElementById('skill_level_hidden').value = lvl;
+        markDirty();
+    }
+
+    // ── Terrain pills (max 2) ─────────────────────────────────────────
+    let terrainOrder = Array.from(document.querySelectorAll('#terrain-pills .ep-pill.selected')).map(p => p.dataset.value);
+
+    function toggleTerrainPill(pill) {
+        const val = pill.dataset.value;
+        const idx = terrainOrder.indexOf(val);
+        if (idx >= 0) {
+            terrainOrder.splice(idx, 1);
+            pill.classList.remove('selected');
+        } else {
+            if (terrainOrder.length >= 2) {
+                const toRemove = terrainOrder.shift();
+                document.querySelector(`#terrain-pills .ep-pill[data-value="${CSS.escape(toRemove)}"]`)?.classList.remove('selected');
+            }
+            terrainOrder.push(val);
+            pill.classList.add('selected');
+        }
+        document.getElementById('terrain_preferences_hidden').value = terrainOrder.join(',');
+        markDirty();
+    }
+
+    // ── Pass pills (no pass = exclusive) ─────────────────────────────
+    const NO_PASS = "I don't have a pass";
+    let passSelected = new Set(
+        (document.getElementById('pass_type_hidden').value || '').split(',').filter(Boolean)
+    );
+
+    function togglePassPill(pill) {
+        const val = pill.dataset.value;
+        if (passSelected.has(val)) {
+            passSelected.delete(val);
+            pill.classList.remove('selected');
+        } else {
+            if (val === NO_PASS) {
+                // Exclusive — clear others
+                passSelected.clear();
+                document.querySelectorAll('#pass-pills .ep-pill').forEach(p => p.classList.remove('selected'));
+            } else {
+                // Remove "no pass" if selecting a real pass
+                if (passSelected.has(NO_PASS)) {
+                    passSelected.delete(NO_PASS);
+                    document.querySelector(`#pass-pills .ep-pill[data-value="${CSS.escape(NO_PASS)}"]`)?.classList.remove('selected');
+                }
+            }
+            passSelected.add(val);
+            pill.classList.add('selected');
+        }
+        document.getElementById('pass_type_hidden').value = Array.from(passSelected).join(',');
+        markDirty();
+    }
+
+    // ── Home resort cascade ───────────────────────────────────────────
+    const resortsByState = {{ resorts_by_state | tojson | safe }};
+
+    function updateResortOptions(stateAbbr, currentResortId) {
+        const sel = document.getElementById('home_resort_id');
+        const resorts = resortsByState[stateAbbr] || [];
+        if (!resorts.length) {
+            sel.innerHTML = '<option value="">No mountains available</option>';
+            sel.disabled = true;
+            return;
+        }
+        let html = '<option value="">Select your home mountain</option>';
+        resorts.forEach(r => {
+            const sel2 = (currentResortId && parseInt(currentResortId) === r.id) ? ' selected' : '';
+            html += `<option value="${r.id}"${sel2}>${r.name}</option>`;
+        });
+        sel.innerHTML = html;
+        sel.disabled = false;
+    }
+
+    document.getElementById('home_resort_id').addEventListener('change', function() {
+        document.getElementById('home_resort_id_hidden').value = this.value;
+        markDirty();
+    });
+
+    // Validate on load
+    (function() {
+        const st = document.getElementById('home-state-hidden').value;
+        const rid = document.getElementById('home_resort_id_hidden').value;
+        if (st && rid) {
+            const valid = (resortsByState[st] || []).some(r => r.id === parseInt(rid));
+            if (!valid) document.getElementById('home_resort_id_hidden').value = '';
+        }
+    })();
+
+    // Location selector init
+    (function() {
+        const container = document.getElementById('home-state-selector');
+        if (!container) return;
         const selector = new LocationSelector(container, {
-            onChange: function(value, text) {
-                document.getElementById('home_state').value = value;
-                const homeResortSelect = document.getElementById('home_resort_id');
+            onChange: function(value) {
+                document.getElementById('home_state_hidden').value = value;
+                const sel = document.getElementById('home_resort_id');
                 if (value) {
                     updateResortOptions(value, '');
                     document.getElementById('home_resort_id_hidden').value = '';
                 } else {
-                    homeResortSelect.disabled = true;
-                    homeResortSelect.innerHTML = '<option value="">Select your home state first</option>';
+                    sel.disabled = true;
+                    sel.innerHTML = '<option value="">Select your home state first</option>';
                     document.getElementById('home_resort_id_hidden').value = '';
                 }
+                markDirty();
             }
         });
-        container.dataset.initialized = 'true';
-        
-        // Set initial display value from the selected option
-        const currentValue = document.getElementById('home-state-hidden').value;
-        if (currentValue) {
-            const option = container.querySelector(`[data-value="${currentValue}"]`);
-            if (option) {
-                container.querySelector('.bl-location-input').value = option.textContent.trim();
-            }
+        const currentVal = document.getElementById('home-state-hidden').value;
+        if (currentVal) {
+            const opt = container.querySelector(`[data-value="${currentVal}"]`);
+            if (opt) container.querySelector('.bl-location-input').value = opt.textContent.trim();
         }
-    }
-})();
+    })();
 
-// Initialize pass_type_hidden with existing checked values on page load
-(function() {
-    const allPassCheckboxes = document.querySelectorAll('input[name="pass_type"]');
-    const checked = Array.from(allPassCheckboxes).filter(c => c.checked).map(c => c.value);
-    document.getElementById('pass_type_hidden').value = checked.join(',');
-})();
-
-document.querySelectorAll('input[name="pass_type"]').forEach(cb => {
-    cb.addEventListener('change', function() {
-        const noPassValue = "I don't have a pass";
-        const allPassCheckboxes = document.querySelectorAll('input[name="pass_type"]');
-        
-        // If "I don't have a pass" is checked, uncheck all others
-        if (this.value === noPassValue && this.checked) {
-            allPassCheckboxes.forEach(otherCb => {
-                if (otherCb.value !== noPassValue) {
-                    otherCb.checked = false;
-                }
-            });
-        }
-        // If any other pass is checked, uncheck "I don't have a pass"
-        if (this.value !== noPassValue && this.checked) {
-            allPassCheckboxes.forEach(otherCb => {
-                if (otherCb.value === noPassValue) {
-                    otherCb.checked = false;
-                }
-            });
-        }
-        const checked = Array.from(allPassCheckboxes).filter(c => c.checked).map(c => c.value);
-        document.getElementById('pass_type_hidden').value = checked.join(',');
+    // Sync home_state from form hidden to form post (the hidden field in the editProfileForm)
+    // The location selector uses home_state_hidden — sync it before submit
+    document.getElementById('editProfileForm').addEventListener('submit', function() {
+        this.querySelector('input[name="home_state"]').value =
+            document.getElementById('home_state_hidden').value;
+        this.querySelector('input[name="home_resort_id"]').value =
+            document.getElementById('home_resort_id_hidden').value;
+        this.querySelector('input[name="previous_pass"]').value =
+            document.getElementById('previous_pass_hidden').value;
     });
-});
 
-// Terrain preferences - max 2 selections (3rd replaces 2nd, no blocking)
-(function() {
-    const terrainCheckboxes = document.querySelectorAll('input[name="terrain_pref"]');
-    const terrainHidden = document.getElementById('terrain_preferences_hidden');
-    let selectionOrder = [];
-    
-    // Initialize selection order from currently checked boxes
-    terrainCheckboxes.forEach(cb => {
-        if (cb.checked) selectionOrder.push(cb.value);
-    });
-    
-    function updateTerrainHidden() {
-        terrainHidden.value = selectionOrder.join(',');
-    }
-    
-    terrainCheckboxes.forEach(cb => {
-        cb.addEventListener('change', function() {
-            if (this.checked) {
-                // Add to selection order
-                selectionOrder.push(this.value);
-                // If more than 2, remove the oldest (2nd) and uncheck it
-                if (selectionOrder.length > 2) {
-                    const toRemove = selectionOrder.shift();
-                    terrainCheckboxes.forEach(otherCb => {
-                        if (otherCb.value === toRemove) {
-                            otherCb.checked = false;
-                        }
-                    });
-                }
-            } else {
-                // Remove from selection order
-                selectionOrder = selectionOrder.filter(v => v !== this.value);
-            }
-            updateTerrainHidden();
-        });
-    });
-    
-    updateTerrainHidden();
-})();
-
-</script>
-
+    // Mark dirty on previous_pass change
+    document.getElementById('previous_pass_select').addEventListener('change', markDirty);
+    </script>
 </body>
 </html>

@@ -3,568 +3,398 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge - Wish List</title>
+    <title>{% if read_only %}{{ view_user.first_name | format_name }}'s Wish List — BaseLodge{% else %}Wish List — BaseLodge{% endif %}</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .filter-row {
-            display: flex;
-            gap: var(--bl-space-3);
-            margin-bottom: var(--bl-space-4);
-        }
-        
-        .filter-row select {
-            flex: 1;
-            padding: 14px 12px;
-            border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-md);
-            font-size: 16px;
-            min-height: 48px;
-            box-sizing: border-box;
-            background-color: var(--bl-color-bg);
-            color: var(--bl-color-text);
-        }
-        
-        .filter-row select:disabled {
-            background-color: var(--bl-color-bg-secondary);
-            color: var(--bl-color-text-muted);
-            cursor: not-allowed;
-            opacity: 1;
-        }
-        
-        @media (prefers-color-scheme: dark) {
-            .filter-row select {
-                background-color: #1c1c1e;
-                color: #ffffff;
-                border-color: #2c2c2e;
-            }
-            
-            .filter-row select:disabled {
-                background-color: #141416;
-                color: #6e6e73;
-                border-color: #2c2c2e;
-                opacity: 1;
-            }
-            
-            .mountain-search {
-                background-color: #1c1c1e;
-                color: #ffffff;
-                border-color: #2c2c2e;
-            }
-            
-            .mountain-search::placeholder {
-                color: #6e6e73;
-            }
-        }
-        
-        .mountain-search {
-            width: 100%;
-            padding: 14px 12px;
-            border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-md);
-            font-size: 16px;
-            margin-bottom: var(--bl-space-4);
-            min-height: 48px;
-            box-sizing: border-box;
-        }
-        
-        .mountain-search:focus {
-            outline: none;
-            border-color: var(--bl-color-primary);
-        }
-        
-        .mountain-search:disabled {
-            background: var(--bl-color-bg-secondary);
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-        
-        .selected-counter {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-            margin-bottom: var(--bl-space-4);
-        }
-        
-        .selected-mountains {
-            display: flex;
-            flex-wrap: wrap;
-            gap: var(--bl-space-3);
-            margin-bottom: var(--bl-space-6);
-        }
-        
-        .mountain-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: var(--bl-color-primary);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-        }
-        
-        .mountain-pill .remove-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: 14px;
-            line-height: 1;
-            padding: 0;
-        }
-        
-        .mountain-pill .remove-btn:hover {
-            background: rgba(255, 255, 255, 0.5);
-        }
-        
-        .selected-mountains:empty {
-            display: none;
-        }
-        
-        .selected-group {
-            margin-bottom: var(--bl-space-4);
-        }
-        
-        .selected-group:last-child {
-            margin-bottom: 0;
-        }
-        
-        .selected-group-header {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--bl-color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: var(--bl-space-2);
-            padding-bottom: var(--bl-space-1);
-            border-bottom: 1px solid var(--bl-color-border-soft);
-        }
-        
-        .selected-group-resorts {
-            display: flex;
-            flex-wrap: wrap;
-            gap: var(--bl-space-2);
-        }
-        
-        .mountain-list {
-            max-height: 400px;
-            overflow-y: auto;
-            margin-bottom: var(--bl-space-6);
-        }
-        
-        .mountain-row {
-            display: flex;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid var(--bl-color-border);
-            font-size: 15px;
-            cursor: pointer;
-        }
-        
-        .mountain-row input {
-            margin-right: var(--bl-space-4);
-            cursor: pointer;
-            width: 18px;
-            height: 18px;
-        }
-        
-        .mountain-row.hidden {
-            display: none;
-        }
-        
-        .mountain-row.disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-        
-        .limit-message {
-            text-align: center;
-            padding: 10px;
-            color: var(--bl-color-text-muted);
-            font-size: 13px;
-            background: rgba(143, 1, 27, 0.04);
-            border-radius: 8px;
-            margin-bottom: 16px;
-        }
-        
-        .sticky-save-container {
-            position: fixed;
-            bottom: 72px;
-            left: 0;
-            right: 0;
-            padding: 16px;
-            background: var(--bl-color-bg);
-            border-top: 1px solid var(--bl-color-border-soft);
-            z-index: 100;
-        }
-        
-        .sticky-save-container .bl-btn-primary {
-            width: 100%;
+        .wl-wrap {
             max-width: 500px;
             margin: 0 auto;
-            display: block;
+            padding: 20px 16px 100px;
         }
-        
-        .sticky-save-container .bl-btn-primary:disabled {
-            background: var(--bl-color-text-muted);
-            opacity: 0.5;
-            cursor: not-allowed;
+        .wl-back {
+            display: inline-block;
+            font-size: 22px;
+            color: #6B665A;
+            text-decoration: none;
+            margin-bottom: 20px;
+            line-height: 1;
         }
-        
-        .resort-location {
-            color: var(--bl-color-text-muted);
-            margin-left: 4px;
+        .wl-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #6B665A;
+            margin: 0 0 6px 0;
+        }
+        .wl-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 28px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin: 0 0 4px 0;
+            line-height: 1.2;
+        }
+        .wl-subtext {
+            font-size: 14px;
+            color: #6B665A;
+            margin: 0 0 24px 0;
+        }
+        .wl-search-wrap {
+            position: relative;
+            margin-bottom: 8px;
+        }
+        .wl-search {
+            width: 100%;
+            padding: 13px 14px;
+            font-size: 15px;
+            border: 1px solid #E5DFD0;
+            border-radius: 10px;
+            background: #F5F1E8;
+            color: #1A1A1A;
+            box-sizing: border-box;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        .wl-search:focus { border-color: #5C1219; }
+        .wl-search::placeholder { color: #8A857A; }
+        .wl-results {
+            display: none;
+            background: #F5F1E8;
+            border: 1px solid #E5DFD0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .wl-results.show { display: block; }
+        .wl-result-row {
+            padding: 12px 14px;
+            border-bottom: 1px solid #E5DFD0;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .wl-result-row:last-child { border-bottom: none; }
+        .wl-result-row:active { background: #F0DDD8; }
+        .wl-result-name { font-size: 15px; color: #1A1A1A; margin: 0; line-height: 1.3; }
+        .wl-result-loc { font-size: 12px; color: #6B665A; margin: 2px 0 0 0; }
+        .wl-no-results { padding: 14px; font-size: 14px; color: #6B665A; text-align: center; }
+        /* Limit hint */
+        .wl-limit-hint {
+            font-size: 13px;
+            color: #6B665A;
+            margin: 0 0 20px 0;
+            padding: 10px 14px;
+            background: #F0DDD8;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+        }
+        .wl-limit-hint.show { display: block; }
+        /* List */
+        .wl-group { margin-bottom: 24px; }
+        .wl-group-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #6B665A;
+            margin: 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #E5DFD0;
+        }
+        .wl-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #E5DFD0;
+            gap: 12px;
+        }
+        .wl-row-left { flex: 1; min-width: 0; }
+        .wl-row-name { font-size: 15px; color: #1A1A1A; line-height: 1.3; margin: 0; }
+        .wl-row-loc { font-size: 12px; color: #6B665A; margin: 2px 0 0 0; }
+        .wl-row-badge { font-size: 11px; color: #6B665A; font-style: italic; margin: 3px 0 0 0; }
+        .wl-remove {
+            font-size: 13px;
+            color: #8A857A;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            flex-shrink: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .wl-remove:active { color: #5C1219; }
+        .wl-empty {
+            font-size: 15px;
+            color: #6B665A;
+            padding: 32px 0;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-    <div class="page-container">
-        <div class="bl-header"><a href="{{ url_for('home') }}">BaseLodge</a></div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <a href="{{ url_for('settings') }}" style="color: var(--bl-color-text-muted); text-decoration: none; font-size: 16px;">← Back</a>
-            <button type="button" id="save-btn-top" class="bl-btn-primary" style="padding: 10px 20px; font-size: 15px;" disabled onclick="saveChanges()">Save</button>
+    <div class="wl-wrap">
+        <!-- Back -->
+        {% if read_only %}
+        <a href="{{ url_for('friend_profile', friend_id=view_user.id) }}" class="wl-back">‹</a>
+        {% else %}
+        <a href="{{ url_for('profile') }}" class="wl-back">‹</a>
+        {% endif %}
+
+        <!-- Header -->
+        <p class="wl-eyebrow">Wish List</p>
+        {% if read_only %}
+        <h1 class="wl-title">{{ view_user.first_name | format_name }}'s wish list</h1>
+        <p class="wl-subtext">Mountains they want to ski</p>
+        {% else %}
+        <h1 class="wl-title">Mountains you want to ski</h1>
+        <p class="wl-subtext" id="wl-subtext">
+            {% set cnt = wish_list_ids | length %}
+            {{ cnt }} of 3 chosen
+        </p>
+        {% endif %}
+
+        {% if not read_only %}
+        <!-- Search bar -->
+        <div class="wl-search-wrap">
+            <input type="text" class="wl-search" id="wl-search"
+                   placeholder="Search mountains to add"
+                   autocomplete="off"
+                   oninput="wlSearch(this.value)">
         </div>
-        <h1 class="page-title" id="bucket-list-mountains" style="margin-bottom: 8px;">Wish List Destinations</h1>
-        <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0 0 16px 0;">Mountains you want to ski someday.</p>
-        
-        <div class="selected-counter">
-            <span id="count-display">{{ wish_list_ids|length }} of 3 selected</span>
-        </div>
-        
-        <div class="selected-mountains" id="selected-pills">
-            {% for group in grouped_wish_list %}
-            <div class="selected-group">
-                <div class="selected-group-header">
-                    {% if group.country and group.country != 'US' %}
-                        {{ group.country|country_name }}
-                    {% else %}
-                        {{ group.label }}
-                    {% endif %}
-                </div>
-                <div class="selected-group-resorts">
+        <div class="wl-results" id="wl-results"></div>
+        <p class="wl-limit-hint" id="wl-limit-hint">You've added 3 mountains — remove one to add another</p>
+        {% endif %}
+
+        <!-- Wish list -->
+        <div id="wl-list">
+            {% if grouped_wish_list and grouped_wish_list|length > 0 %}
+                {% for group in grouped_wish_list %}
+                <div class="wl-group" data-group="{{ group.label }}">
+                    <p class="wl-group-label">{{ group.label }}</p>
                     {% for resort in group.resorts %}
-                    <span class="mountain-pill" data-id="{{ resort.id }}">
-                        {{ resort.name }}
-                        <button type="button" class="remove-btn" onclick="removeResort({{ resort.id }})" aria-label="Remove {{ resort.name }}">✕</button>
-                    </span>
+                    <div class="wl-row" id="wl-row-{{ resort.id }}">
+                        <div class="wl-row-left">
+                            <p class="wl-row-name">{{ resort.name }}</p>
+                            {% set loc_parts = [] %}
+                            {% if resort.state_name %}{% set _ = loc_parts.append(resort.state_name) %}{% elif resort.state %}{% set _ = loc_parts.append(resort.state) %}{% endif %}
+                            {% if resort.country_code and resort.country_code != 'US' %}{% set _ = loc_parts.append(resort.display_country_name) %}{% endif %}
+                            {% if loc_parts %}
+                            <p class="wl-row-loc">{{ loc_parts | join(' · ') }}</p>
+                            {% endif %}
+                            {% if read_only and user_visited_ids and resort.id in user_visited_ids %}
+                            <p class="wl-row-badge">You've been here</p>
+                            {% endif %}
+                        </div>
+                        {% if not read_only %}
+                        <button class="wl-remove" onclick="wlRemove({{ resort.id }})" type="button">remove</button>
+                        {% endif %}
+                    </div>
                     {% endfor %}
                 </div>
-            </div>
-            {% endfor %}
-        </div>
-        
-        <div id="limit-message" class="limit-message" style="display: {% if wish_list_ids|length >= 3 %}block{% else %}none{% endif %};">
-            Maximum 3 resorts reached
-        </div>
-        
-        <div class="filter-row">
-            <select id="country-filter" class="mountain-search" style="cursor: pointer;" onchange="filterByCountry()">
-                <option value="all">All countries</option>
-                {% for country_code in countries %}
-                <option value="{{ country_code }}">{{ country_code|country_name }}</option>
                 {% endfor %}
-            </select>
-            
-            <select id="region-filter" class="mountain-search" style="cursor: pointer;" onchange="filterByRegion()" disabled>
-                <option value="all">State / Province / Region</option>
-            </select>
-        </div>
-        
-        <input type="text" class="mountain-search" id="mountain-search" placeholder="Search resorts..." oninput="filterResorts()">
-        
-        <div class="mountain-list" id="mountain-list">
-            {% for resort in resorts %}
-            <label class="mountain-row {% if resort.id in wish_list_ids %}selected{% endif %}" 
-                   data-id="{{ resort.id }}"
-                   data-name="{{ resort.name|lower }}"
-                   data-display-name="{{ resort.name }}"
-                   data-country="{{ resort.country_code }}"
-                   data-country-name="{{ resort.country_name or '' }}"
-                   data-region="{{ resort.state_code }}">
-                <input type="checkbox" name="resorts" value="{{ resort.id }}"
-                       {% if resort.id in wish_list_ids %}checked{% endif %} 
-                       onchange="updateSelection({{ resort.id }})">
-                {{ resort.name }}
-            </label>
-            {% endfor %}
+            {% else %}
+                <p class="wl-empty" id="wl-empty-state">{% if read_only %}Nothing on their list yet{% else %}Add up to 3 mountains above{% endif %}</p>
+            {% endif %}
         </div>
     </div>
-    
-    
+
     {% include 'components/bottom_nav.html' %}
-    
+
+    {% if not read_only %}
     <script>
-        const originalIds = {{ wish_list_ids | tojson }};
-        let selectedIds = [...originalIds];
-        const maxResorts = 3;
-        let currentCountryFilter = 'all';
-        let currentRegionFilter = 'all';
-        
-        // State name mappings
-        const stateNames = {
-            'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
-            'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
-            'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
-            'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
-            'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
-            'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
-            'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
-            'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
-            'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
-            'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming',
-            'DC': 'District of Columbia'
-        };
-        
-        const countryNames = {{ COUNTRIES|tojson }};
-        
-        // Initialize on load - render grouped display
-        document.addEventListener('DOMContentLoaded', function() {
-            updateUI();
+    const WL_RESORT_DATA = {};
+    const WL_ALL_IDS = [];
+    {% for r in resorts %}
+    WL_ALL_IDS.push({{ r.id }});
+    WL_RESORT_DATA[{{ r.id }}] = {
+        id: {{ r.id }},
+        name: {{ r.name | tojson }},
+        stateName: {{ (r.state_name or r.state or '') | tojson }},
+        countryCode: {{ (r.country_code or '') | tojson }},
+        countryName: {{ (r.display_country_name or '') | tojson }},
+        nameLower: {{ r.name.lower() | tojson }}
+    };
+    {% endfor %}
+
+    const wlSelected = new Set({{ wish_list_ids | tojson }});
+    let wlTimeout = null;
+
+    function wlLoc(r) {
+        const parts = [];
+        if (r.stateName) parts.push(r.stateName);
+        if (r.countryCode && r.countryCode !== 'US' && r.countryName) parts.push(r.countryName);
+        return parts.join(' · ');
+    }
+
+    function wlGroupLabel(r) {
+        if (r.countryCode && r.countryCode !== 'US') return r.countryName || r.countryCode;
+        return r.stateName || r.countryCode || 'Other';
+    }
+
+    function wlUpdateSubtext(count) {
+        const el = document.getElementById('wl-subtext');
+        if (el) el.textContent = count + ' of 3 chosen';
+    }
+
+    function wlUpdateLimitHint() {
+        const hint = document.getElementById('wl-limit-hint');
+        const search = document.getElementById('wl-search');
+        if (!hint) return;
+        if (wlSelected.size >= 3) {
+            hint.classList.add('show');
+            if (search) search.disabled = true;
+        } else {
+            hint.classList.remove('show');
+            if (search) search.disabled = false;
+        }
+    }
+
+    function wlSearch(val) {
+        clearTimeout(wlTimeout);
+        if (wlSelected.size >= 3) return;
+        const q = val.trim().toLowerCase();
+        const resultsEl = document.getElementById('wl-results');
+        if (q.length < 2) {
+            resultsEl.innerHTML = '';
+            resultsEl.classList.remove('show');
+            return;
+        }
+        wlTimeout = setTimeout(() => {
+            const matches = WL_ALL_IDS
+                .filter(id => !wlSelected.has(id) && WL_RESORT_DATA[id].nameLower.includes(q))
+                .slice(0, 10);
+
+            if (!matches.length) {
+                resultsEl.innerHTML = '<p class="wl-no-results">No results</p>';
+            } else {
+                resultsEl.innerHTML = matches.map(id => {
+                    const r = WL_RESORT_DATA[id];
+                    const loc = wlLoc(r);
+                    return `<div class="wl-result-row" onclick="wlAdd(${id})">
+                        <p class="wl-result-name">${r.name}</p>
+                        ${loc ? `<p class="wl-result-loc">${loc}</p>` : ''}
+                    </div>`;
+                }).join('');
+            }
+            resultsEl.classList.add('show');
+        }, 120);
+    }
+
+    async function wlAdd(resortId) {
+        if (wlSelected.has(resortId) || wlSelected.size >= 3) return;
+        try {
+            const resp = await fetch('/api/wishlist/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ resort_id: resortId })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                wlSelected.add(resortId);
+                wlRenderRow(resortId);
+                wlUpdateSubtext(data.count);
+                wlUpdateLimitHint();
+                document.getElementById('wl-search').value = '';
+                const r = document.getElementById('wl-results');
+                r.classList.remove('show');
+                r.innerHTML = '';
+            }
+        } catch (e) { console.error('WL add failed', e); }
+    }
+
+    async function wlRemove(resortId) {
+        try {
+            const resp = await fetch('/api/wishlist/remove', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ resort_id: resortId })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                wlSelected.delete(resortId);
+                const row = document.getElementById('wl-row-' + resortId);
+                if (row) row.remove();
+                wlUpdateSubtext(data.count);
+                wlUpdateLimitHint();
+                wlCleanGroups();
+                if (!wlSelected.size) wlEnsureEmpty();
+            }
+        } catch (e) { console.error('WL remove failed', e); }
+    }
+
+    function wlRenderRow(resortId) {
+        const r = WL_RESORT_DATA[resortId];
+        if (!r) return;
+        const loc = wlLoc(r);
+        const groupLabel = wlGroupLabel(r);
+
+        const emptyEl = document.getElementById('wl-empty-state');
+        if (emptyEl) emptyEl.remove();
+
+        let groupEl = document.querySelector(`.wl-group[data-group="${CSS.escape(groupLabel)}"]`);
+        if (!groupEl) {
+            groupEl = document.createElement('div');
+            groupEl.className = 'wl-group';
+            groupEl.setAttribute('data-group', groupLabel);
+            groupEl.innerHTML = `<p class="wl-group-label">${groupLabel}</p>`;
+            const list = document.getElementById('wl-list');
+            const groups = list.querySelectorAll('.wl-group');
+            let inserted = false;
+            for (const g of groups) {
+                if (g.getAttribute('data-group') > groupLabel) {
+                    list.insertBefore(groupEl, g);
+                    inserted = true;
+                    break;
+                }
+            }
+            if (!inserted) list.appendChild(groupEl);
+        }
+
+        const rowEl = document.createElement('div');
+        rowEl.className = 'wl-row';
+        rowEl.id = 'wl-row-' + resortId;
+        rowEl.innerHTML = `
+            <div class="wl-row-left">
+                <p class="wl-row-name">${r.name}</p>
+                ${loc ? `<p class="wl-row-loc">${loc}</p>` : ''}
+            </div>
+            <button class="wl-remove" onclick="wlRemove(${resortId})" type="button">remove</button>
+        `;
+        groupEl.appendChild(rowEl);
+    }
+
+    function wlCleanGroups() {
+        document.querySelectorAll('.wl-group').forEach(g => {
+            if (!g.querySelector('.wl-row')) g.remove();
         });
-        
-        function hasChanges() {
-            if (originalIds.length !== selectedIds.length) return true;
-            const sortedOriginal = [...originalIds].sort();
-            const sortedSelected = [...selectedIds].sort();
-            return !sortedOriginal.every((val, idx) => val === sortedSelected[idx]);
+    }
+
+    function wlEnsureEmpty() {
+        const list = document.getElementById('wl-list');
+        if (!document.getElementById('wl-empty-state')) {
+            const p = document.createElement('p');
+            p.className = 'wl-empty';
+            p.id = 'wl-empty-state';
+            p.textContent = 'Add up to 3 mountains above';
+            list.appendChild(p);
         }
-        
-        function updateSaveButton() {
-            const saveBtn = document.getElementById('save-btn-top');
-            saveBtn.disabled = !hasChanges();
+    }
+
+    // Init limit hint state
+    wlUpdateLimitHint();
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.wl-search-wrap') && !e.target.closest('#wl-results')) {
+            const r = document.getElementById('wl-results');
+            if (r) r.classList.remove('show');
         }
-        
-        async function filterByCountry() {
-            currentCountryFilter = document.getElementById('country-filter').value;
-            const regionSelect = document.getElementById('region-filter');
-            
-            // Reset region filter
-            currentRegionFilter = 'all';
-            regionSelect.innerHTML = '<option value="all">State / Province / Region</option>';
-            
-            if (currentCountryFilter === 'all') {
-                regionSelect.disabled = true;
-            } else {
-                // Fetch regions for this country
-                try {
-                    const response = await fetch(`/api/resort-regions/${currentCountryFilter}`);
-                    const regions = await response.json();
-                    
-                    regions.forEach(region => {
-                        const option = document.createElement('option');
-                        option.value = region;
-                        option.textContent = region;
-                        regionSelect.appendChild(option);
-                    });
-                    
-                    regionSelect.disabled = false;
-                } catch (error) {
-                    console.error('Failed to load regions:', error);
-                    regionSelect.disabled = true;
-                }
-            }
-            
-            filterResorts();
-        }
-        
-        function filterByRegion() {
-            currentRegionFilter = document.getElementById('region-filter').value;
-            filterResorts();
-        }
-        
-        function filterResorts() {
-            const searchTerm = document.getElementById('mountain-search').value.toLowerCase();
-            const rows = document.querySelectorAll('.mountain-row');
-            
-            rows.forEach(row => {
-                const name = row.dataset.name;
-                const country = row.dataset.country;
-                const region = row.dataset.region;
-                
-                const matchesSearch = name.includes(searchTerm);
-                const matchesCountry = currentCountryFilter === 'all' || country === currentCountryFilter;
-                const matchesRegion = currentRegionFilter === 'all' || region === currentRegionFilter;
-                
-                if (matchesSearch && matchesCountry && matchesRegion) {
-                    row.classList.remove('hidden');
-                } else {
-                    row.classList.add('hidden');
-                }
-            });
-        }
-        
-        function updateSelection(id) {
-            const checkbox = document.querySelector(`input[value="${id}"]`);
-            if (!checkbox) return;
-            
-            const index = selectedIds.indexOf(id);
-            if (checkbox.checked) {
-                if (index === -1) {
-                    if (selectedIds.length >= maxResorts) {
-                        checkbox.checked = false;
-                        return;
-                    }
-                    selectedIds.push(id);
-                }
-            } else {
-                if (index > -1) {
-                    selectedIds.splice(index, 1);
-                }
-            }
-            
-            updateUI();
-            updateSaveButton();
-        }
-        
-        function removeResort(id) {
-            // Force removal from the state array first
-            const index = selectedIds.indexOf(id);
-            if (index > -1) {
-                selectedIds.splice(index, 1);
-            }
-            
-            // Uncheck the checkbox if it exists in the current view
-            const checkbox = document.querySelector(`input[value="${id}"]`);
-            if (checkbox) {
-                checkbox.checked = false;
-            }
-            
-            // Re-render UI from the updated state array
-            updateUI();
-            updateSaveButton();
-        }
-        
-        function updateUI() {
-            const countDisplay = document.getElementById('count-display');
-            countDisplay.textContent = selectedIds.length + ' of 3 selected';
-            
-            const limitMsg = document.getElementById('limit-message');
-            limitMsg.style.display = selectedIds.length >= maxResorts ? 'block' : 'none';
-            
-            const pillsContainer = document.getElementById('selected-pills');
-            
-            // Collect resort data for grouping
-            const resorts = [];
-            selectedIds.forEach(id => {
-                const row = document.querySelector(`.mountain-row[data-id="${id}"]`);
-                if (row) {
-                    resorts.push({
-                        id: id,
-                        name: row.getAttribute('data-display-name'),
-                        country: row.dataset.country,
-                        countryName: row.dataset.countryName || '',
-                        region: row.dataset.region
-                    });
-                }
-            });
-            
-            const groups = {};
-            resorts.forEach(r => {
-                let label = 'Other';
-                if (r.country && r.country !== 'US') {
-                    label = countryNames[r.country] || r.country;
-                } else if (r.region) {
-                    label = stateNames[r.region] || r.region;
-                }
-                
-                if (!groups[label]) {
-                    groups[label] = { label: label, resorts: [] };
-                }
-                groups[label].resorts.push(r);
-            });
-            
-            // Sort groups alphabetically by label
-            const sortedGroupKeys = Object.keys(groups).sort((a, b) => 
-                groups[a].label.localeCompare(groups[b].label)
-            );
-            
-            // Sort resorts within each group alphabetically by name
-            sortedGroupKeys.forEach(key => {
-                groups[key].resorts.sort((a, b) => a.name.localeCompare(b.name));
-            });
-            
-            // Render grouped display
-            pillsContainer.innerHTML = '';
-            sortedGroupKeys.forEach(key => {
-                const group = groups[key];
-                
-                const groupDiv = document.createElement('div');
-                groupDiv.className = 'selected-group';
-                
-                const header = document.createElement('div');
-                header.className = 'selected-group-header';
-                header.textContent = group.label;
-                groupDiv.appendChild(header);
-                
-                const resortsDiv = document.createElement('div');
-                resortsDiv.className = 'selected-group-resorts';
-                
-                group.resorts.forEach(r => {
-                    const pill = document.createElement('span');
-                    pill.className = 'mountain-pill';
-                    pill.setAttribute('data-id', r.id);
-                    pill.innerHTML = r.name + ' <button type="button" class="remove-btn" onclick="removeResort(' + r.id + ')" aria-label="Remove">✕</button>';
-                    resortsDiv.appendChild(pill);
-                });
-                
-                groupDiv.appendChild(resortsDiv);
-                pillsContainer.appendChild(groupDiv);
-            });
-            
-            document.querySelectorAll('.mountain-row input').forEach(checkbox => {
-                const id = parseInt(checkbox.value);
-                checkbox.checked = selectedIds.includes(id);
-            });
-        }
-        
-        async function saveChanges() {
-            const saveBtn = document.getElementById('save-btn-top');
-            saveBtn.disabled = true;
-            saveBtn.textContent = 'Saving...';
-            
-            try {
-                const response = await fetch('{{ url_for("settings_wish_list_save") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ resort_ids: selectedIds })
-                });
-                
-                const data = await response.json();
-                if (data.success) {
-                    window.location.href = '{{ url_for("settings") }}';
-                } else {
-                    alert('Failed to save changes');
-                    saveBtn.disabled = false;
-                    saveBtn.textContent = 'Save';
-                }
-            } catch (error) {
-                alert('Failed to save changes');
-                saveBtn.disabled = false;
-                saveBtn.textContent = 'Save';
-            }
-        }
-        
-        // Handle anchor scroll with offset for fixed header
-        if (window.location.hash) {
-            document.addEventListener('DOMContentLoaded', function() {
-                const target = document.querySelector(window.location.hash);
-                if (target) {
-                    setTimeout(function() {
-                        const offset = 80;
-                        const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
-                        window.scrollTo({ top: top, behavior: 'smooth' });
-                    }, 100);
-                }
-            });
-        }
+    });
     </script>
+    {% endif %}
 </body>
 </html>

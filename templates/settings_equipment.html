@@ -3,681 +3,577 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge - Equipment</title>
+    <title>Equipment — BaseLodge</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .settings-page-container {
+        .eq-wrap {
             max-width: 500px;
             margin: 0 auto;
-            padding: 16px 16px 100px;
+            padding: 20px 16px 100px;
         }
-        .back-link {
+        .eq-back {
             display: inline-block;
-            margin-bottom: 16px;
-            color: var(--bl-color-text-muted);
+            font-size: 22px;
+            color: #6B665A;
             text-decoration: none;
-            font-size: 16px;
+            margin-bottom: 20px;
+            line-height: 1;
         }
-        .page-header {
-            font-size: 24px;
+        .eq-eyebrow {
+            font-size: 11px;
             font-weight: 700;
-            color: var(--bl-color-text);
-            margin: 0 0 24px 0;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #6B665A;
+            margin: 0 0 6px 0;
         }
-        .equipment-card {
-            background: var(--bl-color-surface);
+        .eq-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 28px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin: 0 0 4px 0;
+            line-height: 1.2;
+        }
+        .eq-subtitle {
+            font-size: 14px;
+            color: #6B665A;
+            margin: 0 0 28px 0;
+        }
+        /* Own / Rentals pill */
+        .eq-status-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 28px;
+        }
+        .eq-status-pill {
+            flex: 1;
+            padding: 10px 8px;
+            border-radius: 20px;
+            border: 1px solid #E5DFD0;
+            background: transparent;
+            font-size: 14px;
+            color: #6B665A;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .eq-status-pill.active {
+            background: #5C1219;
+            color: #fff;
+            border-color: #5C1219;
+        }
+        /* Section label */
+        .eq-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #6B665A;
+            margin: 0 0 12px 0;
+        }
+        /* Card */
+        .eq-card {
+            background: #F0DDD8;
             border-radius: 12px;
             padding: 16px;
             margin-bottom: 16px;
         }
-        .section-header {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--bl-color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-            margin: 0 0 12px 0;
-        }
-        .equipment-display {
-            padding: 0;
-        }
-        .equipment-brand {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--bl-color-text);
+        /* Display mode */
+        .eq-display-line {
+            font-size: 15px;
+            color: #1A1A1A;
             margin: 0 0 4px 0;
+            line-height: 1.4;
         }
-        .equipment-details {
-            font-size: 14px;
-            color: var(--bl-color-text-muted);
+        .eq-display-detail {
+            font-size: 13px;
+            color: #6B665A;
             margin: 0 0 2px 0;
             line-height: 1.4;
         }
-        .equipment-edit-form {
-            padding-top: 0;
+        .eq-edit-link {
+            font-size: 13px;
+            color: #5C1219;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            margin-top: 10px;
+            display: inline-block;
+            -webkit-tap-highlight-color: transparent;
         }
-        .equipment-grid {
-            display: grid;
-            gap: 12px;
-        }
-        .equipment-row {
+        /* Edit mode */
+        .eq-form-grid { display: grid; gap: 12px; }
+        .eq-row-2 {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
         }
-        .form-label {
+        .eq-field-label {
             display: block;
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--bl-color-text-muted);
-            margin-bottom: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #6B665A;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 5px;
         }
-        .equipment-grid select,
-        .equipment-grid input {
+        .eq-form-grid select,
+        .eq-form-grid input {
             width: 100%;
-            padding: 12px 10px;
+            padding: 11px 10px;
             font-size: 15px;
-            border: 1px solid var(--bl-color-border);
+            border: 1px solid #E5DFD0;
             border-radius: 8px;
-            background: var(--bl-color-bg);
-            color: var(--bl-color-text);
-            min-height: 44px;
+            background: #F5F1E8;
+            color: #1A1A1A;
             box-sizing: border-box;
-        }
-        .equipment-grid select:focus,
-        .equipment-grid input:focus {
             outline: none;
-            border-color: var(--bl-color-primary);
+            -webkit-appearance: none;
         }
-        .equipment-btn-row {
+        .eq-form-grid select:focus,
+        .eq-form-grid input:focus { border-color: #5C1219; }
+        .eq-form-actions {
             display: flex;
-            gap: 8px;
+            gap: 10px;
             margin-top: 16px;
+            align-items: center;
         }
-        .btn-save {
+        .eq-save-btn {
             flex: 1;
             padding: 12px;
-            background: var(--bl-color-primary);
-            color: white;
+            background: #5C1219;
+            color: #fff;
             border: none;
             border-radius: 8px;
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            min-height: 44px;
         }
-        .btn-edit {
-            flex: 1;
-            padding: 12px;
+        .eq-cancel-btn {
+            padding: 12px 16px;
             background: transparent;
-            color: var(--bl-color-primary);
-            border: 1px solid var(--bl-color-primary);
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            min-height: 44px;
-            margin-top: 12px;
-        }
-        .btn-cancel {
-            padding: 12px;
-            background: transparent;
-            color: var(--bl-color-text-muted);
-            border: 1px solid var(--bl-color-border);
+            color: #6B665A;
+            border: 1px solid #E5DFD0;
             border-radius: 8px;
             font-size: 14px;
-            font-weight: 500;
             cursor: pointer;
-            min-height: 44px;
         }
-        .btn-delete {
-            padding: 12px;
-            background: #EF4444;
-            color: white;
+        .eq-delete-btn {
+            padding: 12px 16px;
+            background: transparent;
+            color: #9B3B3B;
             border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 13px;
             cursor: pointer;
-            min-height: 44px;
+            -webkit-tap-highlight-color: transparent;
         }
-        .toast {
+        /* Add secondary */
+        .eq-add-btn {
+            width: 100%;
+            padding: 14px;
+            background: transparent;
+            border: 1px dashed #E5DFD0;
+            border-radius: 10px;
+            color: #5C1219;
+            font-size: 15px;
+            cursor: pointer;
+            margin-top: 4px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Rentals notice */
+        .eq-rentals-note {
+            padding: 20px;
+            background: #F0DDD8;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 15px;
+            color: #6B665A;
+        }
+        /* Toast */
+        .eq-toast {
             position: fixed;
-            bottom: 100px;
+            bottom: 88px;
             left: 50%;
-            transform: translateX(-50%);
-            background: #333;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 8px;
+            transform: translateX(-50%) translateY(8px);
+            background: #1A1A1A;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 20px;
             font-size: 14px;
-            font-weight: 500;
-            z-index: 1000;
             opacity: 0;
-            transition: opacity 0.3s ease;
             pointer-events: none;
+            transition: opacity 0.25s, transform 0.25s;
+            z-index: 200;
+            white-space: nowrap;
         }
-        .toast.show {
+        .eq-toast.show {
             opacity: 1;
+            transform: translateX(-50%) translateY(0);
         }
     </style>
 </head>
 <body>
-    <div id="toast" class="toast"></div>
-    <div class="settings-page-container">
-        <div class="bl-header"><a href="{{ url_for('home') }}">BaseLodge</a></div>
-        <a href="{{ url_for('settings') }}" class="back-link">← Back</a>
-        <h1 class="page-header">Equipment</h1>
-        <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0 0 20px 0;">Optional — add what you ride so friends get a better sense of your setup.</p>
-        
-        <!-- Equipment Status Toggle -->
-        <div class="equipment-card" style="margin-bottom: 24px;">
-            <h2 class="section-header" style="margin-bottom: 16px;">Equipment Status</h2>
-            <div class="equipment-status-toggle">
-                <label style="display: flex; align-items: center; gap: 12px; padding: 12px 0; cursor: pointer; border-bottom: 1px solid var(--bl-color-border-soft);">
-                    <input type="radio" name="equipment_status" value="have_own_equipment" {% if not user.equipment_status or user.equipment_status == 'have_own_equipment' %}checked{% endif %} onchange="updateEquipmentStatus(this.value)">
-                    <span style="font-size: 15px; color: var(--bl-color-text);">I have my own equipment</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 12px; padding: 12px 0; cursor: pointer;">
-                    <input type="radio" name="equipment_status" value="needs_rentals" {% if user.equipment_status == 'needs_rentals' %}checked{% endif %} onchange="updateEquipmentStatus(this.value)">
-                    <span style="font-size: 15px; color: var(--bl-color-text);">I use rentals</span>
-                </label>
-            </div>
+    <div class="eq-toast" id="eq-toast"></div>
+    <div class="eq-wrap">
+        <a href="{{ url_for('profile') }}" class="eq-back">‹</a>
+
+        <p class="eq-eyebrow">Equipment</p>
+        <h1 class="eq-title">Your setup</h1>
+        <p class="eq-subtitle">Optional — helps friends know what you ride</p>
+
+        <!-- Own / Rentals pill selector -->
+        <div class="eq-status-row">
+            <button class="eq-status-pill {% if not user.equipment_status or user.equipment_status == 'have_own_equipment' %}active{% endif %}"
+                    id="pill-own" onclick="setStatus('have_own_equipment')">I own equipment</button>
+            <button class="eq-status-pill {% if user.equipment_status == 'needs_rentals' %}active{% endif %}"
+                    id="pill-rentals" onclick="setStatus('needs_rentals')">I use rentals</button>
         </div>
-        
-        <div id="equipment-details-section" {% if user.equipment_status == 'needs_rentals' %}style="display: none;"{% endif %}>
-        <h2 class="section-header">Primary Setup</h2>
-        <div class="equipment-card">
-            {% if primary_equipment %}
-            <div id="primary-view">
-                <div class="equipment-display">
-                    <p class="equipment-brand">{{ primary_equipment.brand or 'Primary Setup' }}{% if primary_equipment.model %} {{ primary_equipment.model }}{% endif %}</p>
-                    <p class="equipment-details">
-                        {{ primary_equipment.discipline.value|capitalize }}{% if primary_equipment.length_cm %} · {{ primary_equipment.length_cm }}cm{% endif %}{% if primary_equipment.width_mm %} · {{ primary_equipment.width_mm }}mm{% endif %}
+
+        <!-- Equipment detail panels (hidden when rentals) -->
+        <div id="eq-detail-section" {% if user.equipment_status == 'needs_rentals' %}style="display:none;"{% endif %}>
+            <!-- Primary Setup -->
+            <p class="eq-section-label">Primary Setup</p>
+            <div class="eq-card" id="primary-card">
+                {% if primary_equipment %}
+                <!-- Display mode -->
+                <div id="primary-display">
+                    <p class="eq-display-line">
+                        {% if primary_equipment.brand %}{{ primary_equipment.brand }}{% if primary_equipment.model %} {{ primary_equipment.model }}{% endif %}{% else %}{{ primary_equipment.discipline.value | capitalize }}{% endif %}
+                    </p>
+                    <p class="eq-display-detail">
+                        {{ primary_equipment.discipline.value | capitalize }}{% if primary_equipment.length_cm %} · {{ primary_equipment.length_cm }}cm{% endif %}{% if primary_equipment.width_mm %} · {{ primary_equipment.width_mm }}mm waist{% endif %}
                     </p>
                     {% if primary_equipment.binding_type %}
-                    <p class="equipment-details">{{ primary_equipment.binding_type }}</p>
+                    <p class="eq-display-detail">{{ primary_equipment.binding_type }}</p>
                     {% endif %}
-                    {% if primary_equipment.boot_brand or primary_equipment.boot_flex %}
-                    <p class="equipment-details">
-                        {% if primary_equipment.boot_brand %}{{ primary_equipment.boot_brand }}{% if primary_equipment.boot_model %} {{ primary_equipment.boot_model }}{% endif %} boots{% endif %}{% if primary_equipment.boot_brand and primary_equipment.boot_flex %} · {% endif %}{% if primary_equipment.boot_flex %}{{ primary_equipment.boot_flex }} flex{% endif %}
-                    </p>
+                    {% if primary_equipment.boot_brand %}
+                    <p class="eq-display-detail">{{ primary_equipment.boot_brand }}{% if primary_equipment.boot_model %} {{ primary_equipment.boot_model }}{% endif %} boots{% if primary_equipment.boot_flex %} · flex {{ primary_equipment.boot_flex }}{% endif %}</p>
                     {% endif %}
                     {% if primary_equipment.purchase_year %}
-                    <p class="equipment-details">Bought: {{ primary_equipment.purchase_year }}</p>
+                    <p class="eq-display-detail">Bought {{ primary_equipment.purchase_year }}</p>
                     {% endif %}
+                    <button class="eq-edit-link" onclick="showEdit('primary')">Edit</button>
                 </div>
-                <div class="equipment-btn-row">
-                    <button type="button" id="edit-primary-btn" class="btn-edit">Edit</button>
-                </div>
-            </div>
-            <div id="primary-edit" class="equipment-edit-form" style="display: none;">
-            {% else %}
-            <div id="primary-edit" class="equipment-edit-form">
-            {% endif %}
-                <div class="equipment-grid">
-                    <div>
-                        <label class="form-label">Rider Type</label>
-                        <select id="primary-discipline">
-                            <option value="">Select</option>
-                            <option value="Skier" {% if primary_equipment and primary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
-                            <option value="Snowboarder" {% if primary_equipment and primary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
-                            <option value="Telemark" {% if primary_equipment and primary_equipment.discipline.value == 'telemark' %}selected{% endif %}>Telemark</option>
-                            <option value="Adaptive" {% if primary_equipment and primary_equipment.discipline.value == 'adaptive' %}selected{% endif %}>Adaptive</option>
-                            <option value="Cross-Country" {% if primary_equipment and primary_equipment.discipline.value == 'cross-country' %}selected{% endif %}>Cross-Country</option>
-                        </select>
-                    </div>
-                    <div class="equipment-row">
+                <!-- Edit mode (hidden) -->
+                <div id="primary-edit" style="display:none;">
+                {% else %}
+                <!-- No primary — edit mode shown by default -->
+                <div id="primary-display" style="display:none;"></div>
+                <div id="primary-edit">
+                {% endif %}
+                    <div class="eq-form-grid">
                         <div>
-                            <label class="form-label">Equipment Brand</label>
-                            <select id="primary-brand">
+                            <label class="eq-field-label">Rider type</label>
+                            <select id="primary-discipline" onchange="updateBrands('primary'); updateBindings('primary');">
                                 <option value="">Select</option>
+                                <option value="Skier" {% if primary_equipment and primary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
+                                <option value="Snowboarder" {% if primary_equipment and primary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
+                                <option value="Telemark" {% if primary_equipment and primary_equipment.discipline.value == 'telemark' %}selected{% endif %}>Telemark</option>
+                                <option value="Adaptive" {% if primary_equipment and primary_equipment.discipline.value == 'adaptive' %}selected{% endif %}>Adaptive</option>
+                                <option value="Cross-Country" {% if primary_equipment and primary_equipment.discipline.value == 'cross-country' %}selected{% endif %}>Cross-Country</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="form-label">Model (optional)</label>
-                            <input type="text" id="primary-model" placeholder="e.g. Ripstick 96" value="{% if primary_equipment %}{{ primary_equipment.model or '' }}{% endif %}" />
+                        <div class="eq-row-2">
+                            <div>
+                                <label class="eq-field-label">Brand</label>
+                                <select id="primary-brand"></select>
+                            </div>
+                            <div>
+                                <label class="eq-field-label">Model</label>
+                                <input type="text" id="primary-model" placeholder="e.g. Ripstick 96" value="{{ primary_equipment.model or '' if primary_equipment else '' }}">
+                            </div>
                         </div>
-                    </div>
-                    <div class="equipment-row">
-                        <div>
-                            <label class="form-label">Length (cm)</label>
-                            <input type="number" id="primary-length" placeholder="e.g. 170" value="{% if primary_equipment %}{{ primary_equipment.length_cm or '' }}{% endif %}" />
-                        </div>
-                        <div>
-                            <label class="form-label">Width (mm)</label>
-                            <input type="number" id="primary-width" placeholder="e.g. 98" value="{% if primary_equipment %}{{ primary_equipment.width_mm or '' }}{% endif %}" />
-                        </div>
-                    </div>
-                    <div>
-                        <label class="form-label">Binding Type</label>
-                        <select id="primary-binding">
-                            <option value="">Select</option>
-                        </select>
-                    </div>
-                    <div class="equipment-row">
-                        <div>
-                            <label class="form-label">Boot Brand</label>
-                            <select id="primary-boot-brand">
-                                <option value="">Select</option>
-                                {% for brand in ['Salomon', 'Tecnica', 'Lange', 'Atomic', 'Dalbello', 'Nordica', 'K2', 'Fischer', 'Burton', 'ThirtyTwo', 'Ride', 'Vans', 'DC', 'Other'] %}
-                                <option value="{{ brand }}" {% if primary_equipment and primary_equipment.boot_brand == brand %}selected{% endif %}>{{ brand }}</option>
-                                {% endfor %}
-                            </select>
+                        <div class="eq-row-2">
+                            <div>
+                                <label class="eq-field-label">Length (cm)</label>
+                                <input type="number" id="primary-length" placeholder="170" value="{{ primary_equipment.length_cm or '' if primary_equipment else '' }}">
+                            </div>
+                            <div>
+                                <label class="eq-field-label">Width (mm)</label>
+                                <input type="number" id="primary-width" placeholder="98" value="{{ primary_equipment.width_mm or '' if primary_equipment else '' }}">
+                            </div>
                         </div>
                         <div>
-                            <label class="form-label">Boot Model (optional)</label>
-                            <input type="text" id="primary-boot-model" placeholder="e.g. Speedmachine" value="{% if primary_equipment %}{{ primary_equipment.boot_model or '' }}{% endif %}" />
+                            <label class="eq-field-label">Binding type</label>
+                            <select id="primary-binding"></select>
+                        </div>
+                        <div class="eq-row-2">
+                            <div>
+                                <label class="eq-field-label">Boot brand</label>
+                                <select id="primary-boot-brand">
+                                    <option value="">Select</option>
+                                    {% for b in ['Salomon', 'Tecnica', 'Lange', 'Atomic', 'Dalbello', 'Nordica', 'K2', 'Fischer', 'Burton', 'ThirtyTwo', 'Ride', 'Vans', 'DC', 'Other'] %}
+                                    <option value="{{ b }}" {% if primary_equipment and primary_equipment.boot_brand == b %}selected{% endif %}>{{ b }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="eq-field-label">Boot model</label>
+                                <input type="text" id="primary-boot-model" placeholder="Speedmachine" value="{{ primary_equipment.boot_model or '' if primary_equipment else '' }}">
+                            </div>
+                        </div>
+                        <div class="eq-row-2">
+                            <div>
+                                <label class="eq-field-label">Boot flex</label>
+                                <input type="number" id="primary-boot-flex" placeholder="120" value="{{ primary_equipment.boot_flex or '' if primary_equipment else '' }}">
+                            </div>
+                            <div>
+                                <label class="eq-field-label">Year bought</label>
+                                <input type="number" id="primary-purchase-year" placeholder="2023" min="1980" max="2030" value="{{ primary_equipment.purchase_year or '' if primary_equipment else '' }}">
+                            </div>
                         </div>
                     </div>
-                    <div>
-                        <label class="form-label">Boot Flex</label>
-                        <input type="number" id="primary-boot-flex" placeholder="e.g. 120" value="{% if primary_equipment %}{{ primary_equipment.boot_flex or '' }}{% endif %}" />
+                    <div class="eq-form-actions">
+                        <button class="eq-save-btn" onclick="saveEquipment('primary')">Save setup</button>
+                        {% if primary_equipment %}
+                        <button class="eq-cancel-btn" onclick="hideEdit('primary')">Cancel</button>
+                        <button class="eq-delete-btn" onclick="deleteEquipment('primary')">Delete</button>
+                        {% endif %}
                     </div>
-                    <div>
-                        <label class="form-label">Purchase Year</label>
-                        <input type="number" id="primary-purchase-year" placeholder="e.g. 2022" min="1980" max="2030" value="{% if primary_equipment %}{{ primary_equipment.purchase_year or '' }}{% endif %}" />
-                    </div>
-                </div>
-                <div class="equipment-btn-row">
-                    <button type="button" id="save-primary-btn" class="btn-save">Save</button>
-                    {% if primary_equipment %}
-                    <button type="button" id="cancel-primary-btn" class="btn-cancel">Cancel</button>
-                    <button type="button" id="delete-primary-btn" class="btn-delete">Delete</button>
-                    {% endif %}
                 </div>
             </div>
-            {% if primary_equipment %}</div>{% endif %}
-        </div>
-        
-        <!-- Secondary Setup: hidden by default, show "+ Add another setup" -->
-        {% if secondary_equipment %}
-        <h2 class="section-header">Secondary Setup</h2>
-        <div class="equipment-card">
-            <div id="secondary-view">
-                <div class="equipment-display">
-                    <p class="equipment-brand">{{ secondary_equipment.brand or 'Secondary Setup' }}{% if secondary_equipment.model %} {{ secondary_equipment.model }}{% endif %}</p>
-                    <p class="equipment-details">
-                        {{ secondary_equipment.discipline.value|capitalize }}{% if secondary_equipment.length_cm %} · {{ secondary_equipment.length_cm }}cm{% endif %}{% if secondary_equipment.width_mm %} · {{ secondary_equipment.width_mm }}mm{% endif %}
+
+            <!-- Secondary Setup -->
+            {% if secondary_equipment %}
+            <p class="eq-section-label">Secondary Setup</p>
+            <div class="eq-card" id="secondary-card">
+                <div id="secondary-display">
+                    <p class="eq-display-line">
+                        {% if secondary_equipment.brand %}{{ secondary_equipment.brand }}{% if secondary_equipment.model %} {{ secondary_equipment.model }}{% endif %}{% else %}{{ secondary_equipment.discipline.value | capitalize }}{% endif %}
+                    </p>
+                    <p class="eq-display-detail">
+                        {{ secondary_equipment.discipline.value | capitalize }}{% if secondary_equipment.length_cm %} · {{ secondary_equipment.length_cm }}cm{% endif %}{% if secondary_equipment.width_mm %} · {{ secondary_equipment.width_mm }}mm waist{% endif %}
                     </p>
                     {% if secondary_equipment.binding_type %}
-                    <p class="equipment-details">{{ secondary_equipment.binding_type }}</p>
+                    <p class="eq-display-detail">{{ secondary_equipment.binding_type }}</p>
                     {% endif %}
-                    {% if secondary_equipment.boot_brand or secondary_equipment.boot_flex %}
-                    <p class="equipment-details">
-                        {% if secondary_equipment.boot_brand %}{{ secondary_equipment.boot_brand }}{% if secondary_equipment.boot_model %} {{ secondary_equipment.boot_model }}{% endif %} boots{% endif %}{% if secondary_equipment.boot_brand and secondary_equipment.boot_flex %} · {% endif %}{% if secondary_equipment.boot_flex %}{{ secondary_equipment.boot_flex }} flex{% endif %}
-                    </p>
+                    {% if secondary_equipment.boot_brand %}
+                    <p class="eq-display-detail">{{ secondary_equipment.boot_brand }}{% if secondary_equipment.boot_model %} {{ secondary_equipment.boot_model }}{% endif %} boots{% if secondary_equipment.boot_flex %} · flex {{ secondary_equipment.boot_flex }}{% endif %}</p>
                     {% endif %}
+                    <button class="eq-edit-link" onclick="showEdit('secondary')">Edit</button>
                 </div>
-                <div class="equipment-btn-row">
-                    <button type="button" id="edit-secondary-btn" class="btn-edit">Edit</button>
-                </div>
-            </div>
-            <div id="secondary-edit" class="equipment-edit-form" style="display: none;">
-        {% else %}
-        <div id="add-secondary-section" style="margin-top: 16px;">
-            <button type="button" id="add-secondary-btn" style="width: 100%; padding: 14px; background: transparent; border: 1px dashed var(--bl-color-border); border-radius: 10px; color: var(--bl-color-primary); font-size: 15px; font-weight: 500; cursor: pointer;">+ Add another setup</button>
-        </div>
-        <div id="secondary-form-wrapper" style="display: none;">
-            <h2 class="section-header" style="margin-top: 24px;">Secondary Setup</h2>
-            <div class="equipment-card">
-            <div id="secondary-edit" class="equipment-edit-form">
-        {% endif %}
-                <div class="equipment-grid">
-                    <div>
-                        <label class="form-label">Rider Type</label>
-                        <select id="secondary-discipline">
-                            <option value="">Select</option>
-                            <option value="Skier" {% if secondary_equipment and secondary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
-                            <option value="Snowboarder" {% if secondary_equipment and secondary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
-                            <option value="Telemark" {% if secondary_equipment and secondary_equipment.discipline.value == 'telemark' %}selected{% endif %}>Telemark</option>
-                            <option value="Adaptive" {% if secondary_equipment and secondary_equipment.discipline.value == 'adaptive' %}selected{% endif %}>Adaptive</option>
-                            <option value="Cross-Country" {% if secondary_equipment and secondary_equipment.discipline.value == 'cross-country' %}selected{% endif %}>Cross-Country</option>
-                        </select>
-                    </div>
-                    <div class="equipment-row">
-                        <div>
-                            <label class="form-label">Equipment Brand</label>
-                            <select id="secondary-brand">
-                                <option value="">Select</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="form-label">Model (optional)</label>
-                            <input type="text" id="secondary-model" placeholder="e.g. Ripstick 96" value="{% if secondary_equipment %}{{ secondary_equipment.model or '' }}{% endif %}" />
-                        </div>
-                    </div>
-                    <div class="equipment-row">
-                        <div>
-                            <label class="form-label">Length (cm)</label>
-                            <input type="number" id="secondary-length" placeholder="e.g. 170" value="{% if secondary_equipment %}{{ secondary_equipment.length_cm or '' }}{% endif %}" />
-                        </div>
-                        <div>
-                            <label class="form-label">Width (mm)</label>
-                            <input type="number" id="secondary-width" placeholder="e.g. 98" value="{% if secondary_equipment %}{{ secondary_equipment.width_mm or '' }}{% endif %}" />
-                        </div>
-                    </div>
-                    <div>
-                        <label class="form-label">Binding Type</label>
-                        <select id="secondary-binding">
-                            <option value="">Select</option>
-                        </select>
-                    </div>
-                    <div class="equipment-row">
-                        <div>
-                            <label class="form-label">Boot Brand</label>
-                            <select id="secondary-boot-brand">
-                                <option value="">Select</option>
-                                {% for brand in ['Salomon', 'Tecnica', 'Lange', 'Atomic', 'Dalbello', 'Nordica', 'K2', 'Fischer', 'Burton', 'ThirtyTwo', 'Ride', 'Vans', 'DC', 'Other'] %}
-                                <option value="{{ brand }}" {% if secondary_equipment and secondary_equipment.boot_brand == brand %}selected{% endif %}>{{ brand }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="form-label">Boot Model (optional)</label>
-                            <input type="text" id="secondary-boot-model" placeholder="e.g. Speedmachine" value="{% if secondary_equipment %}{{ secondary_equipment.boot_model or '' }}{% endif %}" />
-                        </div>
-                    </div>
-                    <div>
-                        <label class="form-label">Boot Flex</label>
-                        <input type="number" id="secondary-boot-flex" placeholder="e.g. 120" value="{% if secondary_equipment %}{{ secondary_equipment.boot_flex or '' }}{% endif %}" />
-                    </div>
-                </div>
-                <div class="equipment-btn-row">
-                    <button type="button" id="save-secondary-btn" class="btn-save">Save</button>
-                    {% if secondary_equipment %}
-                    <button type="button" id="cancel-secondary-btn" class="btn-cancel">Cancel</button>
-                    <button type="button" id="delete-secondary-btn" class="btn-delete">Delete</button>
-                    {% else %}
-                    <button type="button" id="cancel-add-secondary-btn" class="btn-cancel">Cancel</button>
-                    {% endif %}
-                </div>
-            </div>
-            {% if secondary_equipment %}
-            </div>
-        </div>
+                <div id="secondary-edit" style="display:none;">
             {% else %}
+            <div id="add-secondary-wrap" style="margin-bottom: 12px;">
+                <button class="eq-add-btn" onclick="showAddSecondary()">+ Add another setup</button>
             </div>
-        </div>
+            <div id="secondary-form-wrap" style="display:none;">
+                <p class="eq-section-label">Secondary Setup</p>
+                <div class="eq-card" id="secondary-card">
+                <div id="secondary-edit">
+            {% endif %}
+                    <div class="eq-form-grid">
+                        <div>
+                            <label class="eq-field-label">Rider type</label>
+                            <select id="secondary-discipline" onchange="updateBrands('secondary'); updateBindings('secondary');">
+                                <option value="">Select</option>
+                                <option value="Skier" {% if secondary_equipment and secondary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
+                                <option value="Snowboarder" {% if secondary_equipment and secondary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
+                                <option value="Telemark" {% if secondary_equipment and secondary_equipment.discipline.value == 'telemark' %}selected{% endif %}>Telemark</option>
+                                <option value="Adaptive" {% if secondary_equipment and secondary_equipment.discipline.value == 'adaptive' %}selected{% endif %}>Adaptive</option>
+                                <option value="Cross-Country" {% if secondary_equipment and secondary_equipment.discipline.value == 'cross-country' %}selected{% endif %}>Cross-Country</option>
+                            </select>
+                        </div>
+                        <div class="eq-row-2">
+                            <div>
+                                <label class="eq-field-label">Brand</label>
+                                <select id="secondary-brand"></select>
+                            </div>
+                            <div>
+                                <label class="eq-field-label">Model</label>
+                                <input type="text" id="secondary-model" placeholder="e.g. Ripstick 96" value="{{ secondary_equipment.model or '' if secondary_equipment else '' }}">
+                            </div>
+                        </div>
+                        <div class="eq-row-2">
+                            <div>
+                                <label class="eq-field-label">Length (cm)</label>
+                                <input type="number" id="secondary-length" placeholder="170" value="{{ secondary_equipment.length_cm or '' if secondary_equipment else '' }}">
+                            </div>
+                            <div>
+                                <label class="eq-field-label">Width (mm)</label>
+                                <input type="number" id="secondary-width" placeholder="98" value="{{ secondary_equipment.width_mm or '' if secondary_equipment else '' }}">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="eq-field-label">Binding type</label>
+                            <select id="secondary-binding"></select>
+                        </div>
+                        <div class="eq-row-2">
+                            <div>
+                                <label class="eq-field-label">Boot brand</label>
+                                <select id="secondary-boot-brand">
+                                    <option value="">Select</option>
+                                    {% for b in ['Salomon', 'Tecnica', 'Lange', 'Atomic', 'Dalbello', 'Nordica', 'K2', 'Fischer', 'Burton', 'ThirtyTwo', 'Ride', 'Vans', 'DC', 'Other'] %}
+                                    <option value="{{ b }}" {% if secondary_equipment and secondary_equipment.boot_brand == b %}selected{% endif %}>{{ b }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="eq-field-label">Boot model</label>
+                                <input type="text" id="secondary-boot-model" placeholder="Speedmachine" value="{{ secondary_equipment.boot_model or '' if secondary_equipment else '' }}">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="eq-field-label">Boot flex</label>
+                            <input type="number" id="secondary-boot-flex" placeholder="120" value="{{ secondary_equipment.boot_flex or '' if secondary_equipment else '' }}">
+                        </div>
+                    </div>
+                    <div class="eq-form-actions">
+                        <button class="eq-save-btn" onclick="saveEquipment('secondary')">Save setup</button>
+                        {% if secondary_equipment %}
+                        <button class="eq-cancel-btn" onclick="hideEdit('secondary')">Cancel</button>
+                        <button class="eq-delete-btn" onclick="deleteEquipment('secondary')">Delete</button>
+                        {% else %}
+                        <button class="eq-cancel-btn" onclick="hideAddSecondary()">Cancel</button>
+                        {% endif %}
+                    </div>
+                </div>
+            {% if secondary_equipment %}
+            </div><!-- close secondary-display wrapper -->
+            {% else %}
+                </div><!-- close secondary-card -->
+            </div><!-- close secondary-form-wrap -->
+            {% endif %}
+        </div><!-- close eq-detail-section -->
+
+        {% if user.equipment_status == 'needs_rentals' %}
+        <div id="eq-rentals-note" class="eq-rentals-note">Using rentals — no setup to list</div>
+        {% else %}
+        <div id="eq-rentals-note" class="eq-rentals-note" style="display:none;">Using rentals — no setup to list</div>
         {% endif %}
-        </div><!-- Close equipment-details-section -->
-    </div>
-    
+
+    </div><!-- close eq-wrap -->
+
     {% include 'components/bottom_nav.html' %}
-    
+
     <script>
-    const skiEquipmentBrands = ['Armada', 'Atomic', 'Black Crows', 'Blizzard', 'DPS', 'Dynastar', 'Elan', 'Faction', 'Fischer', 'Head', 'Icelantic', 'K2', 'Line', 'Moment', 'Nordica', 'ON3P', 'Rossignol', 'Salomon', 'Scott', 'Volkl', 'Other'];
-    const snowboardEquipmentBrands = ['Arbor', 'Bataleon', 'Burton', 'Capita', 'DC', 'GNU', 'Jones', 'K2', 'Lib Tech', 'Nitro', 'Ride', 'Rome', 'Salomon', 'Yes', 'Other'];
-    
-    const skierBindings = ['Alpine', 'Touring (pin)', 'Hybrid (Shift / Duke PT)', 'Telemark', 'Other'];
-    const snowboarderBindings = ['Standard bindings', 'Step-On', 'Splitboard bindings', 'Other'];
-    
-    const primaryEquipmentBrand = "{% if primary_equipment %}{{ primary_equipment.brand or '' }}{% endif %}";
-    const secondaryEquipmentBrand = "{% if secondary_equipment %}{{ secondary_equipment.brand or '' }}{% endif %}";
-    const primaryBindingType = "{% if primary_equipment %}{{ primary_equipment.binding_type or '' }}{% endif %}";
-    const secondaryBindingType = "{% if secondary_equipment %}{{ secondary_equipment.binding_type or '' }}{% endif %}";
-    
-    function updateBrandDropdown(selectElement, discipline, existingValue) {
-        const brands = discipline === 'Skier' ? skiEquipmentBrands : (discipline === 'Snowboarder' ? snowboardEquipmentBrands : []);
+    const SKI_BRANDS = ['Armada','Atomic','Black Crows','Blizzard','DPS','Dynastar','Elan','Faction','Fischer','Head','Icelantic','K2','Line','Moment','Nordica','ON3P','Rossignol','Salomon','Scott','Volkl','Other'];
+    const BOARD_BRANDS = ['Arbor','Bataleon','Burton','Capita','DC','GNU','Jones','K2','Lib Tech','Nitro','Ride','Rome','Salomon','Yes','Other'];
+    const SKI_BINDINGS = ['Alpine','Touring (pin)','Hybrid (Shift / Duke PT)','Telemark','Other'];
+    const BOARD_BINDINGS = ['Standard bindings','Step-On','Splitboard bindings','Other'];
+
+    const SAVED_PRIMARY_BRAND = {{ (primary_equipment.brand or '') | tojson if primary_equipment else '""' }};
+    const SAVED_SECONDARY_BRAND = {{ (secondary_equipment.brand or '') | tojson if secondary_equipment else '""' }};
+    const SAVED_PRIMARY_BINDING = {{ (primary_equipment.binding_type or '') | tojson if primary_equipment else '""' }};
+    const SAVED_SECONDARY_BINDING = {{ (secondary_equipment.binding_type or '') | tojson if secondary_equipment else '""' }};
+
+    function makeBrandOptions(discipline, savedVal) {
+        const brands = discipline === 'Skier' ? SKI_BRANDS : (discipline === 'Snowboarder' ? BOARD_BRANDS : []);
         let html = '<option value="">Select</option>';
-        brands.forEach(brand => {
-            const selected = (existingValue === brand) ? ' selected' : '';
-            html += `<option value="${brand}"${selected}>${brand}</option>`;
-        });
-        selectElement.innerHTML = html;
+        brands.forEach(b => { html += `<option value="${b}"${b === savedVal ? ' selected' : ''}>${b}</option>`; });
+        return html;
     }
-    
-    function updateBindingDropdown(selectElement, discipline, existingValue) {
-        const bindings = discipline === 'Skier' ? skierBindings : (discipline === 'Snowboarder' ? snowboarderBindings : []);
+
+    function makeBindingOptions(discipline, savedVal) {
+        const bindings = discipline === 'Skier' ? SKI_BINDINGS : (discipline === 'Snowboarder' ? BOARD_BINDINGS : []);
         let html = '<option value="">Select</option>';
-        bindings.forEach(binding => {
-            const selected = (existingValue === binding) ? ' selected' : '';
-            html += `<option value="${binding}"${selected}>${binding}</option>`;
-        });
-        selectElement.innerHTML = html;
+        bindings.forEach(b => { html += `<option value="${b}"${b === savedVal ? ' selected' : ''}>${b}</option>`; });
+        return html;
     }
-    
-    const primaryDisciplineSelect = document.getElementById('primary-discipline');
-    const primaryBrandSelect = document.getElementById('primary-brand');
-    const primaryBindingSelect = document.getElementById('primary-binding');
-    const secondaryDisciplineSelect = document.getElementById('secondary-discipline');
-    const secondaryBrandSelect = document.getElementById('secondary-brand');
-    const secondaryBindingSelect = document.getElementById('secondary-binding');
-    
-    if (primaryDisciplineSelect.value) {
-        updateBrandDropdown(primaryBrandSelect, primaryDisciplineSelect.value, primaryEquipmentBrand);
-        updateBindingDropdown(primaryBindingSelect, primaryDisciplineSelect.value, primaryBindingType);
+
+    function updateBrands(slot, savedVal) {
+        const disc = document.getElementById(slot + '-discipline').value;
+        const el = document.getElementById(slot + '-brand');
+        el.innerHTML = makeBrandOptions(disc, savedVal || '');
     }
-    
-    if (secondaryDisciplineSelect.value) {
-        updateBrandDropdown(secondaryBrandSelect, secondaryDisciplineSelect.value, secondaryEquipmentBrand);
-        updateBindingDropdown(secondaryBindingSelect, secondaryDisciplineSelect.value, secondaryBindingType);
+
+    function updateBindings(slot, savedVal) {
+        const disc = document.getElementById(slot + '-discipline').value;
+        const el = document.getElementById(slot + '-binding');
+        el.innerHTML = makeBindingOptions(disc, savedVal || '');
     }
-    
-    primaryDisciplineSelect.addEventListener('change', () => {
-        updateBrandDropdown(primaryBrandSelect, primaryDisciplineSelect.value, '');
-        updateBindingDropdown(primaryBindingSelect, primaryDisciplineSelect.value, '');
-    });
-    
-    secondaryDisciplineSelect.addEventListener('change', () => {
-        updateBrandDropdown(secondaryBrandSelect, secondaryDisciplineSelect.value, '');
-        updateBindingDropdown(secondaryBindingSelect, secondaryDisciplineSelect.value, '');
-    });
-    
-    const editPrimaryBtn = document.getElementById('edit-primary-btn');
-    const cancelPrimaryBtn = document.getElementById('cancel-primary-btn');
-    const primaryView = document.getElementById('primary-view');
-    const primaryEdit = document.getElementById('primary-edit');
-    
-    if (editPrimaryBtn) {
-        editPrimaryBtn.addEventListener('click', () => {
-            primaryView.style.display = 'none';
-            primaryEdit.style.display = 'block';
-        });
+
+    function showEdit(slot) {
+        document.getElementById(slot + '-display').style.display = 'none';
+        document.getElementById(slot + '-edit').style.display = 'block';
     }
-    
-    if (cancelPrimaryBtn) {
-        cancelPrimaryBtn.addEventListener('click', () => {
-            primaryView.style.display = 'block';
-            primaryEdit.style.display = 'none';
-        });
+
+    function hideEdit(slot) {
+        document.getElementById(slot + '-edit').style.display = 'none';
+        document.getElementById(slot + '-display').style.display = 'block';
     }
-    
-    const editSecondaryBtn = document.getElementById('edit-secondary-btn');
-    const cancelSecondaryBtn = document.getElementById('cancel-secondary-btn');
-    const secondaryView = document.getElementById('secondary-view');
-    const secondaryEdit = document.getElementById('secondary-edit');
-    
-    if (editSecondaryBtn) {
-        editSecondaryBtn.addEventListener('click', () => {
-            secondaryView.style.display = 'none';
-            secondaryEdit.style.display = 'block';
-        });
+
+    function showAddSecondary() {
+        document.getElementById('add-secondary-wrap').style.display = 'none';
+        document.getElementById('secondary-form-wrap').style.display = 'block';
     }
-    
-    if (cancelSecondaryBtn) {
-        cancelSecondaryBtn.addEventListener('click', () => {
-            secondaryView.style.display = 'block';
-            secondaryEdit.style.display = 'none';
-        });
+
+    function hideAddSecondary() {
+        document.getElementById('secondary-form-wrap').style.display = 'none';
+        document.getElementById('add-secondary-wrap').style.display = 'block';
     }
-    
-    document.getElementById('save-primary-btn').addEventListener('click', async () => {
-        const discipline = document.getElementById('primary-discipline').value;
-        const brand = document.getElementById('primary-brand').value;
-        const model = document.getElementById('primary-model').value;
-        const length = document.getElementById('primary-length').value;
-        const width = document.getElementById('primary-width').value;
-        const bindingType = document.getElementById('primary-binding').value;
-        const bootBrand = document.getElementById('primary-boot-brand').value;
-        const bootModel = document.getElementById('primary-boot-model').value;
-        const bootFlex = document.getElementById('primary-boot-flex').value;
-        const purchaseYear = document.getElementById('primary-purchase-year').value;
-        
-        if (!discipline) {
-            alert('Please select a discipline');
-            return;
+
+    function showToast(msg) {
+        const t = document.getElementById('eq-toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2000);
+    }
+
+    async function setStatus(val) {
+        document.getElementById('pill-own').classList.toggle('active', val === 'have_own_equipment');
+        document.getElementById('pill-rentals').classList.toggle('active', val === 'needs_rentals');
+        document.getElementById('eq-detail-section').style.display = val === 'needs_rentals' ? 'none' : 'block';
+        document.getElementById('eq-rentals-note').style.display = val === 'needs_rentals' ? 'block' : 'none';
+        const fd = new FormData();
+        fd.append('equipment_status', val);
+        await fetch('/settings/equipment-status', { method: 'POST', body: fd });
+    }
+
+    async function saveEquipment(slot) {
+        const discipline = document.getElementById(slot + '-discipline').value;
+        if (!discipline) { showToast('Select a rider type first'); return; }
+
+        const fd = new FormData();
+        fd.append('slot', slot);
+        fd.append('discipline', discipline);
+        fd.append('brand', document.getElementById(slot + '-brand').value);
+        fd.append('model', document.getElementById(slot + '-model').value);
+        fd.append('length_cm', document.getElementById(slot + '-length').value);
+        fd.append('width_mm', document.getElementById(slot + '-width').value);
+        fd.append('binding_type', document.getElementById(slot + '-binding').value);
+        fd.append('boot_brand', document.getElementById(slot + '-boot-brand').value);
+        fd.append('boot_model', document.getElementById(slot + '-boot-model').value);
+        fd.append('boot_flex', document.getElementById(slot + '-boot-flex').value);
+        if (slot === 'primary') {
+            const pyEl = document.getElementById('primary-purchase-year');
+            if (pyEl) fd.append('purchase_year', pyEl.value);
         }
-        
-        const formData = new FormData();
-        formData.append('slot', 'primary');
-        formData.append('discipline', discipline);
-        formData.append('brand', brand);
-        formData.append('model', model);
-        formData.append('length_cm', length);
-        formData.append('width_mm', width);
-        formData.append('binding_type', bindingType);
-        formData.append('boot_brand', bootBrand);
-        formData.append('boot_model', bootModel);
-        formData.append('boot_flex', bootFlex);
-        formData.append('purchase_year', purchaseYear);
-        
-        const response = await fetch('/settings/equipment/save', {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (response.ok) {
-            window.location.reload();
-        } else {
-            alert('Failed to save equipment');
-        }
-    });
-    
-    document.getElementById('save-secondary-btn').addEventListener('click', async () => {
-        const discipline = document.getElementById('secondary-discipline').value;
-        const brand = document.getElementById('secondary-brand').value;
-        const model = document.getElementById('secondary-model').value;
-        const length = document.getElementById('secondary-length').value;
-        const width = document.getElementById('secondary-width').value;
-        const bindingType = document.getElementById('secondary-binding').value;
-        const bootBrand = document.getElementById('secondary-boot-brand').value;
-        const bootModel = document.getElementById('secondary-boot-model').value;
-        const bootFlex = document.getElementById('secondary-boot-flex').value;
-        
-        if (!discipline) {
-            alert('Please select a discipline');
-            return;
-        }
-        
-        const formData = new FormData();
-        formData.append('slot', 'secondary');
-        formData.append('discipline', discipline);
-        formData.append('brand', brand);
-        formData.append('model', model);
-        formData.append('length_cm', length);
-        formData.append('width_mm', width);
-        formData.append('binding_type', bindingType);
-        formData.append('boot_brand', bootBrand);
-        formData.append('boot_model', bootModel);
-        formData.append('boot_flex', bootFlex);
-        
-        const response = await fetch('/settings/equipment/save', {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (response.ok) {
-            window.location.reload();
-        } else {
-            alert('Failed to save equipment');
-        }
-    });
-    
-    const deletePrimaryBtn = document.getElementById('delete-primary-btn');
-    if (deletePrimaryBtn) {
-        deletePrimaryBtn.addEventListener('click', async () => {
-            if (!confirm('Delete primary equipment setup?')) return;
-            
-            const formData = new FormData();
-            formData.append('slot', 'primary');
-            
-            const response = await fetch('/settings/equipment/delete', {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (response.ok) {
-                window.location.reload();
+
+        try {
+            const resp = await fetch('/settings/equipment/save', { method: 'POST', body: fd });
+            const data = await resp.json();
+            if (data.success) {
+                showToast('Setup saved');
+                setTimeout(() => window.location.reload(), 800);
             } else {
-                alert('Failed to delete equipment');
+                showToast(data.error || 'Could not save');
             }
-        });
+        } catch (e) { showToast('Could not save'); }
     }
-    
-    const deleteSecondaryBtn = document.getElementById('delete-secondary-btn');
-    if (deleteSecondaryBtn) {
-        deleteSecondaryBtn.addEventListener('click', async () => {
-            if (!confirm('Delete secondary equipment setup?')) return;
-            
-            const formData = new FormData();
-            formData.append('slot', 'secondary');
-            
-            const response = await fetch('/settings/equipment/delete', {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (response.ok) {
-                window.location.reload();
-            } else {
-                alert('Failed to delete equipment');
+
+    async function deleteEquipment(slot) {
+        const fd = new FormData();
+        fd.append('slot', slot);
+        try {
+            const resp = await fetch('/settings/equipment/delete', { method: 'POST', body: fd });
+            const data = await resp.json();
+            if (data.success) {
+                showToast('Setup removed');
+                setTimeout(() => window.location.reload(), 800);
             }
-        });
+        } catch (e) { showToast('Could not delete'); }
     }
-    
-    function showToast(message) {
-        const toast = document.getElementById('toast');
-        toast.textContent = message;
-        toast.classList.add('show');
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 2000);
-    }
-    
-    async function updateEquipmentStatus(status) {
-        const formData = new FormData();
-        formData.append('equipment_status', status);
-        
-        const response = await fetch('/settings/equipment-status', {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (response.ok) {
-            const section = document.getElementById('equipment-details-section');
-            if (status === 'needs_rentals') {
-                section.style.display = 'none';
-                showToast('Saved: Using rentals');
-            } else {
-                section.style.display = 'block';
-                showToast('Saved: Own equipment');
-            }
-        } else {
-            showToast('Failed to save');
-        }
-    }
-    
-    // "+ Add another setup" button handler
-    const addSecondaryBtn = document.getElementById('add-secondary-btn');
-    const secondaryFormWrapper = document.getElementById('secondary-form-wrapper');
-    const addSecondarySection = document.getElementById('add-secondary-section');
-    
-    if (addSecondaryBtn) {
-        addSecondaryBtn.addEventListener('click', () => {
-            addSecondarySection.style.display = 'none';
-            secondaryFormWrapper.style.display = 'block';
-        });
-    }
-    
-    // Cancel add secondary button handler
-    const cancelAddSecondaryBtn = document.getElementById('cancel-add-secondary-btn');
-    if (cancelAddSecondaryBtn) {
-        cancelAddSecondaryBtn.addEventListener('click', () => {
-            secondaryFormWrapper.style.display = 'none';
-            addSecondarySection.style.display = 'block';
-        });
-    }
+
+    // Init brand/binding dropdowns on page load
+    updateBrands('primary', SAVED_PRIMARY_BRAND);
+    updateBindings('primary', SAVED_PRIMARY_BINDING);
+    updateBrands('secondary', SAVED_SECONDARY_BRAND);
+    updateBindings('secondary', SAVED_SECONDARY_BINDING);
     </script>
 </body>
 </html>

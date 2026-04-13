@@ -3350,6 +3350,8 @@ def friend_profile(friend_id):
         stat_upcoming=len(trips),
         stat_mountains=friend.visited_resorts_count,
         stat_past=get_past_trip_count(friend),
+        stat_wishlist=len(friend.wish_list_resorts or []),
+        stat_trips_total=SkiTrip.query.filter_by(user_id=friend.id).count(),
     )
 
 @app.route("/profile/<int:user_id>")
@@ -4077,6 +4079,8 @@ def home():
         stat_upcoming=get_upcoming_trip_count(user),
         stat_mountains=user.visited_resorts_count,
         stat_past=get_past_trip_count(user),
+        stat_trips_total=SkiTrip.query.filter_by(user_id=user.id).count(),
+        stat_wishlist=len(user.wish_list_resorts or []),
     )
 
 
@@ -4365,12 +4369,11 @@ def more_info():
 @app.route("/profile")
 @login_required
 def profile():
-    mountains = current_user.mountains_visited or []
-    mountains_visited_count = len(mountains)
-    
+    mountains_visited_count = current_user.visited_resorts_count
+
     primary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=EquipmentSlot.PRIMARY).first()
     secondary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=EquipmentSlot.SECONDARY).first()
-    
+
     has_equipment = primary_equipment is not None or secondary_equipment is not None
     equipment_summary = ""
     if primary_equipment:
@@ -4379,13 +4382,16 @@ def profile():
             equipment_summary += f" + {secondary_equipment.brand or 'Secondary'}"
     elif secondary_equipment:
         equipment_summary = f"{secondary_equipment.brand or 'Secondary'}"
-    
+
     # Wish list data
     wish_list_ids = current_user.wish_list_resorts or []
     wish_list_count = len(wish_list_ids)
     wish_list_resorts = Resort.query.filter(Resort.id.in_(wish_list_ids)).all() if wish_list_ids else []
 
     friends_count = Friend.query.filter_by(user_id=current_user.id).count()
+
+    # Total trips (all, not just upcoming) — owned by user
+    all_trips_count = SkiTrip.query.filter_by(user_id=current_user.id).count()
 
     return render_template("profile.html",
                            page_title="Profile",
@@ -4395,7 +4401,8 @@ def profile():
                            wish_list_count=wish_list_count,
                            wish_list_resorts=wish_list_resorts,
                            friends_count=friends_count,
-                           upcoming_count=get_upcoming_trip_count(current_user))
+                           upcoming_count=get_upcoming_trip_count(current_user),
+                           all_trips_count=all_trips_count)
 
 @app.route("/settings")
 @login_required
@@ -4561,6 +4568,159 @@ def settings_wish_list_save():
     db.session.commit()
     
     return jsonify({"success": True, "count": len(valid_ids)})
+
+
+# =====================================================================
+# INSTANT-SAVE API — Mountains Visited
+# =====================================================================
+
+@app.route("/api/mountains-visited/add", methods=["POST"])
+@login_required
+def api_mountains_visited_add():
+    data = request.get_json() or {}
+    resort_id = data.get("resort_id")
+    if not resort_id:
+        return jsonify({"error": "resort_id required"}), 400
+    resort = Resort.query.get(resort_id)
+    if not resort:
+        return jsonify({"error": "Resort not found"}), 404
+    ids = list(current_user.visited_resort_ids or [])
+    if resort_id not in ids:
+        ids.append(resort_id)
+        names = list(current_user.mountains_visited or [])
+        if resort.name not in names:
+            names.append(resort.name)
+        current_user.visited_resort_ids = ids
+        current_user.mountains_visited = names
+        db.session.commit()
+    return jsonify({"success": True, "count": len(ids)})
+
+
+@app.route("/api/mountains-visited/remove", methods=["POST"])
+@login_required
+def api_mountains_visited_remove():
+    data = request.get_json() or {}
+    resort_id = data.get("resort_id")
+    if not resort_id:
+        return jsonify({"error": "resort_id required"}), 400
+    resort = Resort.query.get(resort_id)
+    ids = [i for i in (current_user.visited_resort_ids or []) if i != resort_id]
+    names = list(current_user.mountains_visited or [])
+    if resort and resort.name in names:
+        names.remove(resort.name)
+    current_user.visited_resort_ids = ids
+    current_user.mountains_visited = names
+    db.session.commit()
+    return jsonify({"success": True, "count": len(ids)})
+
+
+# =====================================================================
+# INSTANT-SAVE API — Wishlist
+# =====================================================================
+
+@app.route("/api/wishlist/add", methods=["POST"])
+@login_required
+def api_wishlist_add():
+    data = request.get_json() or {}
+    resort_id = data.get("resort_id")
+    if not resort_id:
+        return jsonify({"error": "resort_id required"}), 400
+    resort = Resort.query.get(resort_id)
+    if not resort:
+        return jsonify({"error": "Resort not found"}), 404
+    ids = list(current_user.wish_list_resorts or [])
+    if len(ids) >= 3:
+        return jsonify({"error": "Maximum 3 resorts", "at_limit": True}), 200
+    if resort_id not in ids:
+        ids.append(resort_id)
+        current_user.wish_list_resorts = ids
+        db.session.commit()
+    return jsonify({"success": True, "count": len(ids), "at_limit": len(ids) >= 3})
+
+
+@app.route("/api/wishlist/remove", methods=["POST"])
+@login_required
+def api_wishlist_remove():
+    data = request.get_json() or {}
+    resort_id = data.get("resort_id")
+    if not resort_id:
+        return jsonify({"error": "resort_id required"}), 400
+    ids = [i for i in (current_user.wish_list_resorts or []) if i != resort_id]
+    current_user.wish_list_resorts = ids
+    db.session.commit()
+    return jsonify({"success": True, "count": len(ids), "at_limit": len(ids) >= 3})
+
+
+# =====================================================================
+# FRIEND READ-ONLY VIEWS — Mountains Visited + Wishlist
+# =====================================================================
+
+@app.route("/mountains-visited/<int:user_id>")
+@login_required
+def friend_mountains_visited(user_id):
+    """Read-only view of another user's mountains visited (friends only)."""
+    friend = User.query.get_or_404(user_id)
+    # Must be a confirmed friend
+    is_friend = Friend.query.filter_by(
+        user_id=current_user.id, friend_id=user_id
+    ).first() is not None
+    if not is_friend:
+        abort(403)
+
+    # Friend's visited resorts
+    visited_ids = friend.visited_resort_ids or []
+    visited_resorts = Resort.query.filter(Resort.id.in_(visited_ids)).all() if visited_ids else []
+    grouped = group_resorts_for_display(visited_resorts)
+
+    # Current user's wishlist for "On your wishlist" indicator
+    user_wishlist_ids = set(current_user.wish_list_resorts or [])
+
+    return render_template(
+        "mountains_visited.html",
+        read_only=True,
+        view_user=friend,
+        grouped_selected=grouped,
+        mountains_visited_count=len(visited_ids),
+        user_wishlist_ids=user_wishlist_ids,
+        # own-view fields not needed in read-only — set safe defaults
+        resorts=[],
+        selected_resort_ids=[],
+        countries=[],
+        COUNTRIES={},
+    )
+
+
+@app.route("/wishlist/<int:user_id>")
+@login_required
+def friend_wishlist(user_id):
+    """Read-only view of another user's wishlist (friends only)."""
+    friend = User.query.get_or_404(user_id)
+    is_friend = Friend.query.filter_by(
+        user_id=current_user.id, friend_id=user_id
+    ).first() is not None
+    if not is_friend:
+        abort(403)
+
+    # Friend's wishlist
+    wish_ids = friend.wish_list_resorts or []
+    wish_resorts = Resort.query.filter(Resort.id.in_(wish_ids)).all() if wish_ids else []
+    grouped = group_resorts_for_display(wish_resorts)
+
+    # Current user's visited for "You've been here" indicator
+    user_visited_ids = set(current_user.visited_resort_ids or [])
+
+    return render_template(
+        "settings_wish_list.html",
+        read_only=True,
+        view_user=friend,
+        grouped_wish_list=grouped,
+        wish_list_ids=wish_ids,
+        user_visited_ids=user_visited_ids,
+        # own-view fields not needed in read-only
+        resorts=[],
+        countries=[],
+        COUNTRIES={},
+    )
 
 
 # =====================================================================

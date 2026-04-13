@@ -1,0 +1,221 @@
+#17 - Profile Social Stats + Deep Linking (Trips, Visited, Wishlist)
+
+What & Why
+
+Enhance the Profile experience to make it more social, comparable, and actionable by:
+
+1. Adding a visible stats bar on profile pages (own + friends)
+2. Replacing “Friends count” with meaningful activity signals
+3. Enabling deep linking into:
+   - Mountains visited
+   - Wishlist mountains
+4. Creating lightweight read-only views when viewing a friend’s data
+5. Reinforcing profile completion via visible zero states
+
+This builds a stronger social loop:
+- users see what others have done
+- users compare
+- users are nudged to complete their own profile
+
+--------------------------------------------------
+CORE CHANGE: PROFILE STATS BAR
+--------------------------------------------------
+
+Add a stats bar to ALL profile pages (own + friend profiles).
+
+Stats to show:
+
+1. Trips
+2. Mountains visited
+3. Wishlist mountains
+
+DO NOT show total friends in this bar.
+
+--------------------------------------------------
+DISPLAY FORMAT
+--------------------------------------------------
+
+Each stat shows:
+
+- Large number (serif)
+- Label underneath (uppercase, small sans)
+
+Example:
+
+12
+TRIPS
+
+8
+MOUNTAINS VISITED
+
+3
+WISHLIST
+
+Layout:
+- Horizontal row
+- Equal spacing
+- Vertical hairline dividers between items
+- No cards or containers
+- Always visible (even if values are 0)
+
+--------------------------------------------------
+DATA DEFINITIONS
+--------------------------------------------------
+
+Trips:
+- Count of all trips (planning + going)
+
+Mountains visited:
+- Count of visited mountains
+
+Wishlist:
+- Count of wishlist mountains
+
+--------------------------------------------------
+OWN PROFILE BEHAVIOR
+--------------------------------------------------
+
+Stats are tappable:
+
+- Trips → navigates to Trips page
+- Mountains visited → navigates to Mountains Visited page
+- Wishlist → navigates to Wishlist page
+
+--------------------------------------------------
+FRIEND PROFILE BEHAVIOR
+--------------------------------------------------
+
+Stats are ALSO tappable (important change from before):
+
+- Mountains visited → opens a read-only version of Mountains Visited page for that friend
+- Wishlist → opens a read-only version of Wishlist page for that friend
+- Trips → optional (can link to their trips if already supported, otherwise leave non-tappable for now)
+
+--------------------------------------------------
+NEW REQUIREMENT: FRIEND DATA VIEWS
+--------------------------------------------------
+
+When viewing another user’s:
+
+----------------------------------------
+MOUNTAINS VISITED (FRIEND VIEW)
+----------------------------------------
+
+- Same layout as user's own Mountains Visited page
+- Read-only (no add/remove, no search)
+- Show grouped list (country/state)
+
+NEW FEATURE:
+If a mountain in their visited list exists in the CURRENT USER'S wishlist:
+
+→ show subtle inline indicator:
+   "On your wishlist"
+
+- small, muted, inline text
+- no badge/pill
+
+----------------------------------------
+WISHLIST (FRIEND VIEW)
+----------------------------------------
+
+- Same layout as user's own Wishlist page
+- Read-only
+- No search, no editing
+
+Optional (if easy):
+- If overlap exists with current user’s visited → show:
+   "You've been here"
+
+--------------------------------------------------
+IMPORTANT UX RULES
+--------------------------------------------------
+
+- These views are READ-ONLY when viewing a friend
+- No Save buttons
+- No edit affordances
+- No empty state hiding
+
+If friend has:
+
+- 0 mountains visited → show:
+  "No mountains yet"
+
+- 0 wishlist → show:
+  "No wishlist yet"
+
+Keep tone neutral, not judgmental
+
+--------------------------------------------------
+ROUTING + ARCHITECTURE
+--------------------------------------------------
+
+Reuse existing pages with a mode switch instead of duplicating:
+
+Example:
+
+/mountains-visited → own editable view  
+/mountains-visited/<user_id> → read-only friend view  
+
+/wishlist → own editable  
+/wishlist/<user_id> → read-only friend view  
+
+Use:
+- conditional logic in template
+- disable search/add/remove when viewing another user
+
+--------------------------------------------------
+FILES TO REVIEW / MODIFY
+--------------------------------------------------
+
+- profile page template (stats bar addition)
+- mountains_visited.html (add read-only mode)
+- settings_wish_list.html (add read-only mode)
+- app.py routes for new friend-based endpoints
+
+--------------------------------------------------
+BACKEND REQUIREMENTS
+--------------------------------------------------
+
+- Ensure ability to fetch:
+  - another user's visited mountains
+  - another user's wishlist mountains
+
+- Ensure current user’s wishlist is accessible during friend view (for overlap detection)
+
+--------------------------------------------------
+TESTING REQUIREMENTS
+--------------------------------------------------
+
+Do not complete until fully tested:
+
+Profile:
+- stats render for 0 and non-zero
+- stats clickable for own + friend
+
+Mountains visited:
+- own view editable
+- friend view read-only
+- overlap label appears correctly
+
+Wishlist:
+- own view editable
+- friend view read-only
+
+Routing:
+- correct user data loads
+- no data leakage across users
+
+Mobile:
+- layout clean
+- no overflow
+- spacing consistent
+
+--------------------------------------------------
+OUTPUT
+--------------------------------------------------
+
+Return:
+- full plan of changes
+- files impacted
+- new routes required
+- any risks or assumptions

@@ -184,6 +184,13 @@
             flex-direction: column;
             align-items: center;
             gap: 2px;
+            cursor: default;
+        }
+        .stat-row-tile--link {
+            cursor: pointer;
+        }
+        .stat-row-tile--link:active .stat-row-value {
+            color: #5C1219;
         }
         .stat-row-value {
             font-size: 18px;
@@ -240,7 +247,9 @@
         </div>
         {% endif %}
 
-        <!-- Stat row -->
+        <!-- Stat row: Trips / Mountains / Wishlist (mountains + wishlist are tappable) -->
+        {% set stat_mountains_url = url_for('friend_mountains_visited', user_id=friend.id) %}
+        {% set stat_wishlist_url = url_for('friend_wishlist', user_id=friend.id) %}
         {% include 'components/stat_row.html' %}
 
         <!-- Upcoming trips -->

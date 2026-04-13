@@ -160,22 +160,22 @@
         <p class="prof-eyebrow">Profile</p>
         <h1 class="prof-name">{{ current_user.first_name | format_name }}</h1>
 
-        <!-- Compact stat row -->
+        <!-- Stat row: Trips / Mountains visited / Wishlist (all tappable) -->
         <div class="prof-stat-row">
-            <div class="prof-stat">
-                <span class="prof-stat-num">{{ upcoming_count }}</span>
-                <span class="prof-stat-label">Trip{{ 's' if upcoming_count != 1 else '' }}<br>planned</span>
-            </div>
+            <a href="{{ url_for('my_trips') }}" class="prof-stat" style="text-decoration:none;color:inherit;">
+                <span class="prof-stat-num">{{ all_trips_count }}</span>
+                <span class="prof-stat-label">Trips</span>
+            </a>
             <div class="prof-stat-divider"></div>
-            <div class="prof-stat">
-                <span class="prof-stat-num">{{ friends_count }}</span>
-                <span class="prof-stat-label">Friend{{ 's' if friends_count != 1 else '' }}</span>
-            </div>
-            <div class="prof-stat-divider"></div>
-            <div class="prof-stat">
+            <a href="{{ url_for('mountains_visited') }}" class="prof-stat" style="text-decoration:none;color:inherit;">
                 <span class="prof-stat-num">{{ mountains_visited_count }}</span>
-                <span class="prof-stat-label">Mountain{{ 's' if mountains_visited_count != 1 else '' }}<br>visited</span>
-            </div>
+                <span class="prof-stat-label">Mountains<br>visited</span>
+            </a>
+            <div class="prof-stat-divider"></div>
+            <a href="{{ url_for('settings_wish_list') }}" class="prof-stat" style="text-decoration:none;color:inherit;">
+                <span class="prof-stat-num">{{ wish_list_count }}</span>
+                <span class="prof-stat-label">Wish list</span>
+            </a>
         </div>
 
         <!-- Profile section -->

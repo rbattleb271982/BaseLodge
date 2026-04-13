@@ -3,538 +3,372 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge - Mountains Visited</title>
+    <title>{% if read_only %}{{ view_user.first_name | format_name }}'s Mountains — BaseLodge{% else %}Mountains Visited — BaseLodge{% endif %}</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .filter-row {
-            display: flex;
-            gap: var(--bl-space-3);
-            margin-bottom: var(--bl-space-4);
+        .mv-wrap {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px 16px 100px;
         }
-        
-        .filter-row select {
-            flex: 1;
-            padding: 14px 12px;
-            border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-md);
-            font-size: 16px;
-            min-height: 48px;
-            box-sizing: border-box;
-            background-color: var(--bl-color-bg);
-            color: var(--bl-color-text);
+        .mv-back {
+            display: inline-block;
+            font-size: 22px;
+            color: #6B665A;
+            text-decoration: none;
+            margin-bottom: 20px;
+            line-height: 1;
         }
-        
-        .filter-row select:disabled {
-            background-color: var(--bl-color-bg-secondary);
-            color: var(--bl-color-text-muted);
-            cursor: not-allowed;
-            opacity: 1;
+        .mv-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #6B665A;
+            margin: 0 0 6px 0;
         }
-        
-        @media (prefers-color-scheme: dark) {
-            .filter-row select {
-                background-color: #1c1c1e;
-                color: #ffffff;
-                border-color: #2c2c2e;
-            }
-            
-            .filter-row select:disabled {
-                background-color: #141416;
-                color: #6e6e73;
-                border-color: #2c2c2e;
-                opacity: 1;
-            }
-            
-            .mountain-search {
-                background-color: #1c1c1e;
-                color: #ffffff;
-                border-color: #2c2c2e;
-            }
-            
-            .mountain-search::placeholder {
-                color: #6e6e73;
-            }
+        .mv-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 28px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin: 0 0 4px 0;
+            line-height: 1.2;
         }
-        
-        .mountain-search {
-            width: 100%;
-            padding: 14px 12px;
-            border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-md);
-            font-size: 16px;
-            margin-bottom: var(--bl-space-4);
-            min-height: 48px;
-            box-sizing: border-box;
+        .mv-subtext {
+            font-size: 14px;
+            color: #6B665A;
+            margin: 0 0 24px 0;
         }
-        
-        .mountain-search:disabled {
-            background: var(--bl-color-bg-secondary);
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-        
-        .selected-counter {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-            margin-bottom: var(--bl-space-6);
-        }
-        
-        .selected-mountains-wrapper {
+        .mv-search-wrap {
             position: relative;
-            margin-bottom: var(--bl-space-6);
+            margin-bottom: 8px;
         }
-        
-        .selected-mountains {
-            display: flex;
-            flex-wrap: wrap;
-            gap: var(--bl-space-3);
-            max-height: 120px;
-            overflow-y: auto;
-            transition: max-height 0.3s ease;
+        .mv-search {
+            width: 100%;
+            padding: 13px 14px;
+            font-size: 15px;
+            border: 1px solid #E5DFD0;
+            border-radius: 10px;
+            background: #F5F1E8;
+            color: #1A1A1A;
+            box-sizing: border-box;
+            outline: none;
+            -webkit-appearance: none;
         }
-        
-        .selected-mountains.expanded {
-            max-height: none;
+        .mv-search:focus {
+            border-color: #5C1219;
         }
-        
-        .selected-mountains-fade {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 24px;
-            background: linear-gradient(transparent, var(--bl-color-bg));
-            pointer-events: none;
+        .mv-search::placeholder {
+            color: #8A857A;
         }
-        
-        .selected-mountains-wrapper.expanded .selected-mountains-fade {
+        .mv-results {
             display: none;
+            background: #F5F1E8;
+            border: 1px solid #E5DFD0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            max-height: 300px;
+            overflow-y: auto;
         }
-        
-        .expand-toggle {
+        .mv-results.show { display: block; }
+        .mv-result-row {
+            padding: 12px 14px;
+            border-bottom: 1px solid #E5DFD0;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .mv-result-row:last-child { border-bottom: none; }
+        .mv-result-row:active { background: #F0DDD8; }
+        .mv-result-name { font-size: 15px; color: #1A1A1A; line-height: 1.3; margin: 0; }
+        .mv-result-loc { font-size: 12px; color: #6B665A; margin: 2px 0 0 0; }
+        .mv-no-results {
+            padding: 14px;
+            font-size: 14px;
+            color: #6B665A;
+            text-align: center;
+        }
+        .mv-group { margin-bottom: 24px; }
+        .mv-group-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #6B665A;
+            margin: 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #E5DFD0;
+        }
+        .mv-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #E5DFD0;
+            gap: 12px;
+        }
+        .mv-row-left { flex: 1; min-width: 0; }
+        .mv-row-name { font-size: 15px; color: #1A1A1A; line-height: 1.3; margin: 0; }
+        .mv-row-loc { font-size: 12px; color: #6B665A; margin: 2px 0 0 0; }
+        .mv-row-badge { font-size: 11px; color: #6B665A; font-style: italic; margin: 3px 0 0 0; }
+        .mv-remove {
             font-size: 13px;
-            color: var(--bl-color-primary);
+            color: #8A857A;
+            text-decoration: none;
             background: none;
             border: none;
-            padding: 8px 0 0 0;
             cursor: pointer;
-            font-weight: 500;
-        }
-        
-        .expand-toggle:hover {
-            text-decoration: underline;
-        }
-        
-        .mountain-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: var(--bl-color-primary);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-        }
-        
-        .mountain-pill .remove-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: 14px;
-            line-height: 1;
             padding: 0;
+            flex-shrink: 0;
+            -webkit-tap-highlight-color: transparent;
         }
-        
-        .mountain-pill .remove-btn:hover {
-            background: rgba(255, 255, 255, 0.5);
-        }
-        
-        .selected-mountains:empty {
-            display: none;
-        }
-        
-        .selected-group {
-            margin-bottom: var(--bl-space-4);
-        }
-        
-        .selected-group:last-child {
-            margin-bottom: 0;
-        }
-        
-        .selected-group-header {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--bl-color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: var(--bl-space-2);
-            padding-bottom: var(--bl-space-1);
-            border-bottom: 1px solid var(--bl-color-border-soft);
-        }
-        
-        .selected-group-resorts {
-            display: flex;
-            flex-wrap: wrap;
-            gap: var(--bl-space-2);
-        }
-        
-        .mountain-list {
-            max-height: 500px;
-            overflow-y: auto;
-            margin-bottom: var(--bl-space-6);
-        }
-        
-        .mountain-row {
-            display: flex;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid var(--bl-color-border);
+        .mv-remove:active { color: #5C1219; }
+        .mv-empty {
             font-size: 15px;
-            cursor: pointer;
-        }
-        
-        .mountain-row input {
-            margin-right: var(--bl-space-4);
-            cursor: pointer;
-            width: 18px;
-            height: 18px;
-        }
-        
-        .mountain-row.hidden {
-            display: none;
-        }
-        
-        .resort-location {
-            color: var(--bl-color-text-muted);
-            margin-left: 4px;
+            color: #6B665A;
+            padding: 32px 0;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-    <div class="page-container">
-        <div class="bl-header"><a href="{{ url_for('home') }}">BaseLodge</a></div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <a href="{{ url_for('settings') }}" style="color: var(--bl-color-text-muted); text-decoration: none; font-size: 16px;">← Back</a>
-            <button type="submit" form="mountains-form" class="bl-btn-primary" style="padding: 10px 20px; font-size: 15px;">Save</button>
+    <div class="mv-wrap">
+        <!-- Back -->
+        {% if read_only %}
+        <a href="{{ url_for('friend_profile', friend_id=view_user.id) }}" class="mv-back">‹</a>
+        {% else %}
+        <a href="{{ url_for('profile') }}" class="mv-back">‹</a>
+        {% endif %}
+
+        <!-- Header -->
+        <p class="mv-eyebrow">Mountains Visited</p>
+        {% if read_only %}
+        <h1 class="mv-title">{{ view_user.first_name | format_name }}'s mountains</h1>
+        <p class="mv-subtext">{{ mountains_visited_count }} mountain{{ 's' if mountains_visited_count != 1 else '' }} ridden</p>
+        {% else %}
+        <h1 class="mv-title">Where you've ridden</h1>
+        <p class="mv-subtext" id="mv-subtext">{{ mountains_visited_count }} mountain{{ 's' if mountains_visited_count != 1 else '' }} so far</p>
+        {% endif %}
+
+        {% if not read_only %}
+        <!-- Search bar -->
+        <div class="mv-search-wrap">
+            <input type="text" class="mv-search" id="mv-search"
+                   placeholder="Add a mountain you've skied"
+                   autocomplete="off"
+                   oninput="mvSearch(this.value)">
         </div>
-        <h1 class="page-title" id="visited-mountains" style="margin-bottom: 8px;">Mountains Visited</h1>
-        <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0 0 16px 0;">These are mountains you've already skied.</p>
-        
-        <form method="POST" id="mountains-form">
-            <div class="filter-row">
-                <select id="country-filter" class="mountain-search" style="cursor: pointer;" onchange="filterByCountry()">
-                    <option value="all">All countries</option>
-                    {% for country_code in countries %}
-                    <option value="{{ country_code }}">{{ country_code|country_name }}</option>
-                    {% endfor %}
-                </select>
-                
-                <select id="region-filter" class="mountain-search" style="cursor: pointer;" onchange="filterByRegion()" disabled>
-                    <option value="all">State / Province / Region</option>
-                </select>
-            </div>
-            
-            <input type="text" class="mountain-search" id="mountain-search" placeholder="Search mountains..." oninput="filterResorts()">
-            
-            <div class="selected-counter">
-                <span id="count-display">{{ mountains_visited_count }} selected</span>
-            </div>
-            
-            <div class="selected-mountains-wrapper" id="selected-wrapper">
-                <div class="selected-mountains" id="selected-pills">
-                    {% for group in grouped_selected %}
-                    <div class="selected-group">
-                        <div class="selected-group-header">
-                            {% if group.country and group.country != 'US' %}
-                                {{ group.country|country_name }}
-                            {% else %}
-                                {{ group.label }}
+        <div class="mv-results" id="mv-results"></div>
+        {% endif %}
+
+        <!-- Visited list -->
+        <div id="mv-list">
+            {% if grouped_selected and grouped_selected|length > 0 %}
+                {% for group in grouped_selected %}
+                <div class="mv-group" data-group="{{ group.label }}">
+                    <p class="mv-group-label">{{ group.label }}</p>
+                    {% for resort in group.resorts %}
+                    <div class="mv-row" id="mv-row-{{ resort.id }}">
+                        <div class="mv-row-left">
+                            <p class="mv-row-name">{{ resort.name }}</p>
+                            {% set loc_parts = [] %}
+                            {% if resort.state_name %}{% set _ = loc_parts.append(resort.state_name) %}{% elif resort.state %}{% set _ = loc_parts.append(resort.state) %}{% endif %}
+                            {% if resort.country_code and resort.country_code != 'US' %}{% set _ = loc_parts.append(resort.display_country_name) %}{% endif %}
+                            {% if loc_parts %}
+                            <p class="mv-row-loc">{{ loc_parts | join(' · ') }}</p>
+                            {% endif %}
+                            {% if read_only and user_wishlist_ids and resort.id in user_wishlist_ids %}
+                            <p class="mv-row-badge">On your wish list</p>
                             {% endif %}
                         </div>
-                        <div class="selected-group-resorts">
-                            {% for resort in group.resorts %}
-                            <span class="mountain-pill" data-id="{{ resort.id }}">
-                                {{ resort.name }}
-                                <button type="button" class="remove-btn" onclick="removeResort({{ resort.id }})" aria-label="Remove {{ resort.name }}">✕</button>
-                            </span>
-                            {% endfor %}
-                        </div>
+                        {% if not read_only %}
+                        <button class="mv-remove" onclick="mvRemove({{ resort.id }})" type="button">remove</button>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
-                <div class="selected-mountains-fade" id="selected-fade"></div>
-                <button type="button" class="expand-toggle" id="expand-toggle" style="display: none;" onclick="toggleExpand()">
-                    View all selected (<span id="expand-count">{{ mountains_visited_count }}</span>)
-                </button>
-            </div>
-            
-            <div class="mountain-list" id="mountain-list">
-                {% for resort in resorts %}
-                <label class="mountain-row" 
-                       data-id="{{ resort.id }}"
-                       data-name="{{ resort.name|lower }}"
-                       data-display-name="{{ resort.name }}"
-                       data-country="{{ resort.country_code }}"
-                       data-country-name="{{ resort.country_name or '' }}"
-                       data-region="{{ resort.state_code }}">
-                    <input type="checkbox" name="resort_ids" value="{{ resort.id }}"
-                           {% if resort.id in selected_resort_ids %}checked{% endif %} onchange="updatePills()">
-                    {{ resort.name }}
-                </label>
                 {% endfor %}
-            </div>
-            
-        </form>
+            {% else %}
+                <p class="mv-empty" id="mv-empty-state">{% if read_only %}No mountains yet{% else %}Add mountains you've ridden above{% endif %}</p>
+            {% endif %}
+        </div>
     </div>
-    
+
     {% include 'components/bottom_nav.html' %}
-    
+
+    {% if not read_only %}
     <script>
-        const selectedResortIds = new Set({{ selected_resort_ids | tojson }});
-        let currentCountryFilter = 'all';
-        let currentRegionFilter = 'all';
-        
-        // State name mappings
-        const stateNames = {
-            'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
-            'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
-            'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
-            'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
-            'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
-            'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
-            'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
-            'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
-            'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
-            'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming',
-            'DC': 'District of Columbia'
-        };
-        
-        const countryNames = {{ COUNTRIES|tojson }};
-        
-        // Initialize on load - render grouped display
-        document.addEventListener('DOMContentLoaded', function() {
-            updatePills();
+    const RESORT_DATA = {};
+    const ALL_RESORT_IDS = [];
+    {% for r in resorts %}
+    ALL_RESORT_IDS.push({{ r.id }});
+    RESORT_DATA[{{ r.id }}] = {
+        id: {{ r.id }},
+        name: {{ r.name | tojson }},
+        stateName: {{ (r.state_name or r.state or '') | tojson }},
+        countryCode: {{ (r.country_code or '') | tojson }},
+        countryName: {{ (r.display_country_name or '') | tojson }},
+        nameLower: {{ r.name.lower() | tojson }}
+    };
+    {% endfor %}
+
+    const selectedIds = new Set({{ selected_resort_ids | tojson }});
+    let searchTimeout = null;
+
+    function getResortLoc(r) {
+        const parts = [];
+        if (r.stateName) parts.push(r.stateName);
+        if (r.countryCode && r.countryCode !== 'US' && r.countryName) parts.push(r.countryName);
+        return parts.join(' · ');
+    }
+
+    function getGroupLabel(r) {
+        if (r.countryCode && r.countryCode !== 'US') return r.countryName || r.countryCode;
+        return r.stateName || r.countryCode || 'Other';
+    }
+
+    function mvSearch(val) {
+        clearTimeout(searchTimeout);
+        const q = val.trim().toLowerCase();
+        const resultsEl = document.getElementById('mv-results');
+        if (q.length < 2) {
+            resultsEl.innerHTML = '';
+            resultsEl.classList.remove('show');
+            return;
+        }
+        searchTimeout = setTimeout(() => {
+            const matches = ALL_RESORT_IDS
+                .filter(id => !selectedIds.has(id) && RESORT_DATA[id].nameLower.includes(q))
+                .slice(0, 10);
+
+            if (!matches.length) {
+                resultsEl.innerHTML = '<p class="mv-no-results">No results</p>';
+            } else {
+                resultsEl.innerHTML = matches.map(id => {
+                    const r = RESORT_DATA[id];
+                    const loc = getResortLoc(r);
+                    return `<div class="mv-result-row" onclick="mvAdd(${id})">
+                        <p class="mv-result-name">${r.name}</p>
+                        ${loc ? `<p class="mv-result-loc">${loc}</p>` : ''}
+                    </div>`;
+                }).join('');
+            }
+            resultsEl.classList.add('show');
+        }, 120);
+    }
+
+    async function mvAdd(resortId) {
+        if (selectedIds.has(resortId)) return;
+        try {
+            const resp = await fetch('/api/mountains-visited/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ resort_id: resortId })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                selectedIds.add(resortId);
+                renderRow(resortId);
+                updateSubtext(data.count);
+                document.getElementById('mv-search').value = '';
+                const r = document.getElementById('mv-results');
+                r.classList.remove('show');
+                r.innerHTML = '';
+            }
+        } catch (e) { console.error('Add failed', e); }
+    }
+
+    async function mvRemove(resortId) {
+        try {
+            const resp = await fetch('/api/mountains-visited/remove', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ resort_id: resortId })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                selectedIds.delete(resortId);
+                const row = document.getElementById('mv-row-' + resortId);
+                if (row) row.remove();
+                updateSubtext(data.count);
+                cleanEmptyGroups();
+                if (!selectedIds.size) ensureEmptyState();
+            }
+        } catch (e) { console.error('Remove failed', e); }
+    }
+
+    function renderRow(resortId) {
+        const r = RESORT_DATA[resortId];
+        if (!r) return;
+        const loc = getResortLoc(r);
+        const groupLabel = getGroupLabel(r);
+
+        const emptyEl = document.getElementById('mv-empty-state');
+        if (emptyEl) emptyEl.remove();
+
+        let groupEl = document.querySelector(`.mv-group[data-group="${CSS.escape(groupLabel)}"]`);
+        if (!groupEl) {
+            groupEl = document.createElement('div');
+            groupEl.className = 'mv-group';
+            groupEl.setAttribute('data-group', groupLabel);
+            groupEl.innerHTML = `<p class="mv-group-label">${groupLabel}</p>`;
+            const list = document.getElementById('mv-list');
+            const groups = list.querySelectorAll('.mv-group');
+            let inserted = false;
+            for (const g of groups) {
+                if (g.getAttribute('data-group') > groupLabel) {
+                    list.insertBefore(groupEl, g);
+                    inserted = true;
+                    break;
+                }
+            }
+            if (!inserted) list.appendChild(groupEl);
+        }
+
+        const rowEl = document.createElement('div');
+        rowEl.className = 'mv-row';
+        rowEl.id = 'mv-row-' + resortId;
+        rowEl.innerHTML = `
+            <div class="mv-row-left">
+                <p class="mv-row-name">${r.name}</p>
+                ${loc ? `<p class="mv-row-loc">${loc}</p>` : ''}
+            </div>
+            <button class="mv-remove" onclick="mvRemove(${resortId})" type="button">remove</button>
+        `;
+        groupEl.appendChild(rowEl);
+    }
+
+    function cleanEmptyGroups() {
+        document.querySelectorAll('.mv-group').forEach(g => {
+            if (!g.querySelector('.mv-row')) g.remove();
         });
-        
-        async function filterByCountry() {
-            currentCountryFilter = document.getElementById('country-filter').value;
-            const regionSelect = document.getElementById('region-filter');
-            
-            // Reset region filter
-            currentRegionFilter = 'all';
-            regionSelect.innerHTML = '<option value="all">State / Province / Region</option>';
-            
-            if (currentCountryFilter === 'all') {
-                regionSelect.disabled = true;
-            } else {
-                // Fetch regions for this country
-                try {
-                    const response = await fetch(`/api/resort-regions/${currentCountryFilter}`);
-                    const regions = await response.json();
-                    
-                    regions.forEach(region => {
-                        const option = document.createElement('option');
-                        option.value = region;
-                        option.textContent = region;
-                        regionSelect.appendChild(option);
-                    });
-                    
-                    regionSelect.disabled = false;
-                } catch (error) {
-                    console.error('Failed to load regions:', error);
-                    regionSelect.disabled = true;
-                }
-            }
-            
-            filterResorts();
+    }
+
+    function ensureEmptyState() {
+        const list = document.getElementById('mv-list');
+        if (!document.getElementById('mv-empty-state')) {
+            const p = document.createElement('p');
+            p.className = 'mv-empty';
+            p.id = 'mv-empty-state';
+            p.textContent = 'Add mountains you\'ve ridden above';
+            list.appendChild(p);
         }
-        
-        function filterByRegion() {
-            currentRegionFilter = document.getElementById('region-filter').value;
-            filterResorts();
+    }
+
+    function updateSubtext(count) {
+        const el = document.getElementById('mv-subtext');
+        if (el) el.textContent = count + ' mountain' + (count !== 1 ? 's' : '') + ' so far';
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.mv-search-wrap') && !e.target.closest('#mv-results')) {
+            const r = document.getElementById('mv-results');
+            if (r) { r.classList.remove('show'); }
         }
-        
-        function filterResorts() {
-            const searchTerm = document.getElementById('mountain-search').value.toLowerCase();
-            const rows = document.querySelectorAll('.mountain-row');
-            
-            rows.forEach(row => {
-                const name = row.dataset.name;
-                const country = row.dataset.country;
-                const region = row.dataset.region;
-                
-                const matchesSearch = name.includes(searchTerm);
-                const matchesCountry = currentCountryFilter === 'all' || country === currentCountryFilter;
-                const matchesRegion = currentRegionFilter === 'all' || region === currentRegionFilter;
-                
-                if (matchesSearch && matchesCountry && matchesRegion) {
-                    row.classList.remove('hidden');
-                } else {
-                    row.classList.add('hidden');
-                }
-            });
-        }
-        
-        function removeResort(id) {
-            // The Set is our source of truth for the session
-            selectedResortIds.delete(id);
-            
-            // Uncheck the checkbox if it's currently rendered
-            const checkbox = document.querySelector(`input[value="${id}"]`);
-            if (checkbox) {
-                checkbox.checked = false;
-            }
-            
-            // Sync the Set with the current state of checkboxes (to capture any other changes)
-            // But we already deleted the ID from the Set, so we just need to re-render.
-            updatePills(true); // pass flag to indicate we're coming from a remove action
-        }
-        
-        let isExpanded = false;
-        
-        function updatePills(fromRemove = false) {
-            const pillsContainer = document.getElementById('selected-pills');
-            const countDisplay = document.getElementById('count-display');
-            
-            if (!fromRemove) {
-                // If triggered by a checkbox change, sync the Set from all checked boxes
-                const checks = document.querySelectorAll('input[name="resort_ids"]:checked');
-                selectedResortIds.clear();
-                checks.forEach(cb => selectedResortIds.add(parseInt(cb.value)));
-            }
-            
-            countDisplay.textContent = selectedResortIds.size + ' selected';
-            
-            // To render the groups, we need data for each selected ID
-            // We'll get it from the labels which are always present or data attributes
-            const resorts = [];
-            selectedResortIds.forEach(id => {
-                const row = document.querySelector(`.mountain-row[data-id="${id}"]`);
-                if (row) {
-                    resorts.push({
-                        id: id,
-                        name: row.dataset.displayName,
-                        country: row.dataset.country,
-                        countryName: row.dataset.countryName || '',
-                        region: row.dataset.region
-                    });
-                }
-            });
-            
-            const groups = {};
-            resorts.forEach(r => {
-                let label = 'Other';
-                if (r.country && r.country !== 'US') {
-                    label = countryNames[r.country] || r.country;
-                } else if (r.region) {
-                    label = stateNames[r.region] || r.region;
-                }
-                
-                if (!groups[label]) {
-                    groups[label] = { label: label, resorts: [] };
-                }
-                groups[label].resorts.push(r);
-            });
-            
-            // Sort groups alphabetically by label
-            const sortedGroupKeys = Object.keys(groups).sort((a, b) => 
-                groups[a].label.localeCompare(groups[b].label)
-            );
-            
-            // Sort resorts within each group alphabetically by name
-            sortedGroupKeys.forEach(key => {
-                groups[key].resorts.sort((a, b) => a.name.localeCompare(b.name));
-            });
-            
-            // Render grouped display
-            pillsContainer.innerHTML = '';
-            sortedGroupKeys.forEach(key => {
-                const group = groups[key];
-                
-                const groupDiv = document.createElement('div');
-                groupDiv.className = 'selected-group';
-                
-                const header = document.createElement('div');
-                header.className = 'selected-group-header';
-                header.textContent = group.label;
-                groupDiv.appendChild(header);
-                
-                const resortsDiv = document.createElement('div');
-                resortsDiv.className = 'selected-group-resorts';
-                
-                group.resorts.forEach(r => {
-                    const pill = document.createElement('span');
-                    pill.className = 'mountain-pill';
-                    pill.setAttribute('data-id', r.id);
-                    
-                    const text = document.createTextNode(r.name + ' ');
-                    pill.appendChild(text);
-                    
-                    const removeBtn = document.createElement('button');
-                    removeBtn.type = 'button';
-                    removeBtn.className = 'remove-btn';
-                    removeBtn.setAttribute('aria-label', 'Remove ' + r.name);
-                    removeBtn.textContent = '✕';
-                    removeBtn.onclick = function() { removeResort(r.id); };
-                    pill.appendChild(removeBtn);
-                    
-                    resortsDiv.appendChild(pill);
-                });
-                
-                groupDiv.appendChild(resortsDiv);
-                pillsContainer.appendChild(groupDiv);
-            });
-            
-            updateExpandToggle(selectedResortIds.size);
-        }
-        
-        function updateExpandToggle(count) {
-            const pillsContainer = document.getElementById('selected-pills');
-            const expandToggle = document.getElementById('expand-toggle');
-            const expandCount = document.getElementById('expand-count');
-            const fade = document.getElementById('selected-fade');
-            
-            const isOverflowing = pillsContainer.scrollHeight > pillsContainer.clientHeight;
-            
-            if (count > 0 && (isOverflowing || isExpanded)) {
-                expandToggle.style.display = 'block';
-                expandCount.textContent = count;
-                fade.style.display = isExpanded ? 'none' : 'block';
-            } else {
-                expandToggle.style.display = 'none';
-                fade.style.display = 'none';
-            }
-        }
-        
-        function toggleExpand() {
-            const wrapper = document.getElementById('selected-wrapper');
-            const pillsContainer = document.getElementById('selected-pills');
-            const expandToggle = document.getElementById('expand-toggle');
-            const fade = document.getElementById('selected-fade');
-            
-            isExpanded = !isExpanded;
-            
-            if (isExpanded) {
-                wrapper.classList.add('expanded');
-                pillsContainer.classList.add('expanded');
-                expandToggle.innerHTML = 'Collapse';
-                fade.style.display = 'none';
-            } else {
-                wrapper.classList.remove('expanded');
-                pillsContainer.classList.remove('expanded');
-                const count = selectedResortIds.size;
-                expandToggle.innerHTML = 'View all selected (<span id="expand-count">' + count + '</span>)';
-                fade.style.display = 'block';
-            }
-        }
+    });
     </script>
+    {% endif %}
 </body>
 </html>
