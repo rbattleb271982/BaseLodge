@@ -19,7 +19,27 @@ import os
 import secrets
 from datetime import datetime, date, timedelta
 
-BASE_URL = os.getenv("BASE_URL", "https://app.baselodgeapp.com").rstrip("/")
+def _resolve_base_url():
+    """Resolve the base URL for invite links and other absolute URLs.
+
+    Priority:
+    1. REPLIT_DEV_DOMAIN (only present in the Replit IDE/dev environment, never
+       in deployed apps) — ensures invite links point to the current dev server,
+       not the hardcoded production domain.
+    2. BASE_URL env var (explicit override for production deployments)
+    3. Hardcoded production fallback
+    """
+    replit_domain = os.getenv("REPLIT_DEV_DOMAIN")
+    if replit_domain:
+        resolved = f"https://{replit_domain}"
+        print(f"[BASE_URL] Dev mode — using REPLIT_DEV_DOMAIN: {resolved}")
+        return resolved
+    explicit = os.getenv("BASE_URL")
+    if explicit:
+        return explicit.rstrip("/")
+    return "https://app.baselodgeapp.com"
+
+BASE_URL = _resolve_base_url()
 import sqlalchemy as sa
 from sqlalchemy import func
 from urllib.parse import urlparse
@@ -1777,9 +1797,24 @@ def _connect_pending_inviter(user):
 @app.route("/invite/<token>")
 def invite_token_landing(token):
     """Time-limited invite landing page."""
-    print("INVITE ROUTE HIT", token)
-
+    now_utc = datetime.utcnow()
     invite = InviteToken.query.filter_by(token=token).first()
+
+    # ── Diagnostic logging for invite debugging ────────────────────────────
+    print(f"[INVITE] token={token[:8]}... | found={invite is not None} | now_utc={now_utc.isoformat()}")
+    if invite:
+        print(
+            f"[INVITE] created_at={invite.created_at} | expires_at={invite.expires_at} "
+            f"| used_at={invite.used_at} | is_expired()={invite.is_expired()} "
+            f"| is_used()={invite.is_used()} | inviter_id={invite.inviter_id}"
+        )
+        if invite.expires_at:
+            delta = invite.expires_at - now_utc
+            print(f"[INVITE] time_until_expiry={delta} (positive = not yet expired)")
+    else:
+        print(f"[INVITE] Token not found in DB — BASE_URL={BASE_URL}")
+    # ──────────────────────────────────────────────────────────────────────
+
     if not invite or invite.is_expired():
         return render_template("invite_expired.html")
 
