@@ -241,19 +241,19 @@ class User(UserMixin, db.Model):
     def display_rider_type(self):
         """
         Returns combined rider types for profile display.
-        Format: "Skier" or "Skier & Snowboarder"
+        Format: "Skier" or "Skier + Snowboarder"
         Use in: all profile views, identity formatter
         """
         # New path: rider_types array
         if self.rider_types and len(self.rider_types) > 0:
-            return ' & '.join(self.rider_types)
+            return ' + '.join(self.rider_types)
         # Legacy path: primary + secondary
         primary = self.primary_rider_type or self.rider_type
         if not primary:
             return None
         secondary = self.secondary_rider_types or []
         if secondary:
-            return f"{primary} & {' & '.join(secondary)}"
+            return f"{primary} + {' + '.join(secondary)}"
         return primary
     
     @property
