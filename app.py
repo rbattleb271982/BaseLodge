@@ -3028,6 +3028,13 @@ def friends():
         else:
             friend._latest_upcoming_trip_created_at = None
 
+        # Directory tab: trip count + going count
+        friend._trip_count = friend._upcoming_trip_count
+        friend._going_count = sum(
+            1 for t in friend_trips_by_id.get(friend.id, [])
+            if (t.trip_status or 'planning') == 'going'
+        )
+
         # Compute display labels for friend list row
         friend._overlap_label = None
         friend._next_trip_label = None
@@ -3092,12 +3099,75 @@ def friends():
         if invite_token_obj else None
     )
 
+    # ── friend_count for empty vs populated state switch ──────────────────────
+    friend_count = len(all_friends)
+
+    # ── alpha_groups: alphabetically grouped friends for directory tab ─────────
+    alpha_sorted = sorted(all_friends, key=lambda f: (f.first_name or '').lower())
+    alpha_groups = []
+    for _f in alpha_sorted:
+        _letter = (_f.first_name or '?')[0].upper()
+        if not alpha_groups or alpha_groups[-1]['letter'] != _letter:
+            alpha_groups.append({'letter': _letter, 'friends': []})
+        alpha_groups[-1]['friends'].append(_f)
+
+    # ── friends_trips_tab: month + destination grouped rows ───────────────────
+    from collections import OrderedDict as _ODt
+    friend_map = {f.id: f for f in all_friends}
+    _raw_rows = []
+    for _trip in friend_trips:
+        _owner = friend_map.get(_trip.user_id)
+        if not _owner:
+            continue
+        _dest = _trip.resort.name if _trip.resort else (_trip.mountain or 'TBD')
+        _status = _trip.trip_status or 'planning'
+        _is_new = bool(_trip.created_at and _trip.created_at >= seven_days_ago)
+        _fmt_date = format_trip_dates(_trip)
+        if _trip.start_date:
+            _mkey = _trip.start_date.strftime('%Y-%m')
+            _mlabel = _trip.start_date.strftime('%B %Y')
+        else:
+            _mkey = '9999-99'
+            _mlabel = 'Dates TBD'
+        _raw_rows.append({
+            'destination': _dest,
+            'friend_name': _owner.first_name or '',
+            'friend_id': _owner.id,
+            'status': _status,
+            'is_new': _is_new,
+            'formatted_date': _fmt_date,
+            'month_key': _mkey,
+            'month_label': _mlabel,
+        })
+    _months_dict = _ODt()
+    for _row in _raw_rows:
+        _mk = _row['month_key']
+        if _mk not in _months_dict:
+            _months_dict[_mk] = {'month_label': _row['month_label'], 'destinations': _ODt()}
+        _dk = _row['destination']
+        if _dk not in _months_dict[_mk]['destinations']:
+            _months_dict[_mk]['destinations'][_dk] = []
+        _months_dict[_mk]['destinations'][_dk].append(_row)
+    friends_trips_tab = [
+        {
+            'month_label': _md['month_label'],
+            'destinations': [
+                {'name': _dn, 'rows': _dr}
+                for _dn, _dr in _md['destinations'].items()
+            ],
+        }
+        for _md in _months_dict.values()
+    ]
+
     return render_template(
         "friends.html",
         user=user,
         friends=all_friends_sorted,
         invite_url=invite_url,
         format_trip_dates=format_trip_dates,
+        friend_count=friend_count,
+        alpha_groups=alpha_groups,
+        friends_trips_tab=friends_trips_tab,
     )
 
 @app.route("/friends/<int:friend_id>")

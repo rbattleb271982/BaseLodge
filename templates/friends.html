@@ -10,40 +10,102 @@
     <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
+        /* ── Shared page chrome ───────────────────────────────────────── */
+        .fr-eyebrow {
+            font-size: 11px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #B5AFA5;
+            margin: 0;
+        }
         .fr-page-title {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 24px;
+            font-size: 26px;
             font-weight: 400;
             color: #1A1A1A;
-            margin: 0 0 20px 0;
+            margin: 2px 0 20px 0;
         }
-
-        .fr-invite-strip {
+        .fr-header-row {
             display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 0;
-            border-bottom: 1px solid #E5DFD0;
+            align-items: flex-end;
+            justify-content: space-between;
             margin-bottom: 20px;
         }
-        .fr-invite-label {
-            flex: 1;
-            font-size: 14px;
-            color: #6B665A;
-        }
-        .fr-invite-cta {
+        .fr-invite-link {
             font-size: 14px;
             font-weight: 600;
             color: #5C1219;
             text-decoration: none;
             white-space: nowrap;
+            padding-bottom: 4px;
         }
 
-        .flat-list {
+        /* ── Tab row ──────────────────────────────────────────────────── */
+        .fr-tab-row {
             display: flex;
-            flex-direction: column;
+            border-bottom: 1px solid #E5DFD0;
+            margin-bottom: 20px;
+            gap: 0;
         }
-        .flat-row {
+        .fr-tab {
+            padding: 8px 20px 10px 0;
+            font-size: 15px;
+            color: #8A857A;
+            cursor: pointer;
+            border: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            background: none;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .fr-tab.active {
+            color: #1A1A1A;
+            border-bottom-color: #5C1219;
+            font-weight: 500;
+        }
+
+        /* ── Search ───────────────────────────────────────────────────── */
+        .fr-search-wrap {
+            margin-bottom: 4px;
+        }
+        .fr-search-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px 12px;
+            font-size: 15px;
+            border: 1px solid #E5DFD0;
+            border-radius: 8px;
+            background: #FDFAF5;
+            color: #1A1A1A;
+            outline: none;
+            font-family: inherit;
+            -webkit-appearance: none;
+        }
+        .fr-search-input:focus {
+            border-color: #C4B8B0;
+        }
+        .fr-no-results {
+            font-size: 14px;
+            color: #8A857A;
+            padding: 12px 0 4px;
+            margin: 0;
+        }
+
+        /* ── Alpha groups ─────────────────────────────────────────────── */
+        .fr-alpha-header {
+            font-size: 11px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #B5AFA5;
+            font-weight: 600;
+            padding: 14px 0 4px;
+            margin: 0;
+        }
+
+        /* ── Friend rows (directory tab) ──────────────────────────────── */
+        .fr-friend-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -54,96 +116,269 @@
             color: inherit;
             -webkit-tap-highlight-color: transparent;
         }
-        .flat-row:first-child { border-top: 1px solid #E5DFD0; }
-        .flat-row:active { opacity: 0.7; }
-        .flat-row-content {
+        .fr-friend-row:first-of-type {
+            border-top: 1px solid #E5DFD0;
+        }
+        .fr-friend-row:active { opacity: 0.7; }
+        .fr-friend-left {
             flex: 1;
             min-width: 0;
         }
-        .flat-row-name {
+        .fr-friend-name {
             font-size: 15px;
             font-weight: 500;
             color: #1A1A1A;
             margin: 0 0 2px 0;
             line-height: 1.3;
         }
-        .flat-row-signal {
+        .fr-friend-meta {
             font-size: 13px;
             color: #8A857A;
             margin: 0;
             line-height: 1.4;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
-        .flat-row-signal-overlap {
-            color: #5C1219;
-            font-weight: 500;
-        }
-        .flat-row-chevron {
+        .fr-friend-right {
             flex-shrink: 0;
-            margin-left: 12px;
+            margin-left: 16px;
             font-size: 13px;
             color: #8A857A;
+            text-align: right;
+        }
+        .fr-friend-chevron {
+            flex-shrink: 0;
+            margin-left: 10px;
+            font-size: 13px;
+            color: #C4B8B0;
+        }
+
+        /* ── Friends' Trips tab ───────────────────────────────────────── */
+        .fr-month-header {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 13px;
+            color: #8A857A;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            padding: 20px 0 8px;
+            border-bottom: 1px solid #E5DFD0;
+            margin: 0;
+        }
+        .fr-month-header:first-child {
+            padding-top: 4px;
+        }
+        .fr-dest-block {
+            border-bottom: 1px solid #E5DFD0;
+            padding: 12px 0 10px;
+        }
+        .fr-dest-name {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 17px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin: 0 0 6px 0;
+            line-height: 1.25;
+        }
+        .fr-trip-meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 8px;
+            margin-top: 3px;
+        }
+        .fr-trip-meta-left {
+            font-size: 13px;
+            color: #6B665A;
+            line-height: 1.4;
+        }
+        .fr-trip-meta-right {
+            font-size: 13px;
+            color: #8A857A;
+            flex-shrink: 0;
+            text-align: right;
+        }
+        .fr-trip-new {
+            font-style: italic;
+            color: #B5AFA5;
+            font-family: Georgia, 'Times New Roman', serif;
+        }
+        .fr-trips-empty {
+            font-size: 14px;
+            color: #8A857A;
+            padding: 24px 0 8px;
+            margin: 0;
+        }
+
+        /* ── Empty state ──────────────────────────────────────────────── */
+        .fr-empty-section {
+            margin-bottom: 28px;
+        }
+        .fr-empty-headline {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 22px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin: 0 0 6px 0;
+        }
+        .fr-empty-sub {
+            font-size: 15px;
+            color: #6B665A;
+            margin: 0 0 20px 0;
+            line-height: 1.5;
+        }
+        .fr-qr-block {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .fr-qr-img {
+            width: 180px;
+            height: 180px;
+            border: 1px solid #E5DFD0;
+            border-radius: 12px;
+        }
+        .fr-copy-wrap {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+        .fr-copy-link {
+            font-size: 15px;
+            font-weight: 600;
+            color: #5C1219;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            font-family: inherit;
         }
     </style>
 </head>
 <body>
     <div class="page-container" style="padding: 20px 16px 88px;">
 
+        {% if friend_count == 0 %}
+        <!-- ══════════════════════════════════════════════════════════════
+             EMPTY STATE — 0 friends
+        ══════════════════════════════════════════════════════════════ -->
         <h1 class="fr-page-title">Friends</h1>
 
-        <!-- Header strip: label + single invite action -->
-        <div class="fr-invite-strip">
-            <span class="fr-invite-label">Plan trips with friends</span>
-            <a href="{{ url_for('invite') }}" class="fr-invite-cta">Invite →</a>
-        </div>
-
-        {% if friends and friends|length > 0 %}
-        <!-- Has-friends state: friend list -->
-        <div class="flat-list">
-            {% for friend in friends %}
-            <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="flat-row">
-                <div class="flat-row-content">
-                    <p class="flat-row-name">{{ friend.first_name | format_name }} {{ friend.last_name | format_name }}</p>
-                    {% if friend._overlap_label %}
-                    <p class="flat-row-signal flat-row-signal-overlap">{{ friend._overlap_label }}</p>
-                    {% elif friend._next_trip_label %}
-                    <p class="flat-row-signal">{{ friend._next_trip_label }}</p>
-                    {% else %}
-                    <p class="flat-row-signal">No trips yet</p>
-                    {% endif %}
-                </div>
-                <span class="flat-row-chevron">→</span>
-            </a>
-            {% endfor %}
-        </div>
-
-        <!-- QR toggle: revealed inline on tap -->
-        {% if invite_url %}
-        <div class="fr-qr-toggle-wrap">
-            <button class="fr-show-qr-btn" onclick="toggleFriendQR(this)">Show QR →</button>
-            <div class="fr-qr-inline" id="fr-qr-inline">
+        <div class="fr-empty-section">
+            <h2 class="fr-empty-headline">Add a friend</h2>
+            <p class="fr-empty-sub">Scan to connect instantly or share your link.</p>
+            {% if invite_url %}
+            <div class="fr-qr-block">
                 <img src="{{ url_for('my_qr') }}" alt="Scan to connect" class="fr-qr-img">
-                <div class="fr-copy-wrap">
-                    <button onclick="copyInviteLink(this)" class="fr-copy-link">Copy invite link →</button>
-                </div>
             </div>
+            <div class="fr-copy-wrap">
+                <button onclick="copyInviteLink(this)" class="fr-copy-link">Copy invite link →</button>
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
 
         {% else %}
-        <!-- Empty state: QR as primary invite surface -->
-        <h2 class="fr-empty-headline">Add a friend</h2>
-        <p class="fr-empty-sub">Scan to connect instantly or share your link.</p>
-        {% if invite_url %}
-        <div class="fr-qr-block">
-            <img src="{{ url_for('my_qr') }}" alt="Scan to connect" class="fr-qr-img">
+        <!-- ══════════════════════════════════════════════════════════════
+             POPULATED STATE — 1+ friends
+        ══════════════════════════════════════════════════════════════ -->
+
+        <!-- Header: eyebrow + title + Invite action -->
+        <p class="fr-eyebrow">Friends</p>
+        <div class="fr-header-row">
+            <h1 class="fr-page-title" style="margin-bottom: 0;">Friends</h1>
+            <a href="{{ url_for('invite') }}" class="fr-invite-link">Invite →</a>
         </div>
-        <div class="fr-copy-wrap">
-            <button onclick="copyInviteLink(this)" class="fr-copy-link">Copy invite link →</button>
+
+        <!-- Tab row -->
+        <div class="fr-tab-row" role="tablist">
+            <button class="fr-tab active" role="tab" aria-selected="true"
+                    onclick="switchTab('friends', this)">Friends</button>
+            <button class="fr-tab" role="tab" aria-selected="false"
+                    onclick="switchTab('trips', this)">Friends' Trips</button>
         </div>
-        {% endif %}
+
+        <!-- ─────────────────────────────────────────────────────────────
+             TAB 1: FRIENDS (directory)
+        ───────────────────────────────────────────────────────────── -->
+        <div id="fr-tab-friends" role="tabpanel">
+
+            <div class="fr-search-wrap">
+                <input type="search" class="fr-search-input" id="fr-search"
+                       placeholder="Search friends"
+                       autocomplete="off" autocorrect="off" autocapitalize="off"
+                       oninput="searchFriends(this.value)">
+            </div>
+
+            <p class="fr-no-results" id="fr-no-results" style="display: none;">
+                No friends match &ldquo;<span id="fr-query-text"></span>&rdquo;.
+            </p>
+
+            <div id="fr-alpha-list">
+                {% for group in alpha_groups %}
+                <div class="fr-alpha-group" data-letter="{{ group.letter }}">
+                    <p class="fr-alpha-header fr-alpha-label">{{ group.letter }}</p>
+                    {% for friend in group.friends %}
+                    <a href="{{ url_for('friend_profile', friend_id=friend.id) }}"
+                       class="fr-friend-row"
+                       data-name="{{ (friend.first_name or '') | lower }} {{ (friend.last_name or '') | lower }}"
+                       data-pass="{{ (friend.pass_type or '') | lower }}"
+                       data-level="{{ (friend.skill_level or '') | lower }}">
+                        <div class="fr-friend-left">
+                            <p class="fr-friend-name">
+                                {{- friend.first_name | format_name -}}
+                                {%- if friend.last_name %} {{ friend.last_name | format_name }}{% endif -%}
+                            </p>
+                            {%- set _meta = [] -%}
+                            {%- if friend.skill_level %}{% set _ = _meta.append(friend.skill_level | title) %}{% endif -%}
+                            {%- if friend.pass_type %}{% set _ = _meta.append(friend.pass_type) %}{% endif -%}
+                            {%- if _meta %}
+                            <p class="fr-friend-meta">{{ _meta | join(' · ') }}</p>
+                            {%- endif %}
+                        </div>
+                        <div class="fr-friend-right">
+                            {%- if friend._trip_count == 0 -%}
+                                No trips
+                            {%- elif friend._trip_count == 1 -%}
+                                1 trip
+                            {%- else -%}
+                                {{ friend._trip_count }} trips
+                            {%- endif -%}
+                        </div>
+                        <span class="fr-friend-chevron">→</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- ─────────────────────────────────────────────────────────────
+             TAB 2: FRIENDS' TRIPS
+        ───────────────────────────────────────────────────────────── -->
+        <div id="fr-tab-trips" role="tabpanel" style="display: none;">
+
+            {% if friends_trips_tab %}
+                {% for month in friends_trips_tab %}
+                <p class="fr-month-header">{{ month.month_label }}</p>
+                {% for dest in month.destinations %}
+                <div class="fr-dest-block">
+                    <p class="fr-dest-name">{{ dest.name }}</p>
+                    {% for row in dest.rows %}
+                    <div class="fr-trip-meta-row">
+                        <span class="fr-trip-meta-left">
+                            {{- row.friend_name -}}
+                            {%- if row.status %} &middot; {{ row.status }}{% endif -%}
+                            {%- if row.is_new %} &middot; <em class="fr-trip-new">new</em>{% endif -%}
+                        </span>
+                        <span class="fr-trip-meta-right">{{ row.formatted_date }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+                {% endfor %}
+            {% else %}
+                <p class="fr-trips-empty">No upcoming trips yet.</p>
+            {% endif %}
+
+        </div>
+
         {% endif %}
 
     </div>
@@ -152,44 +387,83 @@
 
     <script>
     {% if invite_url %}
-    var _inviteUrl = {{ invite_url|tojson }};
+    var _inviteUrl = {{ invite_url | tojson }};
 
     function copyInviteLink(btn) {
+        var orig = btn.textContent;
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(_inviteUrl).then(function() {
+            navigator.clipboard.writeText(_inviteUrl).then(function () {
                 btn.textContent = 'Copied!';
-                setTimeout(function() { btn.textContent = 'Copy invite link →'; }, 2000);
-            }).catch(function() { fallbackCopy(_inviteUrl, btn); });
+                setTimeout(function () { btn.textContent = orig; }, 2000);
+            }).catch(function () { _fallbackCopy(_inviteUrl, btn, orig); });
         } else {
-            fallbackCopy(_inviteUrl, btn);
+            _fallbackCopy(_inviteUrl, btn, orig);
         }
     }
-
-    function fallbackCopy(text, btn) {
+    function _fallbackCopy(text, btn, orig) {
         var el = document.createElement('textarea');
         el.value = text;
-        el.style.position = 'fixed';
-        el.style.opacity = '0';
+        el.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
         document.body.appendChild(el);
-        el.focus();
-        el.select();
-        try { document.execCommand('copy'); } catch(e) {}
+        el.focus(); el.select();
+        try { document.execCommand('copy'); } catch (e) {}
         document.body.removeChild(el);
         btn.textContent = 'Copied!';
-        setTimeout(function() { btn.textContent = 'Copy invite link →'; }, 2000);
-    }
-
-    function toggleFriendQR(btn) {
-        var block = document.getElementById('fr-qr-inline');
-        if (block.style.display === 'none' || block.style.display === '') {
-            block.style.display = 'block';
-            btn.textContent = 'Hide QR ↑';
-        } else {
-            block.style.display = 'none';
-            btn.textContent = 'Show QR →';
-        }
+        setTimeout(function () { btn.textContent = orig; }, 2000);
     }
     {% endif %}
+
+    // ── Tab switching ──────────────────────────────────────────────────────
+    function switchTab(tab, btn) {
+        document.querySelectorAll('.fr-tab').forEach(function (b) {
+            b.classList.remove('active');
+            b.setAttribute('aria-selected', 'false');
+        });
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+
+        var friendsPanel = document.getElementById('fr-tab-friends');
+        var tripsPanel = document.getElementById('fr-tab-trips');
+        if (friendsPanel) friendsPanel.style.display = tab === 'friends' ? 'block' : 'none';
+        if (tripsPanel)  tripsPanel.style.display  = tab === 'trips'   ? 'block' : 'none';
+    }
+
+    // ── Client-side search ─────────────────────────────────────────────────
+    function searchFriends(query) {
+        var q = (query || '').trim().toLowerCase();
+        var groups = document.querySelectorAll('.fr-alpha-group');
+        var noResultsEl = document.getElementById('fr-no-results');
+        var queryTextEl = document.getElementById('fr-query-text');
+        var totalVisible = 0;
+
+        groups.forEach(function (group) {
+            var header = group.querySelector('.fr-alpha-label');
+            var rows   = group.querySelectorAll('.fr-friend-row');
+            var groupVisible = 0;
+
+            rows.forEach(function (row) {
+                var name  = row.getAttribute('data-name')  || '';
+                var pass  = row.getAttribute('data-pass')  || '';
+                var level = row.getAttribute('data-level') || '';
+                var match = !q || (name + ' ' + pass + ' ' + level).indexOf(q) !== -1;
+                row.style.display = match ? '' : 'none';
+                if (match) groupVisible++;
+            });
+
+            // Hide letter headers while actively filtering
+            if (header) header.style.display = q ? 'none' : '';
+
+            group.style.display = (groupVisible === 0 && !q) || groupVisible > 0 ? '' : 'none';
+            totalVisible += groupVisible;
+        });
+
+        if (q && totalVisible === 0) {
+            if (queryTextEl) queryTextEl.textContent = query.trim();
+            if (noResultsEl) noResultsEl.style.display = '';
+        } else {
+            if (noResultsEl) noResultsEl.style.display = 'none';
+        }
+    }
     </script>
 </body>
 </html>

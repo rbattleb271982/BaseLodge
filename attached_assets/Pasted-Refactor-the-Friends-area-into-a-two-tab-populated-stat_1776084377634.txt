@@ -1,0 +1,425 @@
+Refactor the Friends area into a two-tab populated-state experience, while preserving the current empty state for users with no friends.
+
+This is a larger feature pass, so please implement it carefully end-to-end, keep the existing editorial visual system, and make the result mobile-first. Use checkpoints sparingly. Do not overuse them.
+
+==================================================
+GOAL
+==================================================
+
+We need the Friends section to support two very different states:
+
+1. EMPTY STATE
+   - For users with zero friends/connections
+   - Keep the current invite / QR code experience
+   - But update copy so it is inclusive and not ski-only
+
+2. POPULATED STATE
+   - For users with 1+ friends/connections
+   - Replace the current single-screen Friends experience with two top tabs:
+     - Friends
+     - Friends’ Trips
+
+This should feel like one cohesive system:
+- Friends = people / directory / relationship layer
+- Friends’ Trips = where friends are going / context layer
+- Ideas remains the place for overlap/recommendation logic
+- Do not make Friends’ Trips into a noisy activity feed
+
+==================================================
+HIGH-LEVEL PRODUCT RULES
+==================================================
+
+1. Do NOT say “ski crew” anywhere in user-facing copy
+2. Do NOT use male-coded group language like “crew” or “squad”
+3. Do NOT make this feel like a social media feed
+4. Do NOT duplicate Ideas tab functionality
+5. Keep the visual style calm, premium, editorial, and clean
+6. Mobile-first first, desktop second
+7. Preserve the current tone of the app and existing design language
+8. Do not add cards, pills, badges, avatars everywhere, or noisy UI
+9. Search belongs in the Friends directory tab, not in Friends’ Trips
+10. Invite remains important, but should not dominate the populated state
+
+==================================================
+STATE LOGIC
+==================================================
+
+Use the user’s existing friend/connection count to determine which version to render:
+
+A) If user has 0 friends/connections:
+- Show the current empty-state-style Friends page
+- Keep QR code and invite link
+- Update copy as described below
+
+B) If user has 1 or more friends/connections:
+- Show the new two-tab Friends experience
+- Default open tab should be:
+  - Friends if that is easiest with current implementation
+  - but structure code so default can be changed later if needed
+
+==================================================
+COPY CHANGES FOR EMPTY STATE
+==================================================
+
+Update the current zero-friends screen copy.
+
+Current problematic phrase:
+- “Invite your ski crew”
+
+Replace with:
+- “Invite your friends”
+
+Also review nearby copy to keep it inclusive and not ski-only.
+
+Target empty state structure:
+- Page title: Friends
+- Top row/supporting line can stay conceptually similar, but make sure it does not say “ski crew”
+- Main heading:
+  - “Add a friend”
+- Supporting copy:
+  - “Scan to connect instantly or share your link.”
+- CTA:
+  - “Copy invite link →”
+
+If there are any other user-facing instances of:
+- ski crew
+- crew
+- ski squad
+- squad
+replace them with neutral language where appropriate in this area of the app
+
+Do NOT rename internal variables unless necessary. Prioritize user-facing copy.
+
+==================================================
+POPULATED STATE: TOP-LEVEL STRUCTURE
+==================================================
+
+For users with 1+ friends, redesign the Friends page with this structure:
+
+Header area:
+- Eyebrow or small label: FRIENDS
+- Large title: Friends
+- Invite action on the top right as simple text link/button: Invite
+
+Under title:
+- Two top tabs:
+  - Friends
+  - Friends’ Trips
+
+These tabs should feel editorial and lightweight, not like chunky segmented controls.
+Use the current visual language of hairlines, text emphasis, and calm spacing.
+
+==================================================
+TAB 1: FRIENDS
+==================================================
+
+Purpose:
+- Directory / relationship layer
+- Manage and view people
+- Should feel alive enough to be useful, but not like a feed
+
+This tab should include:
+
+1. Search bar directly under the tab row
+   - Placeholder should be neutral and inclusive
+   - Use:
+     - “Search friends”
+   NOT:
+     - “Search your crew”
+   - Search should feel calm and editorial, not like a giant app-store style search field
+   - Search should filter across at least:
+     - friend name
+     - pass
+     - level
+   - When actively filtering:
+     - alphabetical letter headers disappear
+     - filtered rows show clean result list
+   - If no results:
+     - show a quiet inline message like:
+       - No friends match “X”.
+     - Keep tone calm, no loud empty-state treatment
+
+2. Alphabetical grouped friend list
+   - Group by first letter
+   - Show letter header
+   - Then friend rows beneath
+
+3. Friend row content
+   Keep rows simple and useful. Recommended structure:
+   - Left:
+     - subtle circular initials marker OR existing light identity marker if already present
+     - friend name
+     - optional secondary line with concise profile info like level + pass
+   - Right:
+     - quiet trip summary, for example:
+       - 2 trips
+       - 1 going
+       - or “No trips”
+   Keep this compact and editorial, not dashboard-like
+
+4. Invite action
+   - Keep Invite in header top-right
+   - Do not show giant QR block in populated Friends tab
+   - Tapping Invite should open the invite experience / QR experience / existing invite flow
+   - Reuse current QR/invite UI in a modal, drawer, overlay, subview, or dedicated invite screen if needed
+   - Main populated Friends tab itself should not be dominated by QR code
+
+5. Tapping a friend row
+   - If a friend detail page already exists, route there
+   - If not, keep the row ready for future drill-in without breaking the current build
+
+Important constraints for Friends tab:
+- Do not turn this into a feed
+- Do not add recent activity as the primary content
+- This tab is mainly for people lookup, relationship context, and lightweight scanning
+
+==================================================
+TAB 2: FRIENDS’ TRIPS
+==================================================
+
+Purpose:
+- Calm, destination-first view of where friends are going
+- Not a feed
+- Not recommendation logic
+- Not overlap-first
+- Ideas tab still owns overlap/recommendation logic
+
+Core content model:
+- Group by month
+- Within each month, show destination-first rows
+- This should answer:
+  - “Where are my friends going?”
+  - not
+  - “What should I do?”
+
+Structure:
+- Month grouping headers (e.g. December, January, February)
+- Under each month, trip rows
+
+Each trip row should use this exact hierarchy:
+
+Line 1:
+- Destination only
+- Example:
+  - Vail
+
+Line 2:
+- Left side:
+  - [Friend name] · [status] · [new if applicable]
+- Right side:
+  - [Date]
+- Example:
+  - Sam · going · new        Dec 5–7
+
+Important:
+- The date is NOT on the same line as the mountain
+- The date belongs on the same row as the friend/status metadata
+- Use flexbox or equivalent so metadata is left-aligned and date is right-aligned
+- Keep the mountain line visually pure and uninterrupted
+
+Statuses:
+- Use:
+  - planning
+  - going
+- Do NOT use:
+  - booked
+
+“new” indicator:
+- Support a subtle lowercase “new” indicator for recently created trips
+- Show “new” only for trips created within the last 7 days
+- Do NOT show “new” for edits or status changes
+- Keep “new” lowercase
+- Keep “new” visually subtle and editorial
+- Italic serif is okay
+- Do NOT use pills, badges, dots, or loud notification styling
+- Place it inline in the metadata line:
+  - Sam · going · new
+- Do not move “new” to the far left
+- Do not float it by itself on the far right
+
+Date styling:
+- Right-aligned
+- Secondary
+- Slightly muted color vs primary mountain text
+- Do not make date heavier than destination
+- Date should support scanability, not compete with destination
+
+Friends’ Trips tab constraints:
+- Do not show pass type here
+- Do not show skill level here
+- Do not emphasize overlap here
+- Do not turn rows into a noisy activity feed
+- Do not add avatars or icons to every row
+- Keep it clean and scannable
+
+==================================================
+MULTI-FRIEND / DUPLICATE DESTINATION LOGIC
+==================================================
+
+We need reasonable behavior if multiple friends have trips to the same mountain.
+
+Implement the cleanest sensible version that works with current data structure. Preferred behavior:
+
+If multiple friends are going to the same destination in the same month:
+- Group them under one destination header if reasonably feasible
+- Example:
+
+Vail
+Sam · going · new        Dec 5–7
+Jordan · planning        Dec 8–10
+
+If grouping is too risky for this implementation pass, then:
+- keep one row per friend-trip
+- but structure the templates/code so grouped rendering can be added later
+
+Do NOT block the whole feature if grouping is hard.
+Priority is shipping a stable, clean populated experience first.
+
+==================================================
+INVITE FLOW / QR HANDLING
+==================================================
+
+Current invite / QR functionality exists in the empty state.
+For populated state:
+- Invite remains available via header action
+- QR and copy link should still be accessible
+- But they should live behind the Invite action, not dominate the main populated tabs
+
+Implementation options are acceptable in this order:
+1. Reuse current invite page/modal/screen
+2. Open a modal/bottom sheet with QR + copy link
+3. Route to existing invite view
+
+Choose the cleanest option given current codebase
+
+==================================================
+DATA / BACKEND / TEMPLATE REQUIREMENTS
+==================================================
+
+Please inspect the current Friends routes, templates, and models and wire this into the existing structure cleanly.
+
+Need:
+1. Friend count / connection count for state switching
+2. Friend list data for directory tab
+3. Search/filter support in Friends tab
+4. Friend trip data for Friends’ Trips tab
+5. Status mapping:
+   - existing confirmed-like states should map to “going”
+   - tentative-like states should map to “planning”
+6. “new” logic:
+   - based on trip created_at or equivalent timestamp if available
+   - 7-day window
+   - if timestamp is missing, fail gracefully and simply omit “new”
+
+If some exact fields differ in current code:
+- adapt intelligently to the real schema
+- do not hardcode assumptions without checking existing models/routes/templates first
+
+==================================================
+DESIGN / UI IMPLEMENTATION NOTES
+==================================================
+
+Keep the design system consistent with the rest of BaseLodge:
+- editorial serif headline treatment
+- calm sans metadata
+- hairline dividers
+- light, premium spacing
+- no heavy shadows
+- no bright UI chrome
+- no Tailwind if the project is not using Tailwind
+- work within current CSS architecture
+
+Make sure the two-tab populated version still feels like the same product as:
+- Trips
+- Ideas
+- current editorial direction
+
+==================================================
+RESPONSIVENESS / MOBILE FIRST
+==================================================
+
+Test on small mobile widths.
+The whole point is for this to work well on phones.
+
+Verify:
+- tab row does not break awkwardly
+- search bar fits naturally
+- friend rows do not overflow
+- Friends’ Trips metadata line remains readable
+- date alignment stays clean
+- “new” does not cause ugly wrapping
+- month headers and separators maintain rhythm
+- bottom nav remains intact
+
+==================================================
+DON’T BREAK / REGRESSION WATCH
+==================================================
+
+Be careful not to break:
+- current invite link copy behavior
+- QR rendering
+- bottom nav
+- existing Friends route access
+- friend data loading
+- any current empty state logic for users with 0 friends
+- any existing friend connection functionality
+
+==================================================
+DELIVERABLES
+==================================================
+
+Please implement the full populated-state two-tab Friends experience and preserve the updated empty state.
+
+After implementation:
+1. Explain what files you changed
+2. Explain how populated vs empty state is determined
+3. Explain how search works
+4. Explain how Friends’ Trips rows are assembled
+5. Note any places where grouping duplicate destinations was deferred
+6. Identify anything that still needs follow-up
+
+Then test thoroughly.
+
+==================================================
+TESTING REQUIRED
+==================================================
+
+Do not finish until you have fully tested this flow in the app.
+
+Test these cases:
+1. User with 0 friends:
+   - sees empty state
+   - updated copy appears
+   - QR still renders
+   - invite link still works
+
+2. User with 1+ friends:
+   - sees populated state
+   - tabs render
+   - Invite still accessible
+   - Friends tab shows searchable directory
+   - Friends’ Trips tab shows month-grouped destination list
+
+3. Search:
+   - by name
+   - by pass
+   - by level
+   - no results state
+
+4. Friends’ Trips:
+   - planning status displays correctly
+   - going status displays correctly
+   - new appears only for trips created within last 7 days
+   - date is on metadata row, not mountain row
+   - date is right-aligned
+   - mountain remains on its own line
+   - no noisy overlap emphasis appears
+
+5. Mobile UI:
+   - verify on narrow viewport
+   - no overflow
+   - no broken alignment
+   - no overlapping text
+   - no awkward line wrapping that destroys hierarchy
+
+If you need to make any small implementation judgment calls, choose the option that keeps the result calm, premium, simple, and mobile-first.

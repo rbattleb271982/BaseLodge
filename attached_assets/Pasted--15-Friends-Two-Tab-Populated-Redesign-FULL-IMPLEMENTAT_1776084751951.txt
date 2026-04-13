@@ -1,0 +1,384 @@
+#15 - Friends Two-Tab Populated Redesign (FULL IMPLEMENTATION)
+
+==================================================
+OBJECTIVE
+==================================================
+
+Refactor the Friends page into a two-tab experience for users with 1+ connections while preserving the empty state for users with 0 friends.
+
+This is a full UX + data + template refactor.
+
+We are introducing:
+- Tab 1: Friends (directory / people layer)
+- Tab 2: Friends’ Trips (destination-based social layer)
+
+This should make the social graph and trip visibility immediately useful without navigating into individual profiles.
+
+==================================================
+CORE PRODUCT MODEL (DO NOT VIOLATE)
+==================================================
+
+Friends tab answers:
+→ “Who are my friends?”
+
+Friends’ Trips tab answers:
+→ “Where are my friends going?”
+
+Ideas tab answers:
+→ “Where should I go?”
+
+These MUST remain distinct. Do NOT duplicate logic across them.
+
+==================================================
+STATE HANDLING
+==================================================
+
+IF user has 0 friends:
+→ Show EMPTY STATE
+
+IF user has 1+ friends:
+→ Show POPULATED STATE (two tabs)
+
+Use `friend_count` to control this.
+
+==================================================
+EMPTY STATE (0 FRIENDS)
+==================================================
+
+Keep existing layout:
+- Title: Friends
+- Section: Add a friend
+- QR code
+- “Copy invite link →”
+
+BUT update copy:
+- Remove ALL instances of:
+  - “ski crew”
+  - “crew”
+  - “squad”
+
+Replace with:
+- “Invite your friends”
+
+Keep QR visible here ONLY.
+
+==================================================
+POPULATED STATE (1+ FRIENDS)
+==================================================
+
+Top structure:
+
+- FRIENDS (eyebrow)
+- Friends (large serif title)
+- Header right: “Invite →”
+- Tabs:
+  - Friends
+  - Friends’ Trips
+
+Tabs must:
+- Be editorial (not chunky buttons)
+- Use underline/hairline active state
+- Preserve calm UI
+
+Default tab: Friends
+
+Invite behavior:
+- Clicking “Invite →” routes to existing `/invite`
+- QR code + invite link live there
+- DO NOT show QR on populated screen
+
+==================================================
+TAB 1: FRIENDS (DIRECTORY)
+==================================================
+
+Purpose:
+- Directory
+- Relationship layer
+- Lookup + light context
+
+--------------------------------------------------
+SEARCH
+--------------------------------------------------
+
+- Positioned under tabs
+- Placeholder: “Search friends”
+- Filters:
+  - name
+  - pass type
+  - skill level
+
+Behavior:
+- While typing:
+  - Hide alphabetical headers
+  - Show filtered rows
+- No results:
+  - “No friends match "X".”
+
+--------------------------------------------------
+LIST STRUCTURE
+--------------------------------------------------
+
+- Alphabetical grouping by first name
+- Letter headers (A, B, C…)
+
+Each row:
+
+LEFT:
+- Name
+- Secondary line:
+  - skill level + pass type
+  - If missing data → omit cleanly (no broken separators)
+
+RIGHT:
+- Trip summary:
+  - “2 trips”
+  - “1 trip”
+  - “No trips”
+  (based on upcoming trips only)
+
+--------------------------------------------------
+CONSTRAINTS
+--------------------------------------------------
+
+- No QR block here
+- No activity feed
+- No avatars required
+- Keep rows clean + minimal
+
+==================================================
+TAB 2: FRIENDS’ TRIPS
+==================================================
+
+Purpose:
+- Calm, destination-first visibility
+- NOT a feed
+- NOT recommendations
+
+--------------------------------------------------
+DATA RULES
+--------------------------------------------------
+
+- Only show UPCOMING trips
+- Exclude past / canceled if applicable
+
+Statuses:
+- planning
+- going
+
+Never show:
+- booked
+
+Fallback:
+- NULL → planning
+
+--------------------------------------------------
+GROUPING
+--------------------------------------------------
+
+Group by:
+
+1. Month
+2. Destination (within month)
+
+If multiple friends go to same destination:
+→ stack under same destination
+
+Example:
+
+Vail
+Sam · going        Dec 5–7
+Jordan · planning
+
+If grouping is difficult:
+→ fallback to one row per trip
+→ but structure code for grouping later
+
+--------------------------------------------------
+ROW STRUCTURE (CRITICAL)
+--------------------------------------------------
+
+Line 1:
+→ Destination ONLY
+→ clean serif
+→ NO date on this line
+
+Line 2:
+→ LEFT: [Name] · [status] · new
+→ RIGHT: [Date]
+
+Example:
+
+Vail
+Sam · going · new        Dec 5–7
+
+--------------------------------------------------
+DATE RULES
+--------------------------------------------------
+
+- MUST be on same line as metadata
+- MUST be right-aligned
+- MUST NOT be on destination line
+
+Styling:
+- Slightly muted color
+- Not bold
+- Secondary hierarchy
+
+--------------------------------------------------
+"NEW" INDICATOR
+--------------------------------------------------
+
+- Only if trip created within last 7 days
+- Based on `trip.created_at`
+
+Display:
+- lowercase: “new”
+- inline with metadata
+- italic serif
+- no pills, no badges
+
+Example:
+Sam · going · new
+
+Rules:
+- max 1–2 visible per screen
+- do NOT show for edits
+
+--------------------------------------------------
+LAYOUT REQUIREMENTS
+--------------------------------------------------
+
+Line 2 must be:
+- flex container
+- left metadata
+- right-aligned date
+
+Use:
+display: flex
+justify-content: space-between
+align-items: baseline
+
+Handling wrap:
+- metadata may wrap
+- date stays aligned
+- layout must not break on small screens
+
+--------------------------------------------------
+STRICT CONSTRAINTS
+--------------------------------------------------
+
+DO NOT:
+- show pass type
+- show skill level
+- emphasize overlaps
+- add icons or avatars
+- make this a feed
+- add visual noise
+
+==================================================
+BACKEND / DATA PREP
+==================================================
+
+In `friends()` route:
+
+Create:
+
+1. friend_count
+
+2. alpha_groups
+- grouped by first letter
+- includes:
+  - name
+  - skill
+  - pass
+  - _trip_count
+  - _going_count
+
+3. friends_trips_tab
+- month grouped
+- destination grouped
+- rows include:
+  - destination
+  - friend_name
+  - status
+  - is_new
+  - formatted_date
+
+==================================================
+FILES TO MODIFY
+==================================================
+
+- app.py: friends() route
+- templates/friends.html
+- models.py (if needed for helpers)
+
+==================================================
+DESIGN SYSTEM RULES
+==================================================
+
+- Use existing CSS
+- No Tailwind
+- No heavy shadows
+- Use:
+  - serif for headers
+  - sans for metadata
+- Hairline dividers
+- Bordeaux accent: #5C1219
+- Warm background
+
+==================================================
+MOBILE REQUIREMENTS
+==================================================
+
+Must work on small screens:
+
+Verify:
+- no overflow
+- clean wrapping
+- tabs readable
+- search usable
+- metadata/date alignment stable
+- no collisions
+
+==================================================
+REGRESSION PROTECTION
+==================================================
+
+DO NOT BREAK:
+- invite flow
+- QR generation
+- bottom nav
+- friend connections
+- routing
+
+==================================================
+TESTING (MANDATORY)
+==================================================
+
+Test ALL:
+
+1. 0 friends
+2. 1+ friends
+3. tab switching
+4. search
+5. no results
+6. grouping logic
+7. status mapping
+8. new indicator
+9. mobile layout
+10. invite routing
+
+DO NOT FINISH UNTIL FULLY TESTED.
+
+==================================================
+FINAL OUTPUT
+==================================================
+
+After implementation, explain:
+- files changed
+- data structures used
+- how grouping works
+- how “new” is calculated
+- any limitations or TODOs
+
+Use checkpoints sparingly.
