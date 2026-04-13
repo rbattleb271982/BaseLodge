@@ -2232,12 +2232,15 @@ def overlap_detail():
     )
 
 
-def _build_overlap_windows(matches, user_pass_type):
+def _build_overlap_windows(matches, user_pass_type, friend_trip_statuses=None):
     """
     Transforms a flat list of open-date matches into display-ready overlap windows.
 
     Input: output of get_open_date_matches() — list of dicts with keys:
         date, friend_id, friend_name, friend_pass, same_pass
+
+    friend_trip_statuses: optional dict of {friend_id: trip_status} for status-aware
+        supporting lines. When a friend has a 'going' trip, supporting text notes it.
 
     Output: list of window dicts ready for the template, sorted date asc.
     """
@@ -2322,17 +2325,25 @@ def _build_overlap_windows(matches, user_pass_type):
             descriptor = f"{length_phrase}, {len(friends)} friends free"
 
         # Supporting line
+        _fts = friend_trip_statuses or {}
         if not friends:
             supporting = ""
         elif len(friends) == 1:
             f = friends[0]
+            fid = f.get("friend_id")
+            is_going = _fts.get(fid) == "going"
             if f["same_pass"] and f["friend_pass"] not in BAD_PASSES:
                 supporting = f"{f['friend_name']} also has {f['friend_pass']}"
+                if is_going:
+                    supporting += " · Going"
             else:
-                supporting = "Make it a trip."
+                supporting = "Already going." if is_going else "Make it a trip."
         else:
+            going_names = [f["friend_name"] for f in friends if _fts.get(f.get("friend_id")) == "going"]
             passes = [f["friend_pass"] for f in friends if f["friend_pass"] not in BAD_PASSES]
-            if passes:
+            if going_names:
+                supporting = f"{going_names[0]} already going"
+            elif passes:
                 counts = _Counter(passes)
                 top_pass, top_count = counts.most_common(1)[0]
                 if top_count >= 2:
@@ -2394,7 +2405,22 @@ def trip_ideas():
         ideas_state = "populated"
 
     # ── Overlap Windows (populated state only, harmless to build always) ──────
-    overlap_windows = _build_overlap_windows(matches, user.pass_type)
+    # Build friend trip status map for status-aware supporting lines
+    _today = date.today()
+    _friend_trips = (
+        SkiTrip.query.filter(
+            SkiTrip.user_id.in_(friend_ids),
+            SkiTrip.end_date >= _today,
+        ).all()
+        if friend_ids
+        else []
+    )
+    friend_trip_statuses = {}
+    for _ft in _friend_trips:
+        fid = _ft.user_id
+        if fid not in friend_trip_statuses and _ft.trip_status == "going":
+            friend_trip_statuses[fid] = "going"
+    overlap_windows = _build_overlap_windows(matches, user.pass_type, friend_trip_statuses=friend_trip_statuses)
 
     # ── Rank windows by quality score ────────────────────────────────────────
     from services.ideas_ranking import score_overlap_windows as _rank_windows
@@ -2510,6 +2536,7 @@ def create_trip():
         end_date=end_date,
         pass_type=pass_type,
         is_public=is_public,
+        trip_status='planning',
         is_group_trip=is_group_trip or (friend_id is not None),
         created_by_user_id=user.id
     )
@@ -3028,11 +3055,16 @@ def friends():
             resort_name = ft.resort.name if ft.resort else (ft.mountain or '')
             state = ft.resort.state if ft.resort else (ft.state or '')
             dates_str = format_trip_dates(ft)
-            label = resort_name
+            ft_status = ft.trip_status or 'planning'
+            dest = resort_name
             if state:
-                label += f", {state}"
+                dest += f", {state}"
             if dates_str:
-                label += f" · {dates_str}"
+                dest += f" · {dates_str}"
+            if ft_status == 'going':
+                label = f"Going to {dest}"
+            else:
+                label = f"Planning {dest}"
             friend._next_trip_label = label
 
     # Sort friends by:
@@ -3922,6 +3954,7 @@ def home():
                     'trip_id': friend_trip.id,
                     'friend_name': trip_friend.first_name if trip_friend else 'A friend',
                     'mountain': mountain_name,
+                    'trip_status': friend_trip.trip_status or 'planning',
                 }
         except Exception:
             db.session.rollback()
@@ -4663,6 +4696,7 @@ def add_trip():
             start_date=start_date,
             end_date=end_date,
             is_public=is_public,
+            trip_status='planning',
             ride_intent=ride_intent,
             trip_duration=trip_duration,
             trip_equipment_status=trip_equipment_status if trip_equipment_status != 'use_default' else None,
@@ -4744,6 +4778,8 @@ def edit_trip_form(trip_id):
         is_public = request.form.get("is_public") == "on"
         transportation_status = request.form.get("transportation_status") or None
         trip_equipment_status = request.form.get("trip_equipment_status") or "use_default"
+        trip_status_raw = request.form.get("trip_status", "planning")
+        trip_status = trip_status_raw if trip_status_raw in ("planning", "going") else "planning"
 
         errors = []
 
@@ -4791,6 +4827,7 @@ def edit_trip_form(trip_id):
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
                 user_passes=user_passes,
                 my_transportation=my_transportation,
+                trip_status=trip_status,
             )
         
         overlapping = SkiTrip.query.filter(
@@ -4814,6 +4851,7 @@ def edit_trip_form(trip_id):
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
                 user_passes=user_passes,
                 my_transportation=my_transportation,
+                trip_status=trip_status,
             )
 
         dates_changed = (start_date != original_start or end_date != original_end)
@@ -4824,6 +4862,7 @@ def edit_trip_form(trip_id):
         trip.start_date = start_date
         trip.end_date = end_date
         trip.is_public = is_public
+        trip.trip_status = trip_status
         trip.trip_equipment_status = trip_equipment_status if trip_equipment_status != 'use_default' else None
         trip.trip_duration = SkiTrip.calculate_duration(start_date, end_date)
         
@@ -4855,6 +4894,7 @@ def edit_trip_form(trip_id):
                 form_action=url_for("edit_trip_form", trip_id=trip.id),
                 user_passes=user_passes,
                 my_transportation=my_transportation,
+                trip_status=trip_status,
             )
 
     return render_template(
@@ -4867,6 +4907,7 @@ def edit_trip_form(trip_id):
         form_action=url_for("edit_trip_form", trip_id=trip.id),
         user_passes=user_passes,
         my_transportation=my_transportation,
+        trip_status=(trip.trip_status or 'planning'),
     )
 
 @app.route("/trips/<int:trip_id>")
@@ -5031,6 +5072,7 @@ def trip_detail(trip_id):
         current_user_participant=current_user_participant,
         participant_overlaps=participant_overlaps,
         pending_requests=pending_requests,
+        today=date.today(),
     )
 
 

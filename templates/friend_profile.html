@@ -251,8 +251,13 @@
                 <div class="fp-trip-content">
                     <p class="fp-trip-dest">{% if trip.resort %}{{ trip.resort.name }}{% if trip.resort.state %}, {{ trip.resort.state }}{% endif %}{% else %}{{ trip.mountain }}{% if trip.state %}, {{ trip.state }}{% endif %}{% endif %}</p>
                     <p class="fp-trip-dates">{{ format_trip_dates(trip) }}</p>
+                    {% set fp_ts = trip.trip_status or 'planning' %}
                     {% if trip.has_trip_overlap %}
                     <p class="fp-trip-overlap">You're both going</p>
+                    {% elif fp_ts == 'going' %}
+                    <p style="font-size: 12px; color: #5C1219; font-weight: 600; margin: 2px 0 0 0; text-transform: uppercase; letter-spacing: 0.4px;">Going</p>
+                    {% else %}
+                    <p style="font-size: 12px; color: #B5AFA5; margin: 2px 0 0 0; text-transform: uppercase; letter-spacing: 0.4px;">Planning</p>
                     {% endif %}
                 </div>
                 <span class="fp-trip-chevron">→</span>

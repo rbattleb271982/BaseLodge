@@ -236,7 +236,7 @@
       background: rgba(92,18,25,0.12); color: #1A1A1A; border-radius: 0;
     }
 
-    /* ===== PRIVACY OPTIONS ===== */
+    /* ===== PRIVACY + STATUS OPTIONS ===== */
     .et-priv-options { padding: 8px 0 40px; overflow-y: auto; }
     .et-priv-option {
       display: flex; align-items: center; justify-content: space-between;
@@ -246,6 +246,24 @@
     .et-priv-option:active { background: #F0DDD8; }
     .et-priv-label { font-size: 17px; color: #1A1A1A; }
     .et-priv-check { font-size: 18px; color: #5C1219; font-weight: 700; }
+
+    /* ===== STATUS OPTIONS ===== */
+    .et-status-options { padding: 8px 0; overflow-y: auto; }
+    .et-status-option {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      padding: 18px 20px; border-bottom: 0.5px solid #E5DFD0;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .et-status-option:active { background: #F0DDD8; }
+    .et-status-option-body { display: flex; flex-direction: column; }
+    .et-status-option-label { font-size: 17px; color: #1A1A1A; margin-bottom: 3px; }
+    .et-status-option-label--going { color: #5C1219; font-weight: 600; }
+    .et-status-option-desc { font-size: 13px; color: #6B665A; }
+    .et-status-check { font-size: 18px; color: #5C1219; font-weight: 700; flex-shrink: 0; margin-left: 12px; }
+    .et-status-val--going { color: #5C1219; font-weight: 600; }
+    .et-header-going {
+      display: inline; color: #5C1219; font-weight: 600;
+    }
 
     /* ===== MODALS ===== */
     .et-modal {
@@ -299,6 +317,8 @@
 {% endif %}
 
 {% set privacy_display_init = 'Visible to friends' if trip.is_public else 'Private' %}
+{% set status_init = trip_status if trip_status is defined else (trip.trip_status or 'planning') %}
+{% set status_display_init = 'Going' if status_init == 'going' else 'Planning' %}
 
 <div class="et-page">
 
@@ -350,6 +370,19 @@
         <span class="et-row-sub" id="et-nights-sub" {% if not nights_val_init %}style="display:none"{% endif %}>
           {{ nights_val_init }}
         </span>
+      </div>
+      <span class="et-chev">›</span>
+    </div>
+  </div>
+
+  <!-- STATUS SECTION -->
+  <div class="et-hairline"></div>
+  <div class="et-section">
+    <div class="et-section-label">Status</div>
+    <div class="et-row" id="et-status-row" onclick="openStatusSheet()" role="button" tabindex="0">
+      <div class="et-row-body">
+        <span class="et-row-val{% if status_init == 'going' %} et-status-val--going{% endif %}" id="et-status-val">{{ status_display_init }}</span>
+        <span class="et-row-sub" id="et-status-sub">{% if status_init == 'going' %}This trip is happening.{% else %}Still figuring things out. Dates may change.{% endif %}</span>
       </div>
       <span class="et-chev">›</span>
     </div>
@@ -429,6 +462,34 @@
   </div>
 </div>
 
+<!-- ===== STATUS BOTTOM SHEET ===== -->
+<div class="et-sheet" id="et-status-sheet">
+  <div class="et-sheet-backdrop" onclick="closeStatusSheet()"></div>
+  <div class="et-sheet-panel">
+    <div class="et-sheet-header">
+      <button class="et-sheet-close" type="button" onclick="closeStatusSheet()">✕</button>
+      <span class="et-sheet-title">Status</span>
+      <button class="et-sheet-done" type="button" id="et-status-done" onclick="confirmStatus()">Done</button>
+    </div>
+    <div class="et-status-options">
+      <div class="et-status-option" id="et-status-opt-planning" onclick="selectStatus('planning')" role="button">
+        <div class="et-status-option-body">
+          <span class="et-status-option-label" id="et-status-label-planning">Planning</span>
+          <span class="et-status-option-desc">Still figuring things out. Dates may change.</span>
+        </div>
+        <span class="et-status-check" id="et-status-check-planning">✓</span>
+      </div>
+      <div class="et-status-option" id="et-status-opt-going" onclick="selectStatus('going')" role="button">
+        <div class="et-status-option-body">
+          <span class="et-status-option-label et-status-option-label--going" id="et-status-label-going">Going</span>
+          <span class="et-status-option-desc">This trip is happening.</span>
+        </div>
+        <span class="et-status-check" id="et-status-check-going">✓</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== PRIVACY BOTTOM SHEET ===== -->
 <div class="et-sheet" id="et-priv-sheet">
   <div class="et-sheet-backdrop" onclick="closePrivacySheet()"></div>
@@ -484,6 +545,7 @@
   <input type="hidden" name="resort_id" id="et-f-resort">
   <input type="hidden" name="start_date" id="et-f-start">
   <input type="hidden" name="end_date" id="et-f-end">
+  <input type="hidden" name="trip_status" id="et-f-status">
   <input type="hidden" name="transportation_status" value="{{ my_transportation or '' }}">
   <input type="hidden" name="trip_equipment_status" value="{{ trip.trip_equipment_status or 'use_default' }}">
 </form>
@@ -506,6 +568,7 @@
     start_date: {{ (trip.start_date.isoformat() if trip.start_date else none)|tojson }},
     end_date: {{ (trip.end_date.isoformat() if trip.end_date else none)|tojson }},
     is_public: {{ trip.is_public|tojson }},
+    trip_status: {{ status_init|tojson }},
   };
 
   // ===== PENDING STATE (what will be saved) =====
@@ -517,6 +580,7 @@
     start_date: INIT.start_date,
     end_date: INIT.end_date,
     is_public: INIT.is_public,
+    trip_status: INIT.trip_status,
   };
 
   // ===== DIRTY CHECK =====
@@ -524,7 +588,8 @@
     return pending.resort_id !== INIT.resort_id
         || pending.start_date !== INIT.start_date
         || pending.end_date !== INIT.end_date
-        || pending.is_public !== INIT.is_public;
+        || pending.is_public !== INIT.is_public
+        || pending.trip_status !== INIT.trip_status;
   }
 
   // ===== FORMAT HELPERS =====
@@ -560,11 +625,16 @@
     const title = pending.resort_name || 'Select location';
     document.getElementById('et-header-title').textContent = title;
 
-    // Header date subtitle
+    // Header date subtitle (with Going indicator for going trips)
     const hd = document.getElementById('et-header-dates');
     if (pending.start_date && pending.end_date) {
-      hd.textContent = fmtDate(pending.start_date) + ' → ' + fmtDate(pending.end_date)
+      const dateStr = fmtDate(pending.start_date) + ' → ' + fmtDate(pending.end_date)
         + ' · ' + fmtNights(pending.start_date, pending.end_date);
+      if (pending.trip_status === 'going') {
+        hd.innerHTML = dateStr + ' · <span class="et-header-going">Going</span>';
+      } else {
+        hd.textContent = dateStr;
+      }
     } else {
       hd.textContent = 'Add dates';
     }
@@ -591,6 +661,19 @@
       datesVal.textContent = 'Add dates';
       datesVal.classList.add('et-row-val--muted');
       nightsSub.style.display = 'none';
+    }
+
+    // Status row
+    const statusVal = document.getElementById('et-status-val');
+    const statusSub = document.getElementById('et-status-sub');
+    if (pending.trip_status === 'going') {
+      statusVal.textContent = 'Going';
+      statusVal.classList.add('et-status-val--going');
+      statusSub.textContent = 'This trip is happening.';
+    } else {
+      statusVal.textContent = 'Planning';
+      statusVal.classList.remove('et-status-val--going');
+      statusSub.textContent = 'Still figuring things out. Dates may change.';
     }
 
     // Privacy row
@@ -830,6 +913,38 @@
   }
 
   // ===================================================
+  // STATUS BOTTOM SHEET
+  // ===================================================
+  let statusTemp = null;
+
+  function openStatusSheet() {
+    statusTemp = pending.trip_status;
+    renderStatusSheet();
+    document.getElementById('et-status-sheet').classList.add('et-sheet--open');
+  }
+
+  function closeStatusSheet() {
+    statusTemp = null;
+    document.getElementById('et-status-sheet').classList.remove('et-sheet--open');
+  }
+
+  function selectStatus(value) {
+    statusTemp = value;
+    renderStatusSheet();
+  }
+
+  function renderStatusSheet() {
+    document.getElementById('et-status-check-planning').style.visibility = (statusTemp === 'planning') ? 'visible' : 'hidden';
+    document.getElementById('et-status-check-going').style.visibility = (statusTemp === 'going') ? 'visible' : 'hidden';
+  }
+
+  function confirmStatus() {
+    if (statusTemp) pending.trip_status = statusTemp;
+    closeStatusSheet();
+    syncMainScreen();
+  }
+
+  // ===================================================
   // PRIVACY BOTTOM SHEET
   // ===================================================
   function openPrivacySheet() {
@@ -858,6 +973,7 @@
     document.getElementById('et-f-resort').value = pending.resort_id || '';
     document.getElementById('et-f-start').value = pending.start_date || '';
     document.getElementById('et-f-end').value = pending.end_date || '';
+    document.getElementById('et-f-status').value = pending.trip_status || 'planning';
 
     // is_public: "on" → True in Flask; absent → False
     const prev = form.querySelector('input[name="is_public"]');

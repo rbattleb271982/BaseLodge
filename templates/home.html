@@ -353,7 +353,11 @@
                 <a href="{{ url_for('trip_detail', trip_id=secondary_card.trip_id) }}" class="home-activity-row">
                     <div class="home-activity-content">
                         <p class="home-activity-tag">Friend's Trip</p>
-                        <p class="home-activity-text">{{ secondary_card.friend_name | format_name }} is heading to {{ secondary_card.mountain }}</p>
+                        {% if secondary_card.trip_status == 'going' %}
+                        <p class="home-activity-text">{{ secondary_card.friend_name | format_name }} is going to {{ secondary_card.mountain }}</p>
+                        {% else %}
+                        <p class="home-activity-text">{{ secondary_card.friend_name | format_name }} is planning {{ secondary_card.mountain }}</p>
+                        {% endif %}
                         <p class="home-activity-sub">See their trip details</p>
                     </div>
                     <div class="home-activity-action">

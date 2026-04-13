@@ -336,7 +336,11 @@
                     <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" class="trip-row">
                         <div class="trip-row-content">
                             <p class="trip-row-dest">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-                            <p class="trip-row-dates">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
+                            <p class="trip-row-dates">
+                                {%- if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif -%}
+                                {%- set ts = trip.trip_status or 'planning' -%}
+                                {%- if ts == 'going' %} · <span style="color: #5C1219; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px;">Going</span>{% else %} · <span style="color: #B5AFA5; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px;">Planning</span>{% endif %}
+                            </p>
                             {% if people and people > 1 %}
                             <p class="trip-row-people">{{ people }} going</p>
                             {% endif %}

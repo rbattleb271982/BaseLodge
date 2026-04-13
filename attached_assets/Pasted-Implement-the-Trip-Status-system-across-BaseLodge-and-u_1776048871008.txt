@@ -1,0 +1,318 @@
+Implement the Trip Status system across BaseLodge and update all relevant pages so the product consistently distinguishes between a trip that is Planning versus Booked.
+This is not just an Edit Trip change. It is a cross-app product and UI update.
+
+The goal is to add a meaningful social signal everywhere trips appear, while keeping the design calm, editorial, and consistent with the BaseLodge design system.
+
+Goal
+Add a binary trip status field:
+planning
+booked
+And update all relevant surfaces so this status is:
+editable
+visible
+useful
+consistent
+not visually noisy
+This should improve the social usefulness of the app:
+Planning means the trip may still be flexible and invites coordination
+Booked means the trip is committed and others should plan around it
+Product rules
+Status model
+Use a binary status only:
+planning
+booked
+Do not add extra states like tentative, confirmed, completed, etc.
+Default
+New trips should default to:
+planning
+Existing trips
+Backfill existing trips conservatively and simply:
+set existing trips to booked
+This is because existing trips were created before the distinction existed and were likely intended as real trips.
+Design system
+Use the existing BaseLodge design language across all updated screens:
+warm cream background
+deep red / bordeaux accent
+serif headlines where appropriate
+clean sans-serif body
+hairline dividers
+minimal containers
+calm editorial tone
+mobile-first
+Do not introduce Tailwind, React, or heavy new styling systems.
+Keep styling consistent with the new Edit Trip direction.
+
+Core visual rule for status
+On owner-facing surfaces
+Use a label/badge/eyebrow treatment:
+BOOKED should be visually emphasized in bordeaux
+PLANNING should be lower emphasis, neutral/muted
+On friend-facing surfaces
+Prefer verb-based language rather than badge spam:
+“Sam is planning Vail”
+“Sam booked Vail”
+This should feel more natural and editorial.
+Pages / surfaces to update
+You must update all of the following so the design and UX stay consistent across the app.
+1. DATA MODEL + BACKEND
+Add field
+Add a trip status field to the trip model:
+status
+enum or equivalent constrained string:
+planning
+booked
+Requirements
+default new trips to planning
+migrate/backfill existing trips to booked
+make sure status is included everywhere trip data is queried, serialized, or rendered
+Do not overengineer
+no extra statuses
+no major backend rewrite
+keep this surgical and compatible with current architecture
+2. ADD TRIP FLOW
+Update the Add Trip flow so newly created trips default to planning.
+You do not need to redesign the Add Trip UI right now unless needed for consistency, but:
+
+the backend should store new trips as planning
+if the current Add Trip screen has a clean place to expose status without clutter, you may include it
+otherwise leave Add Trip visually unchanged and rely on Edit Trip for status editing
+Do not let this derail the main work.
+3. EDIT TRIP SCREEN
+Update the redesigned Edit Trip screen to include a new STATUS section.
+Main structure
+The Edit Trip screen should now have these sections:
+LOCATION
+DATES
+STATUS
+PRIVACY
+Status row
+Add a tappable row:
+If planning:
+
+value: Planning
+subtext: Loose plans, dates may still change
+If booked:
+value: Booked
+subtext: Locked in and happening
+Visual rules:
+Booked value should use bordeaux emphasis
+Planning should use default/darker neutral text
+keep it calm and premium, not loud
+Header subtitle
+On the Edit Trip screen:
+if trip is planning, keep subtitle simple:
+Apr 15 → Apr 17 · 3 nights
+if trip is booked, append a subtle bordeaux status indicator:
+Apr 15 → Apr 17 · 3 nights · BOOKED
+Do not append PLANNING everywhere. That adds noise.
+Status editor
+Tapping STATUS should open a bottom sheet.
+Use the same design language as the Privacy sheet:
+
+two large clean selectable options
+Planning
+Booked
+Descriptions:
+Planning → Loose plans, dates may still change.
+Booked → Locked in and happening.
+Behavior:
+user taps row
+bottom sheet opens
+user selects option
+explicit save/confirm inside the sheet
+dismissing without saving should not persist changes
+confirmed selection updates pending state on Edit Trip
+final main save still happens via sticky Save button on the Edit Trip page
+Keep the save model consistent with the rest of Edit Trip.
+4. TRIP DETAIL PAGE
+Update the Trip Detail page design so trip status is clearly but subtly visible.
+Requirements
+if trip is booked, show a small bordeaux BOOKED eyebrow/label near the date range
+if trip is planning, do not add a loud badge; use a subtle neutral label only if needed
+keep the page calm and editorial
+do not clutter the hero/header area
+Also:
+if there is an edit entry point from Trip Detail, make sure it still routes into the new Edit Trip experience
+Optional nudge
+If straightforward to implement cleanly, add a lightweight nudge on Trip Detail:
+If:
+
+trip is within 14 days
+and status is still planning
+show a subtle prompt such as:
+Is this trip booked yet?
+with a quick action to update it.
+This is optional for this pass if it adds too much complexity, but note it clearly if skipped.
+
+5. MY TRIPS / TRIPS LIST PAGE
+Update the user’s Trips list so trip status is visible on each row/card.
+Requirements
+For each upcoming trip row/card:
+if booked, append a subtle bordeaux BOOKED
+if planning, append a subtle muted PLANNING
+This is one of the few places where showing both labels is acceptable, because the user is comparing their own trips and the distinction matters.
+Design rules:
+
+do not overpower the trip card
+integrate status into subtitle/meta text cleanly
+preserve mobile readability
+If necessary, lightly adjust spacing or row hierarchy so the added status does not make the layout feel cramped.
+6. FRIENDS FEED / FRIENDS PAGE
+Update friend-facing trip references to use verb-based phrasing rather than just badge labels.
+Examples:
+
+Sam is planning Vail · Dec 5–7
+Sam booked Vail · Dec 5–7
+Use this pattern wherever a friend’s trip appears in feed-style or descriptor-style surfaces.
+Do not just tack BOOKED badges everywhere on friend surfaces unless the layout absolutely requires it.
+
+This should feel more natural and more editorial.
+
+Also:
+
+if there are friend cards or activity modules that need light spacing or hierarchy adjustments because of the new copy, make those adjustments so the pages still feel designed, not patched
+7. IDEAS PAGE
+Update overlap / idea surfaces so trip status appears and matters.
+Requirements
+When a friend overlap involves a booked trip:
+show that in the supporting text
+example: Sam also has Epic · BOOKED
+or preferably in more natural language where appropriate
+If the Ideas page uses more feed-like text, verb-based phrasing is also acceptable.
+Sorting
+If easy and low risk:
+rank booked overlaps higher than planning overlaps
+If that would add too much complexity right now:
+skip ranking changes
+but clearly mark booked overlaps in the UI
+Do not overcomplicate this.
+8. HOME PAGE / BEST MATCH / SOCIAL SIGNALS
+Update any Home page modules that surface friend-trip overlap or best-match style recommendations.
+If a surfaced friend trip is booked:
+
+show that in the supporting text
+keep the wording natural and useful
+Examples:
+Alex booked Vail for Jan 12–14
+or Booked in a subtle supporting line if the layout demands it
+The point is that Home should surface the stronger signal when a trip is real.
+Adjust layout or text wrapping if needed so the UI still feels polished.
+
+9. EDIT FLOW DESIGN CONSISTENCY
+Make sure the new status system does not feel bolted on.
+All updated pages should feel visually consistent with the new editorial direction:
+
+subtle section headers
+rows carry the weight
+no generic form controls where not needed
+no noisy badge overload
+calm premium hierarchy
+If any of the affected pages now feel visually inconsistent because of the added status content, refine those pages too.
+This includes:
+
+spacing
+text hierarchy
+label treatment
+card/row density
+alignment
+Do not just jam status text into old layouts.
+10. SAVE / DIRTY STATE / INTERACTION RULES
+Keep the Edit Trip save model consistent:
+edits update pending state
+sticky Save activates only when actual values differ from initial values
+final save persists all fields including status
+Track dirty state against initial values for:
+resort_id
+start_date
+end_date
+is_public
+status
+Do not activate Save from mere interaction.
+11. COPY RULES
+Use these exact owner-facing labels:
+Status values
+Planning
+Booked
+Status descriptions
+Loose plans, dates may still change.
+Locked in and happening.
+Edit subtitle behavior
+show BOOKED in subtitle only for booked trips
+do not constantly surface PLANNING in high-emphasis places
+Friend-facing phrasing
+Prefer:
+is planning
+booked
+Examples:
+Sam is planning Vail
+Sam booked Vail
+Keep copy concise and natural.
+12. FILES / IMPLEMENTATION SCOPE
+Work in the appropriate existing Flask + Jinja templates, routes, and model files needed to implement this end to end.
+Likely areas include:
+
+trip model
+migration/backfill logic
+add trip create flow
+edit trip route/template
+trip detail template
+trips list template
+friends/feed templates or descriptor builders
+ideas template / supporting logic
+home template / supporting logic
+Use the existing architecture.
+Keep this surgical and production-minded.
+Do not:
+
+rewrite unrelated flows
+introduce new frameworks
+create unnecessary abstraction
+13. QA REQUIREMENTS
+Test this thoroughly in Replit preview.
+Data / backend
+existing trips backfilled correctly
+new trips default to planning
+edits persist status correctly
+Edit Trip
+STATUS row appears
+status sheet opens correctly
+selecting status works
+dismiss without save does not persist
+sticky Save activates only on actual changes
+save persists status with other edits
+Trip Detail
+booked status displays correctly
+design still feels clean
+no clutter/regressions
+Trips list
+planning/booked appears correctly on user’s own trips
+spacing and hierarchy remain clean
+Friends feed / social surfaces
+friend trip phrasing updates correctly
+no awkward badge spam
+copy reads naturally
+Ideas
+booked/planning signal appears correctly
+booked overlaps feel more meaningful
+Home
+surfaced friend-trip signals include status where relevant
+layout still works on mobile
+Stability
+no console errors
+no broken routes
+no regressions to existing trip behavior
+mobile layout remains clean across affected pages
+14. FINAL REQUIREMENT
+Do not stop after only updating the model or Edit Trip screen.
+This task is complete only when:
+
+the status field exists and works
+the Edit Trip flow includes status editing
+the Trip Detail page reflects it
+the Trips list reflects it
+friend-facing pages reflect it
+Ideas reflects it
+Home reflects it
+all affected pages still feel intentionally designed
+Do not finish until you have tested the full flow end to end in Replit preview and confirmed the design changes were applied across all relevant pages, not just one.
+Only use checkpoints if I say so.

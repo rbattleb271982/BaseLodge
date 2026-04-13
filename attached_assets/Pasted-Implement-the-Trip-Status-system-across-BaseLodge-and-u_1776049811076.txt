@@ -1,0 +1,379 @@
+Implement the Trip Status system across BaseLodge and update all relevant pages so the product consistently distinguishes between a trip that is Planning versus Going.
+This is not just an Edit Trip change. It is a cross-app product and UI update.
+The goal is to add a meaningful social signal everywhere trips appear, while keeping the design calm, editorial, and consistent with the BaseLodge design system.
+Goal
+Add a binary trip status field:
+planning
+going
+And update all relevant surfaces so this status is:
+editable
+visible
+useful
+consistent
+not visually noisy
+This should improve the social usefulness of the app:
+Planning means the trip is still flexible and invites coordination
+Going means the trip is real and others should plan around it
+Product rules
+Status model
+Use a binary status only:
+planning
+going
+Do not add extra states like tentative, booked, confirmed, completed, etc.
+Default
+New trips should default to:
+planning
+Existing trips
+Backfill existing trips conservatively and simply:
+set existing trips to going
+This is because existing trips were created before the distinction existed and were likely intended as real trips.
+Design system
+Use the existing BaseLodge design language across all updated screens:
+warm cream background
+deep red / bordeaux accent
+serif headlines where appropriate
+clean sans-serif body
+hairline dividers
+minimal containers
+calm editorial tone
+mobile-first
+Do not introduce Tailwind, React, or heavy new styling systems.
+Keep styling consistent with the new Edit Trip direction.
+Core visual rule for status
+On owner-facing surfaces
+Use a subtle inline label / meta treatment:
+Going should be visually emphasized in bordeaux
+Planning should be visible too, but quieter and more neutral
+Both states matter. Do not hide Planning entirely.
+On friend-facing surfaces
+Prefer verb-based language rather than badge spam:
+Sam is planning Vail
+Sam is going to Vail
+This should feel natural and editorial.
+Guardrail
+Status must not appear as a badge in more than one primary location per screen.
+Prefer:
+owner surfaces → subtle inline meta or small status label
+friend surfaces → verb-based phrasing
+Avoid:
+repeating status visually multiple times on the same screen
+loud chips or pills all over the UI
+status feeling bolted on
+If a user or their friends cannot easily understand the difference between planning and going trips at a glance, the feature is not successful. Avoid implementing status as a passive label with no product impact.
+Pages / surfaces to update
+You must update all of the following so the design and UX stay consistent across the app.
+1. DATA MODEL + BACKEND
+Add field
+Add a trip status field to the trip model:
+trip_status
+enum or equivalent constrained string:
+planning
+going
+Requirements
+default new trips to planning
+migrate/backfill existing trips to going
+make sure status is included everywhere trip data is queried, serialized, or rendered
+application layer should gracefully treat NULL as planning if encountered
+Do not overengineer
+no extra statuses
+no major backend rewrite
+keep this surgical and compatible with current architecture
+2. DB FIELD + MIGRATION
+Add trip_status = db.Column(db.String(10), nullable=True, default='planning') to SkiTrip in models.py.
+Create an Alembic migration following the exact pattern of the most recent migration style already in the repo:
+use batch_alter_table
+add the column as nullable=True
+in the same upgrade() function, run a raw SQL backfill:
+UPDATE ski_trip SET trip_status = 'going' WHERE trip_status IS NULL
+Apply the migration before testing the rest of the changes.
+Run:
+flask db upgrade
+Do not add a DB-level default if that creates inconsistency with existing migration style. The app layer should handle fallback safely.
+3. ADD TRIP FLOW
+Update the backend creation flow so newly created trips default to planning.
+In the two main user-facing SkiTrip(...) constructors:
+add_trip route
+API create_trip route
+add:
+trip_status='planning'
+Do not touch seed/test/admin creation sites unless necessary.
+Do not redesign Add Trip UI right now unless absolutely needed for consistency. The important part is that new trips are stored as planning.
+add_trip.html should remain untouched.
+4. EDIT TRIP SCREEN
+Update the redesigned Edit Trip screen to include a new STATUS section.
+Main structure
+The Edit Trip screen should now have these sections:
+LOCATION
+DATES
+STATUS
+PRIVACY
+Status row
+Add a tappable row:
+If planning:
+value: Planning
+subtext: Still figuring things out. Dates may change.
+If going:
+value: Going
+subtext: This trip is happening.
+Visual rules:
+Going value should use bordeaux emphasis
+Planning should use default/darker neutral text
+keep it calm and premium, not loud
+Header subtitle
+On the Edit Trip screen:
+if trip is planning, keep subtitle simple:
+Apr 15 → Apr 17 · 3 nights
+if trip is going, append a subtle bordeaux status indicator:
+Apr 15 → Apr 17 · 3 nights · GOING
+Do not append PLANNING everywhere. That adds noise.
+Status editor
+Tapping STATUS should open a bottom sheet.
+Use the same design language as the Privacy sheet:
+two large clean selectable options
+Planning
+Going
+Descriptions:
+Planning → Still figuring things out. Dates may change.
+Going → This trip is happening.
+Behavior:
+user taps STATUS row
+bottom sheet opens
+user selects option
+explicit save/confirm inside the sheet
+dismissing without saving should not persist changes
+confirmed selection updates pending state on Edit Trip
+final main save still happens via sticky Save button on the Edit Trip page
+Keep the save model consistent with the rest of Edit Trip.
+Dirty state
+Track status in the JS pending object and include it in dirty-state comparison.
+Dirty state must only activate when status actually changes from its initial value.
+Do not trigger the Save button by merely opening the status sheet or tapping around without confirming a new value.
+Hidden form field
+Include a hidden input in the edit save form:
+trip_status
+5. EDIT TRIP ROUTE — SAVE STATUS
+In the edit_trip_form POST handler:
+read trip_status = request.form.get("trip_status", "planning")
+validate it is one of:
+planning
+going
+if invalid, default to planning
+save:
+trip.trip_status = trip_status
+persist before db.session.commit()
+Also:
+pass trip.trip_status into the edit_trip.html context so JS can initialize the correct initial value
+update all edit render paths to pass the needed context consistently
+On successful edit POST:
+keep the new Edit Trip experience intact
+redirect to trip_detail
+6. TRIP DETAIL PAGE
+Update the Trip Detail page design so trip status is clearly but subtly visible.
+Requirements
+if trip is going, show a small bordeaux GOING label near the date range
+if trip is planning, either render nothing or an ultra-subtle neutral label only if it looks clean
+keep the page calm and editorial
+do not clutter the hero/header area
+the GOING label must be small, low-profile, and inline with the date row
+avoid large pills, boxed badges, or chips
+Also:
+if there is an edit entry point from Trip Detail, make sure it still routes into the new Edit Trip experience
+Optional nudge
+If straightforward to implement cleanly, add a lightweight nudge on Trip Detail:
+If:
+trip is within 14 days
+and status is still planning
+show a subtle prompt such as:
+Is this trip happening?
+with a quick link to:
+url_for('edit_trip_form', trip_id=trip.id)
+This is optional if it adds too much complexity. If skipped, note it clearly.
+7. MY TRIPS / TRIPS LIST PAGE
+Update the user’s Trips list so trip status is visible on each row/card.
+Requirements
+For each upcoming trip row/card:
+if going, append a subtle bordeaux Going
+if planning, append a subtle muted Planning
+Both states should be visible here because the user cares about both and is comparing their own trips.
+Placement
+Status should be appended inline with existing metadata, not added as a separate line.
+Examples:
+Apr 15–17 · Going
+Apr 20–22 · Planning
+Avoid:
+stacking status on a new row
+adding heavy visual weight
+making status compete with the destination name
+If necessary, lightly adjust spacing or hierarchy so the added status does not make the layout feel cramped.
+All template CSS additions must be inline in the template. Do not modify styles.css.
+8. FRIENDS PAGE / FRIENDS LIST
+Update friend-facing trip references to use verb-based phrasing rather than status badges.
+Examples:
+Sam is planning Beaver Creek · Apr 15
+Sam is going to Beaver Creek · Apr 15
+Use this pattern wherever a friend’s next trip appears in feed-style or descriptor-style surfaces.
+Do not also add GOING/PLANNING badges if the sentence already conveys status.
+Prefer natural language.
+If minor spacing or copy adjustments are needed in friends.html, make them so the page still feels intentional and not patched.
+9. FRIEND PROFILE PAGE
+Update the friend profile trip rows so status is visible, but keep it subtle.
+Requirements
+On each upcoming trip row:
+if going, show a small bordeaux Going
+if planning, show a muted Planning
+Keep this light:
+small text
+inline or secondary line
+no large pills or boxed treatment
+no duplicate emphasis if the row already says “is going to” in surrounding copy
+Use inline style only if needed.
+10. HOME PAGE / SECONDARY CARD / SOCIAL SIGNALS
+Update any Home page modules that surface friend trip overlap or best-match style recommendations.
+If a surfaced friend trip is planning:
+use natural language like:
+Sam is planning Vail
+If a surfaced friend trip is going:
+use:
+Sam is going to Vail
+Adjust surrounding copy so the layout still reads naturally.
+Do not just tack on a badge if the sentence can carry the meaning.
+If layout needs slight adjustment for wrapping, make those adjustments so the UI still feels polished on mobile.
+11. IDEAS PAGE
+Update overlap / idea surfaces so trip status appears and matters.
+Requirements
+When a friend overlap involves a going trip:
+show that in the supporting text
+keep it secondary, not dominant
+Examples:
+Sam also has Epic · Going
+or use more natural wording where the layout allows
+When a trip is planning:
+either omit status or show Planning in muted secondary text if helpful
+Important
+In Ideas, status should only appear in supporting text and never dominate the primary message.
+Avoid:
+badges
+bold emphasis
+color overuse
+If easy and low risk:
+you may prefer going overlaps over planning only in copy
+do not change ranking algorithms in this task
+Keep this additive and non-breaking.
+12. HOME / IDEAS SUPPORTING LOGIC
+Where needed in the Python layer:
+include trip_status in dicts / card payloads / helper outputs used by Home and Ideas
+make supporting lines status-aware
+keep fallbacks graceful when trip_status is missing or NULL
+Do not rewrite ranking logic.
+Do not create unnecessary abstraction.
+13. FRIEND-FACING COPY RULES
+Use these exact status terms:
+Planning
+Going
+Use these exact descriptions in Edit Trip:
+Still figuring things out. Dates may change.
+This trip is happening.
+Friend-facing phrasing should prefer:
+is planning
+is going to
+Examples:
+Sam is planning Vail
+Sam is going to Vail
+Use direct natural phrasing, not awkward shorthand like:
+Sam going Vail
+Going Vail
+14. EDIT FLOW DESIGN CONSISTENCY
+Make sure the new status system does not feel bolted on.
+All updated pages should feel visually consistent with the new editorial direction:
+subtle section headers
+rows carry the weight
+no generic form controls where not needed
+no noisy badge overload
+calm premium hierarchy
+If any affected pages now feel visually inconsistent because of the added status content, refine those pages too.
+This includes:
+spacing
+text hierarchy
+label treatment
+card/row density
+alignment
+Do not just jam status text into old layouts.
+15. SAVE / DIRTY STATE / INTERACTION RULES
+Keep the Edit Trip save model consistent:
+edits update pending state
+sticky Save activates only when actual values differ from initial values
+final save persists all fields including status
+Track dirty state against initial values for:
+resort_id
+start_date
+end_date
+is_public
+trip_status
+Do not activate Save from mere interaction.
+16. FILES / IMPLEMENTATION SCOPE
+Work in the appropriate existing Flask + Jinja templates, routes, and model files needed to implement this end to end.
+Likely areas include:
+trip model
+migration/backfill logic
+add trip create flow
+edit trip route/template
+trip detail template
+trips list template
+friends/feed templates or descriptor builders
+ideas template / supporting logic
+home template / supporting logic
+Use the existing architecture.
+Keep this surgical and production-minded.
+Do not:
+rewrite unrelated flows
+introduce new frameworks
+create unnecessary abstraction
+17. QA REQUIREMENTS
+Test this thoroughly in Replit preview.
+Data / backend
+existing trips backfilled correctly
+new trips default to planning
+edits persist status correctly
+Edit Trip
+STATUS row appears
+status sheet opens correctly
+selecting status works
+dismiss without save does not persist
+sticky Save activates only on actual changes
+save persists status with other edits
+Trip Detail
+going status displays correctly
+design still feels clean
+no clutter/regressions
+Trips list
+planning/going appears correctly on user’s own trips
+spacing and hierarchy remain clean
+Friends / social surfaces
+friend trip phrasing updates correctly
+no awkward badge spam
+copy reads naturally
+Friend Profile
+status appears subtly and cleanly
+Ideas
+going/planning signal appears correctly
+supporting lines stay clean and secondary
+Home
+surfaced friend-trip signals include status where relevant
+layout still works on mobile
+Stability
+no console errors
+no broken routes
+no regressions to existing trip behavior
+mobile layout remains clean across affected pages
+18. FINAL REQUIREMENT
+Do not stop after only updating the model or Edit Trip screen.
+This task is complete only when:
+the status field exists and works
+the Edit Trip flow includes status editing
+the Trip Detail page reflects it
+the Trips list reflects it
+friend-facing pages reflect it
+Ideas reflects it
+Home reflects it
+all affected pages still feel intentionally designed
+Do not finish until you have tested the full flow end to end in Replit preview and confirmed the design changes were applied across all relevant pages, not just one.
