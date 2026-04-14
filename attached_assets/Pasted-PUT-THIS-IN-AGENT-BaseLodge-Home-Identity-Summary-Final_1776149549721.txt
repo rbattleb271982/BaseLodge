@@ -1,0 +1,262 @@
+PUT THIS IN AGENT
+
+BaseLodge — Home Identity Summary Final Refinement
+
+This is a focused correction/refinement pass for the Home identity summary module only.
+
+Do not redesign unrelated screens.
+Do not modify Friends, Friend Profile, Profile, stat bar structure, or Next Up.
+
+Use checkpoints sparingly.
+
+---
+
+GOAL
+
+Refine the Home identity summary so it feels cleaner, more editorial, and resolves the current formatting regressions.
+
+Final approved direction:
+
+- Remove the word “Setup” entirely
+- Support dual rider types using a plus sign
+- Keep the rest of the identity line separated by centered dots
+- Expand the equipment area into aligned rows
+- Keep the whole equipment block tappable
+- Preserve the current Home layout order:
+  1. Greeting
+  2. Identity line
+  3. Equipment rows / empty state
+  4. Stat bar
+  5. Next Up
+
+---
+
+PART 1 — REMOVE “SETUP” LABEL
+
+Remove the “Setup” eyebrow / section label from the Home summary entirely.
+
+Do NOT render:
+- SETUP
+- Setup
+- any setup header label
+
+The equipment area should now stand on its own directly beneath the identity line.
+
+---
+
+PART 2 — FIX IDENTITY LINE FORMATTING
+
+Current output is wrong because it is dumping raw combined values.
+
+Correct the identity line so it renders a clean human-readable summary.
+
+FINAL FORMAT RULES
+
+Rider types:
+- If one rider type:
+  - Skier
+  - Snowboarder
+- If two rider types:
+  - Skier + Snowboarder
+
+Use the plus sign ONLY for combining rider types.
+
+Everything else in the identity line should be separated by centered dots:
+
+Examples:
+- Skier · Intermediate · Ikon
+- Snowboarder · Advanced · Epic
+- Skier + Snowboarder · Intermediate · Ikon
+- Skier + Snowboarder · Intermediate · Epic · Ikon
+
+Important:
+- Do NOT use raw commas like:
+  Skier,Snowboarder
+- Do NOT use "+" for pass names
+- Do NOT introduce double separators
+- Omit missing parts cleanly
+
+Use the app’s existing clean display logic where possible instead of dumping raw stored values.
+
+Identity line should remain:
+- muted
+- sans-serif
+- normal case
+- directly under the greeting
+
+---
+
+PART 3 — EQUIPMENT BLOCK LAYOUT (OPTION C DIRECTION)
+
+Implement the equipment area as aligned rows with a fixed label column.
+
+No “Setup” label.
+
+Examples:
+
+Skier full:
+SKIS     Jones Frontier
+BOOTS    Salomon S/Pro
+
+Snowboarder full:
+BOARD    Burton Custom
+BOOTS    Vans Aura
+
+Partial:
+SKIS     Blizzard Rustler
+
+Empty:
+Add your setup
+
+Layout rules:
+- left label column for equipment labels
+- right value column for equipment names
+- labels are small, uppercase, muted
+- values are darker primary text
+- keep the rows clean and editorial, not form-like
+- no cards, no input boxes, no heavy borders
+
+Use aligned rows, not a two-column grid with stacked label/value cells.
+
+---
+
+PART 4 — EQUIPMENT DATA LOGIC
+
+Use the user’s active equipment data.
+
+Display rules:
+
+If rider type includes skier:
+- use ski brand + model for SKIS row
+- use boot brand + model for BOOTS row if available
+
+If rider type includes snowboarder:
+- use snowboard brand + model for BOARD row
+- use boot brand + model for BOOTS row if available
+
+If both skier and snowboarder are selected:
+- show the equipment that matches the user’s active/primary setup logic already used by the equipment model or route context
+- do not dump both entire disciplines into Home unless the existing active equipment object explicitly supports that cleanly
+
+Fallback rules:
+- If only skis/board exists, show that row only
+- If only boots exist, show BOOTS row only
+- If no valid equipment exists, show:
+  Add your setup
+
+Formatting rules:
+- Prefer brand + model
+- If both exist → show "Brand Model"
+- If only brand exists → show brand
+- If only model exists → show model
+- If neither exists → treat as missing
+
+Do NOT show:
+- bindings
+- poles
+- helmets
+- other secondary gear
+
+---
+
+PART 5 — EMPTY STATE
+
+If no valid equipment rows exist, render only:
+
+Add your setup
+
+Style:
+- burgundy
+- underlined
+- clearly tappable
+
+Do not leave an empty gap where equipment rows should be.
+
+---
+
+PART 6 — INTERACTION
+
+Make the entire equipment block tappable.
+
+That means:
+- filled state rows are tappable
+- empty state “Add your setup” is tappable
+
+Tap target should link to the existing equipment settings page / existing route.
+Do not create a new route.
+
+Keep the tap target generous but visually invisible.
+Do not add buttons or chevrons unless already required by the existing Home design language.
+
+---
+
+PART 7 — LONG TEXT HANDLING
+
+Equipment values must stay on one line.
+
+Apply:
+- overflow: hidden
+- text-overflow: ellipsis
+- white-space: nowrap
+
+Do not allow wrapping that breaks the module.
+
+Keep labels and values aligned cleanly even when text is long.
+
+---
+
+PART 8 — SPACING / VISUAL HIERARCHY
+
+Refine spacing so the module feels complete, not empty.
+
+Desired grouping:
+
+- Greeting
+- identity line close beneath greeting
+- equipment rows slightly below identity line
+- stat bar clearly below equipment block
+
+Do:
+- tighten spacing so the summary feels like one intentional module
+- keep enough breathing room so it still feels premium
+- do not add extra dividers or containers
+
+---
+
+PART 9 — KEEP EVERYTHING ELSE STABLE
+
+Do NOT change:
+- Friends list
+- Friend profile
+- Profile page
+- stat bar design
+- Next Up card
+- other Home sections beyond this summary block
+
+This is not a redesign. It is a refinement/correction pass.
+
+---
+
+FILES TO REVIEW
+
+Likely:
+- app.py (Home route / context values)
+- templates/home.html
+- any existing helper methods used for rider type, pass, and active equipment formatting
+
+---
+
+DELIVERABLES
+
+1. Remove “Setup” label from Home
+2. Fix identity line formatting
+3. Support dual rider types with "+"
+4. Keep dots for separating other attributes
+5. Implement aligned equipment rows (SKIS / BOARD / BOOTS)
+6. Keep the equipment block tappable
+7. Empty state works cleanly
+8. Long text truncates safely
+9. Short explanation of what changed
+10. Manual test steps
+
+Keep everything mobile-first and aligned with the current BaseLodge design language.
