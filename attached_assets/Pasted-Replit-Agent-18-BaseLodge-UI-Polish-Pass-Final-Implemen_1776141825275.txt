@@ -1,0 +1,326 @@
+Replit Agent
+
+#18 — BaseLodge UI Polish Pass (Final Implementation)
+
+This is a focused polish pass covering:
+- interaction fixes
+- design consistency
+- navigation improvements
+
+Use checkpoints sparingly.
+
+---
+
+CORE GOAL
+
+Bring the app into a consistent, premium, mobile-first experience by:
+- fixing the Add Availability calendar behavior
+- standardizing CTA styles
+- improving Trip Detail clarity
+- aligning Home screen stats with the profile system
+
+Do NOT introduce new design patterns. Match the existing Home screen design language.
+
+---
+
+PART 1 — HOME SCREEN STAT BAR (TAPPABLE)
+
+Replace current vertical stats:
+
+"1 Trips"
+"2 Mountains"
+"0 Wish list"
+
+With a horizontal stat bar:
+
+Trips       Mountains       Wishlist
+1           2               0
+
+REQUIREMENTS:
+
+- Single horizontal row
+- Even spacing across width
+- Numbers:
+  - larger
+  - bold
+- Labels:
+  - smaller
+  - muted color
+
+INTERACTION:
+
+Each stat is tappable:
+
+- Trips → /my-trips
+- Mountains → /mountains-visited
+- Wishlist → /wishlist
+
+IMPORTANT:
+
+Before implementing:
+- Confirm whether these routes exist
+- If any do NOT exist, clearly report it instead of wiring broken links
+
+UX RULES:
+
+- Entire stat tile is tappable
+- Add subtle tap feedback (opacity change)
+- No heavy borders or boxes
+
+FILES:
+- templates/components/stat_row.html
+- templates/home.html
+- app.py (pass stat URLs)
+
+---
+
+PART 2 — CTA BUTTON CONSISTENCY
+
+Standardize ALL:
+
+- “Invite friends”
+- “Add availability”
+
+ACROSS ALL TEMPLATES
+
+STYLE:
+
+Outlined pill button (secondary style):
+
+- burgundy border
+- burgundy text
+- border-radius: 24px
+- consistent padding
+
+IMPORTANT:
+
+Search ALL templates for links/buttons pointing to:
+- invite
+- add_open_dates
+
+Ensure there is ONLY ONE consistent style everywhere.
+
+FILES:
+- templates/trip_detail.html
+- templates/trip_ideas.html
+- any templates linking to add_open_dates
+
+---
+
+PART 3 — TRIP DETAIL IMPROVEMENTS
+
+1. TRANSPORTATION
+
+- Add: OTHER = "other" to ParticipantTransportation enum in models.py
+
+IMPORTANT:
+- Confirm correct database/environment before applying enum change
+- Do NOT blindly assume production
+
+- Add "Other" radio option to Transportation picker
+- Ensure summary text correctly displays "Other"
+
+---
+
+2. LESSONS COPY
+
+Replace ALL instances of:
+
+"Maybe a lesson"
+
+With:
+
+"Considering a lesson"
+
+Apply to:
+- radio option label
+- summary display text
+
+---
+
+3. YOUR TRIP DETAILS EXPLANATION
+
+Under section header:
+
+"Your Trip Details"
+
+Add subtext:
+
+"Visible to friends when your trip is public."
+
+STYLE:
+- smaller text
+- muted color
+- sits directly under header
+
+FILES:
+- templates/trip_detail.html
+
+---
+
+PART 4 — ADD AVAILABILITY SCREEN (CRITICAL)
+
+FILES:
+- templates/add_open_dates.html
+
+---
+
+1. RESTORE BOTTOM NAV
+
+Add:
+{% include 'components/bottom_nav.html' %}
+
+Before closing </body>
+
+---
+
+2. FIX CALENDAR RANGE SELECTION
+
+CURRENT ISSUE:
+- behaves like individual day toggles
+- cannot reliably select ranges
+
+REQUIRED BEHAVIOR:
+
+- First tap = start date
+- Second tap = end date
+- Same date twice = single-day selection
+- Third tap after full range = start new range
+- If second tap < start → auto reorder
+
+CRITICAL TECHNICAL RULE:
+
+- DO NOT rebuild calendar DOM on interaction
+- Render grid ONCE per month change
+- Update classes/styles only
+
+NO hover-based logic (mobile-first)
+
+---
+
+3. RANGE SUMMARY ROW
+
+Render below calendar
+
+Use EXACT states:
+
+- No selection:
+  "Select your dates"
+
+- Start only:
+  "Apr 14 — pick end date"
+
+- Single day:
+  "Apr 14 · day trip"
+
+- Range:
+  "Apr 14–17"
+
+Include:
+- "Clear" action on right side
+- Clear resets selection
+
+---
+
+4. FORM SUBMIT LOGIC
+
+On submit:
+
+- Expand selected range into individual ISO date strings
+- Populate hidden input: selected_dates
+
+Example:
+Apr 14–17 → ["2026-04-14", "2026-04-15", "2026-04-16", "2026-04-17"]
+
+---
+
+5. VISUAL DESIGN
+
+Match Home screen design:
+
+- background: warm cream
+- calendar card: white
+- start/end:
+  - filled burgundy circles
+- in-range:
+  - soft burgundy tint
+- past dates:
+  - faded / disabled
+
+---
+
+PART 5 — INVITE FRIENDS SCREEN
+
+FILES:
+- templates/invite.html
+
+---
+
+1. REMOVE QR CONTAINER STYLING
+
+Remove:
+- pink/blush background
+- bordeaux border
+
+---
+
+2. ADD INSTRUCTION TEXT
+
+Replace:
+
+"Scan with any camera"
+
+With:
+
+"Have your friends scan this to connect."
+
+Center text under QR
+
+---
+
+PART 6 — GLOBAL DESIGN RULES
+
+Apply to ALL updated components:
+
+TYPOGRAPHY:
+- Serif → titles only
+- Sans-serif → everything else
+
+COLORS:
+- Burgundy = only accent color
+- No new colors
+
+CARDS:
+- white background
+- soft border
+- rounded corners
+
+BUTTONS:
+- Primary = filled burgundy
+- Secondary = outlined burgundy
+- Tertiary = text only
+
+SPACING:
+- consistent vertical rhythm
+- no arbitrary spacing values
+
+---
+
+DELIVERABLES
+
+1. Tappable Home stat bar
+2. Fixed Add Availability calendar behavior
+3. Updated Trip Detail (transportation + lessons + explanation)
+4. Consistent CTA styling across app
+5. Clean Invite screen
+6. Short explanation of changes
+7. Manual test steps
+
+---
+
+IMPORTANT
+
+- Do not introduce new UI patterns
+- Do not redesign unrelated screens
+- Keep everything mobile-first
+- Keep implementation clean and reusable

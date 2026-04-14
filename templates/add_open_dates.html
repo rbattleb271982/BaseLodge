@@ -3,337 +3,475 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge - Open Dates</title>
+    <title>BaseLodge — Open Dates</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
+    <link rel="shortcut icon" href="/static/icons/favicon.ico">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .calendar-container {
-            background: var(--bl-color-surface);
+        .od-header {
+            margin-bottom: 4px;
+        }
+        .od-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 24px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin: 0 0 6px 0;
+        }
+        .od-sub {
+            font-size: 14px;
+            color: #6B665A;
+            margin: 0 0 24px 0;
+            line-height: 1.5;
+        }
+
+        /* ── Calendar card ── */
+        .cal-card {
+            background: #fff;
+            border: 1px solid #E5DFD0;
             border-radius: 12px;
             padding: 16px;
-            margin-bottom: 20px;
-        }
-        .calendar-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             margin-bottom: 16px;
         }
-        .calendar-header h3 {
-            margin: 0;
-            font-size: 1.1rem;
-        }
-        .calendar-nav {
+        .cal-nav-row {
             display: flex;
-            gap: 8px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
         }
-        .calendar-nav button {
-            background: var(--bl-color-bg);
-            border: 1px solid var(--bl-color-border);
-            border-radius: 6px;
-            padding: 6px 12px;
+        .cal-month-label {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1A1A1A;
+            margin: 0;
+        }
+        .cal-nav-btn {
+            background: none;
+            border: none;
+            padding: 6px 10px;
+            font-size: 18px;
+            color: #5C1219;
             cursor: pointer;
-            font-size: 0.9rem;
+            border-radius: 6px;
+            line-height: 1;
         }
-        .calendar-nav button:hover {
-            background: var(--bl-color-border);
+        .cal-nav-btn:disabled {
+            color: #C4BDB0;
+            cursor: not-allowed;
         }
-        .calendar-grid {
+        .cal-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 4px;
+            gap: 2px;
         }
-        .calendar-day-header {
+        .cal-dow {
             text-align: center;
-            font-size: 0.75rem;
+            font-size: 11px;
             font-weight: 600;
-            color: var(--bl-color-text-muted);
-            padding: 8px 0;
+            color: #6B665A;
+            padding: 4px 0 8px 0;
+            letter-spacing: 0.3px;
         }
-        .calendar-day {
+        .cal-day {
             aspect-ratio: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 8px;
-            font-size: 0.9rem;
+            font-size: 14px;
+            color: #1A1A1A;
+            border-radius: 50%;
             cursor: pointer;
-            border: 2px solid transparent;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
+            transition: background 0.1s;
         }
-        .calendar-day:hover:not(.disabled):not(.past):not(.selected) {
-            background: var(--bl-color-bg);
-        }
-        .calendar-day.selected {
-            background: #8F011B;
-            color: white;
-        }
-        .dates-summary {
-            background: var(--bl-color-bg);
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 16px;
-            font-size: 0.9rem;
-        }
-        .dates-summary-month {
-            cursor: pointer;
-            color: var(--bl-color-primary);
-            font-weight: 600;
-        }
-        .dates-summary-month:hover {
-            text-decoration: underline;
-        }
-        .dates-summary-line {
-            margin-bottom: 6px;
-        }
-        .dates-summary-line:last-child {
-            margin-bottom: 0;
-        }
-        .calendar-day.past, .calendar-day.disabled {
-            color: var(--bl-color-text-muted);
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-        .calendar-day.empty {
+        .cal-day.cal-empty {
             visibility: hidden;
+            pointer-events: none;
         }
-        .selected-count {
-            text-align: center;
-            font-size: 0.9rem;
-            color: var(--bl-color-text-muted);
+        .cal-day.cal-past {
+            color: #C4BDB0;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .cal-day.cal-disabled {
+            color: #C4BDB0;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        /* Range tint: spans full width via pseudo-element behind the day number */
+        .cal-day.is-in-range {
+            background: #F0DDD8;
+            border-radius: 0;
+            color: #1A1A1A;
+        }
+        .cal-day.is-start,
+        .cal-day.is-end,
+        .cal-day.is-single {
+            background: #5C1219 !important;
+            color: #fff !important;
+            border-radius: 50% !important;
+        }
+        /* Start of range: right side tinted */
+        .cal-day.is-start.has-end {
+            border-radius: 50% 0 0 50% !important;
+        }
+        /* End of range: left side tinted */
+        .cal-day.is-end.has-start {
+            border-radius: 0 50% 50% 0 !important;
+        }
+        /* Tint strip for first column of in-range rows */
+        .cal-day.is-in-range.range-row-start {
+            border-radius: 0;
+        }
+        .cal-day:active:not(.cal-past):not(.cal-disabled) {
+            opacity: 0.75;
+        }
+
+        /* ── Range summary row ── */
+        .range-summary-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: #fff;
+            border: 1px solid #E5DFD0;
+            border-radius: 12px;
             margin-bottom: 16px;
         }
-        .selected-count strong {
-            color: var(--bl-color-text);
+        .range-summary-text {
+            font-size: 15px;
+            font-weight: 500;
+            color: #1A1A1A;
+        }
+        .range-summary-text.placeholder {
+            color: #6B665A;
+            font-weight: 400;
+        }
+        .range-clear-btn {
+            background: none;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            color: #5C1219;
+            cursor: pointer;
+            padding: 4px 0;
+            display: none;
+        }
+        .range-clear-btn.visible {
+            display: block;
         }
     </style>
 </head>
 <body>
-    <div class="page-container">
-        <h1 class="page-title">{{ 'Edit open dates' if existing_dates else 'Add open dates' }}</h1>
-        <p class="bl-text-muted" style="margin-bottom: 20px;">Tap dates to select or deselect. These are days you're free to ski.</p>
-        
+    <div class="page-container" style="padding: 24px 16px 96px;">
+        <div class="od-header">
+            <h1 class="od-title">{{ 'Edit availability' if existing_dates else 'Add availability' }}</h1>
+            <p class="od-sub">Select a range of days you're free to ski.</p>
+        </div>
+
         <form method="POST" id="openDatesForm">
             <input type="hidden" name="selected_dates" id="selectedDatesInput">
-            
-            <div class="calendar-container">
-                <div class="calendar-header">
-                    <button type="button" class="calendar-nav-btn" onclick="prevMonth()">&larr;</button>
-                    <h3 id="monthYearLabel"></h3>
-                    <button type="button" class="calendar-nav-btn" onclick="nextMonth()">&rarr;</button>
+
+            <div class="cal-card">
+                <div class="cal-nav-row">
+                    <button type="button" class="cal-nav-btn" id="prevBtn" onclick="prevMonth()">&#8592;</button>
+                    <p class="cal-month-label" id="monthLabel"></p>
+                    <button type="button" class="cal-nav-btn" id="nextBtn" onclick="nextMonth()">&#8594;</button>
                 </div>
-                <div class="calendar-grid" id="calendarGrid"></div>
+                <div class="cal-grid" id="calGrid"></div>
             </div>
-            
-            <div id="datesSummary" class="dates-summary" style="display: none;"></div>
-            
-            <button type="submit" class="bl-btn-primary" id="saveBtn" style="width: 100%; padding: 12px;" disabled>Save open dates</button>
+
+            <div class="range-summary-row">
+                <span class="range-summary-text placeholder" id="summaryText">Select your dates</span>
+                <button type="button" class="range-clear-btn" id="clearBtn" onclick="clearSelection()">Clear</button>
+            </div>
+
+            <button type="submit" class="bl-btn-primary" id="saveBtn" style="width: 100%; padding: 14px;" disabled>Save availability</button>
         </form>
-        
-        <a href="{{ url_for('home') }}?tab=open" style="display: block; text-align: center; text-decoration: none; color: var(--bl-color-text-muted); margin-top: 16px;">
+
+        <a href="{{ url_for('home') }}?tab=open" style="display: block; text-align: center; text-decoration: none; color: #6B665A; margin-top: 16px; font-size: 14px;">
             Cancel
         </a>
     </div>
-    
+
+    {% include 'components/bottom_nav.html' %}
+
     <script>
+        // ─── State ───────────────────────────────────────────────────────
         const existingDates = {{ existing_dates | tojson }};
-        let selectedDates = new Set(existingDates);
-        
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const maxDate = new Date(2026, 4, 31); // May 31, 2026
-        
-        let currentMonth = today.getMonth();
-        let currentYear = today.getFullYear();
-        
-        const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                           'July', 'August', 'September', 'October', 'November', 'December'];
-        
-        function formatDate(d) {
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
+
+        // Determine initial range from existing dates (if any)
+        let startDate = null;  // string 'YYYY-MM-DD'
+        let endDate   = null;
+        // 0 = no sel, 1 = start only, 2 = range complete
+        let selState  = 0;
+
+        if (existingDates && existingDates.length > 0) {
+            const sorted = [...existingDates].sort();
+            startDate = sorted[0];
+            endDate   = sorted[sorted.length - 1];
+            selState  = startDate === endDate ? 2 : 2;
         }
-        
-        function renderCalendar() {
-            const grid = document.getElementById('calendarGrid');
-            const label = document.getElementById('monthYearLabel');
-            
-            label.textContent = `${monthNames[currentMonth]} ${currentYear}`;
-            
-            grid.innerHTML = '';
-            
-            // Day headers
-            dayNames.forEach(day => {
-                const header = document.createElement('div');
-                header.className = 'calendar-day-header';
-                header.textContent = day;
-                grid.appendChild(header);
-            });
-            
-            // First day of month
-            const firstDay = new Date(currentYear, currentMonth, 1);
-            const lastDay = new Date(currentYear, currentMonth + 1, 0);
-            
-            // Empty cells before first day
-            for (let i = 0; i < firstDay.getDay(); i++) {
-                const empty = document.createElement('div');
-                empty.className = 'calendar-day empty';
-                grid.appendChild(empty);
+
+        const today   = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const maxDate = new Date(2027, 4, 31);
+
+        let currentMonth = today.getMonth();
+        let currentYear  = today.getFullYear();
+
+        // If existing start date is in a future month, jump there
+        if (startDate) {
+            const d = parseDate(startDate);
+            if (d > today) {
+                currentMonth = d.getMonth();
+                currentYear  = d.getFullYear();
             }
-            
-            // Days of month
-            for (let day = 1; day <= lastDay.getDate(); day++) {
-                const dateObj = new Date(currentYear, currentMonth, day);
-                const dateStr = formatDate(dateObj);
-                
+        }
+
+        const DOW_LABELS  = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+        const MONTH_NAMES = ['January','February','March','April','May','June',
+                             'July','August','September','October','November','December'];
+        const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+        // ─── Date helpers ─────────────────────────────────────────────────
+        function isoDate(d) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        function parseDate(str) {
+            const [y, m, d] = str.split('-').map(Number);
+            return new Date(y, m - 1, d);
+        }
+
+        function fmtShort(str) {
+            const d = parseDate(str);
+            return `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}`;
+        }
+
+        // ─── Calendar render (full rebuild only on month change) ──────────
+        function buildCalendar() {
+            const grid  = document.getElementById('calGrid');
+            const label = document.getElementById('monthLabel');
+            label.textContent = `${MONTH_NAMES[currentMonth]} ${currentYear}`;
+
+            grid.innerHTML = '';
+
+            // Day-of-week headers
+            DOW_LABELS.forEach(dow => {
+                const h = document.createElement('div');
+                h.className = 'cal-dow';
+                h.textContent = dow;
+                grid.appendChild(h);
+            });
+
+            const firstDay = new Date(currentYear, currentMonth, 1);
+            const lastDay  = new Date(currentYear, currentMonth + 1, 0);
+
+            // Empty cells
+            for (let i = 0; i < firstDay.getDay(); i++) {
+                const e = document.createElement('div');
+                e.className = 'cal-day cal-empty';
+                grid.appendChild(e);
+            }
+
+            // Day cells
+            for (let d = 1; d <= lastDay.getDate(); d++) {
+                const dateObj = new Date(currentYear, currentMonth, d);
+                const dateStr = isoDate(dateObj);
                 const cell = document.createElement('div');
-                cell.className = 'calendar-day';
-                cell.textContent = day;
+                cell.className = 'cal-day';
+                cell.textContent = d;
                 cell.dataset.date = dateStr;
-                
-                const isPast = dateObj < today;
-                const isFuture = dateObj > maxDate;
-                
-                if (isPast || isFuture) {
-                    cell.classList.add('past');
+
+                if (dateObj < today || dateObj > maxDate) {
+                    cell.classList.add(dateObj < today ? 'cal-past' : 'cal-disabled');
                 } else {
-                    if (selectedDates.has(dateStr)) {
-                        cell.classList.add('selected');
-                    }
-                    cell.addEventListener('click', () => toggleDate(dateStr, cell));
+                    cell.addEventListener('click', () => handleTap(dateStr));
                 }
-                
+
                 grid.appendChild(cell);
             }
+
+            // Apply current selection state visually
+            applySelectionClasses();
+            updateNavButtons();
         }
-        
-        function toggleDate(dateStr, cell) {
-            if (selectedDates.has(dateStr)) {
-                selectedDates.delete(dateStr);
-                cell.classList.remove('selected');
+
+        // ─── Apply CSS classes based on current selection state ───────────
+        function applySelectionClasses() {
+            const cells = document.querySelectorAll('#calGrid .cal-day:not(.cal-empty):not(.cal-past):not(.cal-disabled)');
+            cells.forEach(cell => {
+                cell.classList.remove('is-start', 'is-end', 'is-single', 'is-in-range', 'has-start', 'has-end');
+            });
+
+            if (selState === 0) return;
+
+            const effectiveEnd = (selState === 2 && endDate) ? endDate : null;
+
+            cells.forEach(cell => {
+                const d = cell.dataset.date;
+                if (!d) return;
+
+                if (selState === 1) {
+                    // Only start selected
+                    if (d === startDate) {
+                        cell.classList.add('is-single');
+                    }
+                } else if (selState === 2) {
+                    const lo = startDate <= endDate ? startDate : endDate;
+                    const hi = startDate <= endDate ? endDate   : startDate;
+
+                    if (d === lo && d === hi) {
+                        cell.classList.add('is-single');
+                    } else if (d === lo) {
+                        cell.classList.add('is-start', 'has-end');
+                    } else if (d === hi) {
+                        cell.classList.add('is-end', 'has-start');
+                    } else if (d > lo && d < hi) {
+                        cell.classList.add('is-in-range');
+                    }
+                }
+            });
+        }
+
+        // ─── Tap handler ─────────────────────────────────────────────────
+        function handleTap(dateStr) {
+            if (selState === 0) {
+                // No selection — set start
+                startDate = dateStr;
+                endDate   = null;
+                selState  = 1;
+            } else if (selState === 1) {
+                if (dateStr === startDate) {
+                    // Tap same date → single-day
+                    endDate  = startDate;
+                    selState = 2;
+                } else {
+                    // Set end; reorder if needed
+                    endDate  = dateStr;
+                    selState = 2;
+                    if (endDate < startDate) {
+                        [startDate, endDate] = [endDate, startDate];
+                    }
+                }
             } else {
-                selectedDates.add(dateStr);
-                cell.classList.add('selected');
+                // Full range — start new range
+                startDate = dateStr;
+                endDate   = null;
+                selState  = 1;
             }
-            updateCount();
+
+            applySelectionClasses();
+            updateSummary();
         }
-        
-        const shortMonthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        
-        function updateCount() {
-            const count = selectedDates.size;
-            const saveBtn = document.getElementById('saveBtn');
-            const summaryEl = document.getElementById('datesSummary');
-            
-            if (count === 0) {
-                summaryEl.style.display = 'none';
+
+        // ─── Summary row ─────────────────────────────────────────────────
+        function updateSummary() {
+            const summaryEl = document.getElementById('summaryText');
+            const clearBtn  = document.getElementById('clearBtn');
+            const saveBtn   = document.getElementById('saveBtn');
+
+            if (selState === 0) {
+                summaryEl.textContent = 'Select your dates';
+                summaryEl.className = 'range-summary-text placeholder';
+                clearBtn.classList.remove('visible');
                 saveBtn.disabled = true;
-            } else {
-                saveBtn.disabled = false;
-                renderDatesSummary();
-            }
-        }
-        
-        function renderDatesSummary() {
-            const summaryEl = document.getElementById('datesSummary');
-            const datesArray = Array.from(selectedDates).sort();
-            
-            if (datesArray.length === 0) {
-                summaryEl.style.display = 'none';
                 return;
             }
-            
-            const grouped = {};
-            datesArray.forEach(dateStr => {
-                const d = new Date(dateStr + 'T00:00:00');
-                const monthKey = d.getMonth();
-                const year = d.getFullYear();
-                const key = `${year}-${String(monthKey).padStart(2, '0')}`;
-                if (!grouped[key]) {
-                    grouped[key] = { year, month: monthKey, days: [] };
+
+            summaryEl.className = 'range-summary-text';
+            clearBtn.classList.add('visible');
+            saveBtn.disabled = false;
+
+            if (selState === 1) {
+                summaryEl.textContent = `${fmtShort(startDate)} — pick end date`;
+                saveBtn.disabled = true;
+            } else {
+                // State 2: full range or single day
+                if (startDate === endDate) {
+                    summaryEl.textContent = `${fmtShort(startDate)} · day trip`;
+                } else {
+                    const lo = startDate < endDate ? startDate : endDate;
+                    const hi = startDate < endDate ? endDate   : startDate;
+                    const loD = parseDate(lo);
+                    const hiD = parseDate(hi);
+                    if (loD.getMonth() === hiD.getMonth() && loD.getFullYear() === hiD.getFullYear()) {
+                        summaryEl.textContent = `${SHORT_MONTHS[loD.getMonth()]} ${loD.getDate()}–${hiD.getDate()}`;
+                    } else {
+                        summaryEl.textContent = `${fmtShort(lo)}–${fmtShort(hi)}`;
+                    }
                 }
-                grouped[key].days.push(d.getDate());
-            });
-            
-            const sortedKeys = Object.keys(grouped).sort();
-            let html = '';
-            
-            sortedKeys.forEach(key => {
-                const g = grouped[key];
-                const sortedDays = g.days.sort((a, b) => a - b).join(', ');
-                html += `<div class="dates-summary-line"><span class="dates-summary-month" onclick="jumpToMonth(${g.month}, ${g.year})">${shortMonthNames[g.month]}:</span> ${sortedDays}</div>`;
-            });
-            
-            summaryEl.innerHTML = html;
-            summaryEl.style.display = 'block';
+            }
         }
-        
-        function jumpToMonth(month, year) {
-            currentMonth = month;
-            currentYear = year;
-            renderCalendar();
-            updateNavButtons();
+
+        function clearSelection() {
+            startDate = null;
+            endDate   = null;
+            selState  = 0;
+            applySelectionClasses();
+            updateSummary();
         }
-        
+
+        // ─── Month navigation ─────────────────────────────────────────────
         function canGoPrev() {
-            // Can't go before current month
             return !(currentYear === today.getFullYear() && currentMonth === today.getMonth());
         }
-        
         function canGoNext() {
-            // Can't go past May 2026
-            return !(currentYear === 2026 && currentMonth === 4);
+            return !(currentYear === 2027 && currentMonth === 4);
         }
-        
+
         function updateNavButtons() {
-            const prevBtn = document.querySelector('.calendar-header button:first-child');
-            const nextBtn = document.querySelector('.calendar-header button:last-child');
-            
-            prevBtn.disabled = !canGoPrev();
-            prevBtn.style.opacity = canGoPrev() ? '1' : '0.3';
-            prevBtn.style.cursor = canGoPrev() ? 'pointer' : 'not-allowed';
-            
-            nextBtn.disabled = !canGoNext();
-            nextBtn.style.opacity = canGoNext() ? '1' : '0.3';
-            nextBtn.style.cursor = canGoNext() ? 'pointer' : 'not-allowed';
+            const prev = document.getElementById('prevBtn');
+            const next = document.getElementById('nextBtn');
+            prev.disabled = !canGoPrev();
+            next.disabled = !canGoNext();
         }
-        
+
         function prevMonth() {
             if (!canGoPrev()) return;
-            
-            if (currentMonth === 0) {
-                currentMonth = 11;
-                currentYear--;
-            } else {
-                currentMonth--;
-            }
-            renderCalendar();
-            updateNavButtons();
+            if (currentMonth === 0) { currentMonth = 11; currentYear--; }
+            else { currentMonth--; }
+            buildCalendar();
         }
-        
+
         function nextMonth() {
             if (!canGoNext()) return;
-            
-            if (currentMonth === 11) {
-                currentMonth = 0;
-                currentYear++;
-            } else {
-                currentMonth++;
-            }
-            renderCalendar();
-            updateNavButtons();
+            if (currentMonth === 11) { currentMonth = 0; currentYear++; }
+            else { currentMonth++; }
+            buildCalendar();
         }
-        
+
+        // ─── Form submit: expand range to individual dates ────────────────
         document.getElementById('openDatesForm').addEventListener('submit', function(e) {
-            document.getElementById('selectedDatesInput').value = Array.from(selectedDates).join(',');
+            if (selState !== 2 || !startDate || !endDate) {
+                e.preventDefault();
+                return;
+            }
+            const lo = startDate < endDate ? startDate : endDate;
+            const hi = startDate < endDate ? endDate   : startDate;
+
+            const dates = [];
+            const cur = parseDate(lo);
+            const end = parseDate(hi);
+            while (cur <= end) {
+                dates.push(isoDate(cur));
+                cur.setDate(cur.getDate() + 1);
+            }
+            document.getElementById('selectedDatesInput').value = dates.join(',');
         });
-        
-        // Initialize
-        renderCalendar();
-        updateCount();
-        updateNavButtons();
+
+        // ─── Init ─────────────────────────────────────────────────────────
+        buildCalendar();
+        updateSummary();
     </script>
 </body>
 </html>

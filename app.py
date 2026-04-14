@@ -4081,6 +4081,9 @@ def home():
         stat_past=get_past_trip_count(user),
         stat_trips_total=SkiTrip.query.filter_by(user_id=user.id).count(),
         stat_wishlist=len(user.wish_list_resorts or []),
+        stat_trips_url=url_for('my_trips'),
+        stat_mountains_url=url_for('mountains_visited'),
+        stat_wishlist_url=url_for('settings_wish_list'),
     )
 
 

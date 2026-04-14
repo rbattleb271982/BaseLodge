@@ -105,7 +105,7 @@
             padding: 13px 20px;
             background: transparent;
             border: 1px solid #5C1219;
-            border-radius: 8px;
+            border-radius: 24px;
             color: #5C1219;
             font-size: 14px;
             font-weight: 600;
@@ -507,6 +507,7 @@
 
         <!-- Your Trip Details -->
         <p class="td-section-label">Your Trip Details</p>
+        <p style="font-size: 12px; color: var(--bl-color-text-muted); margin: 4px 0 12px 0; line-height: 1.4;">Visible to friends when your trip is public.</p>
         <div class="your-trip-details-section">
 
             {# Equipment #}
@@ -558,7 +559,7 @@
                     <span class="transport-summary" style="{% if not is_owner %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
                         <span id="trans-summary-text">
                             {% if current_user_participant.transportation_status %}
-                                {% if current_user_participant.transportation_status.value == 'driving' %}Driving{% elif current_user_participant.transportation_status.value == 'flying' %}Flying{% elif current_user_participant.transportation_status.value == 'train' %}Train{% elif current_user_participant.transportation_status.value == 'bus' %}Bus{% else %}Not set{% endif %}
+                                {% if current_user_participant.transportation_status.value == 'driving' %}Driving{% elif current_user_participant.transportation_status.value == 'flying' %}Flying{% elif current_user_participant.transportation_status.value == 'train' %}Train{% elif current_user_participant.transportation_status.value == 'bus' %}Bus{% elif current_user_participant.transportation_status.value == 'other' %}Other{% else %}Not set{% endif %}
                             {% else %}Not set{% endif %}
                         </span>
                         {% if is_owner %}
@@ -587,6 +588,10 @@
                         <label class="transport-radio-label">
                             <input type="radio" name="transportation_status" value="flying" {% if current_trans == 'flying' %}checked{% endif %} onchange="saveTransportation(this.value)">
                             <span>Flying</span>
+                        </label>
+                        <label class="transport-radio-label">
+                            <input type="radio" name="transportation_status" value="other" {% if current_trans == 'other' %}checked{% endif %} onchange="saveTransportation(this.value)">
+                            <span>Other</span>
                         </label>
                     </div>
                 </div>
@@ -639,7 +644,7 @@
                     <span class="lesson-summary" style="{% if not is_owner %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
                         <span id="lesson-summary-text">
                             {% if current_user_participant.taking_lesson %}
-                                {% if current_user_participant.taking_lesson.value == 'yes' %}Taking a lesson{% elif current_user_participant.taking_lesson.value == 'maybe' %}Maybe a lesson{% else %}No lesson{% endif %}
+                                {% if current_user_participant.taking_lesson.value == 'yes' %}Taking a lesson{% elif current_user_participant.taking_lesson.value == 'maybe' %}Considering a lesson{% else %}No lesson{% endif %}
                             {% else %}No lesson{% endif %}
                         </span>
                         {% if is_owner %}
@@ -662,7 +667,7 @@
                         </label>
                         <label class="lesson-radio-label">
                             <input type="radio" name="taking_lesson" value="maybe" {% if current_user_participant.taking_lesson and current_user_participant.taking_lesson.value == 'maybe' %}checked{% endif %} onchange="saveLesson(this.value)">
-                            <span>Maybe a lesson</span>
+                            <span>Considering a lesson</span>
                         </label>
                     </div>
                 </div>
@@ -893,7 +898,7 @@
 
         async function saveLesson(value) {
             const tripId = {{ trip.id }};
-            const labels = { 'no': 'No lesson', 'yes': 'Taking a lesson', 'maybe': 'Maybe a lesson' };
+            const labels = { 'no': 'No lesson', 'yes': 'Taking a lesson', 'maybe': 'Considering a lesson' };
             try {
                 const response = await fetch(`/api/trips/${tripId}/participant/signals`, {
                     method: 'POST',

@@ -37,6 +37,7 @@ class ParticipantTransportation(PyEnum):
     TRAIN = "train"
     BUS = "bus"
     TBD = "tbd"
+    OTHER = "other"
 
 
 class ParticipantEquipment(PyEnum):
@@ -775,6 +776,7 @@ class SkiTripParticipant(db.Model):
                 ParticipantTransportation.TRAIN: "Train",
                 ParticipantTransportation.BUS: "Bus",
                 ParticipantTransportation.TBD: "Ride: Not set",
+                ParticipantTransportation.OTHER: "Other",
             }
             # Handle legacy train_bus value
             if hasattr(self.transportation_status, 'value') and self.transportation_status.value == 'train_bus':
