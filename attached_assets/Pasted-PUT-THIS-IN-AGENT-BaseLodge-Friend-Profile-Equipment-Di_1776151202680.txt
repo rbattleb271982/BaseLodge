@@ -1,0 +1,143 @@
+PUT THIS IN AGENT
+
+BaseLodge — Friend Profile Equipment Display
+
+This is a focused enhancement to the Friend Profile page only.
+
+Do not redesign unrelated screens.
+Do not modify Home in this task.
+Do not modify Friends list layout.
+
+Use checkpoints sparingly.
+
+---
+
+GOAL
+
+Update the Friend Profile page so a friend’s equipment is displayed in the same aligned-row style as the approved Home equipment block.
+
+This should replace the current generic “Gear” row pattern.
+
+Friend Profile should feel consistent with Home, but remain read-only.
+
+---
+
+CURRENT ISSUE
+
+On the Friend Profile page, the profile section currently shows a generic row like:
+
+Gear    No equipment on file
+
+This is weaker than the new Home setup display and should be upgraded.
+
+---
+
+DESIRED OUTPUT
+
+If friend has ski setup:
+SKIS     Jones Frontier
+BOOTS    Salomon S/Pro
+
+If friend has snowboard setup:
+BOARD    Burton Custom
+BOOTS    Vans Aura
+
+If partial:
+SKIS     Blizzard Rustler
+or
+BOOTS    Vans Aura
+
+If none:
+No equipment on file
+
+---
+
+PART 1 — REPLACE GENERIC GEAR ROW
+
+Remove the existing single “Gear” row from the lower profile section.
+
+Replace it with a small equipment display block using aligned rows.
+
+Rules:
+- use left label column
+- right value column
+- labels small, uppercase, muted
+- values darker primary text
+- same visual language as Home equipment rows
+
+Do not add a “Setup” header unless needed for visual clarity.
+Prefer to keep it lightweight.
+
+---
+
+PART 2 — EQUIPMENT DATA LOGIC
+
+Use the friend’s active equipment data.
+
+Display rules:
+
+- If discipline is skier:
+  first row label = SKIS
+
+- If discipline is snowboarder:
+  first row label = BOARD
+
+- Show BOOTS row only if boot brand/model exists
+
+Formatting:
+- brand + model if both exist
+- if only one exists, show that one
+- if neither exists, treat as missing
+
+If no valid equipment exists:
+- show “No equipment on file”
+
+Do not show:
+- bindings
+- poles
+- helmets
+- edit affordances
+
+---
+
+PART 3 — READ-ONLY ONLY
+
+This block is display-only.
+
+Do NOT:
+- make it tappable
+- add a chevron
+- add edit controls
+
+Friend profile should show the setup, not allow interaction.
+
+---
+
+PART 4 — KEEP PAGE STRUCTURE CLEAN
+
+Do not redesign the friend profile header, stat bar, or trip section.
+
+Only improve the equipment display so it matches the new system direction established on Home.
+
+---
+
+FILES TO REVIEW
+
+Likely:
+- friend profile template
+- any route/context code supplying friend equipment
+- any existing helper used for active equipment formatting
+
+---
+
+DELIVERABLES
+
+1. Replace generic Gear row with aligned equipment rows
+2. Correct SKIS vs BOARD label based on discipline
+3. BOOTS row only when boot data exists
+4. Read-only display only
+5. Clean empty state: “No equipment on file”
+6. Short explanation of changes
+7. Manual test steps
+
+Keep everything mobile-first and aligned with the approved BaseLodge design language.

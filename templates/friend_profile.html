@@ -290,16 +290,28 @@
             <span class="fp-info-value">{{ friend.previous_pass }}</span>
         </div>
         {% endif %}
-        {% set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.boot_brand)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.boot_brand)) else none) %}
-        <div class="fp-info-row">
-            <span class="fp-info-label">Gear</span>
-            <span class="fp-info-value">
-                {% if eq %}
-                    {% if eq.brand %}{{ eq.brand }}{% endif %}{% if eq.brand and eq.boot_brand %} · {% endif %}{% if eq.boot_brand %}{{ eq.boot_brand }} boots{% endif %}
-                {% else %}
-                    No equipment on file
-                {% endif %}
-            </span>
+        {%- set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.model or friend_primary_equipment.boot_brand or friend_primary_equipment.boot_model)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.model or friend_secondary_equipment.boot_brand or friend_secondary_equipment.boot_model)) else none) -%}
+        {%- set _has_gear = eq and (eq.brand or eq.model) -%}
+        {%- set _has_boots = eq and (eq.boot_brand or eq.boot_model) -%}
+        <div style="padding: 11px 0; border-bottom: 1px solid #E5DFD0;">
+            {%- if _has_gear %}
+            {%- set _gear_label = 'BOARD' if (eq.discipline and eq.discipline.value == 'snowboarder') else 'SKIS' %}
+            {%- set _gear_val = ([eq.brand, eq.model] | select | join(' ')) %}
+            <div style="display: flex; align-items: baseline; margin-bottom: 4px;">
+                <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: #6B665A; min-width: 44px; flex-shrink: 0;">{{ _gear_label }}</span>
+                <span style="font-size: 13px; color: #1A1A1A; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ _gear_val }}</span>
+            </div>
+            {%- endif %}
+            {%- if _has_boots %}
+            {%- set _boot_val = ([eq.boot_brand, eq.boot_model] | select | join(' ')) %}
+            <div style="display: flex; align-items: baseline;">
+                <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: #6B665A; min-width: 44px; flex-shrink: 0;">BOOTS</span>
+                <span style="font-size: 13px; color: #1A1A1A; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ _boot_val }}</span>
+            </div>
+            {%- endif %}
+            {%- if not _has_gear and not _has_boots %}
+            <span style="font-size: 13px; color: #6B665A;">No equipment on file</span>
+            {%- endif %}
         </div>
         <div class="fp-info-row">
             <span class="fp-info-label">Upcoming trips</span>
