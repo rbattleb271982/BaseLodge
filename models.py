@@ -247,7 +247,15 @@ class User(UserMixin, db.Model):
         """
         # New path: rider_types array
         if self.rider_types and len(self.rider_types) > 0:
-            return ' + '.join(self.rider_types)
+            # Normalize: some stored values may be comma-separated strings
+            # e.g. ["Skier,Snowboarder"] → ["Skier", "Snowboarder"]
+            types = []
+            for rt in self.rider_types:
+                for part in str(rt).split(','):
+                    part = part.strip()
+                    if part:
+                        types.append(part)
+            return ' + '.join(types) if types else None
         # Legacy path: primary + secondary
         primary = self.primary_rider_type or self.rider_type
         if not primary:

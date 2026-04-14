@@ -1,0 +1,110 @@
+PUT THIS IN AGENT
+
+BaseLodge — Home Identity Line Final Bug Fix
+
+This is a very targeted correction pass. Do not redesign the Home module. Do not change the equipment row layout. Fix the identity line output only.
+
+Use checkpoints sparingly.
+
+---
+
+CURRENT BUG
+
+The Home identity line still renders a raw comma:
+
+Skier,Snowboarder · Intermediate · Epic · Ikon
+
+This is incorrect.
+
+It should never show a comma-joined rider type.
+
+---
+
+GOAL
+
+Make the Home identity line render clean, human-readable display values only.
+
+Desired examples:
+- Skier · Intermediate · Ikon
+- Snowboarder · Advanced · Epic
+- Skier + Snowboarder · Intermediate · Ikon
+
+No raw commas.
+No raw multi-value dumps.
+
+---
+
+PART 1 — FIX RIDER TYPE OUTPUT
+
+Do NOT render the raw stored rider_type field directly.
+
+Use the existing clean display property / helper that produces:
+- Skier
+- Snowboarder
+- Skier + Snowboarder
+
+If that helper is not what the template is currently using, switch the template to use the helper.
+If the helper itself is not returning the expected value, normalize it there before rendering.
+
+Important:
+- Rider types must be joined with " + "
+- Never use commas in the Home identity line
+- Never render "Skier,Snowboarder"
+
+---
+
+PART 2 — FIX PASS DISPLAY FOR HOME
+
+Do NOT dump multiple raw pass values on the Home identity line if the intended Home display is a single approved pass label.
+
+Use the same clean pass display logic already used in the approved friend/profile summary patterns.
+
+If the existing pass helper returns multiple values and that is not desired for Home, select the primary/approved Home display value instead of rendering the raw multi-pass string.
+
+The final Home identity line should feel editorial and concise, not exhaustive.
+
+---
+
+PART 3 — KEEP THE EXISTING STRUCTURE
+
+Do NOT modify:
+- greeting
+- equipment rows
+- stat bar
+- Next Up
+- other Home spacing
+
+Only fix the text output of the identity line.
+
+---
+
+PART 4 — VERIFY WITH THE CURRENT USER CASE
+
+Before finalizing, verify against the exact case shown in the screenshot.
+
+The final result for this user should not contain:
+- commas in rider type
+- raw combined rider values
+- raw multi-pass dump if a single home pass display is intended
+
+---
+
+FILES TO REVIEW
+
+Likely:
+- templates/home.html
+- any helper/property for display_rider_type
+- any helper/filter for pass display used by Home
+
+---
+
+DELIVERABLES
+
+1. Home identity line no longer shows commas
+2. Dual rider type renders with " + "
+3. Pass display is clean and concise
+4. Existing layout remains unchanged
+5. Short explanation of the exact fix
+6. Manual test steps
+
+This is not a redesign. Fix the output only.
