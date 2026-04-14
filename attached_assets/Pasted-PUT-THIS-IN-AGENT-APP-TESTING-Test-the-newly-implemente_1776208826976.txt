@@ -1,0 +1,108 @@
+PUT THIS IN AGENT APP TESTING
+
+Test the newly implemented BaseLodge seed system end to end after running the seed script.
+
+Goal:
+Verify that the seeded pseudo-live environment renders correctly across the product and that the seeded scenarios actually appear in the UI the way they are supposed to.
+
+Please do the following:
+
+1. Run the seed script using the exact command required by the implementation
+2. Confirm the seed run completes successfully without errors
+3. Log in as the primary seeded demo account:
+   - Alex Chen
+   - demo@baselodge.app
+4. Test the following screens and flows carefully:
+
+A. Home
+- Confirm Home loads successfully for the seeded demo account
+- Confirm upcoming trip content appears
+- Confirm friend/trip activity does not look empty
+- Confirm the overlap-related scenarios surface if the current Home logic supports them
+- Confirm no broken cards, empty placeholders, or missing names appear
+
+B. Trips
+- Confirm Alex’s upcoming trips render correctly
+- Confirm at least one past trip appears where appropriate
+- Confirm owned trips vs accepted guest trips render correctly if the current UI distinguishes them
+- Confirm the high-density weekend scenario is visible in a meaningful way
+- Confirm the true overlap scenario exists in trip data
+
+C. Trip Detail
+- Open the key seeded trips and verify:
+  - owner view works
+  - accepted participant appears correctly
+  - pending invited participant appears correctly
+  - declined participant does not incorrectly surface if the UI is supposed to hide them
+  - trip metadata displays correctly
+- Specifically test:
+  - Breckenridge high-density weekend trip
+  - Jackson Hole overlap trip
+  - Jordan’s Stowe trip where Alex is an accepted participant
+
+D. Friends
+- Confirm confirmed friends appear correctly
+- Confirm pending incoming request appears correctly
+- Confirm pending outgoing request appears correctly
+- Confirm no-connection user is not incorrectly shown as a friend
+- Confirm friend names, profile snippets, and any stats render correctly
+
+E. Friend Profiles
+- Open several seeded friend profiles and verify:
+  - power user profile renders correctly
+  - snowboard-focused user profile renders correctly
+  - past-trips-only user profile renders correctly
+  - incomplete/empty-state user does not break the page
+- Confirm equipment, visited mountains, wishlist, and trip counts render correctly where applicable
+
+F. Ideas
+- Confirm the seeded overlap/open_dates/UserAvailability logic actually results in at least one useful surfaced idea if the current Ideas logic supports this
+- If Ideas is empty or weaker than expected, diagnose whether the issue is:
+  - seed data mismatch
+  - route logic
+  - ranking logic
+  - availability source mismatch
+- Be explicit
+
+G. Invite / connection flows
+- Confirm pending invitation states display correctly from Alex’s perspective
+- Confirm any invite-related UI does not break due to seeded data
+
+5. Validate the seeded scenarios specifically
+Confirm whether each of these is actually visible and working in the UI, not just present in the database:
+- High-density weekend
+- True overlap
+- Near-miss overlap
+- Guest view
+- Power user
+- Empty-state contrast
+- All 3 connection states
+- Ideas overlap
+
+6. Check data realism and density
+Based on the actual UI, evaluate whether the seeded environment feels:
+- thin
+- adequate
+- rich
+Be honest and explain why.
+
+7. If anything does not surface correctly
+Diagnose the exact issue and identify whether it is:
+- seed script problem
+- enum/status mismatch
+- template/rendering issue
+- query/filtering logic issue
+- availability logic issue
+Do not make broad guesses.
+
+8. Return the final answer in this structure:
+- Seed script run result
+- Screens tested
+- What rendered correctly
+- What did not render correctly
+- Scenario-by-scenario validation
+- Whether the environment feels thin / adequate / rich
+- Specific recommended fixes
+- Whether a second density pass adding 4–5 more users is recommended
+
+Use checkpoints sparingly only if truly needed.
