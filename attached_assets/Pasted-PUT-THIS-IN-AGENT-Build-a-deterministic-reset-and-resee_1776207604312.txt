@@ -1,0 +1,197 @@
+PUT THIS IN AGENT
+
+Build a deterministic reset-and-reseed system for BaseLodge based on the approved seed-data plan, with a slightly exaggerated but still believable pseudo-live environment so the app feels active immediately.
+
+Use the seed planning report as the source of truth for supported models and states. Expand it slightly so the seeded experience feels richer in Home, Trips, Friends, Profile, Trip Detail, Invite flows, and Ideas. The approved planning report includes the supported profile fields, connection states, trip states, and implementation guidance. :contentReference[oaicite:0]{index=0}
+
+Goal:
+Create a rerunnable seed script that wipes prior seeded data safely and recreates a rich demo environment with:
+- all core friend connection states
+- multiple upcoming trips
+- overlapping trips
+- a high-density weekend scenario
+- a near-miss overlap scenario
+- accepted / pending / declined trip participation states
+- fully completed and partially completed profiles
+- enough activity and trip coverage that the app feels alive immediately
+
+Important product direction:
+Use the report’s structure, but expand beyond the lean 11-user version into a richer pseudo-live environment of about 14–15 total users including the primary test account. Make the data slightly exaggerated for demo value:
+- more overlap than real life
+- more visible upcoming trips
+- more friend/trip density
+- still believable, not cartoonish
+
+Implementation requirements:
+
+1. Create a standalone seed script
+- Preferred location: scripts/seed.py
+- It must be safe to rerun
+- It must only delete and recreate seeded/demo data, not real user data
+- Use existing is_seeded flags where available
+- Use one transaction where practical, with rollback on failure
+
+2. Teardown logic
+Delete seeded/demo records only, in FK-safe order, including as applicable:
+- Friend rows with is_seeded=True or tied only to seeded users where needed
+- SkiTripParticipant rows tied to seeded trips/users
+- Invitations tied to seeded users
+- EquipmentSetup rows tied to seeded users
+- UserAvailability rows tied to seeded users
+- Activity rows tied to seeded users/trips if created by this script
+- SkiTrip rows owned by seeded users
+- Users with is_seeded=True
+Do not delete non-seeded real data.
+
+3. Resort handling
+- Do not create resorts
+- Resolve resorts from the existing Resort table by slug or name
+- Before seeding, validate that all required resorts exist
+- If required resorts are missing, fail clearly with a readable error listing what is missing
+
+4. Dates
+- Use dates relative to today with timedelta so the seed stays useful over time
+- Ensure there are:
+  - several upcoming trips
+  - at least a few past trips
+  - one high-density weekend cluster
+  - one near-miss overlap case
+- Use explicit trip_status values only, never null
+
+5. Seeded cohorts to create
+
+A. Primary test account
+Create one main test/demo user that acts as the account used for viewing the pseudo-live environment.
+This user should be:
+- active
+- profile-complete
+- have terrain_preferences populated
+- have visited resorts and wishlist populated
+- have at least 3 upcoming trips
+- have at least 1 past trip
+- have equipment set up
+- be connected to multiple users
+- own at least 1 group trip
+- be an accepted guest on at least 1 friend’s trip
+
+B. Core social graph (6 users)
+Create six confirmed friends of the primary test account.
+Use variety across:
+- rider_types
+- skill_level
+- pass_type
+- equipment completeness
+- wishlist
+- visited resorts
+- trip volume
+Include at least:
+- one power user with 5–7 upcoming trips
+- one snowboard-focused user
+- one mixed rider user
+- one social/no-pass user
+- one beginner planner
+- one user with past trips only
+Make sure confirmed friendships are bidirectional where required by current schema.
+
+C. Connection state users (3 users)
+Create:
+- one incoming pending friend request to the test account
+- one outgoing pending friend request from the test account
+- one no-connection user
+These should still have complete enough profiles to render properly if opened.
+
+D. Trip workflow and overlap users (2–3 additional scenarios, reusing users where possible)
+Create scenarios that cover:
+- accepted trip guest
+- pending invited guest
+- declined trip invite
+- test account as owner
+- test account as accepted guest
+- separate user trip at same resort / same dates
+- near-miss overlap at same resort but offset dates
+Re-use existing cohort users when possible, but add a net-new user if needed for clarity.
+
+6. Required special scenarios
+
+Scenario 1: High-density weekend
+Create one upcoming weekend where 4–6 seeded users are at the same resort on the same dates or materially overlapping dates.
+This should make Home, Friends, Trip Detail, and any overlap surfacing feel active.
+
+Scenario 2: Near-miss overlap
+Create at least one same-resort scenario where another user is arriving just after or just before the primary user.
+This is intended to support Ideas/overlap logic and future product thinking.
+
+Scenario 3: Empty-state contrast
+Create at least one user with very little activity:
+- minimal profile or partially completed profile
+- no trips
+- no equipment
+This is for empty-state QA.
+
+Scenario 4: Power-user showcase
+Create at least one user with many trips, full profile, equipment, visited resorts, and wishlist so the app has a strong “alive” example.
+
+7. Availability seeding
+Because the report identified a dual availability system risk, populate both:
+- legacy open_dates
+- UserAvailability
+Do this for relevant seeded users so Ideas and overlap logic have the best chance of surfacing correctly.
+
+8. Profile completion requirements
+Because is_profile_complete depends on terrain_preferences, ensure all users intended to be “complete” have terrain_preferences populated.
+Only leave it missing for users intentionally meant to represent incomplete profile states.
+
+9. Equipment
+Seed EquipmentSetup records for users where appropriate.
+Include a mix of:
+- full equipment
+- partial equipment
+- no equipment
+
+10. Activities
+Seed a small number of Activity records if needed to make the app feel alive immediately.
+Only create activities that match real seeded events and relationships.
+Do not invent nonsense activity unrelated to the seeded trips/friend graph.
+
+11. Deterministic identities
+Use fixed hardcoded demo identities:
+- stable names
+- stable emails
+- stable profile traits
+- stable resort assignments
+Do not randomize users.
+Make them easy to recognize in QA, for example:
+- Power User
+- Boarder
+- Planner
+- Social
+- Incoming Request
+But also give them realistic first/last names so the UI still feels real.
+
+12. Output and developer ergonomics
+At the end of the script run, print a readable summary:
+- number of seeded users created
+- number of confirmed friends created
+- number of invitations created
+- number of trips created
+- number of participants created
+- number of activities created if any
+- which resorts were used
+- the email(s) of the primary demo/test account and notable seeded users
+
+13. Safety
+- Do not modify unrelated app logic unless required to support the seed script
+- If a tiny helper is needed, keep it minimal
+- Do not add public or insecure seed routes
+- Do not create admin UI for this
+- Do not use random generation
+- Use checkpoints sparingly only if truly needed
+
+14. Deliverables
+After implementation, return:
+1. Which files were created or changed
+2. The exact command to run the seed script in Replit
+3. The list of seeded user archetypes created
+4. The list of seeded scenarios created
+5. Any missing resorts or blockers encountered
+6. Any assumptions you had to make about enums, relationships, or activity creation
