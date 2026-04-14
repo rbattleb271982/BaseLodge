@@ -1,0 +1,246 @@
+PUT THIS IN AGENT
+
+#19 — BaseLodge Home Identity Summary Module (Final Build Prompt)
+
+This is a Home-only implementation. Do not redesign or modify Friends, Friend Profile, Profile, or other screens.
+
+Use checkpoints sparingly.
+
+---
+
+GOAL
+
+Add a personal identity summary directly under the Home screen greeting.
+
+The module should make the Home screen feel like a personal dashboard and provide quick access to equipment settings.
+
+Final approved structure on Home:
+
+1. Greeting
+   Hi, Richard.
+
+2. Identity line
+   Skier · Beginner · Ikon
+
+3. Setup block
+   Setup
+   Salomon QST 92
+   OR
+   Add your setup
+
+4. Existing stat bar
+5. Existing Next Up section
+
+This should be implemented in both:
+- populated Home state
+- empty / first-time Home state
+
+---
+
+SCOPE
+
+Home-only.
+
+Do NOT modify:
+- Friends list
+- Friend profile
+- Profile page
+- stat bar structure
+- Next Up card
+- any unrelated layouts
+
+Only update:
+- app.py (home route)
+- templates/home.html
+
+Use the existing equipment settings route. Do not create new routes.
+
+---
+
+PART 1 — PASS EQUIPMENT DATA TO HOME TEMPLATE
+
+In the Home route, pass the active equipment record to the template.
+
+Add:
+- home_eq = user.get_active_equipment()
+
+Only fetch what is needed. Do not add unnecessary queries.
+
+---
+
+PART 2 — INSERT HOME IDENTITY SUMMARY MODULE
+
+In templates/home.html, insert the module directly under the greeting <h1> in both Home states.
+
+MODULE CONTENT ORDER:
+
+1. Greeting
+   Existing h1 stays where it is
+
+2. Identity line
+   Format:
+   {rider_type} · {level} · {pass}
+
+Examples:
+- Skier · Beginner · Ikon
+- Snowboarder · Advanced · Epic
+
+Rules:
+- gracefully omit missing parts
+- no double separators
+- do not uppercase the identity line
+- this is NOT an eyebrow label
+- style it as muted personal metadata in normal case
+
+3. Setup block
+   Use the app’s existing eyebrow / section-label style for the Setup label only
+
+   Under the Setup label:
+   - show the selected equipment summary if available
+   - otherwise show:
+     Add your setup
+
+The entire Setup block should be tappable and link to:
+- url_for('settings_equipment')
+
+Do not add a button or chevron unless the existing Home styling system naturally uses one. Keep it lightweight.
+
+---
+
+PART 3 — EQUIPMENT DATA LOGIC
+
+Use the active equipment record from:
+- user.get_active_equipment()
+
+Display ONLY:
+- brand + model
+
+Do NOT display:
+- boots
+- bindings
+- secondary gear
+- extra descriptors
+
+Selection logic:
+
+1. If rider_type = skier
+   → use ski brand + model
+
+2. If rider_type = snowboarder
+   → use snowboard brand + model
+
+3. If rider_type is missing but one active setup exists
+   → use that setup
+
+4. If nothing valid exists
+   → show:
+   Add your setup
+
+Examples:
+- Atomic Bent 100
+- Burton Custom
+- Salomon QST 92
+
+If brand exists and model is missing, show brand only.
+If model exists and brand is missing, show model only.
+If both are missing, use the empty state.
+
+---
+
+PART 4 — EMPTY STATE
+
+If no valid setup exists:
+
+Render:
+- Setup
+- Add your setup
+
+Style:
+- “Add your setup” should read as tappable
+- use burgundy color and underline, or the closest existing tappable-text pattern already used in the app
+- keep the Setup label present even in the empty state
+
+Do not let the module visually collapse when equipment is missing.
+
+---
+
+PART 5 — LONG TEXT HANDLING
+
+The equipment value line must stay on one line.
+
+Apply:
+- overflow: hidden
+- text-overflow: ellipsis
+- white-space: nowrap
+
+Do not allow wrapping.
+
+---
+
+PART 6 — STYLING RULES
+
+Keep the Home identity summary module lightweight and editorial.
+
+Do:
+- no avatar
+- no card wrapper
+- no heavy border box
+- no extra large divider block
+- preserve the current premium Home feel
+
+Identity line:
+- muted color
+- sans-serif
+- smaller than the greeting
+- normal case
+
+Setup label:
+- use the app’s existing eyebrow / small section-label style
+
+Setup value:
+- primary readable text when filled
+- tappable text treatment when empty
+- slightly secondary to the identity line, but still readable
+
+Spacing:
+- identity line should sit close enough to the greeting to feel connected
+- setup block should sit below identity line with intentional spacing
+- stat bar should remain clearly below the summary module
+- do not make the area feel bulky
+
+---
+
+PART 7 — KEEP EVERYTHING ELSE STABLE
+
+Do not redesign:
+- stat bar
+- Next Up card
+- Friends pages
+- Profile pages
+
+This task is only to add the Home identity summary cleanly.
+
+---
+
+FILES TO UPDATE
+
+- app.py
+- templates/home.html
+
+No other files unless absolutely necessary.
+
+---
+
+DELIVERABLES
+
+1. Home identity line added under greeting
+2. Setup block added under identity line
+3. Setup block links to existing equipment settings page
+4. Empty state implemented as “Add your setup”
+5. Long text truncates with ellipsis
+6. Works in both populated and empty Home states
+7. Friends/Profile remain unchanged
+8. Short explanation of changes
+9. Manual test steps
+
+Keep everything mobile-first and aligned with the current BaseLodge design language.

@@ -1,0 +1,166 @@
+PUT THIS IN AGENT
+
+BaseLodge — Home Identity Summary (Final Implementation)
+
+Use checkpoints sparingly.
+
+---
+
+GOAL
+
+Implement the finalized Home identity summary module exactly as designed.
+
+This replaces the current Home summary structure.
+
+---
+
+STRUCTURE
+
+Render in this exact order on Home:
+
+1. Greeting
+   Hi, Richard.
+
+2. Identity line
+   Skier · Intermediate · Ikon
+
+3. Setup block
+   Setup
+   Atomic Bent 100
+
+4. Stat bar (already implemented)
+
+5. Next Up section
+
+---
+
+PART 1 — IDENTITY LINE
+
+Format:
+{rider_type} · {level} · {pass}
+
+Examples:
+- Skier · Intermediate · Ikon
+- Snowboarder · Advanced · Epic
+
+Styling:
+- muted color
+- smaller than name
+- same pattern as Friends / Profile
+
+---
+
+PART 2 — SETUP BLOCK
+
+Add a new block under identity:
+
+Line 1 (eyebrow):
+Setup
+
+Line 2 (value):
+- If user has equipment:
+  show ONLY {brand} {model}
+  (DO NOT include boots or bindings)
+
+- If no equipment:
+  show:
+  Add your setup
+
+---
+
+PART 3 — EMPTY STATE
+
+If no equipment exists:
+
+- Render:
+  Add your setup
+
+- Styling:
+  - burgundy color
+  - underline
+  - clearly tappable
+
+---
+
+PART 4 — INTERACTION
+
+Make the entire setup block tappable:
+
+Tap target includes:
+- “Setup”
+- the value line (Atomic Bent 100 OR Add your setup)
+
+On tap:
+→ navigate to equipment edit page
+
+Behavior is consistent whether:
+- setup exists
+- setup does not exist
+
+---
+
+PART 5 — LONG TEXT HANDLING
+
+For setup line:
+
+- enforce single line
+- apply:
+  overflow: hidden
+  text-overflow: ellipsis
+  white-space: nowrap
+
+This prevents layout breaking for long model names.
+
+---
+
+PART 6 — STYLING RULES
+
+- Do NOT add a card background
+- Do NOT add borders around this module
+- Keep it lightweight and editorial
+- Maintain spacing hierarchy:
+
+Hi, Richard.
+(identity line close below)
+(setup block slightly separated)
+(stat bar clearly below)
+
+---
+
+PART 7 — DATA LOGIC
+
+From user profile:
+
+If skier:
+  use ski_brand + ski_model
+
+If snowboarder:
+  use snowboard_brand + snowboard_model
+
+If both exist:
+  prioritize based on rider_type
+
+If neither exists:
+  trigger empty state
+
+---
+
+FILES TO UPDATE
+
+- templates/home.html
+- any shared identity partial if present
+- user context builder (to pass equipment string)
+
+---
+
+DELIVERABLES
+
+1. Home identity module updated to new structure
+2. Setup block added with correct logic
+3. Empty state implemented
+4. Tap behavior wired to equipment page
+5. No visual regressions to stat bar or Next Up
+6. Short explanation + manual test steps
+
+Do not redesign other pages.
+Do not modify Friends or Profile layouts.

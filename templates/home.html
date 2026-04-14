@@ -330,6 +330,31 @@
 
             <h1 class="home-welcome" style="margin-bottom: 4px;">Hi, {{ user.first_name | format_name }}.</h1>
 
+            {# ── Identity line ── #}
+            {%- set _id = [] -%}
+            {%- set _rt = (user.rider_types[0] if user.rider_types else none) or user.primary_rider_type or user.rider_type -%}
+            {%- if _rt %}{% set _rt_d = 'Skier' if _rt == 'Both' else _rt %}{% set _ = _id.append(_rt_d) %}{% endif -%}
+            {%- if user.skill_level %}{% set _ = _id.append(user.skill_level) %}{% endif -%}
+            {%- if user.pass_type %}{% set _ = _id.append(user.pass_type | pass_display) %}{% endif -%}
+            {%- if _id %}
+            <p style="font-size: 13px; color: var(--bl-color-text-muted); margin: 0 0 14px 0; line-height: 1.4;">{{ _id | join(' · ') }}</p>
+            {%- endif %}
+
+            {# ── Setup block ── #}
+            {%- if home_eq and (home_eq.brand or home_eq.model) -%}
+                {%- set _eq = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}
+            {%- else -%}
+                {%- set _eq = '' -%}
+            {%- endif %}
+            <a href="{{ url_for('settings_equipment') }}" style="display: block; text-decoration: none; margin-bottom: 20px;">
+                <p style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--bl-color-text-muted); margin: 0 0 3px 0;">Setup</p>
+                {%- if _eq %}
+                <p style="font-size: 14px; color: var(--bl-color-text); margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ _eq }}</p>
+                {%- else %}
+                <p style="font-size: 14px; color: var(--bl-color-primary); text-decoration: underline; text-underline-offset: 2px; margin: 0;">Add your setup</p>
+                {%- endif %}
+            </a>
+
             {% include 'components/stat_row.html' %}
 
             <p class="home-section-label">Next Up</p>
@@ -420,6 +445,31 @@
             {# ────────────────────────────────────────────────── #}
 
             <h1 class="home-welcome" style="margin-bottom: 4px;">Welcome, {{ user.first_name | format_name }}.</h1>
+
+            {# ── Identity line ── #}
+            {%- set _id = [] -%}
+            {%- set _rt = (user.rider_types[0] if user.rider_types else none) or user.primary_rider_type or user.rider_type -%}
+            {%- if _rt %}{% set _rt_d = 'Skier' if _rt == 'Both' else _rt %}{% set _ = _id.append(_rt_d) %}{% endif -%}
+            {%- if user.skill_level %}{% set _ = _id.append(user.skill_level) %}{% endif -%}
+            {%- if user.pass_type %}{% set _ = _id.append(user.pass_type | pass_display) %}{% endif -%}
+            {%- if _id %}
+            <p style="font-size: 13px; color: var(--bl-color-text-muted); margin: 0 0 14px 0; line-height: 1.4;">{{ _id | join(' · ') }}</p>
+            {%- endif %}
+
+            {# ── Setup block ── #}
+            {%- if home_eq and (home_eq.brand or home_eq.model) -%}
+                {%- set _eq = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}
+            {%- else -%}
+                {%- set _eq = '' -%}
+            {%- endif %}
+            <a href="{{ url_for('settings_equipment') }}" style="display: block; text-decoration: none; margin-bottom: 20px;">
+                <p style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--bl-color-text-muted); margin: 0 0 3px 0;">Setup</p>
+                {%- if _eq %}
+                <p style="font-size: 14px; color: var(--bl-color-text); margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ _eq }}</p>
+                {%- else %}
+                <p style="font-size: 14px; color: var(--bl-color-primary); text-decoration: underline; text-underline-offset: 2px; margin: 0;">Add your setup</p>
+                {%- endif %}
+            </a>
 
             {% include 'components/stat_row.html' %}
 
