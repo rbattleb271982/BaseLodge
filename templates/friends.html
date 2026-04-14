@@ -326,6 +326,8 @@
                                 {%- if friend.last_name %} {{ friend.last_name | format_name }}{% endif -%}
                             </p>
                             {%- set _meta = [] -%}
+                            {%- set _rider = friend.primary_rider_type or (friend.rider_types[0] if friend.rider_types else none) or friend.rider_type -%}
+                            {%- if _rider %}{% set _rider_display = 'Skier' if _rider == 'Both' else (_rider | title) %}{% set _ = _meta.append(_rider_display) %}{% endif -%}
                             {%- if friend.skill_level %}{% set _ = _meta.append(friend.skill_level | title) %}{% endif -%}
                             {%- if friend.pass_type %}{% set _ = _meta.append(friend.pass_type) %}{% endif -%}
                             {%- if _meta %}
