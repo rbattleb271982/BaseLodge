@@ -332,25 +332,34 @@
 
             {# ── Identity line ── #}
             {%- set _id = [] -%}
-            {%- set _rt = (user.rider_types[0] if user.rider_types else none) or user.primary_rider_type or user.rider_type -%}
-            {%- if _rt %}{% set _rt_d = 'Skier' if _rt == 'Both' else _rt %}{% set _ = _id.append(_rt_d) %}{% endif -%}
+            {%- set _rt = user.display_rider_type -%}
+            {%- if _rt %}{% set _ = _id.append(_rt) %}{% endif -%}
             {%- if user.skill_level %}{% set _ = _id.append(user.skill_level) %}{% endif -%}
             {%- if user.pass_type %}{% set _ = _id.append(user.pass_type | pass_display) %}{% endif -%}
             {%- if _id %}
             <p style="font-size: 13px; color: var(--bl-color-text-muted); margin: 0 0 14px 0; line-height: 1.4;">{{ _id | join(' · ') }}</p>
             {%- endif %}
 
-            {# ── Setup block ── #}
-            {%- if home_eq and (home_eq.brand or home_eq.model) -%}
-                {%- set _eq = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}
-            {%- else -%}
-                {%- set _eq = '' -%}
-            {%- endif %}
+            {# ── Equipment block ── #}
+            {%- set _has_gear = home_eq and (home_eq.brand or home_eq.model) -%}
+            {%- set _has_boots = home_eq and (home_eq.boot_brand or home_eq.boot_model) -%}
             <a href="{{ url_for('settings_equipment') }}" style="display: block; text-decoration: none; margin-bottom: 20px;">
-                <p style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--bl-color-text-muted); margin: 0 0 3px 0;">Setup</p>
-                {%- if _eq %}
-                <p style="font-size: 14px; color: var(--bl-color-text); margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ _eq }}</p>
-                {%- else %}
+                {%- if _has_gear %}
+                {%- set _gear_label = 'BOARD' if (home_eq.discipline and home_eq.discipline.value == 'snowboarder') else 'SKIS' %}
+                {%- set _gear_val = ([home_eq.brand, home_eq.model] | select | join(' ')) %}
+                <div style="display: flex; align-items: baseline; margin-bottom: 4px;">
+                    <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--bl-color-text-muted); min-width: 44px; flex-shrink: 0;">{{ _gear_label }}</span>
+                    <span style="font-size: 14px; color: var(--bl-color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ _gear_val }}</span>
+                </div>
+                {%- endif %}
+                {%- if _has_boots %}
+                {%- set _boot_val = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) %}
+                <div style="display: flex; align-items: baseline;">
+                    <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--bl-color-text-muted); min-width: 44px; flex-shrink: 0;">BOOTS</span>
+                    <span style="font-size: 14px; color: var(--bl-color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ _boot_val }}</span>
+                </div>
+                {%- endif %}
+                {%- if not _has_gear and not _has_boots %}
                 <p style="font-size: 14px; color: var(--bl-color-primary); text-decoration: underline; text-underline-offset: 2px; margin: 0;">Add your setup</p>
                 {%- endif %}
             </a>
@@ -448,25 +457,34 @@
 
             {# ── Identity line ── #}
             {%- set _id = [] -%}
-            {%- set _rt = (user.rider_types[0] if user.rider_types else none) or user.primary_rider_type or user.rider_type -%}
-            {%- if _rt %}{% set _rt_d = 'Skier' if _rt == 'Both' else _rt %}{% set _ = _id.append(_rt_d) %}{% endif -%}
+            {%- set _rt = user.display_rider_type -%}
+            {%- if _rt %}{% set _ = _id.append(_rt) %}{% endif -%}
             {%- if user.skill_level %}{% set _ = _id.append(user.skill_level) %}{% endif -%}
             {%- if user.pass_type %}{% set _ = _id.append(user.pass_type | pass_display) %}{% endif -%}
             {%- if _id %}
             <p style="font-size: 13px; color: var(--bl-color-text-muted); margin: 0 0 14px 0; line-height: 1.4;">{{ _id | join(' · ') }}</p>
             {%- endif %}
 
-            {# ── Setup block ── #}
-            {%- if home_eq and (home_eq.brand or home_eq.model) -%}
-                {%- set _eq = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}
-            {%- else -%}
-                {%- set _eq = '' -%}
-            {%- endif %}
+            {# ── Equipment block ── #}
+            {%- set _has_gear = home_eq and (home_eq.brand or home_eq.model) -%}
+            {%- set _has_boots = home_eq and (home_eq.boot_brand or home_eq.boot_model) -%}
             <a href="{{ url_for('settings_equipment') }}" style="display: block; text-decoration: none; margin-bottom: 20px;">
-                <p style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--bl-color-text-muted); margin: 0 0 3px 0;">Setup</p>
-                {%- if _eq %}
-                <p style="font-size: 14px; color: var(--bl-color-text); margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ _eq }}</p>
-                {%- else %}
+                {%- if _has_gear %}
+                {%- set _gear_label = 'BOARD' if (home_eq.discipline and home_eq.discipline.value == 'snowboarder') else 'SKIS' %}
+                {%- set _gear_val = ([home_eq.brand, home_eq.model] | select | join(' ')) %}
+                <div style="display: flex; align-items: baseline; margin-bottom: 4px;">
+                    <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--bl-color-text-muted); min-width: 44px; flex-shrink: 0;">{{ _gear_label }}</span>
+                    <span style="font-size: 14px; color: var(--bl-color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ _gear_val }}</span>
+                </div>
+                {%- endif %}
+                {%- if _has_boots %}
+                {%- set _boot_val = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) %}
+                <div style="display: flex; align-items: baseline;">
+                    <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--bl-color-text-muted); min-width: 44px; flex-shrink: 0;">BOOTS</span>
+                    <span style="font-size: 14px; color: var(--bl-color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ _boot_val }}</span>
+                </div>
+                {%- endif %}
+                {%- if not _has_gear and not _has_boots %}
                 <p style="font-size: 14px; color: var(--bl-color-primary); text-decoration: underline; text-underline-offset: 2px; margin: 0;">Add your setup</p>
                 {%- endif %}
             </a>
