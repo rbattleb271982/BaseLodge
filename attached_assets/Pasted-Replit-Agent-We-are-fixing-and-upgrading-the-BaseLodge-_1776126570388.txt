@@ -1,0 +1,198 @@
+Replit Agent
+
+We are fixing and upgrading the BaseLodge “Add Trip” flow.
+
+This is NOT just a bug fix — this is a combined:
+- interaction fix
+- design system alignment
+- component standardization
+
+You must implement BOTH behavior and visual consistency based on the existing Home screen design language.
+
+Use checkpoints sparingly.
+
+---
+
+CORE GOAL
+
+Create a reusable, mobile-first calendar component and redesign the Add Trip flow so it matches the premium editorial style of the Home screen.
+
+---
+
+PART 1 — CALENDAR BEHAVIOR (REQUIRED)
+
+Fix and implement a stable range-selection calendar.
+
+Rules:
+
+- First tap sets start date
+- Second tap sets end date
+- Tapping the same date twice creates a valid single-day trip
+- If full range exists, tapping a new date starts a new range
+- If second tap is earlier than start, auto-correct order
+
+VALID STATES:
+- No selection
+- Start selected (waiting for end)
+- Full range
+- Single-day trip
+
+Continue button:
+- Disabled until valid selection exists
+- Enabled for:
+  - single-day
+  - full range
+
+Remove hover-based logic (mobile-first).
+
+---
+
+CRITICAL TECHNICAL FIX
+
+- DO NOT rebuild the calendar DOM on hover or click
+- Render the grid ONCE
+- Only update classes/styles on interaction
+
+This is required to prevent broken click behavior.
+
+---
+
+PART 2 — CALENDAR VISUAL DESIGN
+
+Match the design language from the Home screen.
+
+Implement:
+
+COLORS
+- Background: warm cream
+- Card: white with soft border
+- Primary color: deep burgundy
+- In-range: light burgundy tint
+
+DAY STATES
+
+- Default: clean text, no background
+- Past: faded, disabled
+- Start / End:
+  - filled burgundy circle
+  - white text
+- In-range:
+  - soft tinted background spanning across row
+- Single-day:
+  - one filled circle only
+
+RANGE SUMMARY (REQUIRED under calendar)
+
+Show dynamic text:
+
+- No selection → “Select your trip dates”
+- Start only → “Apr 21 — pick end date”
+- Single day → “Apr 21 · day trip”
+- Range → “Apr 21–25”
+
+Include:
+- Clear button (resets selection)
+
+---
+
+PART 3 — ADD TRIP FLOW (REDESIGN)
+
+Convert Add Trip into a 3-step flow.
+
+DO NOT use a long form.
+
+---
+
+STEP 1 — WHERE
+
+- Title (serif): “Where are you going?”
+- Subhead: “Search any mountain. We’ll handle the rest.”
+
+- Search-first input
+- Autocomplete results
+- No country/state dropdowns
+
+- Selected mountain shows as a card with checkmark
+
+- Continue disabled until selection
+
+---
+
+STEP 2 — WHEN
+
+- Title: “When?”
+- Subhead: “Tap your start day, then your end day.”
+
+- Use the calendar component above
+- Show range summary card
+- Continue disabled until valid selection
+
+---
+
+STEP 3 — VISIBILITY
+
+- Title: “Who can see it?”
+
+- Show trip summary:
+  - mountain
+  - dates
+
+- Toggle:
+  “Make this trip visible to friends”
+
+- Primary button: “Save trip”
+
+---
+
+PART 4 — DESIGN SYSTEM RULES
+
+Enforce across all updated screens:
+
+TYPOGRAPHY
+- Serif for main titles
+- Sans-serif for everything else
+
+BUTTONS
+
+Primary:
+- filled burgundy
+- full width
+
+Secondary:
+- outlined burgundy
+
+Tertiary:
+- text only (Cancel)
+
+SPACING
+
+Use consistent spacing:
+- 24px section spacing
+- 16–20px card padding
+- consistent vertical rhythm
+
+CARDS
+
+- white background
+- soft border
+- rounded corners
+- no harsh shadows
+
+---
+
+PART 5 — DELIVERABLES
+
+1. Updated calendar component
+2. Updated Add Trip flow (3 steps)
+3. Clean reusable structure
+4. Short explanation of what changed
+5. Manual test steps
+
+---
+
+IMPORTANT
+
+- Do not introduce random new styles
+- Match the Home screen tone and feel
+- Keep everything mobile-first
+- Do not over-engineer — keep it clean

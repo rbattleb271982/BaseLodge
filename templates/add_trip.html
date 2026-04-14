@@ -3,1031 +3,967 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if trip %}Edit Trip{% else %}Add Trip{% endif %} - BaseLodge</title>
+    <title>Add Trip - BaseLodge</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        .page-container {
-            padding: var(--bl-space-4);
-            padding-bottom: 100px;
+        body { background: #F5F1E8; }
+
+        .at-container {
+            padding: 20px 20px 100px;
             max-width: 500px;
             margin: 0 auto;
         }
 
-        .back-link {
+        /* ── Back link ── */
+        .at-back {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            color: var(--bl-color-text-muted);
+            gap: 5px;
+            color: #6B665A;
             text-decoration: none;
             font-size: 14px;
-            margin-bottom: var(--bl-space-4);
+            margin-bottom: 28px;
         }
 
-        .page-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: var(--bl-color-text);
-            margin: 0 0 var(--bl-space-5) 0;
-        }
-
-        .form-card {
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-lg);
-            padding: var(--bl-space-4);
-            margin-bottom: var(--bl-space-4);
-        }
-
-        .form-group {
-            margin-bottom: var(--bl-space-4);
-        }
-
-        .form-group:last-child {
-            margin-bottom: 0;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--bl-color-text);
-            margin-bottom: var(--bl-space-2);
-        }
-
-        .form-group input[type="text"] {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-md);
-            font-size: 16px;
-            background: var(--bl-color-background);
-            color: var(--bl-color-text);
-        }
-
-        .form-group select {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-md);
-            font-size: 16px;
-            background: var(--bl-color-background);
-            color: var(--bl-color-text);
-            appearance: auto;
-            -webkit-appearance: menulist;
-        }
-
-        .geography-section {
-            padding: var(--bl-space-4);
-            margin-bottom: var(--bl-space-4);
-        }
-
-        .geography-section .form-group {
-            margin-bottom: var(--bl-space-4);
-        }
-
-        .geography-section .form-group:last-child {
-            margin-bottom: 0;
-        }
-
-        .resort-search-wrapper {
+        /* ── Progress dots ── */
+        .at-progress {
             display: flex;
-            flex-direction: column;
-            gap: 8px;
+            align-items: center;
+            margin-bottom: 36px;
+        }
+        .at-prog-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #D9D2BF;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+        .at-prog-dot.active { background: #5C1219; }
+        .at-prog-dot.done { background: #5C1219; opacity: 0.35; }
+        .at-prog-line {
+            flex: 1;
+            height: 1px;
+            background: #D9D2BF;
+            margin: 0 6px;
         }
 
-        .resort-search {
+        /* ── Step panels ── */
+        .at-step-panel { display: none; }
+        .at-step-panel.active { display: block; }
+
+        /* ── Typography ── */
+        .at-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            color: #5C1219;
+            margin: 0 0 10px;
+        }
+        .at-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 26px;
+            color: #1A1A1A;
+            margin: 0 0 8px;
+            line-height: 1.2;
+        }
+        .at-subhead {
+            font-size: 15px;
+            color: #6B665A;
+            margin: 0 0 28px;
+            line-height: 1.45;
+        }
+
+        /* ── Buttons ── */
+        .at-btn-primary {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: #5C1219;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+            text-align: center;
+            text-decoration: none;
+            box-sizing: border-box;
+        }
+        .at-btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+        .at-btn-secondary {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            background: transparent;
+            color: #5C1219;
+            border: 1.5px solid #5C1219;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .at-btn-tertiary {
+            display: block;
             width: 100%;
             padding: 12px;
-            border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-md);
+            background: none;
+            border: none;
+            color: #8A857A;
+            font-size: 15px;
+            cursor: pointer;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        /* ── Mountain search ── */
+        .at-search-input {
+            width: 100%;
+            padding: 14px 16px;
             font-size: 16px;
-            background: var(--bl-color-background);
-            color: var(--bl-color-text);
+            border: 1.5px solid #E5DFD0;
+            border-radius: 10px;
+            background: #FFFFFF;
+            color: #1A1A1A;
+            box-sizing: border-box;
+            outline: none;
         }
+        .at-search-input:focus { border-color: #5C1219; }
 
-        .calendar-container {
-            background: var(--bl-color-background);
-            border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-md);
-            padding: var(--bl-space-3);
+        .at-search-results {
+            background: #FFFFFF;
+            border: 1px solid #E5DFD0;
+            border-radius: 10px;
+            margin-top: 6px;
+            overflow: hidden;
+            max-height: 260px;
+            overflow-y: auto;
+            display: none;
         }
-
-        .calendar-header {
+        .at-search-results.visible { display: block; }
+        .at-result-item {
+            padding: 13px 16px;
+            font-size: 15px;
+            color: #1A1A1A;
+            cursor: pointer;
+            border-bottom: 1px solid #F0EDE6;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: var(--bl-space-3);
+            gap: 8px;
+        }
+        .at-result-item:last-child { border-bottom: none; }
+        .at-result-item:active { background: #F5F1E8; }
+        .at-result-item.no-match { color: #8A857A; cursor: default; }
+        .at-result-meta { font-size: 13px; color: #8A857A; white-space: nowrap; flex-shrink: 0; }
+
+        /* ── Selected mountain card ── */
+        .at-selected-card {
+            background: #FFFFFF;
+            border: 1.5px solid #5C1219;
+            border-radius: 10px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .at-selected-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1A1A1A;
+        }
+        .at-selected-meta {
+            font-size: 13px;
+            color: #6B665A;
+            margin-top: 3px;
+        }
+        .at-checkmark {
+            width: 24px;
+            height: 24px;
+            background: #5C1219;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: white;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .at-change-link {
+            display: inline-block;
+            margin-top: 10px;
+            font-size: 13px;
+            color: #5C1219;
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 2px;
         }
 
-        .calendar-header button {
+        /* ── Calendar ── */
+        .at-cal-card {
+            background: #FFFFFF;
+            border: 1px solid #E5DFD0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .at-cal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            border-bottom: 1px solid #F0EDE6;
+        }
+        .at-cal-nav {
             background: none;
             border: none;
-            font-size: 18px;
-            color: var(--bl-color-text);
+            font-size: 22px;
+            color: #1A1A1A;
             cursor: pointer;
-            padding: 8px 12px;
+            padding: 0 4px;
+            line-height: 1;
         }
-
-        .calendar-header button:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
-
-        .calendar-month-year {
+        .at-cal-nav:disabled { opacity: 0.2; cursor: not-allowed; }
+        .at-cal-month {
+            font-size: 15px;
             font-weight: 600;
-            font-size: 16px;
-            color: var(--bl-color-text);
+            color: #1A1A1A;
         }
-
-        .calendar-weekdays {
+        .at-cal-weekdays {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
+            padding: 10px 8px 4px;
+        }
+        .at-cal-wd {
             text-align: center;
-            margin-bottom: var(--bl-space-2);
+            font-size: 11px;
+            font-weight: 700;
+            color: #8A857A;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
-
-        .calendar-weekday {
-            font-size: 12px;
-            color: var(--bl-color-text-muted);
-            padding: 4px;
-        }
-
-        .calendar-days {
+        .at-cal-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 0;
+            padding: 4px 8px 14px;
         }
 
-        .calendar-day {
+        /* ── Day cells ── */
+        .at-day {
+            position: relative;
             aspect-ratio: 1;
             border: none;
             background: none;
             font-size: 14px;
             cursor: pointer;
-            border-radius: 0;
-            color: var(--bl-color-text);
-        }
-
-        .calendar-day:hover:not(:disabled):not(.selected-start):not(.selected-end):not(.in-range) {
-            background: var(--bl-color-surface);
-            border-radius: 50%;
-        }
-
-        .calendar-day.disabled {
-            color: var(--bl-color-text-muted);
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .calendar-day.today:not(.selected-start):not(.selected-end):not(.in-range) {
-            font-weight: 600;
-            box-shadow: inset 0 0 0 1px var(--bl-color-primary);
-            border-radius: 50%;
-        }
-
-        .calendar-day.selected-start,
-        .calendar-day.selected-end {
-            background: var(--bl-color-primary);
-            color: white;
-            font-weight: 600;
-        }
-
-        .calendar-day.selected-start {
-            border-radius: 50% 0 0 50%;
-        }
-
-        .calendar-day.selected-end {
-            border-radius: 0 50% 50% 0;
-        }
-
-        .calendar-day.selected-start.selected-end {
-            border-radius: 50%;
-        }
-
-        .calendar-day.in-range {
-            background: rgba(143, 1, 27, 0.25);
-            color: var(--bl-color-text);
-            border-radius: 0;
-        }
-
-        .calendar-day.other-month {
-            visibility: hidden;
-        }
-
-        .date-range-helper {
-            margin-top: var(--bl-space-2);
-            text-align: center;
-            font-size: 14px;
-            color: var(--bl-color-text);
-            display: none;
-        }
-
-        .date-range-helper.visible {
-            display: block;
-        }
-
-        .inline-error {
-            color: #dc3545;
-            font-size: 13px;
-            margin-top: var(--bl-space-2);
-            display: none;
-        }
-
-        .inline-error.visible {
-            display: block;
-        }
-
-        .toggle-group {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .toggle-label {
+            color: #1A1A1A;
             display: flex;
             align-items: center;
-            gap: 12px;
-            cursor: pointer;
+            justify-content: center;
+            padding: 0;
+            border-radius: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .at-day span { position: relative; z-index: 2; }
+        .at-day.other-month { visibility: hidden; pointer-events: none; }
+        .at-day.past { color: #C9C3B8; cursor: not-allowed; pointer-events: none; }
+
+        /* today dot indicator */
+        .at-day.is-today:not(.sel-start):not(.sel-end) span::after {
+            content: '';
+            display: block;
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 4px;
+            background: #5C1219;
+            border-radius: 50%;
         }
 
-        .toggle-label input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            accent-color: var(--bl-color-primary);
+        /* In-range tint spans full width */
+        .at-day.in-range::before {
+            content: '';
+            position: absolute;
+            top: 3px;
+            bottom: 3px;
+            left: 0;
+            right: 0;
+            background: rgba(92, 18, 25, 0.09);
+            z-index: 0;
         }
 
-        .helper-text {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-            margin: 0;
-            padding-left: 32px;
+        /* Start/end: right-half tint extends range colour into the circle's column */
+        .at-day.sel-start.has-range::before {
+            content: '';
+            position: absolute;
+            top: 3px;
+            bottom: 3px;
+            left: 50%;
+            right: 0;
+            background: rgba(92, 18, 25, 0.09);
+            z-index: 0;
+        }
+        .at-day.sel-end.has-range::before {
+            content: '';
+            position: absolute;
+            top: 3px;
+            bottom: 3px;
+            left: 0;
+            right: 50%;
+            background: rgba(92, 18, 25, 0.09);
+            z-index: 0;
         }
 
-        .primary-button {
-            width: 100%;
-            padding: 14px;
-            background: var(--bl-color-primary);
-            color: white;
-            border: none;
-            border-radius: var(--bl-radius-md);
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
+        /* Filled circle for start/end */
+        .at-day.sel-start::after,
+        .at-day.sel-end::after {
+            content: '';
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            background: #5C1219;
+            border-radius: 50%;
+            z-index: 1;
         }
+        .at-day.sel-start span,
+        .at-day.sel-end span { color: white; font-weight: 600; }
 
-        .delete-section {
-            margin-top: var(--bl-space-5);
-            text-align: center;
+        /* ── Range summary row ── */
+        .at-range-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            padding: 12px 16px;
+            background: #FFFFFF;
+            border: 1px solid #E5DFD0;
+            border-radius: 10px;
         }
-
-        .delete-button {
+        .at-range-label { font-size: 14px; color: #1A1A1A; }
+        .at-clear-btn {
             background: none;
             border: none;
-            color: #dc3545;
-            font-size: 14px;
+            font-size: 13px;
+            color: #5C1219;
             cursor: pointer;
-            padding: 12px;
+            padding: 0;
+            text-decoration: underline;
+            text-underline-offset: 2px;
         }
 
-        .delete-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-            padding: var(--bl-space-4);
+        /* ── Trip summary card (step 3) ── */
+        .at-summary-card {
+            background: #F0DDD8;
+            border: 0.5px solid #5C1219;
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
         }
-
-        .delete-modal.visible {
-            display: flex;
-        }
-
-        .delete-modal-content {
-            background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-lg);
-            padding: var(--bl-space-5);
-            max-width: 320px;
-            width: 100%;
-            text-align: center;
-        }
-
-        .delete-modal-title {
-            font-size: 18px;
+        .at-summary-mountain {
+            font-size: 17px;
             font-weight: 600;
-            margin: 0 0 8px 0;
-            color: var(--bl-color-text);
+            color: #1A1A1A;
+            margin: 0 0 4px;
         }
-
-        .delete-modal-text {
+        .at-summary-dates {
             font-size: 14px;
-            color: var(--bl-color-text-muted);
-            margin: 0 0 var(--bl-space-4) 0;
+            color: #6B665A;
+            margin: 0;
         }
 
-        .delete-modal-actions {
+        /* ── Visibility toggle ── */
+        .at-visibility {
+            background: #FFFFFF;
+            border: 1px solid #E5DFD0;
+            border-radius: 10px;
+            padding: 16px 18px;
+            margin-bottom: 8px;
+        }
+        .at-vis-label {
             display: flex;
-            gap: 12px;
-        }
-
-        .delete-modal-cancel {
-            flex: 1;
-            padding: 12px;
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-md);
-            cursor: pointer;
-            color: var(--bl-color-text);
-        }
-
-        .delete-modal-confirm {
-            flex: 1;
-            padding: 12px;
-            background: #dc3545;
-            color: white;
-            border: none;
-            border-radius: var(--bl-radius-md);
-            cursor: pointer;
-        }
-
-        .overlap-modal {
-            display: flex;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
             align-items: center;
-            justify-content: center;
-            padding: var(--bl-space-4);
-        }
-
-        .overlap-modal-content {
-            background: var(--bl-color-surface);
-            border-radius: var(--bl-radius-lg);
-            padding: var(--bl-space-5);
-            max-width: 320px;
-            width: 100%;
-        }
-
-        .overlap-modal-text {
+            gap: 12px;
+            cursor: pointer;
             font-size: 15px;
-            color: var(--bl-color-text);
-            margin: 0 0 var(--bl-space-4) 0;
+            color: #1A1A1A;
+        }
+        .at-vis-label input[type=checkbox] {
+            width: 20px;
+            height: 20px;
+            accent-color: #5C1219;
+            flex-shrink: 0;
+        }
+        .at-vis-hint {
+            font-size: 13px;
+            color: #6B665A;
+            margin: 7px 0 0 32px;
+        }
+
+        /* ── Proposal banner ── */
+        .at-proposal-banner {
+            background: rgba(92, 18, 25, 0.07);
+            border: 1px solid rgba(92, 18, 25, 0.18);
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #1A1A1A;
             line-height: 1.5;
         }
 
-        .overlap-modal-actions {
+        /* ── Overlap modal ── */
+        .at-overlap-modal {
             display: flex;
-            gap: 12px;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
-
-        .proposal-banner {
-            background: rgba(143, 1, 27, 0.08);
-            border: 1px solid rgba(143, 1, 27, 0.2);
-            border-radius: var(--bl-radius-md);
-            padding: var(--bl-space-4);
-            margin-bottom: var(--bl-space-5);
+        .at-overlap-content {
+            background: #FFFFFF;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 320px;
+            width: 100%;
+        }
+        .at-overlap-title {
+            font-family: Georgia, serif;
+            font-size: 18px;
+            color: #1A1A1A;
+            margin: 0 0 10px;
+        }
+        .at-overlap-text {
+            font-size: 15px;
+            color: #6B665A;
+            margin: 0 0 20px;
+            line-height: 1.5;
+        }
+        .at-overlap-actions { display: flex; gap: 10px; }
+        .at-overlap-actions .at-btn-primary,
+        .at-overlap-actions .at-btn-secondary {
+            flex: 1;
+            margin-top: 0;
         }
     </style>
 </head>
 <body>
-    <div class="page-container">
-        <a href="{{ url_for('home') }}" class="back-link">&larr; Back</a>
-        <h1 class="page-title">{% if trip %}Edit Trip{% else %}Add Trip{% endif %}</h1>
-        
+    <div class="at-container">
+
+        <!-- Back -->
+        <a href="{{ url_for('home') }}" class="at-back">&#8592; Back</a>
+
+        <!-- Progress indicator -->
+        <div class="at-progress">
+            <div class="at-prog-dot active" id="dot-1"></div>
+            <div class="at-prog-line"></div>
+            <div class="at-prog-dot" id="dot-2"></div>
+            <div class="at-prog-line"></div>
+            <div class="at-prog-dot" id="dot-3"></div>
+        </div>
+
+        <!-- Overlap modal (shown when server detects overlapping trip) -->
         {% if overlap_trip %}
-        <div class="overlap-modal" id="overlap-modal">
-            <div class="overlap-modal-content">
-                <p class="overlap-modal-text">You already have a trip to {{ overlap_resort_name }} that overlaps these dates. Want to update that trip instead?</p>
-                <div class="overlap-modal-actions">
-                    <a href="{{ url_for('edit_trip_form', trip_id=overlap_trip.id) }}" class="bl-btn-primary" style="flex: 1; text-align: center; text-decoration: none;">Edit existing trip</a>
-                    <button type="button" onclick="closeOverlapModal()" class="bl-btn-secondary" style="flex: 1;">Cancel</button>
+        <div class="at-overlap-modal" id="overlap-modal">
+            <div class="at-overlap-content">
+                <h3 class="at-overlap-title">Already planning this?</h3>
+                <p class="at-overlap-text">You already have a trip to {{ overlap_resort_name }} that overlaps these dates. Want to update that trip instead?</p>
+                <div class="at-overlap-actions">
+                    <a href="{{ url_for('edit_trip_form', trip_id=overlap_trip.id) }}" class="at-btn-primary">Edit existing</a>
+                    <button type="button" onclick="document.getElementById('overlap-modal').style.display='none'" class="at-btn-secondary">Cancel</button>
                 </div>
             </div>
         </div>
         {% endif %}
-        
+
+        <!-- Proposal banner -->
         {% if prefill_friend and is_group %}
-        <div class="proposal-banner">
-            <p style="margin: 0; font-size: 14px; color: var(--bl-color-text);">
-                <strong>Proposing a trip with {{ prefill_friend.first_name | format_name }}</strong><br>
-                <span style="color: var(--bl-color-text-muted);">They'll receive an invite when you save this trip.</span>
-            </p>
+        <div class="at-proposal-banner">
+            <strong>Proposing a trip with {{ prefill_friend.first_name | format_name }}</strong><br>
+            <span style="color:#6B665A;">They'll receive an invite when you save this trip.</span>
         </div>
         {% endif %}
 
+        <!-- Single form — hidden fields updated by JS; steps control what's visible -->
         <form method="POST" action="{{ form_action }}" id="trip-form">
+            <input type="hidden" name="resort_id" id="resort_id_input" value="">
+            <input type="hidden" name="start_date" id="start_date_input" value="{{ prefill_start_date or '' }}">
+            <input type="hidden" name="end_date" id="end_date_input" value="{{ prefill_end_date or '' }}">
+            <input type="hidden" name="is_public" id="is_public_input" value="on">
             {% if prefill_friend and is_group %}
             <input type="hidden" name="friend_id" value="{{ prefill_friend.id }}">
             <input type="hidden" name="is_group" value="1">
             {% endif %}
-            
-            <div class="geography-section">
-                <h3 style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">Trip Overview</h3>
-                
-                <div class="form-group">
-                    <label for="country">Country</label>
-                    <select id="country" name="country" required>
-                        <option value="" disabled selected hidden>Choose country</option>
-                        {% set sorted_countries = [] %}
-                        {% for code, name in COUNTRIES.items() %}
-                            {% if code == 'US' %}
-                                {% set _ = sorted_countries.insert(0, (code, name)) %}
-                            {% else %}
-                                {% set _ = sorted_countries.append((code, name)) %}
-                            {% endif %}
-                        {% endfor %}
-                        
-                        {# Custom sort for non-US countries #}
-                        {% set us_country = sorted_countries[0] if sorted_countries[0][0] == 'US' else none %}
-                        {% set other_countries = sorted_countries[1:] if us_country else sorted_countries %}
-                        {% set other_countries_sorted = other_countries|sort(attribute=1) %}
-                        
-                        {% if us_country %}
-                            <option value="{{ us_country[0] }}">{{ us_country[1] }}</option>
-                        {% endif %}
-                        {% for code, name in other_countries_sorted %}
-                            <option value="{{ code }}">{{ name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
 
-                <div class="form-group">
-                    <label for="state">State / Region</label>
-                    <select id="state" name="state" required>
-                        <option value="">Select a country first</option>
-                    </select>
-                </div>
+            <!-- ═══════════════════════════════════════════════════ -->
+            <!-- STEP 1 — WHERE                                      -->
+            <!-- ═══════════════════════════════════════════════════ -->
+            <div class="at-step-panel active" id="step-1">
+                <p class="at-eyebrow">Step 1 of 3</p>
+                <h1 class="at-title">Where are you going?</h1>
+                <p class="at-subhead">Search any mountain. We'll handle the rest.</p>
 
-                <div class="form-group">
-                    <label for="resort_id">Mountain</label>
-                    <div class="resort-search-wrapper">
-                        <input type="text" id="resort_search" class="resort-search" placeholder="Search resorts..." disabled>
-                        <select id="resort_id" name="resort_id" required>
-                            <option value="">Select a state first</option>
-                        </select>
+                <input
+                    type="text"
+                    class="at-search-input"
+                    id="mountain-search"
+                    placeholder="Search mountains&#8230;"
+                    autocomplete="off"
+                    spellcheck="false"
+                >
+                <div class="at-search-results" id="search-results"></div>
+
+                <div id="selected-mountain-wrap" style="display:none; margin-top:10px;">
+                    <div class="at-selected-card">
+                        <div>
+                            <div class="at-selected-name" id="sel-name"></div>
+                            <div class="at-selected-meta" id="sel-meta"></div>
+                        </div>
+                        <div class="at-checkmark">&#10003;</div>
                     </div>
+                    <span class="at-change-link" onclick="clearMountain()">Change mountain</span>
                 </div>
+
+                <button type="button" class="at-btn-primary" id="step1-continue" disabled onclick="goToStep(2)">Continue</button>
+                <button type="button" class="at-btn-tertiary" onclick="window.location='{{ url_for('home') }}'">Cancel</button>
             </div>
 
-            <div class="form-card">
-                <h3 style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">Dates</h3>
-                <input type="hidden" name="start_date" id="start_date" value="{{ trip.start_date.isoformat() if trip and trip.start_date else (prefill_start_date if prefill_start_date else '') }}" required>
-                <input type="hidden" name="end_date" id="end_date" value="{{ trip.end_date.isoformat() if trip and trip.end_date else (prefill_end_date if prefill_end_date else '') }}" required>
-                
-                <div class="calendar-container" id="date-range-calendar">
-                    <div class="calendar-header">
-                        <button type="button" id="prev-month">&lt;</button>
-                        <div class="calendar-month-year" id="calendar-month-year"></div>
-                        <button type="button" id="next-month">&gt;</button>
+            <!-- ═══════════════════════════════════════════════════ -->
+            <!-- STEP 2 — WHEN                                       -->
+            <!-- ═══════════════════════════════════════════════════ -->
+            <div class="at-step-panel" id="step-2">
+                <p class="at-eyebrow">Step 2 of 3</p>
+                <h1 class="at-title">When?</h1>
+                <p class="at-subhead">Tap your start day, then your end day.</p>
+
+                <div class="at-cal-card">
+                    <div class="at-cal-header">
+                        <button type="button" class="at-cal-nav" id="prev-month">&#8249;</button>
+                        <span class="at-cal-month" id="cal-month-label"></span>
+                        <button type="button" class="at-cal-nav" id="next-month">&#8250;</button>
                     </div>
-                    <div class="calendar-weekdays">
-                        <div class="calendar-weekday">Su</div>
-                        <div class="calendar-weekday">Mo</div>
-                        <div class="calendar-weekday">Tu</div>
-                        <div class="calendar-weekday">We</div>
-                        <div class="calendar-weekday">Th</div>
-                        <div class="calendar-weekday">Fr</div>
-                        <div class="calendar-weekday">Sa</div>
+                    <div class="at-cal-weekdays">
+                        <div class="at-cal-wd">Su</div>
+                        <div class="at-cal-wd">Mo</div>
+                        <div class="at-cal-wd">Tu</div>
+                        <div class="at-cal-wd">We</div>
+                        <div class="at-cal-wd">Th</div>
+                        <div class="at-cal-wd">Fr</div>
+                        <div class="at-cal-wd">Sa</div>
                     </div>
-                    <div class="calendar-days" id="calendar-days"></div>
+                    <div class="at-cal-grid" id="cal-grid"></div>
                 </div>
 
-                <div class="date-range-helper" id="date-range-helper">
-                    <span id="range-text">Select your trip dates</span>
+                <div class="at-range-row">
+                    <span class="at-range-label" id="range-text">Select your trip dates</span>
+                    <button type="button" class="at-clear-btn" id="clear-dates-btn" style="display:none;" onclick="clearDates()">Clear</button>
                 </div>
-                <div class="inline-error" id="date-error">Please select both start and end dates.</div>
+
+                <button type="button" class="at-btn-secondary" onclick="goToStep(1)">Back</button>
+                <button type="button" class="at-btn-primary" id="step2-continue" disabled onclick="goToStep(3)">Continue</button>
             </div>
 
-            <div class="form-card">
-                <h3 style="font-size: 15px; font-weight: 600; color: var(--bl-color-text); margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">Trip Planning</h3>
-                
-                <div class="form-group toggle-group">
-                    {% set public_checked = (trip.is_public if trip is not none else True) %}
-                    <label class="toggle-label">
-                        <input type="checkbox" name="is_public" id="is_public" {% if public_checked %}checked{% endif %}>
-                        <span>Make this trip visible to friends</span>
+            <!-- ═══════════════════════════════════════════════════ -->
+            <!-- STEP 3 — VISIBILITY                                 -->
+            <!-- ═══════════════════════════════════════════════════ -->
+            <div class="at-step-panel" id="step-3">
+                <p class="at-eyebrow">Step 3 of 3</p>
+                <h1 class="at-title">Who can see it?</h1>
+
+                <div class="at-summary-card">
+                    <p class="at-summary-mountain" id="summary-mountain">&#8212;</p>
+                    <p class="at-summary-dates" id="summary-dates">&#8212;</p>
+                </div>
+
+                <div class="at-visibility">
+                    <label class="at-vis-label">
+                        <input type="checkbox" id="visibility-toggle" checked>
+                        Make this trip visible to friends
                     </label>
-                    <p class="helper-text">Only friends can see this trip.</p>
+                    <p class="at-vis-hint">Only friends can see this trip.</p>
                 </div>
-            </div>
 
-            <button type="submit" class="primary-button">{% if trip %}Save changes{% elif prefill_friend and is_group %}Send invite{% else %}Save trip{% endif %}</button>
-        </form>
-        
-        {% if trip %}
-        <div class="delete-section">
-            <button type="button" class="delete-button" onclick="showDeleteModal()">Delete trip</button>
-        </div>
-        
-        <div class="delete-modal" id="delete-modal">
-            <div class="delete-modal-content">
-                <h3 class="delete-modal-title">Delete trip?</h3>
-                <p class="delete-modal-text">This action cannot be undone.</p>
-                <div class="delete-modal-actions">
-                    <button type="button" class="delete-modal-cancel" onclick="hideDeleteModal()">Cancel</button>
-                    <form method="POST" action="{{ url_for('delete_trip_form', trip_id=trip.id) }}" style="flex: 1; margin: 0;">
-                        <button type="submit" class="delete-modal-confirm" style="width: 100%;">Delete</button>
-                    </form>
-                </div>
+                <button type="button" class="at-btn-secondary" onclick="goToStep(2)">Back</button>
+                <button type="submit" class="at-btn-primary">{% if prefill_friend and is_group %}Send invite{% else %}Save trip{% endif %}</button>
             </div>
-        </div>
-        {% endif %}
+        </form>
+
     </div>
 
     {% include 'components/bottom_nav.html' %}
 
     <script>
-        // ===========================================
-        // DATA FROM BACKEND (single source of truth)
-        // ===========================================
-        const resorts = {{ resorts|tojson }};
-        const userPasses = {{ (user_passes or [])|tojson }};
-        const isEditMode = {{ 'true' if trip else 'false' }};
-        
-        
-        // Existing trip data for edit mode
-        const existingTrip = {
-            countryCode: {{ (trip.resort.country_code if trip and trip.resort else (prefill_resort.country_code if prefill_resort else none))|tojson }},
-            stateCode: {{ (trip.resort.state_code if trip and trip.resort else (prefill_resort.state_code if prefill_resort else none))|tojson }},
-            resortId: {{ (trip.resort_id if trip else (prefill_resort.id if prefill_resort else none))|tojson }},
-            startDate: {{ (trip.start_date.isoformat() if trip and trip.start_date else none)|tojson }},
-            endDate: {{ (trip.end_date.isoformat() if trip and trip.end_date else none)|tojson }}
-        };
-        
-        // ===========================================
-        // DISPLAY NAME MAPS (frontend-only labels)
-        // ===========================================
-        const COUNTRY_NAMES = {{ countries_map|tojson if countries_map else '{}' }};
-        
+        // ── Backend data ──────────────────────────────────────────────
+        const RESORTS = {{ resorts|tojson }};
+        const USER_PASSES = {{ (user_passes or [])|tojson }};
         const STATE_NAMES = {{ states_map|tojson if states_map else '{}' }};
-        
-        // ===========================================
-        // DERIVE GEOGRAPHY (States/Resorts from resorts data)
-        // ===========================================
-        function deriveStates(countryCode) {
-            const states = [...new Set(
-                resorts
-                    .filter(r => r.country_code === countryCode)
-                    .map(r => r.state_code)
-            )].filter(Boolean);
-            // Sort alphabetically by display name
-            states.sort((a, b) => {
-                return (STATE_NAMES[a] || a).localeCompare(STATE_NAMES[b] || b);
-            });
-            return states;
-        }
-        
-        function deriveResorts(countryCode, stateCode) {
-            return resorts
-                .filter(r => r.country_code === countryCode && r.state_code === stateCode)
-                .sort((a, b) => {
-                    // Sort pass-compatible resorts first
-                    const aCompat = isPassCompatible(a) ? 0 : 1;
-                    const bCompat = isPassCompatible(b) ? 0 : 1;
-                    if (aCompat !== bCompat) return aCompat - bCompat;
-                    return a.name.localeCompare(b.name);
-                });
-        }
-        
-        function deriveAllResortsForCountry(countryCode) {
-            return resorts
-                .filter(r => r.country_code === countryCode)
-                .sort((a, b) => {
-                    const aCompat = isPassCompatible(a) ? 0 : 1;
-                    const bCompat = isPassCompatible(b) ? 0 : 1;
-                    if (aCompat !== bCompat) return aCompat - bCompat;
-                    return a.name.localeCompare(b.name);
-                });
-        }
-        
-        const COUNTRIES_WITHOUT_STATE_SELECTOR = ['FR'];
-        
-        function isPassCompatible(resort) {
-            if (!userPasses || userPasses.length === 0) return false;
-            const resortBrands = (resort.pass_brands || '').split(',').map(b => b.trim().toLowerCase());
-            return userPasses.some(p => resortBrands.includes(p.toLowerCase()));
-        }
-        
-        // ===========================================
-        // DOM ELEMENTS
-        // ===========================================
-        const countrySelect = document.getElementById('country');
-        const stateSelect = document.getElementById('state');
-        const resortSelect = document.getElementById('resort_id');
-        const resortSearchInput = document.getElementById('resort_search');
-        const startDateInput = document.getElementById('start_date');
-        const endDateInput = document.getElementById('end_date');
-        const form = document.getElementById('trip-form');
-        const dateRangeHelper = document.getElementById('date-range-helper');
-        const rangeText = document.getElementById('range-text');
-        const dateError = document.getElementById('date-error');
-        
-        // ===========================================
-        // POPULATE DROPDOWNS
-        // ===========================================
-        
-        // ⚠️ CONTRACT LOCK: Do not derive countries from resorts. This will break Add Trip.
-        // Countries are now server-rendered via Jinja from the COUNTRIES mapping.
-        // This JS function is disabled to prevent overwriting server-rendered options.
-        /*
-        function populateCountries() {
-            // ... (disabled)
-        }
-        */
-        
-        // JS only responds to change events to populate State and Resort
-        function populateStates(countryCode) {
-            const states = deriveStates(countryCode);
-            stateSelect.innerHTML = '<option value="">Choose a state...</option>';
-            states.forEach(code => {
-                const option = document.createElement('option');
-                option.value = code;
-                option.textContent = STATE_NAMES[code] || code;
-                stateSelect.appendChild(option);
-            });
-            stateSelect.disabled = states.length === 0;
-            
-            // Clear resort dropdown
-            resortSelect.innerHTML = '<option value="">Select a state first</option>';
-            resortSelect.disabled = true;
-            resortSearchInput.disabled = true;
-            resortSearchInput.value = '';
-        }
-        
-        function populateResorts(countryCode, stateCode) {
-            const filteredResorts = deriveResorts(countryCode, stateCode);
-            resortSelect.innerHTML = '<option value="">Select a resort</option>';
-            filteredResorts.forEach(r => {
-                const option = document.createElement('option');
-                option.value = r.id;
-                option.textContent = r.name + (isPassCompatible(r) ? ' ✓' : '');
-                option.dataset.search = r.name.toLowerCase();
-                resortSelect.appendChild(option);
-            });
-            resortSelect.disabled = filteredResorts.length === 0;
-            resortSearchInput.disabled = filteredResorts.length === 0;
-        }
-        
-        function populateResortsForCountry(countryCode) {
-            const filteredResorts = deriveAllResortsForCountry(countryCode);
-            resortSelect.innerHTML = '<option value="">Select a resort</option>';
-            filteredResorts.forEach(r => {
-                const option = document.createElement('option');
-                option.value = r.id;
-                option.textContent = r.name + (isPassCompatible(r) ? ' ✓' : '');
-                option.dataset.search = r.name.toLowerCase();
-                resortSelect.appendChild(option);
-            });
-            resortSelect.disabled = filteredResorts.length === 0;
-            resortSearchInput.disabled = filteredResorts.length === 0;
-            resortSearchInput.value = '';
-        }
-        
-        // ===========================================
-        // EVENT HANDLERS
-        // ===========================================
-        countrySelect.addEventListener('change', function() {
-            const country = this.value;
-            if (country) {
-                if (COUNTRIES_WITHOUT_STATE_SELECTOR.includes(country)) {
-                    stateSelect.innerHTML = '<option value="">Not applicable</option>';
-                    stateSelect.disabled = true;
-                    populateResortsForCountry(country);
-                } else {
-                    populateStates(country);
-                }
-            } else {
-                stateSelect.innerHTML = '<option value="">Select a country first</option>';
-                stateSelect.disabled = true;
-                resortSelect.innerHTML = '<option value="">Select a state first</option>';
-                resortSelect.disabled = true;
-                resortSearchInput.disabled = true;
-            }
-        });
-        
-        stateSelect.addEventListener('change', function() {
-            const country = countrySelect.value;
-            const state = this.value;
-            if (country && state) {
-                populateResorts(country, state);
-            } else {
-                resortSelect.innerHTML = '<option value="">Select a state first</option>';
-                resortSelect.disabled = true;
-                resortSearchInput.disabled = true;
-            }
-        });
-        
-        resortSearchInput.addEventListener('input', function() {
-            const query = this.value.toLowerCase().trim();
-            let firstMatch = null;
-            Array.from(resortSelect.options).forEach(option => {
-                if (option.value === "") return;
-                const match = !query || option.textContent.toLowerCase().includes(query);
-                option.hidden = !match;
-                if (match && !firstMatch) firstMatch = option;
-            });
-            if (query && firstMatch) {
-                resortSelect.value = firstMatch.value;
-            }
-        });
-        
-        resortSelect.addEventListener('change', function() {
-            const selected = this.options[this.selectedIndex];
-            if (selected && selected.value !== "") {
-                resortSearchInput.value = selected.textContent.replace(' ✓', '');
-            }
-        });
-        
-        // ===========================================
-        // CALENDAR LOGIC
-        // ===========================================
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                           'July', 'August', 'September', 'October', 'November', 'December'];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        let currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        let selectedStartDate = startDateInput.value ? new Date(startDateInput.value + 'T00:00:00') : null;
-        let selectedEndDate = endDateInput.value ? new Date(endDateInput.value + 'T00:00:00') : null;
-        
-        // FIX: Explicit range selection flag - prevents relying on hidden input inference
-        // true = waiting for end date, false = waiting for start date
-        let isSelectingRange = selectedStartDate && !selectedEndDate;
-        
-        function formatDateShort(date) {
-            return monthNames[date.getMonth()].slice(0, 3) + ' ' + date.getDate();
-        }
-        
-        function formatDateISO(date) {
-            const y = date.getFullYear();
-            const m = String(date.getMonth() + 1).padStart(2, '0');
-            const d = String(date.getDate()).padStart(2, '0');
-            return `${y}-${m}-${d}`;
-        }
-        
-        function isSameDay(d1, d2) {
-            if (!d1 || !d2) return false;
-            return d1.getFullYear() === d2.getFullYear() && 
-                   d1.getMonth() === d2.getMonth() && 
-                   d1.getDate() === d2.getDate();
-        }
-        
-        function isInRange(date) {
-            if (!selectedStartDate || !selectedEndDate) return false;
-            return date > selectedStartDate && date < selectedEndDate;
-        }
-        
-        function renderCalendar() {
-            const calendarDays = document.getElementById('calendar-days');
-            const monthYearLabel = document.getElementById('calendar-month-year');
-            const prevBtn = document.getElementById('prev-month');
-            
-            const year = currentMonth.getFullYear();
-            const month = currentMonth.getMonth();
-            
-            monthYearLabel.textContent = `${monthNames[month]} ${year}`;
-            
-            const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-            const displayMonth = new Date(year, month, 1);
-            prevBtn.disabled = !isEditMode && displayMonth <= thisMonth;
-            
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
-            const startDay = firstDay.getDay();
-            const totalDays = lastDay.getDate();
-            
-            let html = '';
-            
-            for (let i = 0; i < startDay; i++) {
-                html += '<button type="button" class="calendar-day other-month" disabled></button>';
-            }
-            
-            for (let day = 1; day <= totalDays; day++) {
-                const date = new Date(year, month, day);
-                const dateStr = formatDateISO(date);
-                
-                let classes = ['calendar-day'];
-                let disabled = false;
-                
-                if (!isEditMode && date < today) {
-                    classes.push('disabled');
-                    disabled = true;
-                }
-                
-                if (isSameDay(date, today)) classes.push('today');
-                if (isSameDay(date, selectedStartDate)) {
-                    classes.push('selected-start');
-                    if (isSameDay(selectedStartDate, selectedEndDate)) classes.push('selected-end');
-                }
-                if (isSameDay(date, selectedEndDate) && !isSameDay(selectedStartDate, selectedEndDate)) {
-                    classes.push('selected-end');
-                }
-                if (isInRange(date)) classes.push('in-range');
-                
-                html += `<button type="button" class="${classes.join(' ')}" 
-                         data-date="${dateStr}" ${disabled ? 'disabled' : ''}>${day}</button>`;
-            }
-            
-            calendarDays.innerHTML = html;
-        }
-        
-        function selectDate(dateStr) {
-            const date = new Date(dateStr + 'T00:00:00');
-            
-            // FIX: Use explicit flag instead of inferring from hidden inputs
-            if (!isSelectingRange) {
-                // First click OR reset: set start date, enter range selection mode
-                selectedStartDate = date;
-                selectedEndDate = null;
-                startDateInput.value = dateStr;
-                endDateInput.value = '';
-                isSelectingRange = true;
-            } else if (date < selectedStartDate) {
-                // Clicked before start: reset start, stay in range selection mode
-                selectedStartDate = date;
-                selectedEndDate = null;
-                startDateInput.value = dateStr;
-                endDateInput.value = '';
-                // isSelectingRange stays true
-            } else {
-                // Second click (>= start): set end date, exit range selection mode
-                selectedEndDate = date;
-                endDateInput.value = dateStr;
-                isSelectingRange = false;
-            }
-            
-            renderCalendar();
-            updateDateRangeHelper();
-        }
-        
-        function navigateMonth(delta) {
-            currentMonth.setMonth(currentMonth.getMonth() + delta);
-            renderCalendar();
-        }
-        
-        function updateDateRangeHelper() {
-            if (selectedStartDate && selectedEndDate) {
-                const days = Math.round((selectedEndDate - selectedStartDate) / (1000 * 60 * 60 * 24)) + 1;
-                const dayLabel = days === 1 ? '1 day' : `${days} days`;
-                
-                let rangeStr;
-                if (isSameDay(selectedStartDate, selectedEndDate)) {
-                    rangeStr = `${formatDateShort(selectedStartDate)}, ${selectedStartDate.getFullYear()}`;
-                } else if (selectedStartDate.getFullYear() === selectedEndDate.getFullYear()) {
-                    rangeStr = `${formatDateShort(selectedStartDate)}–${formatDateShort(selectedEndDate)}, ${selectedStartDate.getFullYear()}`;
-                } else {
-                    rangeStr = `${formatDateShort(selectedStartDate)}, ${selectedStartDate.getFullYear()} – ${formatDateShort(selectedEndDate)}, ${selectedEndDate.getFullYear()}`;
-                }
-                
-                rangeText.textContent = `${rangeStr} · ${dayLabel}`;
-                dateRangeHelper.classList.add('visible');
-                dateError.classList.remove('visible');
-            } else if (selectedStartDate) {
-                rangeText.textContent = `${formatDateShort(selectedStartDate)} – Select end date`;
-                dateRangeHelper.classList.add('visible');
-            } else {
-                dateRangeHelper.classList.remove('visible');
-            }
-        }
-        
-        // ===========================================
-        // MODAL FUNCTIONS
-        // ===========================================
-        function closeOverlapModal() {
-            const modal = document.getElementById('overlap-modal');
-            if (modal) modal.style.display = 'none';
-        }
-        
-        function showDeleteModal() {
-            const modal = document.getElementById('delete-modal');
-            if (modal) modal.classList.add('visible');
-        }
-        
-        function hideDeleteModal() {
-            const modal = document.getElementById('delete-modal');
-            if (modal) modal.classList.remove('visible');
-        }
-        
-        // ===========================================
-        // SAFE SELECT HELPER (guards against invalid values)
-        // ===========================================
-        function safeSetSelect(select, value) {
-            if (!value) {
-                select.value = "";
-                return false;
-            }
-            const exists = [...select.options].some(o => o.value === String(value));
-            if (exists) {
-                select.value = value;
-                return true;
-            } else {
-                console.warn("Invalid dropdown value ignored:", value, "Available:", [...select.options].map(o => o.value));
-                select.value = "";
-                return false;
-            }
-        }
-        
-        // ===========================================
-        // INITIALIZATION
-        // ===========================================
-        document.addEventListener('DOMContentLoaded', function() {
-            // ⚠️ CONTRACT: Countries are server-rendered from COUNTRIES, NOT resorts.
-            // This ensures the dropdown always works regardless of resort data state.
-            // DO NOT call populateCountries() here.
+        const COUNTRY_NAMES = {{ countries_map|tojson if countries_map else '{}' }};
 
-            // Calendar navigation
+        // Prefill values (for "Propose a trip" flow)
+        const PREFILL_RESORT_ID   = {{ (prefill_resort.id if prefill_resort else none)|tojson }};
+        const PREFILL_RESORT_NAME = {{ (prefill_resort.name if prefill_resort else none)|tojson }};
+        const PREFILL_RESORT_META = {{ (((states_map or {}).get(prefill_resort.state_code or '', prefill_resort.state_code or '') + ', ' + (prefill_resort.display_country_name or prefill_resort.country_code or '')) if prefill_resort else none)|tojson }};
+
+        // ── Mutable state ─────────────────────────────────────────────
+        let currentStep = 1;
+        let selResortId   = null;
+        let selResortName = null;
+        let selResortMeta = null;
+
+        const todayDate = new Date();
+        todayDate.setHours(0, 0, 0, 0);
+
+        const MONTH_NAMES = ['January','February','March','April','May','June',
+                             'July','August','September','October','November','December'];
+        let calMonth = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
+
+        const initStartVal = document.getElementById('start_date_input').value;
+        const initEndVal   = document.getElementById('end_date_input').value;
+        let selStart  = initStartVal ? new Date(initStartVal + 'T00:00:00') : null;
+        let selEnd    = initEndVal   ? new Date(initEndVal   + 'T00:00:00') : null;
+        let pickingEnd = !!(selStart && !selEnd);
+
+        // ── DOM refs ──────────────────────────────────────────────────
+        const resortIdInput  = document.getElementById('resort_id_input');
+        const startDateInput = document.getElementById('start_date_input');
+        const endDateInput   = document.getElementById('end_date_input');
+        const isPublicInput  = document.getElementById('is_public_input');
+
+        // ── Step management ───────────────────────────────────────────
+        function goToStep(n) {
+            document.querySelectorAll('.at-step-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('step-' + n).classList.add('active');
+            currentStep = n;
+            updateProgressDots();
+            if (n === 2) {
+                if (selStart) {
+                    calMonth = new Date(selStart.getFullYear(), selStart.getMonth(), 1);
+                }
+                renderCalendar();
+                updateRangeSummary();
+            }
+            if (n === 3) {
+                updateTripSummary();
+            }
+            window.scrollTo(0, 0);
+        }
+
+        function updateProgressDots() {
+            [1, 2, 3].forEach(i => {
+                const dot = document.getElementById('dot-' + i);
+                dot.classList.remove('active', 'done');
+                if (i < currentStep) dot.classList.add('done');
+                if (i === currentStep) dot.classList.add('active');
+            });
+        }
+
+        // ── Mountain search ───────────────────────────────────────────
+        function isPassCompatible(resort) {
+            if (!USER_PASSES || USER_PASSES.length === 0) return false;
+            const brands = (resort.pass_brands || '').split(',').map(b => b.trim().toLowerCase());
+            return USER_PASSES.some(p => brands.includes(p.toLowerCase()));
+        }
+
+        function getResortMeta(r) {
+            const state = STATE_NAMES[r.state_code] || r.state_code || '';
+            const country = COUNTRY_NAMES[r.country_code] || r.country_code || '';
+            return [state, country].filter(Boolean).join(', ');
+        }
+
+        const searchInput = document.getElementById('mountain-search');
+        const searchResults = document.getElementById('search-results');
+        const selectedWrap = document.getElementById('selected-mountain-wrap');
+
+        searchInput.addEventListener('input', function () {
+            const q = this.value.trim().toLowerCase();
+            if (q.length < 2) {
+                searchResults.innerHTML = '';
+                searchResults.classList.remove('visible');
+                return;
+            }
+            const matches = RESORTS
+                .filter(r => r.name.toLowerCase().includes(q))
+                .slice(0, 10);
+
+            if (matches.length === 0) {
+                searchResults.innerHTML = '<div class="at-result-item no-match">No mountains found</div>';
+            } else {
+                searchResults.innerHTML = matches.map(r => {
+                    const meta = getResortMeta(r);
+                    const passHint = isPassCompatible(r) ? ' <span style="color:#5C1219;font-size:12px;">✓ Pass</span>' : '';
+                    return `<div class="at-result-item" data-id="${r.id}" data-name="${encodeURIComponent(r.name)}" data-meta="${encodeURIComponent(meta)}">
+                        <span>${r.name}${passHint}</span>
+                        <span class="at-result-meta">${meta}</span>
+                    </div>`;
+                }).join('');
+            }
+            searchResults.classList.add('visible');
+        });
+
+        searchResults.addEventListener('click', function (e) {
+            const item = e.target.closest('.at-result-item[data-id]');
+            if (!item) return;
+            selectMountain(
+                item.dataset.id,
+                decodeURIComponent(item.dataset.name),
+                decodeURIComponent(item.dataset.meta)
+            );
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.classList.remove('visible');
+            }
+        });
+
+        function selectMountain(id, name, meta) {
+            selResortId   = id;
+            selResortName = name;
+            selResortMeta = meta;
+            resortIdInput.value = id;
+
+            document.getElementById('sel-name').textContent = name;
+            document.getElementById('sel-meta').textContent = meta;
+
+            searchInput.value = '';
+            searchResults.innerHTML = '';
+            searchResults.classList.remove('visible');
+            searchInput.style.display = 'none';
+            selectedWrap.style.display = 'block';
+            document.getElementById('step1-continue').disabled = false;
+        }
+
+        function clearMountain() {
+            selResortId = selResortName = selResortMeta = null;
+            resortIdInput.value = '';
+            searchInput.value = '';
+            searchInput.style.display = 'block';
+            selectedWrap.style.display = 'none';
+            document.getElementById('step1-continue').disabled = true;
+            searchInput.focus();
+        }
+
+        // ── Calendar helpers ──────────────────────────────────────────
+        function fmtISO(d) {
+            return d.getFullYear() + '-' +
+                   String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                   String(d.getDate()).padStart(2, '0');
+        }
+
+        function fmtShort(d) {
+            return MONTH_NAMES[d.getMonth()].slice(0, 3) + ' ' + d.getDate();
+        }
+
+        function sameDay(a, b) {
+            return a && b &&
+                   a.getFullYear() === b.getFullYear() &&
+                   a.getMonth()    === b.getMonth()    &&
+                   a.getDate()     === b.getDate();
+        }
+
+        function inRange(d) {
+            return selStart && selEnd && d > selStart && d < selEnd;
+        }
+
+        // ── Calendar render (called on month change only) ─────────────
+        function renderCalendar() {
+            const grid  = document.getElementById('cal-grid');
+            const label = document.getElementById('cal-month-label');
+            const prevBtn = document.getElementById('prev-month');
+
+            const yr = calMonth.getFullYear();
+            const mo = calMonth.getMonth();
+            label.textContent = MONTH_NAMES[mo] + ' ' + yr;
+
+            const thisMonthStart = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
+            prevBtn.disabled = new Date(yr, mo, 1) <= thisMonthStart;
+
+            const firstWd     = new Date(yr, mo, 1).getDay();
+            const daysInMonth = new Date(yr, mo + 1, 0).getDate();
+            const hasRange    = !!(selStart && selEnd && !sameDay(selStart, selEnd));
+
+            let html = '';
+            for (let i = 0; i < firstWd; i++) {
+                html += '<div class="at-day other-month"></div>';
+            }
+            for (let day = 1; day <= daysInMonth; day++) {
+                const d       = new Date(yr, mo, day);
+                const dateStr = fmtISO(d);
+                const isPast  = d < todayDate;
+
+                let cls = ['at-day'];
+                if (isPast) cls.push('past');
+                if (sameDay(d, todayDate) && !isPast) cls.push('is-today');
+
+                const isStart  = sameDay(d, selStart);
+                const isEnd    = selEnd && sameDay(d, selEnd);
+                const isSingle = isStart && sameDay(selStart, selEnd);
+
+                if (isSingle) {
+                    cls.push('sel-start', 'sel-end');
+                } else {
+                    if (isStart) { cls.push('sel-start'); if (hasRange) cls.push('has-range'); }
+                    if (isEnd)   { cls.push('sel-end');   if (hasRange) cls.push('has-range'); }
+                }
+                if (inRange(d)) cls.push('in-range');
+
+                html += `<div class="${cls.join(' ')}" data-date="${dateStr}"><span>${day}</span></div>`;
+            }
+            grid.innerHTML = html;
+        }
+
+        // ── Calendar update (called on date tap — no DOM rebuild) ──────
+        function updateCalendarClasses() {
+            const hasRange = !!(selStart && selEnd && !sameDay(selStart, selEnd));
+            document.querySelectorAll('#cal-grid .at-day').forEach(cell => {
+                const ds = cell.dataset.date;
+                if (!ds) return;
+                const d = new Date(ds + 'T00:00:00');
+
+                cell.classList.remove('sel-start', 'sel-end', 'in-range', 'has-range');
+
+                const isStart  = sameDay(d, selStart);
+                const isEnd    = selEnd && sameDay(d, selEnd);
+                const isSingle = isStart && sameDay(selStart, selEnd);
+
+                if (isSingle) {
+                    cell.classList.add('sel-start', 'sel-end');
+                } else {
+                    if (isStart) { cell.classList.add('sel-start'); if (hasRange) cell.classList.add('has-range'); }
+                    if (isEnd)   { cell.classList.add('sel-end');   if (hasRange) cell.classList.add('has-range'); }
+                }
+                if (inRange(d)) cell.classList.add('in-range');
+            });
+        }
+
+        function handleDayTap(dateStr) {
+            const d = new Date(dateStr + 'T00:00:00');
+            if (d < todayDate) return;
+
+            if (!pickingEnd) {
+                // First tap: set start, await end
+                selStart = d;
+                selEnd   = null;
+                startDateInput.value = dateStr;
+                endDateInput.value   = '';
+                pickingEnd = true;
+            } else if (sameDay(d, selStart)) {
+                // Tap same day: single-day trip
+                selEnd = d;
+                endDateInput.value = dateStr;
+                pickingEnd = false;
+            } else if (d < selStart) {
+                // Tap before start: restart
+                selStart = d;
+                selEnd   = null;
+                startDateInput.value = dateStr;
+                endDateInput.value   = '';
+                // pickingEnd stays true
+            } else {
+                // Tap after start: complete range
+                selEnd = d;
+                endDateInput.value = dateStr;
+                pickingEnd = false;
+            }
+
+            updateCalendarClasses();
+            updateRangeSummary();
+        }
+
+        function navigateMonth(delta) {
+            calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + delta, 1);
+            renderCalendar();  // Full re-render only on month change — correct
+        }
+
+        function updateRangeSummary() {
+            const rangeText  = document.getElementById('range-text');
+            const clearBtn   = document.getElementById('clear-dates-btn');
+            const step2Btn   = document.getElementById('step2-continue');
+
+            if (selStart && selEnd) {
+                const label = sameDay(selStart, selEnd)
+                    ? fmtShort(selStart) + ' · day trip'
+                    : fmtShort(selStart) + '–' + fmtShort(selEnd);
+                rangeText.textContent   = label;
+                clearBtn.style.display  = 'inline';
+                step2Btn.disabled       = false;
+            } else if (selStart) {
+                rangeText.textContent  = fmtShort(selStart) + ' — pick end date';
+                clearBtn.style.display = 'inline';
+                step2Btn.disabled      = true;
+            } else {
+                rangeText.textContent  = 'Select your trip dates';
+                clearBtn.style.display = 'none';
+                step2Btn.disabled      = true;
+            }
+        }
+
+        function clearDates() {
+            selStart = selEnd = null;
+            pickingEnd = false;
+            startDateInput.value = endDateInput.value = '';
+            updateCalendarClasses();
+            updateRangeSummary();
+        }
+
+        // ── Trip summary (step 3) ─────────────────────────────────────
+        function updateTripSummary() {
+            document.getElementById('summary-mountain').textContent = selResortName || '—';
+            let dateLabel = '—';
+            if (selStart && selEnd) {
+                dateLabel = sameDay(selStart, selEnd)
+                    ? fmtShort(selStart) + ', ' + selStart.getFullYear() + ' · Day trip'
+                    : fmtShort(selStart) + '–' + fmtShort(selEnd) + ', ' + selStart.getFullYear();
+            }
+            document.getElementById('summary-dates').textContent = dateLabel;
+        }
+
+        // ── Visibility toggle ─────────────────────────────────────────
+        document.getElementById('visibility-toggle').addEventListener('change', function () {
+            isPublicInput.value = this.checked ? 'on' : 'off';
+        });
+
+        // ── Initialisation ────────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', function () {
+            // Calendar nav
             document.getElementById('prev-month').addEventListener('click', () => navigateMonth(-1));
             document.getElementById('next-month').addEventListener('click', () => navigateMonth(1));
-            
-            // Calendar date selection via event delegation (mobile Safari compatible)
-            document.getElementById('calendar-days').addEventListener('click', function(e) {
-                const btn = e.target.closest('.calendar-day');
-                if (btn && !btn.disabled && btn.dataset.date) {
-                    selectDate(btn.dataset.date);
+
+            // Calendar tap delegation (no DOM rebuild on tap)
+            document.getElementById('cal-grid').addEventListener('click', function (e) {
+                const cell = e.target.closest('.at-day[data-date]');
+                if (cell && !cell.classList.contains('past') && !cell.classList.contains('other-month')) {
+                    handleDayTap(cell.dataset.date);
                 }
             });
-            
-            // Set initial calendar month
-            if (selectedStartDate) {
-                currentMonth = new Date(selectedStartDate.getFullYear(), selectedStartDate.getMonth(), 1);
+
+            // Prefill: resort already selected (e.g. "Propose a trip" flow)
+            if (PREFILL_RESORT_ID) {
+                selectMountain(String(PREFILL_RESORT_ID), PREFILL_RESORT_NAME || '', PREFILL_RESORT_META || '');
             }
-            
-            // ALWAYS render calendar immediately (not gated on geography)
-            renderCalendar();
-            updateDateRangeHelper();
-            
-            // If editing, restore selections with validation
-            if (isEditMode && existingTrip.countryCode) {
-                const countryValid = safeSetSelect(countrySelect, existingTrip.countryCode);
-                
-                if (countryValid) {
-                    if (COUNTRIES_WITHOUT_STATE_SELECTOR.includes(existingTrip.countryCode)) {
-                        stateSelect.innerHTML = '<option value="">Not applicable</option>';
-                        stateSelect.disabled = true;
-                        populateResortsForCountry(existingTrip.countryCode);
-                        
-                        const resortValid = safeSetSelect(resortSelect, existingTrip.resortId);
-                        if (resortValid) {
-                            const selected = resortSelect.options[resortSelect.selectedIndex];
-                            if (selected && selected.value) {
-                                resortSearchInput.value = selected.textContent.replace(' ✓', '');
-                            }
-                        }
-                    } else {
-                        populateStates(existingTrip.countryCode);
-                        console.log("AVAILABLE STATES", deriveStates(existingTrip.countryCode));
-                        
-                        const stateValid = safeSetSelect(stateSelect, existingTrip.stateCode);
-                        
-                        if (stateValid) {
-                            populateResorts(existingTrip.countryCode, existingTrip.stateCode);
-                            
-                            const resortValid = safeSetSelect(resortSelect, existingTrip.resortId);
-                            if (resortValid) {
-                                const selected = resortSelect.options[resortSelect.selectedIndex];
-                                if (selected && selected.value) {
-                                    resortSearchInput.value = selected.textContent.replace(' ✓', '');
-                                }
-                            }
-                        } else {
-                            // Invalid state: clear resort dropdown
-                            resortSelect.innerHTML = '<option value="">Select a state first</option>';
-                            resortSelect.disabled = true;
-                            resortSearchInput.disabled = true;
-                        }
-                    }
-                } else {
-                    // Invalid country: clear state + resort dropdowns
-                    stateSelect.innerHTML = '<option value="">Select a country first</option>';
-                    stateSelect.disabled = true;
-                    resortSelect.innerHTML = '<option value="">Select a state first</option>';
-                    resortSelect.disabled = true;
-                    resortSearchInput.disabled = true;
-                }
+
+            // Determine the starting step
+            if (PREFILL_RESORT_ID && initStartVal && initEndVal) {
+                updateRangeSummary();
+                goToStep(3);
+            } else if (PREFILL_RESORT_ID) {
+                goToStep(2);
             } else {
-                // Default to US for new trips
-                safeSetSelect(countrySelect, 'US');
-                populateStates('US');
+                goToStep(1);
             }
-            
-            // Form validation
-            form.addEventListener('submit', function(e) {
-                if (!startDateInput.value || !endDateInput.value) {
-                    e.preventDefault();
-                    dateError.classList.add('visible');
-                    document.getElementById('date-range-calendar').scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    return false;
-                }
-            });
-            
-            console.log("Add Trip: Initialization complete");
+
+            console.log('Add Trip: Initialization complete');
         });
     </script>
 </body>
