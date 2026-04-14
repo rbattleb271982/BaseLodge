@@ -681,10 +681,28 @@
         }
 
         // ── Mountain search ───────────────────────────────────────────
-        function isPassCompatible(resort) {
-            if (!USER_PASSES || USER_PASSES.length === 0) return false;
+        const PASS_DISPLAY_NAMES = {
+            'ikon': 'Ikon', 'epic': 'Epic', 'indy': 'Indy',
+            'mountain_collective': 'Mountain Collective',
+            'powder_alliance': 'Powder Alliance',
+            'freedom': 'Freedom', 'unlimited': 'Unlimited',
+            'super_pass': 'Super Pass', 'max': 'Max',
+        };
+
+        function formatPassName(p) {
+            const key = p.trim().toLowerCase();
+            return PASS_DISPLAY_NAMES[key] || (key.charAt(0).toUpperCase() + key.slice(1));
+        }
+
+        function getPassLabel(resort) {
+            if (!USER_PASSES || USER_PASSES.length === 0) return null;
             const brands = (resort.pass_brands || '').split(',').map(b => b.trim().toLowerCase());
-            return USER_PASSES.some(p => brands.includes(p.toLowerCase()));
+            const match = USER_PASSES.find(p => brands.includes(p.trim().toLowerCase()));
+            return match ? formatPassName(match) : null;
+        }
+
+        function isPassCompatible(resort) {
+            return getPassLabel(resort) !== null;
         }
 
         function getResortMeta(r) {
@@ -713,7 +731,8 @@
             } else {
                 searchResults.innerHTML = matches.map(r => {
                     const meta = getResortMeta(r);
-                    const passHint = isPassCompatible(r) ? ' <span class="at-pass-badge">Pass</span>' : '';
+                    const passLabel = getPassLabel(r);
+                    const passHint = passLabel ? ` <span class="at-pass-badge">${passLabel}</span>` : '';
                     return `<div class="at-result-item" data-id="${r.id}" data-name="${encodeURIComponent(r.name)}" data-meta="${encodeURIComponent(meta)}">
                         <span>${r.name}${passHint}</span>
                         <span class="at-result-meta">${meta}</span>
