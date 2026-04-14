@@ -259,42 +259,42 @@
         .stat-row {
             display: flex;
             align-items: center;
-            justify-content: space-around;
-            background: #fff;
-            border: 1px solid #E5DFD0;
-            border-radius: 12px;
-            padding: 16px 8px;
-            margin: 20px 0;
+            margin: 16px 0 28px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #E5DFD0;
         }
         .stat-row-tile {
             flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 4px;
+            gap: 5px;
         }
         .stat-row-tile--link {
             -webkit-tap-highlight-color: transparent;
         }
-        .stat-row-tile--link:active {
-            opacity: 0.6;
+        .stat-row-tile--link:active .stat-row-value {
+            color: #5C1219;
         }
         .stat-row-value {
-            font-size: 26px;
-            font-weight: 700;
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 28px;
+            font-weight: 400;
             color: #1A1A1A;
             line-height: 1;
         }
         .stat-row-label {
-            font-size: 11px;
+            font-size: 10px;
+            font-weight: 700;
             color: #6B665A;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            font-weight: 500;
+            text-align: center;
+            line-height: 1.3;
         }
         .stat-row-divider {
             width: 1px;
-            height: 36px;
+            height: 28px;
             background: #E5DFD0;
             flex-shrink: 0;
         }
@@ -328,7 +328,9 @@
             {# POPULATED STATE                                    #}
             {# ────────────────────────────────────────────────── #}
 
-            <h1 class="home-welcome" style="margin-bottom: 20px;">Hi, {{ user.first_name | format_name }}.</h1>
+            <h1 class="home-welcome" style="margin-bottom: 4px;">Hi, {{ user.first_name | format_name }}.</h1>
+
+            {% include 'components/stat_row.html' %}
 
             <p class="home-section-label">Next Up</p>
 
@@ -412,15 +414,16 @@
             </div>
             {% endif %}
 
-            {% include 'components/stat_row.html' %}
-
         {% else %}
             {# ────────────────────────────────────────────────── #}
             {# FIRST-TIME / EMPTY STATE                          #}
             {# ────────────────────────────────────────────────── #}
 
-            <h1 class="home-welcome">Welcome, {{ user.first_name | format_name }}.</h1>
-            <p class="home-welcome-sub">Let's get your first trip on the calendar.</p>
+            <h1 class="home-welcome" style="margin-bottom: 4px;">Welcome, {{ user.first_name | format_name }}.</h1>
+
+            {% include 'components/stat_row.html' %}
+
+            <p class="home-welcome-sub" style="margin-bottom: 20px;">Let's get your first trip on the calendar.</p>
 
             <div class="home-hero">
                 <p class="home-hero-eyebrow">Get Started</p>

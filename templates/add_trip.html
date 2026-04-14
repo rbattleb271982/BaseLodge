@@ -161,6 +161,18 @@
         .at-result-item:active { background: #F5F1E8; }
         .at-result-item.no-match { color: #8A857A; cursor: default; }
         .at-result-meta { font-size: 13px; color: #8A857A; white-space: nowrap; flex-shrink: 0; }
+        .at-pass-badge {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #5C1219;
+            background: #F0DDD8;
+            border-radius: 4px;
+            padding: 2px 5px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
 
         /* ── Selected mountain card ── */
         .at-selected-card {
@@ -701,7 +713,7 @@
             } else {
                 searchResults.innerHTML = matches.map(r => {
                     const meta = getResortMeta(r);
-                    const passHint = isPassCompatible(r) ? ' <span style="color:#5C1219;font-size:12px;">✓ Pass</span>' : '';
+                    const passHint = isPassCompatible(r) ? ' <span class="at-pass-badge">Pass</span>' : '';
                     return `<div class="at-result-item" data-id="${r.id}" data-name="${encodeURIComponent(r.name)}" data-meta="${encodeURIComponent(meta)}">
                         <span>${r.name}${passHint}</span>
                         <span class="at-result-meta">${meta}</span>

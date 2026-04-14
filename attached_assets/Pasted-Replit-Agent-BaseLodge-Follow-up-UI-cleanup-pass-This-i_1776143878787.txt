@@ -1,0 +1,143 @@
+Replit Agent
+
+BaseLodge — Follow-up UI cleanup pass
+
+This is a focused refinement pass. Do not redesign the app. Match the current design system and only make the changes below.
+
+Use checkpoints sparingly.
+
+---
+
+PART 1 — MOUNTAIN SEARCH RESULT ROW
+
+On the Add Trip flow, when typing a mountain, remove the checkmark from the search result row unless the user has actually selected that mountain.
+
+Current issue:
+- search result rows are showing a checkmark too early / in a confusing way
+
+Desired behavior:
+- search results should look like neutral autocomplete options
+- no checkmark should appear in the row by default
+- only show a selected state AFTER the user taps a result and that result becomes the chosen mountain
+- if selected state is needed, it should be visually clear and only apply to the chosen result, not generic search results
+
+Please review the template / JS for the mountain search step and remove the premature checkmark logic.
+
+---
+
+PART 2 — HOME + PROFILE STAT BAR LABELS
+
+Update stat labels so they read:
+
+- Trip / Trips
+- Mountains Visited
+- Wishlist Mountains
+
+Rules:
+- Use singular when count = 1
+- Use plural when count != 1
+
+Examples:
+- 1 Trip
+- 2 Trips
+- 1 Mountain Visited
+- 2 Mountains Visited
+- 1 Wishlist Mountain
+- 3 Wishlist Mountains
+
+Apply this consistently on:
+- Home screen stat bar
+- Profile screen stat bar
+- any shared stat-row component used by both
+
+Do not hardcode the label text if this can be handled cleanly in the shared stat component or helper logic.
+
+---
+
+PART 3 — HOME SCREEN LAYOUT
+
+Move the Home screen stat bar so it sits directly underneath “Hi, Richard.”
+
+Current issue:
+- stat bar is below the Next Up card
+- this is the wrong place structurally
+
+Desired structure:
+1. Greeting / name
+2. Stat bar
+3. Next Up section
+
+Reason:
+This area under the greeting will eventually become a profile-summary section that can expand later to include:
+- rider type
+- level
+- pass
+- equipment setup
+etc.
+
+So the stat bar on Home should feel like the first row of that personal summary area, similar in spirit to the Profile screen.
+
+Implementation requirements:
+- move the stat bar above the Next Up card
+- preserve spacing rhythm and visual hierarchy
+- do not make the page feel cramped
+- keep the Home screen premium/editorial styling intact
+
+---
+
+PART 4 — HOME STAT BAR SHOULD MATCH PROFILE MORE CLOSELY
+
+The Home stat bar should feel like the same system as the Profile stat bar, not a one-off card.
+
+Please review both implementations and align:
+- spacing
+- typography
+- label treatment
+- singular/plural formatting
+- overall structure
+
+Do not introduce heavy borders or make it look bulky.
+Keep it clean and consistent with the current cream + burgundy design system.
+
+---
+
+PART 5 — SINGULAR / PLURAL COPY CLEANUP
+
+Wherever trip counts appear in the updated stat bar UI, make sure:
+- 1 = “Trip”
+- anything else = “Trips”
+
+Do the same kind of pluralization for:
+- Mountains Visited
+- Wishlist Mountains
+
+If there is already a helper for pluralization, use it. Otherwise add a simple clean helper instead of duplicating string logic across templates.
+
+---
+
+FILES TO REVIEW
+
+Likely impacted files:
+- templates/home.html
+- templates/profile.html or the profile stat bar template
+- templates/components/stat_row.html
+- Add Trip template / JS for mountain autocomplete
+- any helper or route code passing stat labels/counts
+
+---
+
+DELIVERABLES
+
+1. Remove premature checkmarks from mountain search results
+2. Home stat bar moved directly under greeting
+3. Home stat bar aligned more closely with Profile stat bar
+4. Labels updated to:
+   - Trip / Trips
+   - Mountains Visited
+   - Wishlist Mountains
+5. Singular/plural logic working correctly
+6. Short explanation of what changed
+7. Manual test steps
+
+Do not redesign unrelated screens.
+Keep everything mobile-first and consistent with the current design language.
