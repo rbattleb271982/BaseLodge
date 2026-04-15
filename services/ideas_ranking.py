@@ -18,7 +18,6 @@ Architecture:
   - Hard filter: windows with start_date < today receive score = -1 and are excluded.
 """
 
-import random
 from datetime import date as date_cls, timedelta
 
 BAD_PASSES = {None, "", "I don't have a pass", "Other"}
@@ -109,7 +108,11 @@ def score_overlap_windows(windows, user, shared_wishlist_friend_ids=None):
         feasibility_score = 10 if n_days >= 2 else 3
 
         # ── VARIATION (5 pts) ─────────────────────────────────────────────────
-        variation_score = random.uniform(0, 5)
+        # Deterministic tiebreak derived from start_date digits + sum of friend IDs.
+        # Gives [0.0, 4.99], stable across restarts, varies between windows.
+        _date_int = int(w["start_date"].replace("-", ""))
+        _fid_sum = sum(f["friend_id"] for f in friends_in_window) if friends_in_window else 0
+        variation_score = ((_date_int + _fid_sum) % 500) / 100.0
 
         w["score"] = (
             pass_score
