@@ -292,17 +292,11 @@ def identity_line_filter(user):
 
         parts = []
 
-        # Rider type (primary first, then show as single type)
-        primary_rider = getattr(user, "primary_rider_type", None)
-        if primary_rider:
-            parts.append(str(primary_rider))
-        else:
-            rider_types = getattr(user, "rider_types", None)
-            if rider_types:
-                if isinstance(rider_types, list) and rider_types:
-                    parts.append(str(rider_types[0]))
-                elif isinstance(rider_types, str):
-                    parts.append(rider_types)
+        # Rider type — use display_rider_type which correctly handles
+        # legacy comma-separated entries like ["Skier,Snowboarder"] → "Skier + Snowboarder"
+        display_rider = getattr(user, 'display_rider_type', None)
+        if display_rider:
+            parts.append(display_rider)
 
         # Skill level
         skill_level = getattr(user, "skill_level", None)
