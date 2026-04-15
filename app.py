@@ -2086,30 +2086,14 @@ def my_trips():
     except Exception:
         overlaps = []
 
-    # Open dates from JSON field (wrapped for production safety)
-    user_open_dates = []
-    try:
-        my_open_dates = set(user.open_dates or [])
-        my_open_dates = {d for d in my_open_dates if d >= today.strftime('%Y-%m-%d')}
-        user_open_dates = sorted(my_open_dates) if my_open_dates else []
-    except Exception:
-        my_open_dates = set()
-        user_open_dates = []
-
-    # Build trip ideas using SAME logic as /trip-ideas route (availability-based only)
-    trip_ideas = []
-    wishlist_overlaps_dict = {}
+    # Load requested trips (join requests sent by me, not yet accepted/promoted to participant)
     requested_trips = []
     try:
-        # Load requested trips (Invitations where I am the sender)
-        # Query join requests sent by me
         requests = Invitation.query.filter_by(
             sender_id=current_user.id,
             invite_type=InviteType.REQUEST
         ).all()
-        
         for req in requests:
-            # Hide if a corresponding SkiTripParticipant(status=ACCEPTED) exists to avoid duplication
             if req.status == 'accepted':
                 exists = SkiTripParticipant.query.filter_by(
                     trip_id=req.trip_id,
@@ -2118,8 +2102,6 @@ def my_trips():
                 ).first()
                 if exists:
                     continue
-                    
-            # Only show if trip is in the future
             trip = SkiTrip.query.get(req.trip_id)
             if trip and trip.end_date >= today:
                 requested_trips.append({
@@ -2128,81 +2110,8 @@ def my_trips():
                     'owner': User.query.get(req.receiver_id),
                     'status': req.status.capitalize()
                 })
-
-        today_str = today.strftime('%Y-%m-%d')
-        print(f"--- MY_TRIPS IDEA GENERATION (User {current_user.id}) ---")
-        print(f"   - user_open_dates count: {len(user_open_dates)}")
-        print(f"   - friend count: {len(friend_ids)}")
-        
-        # Task 1: Trip Ideas (Availability Only) - Same logic as /trip-ideas
-        if user_open_dates and friend_ids:
-            date_to_friends = {}
-            for date_str_item in sorted(user_open_dates):
-                friends_on_date = []
-                for friend in friends:
-                    friend_dates = set(d for d in (friend.open_dates or []) if d >= today_str)
-                    if date_str_item in friend_dates:
-                        friends_on_date.append({
-                            "id": friend.id,
-                            "first_name": friend.first_name,
-                            "last_name": friend.last_name or "",
-                            "rider_type": friend.rider_type,
-                            "skill_level": friend.skill_level,
-                            "pass_type": friend.pass_type
-                        })
-                if friends_on_date:
-                    date_to_friends[date_str_item] = friends_on_date
-            
-            for date_str_item, friends_list in date_to_friends.items():
-                trip_ideas.append({
-                    "date_str": date_str_item,
-                    "display_date": datetime.strptime(date_str_item, '%Y-%m-%d').strftime('%b %-d'),
-                    "overlapping_people": friends_list
-                })
-        
-        # Task 2: Wishlist Overlaps (Grouped by Mountain) - Same logic as /trip-ideas
-        user_wishlist = set(user.wish_list_resorts or [])
-        if user_wishlist and friends:
-            for resort_id in user_wishlist:
-                overlapping_friends = []
-                for friend in friends:
-                    friend_wishlist = set(friend.wish_list_resorts or [])
-                    if resort_id in friend_wishlist:
-                        overlapping_friends.append({
-                            "id": friend.id,
-                            "first_name": friend.first_name,
-                            "last_name": friend.last_name or "",
-                            "rider_type": friend.rider_type,
-                            "skill_level": friend.skill_level,
-                            "pass_type": friend.pass_type
-                        })
-                
-                if overlapping_friends:
-                    resort = Resort.query.get(resort_id)
-                    if resort:
-                        wishlist_overlaps_dict[resort_id] = {
-                            "resort_id": resort.id,
-                            "resort_name": resort.name,
-                            "overlapping_people": overlapping_friends
-                        }
-        
-        # QA Logging
-        print(f"[QA] trip_ideas count: {len(trip_ideas)}")
-        for idx, idea in enumerate(trip_ideas):
-            print(f"[QA] trip_ideas[{idx}]: date={idea['display_date']}, overlapping_people={len(idea['overlapping_people'])}")
-        print(f"[QA] wishlist_overlaps count: {len(wishlist_overlaps_dict)}")
-        if wishlist_overlaps_dict:
-            for rid, wl in wishlist_overlaps_dict.items():
-                print(f"[QA] wishlist_overlaps[{rid}]: resort={wl['resort_name']}, overlapping_people={len(wl['overlapping_people'])}")
-        print("------------------------------------------------")
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        trip_ideas = []
-        wishlist_overlaps_dict = {}
-
-    # Convert wishlist_overlaps dict to list for template
-    wishlist_overlaps = list(wishlist_overlaps_dict.values())
+    except Exception:
+        requested_trips = []
 
     return render_template(
         "my_trips.html",
@@ -2217,9 +2126,6 @@ def my_trips():
         friends=friends or [],
         friend_trips=friend_trips or [],
         overlaps=overlaps or [],
-        user_open_dates=user_open_dates or [],
-        trip_ideas=trip_ideas,
-        wishlist_overlaps=wishlist_overlaps,
         today=today
     )
 
