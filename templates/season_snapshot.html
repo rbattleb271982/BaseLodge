@@ -8,49 +8,77 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
+        /* ── Page — warm editorial studio ── */
         body {
             min-height: 100vh;
-            background: #1A1614;
+            background: linear-gradient(170deg, #DDD6C8 0%, #C9C0B0 100%);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            padding: 0;
+            padding: 0 0 48px;
             font-family: Georgia, 'Times New Roman', serif;
             -webkit-font-smoothing: antialiased;
         }
 
-        /* ── Dismiss bar (outside the card, dark zone) ── */
+        /* ── Dismiss bar ── */
         .ss-dismiss {
             width: 100%;
             max-width: 420px;
-            padding: 16px 20px 12px;
+            padding: 16px 20px 10px;
             display: flex;
             align-items: center;
         }
         .ss-dismiss a {
             font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
             font-size: 13px;
-            color: #6B6159;
+            color: #8A7E6E;
             text-decoration: none;
-            letter-spacing: 0.1px;
         }
         .ss-dismiss a:active { opacity: 0.7; }
 
+        /* ── Instruction text (outside card) ── */
+        .ss-instructions {
+            width: 100%;
+            max-width: 388px;
+            text-align: center;
+            padding: 0 20px 18px;
+        }
+        .ss-instructions-primary {
+            font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            color: #5A5248;
+            margin-bottom: 4px;
+        }
+        .ss-instructions-secondary {
+            font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            font-size: 11px;
+            color: #8A8070;
+            letter-spacing: 0.1px;
+        }
+
+        /* ── Capture framing — subtle backing area ── */
+        .ss-frame {
+            width: calc(100% - 24px);
+            max-width: 404px;
+            background: rgba(210, 200, 185, 0.45);
+            border-radius: 18px;
+            padding: 8px;
+        }
+
         /* ── Card — single cream surface ── */
         .ss-card {
-            width: calc(100% - 32px);
-            max-width: 388px;
+            width: 100%;
             background: #EDE4D3;
-            border-radius: 14px;
+            border-radius: 12px;
             overflow: hidden;
-            flex-shrink: 0;
-            margin-bottom: 40px;
         }
 
         /* ── Card top section ── */
         .ss-card-top {
             padding: 28px 26px 0;
+            text-align: center;
         }
 
         /* Headline: "Richard's Winter" */
@@ -60,7 +88,7 @@
             font-weight: 400;
             color: #1A1A1A;
             line-height: 1.15;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             letter-spacing: -0.3px;
         }
         .ss-headline em {
@@ -73,10 +101,10 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
             font-size: 9px;
             font-weight: 700;
-            letter-spacing: 1.1px;
+            letter-spacing: 1.4px;
             text-transform: uppercase;
-            color: #8A857A;
-            margin-bottom: 12px;
+            color: #6B665A;
+            margin-bottom: 10px;
             line-height: 1.5;
         }
 
@@ -85,9 +113,8 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
             font-size: 10px;
             font-weight: 400;
-            letter-spacing: 0.4px;
+            letter-spacing: 0.3px;
             color: #9A3A42;
-            text-align: center;
             margin-bottom: 16px;
         }
 
@@ -95,44 +122,46 @@
         .ss-rule {
             border: none;
             border-top: 0.5px solid #C8BFB0;
-            margin: 0;
+            margin: 0 26px;
         }
 
-        /* ── Trip list ── */
-        .ss-trip-list {
-            padding: 0 26px 26px;
+        /* ── Trip table ── */
+        .ss-trip-table {
+            padding: 4px 26px 8px;
         }
 
-        /* Month label */
-        .ss-month-label {
-            font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-            font-size: 9px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            color: #9A8F84;
-            padding: 16px 0 6px;
-        }
-
-        /* Trip row */
+        /* Each row: month | resort | date */
         .ss-trip-row {
-            display: flex;
+            display: grid;
+            grid-template-columns: 36px 1fr auto;
             align-items: baseline;
-            justify-content: space-between;
+            gap: 0 10px;
             padding: 9px 0;
             border-bottom: 0.5px solid #D8D0C2;
-            gap: 10px;
         }
         .ss-trip-row:last-child {
             border-bottom: none;
         }
-        .ss-trip-left {
-            flex: 1;
-            min-width: 0;
+
+        /* Month abbreviation — left column, only on first row per group */
+        .ss-trip-month {
+            font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #9A3A42;
+            padding-top: 1px;
         }
+        .ss-trip-month.blank {
+            color: transparent;
+            user-select: none;
+        }
+
+        /* Resort name — center column */
         .ss-trip-dest {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 400;
             color: #1A1A1A;
             white-space: nowrap;
@@ -140,23 +169,23 @@
             text-overflow: ellipsis;
             line-height: 1.3;
         }
+
+        /* Date range — right column */
         .ss-trip-dates {
-            font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-            font-size: 11px;
-            color: #6B665A;
-            margin-top: 2px;
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 12px;
+            font-style: italic;
+            color: #8A857A;
             white-space: nowrap;
+            text-align: right;
         }
-        .ss-trip-status {
-            font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-            font-size: 9px;
-            font-weight: 700;
-            letter-spacing: 0.6px;
-            text-transform: uppercase;
-            flex-shrink: 0;
+
+        /* ── Bottom hairline inside card ── */
+        .ss-card-foot {
+            margin: 0 26px;
+            border-top: 0.5px solid #C8BFB0;
+            padding-bottom: 18px;
         }
-        .ss-trip-status.going { color: #7A1820; }
-        .ss-trip-status.planning { color: #B5AFA5; }
 
         /* ── Empty state ── */
         .ss-empty {
@@ -186,57 +215,64 @@
         <a href="{{ url_for('my_trips') }}">← Back</a>
     </div>
 
-    <!-- Card — single cream surface -->
-    <div class="ss-card">
+    <!-- Instruction text — outside the card -->
+    <div class="ss-instructions">
+        <p class="ss-instructions-primary">Take a screenshot of the card below</p>
+        <p class="ss-instructions-secondary">Share your season wherever you want</p>
+    </div>
 
-        <!-- Top: headline, identity, branding, rule -->
-        <div class="ss-card-top">
-            <p class="ss-headline">{{ user.first_name }}'s <em>Winter</em></p>
+    <!-- Capture framing — subtle backing around the card -->
+    <div class="ss-frame">
 
-            {% set id_line = user|identity_line %}
-            {% if id_line %}
-                <p class="ss-identity">{{ id_line }}</p>
-            {% endif %}
+        <!-- Card — single cream surface -->
+        <div class="ss-card">
 
-            <p class="ss-branding">— on BaseLodge —</p>
-        </div>
+            <!-- Top: headline, identity, branding, rule -->
+            <div class="ss-card-top">
+                <p class="ss-headline">{{ user.first_name }}'s <em>Winter</em></p>
 
-        <hr class="ss-rule">
+                {% set id_line = user|identity_line %}
+                {% if id_line %}
+                    <p class="ss-identity">{{ id_line }}</p>
+                {% endif %}
 
-        <!-- Trips grouped by month -->
-        <div class="ss-trip-list">
-            {% if all_upcoming %}
-                {% set grouped = group_trips_by_month(all_upcoming) %}
-                {% for month_label, trips in grouped %}
-                    <p class="ss-month-label">{{ month_label }}</p>
-                    {% for trip in trips %}
-                        {% set resort = trip.resort %}
-                        {% set mountain_name = resort.name if resort else (trip.mountain or 'Mountain TBD') %}
-                        {% set state_abbr = resort|state_abbrev if resort else trip.state %}
-                        {% set ts = trip.trip_status or 'planning' %}
-                        <div class="ss-trip-row">
-                            <div class="ss-trip-left">
-                                <p class="ss-trip-dest">
-                                    {{- mountain_name -}}
-                                    {%- if state_abbr %}, {{ state_abbr }}{% endif -%}
-                                </p>
-                                <p class="ss-trip-dates">
-                                    {%- if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif -%}
-                                </p>
+                <p class="ss-branding">— on BaseLodge —</p>
+            </div>
+
+            <hr class="ss-rule">
+
+            <!-- Trip table -->
+            <div class="ss-trip-table">
+                {% if all_upcoming %}
+                    {% set grouped = group_trips_by_month(all_upcoming) %}
+                    {% for month_label, trips in grouped %}
+                        {% set month_abbr = month_label[:3] | upper %}
+                        {% for trip in trips %}
+                            {% set resort = trip.resort %}
+                            {% set mountain_name = resort.name if resort else (trip.mountain or 'Mountain TBD') %}
+                            {% set raw_dates = format_trip_dates(trip) if (trip.start_date and trip.end_date) else 'Dates TBD' %}
+                            {% set display_dates = raw_dates | replace('–', ' — ') %}
+                            <div class="ss-trip-row">
+                                <span class="ss-trip-month {% if not loop.first %}blank{% endif %}">
+                                    {{ month_abbr }}
+                                </span>
+                                <p class="ss-trip-dest">{{ mountain_name }}</p>
+                                <p class="ss-trip-dates">{{ display_dates }}</p>
                             </div>
-                            <span class="ss-trip-status {% if ts == 'going' %}going{% else %}planning{% endif %}">
-                                {%- if ts == 'going' %}Going{% else %}Planning{% endif -%}
-                            </span>
-                        </div>
+                        {% endfor %}
                     {% endfor %}
-                {% endfor %}
-            {% else %}
-                <!-- 0 trips state -->
-                <div class="ss-empty">
-                    <p class="ss-empty-headline">Nothing planned yet.</p>
-                    <p class="ss-empty-sub">Add your first trip and it'll appear here.</p>
-                </div>
-            {% endif %}
+                {% else %}
+                    <!-- 0 trips state -->
+                    <div class="ss-empty">
+                        <p class="ss-empty-headline">Nothing planned yet.</p>
+                        <p class="ss-empty-sub">Add your first trip and it'll appear here.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Bottom hairline -->
+            <div class="ss-card-foot"></div>
+
         </div>
 
     </div>
