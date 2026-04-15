@@ -221,3 +221,76 @@ def build_wishlist_overlaps(user, all_friends):
                 }
 
     return list(results.values())
+
+
+def make_idea_card(
+    idea_type,
+    title,
+    cta_url,
+    cta_label,
+    friend_ids,
+    score=0.0,
+    subtitle=None,
+    eyebrow=None,
+    start_date=None,
+    end_date=None,
+    resort_id=None,
+    resort_name=None,
+    anchor_friend_id=None,
+    anchor_friend_name=None,
+    meta=None,
+    is_first=False,
+):
+    """
+    Factory for the common IdeaCard dict structure emitted by all idea skills.
+
+    All skills (availability_overlap, wishlist_overlap, trip_overlap, etc.)
+    must return lists of dicts produced by this factory so that the ranking
+    layer and templates can handle any idea type uniformly.
+
+    Required fields
+    ---------------
+    idea_type        str   Identifies the skill that produced this card.
+                           Values: "availability_overlap", "wishlist_overlap",
+                           "trip_overlap", "pass_resort", "ai_generated".
+    title            str   Primary headline shown on the card.
+    cta_url          str   Full URL the card navigates to on tap.
+    cta_label        str   Link/button text (e.g. "Plan →", "View trip →").
+    friend_ids       list  User IDs of all friends relevant to this idea.
+                           Used by the ranking layer for scoring signals.
+
+    Optional fields
+    ---------------
+    score            float Ranking score 0–100. Set by the ranking layer;
+                           skills may leave this at 0.0.
+    subtitle         str   Supporting/secondary line below the title.
+    eyebrow          str   Small label above the title (e.g. date range).
+    start_date       str   ISO date string. Present for date-anchored ideas.
+    end_date         str   ISO date string.
+    resort_id        int   Present for resort-anchored ideas.
+    resort_name      str   Display name for the resort.
+    anchor_friend_id int   Primary friend for pre-filling /add-trip?friend_id=.
+    anchor_friend_name str Display name for the anchor friend.
+    meta             dict  Escape hatch for skill-specific extra fields that
+                           do not fit the standard schema.
+    is_first         bool  Set post-sort by the ranking layer to flag the
+                           top card for highlight styling.
+    """
+    return {
+        "idea_type": idea_type,
+        "title": title,
+        "cta_url": cta_url,
+        "cta_label": cta_label,
+        "friend_ids": list(friend_ids),
+        "score": score,
+        "subtitle": subtitle,
+        "eyebrow": eyebrow,
+        "start_date": start_date,
+        "end_date": end_date,
+        "resort_id": resort_id,
+        "resort_name": resort_name,
+        "anchor_friend_id": anchor_friend_id,
+        "anchor_friend_name": anchor_friend_name,
+        "meta": meta or {},
+        "is_first": is_first,
+    }
