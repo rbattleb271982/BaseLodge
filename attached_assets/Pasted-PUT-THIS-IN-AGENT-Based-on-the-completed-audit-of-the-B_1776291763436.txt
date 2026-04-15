@@ -1,0 +1,154 @@
+PUT THIS IN AGENT
+
+Based on the completed audit of the BaseLodge Ideas tab, I want you to produce a detailed architecture plan for how we should refactor the current implementation into a modular skills-based ideas engine.
+
+Do NOT implement anything yet.
+Do NOT rewrite files yet.
+Do NOT make code changes yet.
+
+I want a precise technical plan that uses the CURRENT app structure and explains the safest, cleanest path forward.
+
+Please answer all of the following:
+
+1. Target architecture
+Design the ideal architecture for the Ideas system using the current BaseLodge app structure.
+
+I want you to propose:
+- which files should live in services/
+- whether we should create a new skills/ folder
+- whether the route should remain in app.py for now or move later
+- how Home, My Trips, and /trip-ideas should share logic without duplication
+- how to keep the route thin and make the engine reusable
+
+2. Canonical data flow
+Show me the exact desired future flow for /trip-ideas from request to render.
+
+Example level of detail:
+- route receives request
+- route loads user context
+- route calls skills
+- skills return IdeaCard objects
+- ideas are ranked
+- route determines page state
+- template renders cards
+
+Be specific and use the actual BaseLodge context.
+
+3. IdeaCard schema
+Design a common schema for all future idea cards.
+
+I want a proposed structure that can support:
+- availability overlaps
+- trip overlap / “join your friend’s trip”
+- shared wishlist ideas
+- pass-based resort suggestions
+- future AI-generated idea summaries
+
+For each field, explain:
+- field name
+- type
+- whether required or optional
+- what it is used for
+
+Also tell me whether this should be:
+- a dataclass
+- a simple dict factory
+- a lightweight class
+- something else
+
+Recommend the best option for the current codebase.
+
+4. Skills definition
+Define the first set of modular skills we should support in V1 of the new engine.
+
+At minimum, evaluate these:
+- availability_overlap_skill
+- wishlist_overlap_skill
+- trip_overlap_skill
+- pass_resort_skill
+
+For each skill, specify:
+- purpose
+- required inputs
+- output
+- dependencies
+- difficulty level
+- whether it can be built using existing data today
+- whether it should be part of V1 or V2
+
+5. Shared services plan
+Map out which existing logic should move into a shared engine/service layer.
+
+Be explicit about:
+- get_open_date_matches()
+- _build_overlap_windows()
+- score_overlap_windows()
+- wishlist overlap construction
+- any friend/trip helper logic that should be centralized
+
+Tell me:
+- what stays where
+- what gets moved
+- what gets renamed
+- what should become importable by multiple routes
+
+6. Route-by-route impact
+For each of these surfaces:
+- /trip-ideas
+- /my-trips
+- /home
+
+Explain:
+- what they should continue to use
+- what shared idea logic they should call
+- what should be unique to that surface
+- whether they should all consume the same IdeaCard objects or only parts of them
+
+7. State model
+Propose the ideal state logic for the Ideas page.
+
+Today it is:
+- setup
+- reengagement
+- populated
+
+Should we keep that exactly, or expand it?
+
+If you recommend change, define the future state model and the logic for entering each state.
+
+8. Refactor sequence
+Give me the safest implementation order.
+
+I want a phased plan that minimizes breakage.
+
+For each phase:
+- goal
+- files touched
+- risk level
+- what gets tested
+- what should remain unchanged visually until later
+
+9. Testing strategy
+Tell me how this should be tested in Replit.
+
+I want:
+- backend logic tests
+- route-level tests
+- template/state tests
+- regression tests to ensure /my-trips and /trip-ideas no longer diverge
+- test ideas for deterministic ranking after removing randomness
+
+10. Final recommendation
+At the end, give me:
+A. the best target architecture
+B. the minimum viable refactor
+C. what should wait until V2
+D. whether we should build the shared engine first or the IdeaCard schema first
+E. the exact next implementation step after this planning doc
+
+Important instructions:
+- This should read like a technical design plan, not a guess
+- Use the actual existing files/functions found in the audit
+- Be concrete
+- Recommend the safest path, not the fanciest
+- Use checkpoints sparingly
