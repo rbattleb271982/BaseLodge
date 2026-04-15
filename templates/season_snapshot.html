@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Season Snapshot — BaseLodge</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            min-height: 100vh;
+            background: #1A1614;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Dismiss bar (outside the card) ── */
+        .ss-dismiss {
+            width: 100%;
+            max-width: 420px;
+            padding: 16px 20px 12px;
+            display: flex;
+            align-items: center;
+        }
+        .ss-dismiss a {
+            font-size: 13px;
+            color: #8A7E74;
+            text-decoration: none;
+            letter-spacing: 0.1px;
+        }
+        .ss-dismiss a:active { opacity: 0.7; }
+
+        /* ── Card ── */
+        .ss-card {
+            width: calc(100% - 32px);
+            max-width: 388px;
+            background: #F5F1E8;
+            border-radius: 16px;
+            overflow: hidden;
+            flex-shrink: 0;
+            margin-bottom: 32px;
+        }
+
+        /* ── Card header ── */
+        .ss-card-header {
+            background: #5C1219;
+            padding: 28px 24px 22px;
+        }
+        .ss-card-eyebrow {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: rgba(245, 241, 232, 0.55);
+            margin-bottom: 10px;
+        }
+        .ss-card-name {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 30px;
+            font-weight: 400;
+            color: #F5F1E8;
+            line-height: 1.1;
+            margin-bottom: 6px;
+        }
+        .ss-card-identity {
+            font-size: 12px;
+            color: rgba(245, 241, 232, 0.65);
+            letter-spacing: 0.2px;
+            line-height: 1.4;
+        }
+
+        /* ── Card body ── */
+        .ss-card-body {
+            padding: 0 24px 24px;
+        }
+
+        /* ── Month group ── */
+        .ss-month-label {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #8A857A;
+            padding: 18px 0 8px;
+            border-bottom: 0.5px solid #D5CFCA;
+            margin-bottom: 0;
+        }
+
+        /* ── Trip row ── */
+        .ss-trip-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            padding: 11px 0;
+            border-bottom: 0.5px solid #E5DFD0;
+            gap: 10px;
+        }
+        .ss-trip-row:last-child {
+            border-bottom: none;
+        }
+        .ss-trip-left {
+            flex: 1;
+            min-width: 0;
+        }
+        .ss-trip-dest {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 15px;
+            font-weight: 400;
+            color: #1A1A1A;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.3;
+        }
+        .ss-trip-dates {
+            font-size: 12px;
+            color: #6B665A;
+            margin-top: 2px;
+            white-space: nowrap;
+        }
+        .ss-trip-status {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            flex-shrink: 0;
+            padding-top: 2px;
+        }
+        .ss-trip-status.going { color: #5C1219; }
+        .ss-trip-status.planning { color: #B5AFA5; }
+
+        /* ── Empty state ── */
+        .ss-empty {
+            padding: 32px 24px 28px;
+            text-align: center;
+        }
+        .ss-empty-headline {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 18px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin-bottom: 6px;
+        }
+        .ss-empty-sub {
+            font-size: 13px;
+            color: #8A857A;
+            line-height: 1.5;
+        }
+
+        /* ── Card footer ── */
+        .ss-card-footer {
+            border-top: 0.5px solid #D5CFCA;
+            padding: 14px 24px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .ss-footer-brand {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: #5C1219;
+        }
+        .ss-footer-season {
+            font-size: 10px;
+            color: #B5AFA5;
+            letter-spacing: 0.3px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Dismiss — outside the screenshot card -->
+    <div class="ss-dismiss">
+        <a href="{{ url_for('my_trips') }}">← Back</a>
+    </div>
+
+    <!-- Card -->
+    <div class="ss-card">
+
+        <!-- Header: name + identity -->
+        <div class="ss-card-header">
+            <p class="ss-card-eyebrow">Season Snapshot</p>
+            <p class="ss-card-name">{{ user.first_name }}</p>
+            {% set id_line = user|identity_line %}
+            {% if id_line %}
+                <p class="ss-card-identity">{{ id_line }}</p>
+            {% endif %}
+        </div>
+
+        <!-- Body: trips grouped by month -->
+        <div class="ss-card-body">
+            {% if all_upcoming %}
+                {% set grouped = group_trips_by_month(all_upcoming) %}
+                {% for month_label, trips in grouped %}
+                    <p class="ss-month-label">{{ month_label }}</p>
+                    {% for trip in trips %}
+                        {% set resort = trip.resort %}
+                        {% set mountain_name = resort.name if resort else (trip.mountain or 'Mountain TBD') %}
+                        {% set state_abbr = resort|state_abbrev if resort else trip.state %}
+                        {% set ts = trip.trip_status or 'planning' %}
+                        <div class="ss-trip-row">
+                            <div class="ss-trip-left">
+                                <p class="ss-trip-dest">
+                                    {{- mountain_name -}}
+                                    {%- if state_abbr %}, {{ state_abbr }}{% endif -%}
+                                </p>
+                                <p class="ss-trip-dates">
+                                    {%- if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif -%}
+                                </p>
+                            </div>
+                            <span class="ss-trip-status {% if ts == 'going' %}going{% else %}planning{% endif %}">
+                                {%- if ts == 'going' %}Going{% else %}Planning{% endif -%}
+                            </span>
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+            {% else %}
+                <!-- 0 trips state -->
+                <div class="ss-empty">
+                    <p class="ss-empty-headline">Nothing planned yet</p>
+                    <p class="ss-empty-sub">Add your first trip and it'll appear here.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Footer: branding -->
+        <div class="ss-card-footer">
+            <span class="ss-footer-brand">BaseLodge</span>
+            {% set next_yr = ((today.year + 1) | string)[-2:] %}
+            <span class="ss-footer-season">{{ today.year }}–{{ next_yr }}</span>
+        </div>
+
+    </div>
+
+</body>
+</html>

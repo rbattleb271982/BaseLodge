@@ -1,0 +1,117 @@
+PUT THIS IN PLAN
+
+Plan the full implementation of the new BaseLodge “Season Snapshot” feature before building anything.
+
+This feature is a screenshot-first, shareable artifact — not a normal app screen. A user will open it from the Trips page, see a clean editorial card of their upcoming trips, and screenshot it to share via iMessage, Instagram, or text.
+
+Do not implement yet.
+Do not write code yet.
+First inspect the existing BaseLodge codebase and produce a practical implementation plan based on the real app structure.
+
+Use the approved design/build spec as the source of truth for visual requirements and behavior. The latest spec defines the aspect ratio, compact header, trip grouping, typography, colors, background treatment, entry point, edge cases, and data logic. :contentReference[oaicite:0]{index=0}
+
+Your task:
+
+1. Inspect the current codebase and identify the best implementation path for Season Snapshot
+   - which existing routes/templates should be extended
+   - where the Trips page header action should live
+   - whether Snapshot should be a new route, overlay, modal-like full-screen view, or separate template
+   - how to keep it screenshot-safe and mobile-first
+
+2. Determine the safest architecture for this feature using the current app structure
+   - route file(s)
+   - template file(s)
+   - CSS location(s)
+   - helper/util functions for date formatting, grouping, and identity line construction
+   - whether existing trip query helpers can be reused
+
+3. Identify the exact data required and where it currently comes from
+   - user first name
+   - rider type(s)
+   - pass type(s)
+   - upcoming trips
+   - resort/mountain names
+   - trip start and end dates
+   - any edge cases where data may be missing or formatted inconsistently
+
+4. Plan the route/view behavior
+   - user taps “Snapshot” on Trips page
+   - Snapshot opens in a screenshot-first full-screen view
+   - there should be a subtle dismiss/close affordance outside the screenshot-safe area if needed
+   - no normal app chrome should appear inside the card
+   - decide whether this should be:
+     - a dedicated route like /season-snapshot
+     - a parameterized variation of the trips page
+     - or another approach better aligned with current architecture
+
+5. Plan the rendering logic for the card
+   - chronological sorting of upcoming trips
+   - month grouping by trip start date
+   - same-month vs cross-month date formatting
+   - identity line generation:
+     - rider type + passes
+     - rider type only
+     - passes only
+     - neither
+   - 0 trips state
+   - 1 trip state
+   - many trips state
+   - truncation / overflow behavior for long names or long resort names
+
+6. Inspect whether the current Trips page already has a header action area that can support a subtle “Snapshot” button
+   - if yes, note exactly where
+   - if not, recommend the cleanest minimal UI change
+
+7. Identify any implementation risks or design mismatches
+   - current CSS system limitations
+   - typography availability
+   - existing page wrappers that may inject nav/chrome
+   - route guard / login issues
+   - mobile viewport constraints
+   - screenshot-safe concerns
+   - any data inconsistencies from seed or production-like records
+
+8. Recommend the exact implementation sequence
+   For example:
+   - add route
+   - add template
+   - add trip grouping helper
+   - add Snapshot action to Trips page
+   - wire data
+   - style card
+   - test edge cases
+   Organize this in the order that minimizes risk
+
+9. Define the QA plan
+   Include what should be tested for:
+   - empty state
+   - one trip
+   - multiple trips across months
+   - cross-month trip
+   - long names
+   - long resort names
+   - mobile screenshot behavior
+   - whether app chrome accidentally appears
+   - whether the Snapshot button is discoverable but subtle
+
+10. Tell me exactly which files, routes, templates, and helpers you inspected
+
+Important requirements:
+- Base recommendations only on the current BaseLodge codebase
+- Do not guess at routes or helpers that do not exist
+- Do not implement yet
+- Do not propose a redesign of the approved Snapshot card
+- Keep the feature mobile-first
+- Optimize for the simplest, cleanest path to implementation
+- Use checkpoints sparingly only if truly needed
+
+Return the final answer in this structure:
+1. Recommended architecture
+2. Files/routes/templates to change
+3. Data sources and helper needs
+4. Recommended route/view behavior
+5. Rendering logic plan
+6. Risks or blockers
+7. Implementation sequence
+8. QA plan
+9. Files inspected

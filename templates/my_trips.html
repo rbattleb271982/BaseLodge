@@ -301,7 +301,10 @@
 <body>
     <div class="page-container" style="padding: 20px 16px 88px;">
 
-        <h1 class="mt-page-title">Trips</h1>
+        <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0;">
+            <h1 class="mt-page-title" style="margin-bottom: 0;">Trips</h1>
+            <a href="{{ url_for('season_snapshot') }}" style="font-size: 13px; color: #6B665A; text-decoration: none; font-weight: 400; flex-shrink: 0; padding-bottom: 2px;">Snapshot</a>
+        </div>
 
         <!-- Tab bar — My Trips / Friends' Trips -->
         {% set ns = namespace(invite_count=0) %}
@@ -328,7 +331,7 @@
                     <p class="mt-section-count">{{ all_upcoming|length }}</p>
                 </div>
 
-                {% for trip in all_upcoming[:3] %}
+                {% for trip in all_upcoming %}
                     {% set resort = trip.resort %}
                     {% set mountain_name = resort.name if resort else (trip.mountain or 'Mountain TBD') %}
                     {% set state_abbr = resort|state_abbrev if resort else trip.state %}

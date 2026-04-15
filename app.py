@@ -1443,6 +1443,37 @@ app.jinja_env.globals['format_trip_dates'] = format_trip_dates
 app.jinja_env.globals['get_season_context'] = get_season_context
 app.jinja_env.globals['get_seasonal_empty_state'] = get_seasonal_empty_state
 
+
+def group_trips_by_month(trips):
+    """
+    Group a list of SkiTrip objects (pre-sorted by start_date asc)
+    into (month_label, [trips]) tuples based on each trip's start_date month.
+    Trips without a start_date are collected under 'TBD'.
+    Example output: [("February", [trip1, trip2]), ("March", [trip3])]
+    """
+    groups = []
+    current_label = None
+    current_trips = []
+    for trip in (trips or []):
+        start = getattr(trip, 'start_date', None)
+        if start:
+            label = start.strftime('%B')
+        else:
+            label = 'TBD'
+        if label != current_label:
+            if current_label is not None:
+                groups.append((current_label, current_trips))
+            current_label = label
+            current_trips = [trip]
+        else:
+            current_trips.append(trip)
+    if current_label is not None:
+        groups.append((current_label, current_trips))
+    return groups
+
+
+app.jinja_env.globals['group_trips_by_month'] = group_trips_by_month
+
 MOUNTAINS_BY_STATE = {
     "CO": sorted(["Vail", "Breckenridge", "Keystone", "Copper Mountain", "Arapahoe Basin", "Loveland", "Winter Park", "Steamboat", "Aspen Snowmass", "Telluride", "Crested Butte", "Eldora"]),
     "UT": sorted(["Park City", "Deer Valley", "Snowbird", "Alta", "Brighton", "Solitude", "Snowbasin", "Powder Mountain"]),
@@ -2197,6 +2228,51 @@ def my_trips():
         wishlist_overlaps=wishlist_overlaps,
         today=today
     )
+
+@app.route("/season-snapshot")
+@login_required
+def season_snapshot():
+    today = date.today()
+    try:
+        upcoming_owned = (
+            SkiTrip.query
+            .filter(SkiTrip.user_id == current_user.id)
+            .filter(SkiTrip.end_date >= today)
+            .order_by(SkiTrip.start_date.asc())
+            .all()
+        ) or []
+    except Exception:
+        upcoming_owned = []
+
+    try:
+        accepted_participations = SkiTripParticipant.query.filter(
+            SkiTripParticipant.user_id == current_user.id,
+            SkiTripParticipant.status == GuestStatus.ACCEPTED
+        ).all()
+        accepted_trip_ids = [p.trip_id for p in accepted_participations]
+        if accepted_trip_ids:
+            accepted_guest_trips = SkiTrip.query.filter(
+                SkiTrip.id.in_(accepted_trip_ids),
+                SkiTrip.user_id != current_user.id,
+                SkiTrip.end_date >= today
+            ).order_by(SkiTrip.start_date.asc()).all() or []
+        else:
+            accepted_guest_trips = []
+    except Exception:
+        accepted_guest_trips = []
+
+    all_upcoming = sorted(
+        upcoming_owned + accepted_guest_trips,
+        key=lambda t: t.start_date if t.start_date else date.max
+    )
+
+    return render_template(
+        "season_snapshot.html",
+        user=current_user,
+        all_upcoming=all_upcoming,
+        today=today,
+    )
+
 
 @app.route("/overlap-detail")
 @login_required

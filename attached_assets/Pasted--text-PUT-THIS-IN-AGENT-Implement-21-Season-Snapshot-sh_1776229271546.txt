@@ -1,0 +1,168 @@
+```text
+PUT THIS IN AGENT
+
+Implement #21 — Season Snapshot — shareable trip card
+
+What & Why
+Add a "Season Snapshot" view that users can open from the Trips page, screenshot, and share. It renders the user's upcoming trips as a clean editorial card — no app chrome, no nav, no interactive elements. The card shows the user's name, identity line (rider type · passes), and upcoming trips grouped by month with formatted dates and resort names. Also fix the confirmed bug where the Trips page silently truncates to 3 trips via a [:3] slice even when more exist.
+
+Done looks like
+- A "Snapshot" entry point appears subtly in the Trips page header, right-aligned next to the "Trips" title
+- Tapping it opens /season-snapshot — a full-viewport, chromeless view with no bottom nav and no standard page wrapper
+- The card shows: user first name, identity line, and upcoming trips grouped by month
+- Each trip row shows: resort name + state, formatted date range, and trip status
+- The view handles gracefully: 0 trips, 1 trip, many trips, cross-month trips, and long resort names
+- The Trips page (/my-trips) now shows all upcoming trips, not just the first 3
+
+Out of scope
+- Publicly shareable snapshot URL without login
+- Native share-sheet integration
+- Animation or transition effects
+- Editing trip data from the Snapshot view
+- Past trips in the Snapshot card
+
+Required tasks
+
+1. Fix the trips[:3] bug
+- In templates/my_trips.html, remove the [:3] slice in the "Your trips" section so all upcoming trips render
+- Make sure nothing else on the page relies on that truncation behavior
+
+2. Add group_trips_by_month helper
+- In app.py, add a Python helper function named group_trips_by_month
+- Input: a list of SkiTrip objects already sorted by start_date ascending
+- Output: a list of tuples like:
+  [("December", [trip1, trip2]), ("January", [trip3])]
+- Group based on trip.start_date month
+- Register it as a Jinja2 global alongside the existing date helpers
+
+3. Add /season-snapshot route
+- In app.py, add a new GET route: /season-snapshot
+- Route must be @login_required
+- Query the same upcoming trips logic used by my_trips():
+  - owned upcoming trips
+  - accepted guest trips
+- Sort ascending by start_date
+- Pass to template:
+  - user/current_user
+  - all_upcoming
+  - today
+- Keep logic grounded in the existing codebase patterns
+
+4. Create templates/season_snapshot.html
+- Standalone template
+- Do NOT include bottom nav
+- Do NOT use the normal page-container wrapper
+- Use an inline <style> block inside the template
+- Do NOT modify static/styles.css for this feature
+
+Template requirements
+- Full-viewport presentation
+- Chromeless view
+- Subtle dismiss affordance outside or above the card:
+  - "← Back" or "✕"
+- The card should feel editorial and screenshot-first
+- No interactive elements inside the card itself
+
+Card content
+- User first name in large serif type
+- Identity line using the existing filter:
+  {{ current_user|identity_line }}
+- Upcoming trips grouped by month using group_trips_by_month
+- Each trip row should show:
+  - resort name
+  - state abbreviation
+  - formatted date range
+  - trip status
+
+Use existing logic/patterns where possible
+- Resort name:
+  trip.resort.name if trip.resort else (trip.mountain or 'Mountain TBD')
+- State display:
+  trip.resort|state_abbrev if trip.resort else trip.state
+- Date formatting:
+  use the existing format_trip_dates(trip) Jinja global
+- Identity line:
+  use the existing identity_line filter
+
+Rendering requirements
+- 0 trips state:
+  show a clean empty state like "Nothing planned yet"
+- 1 trip:
+  still looks intentional and balanced
+- Many trips:
+  still readable and grouped
+- Cross-month trips:
+  formatted correctly
+- Long resort names:
+  truncate cleanly with CSS ellipsis, no ugly wrapping
+- No bottom nav
+- No tab bar
+- No standard app chrome inside the card viewport
+
+5. Add Snapshot entry point to Trips page
+- In templates/my_trips.html, convert the Trips page title row into a flex row
+- Keep title left:
+  Trips
+- Add a subtle right-aligned action:
+  Snapshot
+- Link it to /season-snapshot
+- Style it as a muted secondary action
+- Suggested visual direction:
+  - color: #6B665A
+  - font-size: 13px
+- No heavy button styling, keep it quiet and premium
+
+6. QA edge cases
+Test with:
+- Alex Chen:
+  4 upcoming trips across 3 months
+- Chris Adler:
+  0 trips
+- A long resort name:
+  Whistler Blackcomb
+- A cross-month trip:
+  Jan 30–Feb 2
+
+Confirm:
+- /season-snapshot has no bottom nav, no tab bar, no standard page chrome inside the viewport
+- Snapshot card renders correctly for all edge cases
+- Trips page now shows all upcoming trips and no longer truncates to 3
+- Owned and accepted guest trips both appear correctly if they should
+- Month grouping works correctly
+- Route is login-protected
+
+Architecture notes
+- Route: new GET /season-snapshot in app.py with @login_required
+- Template: templates/season_snapshot.html
+- Keep Snapshot CSS isolated in the template via inline <style>
+- Do not modify static/styles.css
+- Reuse existing helpers and filters wherever available
+- Keep implementation mobile-first and screenshot-safe
+
+Relevant files to inspect and use
+- app.py:1936-2065
+- app.py:283-324
+- app.py:1402-1445
+- app.py:247-267
+- app.py:367-405
+- templates/my_trips.html:300-360
+- templates/my_trips.html:1-20
+- templates/components/bottom_nav.html
+- models.py:109-125
+- models.py:242-274
+- models.py:517-540
+
+Important requirements
+- Do not redesign the approved Season Snapshot concept
+- Do not add share-sheet logic
+- Do not make the Snapshot public
+- Do not touch unrelated templates or global styles unless absolutely necessary
+- Use checkpoints sparingly only if truly needed
+
+After implementation, return:
+1. Files changed
+2. What logic was reused vs newly added
+3. How /season-snapshot is wired
+4. Confirmation that my_trips no longer truncates to 3 trips
+5. Any edge cases or assumptions encountered
+```
