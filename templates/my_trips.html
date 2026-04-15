@@ -173,6 +173,55 @@
             flex-shrink: 0;
             margin-left: 12px;
         }
+
+        /* ── Friends' Trips — 3-column single-row layout ── */
+        .ft-row {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #E5DFD0;
+            text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
+            gap: 8px;
+        }
+        .ft-row:first-child { border-top: 1px solid #E5DFD0; }
+        .ft-row:active { opacity: 0.7; }
+        .ft-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 38%) 1fr auto;
+            column-gap: 10px;
+            flex: 1;
+            min-width: 0;
+            align-items: center;
+        }
+        .ft-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1A1A1A;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ft-dest {
+            font-size: 14px;
+            font-weight: 400;
+            color: #4A4540;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ft-date {
+            font-size: 13px;
+            color: #8A857A;
+            white-space: nowrap;
+            text-align: right;
+        }
+        .ft-cta {
+            font-size: 13px;
+            color: #C0B9AE;
+            flex-shrink: 0;
+        }
         .secondary-action-inline {
             font-size: 13px;
             font-weight: 500;
@@ -437,15 +486,13 @@
                     {% set resort = trip.resort %}
                     {% set mountain_name = resort.name if resort else (trip.mountain or 'Mountain TBD') %}
                     {% set state_abbr = resort|state_abbrev if resort else trip.state %}
-                    <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="trip-row">
-                        <div class="trip-row-content">
-                            <p class="trip-row-dest">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-                            <p class="trip-row-dates">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</p>
-                            {% if trip.user %}
-                            <p class="trip-row-people">{{ trip.user.first_name | format_name }} {{ trip.user.last_name | format_name }}</p>
-                            {% endif %}
+                    <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="ft-row">
+                        <div class="ft-grid">
+                            <span class="ft-name">{% if trip.user %}{{ trip.user.first_name | format_name }} {{ trip.user.last_name | format_name }}{% endif %}</span>
+                            <span class="ft-dest">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</span>
+                            <span class="ft-date">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</span>
                         </div>
-                        <span class="trip-row-cta">→</span>
+                        <span class="ft-cta">→</span>
                     </a>
                     {% endif %}
                 {% endfor %}
