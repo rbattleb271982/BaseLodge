@@ -545,7 +545,7 @@ def seed():
     test5 = make_user(
         first_name='Taylor', last_name='Reed',
         email='test5@gmail.com',
-        password='seed_pass_1!',
+        password='12345678',
         rider_types=['Skier'],
         skill_level='Advanced',
         pass_type='Epic,Ikon',
