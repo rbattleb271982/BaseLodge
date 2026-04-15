@@ -72,7 +72,12 @@ def resolve_resorts():
 def teardown():
     print("🗑   Tearing down prior seed data...")
 
+    # test5@gmail.com may exist as a real (non-seeded) account; include it in teardown
     seeded_users = User.query.filter_by(is_seeded=True).all()
+    test5_user = User.query.filter_by(email='test5@gmail.com').first()
+    if test5_user and test5_user not in seeded_users:
+        seeded_users = list(seeded_users) + [test5_user]
+
     if not seeded_users:
         print("    No seeded users found — nothing to remove.")
         return
@@ -128,7 +133,7 @@ def teardown():
         (Friend.friend_id.in_(seeded_ids))
     ).delete(synchronize_session=False)
 
-    User.query.filter(User.is_seeded == True).delete(synchronize_session=False)
+    User.query.filter(User.id.in_(seeded_ids)).delete(synchronize_session=False)
 
     db.session.commit()
     print(f"    Removed {len(seeded_users)} seeded user(s) and all related records.")
@@ -536,7 +541,31 @@ def seed():
                    brand='Faction', model='Agent 2.0',
                    boot_brand='La Sportiva', boot_model='Vega')
 
+    # T — Taylor Reed (test5@gmail.com: personal demo / full social graph user)
+    test5 = make_user(
+        first_name='Taylor', last_name='Reed',
+        email='test5@gmail.com',
+        password='seed_pass_1!',
+        rider_types=['Skier'],
+        skill_level='Advanced',
+        pass_type='Epic,Ikon',
+        terrain_preferences=['Steeps', 'Trees'],
+        home_state='CO',
+        home_resort_id=vail.id,
+        visited_resort_ids=[vail.id, breck.id, jackson.id, stowe.id],
+        wish_list_resorts=[mammoth.id, whistler.id, telluride.id],
+        equipment_status='have_own_equipment',
+        created_at=NOW - timedelta(days=120),
+    )
+    db.session.flush()
+    make_equipment(test5, EquipmentSlot.PRIMARY, EquipmentDiscipline.SKIER,
+                   brand='Völkl', model='Mantra M6 102',
+                   boot_brand='Tecnica', boot_model='Mach1 LV 120', boot_flex=120)
+    # Open dates: cover the Telluride/Vail/Copper window, the Jackson window, and Stowe window
+    set_open_dates(test5, list(range(35, 40)) + list(range(44, 52)) + list(range(60, 66)))
+
     print("    ✓ Cohort B (3 connection state users) created")
+    print("    ✓ Taylor Reed <test5@gmail.com> created (personal demo, full social graph)")
 
     # ─────────────────────────────────────────────────────────────────────────
     # FRIENDSHIPS
@@ -558,7 +587,22 @@ def seed():
     # B2: Alex → Jake (outgoing from Alex, pending)
     make_invitation(alex, jake, status='pending')
 
-    print("    ✓ 8 bidirectional friendships, 2 pending invitations")
+    # test5 — confirmed friends with all core seed users
+    make_friends(test5, alex)
+    make_friends(test5, jordan)
+    make_friends(test5, maya)
+    make_friends(test5, sam)
+    make_friends(test5, chris)
+    make_friends(test5, emma)
+    make_friends(test5, tyler)
+
+    # test5 incoming: Priya → test5 (pending, separate record from Priya → Alex)
+    make_invitation(priya, test5, status='pending')
+
+    # test5 outgoing: test5 → Rachel (pending; Rachel has no confirmed connection)
+    make_invitation(test5, rachel, status='pending')
+
+    print("    ✓ 15 bidirectional friendships, 4 pending invitations")
 
     # ─────────────────────────────────────────────────────────────────────────
     # TRIPS
@@ -651,6 +695,33 @@ def seed():
                                   trip_status='planning', pass_type='Ikon', is_public=True)
     trip_count += 1
 
+    # ── test5 (Taylor Reed) trips ─────────────────────────────────────────────
+    # Scenario A — Near overlap: arrives at Breck T+22, 1 day into the main group window
+    trip_breck_test5 = make_trip(test5, breck, 22, 25,
+                                 trip_status='planning', pass_type='Epic', is_public=True)
+    trip_count += 1
+
+    # Scenario B — Exact overlap: Jackson Hole T+45→T+49, same as Alex AND Jordan
+    trip_jackson_test5 = make_trip(test5, jackson, 45, 49,
+                                   trip_status='planning', pass_type='Ikon', is_public=True)
+    trip_count += 1
+
+    # Scenario C — Different resort, same dates: Telluride T+35→T+38
+    #              while Jordan is at Vail and Tyler is at Copper — same window
+    trip_telluride_test5 = make_trip(test5, telluride, 35, 38,
+                                     trip_status='planning', pass_type='Mountain Collective', is_public=True)
+    trip_count += 1
+
+    # Upcoming density trip — Stowe
+    trip_stowe_test5 = make_trip(test5, stowe, 61, 64,
+                                 trip_status='planning', pass_type='Epic', is_public=True)
+    trip_count += 1
+
+    # Far-future trip — Mammoth (Ideas tab cross-resort inspiration)
+    trip_mammoth_test5 = make_trip(test5, mammoth, 85, 89,
+                                   trip_status='planning', pass_type='Ikon', is_public=True)
+    trip_count += 1
+
     print(f"    ✓ {trip_count} trips created")
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -714,6 +785,26 @@ def seed():
     add_activity(tyler, maya, ActivityType.FRIEND_JOINED_TRIP, 'trip', trip_breck.id)
     n_activities += 2
 
+    # test5 exact overlaps: Jackson Hole — test5 + Alex + Jordan all there T+45→T+49
+    add_activity(jordan, test5, ActivityType.TRIP_OVERLAP, 'trip', trip_jackson_jordan.id)
+    add_activity(test5, jordan, ActivityType.TRIP_OVERLAP, 'trip', trip_jackson_test5.id)
+    add_activity(alex, test5, ActivityType.TRIP_OVERLAP, 'trip', trip_jackson_alex.id)
+    add_activity(test5, alex, ActivityType.TRIP_OVERLAP, 'trip', trip_jackson_test5.id)
+    n_activities += 4
+
+    # test5 new connections
+    add_activity(alex, test5, ActivityType.CONNECTION_ACCEPTED, 'user', alex.id)
+    add_activity(test5, alex, ActivityType.CONNECTION_ACCEPTED, 'user', test5.id)
+    add_activity(jordan, test5, ActivityType.CONNECTION_ACCEPTED, 'user', jordan.id)
+    n_activities += 3
+
+    # Friends' trips visible to test5
+    add_activity(jordan, test5, ActivityType.TRIP_CREATED, 'trip', trip_stowe.id)
+    add_activity(jordan, test5, ActivityType.TRIP_CREATED, 'trip', trip_vail_jordan.id)
+    add_activity(maya, test5, ActivityType.TRIP_CREATED, 'trip', trip_palisades_maya.id)
+    add_activity(tyler, test5, ActivityType.TRIP_CREATED, 'trip', trip_copper_tyler.id)
+    n_activities += 4
+
     print(f"    ✓ {n_activities} activity records created")
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -771,9 +862,10 @@ def seed():
         (chris,  "Social/Empty — No pass, no trips, incomplete profile"),
         (emma,   "Beginner Planner — Indy, near-miss Breck trip"),
         (tyler,  "The Regular — Advanced Skier, Ikon, CO-based"),
-        (priya,  "Incoming request → Alex (pending)"),
+        (priya,  "Incoming request → Alex + test5 (pending)"),
         (jake,   "Outgoing request from Alex (pending)"),
-        (rachel, "No connection to Alex"),
+        (rachel, "No connection to Alex; pending request from test5"),
+        (test5,  "Personal demo — Skier, Advanced, Epic+Ikon, 5 upcoming trips, friends with all core users"),
     ]
     for user, label in archetypes:
         print(f"    {user.first_name} {user.last_name}  <{user.email}>")
@@ -791,6 +883,10 @@ def seed():
     print(f"    ✓ Ideas overlap: Alex + Jordan share open dates T+44→T+50")
     print(f"    ✓ Pending connection: Priya → Alex (incoming), Alex → Jake (outgoing)")
     print(f"    ✓ No connection: Rachel Stone has no relationship with Alex")
+    print(f"    ✓ test5 exact overlap: Taylor + Alex + Jordan all at Jackson Hole T+45→T+49")
+    print(f"    ✓ test5 near overlap: Taylor at Breck T+22→T+25 (1 day into main group T+21)")
+    print(f"    ✓ test5 different resort: Taylor at Telluride T+35→T+38 (Jordan=Vail, Tyler=Copper)")
+    print(f"    ✓ test5 social graph: friends with all 7 core users, 1 incoming (Priya), 1 outgoing (Rachel)")
     print(divider + "\n")
 
 
