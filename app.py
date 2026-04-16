@@ -2311,7 +2311,7 @@ def idea_detail_availability():
     friend_ids_raw = request.args.get("friend_ids", "")
     try:
         raw_ids = [int(x.strip()) for x in friend_ids_raw.split(",") if x.strip().isdigit()]
-    except Exception:
+    except ValueError:
         raw_ids = []
     resort_id = request.args.get("resort_id", type=int)
     start_date_str = request.args.get("start_date")
@@ -2326,8 +2326,9 @@ def idea_detail_availability():
     friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
     resort = Resort.query.get(resort_id) if resort_id else None
 
-    # Format date range: "June 16 – 19" or "June 16 – July 4"
+    # Format date range and compute window length phrase
     date_range_display = None
+    window_length_phrase = "A window"
     if start_date_str and end_date_str:
         try:
             s = _date.fromisoformat(start_date_str)
@@ -2338,6 +2339,22 @@ def idea_detail_availability():
                 date_range_display = f"{s.strftime('%B %-d')} \u2013 {e.strftime('%-d')}"
             else:
                 date_range_display = f"{s.strftime('%B %-d')} \u2013 {e.strftime('%B %-d')}"
+            num_days = (e - s).days + 1
+            day_names = {2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven"}
+            if num_days == 2:
+                window_length_phrase = "A two-day window"
+            elif num_days == 3:
+                window_length_phrase = "A three-day window"
+            elif num_days == 4:
+                window_length_phrase = "A four-day window"
+            elif num_days == 5:
+                window_length_phrase = "A five-day window"
+            elif num_days == 6:
+                window_length_phrase = "A six-day window"
+            elif num_days == 7:
+                window_length_phrase = "A week-long window"
+            elif num_days > 7:
+                window_length_phrase = f"A {num_days}-day window"
         except (ValueError, TypeError):
             pass
 
@@ -2364,6 +2381,7 @@ def idea_detail_availability():
         participants=participants,
         resort=resort,
         date_range_display=date_range_display,
+        window_length_phrase=window_length_phrase,
         user_pass_display=user_pass_display,
     )
 
@@ -2378,7 +2396,7 @@ def idea_detail_wishlist():
     friend_ids_raw = request.args.get("friend_ids", "")
     try:
         raw_ids = [int(x.strip()) for x in friend_ids_raw.split(",") if x.strip().isdigit()]
-    except Exception:
+    except ValueError:
         raw_ids = []
 
     # Security: only expose friends of the current user

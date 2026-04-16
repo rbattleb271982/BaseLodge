@@ -191,6 +191,8 @@ def trip_overlap_skill(user, all_friends):
                 subtitle = f"You both have {display_pass}"
             else:
                 subtitle = f"Covered on your {display_pass} pass"
+        elif user_pass and trip_pass:
+            subtitle = "Passes vary"
 
         eyebrow = None
         if trip.start_date and trip.end_date:
