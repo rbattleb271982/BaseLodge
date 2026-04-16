@@ -121,10 +121,15 @@
         <a href="{{ url_for('trip_ideas') }}" class="idea-detail-back">← Ideas</a>
 
         <div class="idea-detail-header">
-            <h1 class="idea-detail-title">Join {{ anchor_name }} in {{ resort_name }}</h1>
+            {% set full_anchor = ((trip_owner.first_name or '') + ' ' + (trip_owner.last_name or '')).strip() if trip_owner else anchor_name %}
+            {% if trip_status == 'going' %}
+            <h1 class="idea-detail-title">{{ full_anchor }} is going to {{ resort_name }}</h1>
+            {% else %}
+            <h1 class="idea-detail-title">{{ full_anchor }} is considering {{ resort_name }}</h1>
+            {% endif %}
 
             {% if date_range_display %}
-            <p class="idea-detail-dateline">{{ date_range_display }} · {{ anchor_name }}'s trip</p>
+            <p class="idea-detail-dateline">{{ date_range_display }} · {{ full_anchor }}'s trip</p>
             {% endif %}
         </div>
 

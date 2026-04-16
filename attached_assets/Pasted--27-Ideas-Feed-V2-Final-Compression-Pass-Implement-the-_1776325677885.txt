@@ -1,0 +1,183 @@
+#27 - Ideas Feed V2: Final Compression Pass
+
+Implement the final Ideas feed compression and copy system. This is a polish pass to lock layout, wording, and hierarchy.
+
+Do not redesign. Do not add new features. Do not change routes or data models.
+
+---
+
+## GOAL
+
+Make the Ideas feed:
+- strictly 2-line for availability + trips
+- single-line (wrapping) for wishlist
+- fully tappable rows with a subtle chevron
+- dense, scannable, and premium
+- free of CTA text
+
+---
+
+## DONE LOOKS LIKE
+
+- No CTA text anywhere in feed rows
+- Entire row is tappable
+- Subtle chevron (›) on right edge
+- Availability + trip cards = exactly 2 lines
+- Wishlist = one sentence, may wrap
+- Metadata order is always: Dates · People · Pass (availability only)
+- Trip metadata is always: Dates · Pass (no people)
+
+---
+
+## COPY SYSTEM
+
+### Availability
+
+Line 1:
+"A shared opening at {Destination}"
+
+Line 2:
+"{Dates} · With {Full Name | N others} · {Pass phrase}"
+
+---
+
+### Trip (planning)
+
+Line 1:
+"{Full Name} is considering {Destination}"
+
+Line 2:
+"{Dates} · {Pass phrase}"
+
+---
+
+### Trip (going)
+
+Line 1:
+"{Full Name} is going to {Destination}"
+
+Line 2:
+"{Dates} · {Pass phrase}"
+
+---
+
+### Wishlist (single sentence only)
+
+"You and {Full Name} have {Destination} on your wishlist"
+
+or
+
+"You and {N} friends have {Destination} on your wishlist"
+
+No separate title/subtitle.
+
+---
+
+## NAME RULES
+
+- If exactly 1 friend:
+  → use FULL NAME
+- If 2+ friends:
+  → "With {N} others"
+- Do not use first-name-only or initials
+
+---
+
+## PASS RULES
+
+Always show pass on availability + trip cards.
+
+Allowed phrases ONLY:
+- "You both have {Pass}"
+- "All have {Pass}"
+- "Different passes"
+
+Rules:
+- If mismatch → ALWAYS "Different passes"
+- Do NOT list multiple passes (no "Ikon + Epic")
+- Do NOT use "Ikon Pass" or "Epic Pass"
+
+---
+
+## DATE RULES
+
+Dates must be abbreviated:
+
+Examples:
+- "Jun 16–19"
+- "May 30–Jun 3"
+
+Do NOT use:
+- full month names
+- numeric formats (6/16)
+- inconsistent dash styles
+
+Dates must always appear for:
+- availability
+- trips
+
+Wishlist has no dates.
+
+---
+
+## TEMPLATE RULES
+
+- Remove all CTA text spans
+- Add right-aligned subtle chevron (›)
+- Ensure entire row is clickable
+- Collapse to 2-line structure strictly
+- Availability metadata: Dates · People · Pass
+- Trip metadata: Dates · Pass (no people)
+- Wishlist: single-line sentence
+
+---
+
+## STYLING
+
+- Reduce vertical padding ~15–20%
+- Maintain comfortable tap targets
+- Chevron must:
+  - be right-aligned
+  - be subtle (low contrast)
+  - not affect layout
+
+---
+
+## DETAIL SCREENS
+
+- Remove all CTA buttons
+- Keep informational only
+- Keep:
+  - destination
+  - full dates
+  - full names
+  - rider type + pass
+- Back navigation works
+
+---
+
+## DO NOT
+
+- Use "Join" anywhere
+- Use "Same pass" or "Passes vary"
+- Add new UI elements
+- Add new interactions
+
+---
+
+## QA CHECKLIST
+
+- Availability cards = 2 lines
+- Trip cards = 2 lines
+- Wishlist = 1 sentence
+- Dates always visible (except wishlist)
+- Full names shown correctly
+- "With N others" works
+- Pass phrasing correct
+- No CTA text anywhere
+- Chevron present and aligned
+- Feed visually tighter
+- Detail screens have no buttons
+- Navigation works end-to-end
+
+Do not finish until all items are verified in the running app.

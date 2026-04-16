@@ -221,16 +221,14 @@
             <a href="{{ card.cta_url }}"
                class="ideas-window-row{% if card.is_first %} ideas-window-row--first{% endif %}">
                 <div class="ideas-window-body">
-                    {# Line 1: Headline (larger for featured, standard for others) #}
-                    <p class="ideas-card-headline{% if not card.is_first %} ideas-card-headline--sm{% endif %}">A shared opening</p>
+                    {# Line 1: "A shared opening at {Destination}" #}
+                    {% if card.resort_name %}
+                    <p class="ideas-card-headline ideas-card-headline--sm">A shared opening at {{ card.resort_name }}</p>
+                    {% else %}
+                    <p class="ideas-card-headline ideas-card-headline--sm">A shared opening</p>
+                    {% endif %}
 
-                    {# Line 2: DateRange · Destination #}
-                    <p class="ideas-card-dateline">
-                        {{- card.meta.get('display_date_long', '') -}}
-                        {%- if card.resort_name %} · {{ card.resort_name }}{% endif %}
-                    </p>
-
-                    {# Line 3: With {Full Name | N others} [· Same pass | · Passes vary] #}
+                    {# Line 2: {Dates} · With {Name | N others} [· Pass phrase] #}
                     {% set af = card.meta.get('friends_data', []) %}
                     {% if af %}
                         {% if af | length == 1 %}
@@ -239,17 +237,28 @@
                             {% set with_text = "With " + (af | length | string) + " others" %}
                         {% endif %}
                         {% set ps = card.meta.get('pass_signal') %}
-                        {% if ps == 'same' %}
-                            {% set social_line = with_text + " · Same pass" %}
+                        {% set pn = card.meta.get('pass_name', '') %}
+                        {% if ps == 'same' and pn %}
+                            {% if af | length == 1 %}
+                                {% set pass_phrase = "You both have " + pn %}
+                            {% else %}
+                                {% set pass_phrase = "All have " + pn %}
+                            {% endif %}
                         {% elif ps == 'varies' %}
-                            {% set social_line = with_text + " · Passes vary" %}
+                            {% set pass_phrase = "Different passes" %}
                         {% else %}
-                            {% set social_line = with_text %}
+                            {% set pass_phrase = "" %}
                         {% endif %}
-                        <p class="ideas-card-social">{{ social_line }}</p>
+                        {% set d = card.meta.get('date_short', '') %}
+                        {% if pass_phrase %}
+                            {% set meta_line = d + " · " + with_text + " · " + pass_phrase %}
+                        {% else %}
+                            {% set meta_line = d + " · " + with_text %}
+                        {% endif %}
+                        <p class="ideas-card-dateline">{{ meta_line }}</p>
                     {% endif %}
                 </div>
-                <span class="ideas-window-cta">{{ card.cta_label }}</span>
+                <span class="ideas-window-cta">›</span>
             </a>
 
             {# ── TRIP CARD ── #}
@@ -257,18 +266,22 @@
             <a href="{{ card.cta_url }}"
                class="ideas-window-row{% if card.is_first %} ideas-window-row--first{% endif %}">
                 <div class="ideas-window-body">
-                    {% set trip_status = card.meta.get('trip_status', 'going') %}
-                    {% set disp_name = display_names.get(card.anchor_friend_id, card.anchor_friend_name) %}
-                    {% if trip_status == 'going' %}
-                    <p class="ideas-window-title">Join {{ disp_name }} in {{ card.resort_name }}</p>
-                    {% else %}
-                    <p class="ideas-window-title">{{ disp_name }} is considering {{ card.resort_name }}</p>
-                    {% endif %}
-                    {% if card.subtitle %}
-                    <p class="ideas-window-sub">{{ card.subtitle }}</p>
+                    {# Line 1: title already has correct copy from trip_overlap.py #}
+                    <p class="ideas-window-title">{{ card.title }}</p>
+                    {# Line 2: {Dates} [· Pass phrase] #}
+                    {% set d = card.meta.get('date_short', '') %}
+                    {% if d or card.subtitle %}
+                        {% if d and card.subtitle %}
+                            {% set meta_line = d + " · " + card.subtitle %}
+                        {% elif d %}
+                            {% set meta_line = d %}
+                        {% else %}
+                            {% set meta_line = card.subtitle %}
+                        {% endif %}
+                        <p class="ideas-window-sub">{{ meta_line }}</p>
                     {% endif %}
                 </div>
-                <span class="ideas-window-cta">{{ card.cta_label }}</span>
+                <span class="ideas-window-cta">›</span>
             </a>
 
             {# ── WISHLIST CARD ── #}
@@ -276,12 +289,10 @@
             <a href="{{ card.cta_url }}"
                class="ideas-window-row{% if card.is_first %} ideas-window-row--first{% endif %}">
                 <div class="ideas-window-body">
-                    <p class="ideas-window-title" style="color: var(--bl-color-text-muted);">{{ card.title }}</p>
-                    {% if card.subtitle %}
-                    <p class="ideas-window-sub">{{ card.subtitle }}</p>
-                    {% endif %}
+                    {# Single sentence — subtitle holds "You and {Name} have {Resort} on your wishlist" #}
+                    <p class="ideas-window-title" style="color: var(--bl-color-text-muted);">{{ card.subtitle or card.title }}</p>
                 </div>
-                <span class="ideas-window-cta">{{ card.cta_label }}</span>
+                <span class="ideas-window-cta">›</span>
             </a>
 
             {% else %}
@@ -294,7 +305,7 @@
                     <p class="ideas-window-sub">{{ card.subtitle }}</p>
                     {% endif %}
                 </div>
-                <span class="ideas-window-cta">{{ card.cta_label }}</span>
+                <span class="ideas-window-cta">›</span>
             </a>
             {% endif %}
 

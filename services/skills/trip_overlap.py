@@ -173,50 +173,38 @@ def trip_overlap_skill(user, all_friends):
 
         n = len(involved_friend_ids)
 
-        # Copy varies by trip status
+        # Copy varies by trip status — full name, spec-exact phrasing
         if trip_status == "going":
-            if n == 1:
-                title = f"Join {anchor_name} in {resort_name}"
-            elif n == 2:
-                names = sorted(
-                    friend_by_id[fid].first_name
-                    for fid in involved_friend_ids
-                    if fid in friend_by_id
-                )
-                title = f"{' and '.join(names)} are going to {resort_name}"
-            else:
-                title = f"{n} friends are going to {resort_name}"
+            title = f"{anchor_name} is going to {resort_name}"
         else:
-            # planning — softer, more open language
-            if n == 1:
-                title = f"{anchor_name} is considering {resort_name}"
-            elif n == 2:
-                names = sorted(
-                    friend_by_id[fid].first_name
-                    for fid in involved_friend_ids
-                    if fid in friend_by_id
-                )
-                title = f"{' and '.join(names)} are thinking about {resort_name}"
-            else:
-                title = f"{n} friends are thinking about {resort_name}"
+            title = f"{anchor_name} is considering {resort_name}"
 
+        # Pass phrase — spec-exact strings only
         subtitle = None
         if pass_aligns and trip_pass:
             norm_pass = _normalize_pass_name(trip.pass_type) or _normalize_pass_name(user.pass_type)
-            subtitle = f"You both have {norm_pass}" if norm_pass else "Passes align"
+            subtitle = f"You both have {norm_pass}" if norm_pass else None
         elif user_pass and trip_pass:
-            subtitle = "Passes vary"
+            subtitle = "Different passes"
 
-        eyebrow = None
+        # Abbreviated date range for feed line 2 (e.g. "Jun 16–19")
+        date_short = None
         if trip.start_date and trip.end_date:
-            fmt = "%b %-d"
-            eyebrow = f"{trip.start_date.strftime(fmt)} – {trip.end_date.strftime(fmt)}"
+            s, e = trip.start_date, trip.end_date
+            if s == e:
+                date_short = s.strftime("%b %-d")
+            elif s.month == e.month:
+                date_short = f"{s.strftime('%b %-d')}–{e.strftime('%-d')}"
+            else:
+                date_short = f"{s.strftime('%b %-d')}–{e.strftime('%b %-d')}"
+
+        eyebrow = date_short  # keep eyebrow populated for any legacy consumers
 
         card = make_idea_card(
             idea_type="trip_overlap",
             title=title,
             cta_url=url_for("idea_detail_trip", trip_id=trip.id),
-            cta_label="Join trip →",
+            cta_label="View trip →",
             friend_ids=involved_friend_ids,
             score=float(score),
             subtitle=subtitle,
@@ -227,7 +215,7 @@ def trip_overlap_skill(user, all_friends):
             resort_name=resort_name,
             anchor_friend_id=anchor_fid,
             anchor_friend_name=anchor_name,
-            meta={"trip_id": trip.id, "trip_status": trip_status},
+            meta={"trip_id": trip.id, "trip_status": trip_status, "date_short": date_short},
         )
         cards.append(card)
 

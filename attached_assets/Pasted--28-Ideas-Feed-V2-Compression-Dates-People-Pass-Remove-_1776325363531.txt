@@ -1,0 +1,235 @@
+#28 - Ideas Feed V2: Compression + Dates→People→Pass + Remove CTAs + Trip Status
+
+Implement the final compressed Ideas feed and supporting logic. This is a polish + behavior pass that locks:
+- strict 2-line cards
+- metadata order: Dates → People → Pass
+- no CTA text on feed or detail screens
+- chevron-only affordance
+- full-name/count name rules
+- explicit pass phrasing
+- planning vs going status on trips
+
+Do not refactor unrelated areas.
+Do not change route URLs.
+Use checkpoints sparingly.
+Do not finish until all QA items are verified end-to-end.
+
+--------------------------------------------------
+GOAL
+--------------------------------------------------
+
+Make the Ideas tab a dense, scannable index:
+- each item answers “is this worth tapping?” in ~1 second
+- minimal vertical height (2 lines max for availability/trips)
+- destination in headline
+- dates always present for availability/trips
+- pass always present (explicit phrasing)
+- entire row tappable with a chevron on the right
+
+Detail screens remain informational (no buttons for now).
+
+--------------------------------------------------
+DONE LOOKS LIKE
+--------------------------------------------------
+
+1) Feed rows/cards:
+- NO text CTAs (“Plan trip”, “Join trip”, etc.)
+- Entire row is tappable
+- Subtle chevron on the right edge
+- Availability + Trip cards are exactly 2 lines
+- Wishlist is 1 line (can wrap naturally)
+
+2) Metadata order on line 2 is always:
+   Dates · People · Pass
+
+3) Dates:
+- ALWAYS shown on availability + trip cards
+- Abbreviated format (e.g., “Jun 16–19”, “May 30–Jun 3”)
+- Wishlist shows no dates
+
+4) Names:
+- If exactly 1 friend is referenced → FULL NAME (e.g., “With Tyler Grant”)
+- If 2+ friends → count only (e.g., “With 4 others”)
+- Do not use first-name-only or initials on the feed
+
+5) Pass phrasing (ALWAYS present on availability + trip cards):
+- 1 friend match → “You both have Ikon”
+- multi-friend match → “All have Ikon”
+- mismatch → “Different passes”
+- Never use “Ikon Pass” / “Epic Pass”
+
+6) Trip status:
+- planning → “{Full Name} is considering {Destination}”
+- going → “{Full Name} is going to {Destination}”
+
+7) Detail screens:
+- remain informational (NO CTAs)
+- show dates, destination, people (full names), rider type + pass
+- navigation works back to Ideas
+
+8) Ranking (preserve and enforce):
+- availability > planning trips > going trips > wishlist
+- deterministic (not incidental)
+
+--------------------------------------------------
+CARD COPY (LOCK EXACT PATTERNS)
+--------------------------------------------------
+
+A) Availability (multi-person)
+Line 1:
+“A shared opening at {Destination}”
+Line 2:
+“{Dates} · With {N} others · All have {Pass}”
+OR (mismatch):
+“{Dates} · With {N} others · Different passes”
+
+B) Availability (1 friend)
+Line 1:
+“A shared opening at {Destination}”
+Line 2:
+“{Dates} · With {Full Name} · You both have {Pass}”
+OR:
+“{Dates} · With {Full Name} · Different passes”
+
+C) Trip (planning)
+Line 1:
+“{Full Name} is considering {Destination}”
+Line 2:
+“{Dates} · You both have {Pass}”
+OR:
+“{Dates} · Different passes”
+
+D) Trip (going)
+Line 1:
+“{Full Name} is going to {Destination}”
+Line 2:
+“{Dates} · You both have {Pass}”
+OR:
+“{Dates} · Different passes”
+
+E) Wishlist (single line, can wrap)
+- 1 friend:
+  “You and {Full Name} have {Destination} on your wishlist”
+- 2+ friends:
+  “You and {N} friends have {Destination} on your wishlist”
+
+Do NOT use:
+- “Join”
+- “Saved” / “wishlisted”
+- first-name-only
+- pass shorthand like “Ikon” alone
+- “Same pass” / “Passes align”
+
+--------------------------------------------------
+IMPLEMENTATION TASKS
+--------------------------------------------------
+
+1) templates/trip_ideas.html
+- Remove all CTA text elements from feed rows
+- Make entire card/row clickable
+- Add right-aligned chevron indicator
+- Enforce 2-line structure for availability + trip
+- Ensure wishlist is single-line (allow wrapping)
+- Ensure destination is in headline
+- Build metadata line in strict order: Dates · People · Pass
+- Remove any kicker/eyebrow (e.g., “AN OPENING”)
+
+2) services/ideas_engine.py
+- Ensure each idea type provides:
+  - destination
+  - date range (if applicable)
+  - friend count + friend (if single)
+  - pass alignment + pass name
+  - trip status (planning vs going)
+- Normalize pass names (strip “Pass”)
+- Build pass phrase:
+  - 1 friend match → “You both have {Pass}”
+  - multi match → “All have {Pass}”
+  - mismatch → “Different passes”
+- Provide a clean flag for:
+  - is_single_friend
+  - friend_count
+- Ensure ranking weights enforce:
+  availability > planning > going > wishlist
+
+3) services/skills/trip_overlap.py
+- Confirm overlap data includes:
+  - correct date ranges
+  - correct participant counts
+  - pass alignment flags
+
+4) app.py
+- Add/confirm helper(s):
+  - normalize_pass_name(pass_str)
+  - build_pass_phrase(is_match, pass_name, friend_count)
+  - build_people_phrase(is_single, full_name, friend_count)
+  - format_dates_short(start_date, end_date)
+- Add/confirm trip status field:
+  status = "planning" | "going"
+- If not present, add simple input at trip creation:
+  radio:
+    ( ) Still planning
+    ( ) Definitely going
+
+5) static/styles.css
+- Tighten vertical spacing inside cards
+- Ensure 2-line layout does not wrap into 3 unnecessarily
+- Keep comfortable tap targets
+- Style chevron subtly (low-contrast, right-aligned)
+- Maintain premium typography (serif headline, clean sans metadata)
+
+--------------------------------------------------
+DETAIL SCREENS (NO CTA)
+--------------------------------------------------
+
+templates/idea_detail_availability.html  
+templates/idea_detail_trip.html  
+templates/idea_detail_wishlist.html
+
+- Remove any CTA buttons
+- Keep:
+  - destination
+  - full dates
+  - participant list (full names)
+  - rider type + normalized pass (e.g., “Skier · Ikon”)
+- Maintain calm editorial tone
+- Navigation back to Ideas works
+
+--------------------------------------------------
+RELEVANT FILES
+--------------------------------------------------
+
+- templates/trip_ideas.html
+- templates/idea_detail_availability.html
+- templates/idea_detail_trip.html
+- templates/idea_detail_wishlist.html
+- services/ideas_engine.py
+- services/skills/trip_overlap.py
+- app.py
+- static/styles.css
+
+--------------------------------------------------
+QA CHECKLIST (REQUIRED)
+--------------------------------------------------
+
+1. Feed rows have NO CTA text
+2. Entire row is tappable with chevron
+3. Availability + trip cards are exactly 2 lines
+4. Metadata order is always:
+   Dates · People · Pass
+5. Dates are always shown for availability + trip
+6. Wishlist is one line and wraps naturally
+7. Full names appear when exactly 1 friend is referenced
+8. Count language appears for 2+ friends
+9. Pass phrasing matches exactly:
+   - “You both have Ikon”
+   - “All have Ikon”
+   - “Different passes”
+10. No “Ikon Pass” / “Epic Pass” anywhere in feed
+11. No “Join” phrasing anywhere
+12. Planning vs going copy renders correctly
+13. Ranking order is correct in live feed
+14. Detail screens show full info and NO buttons
+15. Navigation Ideas → detail → back works
+
+Do not finish until every item above is verified in the running app.

@@ -10,6 +10,7 @@ This module is the single source of truth for ideas window construction.
 Do not duplicate this logic in routes.
 """
 
+import re
 from collections import Counter
 from datetime import date, timedelta
 from flask import url_for
@@ -17,6 +18,18 @@ from utils.formatting import format_name
 from models import Resort, SkiTrip
 
 _BAD_PASSES = {None, "", "I don't have a pass", "Other"}
+
+
+def _norm_pass(pt):
+    """Normalize a pass type string: 'Ikon Pass' → 'Ikon', empty/junk → ''."""
+    if not pt:
+        return ""
+    for part in pt.split(","):
+        part = part.strip()
+        if not part or part.lower() in ("none", "i don't have a pass", "other", "no pass"):
+            continue
+        return re.sub(r"\s+[Pp]ass$", "", part).strip()
+    return ""
 
 
 def build_overlap_windows(matches, user_pass_type, friend_trip_statuses=None):
@@ -369,27 +382,27 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
                             shared_resort_id = rid
                             break
 
-        pass_match_count = sum(
-            1 for f in friends_in_window
-            if f.get("same_pass") and f.get("friend_pass") not in _BAD_PASSES
-        )
-        pass_mismatch_count = sum(
-            1 for f in friends_in_window
-            if not f.get("same_pass") and f.get("friend_pass") not in _BAD_PASSES
-        )
-
-        # pass_signal for feed card: "same" | "varies" | None
         user_pass_clean = user_pass if user_pass not in _BAD_PASSES else None
-        if pass_match_count >= 1 and user_pass_clean:
-            pass_signal = "same"
-        elif (pass_mismatch_count >= 1 or pass_match_count == 0) and user_pass_clean:
-            # User has a pass but friends differ or have no pass — "Passes vary"
-            if pass_mismatch_count >= 1:
-                pass_signal = "varies"
+        friends_with_passes = [
+            f for f in friends_in_window
+            if f.get("friend_pass") not in _BAD_PASSES
+        ]
+
+        if user_pass_clean and friends_with_passes:
+            if all(f.get("same_pass") for f in friends_with_passes):
+                pass_signal = "same"
             else:
-                pass_signal = None
+                pass_signal = "varies"
+        elif user_pass_clean:
+            # User has pass but no friend has a pass — treat as mismatch
+            pass_signal = "varies"
         else:
             pass_signal = None
+
+        pass_name = _norm_pass(user_pass) if pass_signal == "same" else ""
+
+        # Abbreviated date range for feed line 2 (e.g. "Jun 16–19")
+        date_short = _format_date_range(w["start_date"], w["end_date"])
 
         subtitle = None  # feed subtitle replaced by template-level combined line
 
@@ -428,7 +441,7 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
         score += min(n * 5, 20)   # up to 20 for overlapping friend count
         if shared_resort_name:
             score += 15
-        if pass_match_count >= 1:
+        if pass_signal == "same":
             score += 10
         if days_until <= 14:
             score += 5
@@ -451,7 +464,9 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
             meta={
                 "window_length_phrase": length_phrase,
                 "display_date_long": display_date_long,
+                "date_short": date_short,
                 "pass_signal": pass_signal,
+                "pass_name": pass_name,
                 "friends_data": [
                     {
                         "id": f["friend_id"],
