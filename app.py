@@ -2248,6 +2248,7 @@ def overlap_detail():
 @login_required
 def trip_ideas():
     """Trip Ideas page — 3-state system: setup / reengagement / populated."""
+    from collections import Counter
     from services.ideas_engine import build_ranked_idea_feed
     from services.open_dates import get_available_dates_for_user
     user = current_user
@@ -2257,6 +2258,17 @@ def trip_ideas():
     friend_ids = [f.friend_id for f in friend_links]
     all_friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
     has_friends = bool(friend_ids)
+
+    # ── Name disambiguation: first-name-only, add last initial if duplicate ───
+    first_name_counts = Counter(f.first_name or "" for f in all_friends)
+    display_names = {}
+    for f in all_friends:
+        fname = f.first_name or ""
+        if first_name_counts[fname] > 1:
+            last_initial = (f.last_name or "")[:1]
+            display_names[f.id] = f"{fname} {last_initial}." if last_initial else fname
+        else:
+            display_names[f.id] = fname
 
     # ── Availability hint (soft prompt when no availability is set) ───────────
     has_availability = bool(get_available_dates_for_user(user))
@@ -2284,6 +2296,213 @@ def trip_ideas():
         idea_feed=idea_feed,
         has_friends=has_friends,
         has_availability=has_availability,
+        display_names=display_names,
+    )
+
+
+@app.route("/idea/availability")
+@login_required
+def idea_detail_availability():
+    """Detail screen for an availability overlap idea card."""
+    from datetime import date as _date
+    user = current_user
+
+    # Parse query params
+    friend_ids_raw = request.args.get("friend_ids", "")
+    try:
+        raw_ids = [int(x.strip()) for x in friend_ids_raw.split(",") if x.strip().isdigit()]
+    except Exception:
+        raw_ids = []
+    resort_id = request.args.get("resort_id", type=int)
+    start_date_str = request.args.get("start_date")
+    end_date_str = request.args.get("end_date")
+
+    # Security: only expose friends of the current user
+    user_friend_ids = {
+        f.friend_id for f in Friend.query.filter_by(user_id=user.id).all()
+    }
+    friend_ids = [fid for fid in raw_ids if fid in user_friend_ids]
+
+    friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
+    resort = Resort.query.get(resort_id) if resort_id else None
+
+    # Format date range: "June 16 – 19" or "June 16 – July 4"
+    date_range_display = None
+    if start_date_str and end_date_str:
+        try:
+            s = _date.fromisoformat(start_date_str)
+            e = _date.fromisoformat(end_date_str)
+            if s == e:
+                date_range_display = s.strftime("%B %-d")
+            elif s.month == e.month:
+                date_range_display = f"{s.strftime('%B %-d')} \u2013 {e.strftime('%-d')}"
+            else:
+                date_range_display = f"{s.strftime('%B %-d')} \u2013 {e.strftime('%B %-d')}"
+        except (ValueError, TypeError):
+            pass
+
+    # Build participant list for the "Who's Included" section
+    def _fmt_pass(pt):
+        if not pt:
+            return ""
+        import re
+        parts = [p.strip() for p in pt.split(",") if p.strip() and p.strip().lower() not in ("none", "i don't have a pass", "other")]
+        return " \u00b7 ".join(parts)
+
+    participants = []
+    for f in friends:
+        participants.append({
+            "full_name": f"{f.first_name or ''} {f.last_name or ''}".strip(),
+            "pass_display": _fmt_pass(f.pass_type),
+        })
+
+    user_pass_display = _fmt_pass(user.pass_type)
+
+    return render_template(
+        "idea_detail_availability.html",
+        user=user,
+        participants=participants,
+        resort=resort,
+        date_range_display=date_range_display,
+        user_pass_display=user_pass_display,
+    )
+
+
+@app.route("/idea/wishlist")
+@login_required
+def idea_detail_wishlist():
+    """Detail screen for a wishlist overlap idea card."""
+    user = current_user
+
+    resort_id = request.args.get("resort_id", type=int)
+    friend_ids_raw = request.args.get("friend_ids", "")
+    try:
+        raw_ids = [int(x.strip()) for x in friend_ids_raw.split(",") if x.strip().isdigit()]
+    except Exception:
+        raw_ids = []
+
+    # Security: only expose friends of the current user
+    user_friend_ids = {
+        f.friend_id for f in Friend.query.filter_by(user_id=user.id).all()
+    }
+    friend_ids = [fid for fid in raw_ids if fid in user_friend_ids]
+
+    friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
+    resort = Resort.query.get(resort_id) if resort_id else None
+
+    def _fmt_pass(pt):
+        if not pt:
+            return ""
+        parts = [p.strip() for p in pt.split(",") if p.strip() and p.strip().lower() not in ("none", "i don't have a pass", "other")]
+        return " \u00b7 ".join(parts)
+
+    participants = []
+    for f in friends:
+        participants.append({
+            "full_name": f"{f.first_name or ''} {f.last_name or ''}".strip(),
+            "pass_display": _fmt_pass(f.pass_type),
+        })
+
+    user_pass_display = _fmt_pass(user.pass_type)
+    resort_name = resort.name if resort else "this resort"
+
+    return render_template(
+        "idea_detail_wishlist.html",
+        user=user,
+        participants=participants,
+        resort=resort,
+        resort_name=resort_name,
+        user_pass_display=user_pass_display,
+    )
+
+
+@app.route("/idea/trip/<int:trip_id>")
+@login_required
+def idea_detail_trip(trip_id):
+    """Detail screen for a trip overlap idea card — informational only, no CTA."""
+    from datetime import date as _date
+    user = current_user
+
+    trip = SkiTrip.query.get_or_404(trip_id)
+
+    # Must be a public trip belonging to a friend
+    if not trip.is_public:
+        abort(404)
+
+    user_friend_ids = {
+        f.friend_id for f in Friend.query.filter_by(user_id=user.id).all()
+    }
+    if trip.user_id not in user_friend_ids and trip.user_id != user.id:
+        abort(404)
+
+    trip_owner = User.query.get(trip.user_id)
+    trip_status = trip.trip_status or "planning"
+    anchor_name = trip_owner.first_name if trip_owner else "Your friend"
+
+    # Format date range
+    date_range_display = None
+    if trip.start_date and trip.end_date:
+        s = trip.start_date
+        e = trip.end_date
+        if s == e:
+            date_range_display = s.strftime("%B %-d")
+        elif s.month == e.month:
+            date_range_display = f"{s.strftime('%B %-d')} \u2013 {e.strftime('%-d')}"
+        else:
+            date_range_display = f"{s.strftime('%B %-d')} \u2013 {e.strftime('%B %-d')}"
+
+    # Explanatory "why" line varies by trip status
+    if trip_status == "going":
+        why_line = f"{anchor_name} is going."
+    else:
+        why_line = f"{anchor_name} is considering this trip."
+
+    def _fmt_pass(pt):
+        if not pt:
+            return ""
+        parts = [p.strip() for p in pt.split(",") if p.strip() and p.strip().lower() not in ("none", "i don't have a pass", "other")]
+        return " \u00b7 ".join(parts)
+
+    # Build participant list: host first, then accepted guests, then "You, if you join"
+    participants = []
+    if trip_owner:
+        participants.append({
+            "full_name": f"{trip_owner.first_name or ''} {trip_owner.last_name or ''}".strip(),
+            "pass_display": _fmt_pass(trip_owner.pass_type),
+            "is_host": True,
+        })
+
+    accepted_rows = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, status=GuestStatus.ACCEPTED
+    ).all()
+    for row in accepted_rows:
+        if row.user_id == trip_owner.id if trip_owner else False:
+            continue
+        if row.user_id == user.id:
+            continue
+        guest = User.query.get(row.user_id)
+        if guest:
+            participants.append({
+                "full_name": f"{guest.first_name or ''} {guest.last_name or ''}".strip(),
+                "pass_display": _fmt_pass(guest.pass_type),
+                "is_host": False,
+            })
+
+    user_pass_display = _fmt_pass(user.pass_type)
+    resort_name = trip.mountain or "the mountain"
+
+    return render_template(
+        "idea_detail_trip.html",
+        user=user,
+        trip=trip,
+        trip_status=trip_status,
+        trip_owner=trip_owner,
+        anchor_name=anchor_name,
+        participants=participants,
+        date_range_display=date_range_display,
+        why_line=why_line,
+        resort_name=resort_name,
+        user_pass_display=user_pass_display,
     )
 
 @app.route("/api/mountains/<state>")

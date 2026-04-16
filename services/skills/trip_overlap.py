@@ -1,6 +1,6 @@
 """
 Trip Overlap Skill
-Surfaces friends' booked trips as IdeaCards when the current user has open
+Surfaces friends' trips as IdeaCards when the current user has open
 dates that overlap with those trips, or when the trip is at a resort on the
 user's wishlist.
 
@@ -20,11 +20,17 @@ def trip_overlap_skill(user, all_friends):
     """Return up to 3 IdeaCards for friends' upcoming trips that are relevant
     to the current user.
 
-    Scoring (additive, max 100):
+    Scoring (additive, max ~105):
       +40  At least one date in the user's availability overlaps the trip
       +30  Trip's pass_type matches (contains) the user's pass_type
       +20  Trip's resort is on the user's wishlist
       +10  Trip starts within the next 30 days
+      +10  Trip starts within the next 14 days (stackable)
+      +5   Trip is in 'planning' state (more socially open, ranked higher)
+
+    Copy varies by trip_status:
+      planning → softer, open: "Alex is considering Jackson Hole"
+      going    → firmer: "Join Alex in Jackson Hole"
 
     Exclusions:
       - Trips the user owns (trip.user_id == user.id)
@@ -34,8 +40,7 @@ def trip_overlap_skill(user, all_friends):
       - Past trips (end_date < today)
 
     Grouping:
-      Multiple friends on the same trip produce one card. The title is updated
-      to reflect the number of friends when > 1.
+      Multiple friends on the same trip produce one card.
     """
     today = date.today()
     thirty_days = today + timedelta(days=30)
@@ -138,24 +143,46 @@ def trip_overlap_skill(user, all_friends):
         if today <= trip.start_date <= fourteen_days:
             score += 10  # stackable with 30-day bonus
 
+        trip_status = trip.trip_status or "planning"
+
+        # Planning-state ideas are more socially open — rank them slightly higher
+        if trip_status == "planning":
+            score += 5
+
         resort_name = trip.mountain or "a resort"
 
         anchor_fid = involved_friend_ids[0]
         anchor_friend = friend_by_id.get(anchor_fid)
-        anchor_name = anchor_friend.first_name if anchor_friend else None
+        anchor_name = anchor_friend.first_name if anchor_friend else "Your friend"
 
         n = len(involved_friend_ids)
-        if n == 1:
-            title = f"{anchor_name or 'Your friend'} is going to {resort_name}"
-        elif n == 2:
-            names = sorted(
-                friend_by_id[fid].first_name
-                for fid in involved_friend_ids
-                if fid in friend_by_id
-            )
-            title = f"{' and '.join(names)} are going to {resort_name}"
+
+        # Copy varies by trip status
+        if trip_status == "going":
+            if n == 1:
+                title = f"Join {anchor_name} in {resort_name}"
+            elif n == 2:
+                names = sorted(
+                    friend_by_id[fid].first_name
+                    for fid in involved_friend_ids
+                    if fid in friend_by_id
+                )
+                title = f"{' and '.join(names)} are going to {resort_name}"
+            else:
+                title = f"{n} friends are going to {resort_name}"
         else:
-            title = f"{n} friends are going to {resort_name}"
+            # planning — softer, more open language
+            if n == 1:
+                title = f"{anchor_name} is considering {resort_name}"
+            elif n == 2:
+                names = sorted(
+                    friend_by_id[fid].first_name
+                    for fid in involved_friend_ids
+                    if fid in friend_by_id
+                )
+                title = f"{' and '.join(names)} are thinking about {resort_name}"
+            else:
+                title = f"{n} friends are thinking about {resort_name}"
 
         subtitle = None
         if pass_aligns and trip_pass:
@@ -163,7 +190,7 @@ def trip_overlap_skill(user, all_friends):
             if n == 1:
                 subtitle = f"You both have {display_pass}"
             else:
-                subtitle = f"{n} friends have {display_pass}"
+                subtitle = f"Covered on your {display_pass} pass"
 
         eyebrow = None
         if trip.start_date and trip.end_date:
@@ -173,8 +200,8 @@ def trip_overlap_skill(user, all_friends):
         card = make_idea_card(
             idea_type="trip_overlap",
             title=title,
-            cta_url=url_for("friend_trip_details", trip_id=trip.id),
-            cta_label="View Trip →",
+            cta_url=url_for("idea_detail_trip", trip_id=trip.id),
+            cta_label="See more →",
             friend_ids=involved_friend_ids,
             score=float(score),
             subtitle=subtitle,
@@ -185,7 +212,7 @@ def trip_overlap_skill(user, all_friends):
             resort_name=resort_name,
             anchor_friend_id=anchor_fid,
             anchor_friend_name=anchor_name,
-            meta={"trip_id": trip.id},
+            meta={"trip_id": trip.id, "trip_status": trip_status},
         )
         cards.append(card)
 

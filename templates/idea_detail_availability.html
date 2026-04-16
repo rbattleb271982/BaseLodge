@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BaseLodge - Opening</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .page-container {
+            padding: 0 0 96px;
+            max-width: 540px;
+            margin: 0 auto;
+        }
+
+        .idea-detail-back {
+            display: block;
+            padding: 16px 16px 0;
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            text-decoration: none;
+        }
+
+        .idea-detail-back:active {
+            opacity: 0.7;
+        }
+
+        .idea-detail-header {
+            padding: 16px 16px 0;
+        }
+
+        .idea-detail-kicker {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #5C1219;
+            margin: 0 0 8px 0;
+        }
+
+        .idea-detail-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 26px;
+            font-weight: 400;
+            color: var(--bl-color-text);
+            margin: 0 0 4px 0;
+            line-height: 1.2;
+        }
+
+        .idea-detail-dateline {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 20px 0;
+        }
+
+        .idea-detail-divider {
+            border: none;
+            border-top: 1px solid var(--bl-color-border-soft);
+            margin: 0 16px 20px;
+        }
+
+        .idea-detail-why {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 15px;
+            font-style: italic;
+            color: var(--bl-color-text-muted);
+            padding: 0 16px;
+            margin: 0 0 24px 0;
+            line-height: 1.5;
+        }
+
+        .idea-detail-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+            color: var(--bl-color-text-muted);
+            padding: 0 16px;
+            margin: 0 0 4px 0;
+        }
+
+        .idea-detail-participant-list {
+            padding: 0 16px;
+        }
+
+        .idea-detail-participant {
+            display: flex;
+            flex-direction: column;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+
+        .idea-detail-participant:first-child {
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+
+        .idea-detail-participant-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 2px 0;
+        }
+
+        .idea-detail-participant-pass {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+
+        <a href="{{ url_for('trip_ideas') }}" class="idea-detail-back">← Ideas</a>
+
+        <div class="idea-detail-header">
+            <p class="idea-detail-kicker">AN OPENING</p>
+
+            {# Determine window length from date range #}
+            {% if date_range_display %}
+            <h1 class="idea-detail-title">A window</h1>
+            {% else %}
+            <h1 class="idea-detail-title">A window</h1>
+            {% endif %}
+
+            {% if date_range_display %}
+            <p class="idea-detail-dateline">
+                {{ date_range_display }}{% if resort %} · {{ resort.name }}{% endif %}
+            </p>
+            {% endif %}
+        </div>
+
+        <hr class="idea-detail-divider">
+
+        <p class="idea-detail-why">
+            {% if participants | length == 1 %}
+                You and {{ participants[0].full_name }} are both free these dates.
+            {% elif participants | length == 2 %}
+                All three of you are free these dates.
+            {% else %}
+                All of you are free these dates.
+            {% endif %}
+            {% if resort %} {{ resort.name }} is on your lists.{% endif %}
+        </p>
+
+        <p class="idea-detail-section-label">WHO'S INCLUDED</p>
+
+        <div class="idea-detail-participant-list">
+
+            <div class="idea-detail-participant">
+                <p class="idea-detail-participant-name">You</p>
+                {% if user_pass_display %}
+                <p class="idea-detail-participant-pass">{{ user_pass_display }}</p>
+                {% endif %}
+            </div>
+
+            {% for p in participants %}
+            <div class="idea-detail-participant">
+                <p class="idea-detail-participant-name">{{ p.full_name }}</p>
+                {% if p.pass_display %}
+                <p class="idea-detail-participant-pass">{{ p.pass_display }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+    {% include 'components/bottom_nav.html' %}
+</body>
+</html>

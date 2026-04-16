@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge - Trip Ideas</title>
+    <title>BaseLodge - Ideas</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
         .page-container {
@@ -17,18 +17,107 @@
             font-size: 26px;
             font-weight: 400;
             color: var(--bl-color-text);
-            margin: 0 0 8px 0;
+            margin: 0 0 6px 0;
             line-height: 1.2;
         }
 
         .page-subtext {
             font-size: 14px;
             color: var(--bl-color-text-muted);
-            margin: 0 0 24px 0;
+            margin: 0 0 28px 0;
             line-height: 1.55;
         }
 
-        /* ── Setup panel ── */
+        /* ── Featured availability card extras ── */
+        .ideas-card-headline {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 22px;
+            font-weight: 400;
+            color: var(--bl-color-text);
+            margin: 0 0 3px 0;
+            line-height: 1.2;
+        }
+
+        .ideas-card-with {
+            font-size: 15px;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 8px 0;
+        }
+
+        .ideas-card-date-resort {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 5px 0;
+            letter-spacing: 0.1px;
+        }
+
+        /* ── Availability card (non-featured) ── */
+        .ideas-card-avail-date {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 5px 0;
+        }
+
+        /* ── Wishlist pull card ── */
+        .ideas-card--pull .ideas-window-title {
+            color: var(--bl-color-text-muted);
+        }
+
+        /* ── Footer hint ── */
+        .ideas-footer {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin: 20px 0 0 0;
+            line-height: 1.5;
+        }
+
+        .ideas-footer a {
+            color: var(--bl-color-primary);
+            text-decoration: none;
+        }
+
+        /* ── Empty state ── */
+        .ideas-empty {
+            padding: 8px 0 32px;
+        }
+
+        .ideas-empty-divider {
+            border: none;
+            border-top: 1px solid var(--bl-color-border-soft);
+            margin: 0 0 24px 0;
+        }
+
+        .ideas-empty-main {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 18px;
+            font-weight: 400;
+            color: var(--bl-color-text);
+            margin: 0 0 8px 0;
+        }
+
+        .ideas-empty-sub {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 20px 0;
+            line-height: 1.55;
+        }
+
+        .ideas-empty-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .ideas-empty-link {
+            font-size: 14px;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+        }
+
+        /* ── Setup state ── */
         .ideas-setup-panel {
             background: var(--bl-color-surface);
             border: 1px solid var(--bl-color-border-soft);
@@ -38,7 +127,7 @@
         }
 
         .ideas-setup-title {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 700;
             letter-spacing: 0.7px;
             text-transform: uppercase;
@@ -78,14 +167,10 @@
             line-height: 1.45;
         }
 
-        /* ── Section label ── */
-        .section-label {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.7px;
-            text-transform: uppercase;
-            color: var(--bl-color-text-muted);
-            margin: 0 0 12px 0;
+        .ideas-setup-link {
+            font-size: 13px;
+            color: var(--bl-color-primary);
+            text-decoration: none;
         }
     </style>
 </head>
@@ -93,60 +178,169 @@
     <div class="page-container">
 
         <h1 class="page-title">Ideas</h1>
+        <p class="page-subtext">Where your plans and your friends line up.</p>
 
         {% if ideas_state == 'setup' %}
-        {# ─────────────────────────────── SETUP STATE ─────────────────────────────── #}
+        {# ── SETUP STATE ── #}
 
-        <p class="page-subtext">
-            {% if not has_friends %}
-                Connect with friends to start seeing trip ideas.
-            {% else %}
-                Add your open dates so we can find windows that work for everyone.
-            {% endif %}
-        </p>
+        <div class="ideas-setup-panel">
+            <p class="ideas-setup-title">Get started</p>
 
-        <div class="ideas-steps">
-            <div class="ideas-step">
-                <span class="ideas-step-num">01</span>
-                <div class="ideas-step-body">
-                    <p class="ideas-step-label">Add your availability</p>
-                    <p class="ideas-step-sub">Mark the days you're free to ski so friends can see when you overlap.</p>
-                    <a href="{{ url_for('add_open_dates') }}" class="ideas-step-link">Add Availability →</a>
+            <div class="ideas-setup-row">
+                <div class="ideas-setup-text">
+                    <p class="ideas-setup-label">Add your availability</p>
+                    <p class="ideas-setup-sub">Mark the days you're free to ski so friends can see when you overlap.</p>
+                    <a href="{{ url_for('add_open_dates') }}" class="ideas-setup-link">Add availability →</a>
                 </div>
             </div>
-            <div class="ideas-step">
-                <span class="ideas-step-num">02</span>
-                <div class="ideas-step-body">
-                    <p class="ideas-step-label">Invite friends</p>
-                    <p class="ideas-step-sub">More connections means more chances to find a window that works for everyone.</p>
-                    <a href="{{ url_for('invite') }}" class="ideas-step-pill">Invite friends →</a>
+
+            <div class="ideas-setup-row">
+                <div class="ideas-setup-text">
+                    <p class="ideas-setup-label">Connect with friends</p>
+                    <p class="ideas-setup-sub">More connections means more chances to find a window that works for everyone.</p>
+                    <a href="{{ url_for('invite') }}" class="ideas-setup-link">Invite friends →</a>
                 </div>
             </div>
         </div>
 
         {% elif ideas_state == 'reengagement' %}
-        {# ─────────────────────────────── RE-ENGAGEMENT STATE ─────────────────────── #}
+        {# ── EMPTY STATE ── #}
 
-        <p class="page-subtext">No ideas surfaced yet — more activity will unlock better matches.</p>
-
-        <div class="ideas-reeng-section">
-            <h2 class="ideas-reeng-title">Nothing lined up yet.</h2>
-            <p class="ideas-reeng-sub">Add more availability, update your wishlist, or invite more friends to surface new ideas.</p>
-            <div class="ideas-reeng-actions">
-                <a href="{{ url_for('add_open_dates') }}" style="display: block; text-align: center; text-decoration: none; padding: 13px 20px; font-size: 15px; font-weight: 600; border: 1px solid #5C1219; border-radius: 24px; color: #5C1219; background: transparent; margin-bottom: 10px;">Add Availability</a>
-                <a href="{{ url_for('invite') }}" style="display: block; text-align: center; text-decoration: none; padding: 13px 20px; font-size: 15px; font-weight: 600; border: 1px solid #5C1219; border-radius: 24px; color: #5C1219; background: transparent;">Invite Friends</a>
+        <div class="ideas-empty">
+            <hr class="ideas-empty-divider">
+            <p class="ideas-empty-main">Nothing lined up.</p>
+            <p class="ideas-empty-sub">Set availability or add a few resorts to your list to give it something to work with.</p>
+            <div class="ideas-empty-actions">
+                <a href="{{ url_for('add_open_dates') }}" class="ideas-empty-link">Set availability →</a>
+                <a href="{{ url_for('settings_wish_list') }}" class="ideas-empty-link">Build your list →</a>
             </div>
         </div>
 
         {% else %}
-        {# ─────────────────────────────── POPULATED STATE ─────────────────────────── #}
-
-        <p class="page-subtext">
-            {{ idea_feed|length }} idea{{ 's' if idea_feed|length != 1 }} for your next trip.
-        </p>
+        {# ── POPULATED STATE ── #}
 
         <div class="ideas-windows-list">
             {% for card in idea_feed %}
+
+            {# ── FEATURED AVAILABILITY CARD (first card, availability_overlap) ── #}
+            {% if card.idea_type == 'availability_overlap' and card.is_first %}
+            <a href="{{ card.cta_url }}"
+               class="ideas-window-row ideas-window-row--first">
+                <div class="ideas-window-body">
+                    <p class="ideas-window-eyebrow ideas-window-eyebrow--first">AN OPENING</p>
+                    <p class="ideas-card-headline">{{ card.meta.get('window_length_phrase', card.title) }}</p>
+
+                    {# With {names} line #}
+                    {% set avail_names = [] %}
+                    {% for fd in card.meta.get('friends_data', []) %}
+                        {% if avail_names.append(display_names.get(fd.id, fd.name)) %}{% endif %}
+                    {% endfor %}
+                    {% if avail_names %}
+                    <p class="ideas-card-with">
+                        {% if avail_names | length == 1 %}With {{ avail_names[0] }}
+                        {% elif avail_names | length == 2 %}With {{ avail_names[0] }} and {{ avail_names[1] }}
+                        {% else %}With {{ avail_names[0] }} and {{ avail_names | length - 1 }} others
+                        {% endif %}
+                    </p>
+                    {% endif %}
+
+                    <p class="ideas-card-date-resort">
+                        {{ card.meta.get('display_date_long', '') }}{% if card.resort_name %} · {{ card.resort_name }}{% endif %}
+                    </p>
+                    {% if card.subtitle %}
+                    <p class="ideas-window-sub">{{ card.subtitle }}</p>
+                    {% endif %}
+                </div>
+                <span class="ideas-window-cta">{{ card.cta_label }}</span>
+            </a>
+
+            {# ── STANDARD AVAILABILITY CARD (non-featured) ── #}
+            {% elif card.idea_type == 'availability_overlap' %}
+            <a href="{{ card.cta_url }}"
+               class="ideas-window-row">
+                <div class="ideas-window-body">
+                    <p class="ideas-window-eyebrow">AN OPENING</p>
+                    <p class="ideas-card-headline" style="font-size: 19px;">{{ card.meta.get('window_length_phrase', card.title) }}</p>
+
+                    {% set avail_names2 = [] %}
+                    {% for fd in card.meta.get('friends_data', []) %}
+                        {% if avail_names2.append(display_names.get(fd.id, fd.name)) %}{% endif %}
+                    {% endfor %}
+                    {% if avail_names2 %}
+                    <p class="ideas-card-with" style="font-size: 14px;">
+                        {% if avail_names2 | length == 1 %}With {{ avail_names2[0] }}
+                        {% elif avail_names2 | length == 2 %}With {{ avail_names2[0] }} and {{ avail_names2[1] }}
+                        {% else %}With {{ avail_names2[0] }} and {{ avail_names2 | length - 1 }} others
+                        {% endif %}
+                    </p>
+                    {% endif %}
+
+                    <p class="ideas-card-date-resort">
+                        {{ card.meta.get('display_date_long', '') }}{% if card.resort_name %} · {{ card.resort_name }}{% endif %}
+                    </p>
+                    {% if card.subtitle %}
+                    <p class="ideas-window-sub">{{ card.subtitle }}</p>
+                    {% endif %}
+                </div>
+                <span class="ideas-window-cta">{{ card.cta_label }}</span>
+            </a>
+
+            {# ── TRIP OVERLAP CARD ── #}
+            {% elif card.idea_type == 'trip_overlap' %}
+            <a href="{{ card.cta_url }}"
+               class="ideas-window-row{% if card.is_first %} ideas-window-row--first{% endif %}">
+                <div class="ideas-window-body">
+                    {% if card.eyebrow %}
+                    <p class="ideas-window-eyebrow{% if card.is_first %} ideas-window-eyebrow--first{% endif %}">{{ card.eyebrow }}</p>
+                    {% endif %}
+
+                    {# Build disambiguated title from components #}
+                    {% set trip_status = card.meta.get('trip_status', 'going') %}
+                    {% if card.friend_ids | length == 1 %}
+                        {% set disp_name = display_names.get(card.anchor_friend_id, card.anchor_friend_name) %}
+                        {% if trip_status == 'going' %}
+                        <p class="ideas-window-title">Join {{ disp_name }} in {{ card.resort_name }}</p>
+                        {% else %}
+                        <p class="ideas-window-title">{{ disp_name }} is considering {{ card.resort_name }}</p>
+                        {% endif %}
+                    {% elif card.friend_ids | length == 2 %}
+                        {% set dn0 = display_names.get(card.friend_ids[0], '') %}
+                        {% set dn1 = display_names.get(card.friend_ids[1], '') %}
+                        {% if trip_status == 'going' %}
+                        <p class="ideas-window-title">{{ dn0 }} and {{ dn1 }} are going to {{ card.resort_name }}</p>
+                        {% else %}
+                        <p class="ideas-window-title">{{ dn0 }} and {{ dn1 }} are thinking about {{ card.resort_name }}</p>
+                        {% endif %}
+                    {% else %}
+                        {% if trip_status == 'going' %}
+                        <p class="ideas-window-title">{{ card.friend_ids | length }} friends are going to {{ card.resort_name }}</p>
+                        {% else %}
+                        <p class="ideas-window-title">{{ card.friend_ids | length }} friends are thinking about {{ card.resort_name }}</p>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if card.subtitle %}
+                    <p class="ideas-window-sub">{{ card.subtitle }}</p>
+                    {% endif %}
+                </div>
+                <span class="ideas-window-cta">{{ card.cta_label }}</span>
+            </a>
+
+            {# ── WISHLIST PULL CARD ── #}
+            {% elif card.idea_type == 'wishlist_overlap' %}
+            <a href="{{ card.cta_url }}"
+               class="ideas-window-row ideas-card--pull{% if card.is_first %} ideas-window-row--first{% endif %}">
+                <div class="ideas-window-body">
+                    <p class="ideas-window-title" style="color: var(--bl-color-text-muted);">{{ card.title }}</p>
+                    {% if card.subtitle %}
+                    <p class="ideas-window-sub">{{ card.subtitle }}</p>
+                    {% endif %}
+                </div>
+                <span class="ideas-window-cta">{{ card.cta_label }}</span>
+            </a>
+
+            {% else %}
+            {# ── FALLBACK: generic card ── #}
             <a href="{{ card.cta_url }}"
                class="ideas-window-row{% if card.is_first %} ideas-window-row--first{% endif %}">
                 <div class="ideas-window-body">
@@ -160,14 +354,18 @@
                 </div>
                 <span class="ideas-window-cta">{{ card.cta_label }}</span>
             </a>
+            {% endif %}
+
             {% endfor %}
         </div>
 
-        {% if not has_availability %}
-        <p class="ideas-footer">Add availability to surface more windows. — <a href="{{ url_for('add_open_dates') }}">Add Availability</a></p>
-        {% else %}
-        <p class="ideas-footer">Refine your ideas — <a href="{{ url_for('add_open_dates') }}">Add availability</a> · <a href="{{ url_for('invite') }}">Invite friends</a></p>
-        {% endif %}
+        <p class="ideas-footer">
+            {% if not has_availability %}
+            Add availability to surface more windows. — <a href="{{ url_for('add_open_dates') }}">Add availability</a>
+            {% else %}
+            Refine your ideas — <a href="{{ url_for('add_open_dates') }}">Add availability</a> · <a href="{{ url_for('invite') }}">Invite friends</a>
+            {% endif %}
+        </p>
 
         {% endif %}
 

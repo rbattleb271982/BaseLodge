@@ -357,15 +357,18 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
         signals = []
 
         shared_resort_name = None
+        shared_resort_id = None
         if user_wishlist:
             for fid in window_friend_ids:
                 friend_obj = friend_by_id.get(fid)
                 if friend_obj:
                     shared = user_wishlist & set(friend_obj.wish_list_resorts or [])
                     if shared:
-                        resort = Resort.query.get(next(iter(shared)))
+                        rid = next(iter(shared))
+                        resort = Resort.query.get(rid)
                         if resort:
                             shared_resort_name = resort.name
+                            shared_resort_id = rid
                             break
         if shared_resort_name:
             if n == 1:
@@ -387,10 +390,34 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
         subtitle = " · ".join(signals) if signals else None
 
         anchor_friend_id = w.get("anchor_friend_id")
-        params = f"?start_date={w['start_date']}&end_date={w['end_date']}"
-        if anchor_friend_id:
-            params += f"&friend_id={anchor_friend_id}"
-        cta_url = url_for("add_trip") + params
+
+        # Build cta_url → idea detail route
+        friend_ids_param = ",".join(str(fid) for fid in sorted(window_friend_ids))
+        params = f"?friend_ids={friend_ids_param}&start_date={w['start_date']}&end_date={w['end_date']}"
+        if shared_resort_id:
+            params += f"&resort_id={shared_resort_id}"
+        cta_url = url_for("idea_detail_availability") + params
+
+        # Window length phrase for featured card headline
+        start_obj_inner = date.fromisoformat(w["start_date"])
+        end_obj_inner = date.fromisoformat(w["end_date"])
+        n_days = (end_obj_inner - start_obj_inner).days + 1
+        _num_words_lc = {1:"one",2:"two",3:"three",4:"four",5:"five",
+                         6:"six",7:"seven",8:"eight",9:"nine",10:"ten"}
+        if n_days == 1:
+            length_phrase = "A one-day window"
+        elif n_days == 2:
+            length_phrase = "A weekend"
+        elif n_days == 3:
+            length_phrase = "A long weekend"
+        else:
+            length_phrase = f"A {_num_words_lc.get(n_days, str(n_days))}-day window"
+
+        # Long date range for display ("June 16 – 19" or "June 16 – July 4")
+        if start_obj_inner.month == end_obj_inner.month:
+            display_date_long = f"{start_obj_inner.strftime('%B %-d')} – {end_obj_inner.strftime('%-d')}"
+        else:
+            display_date_long = f"{start_obj_inner.strftime('%B %-d')} – {end_obj_inner.strftime('%B %-d')}"
 
         score = 40
         score += min(n * 5, 25)
@@ -407,14 +434,23 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
             idea_type="availability_overlap",
             title=title,
             cta_url=cta_url,
-            cta_label="Create Trip →",
+            cta_label="Plan trip →",
             friend_ids=list(window_friend_ids),
             score=float(score),
             subtitle=subtitle,
             start_date=w["start_date"],
             end_date=w["end_date"],
+            resort_name=shared_resort_name,
             anchor_friend_id=anchor_friend_id,
             anchor_friend_name=friends_in_window[0].get("friend_name") if friends_in_window else None,
+            meta={
+                "window_length_phrase": length_phrase,
+                "display_date_long": display_date_long,
+                "friends_data": [
+                    {"id": f["friend_id"], "name": f.get("friend_name", "")}
+                    for f in friends_in_window
+                ],
+            },
         ))
 
     return cards
@@ -447,13 +483,8 @@ def build_wishlist_overlap_cards(user, wishlist_data, all_friends, user_dates):
         anchor = overlapping_people[0]
         anchor_friend_id = anchor["id"]
 
-        title = (
-            f"{resort_name} is on both your lists"
-            if n == 1
-            else f"{resort_name} is on your lists"
-        )
-
-        signals = []
+        # "{Resort} keeps coming up" — always this format per spec
+        title = f"{resort_name} keeps coming up"
 
         nearest_overlap_range = None
         nearest_overlap_within_60 = False
@@ -479,24 +510,23 @@ def build_wishlist_overlap_cards(user, wishlist_data, all_friends, user_dates):
                         break
                 nearest_overlap_range = _format_date_range(r_start, r_end)
                 nearest_overlap_within_60 = date.fromisoformat(r_start) <= sixty_days_out
-        if nearest_overlap_range:
-            signals.append(f"You're both free {nearest_overlap_range}")
 
         pass_match_count = sum(
             1 for p in overlapping_people
             if p.get("pass_type") and p.get("pass_type") not in _BAD_PASSES
             and p.get("pass_type") == user_pass
         )
-        if pass_match_count == 1 and n == 1:
-            signals.append(f"You both have {overlapping_people[0]['pass_type']}")
-        elif pass_match_count >= 2 and user_pass and user_pass not in _BAD_PASSES:
-            signals.append(f"{pass_match_count} have {user_pass}")
 
-        subtitle = " · ".join(signals) if signals else None
+        # "X of you have it wishlisted." — per spec
+        total_interested = n + 1  # friends + current user
+        _num_words_wishlist = {2:"Two",3:"Three",4:"Four",5:"Five",6:"Six"}
+        total_word = _num_words_wishlist.get(total_interested, str(total_interested))
+        subtitle = f"{total_word} of you have it wishlisted."
 
+        friend_ids_param = ",".join(str(p["id"]) for p in overlapping_people)
         cta_url = (
-            url_for("add_trip")
-            + f"?resort_id={resort_id}&friend_id={anchor_friend_id}"
+            url_for("idea_detail_wishlist")
+            + f"?resort_id={resort_id}&friend_ids={friend_ids_param}"
         )
 
         score = 30
@@ -512,7 +542,7 @@ def build_wishlist_overlap_cards(user, wishlist_data, all_friends, user_dates):
             idea_type="wishlist_overlap",
             title=title,
             cta_url=cta_url,
-            cta_label="Create Trip →",
+            cta_label="Suggest dates →",
             friend_ids=[p["id"] for p in overlapping_people],
             score=float(score),
             subtitle=subtitle,
@@ -520,6 +550,7 @@ def build_wishlist_overlap_cards(user, wishlist_data, all_friends, user_dates):
             resort_name=resort_name,
             anchor_friend_id=anchor_friend_id,
             anchor_friend_name=anchor.get("first_name"),
+            meta={"overlapping_people": overlapping_people},
         ))
 
     return cards

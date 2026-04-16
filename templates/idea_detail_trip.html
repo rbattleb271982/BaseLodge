@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BaseLodge - {{ resort_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .page-container {
+            padding: 0 0 96px;
+            max-width: 540px;
+            margin: 0 auto;
+        }
+
+        .idea-detail-back {
+            display: block;
+            padding: 16px 16px 0;
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            text-decoration: none;
+        }
+
+        .idea-detail-back:active {
+            opacity: 0.7;
+        }
+
+        .idea-detail-header {
+            padding: 16px 16px 0;
+        }
+
+        .idea-detail-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 26px;
+            font-weight: 400;
+            color: var(--bl-color-text);
+            margin: 0 0 4px 0;
+            line-height: 1.2;
+        }
+
+        .idea-detail-dateline {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 20px 0;
+        }
+
+        .idea-detail-divider {
+            border: none;
+            border-top: 1px solid var(--bl-color-border-soft);
+            margin: 0 16px 20px;
+        }
+
+        .idea-detail-why {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 15px;
+            font-style: italic;
+            color: var(--bl-color-text-muted);
+            padding: 0 16px;
+            margin: 0 0 24px 0;
+            line-height: 1.5;
+        }
+
+        .idea-detail-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+            color: var(--bl-color-text-muted);
+            padding: 0 16px;
+            margin: 0 0 4px 0;
+        }
+
+        .idea-detail-participant-list {
+            padding: 0 16px;
+        }
+
+        .idea-detail-participant {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+
+        .idea-detail-participant:first-child {
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+
+        .idea-detail-participant-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--bl-color-text);
+            margin: 0 0 2px 0;
+        }
+
+        .idea-detail-participant-name--you {
+            font-style: italic;
+            font-weight: 400;
+            color: var(--bl-color-text-muted);
+        }
+
+        .idea-detail-participant-pass {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+        }
+
+        .idea-detail-host-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--bl-color-text-muted);
+            margin-top: 4px;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+
+        <a href="{{ url_for('trip_ideas') }}" class="idea-detail-back">← Ideas</a>
+
+        <div class="idea-detail-header">
+            {% if trip_status == 'going' %}
+            <h1 class="idea-detail-title">Join {{ anchor_name }} in {{ resort_name }}</h1>
+            {% else %}
+            <h1 class="idea-detail-title">{{ anchor_name }} is considering {{ resort_name }}</h1>
+            {% endif %}
+
+            {% if date_range_display %}
+            <p class="idea-detail-dateline">{{ date_range_display }} · {{ anchor_name }}'s trip</p>
+            {% endif %}
+        </div>
+
+        <hr class="idea-detail-divider">
+
+        <p class="idea-detail-why">{{ why_line }}</p>
+
+        <p class="idea-detail-section-label">ON THIS TRIP</p>
+
+        <div class="idea-detail-participant-list">
+
+            {% for p in participants %}
+            <div class="idea-detail-participant">
+                <div>
+                    <p class="idea-detail-participant-name">{{ p.full_name }}</p>
+                    {% if p.pass_display %}
+                    <p class="idea-detail-participant-pass">{{ p.pass_display }}</p>
+                    {% endif %}
+                </div>
+                {% if p.is_host %}
+                <span class="idea-detail-host-label">host</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            {# "You, if you join" — always last #}
+            <div class="idea-detail-participant">
+                <div>
+                    <p class="idea-detail-participant-name idea-detail-participant-name--you">You, if you join</p>
+                    {% if user_pass_display %}
+                    <p class="idea-detail-participant-pass">{{ user_pass_display }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    {% include 'components/bottom_nav.html' %}
+</body>
+</html>
