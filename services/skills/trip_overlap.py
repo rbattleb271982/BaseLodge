@@ -57,11 +57,17 @@ def trip_overlap_skill(user, all_friends):
         ).all()
     }
 
+    from sqlalchemy import or_
+
     friend_trips = (
         SkiTrip.query.filter(
             SkiTrip.user_id.in_(friend_ids),
             SkiTrip.end_date >= today,
             SkiTrip.is_public == True,
+            or_(
+                SkiTrip.trip_status.in_(["planning", "going"]),
+                SkiTrip.trip_status.is_(None),
+            ),
         ).all()
     )
 
@@ -106,17 +112,23 @@ def trip_overlap_skill(user, all_friends):
             trip_dates.add(cur.isoformat())
             cur += timedelta(days=1)
 
+        resort_id = trip.resort_id
+        has_date_overlap = bool(user_dates & trip_dates)
+        has_wishlist_match = bool(resort_id and resort_id in user_wishlist)
+
+        if not (has_date_overlap or has_wishlist_match):
+            continue
+
         score = 0
 
-        if user_dates & trip_dates:
+        if has_date_overlap:
             score += 40
 
         trip_pass = (trip.pass_type or "").lower()
         if user_pass and trip_pass and (user_pass in trip_pass or trip_pass in user_pass):
             score += 30
 
-        resort_id = trip.resort_id
-        if resort_id and resort_id in user_wishlist:
+        if has_wishlist_match:
             score += 20
 
         if trip.start_date <= thirty_days:
