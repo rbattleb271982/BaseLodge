@@ -1,0 +1,313 @@
+#26 - Ideas Experience: Spec Alignment
+
+Implement a spec-alignment pass for the BaseLodge Ideas experience. The previous implementation got the route structure and the broad planning/going distinction in place, but it still diverges from the finalized spec in copy, name display, rider type, ranking order, pass normalization, and availability-card framing.
+
+This task is a correction pass, not a redesign.
+Do not refactor unrelated parts of the app.
+Do not change the route URLs or data model.
+Use checkpoints sparingly.
+Do not finish until you have fully tested the full flow end-to-end.
+
+--------------------------------------------------
+GOAL
+--------------------------------------------------
+
+Align the Ideas tab and all three detail screens to the finalized editorial spec so the UI, copy, and ranking behavior match exactly.
+
+--------------------------------------------------
+DONE LOOKS LIKE
+--------------------------------------------------
+
+1. Availability cards on the Ideas tab use:
+- kicker: "AN OPENING"
+- headline: "A shared opening" (not "A four-day window")
+- with-line:
+  - 1 overlapping friend -> "With Alex"
+  - 2 overlapping friends -> "With 2 others"
+  - 3 overlapping friends -> "With 3 others"
+  - count overlapping friends only; exclude the current user
+- date line remains date range + destination
+- supporting line renders exactly:
+  "On both your lists. Passes align."
+  only when BOTH are true:
+  1. the destination is on the current user’s wishlist
+  2. passes align strongly enough to qualify
+  If either condition is false, omit the supporting line entirely
+- CTA remains:
+  "Plan trip →"
+
+2. Trip cards on the Ideas tab:
+- planning state headline:
+  "{FirstName} is considering {Destination}"
+- going state headline:
+  "Join {FirstName} in {Destination}"
+- CTA reads:
+  "Join trip →" (not "See more →")
+- supporting line uses normalized pass copy:
+  - exact match example: "You both have Ikon"
+  - mixed example: "Passes vary"
+- do NOT use "Ikon Pass" or "Epic Pass"
+
+3. Wishlist cards on the Ideas tab:
+- headline remains resort-first
+- subtitle reads exactly:
+  "Several of you have {Destination} saved."
+  (not "Three of you have it wishlisted.")
+- no date displayed
+- CTA remains:
+  "Suggest dates →"
+
+4. Empty state on the Ideas tab reads:
+- title: "Ideas"
+- subhead: "Where your plans and your friends line up."
+- body: "Nothing lined up this week."
+- supporting line:
+  "Set availability or add a few resorts to your list to give it something to work with."
+- links:
+  "Set availability →"
+  "Build your list →"
+
+5. Availability detail screen:
+- title: "A shared opening"
+- why line (italic): "Shared dates. Shared destination."
+- participant rows show rider type + normalized pass:
+  - "Skier · Ikon"
+  - "Snowboarder · Epic"
+- if rider type is missing, render only the normalized pass with no dangling separator
+- no CTA
+
+6. Wishlist detail screen:
+- why line:
+  "Several of you have {Destination} saved."
+- participant rows show rider type + normalized pass
+- no CTA
+
+7. Trip detail screen:
+- header ALWAYS reads:
+  "Join {Name} in {Resort}"
+  regardless of planning/going status
+- status distinction belongs ONLY in the why line:
+  - planning: "{FirstName} is considering this trip."
+  - going: "{FirstName} is going."
+- participant rows show rider type + normalized pass
+- "You, if you join" remains as final row where appropriate
+- no CTA
+
+8. Name logic:
+- Ideas tab:
+  - first name only by default
+  - if duplicate first names exist, use first name + last initial (e.g., Alex T.)
+- Detail screens:
+  - full names for other users
+  - "You" for current user
+
+9. Pass display normalization:
+- strip generic suffixes like "Pass" / "pass"
+- examples:
+  - "Ikon Pass" -> "Ikon"
+  - "Epic Pass" -> "Epic"
+  - "Mountain Collective Pass" -> "Mountain Collective"
+- preserve the core pass brand name
+- apply normalization everywhere the short pass value appears:
+  - Ideas tab supporting lines
+  - detail screen participant rows
+
+10. Ranking order is deterministic:
+- shared availability > planning trips > going trips > wishlist pulls
+- availability cards must outrank trip cards by base-score design, not by accident
+- planning trips must outrank going trips when otherwise similar
+- wishlist pulls remain lowest priority
+
+11. All QA items pass end-to-end for demo@baselodge.app
+
+--------------------------------------------------
+OUT OF SCOPE
+--------------------------------------------------
+
+- Changing route URLs
+- Changing the data model
+- Adding database columns
+- Redesigning the Ideas experience beyond spec alignment
+- Changing the home screen, add-trip flow, or any other tab
+- Adding action buttons/CTAs to detail screens
+- Modifying unrelated trip flows
+
+--------------------------------------------------
+TASKS
+--------------------------------------------------
+
+1. Availability card copy and structure
+- Update the featured/shared-availability card headline to exactly:
+  "A shared opening"
+- Replace any dynamic availability headline like "A four-day window"
+- Update the with-line to:
+  - "With Alex" when exactly 1 overlapping friend exists
+  - "With 2 others" / "With 3 others" when 2+ overlapping friends exist
+- Do not list multiple names on the Ideas tab availability card
+- Ensure the friend count excludes the current user
+- Keep the kicker "AN OPENING"
+- Keep the date line + destination
+- Render the supporting line exactly:
+  "On both your lists. Passes align."
+  only when BOTH conditions are true:
+  1. destination is on the current user’s wishlist
+  2. passes align strongly enough
+- If either condition is false, omit the supporting line entirely
+- Do not invent alternate fallback copy
+
+2. Trip card copy
+- Keep the planning vs going distinction entirely in the headline
+- Planning:
+  "{FirstName} is considering {Destination}"
+- Going:
+  "Join {FirstName} in {Destination}"
+- Change CTA to exactly:
+  "Join trip →"
+- Normalize pass display in supporting text
+- Use short, factual pass copy only
+- Preferred pass copy patterns:
+  - exact match: "You both have Ikon"
+  - mixed/misaligned: "Passes vary"
+
+3. Wishlist card copy
+- Keep resort-first headline
+- Update subtitle to exactly:
+  "Several of you have {Destination} saved."
+- Keep no date on this card
+- Keep CTA:
+  "Suggest dates →"
+
+4. Empty state
+- Change body copy to exactly:
+  "Nothing lined up this week."
+- Keep the calm editorial tone
+- No exclamation marks
+- No apologetic language
+- No “we’re working on it” language
+
+5. Pass normalization helper
+- Create or update a single normalization helper for short pass display
+- It should remove generic suffixes like "Pass" / "pass"
+- It should preserve the core pass name
+- Apply it consistently across:
+  - trip card supporting lines
+  - availability/detail participant rows
+  - wishlist/detail participant rows
+  - trip/detail participant rows
+- Confirm examples:
+  - "Ikon Pass" -> "Ikon"
+  - "Epic Pass" -> "Epic"
+  - "Mountain Collective Pass" -> "Mountain Collective"
+
+6. Availability detail screen
+- Change title to exactly:
+  "A shared opening"
+- Replace any dynamic duration title
+- Change why line to exactly:
+  "Shared dates. Shared destination."
+- Style the why line in the existing italic editorial treatment
+- Add rider type to each participant row using:
+  "{RiderType} · {NormalizedPass}"
+- If rider type is missing, render just:
+  "{NormalizedPass}"
+  with no dangling separator
+- Keep full names for other users
+- Keep "You" for current user
+- No CTA
+
+7. Wishlist detail screen
+- Change why line to exactly:
+  "Several of you have {Destination} saved."
+- Add rider type + normalized pass to each participant row
+- Keep full names for other users
+- Keep "You" for current user
+- No CTA
+
+8. Trip detail screen
+- Force the header to always use:
+  "Join {Name} in {Resort}"
+  for BOTH planning and going cases
+- Do not vary the header by trip status
+- Move the status distinction entirely into the why line:
+  - planning: "{FirstName} is considering this trip."
+  - going: "{FirstName} is going."
+- Add rider type + normalized pass to participant rows
+- Preserve host labeling where already used
+- Preserve "You, if you join" as final row where appropriate
+- No CTA
+
+9. Name display logic
+- Ideas tab:
+  - show first name only by default
+  - if duplicate first names exist among relevant surfaced friends, use first name + last initial
+- Detail screens:
+  - show full names for all other users
+  - show "You" for the current user
+- Do not use initials on detail screens since full names are available there
+
+10. Ranking adjustment
+- Make ranking deterministic and aligned to spec
+- Required order:
+  1. shared availability
+  2. planning trips
+  3. going trips
+  4. wishlist pulls
+- Availability cards must have a higher base score than all trip cards
+- Planning trips must have a higher base score than going trips
+- Wishlist pulls must remain lowest priority
+- Do not rely on incidental ties/collisions to achieve ordering
+- Verify in the actual demo feed for demo@baselodge.app
+
+--------------------------------------------------
+RELEVANT FILES
+--------------------------------------------------
+
+- templates/trip_ideas.html
+- templates/idea_detail_availability.html
+- templates/idea_detail_wishlist.html
+- templates/idea_detail_trip.html
+- services/skills/trip_overlap.py
+- services/ideas_engine.py
+- app.py:2300-2460
+
+--------------------------------------------------
+QA CHECKLIST (REQUIRED)
+--------------------------------------------------
+
+Before finishing, verify all of the following end-to-end:
+
+1. A featured/shared-availability card appears when valid overlap exists
+2. Availability card headline reads exactly:
+   "A shared opening"
+3. Availability with-line logic works correctly:
+   - "With Alex" for 1 overlapping friend
+   - "With 2 others" / "With 3 others" for 2+ overlapping friends
+4. Planning vs going trip copy displays correctly on trip cards
+5. Trip CTA reads exactly:
+   "Join trip →"
+6. Wishlist subtitle reads exactly:
+   "Several of you have {Destination} saved."
+7. Empty state reads exactly:
+   "Nothing lined up this week."
+8. All 3 detail screens render correctly
+9. Full names appear on detail screens; "You" appears for current user
+10. Rider type appears correctly on all detail participant rows, with clean fallback if missing
+11. No CTA appears on any detail screen
+12. Pass normalization is correct everywhere short pass names appear
+13. Name disambiguation works on the Ideas tab
+14. Navigation works Ideas tab -> detail screen -> back
+15. Ranking order in the feed matches:
+    shared availability > planning trips > going trips > wishlist pulls
+
+Do not finish until every item above has been tested and confirmed.
+
+--------------------------------------------------
+IMPLEMENTATION NOTES
+--------------------------------------------------
+
+- Keep the existing editorial design language
+- Preserve serif/sans hierarchy and generous spacing
+- Do not add icons, chips, pills, or badges
+- Do not introduce new wording beyond the copy specified above
+- Keep the tone observational and premium
+- State what is true; do not add explanatory or predictive language

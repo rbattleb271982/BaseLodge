@@ -7,6 +7,7 @@ user's wishlist.
 Returns up to 3 IdeaCard dicts produced by make_idea_card().
 """
 
+import re
 from datetime import date, timedelta
 
 from flask import url_for
@@ -14,6 +15,19 @@ from flask import url_for
 from models import GuestStatus, SkiTrip, SkiTripParticipant
 from services.ideas_engine import make_idea_card
 from services.open_dates import get_available_dates_for_user
+
+
+def _normalize_pass_name(pt):
+    """Strip generic 'Pass'/'pass' suffix for short display. 'Ikon Pass' -> 'Ikon'."""
+    if not pt:
+        return ""
+    # Take first valid comma-separated value
+    for part in pt.split(","):
+        part = part.strip()
+        if part.lower() in ("none", "i don't have a pass", "other", "no pass", ""):
+            continue
+        return re.sub(r"\s+[Pp]ass$", "", part).strip()
+    return ""
 
 
 def trip_overlap_skill(user, all_friends):
@@ -126,7 +140,12 @@ def trip_overlap_skill(user, all_friends):
 
         fourteen_days = today + timedelta(days=14)
 
-        score = 50  # base
+        trip_status = trip.trip_status or "planning"
+
+        # Tier-based base scores: planning > going, both well above wishlist
+        # Availability cards use base 1000, so trips always rank below them
+        score = 300 if trip_status == "planning" else 200
+
         if has_date_overlap:
             score += 40
         trip_pass = (trip.pass_type or "").lower()
@@ -135,19 +154,13 @@ def trip_overlap_skill(user, all_friends):
             and (user_pass in trip_pass or trip_pass in user_pass)
         )
         if pass_aligns:
-            score += 30
-        if has_wishlist_match:
             score += 20
-        if today <= trip.start_date <= thirty_days:
+        if has_wishlist_match:
             score += 10
-        if today <= trip.start_date <= fourteen_days:
-            score += 10  # stackable with 30-day bonus
-
-        trip_status = trip.trip_status or "planning"
-
-        # Planning-state ideas are more socially open — rank them slightly higher
-        if trip_status == "planning":
+        if today <= trip.start_date <= thirty_days:
             score += 5
+        if today <= trip.start_date <= fourteen_days:
+            score += 5  # stackable with 30-day bonus
 
         resort_name = trip.mountain or "a resort"
 
@@ -186,11 +199,8 @@ def trip_overlap_skill(user, all_friends):
 
         subtitle = None
         if pass_aligns and trip_pass:
-            display_pass = trip.pass_type or user_pass
-            if n == 1:
-                subtitle = f"You both have {display_pass}"
-            else:
-                subtitle = f"Covered on your {display_pass} pass"
+            norm_pass = _normalize_pass_name(trip.pass_type) or _normalize_pass_name(user.pass_type)
+            subtitle = f"You both have {norm_pass}" if norm_pass else "Passes align"
         elif user_pass and trip_pass:
             subtitle = "Passes vary"
 
@@ -203,7 +213,7 @@ def trip_overlap_skill(user, all_friends):
             idea_type="trip_overlap",
             title=title,
             cta_url=url_for("idea_detail_trip", trip_id=trip.id),
-            cta_label="See more →",
+            cta_label="Join trip →",
             friend_ids=involved_friend_ids,
             score=float(score),
             subtitle=subtitle,

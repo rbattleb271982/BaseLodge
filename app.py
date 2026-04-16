@@ -2300,6 +2300,35 @@ def trip_ideas():
     )
 
 
+def _ideas_normalize_pass(pt):
+    """
+    Short pass display for Ideas screens.
+    Strips generic suffixes ('Pass', 'pass') and filters junk values.
+    'Ikon Pass' -> 'Ikon', 'Epic Pass' -> 'Epic', 'Mountain Collective Pass' -> 'Mountain Collective'
+    """
+    import re as _re
+    if not pt:
+        return ""
+    for part in pt.split(","):
+        part = part.strip()
+        if not part or part.lower() in ("none", "i don't have a pass", "other", "no pass"):
+            continue
+        return _re.sub(r"\s+[Pp]ass$", "", part).strip()
+    return ""
+
+
+def _ideas_rider_pass_line(user_obj):
+    """
+    Build 'Skier · Ikon' (or 'Snowboarder · Epic', or just 'Ikon', etc.)
+    for a participant row. Returns empty string if neither is set.
+    """
+    rider = (user_obj.display_rider_type or "").strip()
+    norm_pass = _ideas_normalize_pass(user_obj.pass_type)
+    if rider and norm_pass:
+        return f"{rider} \u00b7 {norm_pass}"
+    return rider or norm_pass
+
+
 @app.route("/idea/availability")
 @login_required
 def idea_detail_availability():
@@ -2326,9 +2355,8 @@ def idea_detail_availability():
     friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
     resort = Resort.query.get(resort_id) if resort_id else None
 
-    # Format date range and compute window length phrase
+    # Format date range for display
     date_range_display = None
-    window_length_phrase = "A window"
     if start_date_str and end_date_str:
         try:
             s = _date.fromisoformat(start_date_str)
@@ -2339,41 +2367,17 @@ def idea_detail_availability():
                 date_range_display = f"{s.strftime('%B %-d')} \u2013 {e.strftime('%-d')}"
             else:
                 date_range_display = f"{s.strftime('%B %-d')} \u2013 {e.strftime('%B %-d')}"
-            num_days = (e - s).days + 1
-            day_names = {2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven"}
-            if num_days == 2:
-                window_length_phrase = "A two-day window"
-            elif num_days == 3:
-                window_length_phrase = "A three-day window"
-            elif num_days == 4:
-                window_length_phrase = "A four-day window"
-            elif num_days == 5:
-                window_length_phrase = "A five-day window"
-            elif num_days == 6:
-                window_length_phrase = "A six-day window"
-            elif num_days == 7:
-                window_length_phrase = "A week-long window"
-            elif num_days > 7:
-                window_length_phrase = f"A {num_days}-day window"
         except (ValueError, TypeError):
             pass
-
-    # Build participant list for the "Who's Included" section
-    def _fmt_pass(pt):
-        if not pt:
-            return ""
-        import re
-        parts = [p.strip() for p in pt.split(",") if p.strip() and p.strip().lower() not in ("none", "i don't have a pass", "other")]
-        return " \u00b7 ".join(parts)
 
     participants = []
     for f in friends:
         participants.append({
             "full_name": f"{f.first_name or ''} {f.last_name or ''}".strip(),
-            "pass_display": _fmt_pass(f.pass_type),
+            "pass_display": _ideas_rider_pass_line(f),
         })
 
-    user_pass_display = _fmt_pass(user.pass_type)
+    user_pass_display = _ideas_rider_pass_line(user)
 
     return render_template(
         "idea_detail_availability.html",
@@ -2381,7 +2385,6 @@ def idea_detail_availability():
         participants=participants,
         resort=resort,
         date_range_display=date_range_display,
-        window_length_phrase=window_length_phrase,
         user_pass_display=user_pass_display,
     )
 
@@ -2408,20 +2411,14 @@ def idea_detail_wishlist():
     friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
     resort = Resort.query.get(resort_id) if resort_id else None
 
-    def _fmt_pass(pt):
-        if not pt:
-            return ""
-        parts = [p.strip() for p in pt.split(",") if p.strip() and p.strip().lower() not in ("none", "i don't have a pass", "other")]
-        return " \u00b7 ".join(parts)
-
     participants = []
     for f in friends:
         participants.append({
             "full_name": f"{f.first_name or ''} {f.last_name or ''}".strip(),
-            "pass_display": _fmt_pass(f.pass_type),
+            "pass_display": _ideas_rider_pass_line(f),
         })
 
-    user_pass_display = _fmt_pass(user.pass_type)
+    user_pass_display = _ideas_rider_pass_line(user)
     resort_name = resort.name if resort else "this resort"
 
     return render_template(
@@ -2475,18 +2472,12 @@ def idea_detail_trip(trip_id):
     else:
         why_line = f"{anchor_name} is considering this trip."
 
-    def _fmt_pass(pt):
-        if not pt:
-            return ""
-        parts = [p.strip() for p in pt.split(",") if p.strip() and p.strip().lower() not in ("none", "i don't have a pass", "other")]
-        return " \u00b7 ".join(parts)
-
     # Build participant list: host first, then accepted guests, then "You, if you join"
     participants = []
     if trip_owner:
         participants.append({
             "full_name": f"{trip_owner.first_name or ''} {trip_owner.last_name or ''}".strip(),
-            "pass_display": _fmt_pass(trip_owner.pass_type),
+            "pass_display": _ideas_rider_pass_line(trip_owner),
             "is_host": True,
         })
 
@@ -2502,11 +2493,11 @@ def idea_detail_trip(trip_id):
         if guest:
             participants.append({
                 "full_name": f"{guest.first_name or ''} {guest.last_name or ''}".strip(),
-                "pass_display": _fmt_pass(guest.pass_type),
+                "pass_display": _ideas_rider_pass_line(guest),
                 "is_host": False,
             })
 
-    user_pass_display = _fmt_pass(user.pass_type)
+    user_pass_display = _ideas_rider_pass_line(user)
     resort_name = trip.mountain or "the mountain"
 
     return render_template(

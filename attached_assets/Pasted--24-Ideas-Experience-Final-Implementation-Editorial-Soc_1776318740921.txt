@@ -1,0 +1,326 @@
+#24 - Ideas Experience: Final Implementation (Editorial + Social Refinement)
+
+Implement the finalized BaseLodge “Ideas” experience with full editorial UI, refined copy system, planning vs going differentiation, and detail drill-in screens.
+
+Do not over-engineer.
+Do not introduce badges, chips, icons, or heavy UI elements.
+Use checkpoints sparingly.
+Do not finish until fully tested end-to-end.
+
+---
+
+## 1. IDEAS TAB HEADER
+
+Title:
+Ideas
+
+Subhead:
+Where your plans and your friends line up.
+
+---
+
+## 2. CARD TYPES (3 TOTAL)
+
+### A. Featured Card — Shared Availability
+
+Only render when strong overlap exists.
+
+Structure:
+
+Kicker:
+AN OPENING
+
+Headline:
+A shared opening
+
+Line below:
+With {FirstName} OR With {X} others (see name logic below)
+
+Date line:
+June 16 – June 19 · {Destination}
+
+Supporting line:
+On both your lists. Passes align.
+
+CTA:
+Plan trip →
+
+Rules:
+- Do NOT use “A four-day window”
+- Always use “A shared opening”
+- Tone must remain observational
+- This is the highest priority card
+
+---
+
+### B. Trip Cards — Friend Trips (Planning vs Going)
+
+Structure:
+
+Date eyebrow:
+May 30 – June 3
+
+Headline varies based on status:
+
+IF planning:
+{FirstName} is considering {Destination}
+
+IF going:
+Join {FirstName} in {Destination}
+
+Supporting line (pass logic below)
+
+CTA:
+Join trip →
+
+---
+
+### C. Wishlist Cards — Shared Pull
+
+Structure:
+
+Headline:
+{Destination} keeps coming up
+
+Supporting:
+Several of you have {Destination} saved.
+
+CTA:
+Suggest dates →
+
+Rules:
+- No dates shown
+- Lowest priority card
+
+---
+
+## 3. PASS COPY SYSTEM
+
+Replace all previous pass copy with:
+
+IF exact match:
+You both have Ikon
+
+IF mixed:
+Passes vary
+
+Do NOT use:
+- “Ikon Pass”
+- “Covered on your pass”
+- Long explanatory phrases
+
+Keep it short and factual.
+
+---
+
+## 4. PLANNING VS GOING LOGIC
+
+Do NOT use labels.
+
+Only reflect status via copy:
+
+Planning:
+“{FirstName} is considering {Destination}”
+
+Going:
+“Join {FirstName} in {Destination}”
+
+Ranking adjustment:
+- Planning trips rank higher than going trips (all else equal)
+
+---
+
+## 5. NAME DISPLAY LOGIC (CRITICAL)
+
+Ideas Tab:
+
+IF only one friend:
+With Alex
+
+IF more than one friend:
+With 2 others
+With 3 others
+
+No listing multiple names on this screen.
+
+If duplicate names:
+Use first + last initial (Alex T.)
+
+---
+
+## 6. DETAIL SCREENS (NO CTA)
+
+Create 3 routes:
+
+/idea/availability  
+/idea/wishlist  
+/idea/trip/<trip_id>
+
+These are informational only.
+
+No CTA buttons.
+
+---
+
+### A. Availability Detail
+
+Header:
+A shared opening
+
+Subline:
+With Alex and Jordan (FULL NAMES used below instead)
+
+Date line:
+June 16 – June 19 · Telluride
+
+Why line (italic):
+Shared dates. Shared destination.
+
+Section:
+WHO’S INCLUDED
+
+List:
+
+You  
+Snowboarder · Ikon
+
+Alex Torres  
+Skier · Ikon
+
+Jordan Keene  
+Snowboarder · Epic
+
+---
+
+### B. Wishlist Detail
+
+Header:
+Telluride keeps coming up
+
+Subhead:
+A shared pull · No dates yet
+
+Why line:
+Several of you have Telluride saved.
+
+Section:
+WHO’S SAVED IT
+
+List uses same structure as above.
+
+---
+
+### C. Trip Detail
+
+Header:
+Join Alex in Jackson Hole
+
+Date line:
+May 30 – June 3 · Alex’s trip
+
+Why line varies:
+
+IF planning:
+Alex is considering this trip.
+
+IF going:
+Alex is going.
+
+Section:
+ON THIS TRIP
+
+List:
+
+Alex Torres (host)  
+Skier · Ikon
+
+Jordan Keene  
+Snowboarder · Ikon
+
+You, if you join  
+Snowboarder · Ikon
+
+---
+
+## 7. RIDER TYPE
+
+Display rider type everywhere in detail screens:
+
+Format:
+Skier · Ikon  
+Snowboarder · Epic
+
+Do not show rider type on Ideas tab.
+
+---
+
+## 8. RANKING PRIORITY
+
+Order ideas by:
+
+1. Shared availability (multi-person)
+2. Planning trips
+3. Going trips
+4. Wishlist pulls
+
+Within that:
+
+- More people > fewer
+- Closer dates > far dates
+- Strong pass alignment > weak
+
+---
+
+## 9. EMPTY STATE
+
+Header:
+Ideas
+
+Subhead:
+Where your plans and your friends line up.
+
+Body:
+Nothing lined up this week.
+
+Supporting:
+Set availability or add a few resorts to your list to give it something to work with.
+
+Links:
+Set availability →  
+Build your list →
+
+No exclamation marks.
+
+---
+
+## 10. DESIGN RULES
+
+- Serif headlines
+- Clean sans-serif supporting text
+- No icons or badges
+- No emoji
+- No “AI” language
+- Generous spacing
+- Minimal dividers
+
+Tone rule:
+State what is true. Do not interpret behavior.
+
+---
+
+## 11. QA CHECKLIST (REQUIRED)
+
+Verify:
+
+- Featured card appears when overlap exists
+- Planning vs going copy displays correctly
+- “With X others” logic works
+- Name disambiguation works
+- All 3 detail screens render correctly
+- Full names show only in detail screens
+- Rider type appears correctly
+- No CTA on detail screens
+- Empty state renders cleanly
+- Navigation works end-to-end
+
+Do not finish until all of the above are confirmed.

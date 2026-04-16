@@ -208,7 +208,7 @@
 
         <div class="ideas-empty">
             <hr class="ideas-empty-divider">
-            <p class="ideas-empty-main">Nothing lined up.</p>
+            <p class="ideas-empty-main">Nothing lined up this week.</p>
             <p class="ideas-empty-sub">Set availability or add a few resorts to your list to give it something to work with.</p>
             <div class="ideas-empty-actions">
                 <a href="{{ url_for('add_open_dates') }}" class="ideas-empty-link">Set availability →</a>
@@ -228,18 +228,14 @@
                class="ideas-window-row ideas-window-row--first">
                 <div class="ideas-window-body">
                     <p class="ideas-window-eyebrow ideas-window-eyebrow--first">AN OPENING</p>
-                    <p class="ideas-card-headline">{{ card.meta.get('window_length_phrase', card.title) }}</p>
+                    <p class="ideas-card-headline">A shared opening</p>
 
-                    {# With {names} line #}
-                    {% set avail_names = [] %}
-                    {% for fd in card.meta.get('friends_data', []) %}
-                        {% if avail_names.append(display_names.get(fd.id, fd.name)) %}{% endif %}
-                    {% endfor %}
-                    {% if avail_names %}
+                    {# With {name} / With X others #}
+                    {% set avail_friends = card.meta.get('friends_data', []) %}
+                    {% if avail_friends %}
                     <p class="ideas-card-with">
-                        {% if avail_names | length == 1 %}With {{ avail_names[0] }}
-                        {% elif avail_names | length == 2 %}With {{ avail_names[0] }} and {{ avail_names[1] }}
-                        {% else %}With {{ avail_names[0] }} and {{ avail_names | length - 1 }} others
+                        {% if avail_friends | length == 1 %}With {{ display_names.get(avail_friends[0].id, avail_friends[0].name) }}
+                        {% else %}With {{ avail_friends | length }} others
                         {% endif %}
                     </p>
                     {% endif %}
@@ -260,17 +256,13 @@
                class="ideas-window-row">
                 <div class="ideas-window-body">
                     <p class="ideas-window-eyebrow">AN OPENING</p>
-                    <p class="ideas-card-headline" style="font-size: 19px;">{{ card.meta.get('window_length_phrase', card.title) }}</p>
+                    <p class="ideas-card-headline" style="font-size: 19px;">A shared opening</p>
 
-                    {% set avail_names2 = [] %}
-                    {% for fd in card.meta.get('friends_data', []) %}
-                        {% if avail_names2.append(display_names.get(fd.id, fd.name)) %}{% endif %}
-                    {% endfor %}
-                    {% if avail_names2 %}
+                    {% set avail_friends2 = card.meta.get('friends_data', []) %}
+                    {% if avail_friends2 %}
                     <p class="ideas-card-with" style="font-size: 14px;">
-                        {% if avail_names2 | length == 1 %}With {{ avail_names2[0] }}
-                        {% elif avail_names2 | length == 2 %}With {{ avail_names2[0] }} and {{ avail_names2[1] }}
-                        {% else %}With {{ avail_names2[0] }} and {{ avail_names2 | length - 1 }} others
+                        {% if avail_friends2 | length == 1 %}With {{ display_names.get(avail_friends2[0].id, avail_friends2[0].name) }}
+                        {% else %}With {{ avail_friends2 | length }} others
                         {% endif %}
                     </p>
                     {% endif %}

@@ -354,8 +354,6 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
 
         window_friend_ids = {f["friend_id"] for f in friends_in_window}
 
-        signals = []
-
         shared_resort_name = None
         shared_resort_id = None
         if user_wishlist:
@@ -370,24 +368,18 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
                             shared_resort_name = resort.name
                             shared_resort_id = rid
                             break
-        if shared_resort_name:
-            if n == 1:
-                signals.append(f"{shared_resort_name} is on both your lists")
-            else:
-                signals.append(f"{shared_resort_name} is on your lists")
 
         pass_match_count = sum(
             1 for f in friends_in_window
             if f.get("same_pass") and f.get("friend_pass") not in _BAD_PASSES
         )
-        if pass_match_count == 1 and n == 1:
-            pass_name = friends_in_window[0].get("friend_pass")
-            if pass_name:
-                signals.append(f"You both have {pass_name}")
-        elif pass_match_count >= 2 and user_pass and user_pass not in _BAD_PASSES:
-            signals.append(f"{pass_match_count} have {user_pass}")
 
-        subtitle = " · ".join(signals) if signals else None
+        # Supporting line: only show when BOTH destination is on user's wishlist
+        # AND passes align — otherwise omit entirely
+        if shared_resort_name and pass_match_count >= 1:
+            subtitle = "On both your lists. Passes align."
+        else:
+            subtitle = None
 
         anchor_friend_id = w.get("anchor_friend_id")
 
@@ -419,16 +411,17 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
         else:
             display_date_long = f"{start_obj_inner.strftime('%B %-d')} – {end_obj_inner.strftime('%B %-d')}"
 
-        score = 40
-        score += min(n * 5, 25)
+        # Tier base 1000: guarantees availability ranks above all trip cards (max ~380)
+        score = 1000
+        score += min(n * 5, 20)   # up to 20 for overlapping friend count
         if shared_resort_name:
-            score += 25
-        if pass_match_count >= 1:
             score += 15
-        if days_until <= 14:
+        if pass_match_count >= 1:
             score += 10
-        elif days_until <= 30:
+        if days_until <= 14:
             score += 5
+        elif days_until <= 30:
+            score += 3
 
         cards.append(make_idea_card(
             idea_type="availability_overlap",
@@ -517,11 +510,7 @@ def build_wishlist_overlap_cards(user, wishlist_data, all_friends, user_dates):
             and p.get("pass_type") == user_pass
         )
 
-        # "X of you have it wishlisted." — per spec
-        total_interested = n + 1  # friends + current user
-        _num_words_wishlist = {2:"Two",3:"Three",4:"Four",5:"Five",6:"Six"}
-        total_word = _num_words_wishlist.get(total_interested, str(total_interested))
-        subtitle = f"{total_word} of you have it wishlisted."
+        subtitle = f"Several of you have {resort_name} saved."
 
         friend_ids_param = ",".join(str(p["id"]) for p in overlapping_people)
         cta_url = (
