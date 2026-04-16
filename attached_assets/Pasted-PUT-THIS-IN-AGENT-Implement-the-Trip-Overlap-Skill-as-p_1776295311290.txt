@@ -1,0 +1,140 @@
+PUT THIS IN AGENT
+
+Implement the Trip Overlap Skill as part of the Ideas Engine.
+
+Goal:
+Create a new skill that surfaces real trips your friends already have and turns them into actionable IdeaCard objects.
+
+Scope:
+- Build only the trip_overlap_skill
+- Do not modify existing availability or wishlist logic
+- Do not redesign templates yet
+- Keep changes safe and incremental
+- Do not introduce new UI patterns beyond what already exists
+
+What to do:
+
+1. Create a new file:
+   skills/trip_overlap.py
+
+2. Add a function:
+   trip_overlap_skill(user, all_friends)
+
+3. Inside the function:
+
+Step A — Get friend IDs:
+- Use Friend table logic already used elsewhere
+- Build a list of friend_ids from all_friends
+
+Step B — Query friend trips:
+- Query SkiTrip where:
+  - SkiTrip.user_id is in friend_ids
+  - SkiTrip.end_date >= today
+- Only include relevant statuses (e.g. "going" or "planned" if applicable)
+
+Step C — Get user context:
+- user_open_dates via get_available_dates_for_user(user)
+- user.pass_type
+- user.wish_list_resorts
+
+Step D — Loop through trips and evaluate signals:
+
+For each trip:
+- Get friend (owner of the trip)
+- Get trip start_date, end_date, resort_id
+
+Evaluate:
+
+1. Date overlap:
+- Check if any user_open_dates fall between trip.start_date and trip.end_date
+
+2. Pass alignment:
+- Check if user.pass_type matches friend.pass_type
+- If multi-pass, allow partial match (simple string containment is fine for V1)
+
+3. Wishlist match:
+- Check if trip.resort_id is in user.wish_list_resorts
+
+Skip trips where:
+- user is already on the trip (if applicable in your model)
+
+Step E — Assign score:
+
+Initialize score = 0
+
+- +40 if date overlap
+- +30 if pass alignment
+- +20 if wishlist match
+
+Optional:
+- small bonus if trip is soon (e.g. within 30 days)
+
+Step F — Build IdeaCard:
+
+Use make_idea_card() from services/ideas_engine.py
+
+Populate:
+
+- idea_type = "trip_overlap"
+- title:
+  "{Friend Name} is going to {Resort Name} {date range}"
+
+- subtitle:
+  Combine signals, e.g.:
+  - "You both have Ikon · You're free during this trip"
+  - "You're free during these dates"
+  - "It's on your wishlist"
+
+- eyebrow:
+  formatted date range
+
+- cta_url:
+  url_for("friend_trip_details", trip_id=trip.id)
+
+- cta_label:
+  "View trip →"
+
+- friend_ids:
+  [friend.id]
+
+- start_date / end_date
+- resort_id / resort_name
+- anchor_friend_id / anchor_friend_name
+- meta:
+  {"trip_id": trip.id}
+
+Step G — Deduping (important):
+
+If multiple friends are on the same trip:
+- group by trip.id
+- combine into one IdeaCard
+- update title to:
+  "3 friends are going to Aspen Jan 12–15"
+
+Step H — Return value:
+
+Return a list of IdeaCard dicts
+Limit to top 2–3 results sorted by score
+
+4. Integration (light touch):
+
+- Import and call trip_overlap_skill() inside /trip-ideas route
+- For now, you may:
+  - append results to existing context
+  - OR log/print them for verification
+
+Do NOT fully merge into template rendering yet if it causes large changes.
+Keep UI stable.
+
+Validation requirements:
+
+- Server runs without errors
+- trip_overlap_skill() returns valid IdeaCard objects
+- Trips from seeded users (e.g. test5 + friends) produce expected results
+- Date overlap logic works correctly
+- Pass alignment is reflected in subtitle
+- No duplicate cards for the same trip
+- Limit output to 2–3 cards
+- Show sample outputs from the function
+
+Use checkpoints sparingly.
