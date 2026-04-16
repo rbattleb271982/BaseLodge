@@ -1,0 +1,348 @@
+PUT THIS IN AGENT
+
+Implement the BaseLodge Ideas System V1 end-to-end using the approved product and logic spec below.
+
+Goal:
+Turn the current Ideas page into a unified, ranked feed of the 3–5 most relevant ski/social opportunities, using the existing idea infrastructure and current skills.
+
+Important:
+- Keep this implementation safe and incremental
+- Use the existing architecture already created:
+  - services/open_dates.py
+  - services/ideas_engine.py
+  - services/ideas_ranking.py
+  - services/skills/trip_overlap.py
+  - existing availability overlap logic
+  - existing wishlist overlap logic
+  - make_idea_card()
+- Do not redesign the whole app
+- Do not create a resort tab
+- Do not add secondary actions
+- Use checkpoints sparingly
+
+====================================
+PRODUCT RULES TO IMPLEMENT
+====================================
+
+1. V1 idea types
+Only these 3 idea types should exist in the unified feed:
+- trip_overlap
+- availability_overlap
+- wishlist_overlap
+
+2. Pass logic
+Pass overlap is NOT a trigger.
+Pass overlap is:
+- a scoring boost
+- a subtitle enhancement
+- useful context
+A shared pass alone should never create a card.
+
+3. Feed philosophy
+The Ideas tab is a highlight reel, not an exhaustive data dump.
+Show only the best 3–5 total ideas across all types.
+All idea types compete in one ranked pool.
+
+4. Product principle
+Combine signals into one stronger idea whenever possible.
+Do not show weak, fragmented, repetitive signals if they can be merged.
+
+====================================
+IMPLEMENTATION TASKS
+====================================
+
+PHASE A — Create a unified ideas feed builder
+
+1. In services/ideas_engine.py, add a new coordinator function:
+   build_ranked_idea_feed(user, all_friends)
+
+This function should:
+- collect all candidate ideas from:
+  - availability overlap logic
+  - wishlist overlap logic
+  - trip_overlap_skill(user, all_friends)
+- normalize them into IdeaCard dicts
+- score them using the approved unified ranking rules
+- apply diversity penalties
+- return the top 3–5 cards only
+
+2. If needed, add helper functions inside services/ideas_engine.py such as:
+- build_availability_overlap_cards(...)
+- build_wishlist_overlap_cards(...)
+- score_unified_idea_cards(...)
+- apply_diversity_selection(...)
+
+Keep helpers small and importable.
+
+PHASE B — Convert availability overlap into IdeaCards
+
+3. Build availability overlap cards from the existing overlap window pipeline.
+
+Use the existing:
+- get_open_date_matches(...)
+- build_overlap_windows(...)
+- score_overlap_windows(...)
+
+But output IdeaCard dicts using make_idea_card().
+
+For availability cards:
+- idea_type = "availability_overlap"
+
+Title rules:
+- one friend:
+  "You and Alex are free Jan 20–22"
+- multiple friends:
+  "You and 10 friends are free Jan 20–22"
+  OR
+  "You, Alex, and 9 others are free Jan 20–22"
+Choose whichever is cleaner based on available data, but keep it consistent.
+
+Subtitle rules:
+- Combine only true enhancement signals:
+  - "{Resort} is on both your lists"
+  - "You both have Ikon"
+  - "6 have Ikon" if that data is easy and grounded
+- Join fragments with " · "
+- Do not use awkward phrasing like "you both want Jackson Hole"
+- Prefer:
+  "{Resort} is on both your lists"
+
+Important:
+- Availability-only cards are allowed
+- But if wishlist/pass context exists, enhance the subtitle
+- Do not suppress a valid availability card just because pass does not match
+
+CTA behavior:
+- cta_label = "Create Trip"
+- cta_url should go to the existing create/add trip flow with prefilled dates and suggested friends if possible
+- If the current route only supports part of that, do the safest available prefill path now and note what remains
+
+PHASE C — Convert wishlist overlap into IdeaCards
+
+4. Build wishlist overlap cards from the existing wishlist overlap logic.
+
+For wishlist cards:
+- idea_type = "wishlist_overlap"
+
+Title rules:
+- default:
+  "{Resort} is on both your lists"
+- if multiple friends:
+  "{Resort} is on your lists"
+
+Subtitle rules:
+- if date overlap exists with one or more of those same friends, include it
+- if pass overlap exists, include it
+- keep subtitle concise and natural
+
+CTA behavior:
+- cta_label = "Create Trip"
+- cta_url should go to the create/add trip flow with the resort prefilled if possible
+- if friend preselection is possible, include suggested friends
+
+Important:
+- pass alone must not create this card
+- shared wishlist is the trigger
+- pass is only enhancement
+
+PHASE D — Integrate the existing trip overlap skill into the unified feed
+
+5. Use the existing trip_overlap_skill(user, all_friends) as one candidate source in the unified feed.
+
+Keep its existing core behavior, but ensure:
+- title/subtitle still follow the V1 copy rules
+- pass remains enhancement only
+- no card is created from pass alone
+- trip cards remain highly ranked when they have strong signals
+
+CTA behavior:
+- cta_label = "View Trip"
+- cta_url should continue to point to the existing trip/friend trip detail destination already used by the skill
+
+PHASE E — Unified scoring across types
+
+6. Add a unified scoring layer for all IdeaCard candidates.
+
+Use this approved scoring philosophy:
+Rank by “how close is this to becoming a real trip?”
+
+Recommended scoring model:
+
+Trip Overlap
+- +50 base
+- +40 if user's availability overlaps the trip
+- +30 if pass alignment exists
+- +20 if trip resort matches user's wishlist
+- +10 if trip starts within 30 days
+- +10 if trip starts within 14 days
+
+Availability Overlap
+- +40 base
+- +5 per relevant friend, cap at +25
+- +25 if a shared wishlist destination meaningfully enriches the card
+- +15 if pass overlap meaningfully enriches the card
+- +10 if date window starts within 14 days
+- +5 if date window starts within 30 days
+
+Wishlist Overlap
+- +30 base
+- +5 per relevant friend, cap at +25
+- +10 if pass overlap exists
+- +10 if those same friends also share a meaningful date overlap soon
+- +10 if near-term planning window exists, if grounded
+
+Important:
+- Do not let pass-only ideas exist
+- Use pass as a moderate boost, not dominance
+- If a friend trip exists with zero meaningful signal, do not create a card just because the friend has a trip
+
+PHASE F — Diversity selection
+
+7. After generating and scoring all candidate cards, enforce diversity before final selection.
+
+Target:
+Return only the best 3–5 total cards.
+
+Selection method:
+- Start with candidates sorted by score descending
+- Select the top card
+- For remaining candidates, apply soft penalties before choosing the next card:
+  - same friend overlap as a selected card → meaningful penalty
+  - same date window → meaningful penalty
+  - same resort → meaningful penalty
+  - same idea type → smaller penalty
+
+Suggested penalty ranges:
+- same friend: ~30%
+- same resort: ~25%
+- same date window: ~20%
+- same idea type: ~15%
+
+Use grounded, readable code. It does not need to be mathematically fancy. It just needs to prevent repetitive feeds.
+
+Important:
+- Do NOT hard-slot one card per type
+- Diversity should be soft, not rigid
+- Stronger ideas should still win
+
+PHASE G — Render the unified feed on /trip-ideas
+
+8. Update the /trip-ideas route in app.py to:
+- call build_ranked_idea_feed(user, all_friends)
+- continue determining state cleanly
+- pass the final cards into the template context
+
+9. Update templates/trip_ideas.html to render the unified feed.
+
+Requirements:
+- keep the existing overall page structure where reasonable
+- do not redesign the whole visual system unless necessary
+- replace old fragmented rendering with a single ranked ideas list
+- each card should render:
+  - title
+  - subtitle if present
+  - eyebrow if present
+- the entire card should be tappable/clickable
+- use the card's cta_url
+- button/cta text should match cta_label if visible in the current design
+
+Keep the UI simple and premium, not cluttered.
+
+PHASE H — Idea detail / tap behavior
+
+10. Implement the tap destinations according to V1 rules:
+
+Trip Overlap
+- tap goes to existing trip detail / friend trip view
+- primary action is viewing the trip
+
+Availability Overlap
+- tap goes to create/add trip flow with dates prefilled
+- suggested friends should be carried if your current routes support it
+- if full friend preselection is not yet supported, preserve dates now and document the friend-prefill follow-up
+
+Wishlist Overlap
+- tap goes to create/add trip flow with resort prefilled if possible
+- suggested friends should be carried if supported
+
+No extra secondary actions for now.
+
+====================================
+DISPLAY RULES
+====================================
+
+1. Friend names
+- In conversational card titles with one friend, use first name only
+- In any detail/list display, use first + last names
+
+2. If a detail/list view is needed for multi-friend ideas, each friend row should show:
+- First Name Last Name
+- Rider Type · Pass · Skill Level
+
+Example:
+Alex Kim
+Snowboarder · Ikon · Advanced
+
+If no detail/list view exists yet for this exact surface, do not invent a full new feature unless needed. Prefer to keep V1 focused on the ranked feed and tap destinations.
+
+3. Avoid awkward copy like:
+- "you both want Jackson Hole"
+
+Prefer:
+- "Jackson Hole is on both your lists"
+
+====================================
+EDGE CASES
+====================================
+
+Handle these gracefully:
+
+1. No friends
+- keep/setup state with invite friends CTA
+
+2. No availability
+- availability ideas won't exist
+- trip and wishlist ideas can still exist
+- include a lightweight prompt/context that setting availability improves matches if the current page structure supports it
+
+3. Sparse data
+- weaker availability-only or wishlist-only cards are allowed as fallback
+- but still rank below more complete, actionable ideas
+
+====================================
+IMPORTANT GUARDRAILS
+====================================
+
+- Do not add a resort tab
+- Do not create secondary actions
+- Do not create pass-only cards
+- Do not overcomplicate the UI
+- Do not destroy the current page structure if a lighter refactor works
+- Keep behavior grounded in the current BaseLodge models and routes
+- If some prefill behavior is not fully supported by current routes, implement the cleanest safe version now and clearly document the gap
+
+====================================
+VALIDATION REQUIREMENTS
+====================================
+
+Show me all of the following in your final report:
+
+1. Exactly which files were changed
+2. What new helpers/functions were added
+3. How each idea type is generated now
+4. How unified scoring works
+5. How diversity selection works
+6. What the final /trip-ideas feed now renders
+7. Sample outputs for:
+   - trip overlap card
+   - availability overlap card
+   - wishlist overlap card
+8. Any current limitations in route prefill behavior
+9. Confirmation that:
+   - pass does not create cards by itself
+   - only 3–5 total ideas render
+   - titles/subtitles follow the approved copy rules
+   - UI remains stable and usable
+
+Test thoroughly before finishing.
+Do not finish until you have fully tested the implemented flow, verified the feed output, and confirmed the ranked ideas behave as specified. Only use checkpoints if truly needed.
