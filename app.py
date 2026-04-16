@@ -2302,6 +2302,13 @@ def trip_ideas():
     # ── Wishlist Overlaps (populated + reengagement states) ───────────────────
     wishlist_overlaps = build_wishlist_overlaps(user, all_friends)
 
+    # ── Trip Overlap Cards ────────────────────────────────────────────────────
+    from services.skills.trip_overlap import trip_overlap_skill
+    trip_overlap_cards = trip_overlap_skill(user, all_friends)
+    print(f"[trip_ideas] trip_overlap_cards: {len(trip_overlap_cards)} card(s)")
+    for _c in trip_overlap_cards:
+        print(f"  • [{_c['score']:.0f}pts] {_c['title']}")
+
     return render_template(
         "trip_ideas.html",
         user=user,
@@ -2309,6 +2316,7 @@ def trip_ideas():
         overlap_windows=overlap_windows,
         window_count=window_count,
         wishlist_overlaps=wishlist_overlaps,
+        trip_overlap_cards=trip_overlap_cards,
         has_friends=has_friends,
         has_availability=has_availability,
         has_overlaps=has_overlaps,
