@@ -166,7 +166,10 @@ def trip_overlap_skill(user, all_friends):
 
         anchor_fid = involved_friend_ids[0]
         anchor_friend = friend_by_id.get(anchor_fid)
-        anchor_name = anchor_friend.first_name if anchor_friend else "Your friend"
+        anchor_name = (
+            f"{anchor_friend.first_name or ''} {anchor_friend.last_name or ''}".strip()
+            if anchor_friend else "Your friend"
+        )
 
         n = len(involved_friend_ids)
 

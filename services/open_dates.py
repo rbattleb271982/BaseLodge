@@ -104,7 +104,7 @@ def get_open_date_matches(current_user):
             matches.append({
                 "date": match_date,
                 "friend_id": friend.id,
-                "friend_name": friend.first_name,
+                "friend_name": f"{friend.first_name or ''} {friend.last_name or ''}".strip(),
                 "friend_pass": friend.pass_type,
                 "same_pass": friend.pass_type == current_user.pass_type
             })

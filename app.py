@@ -2248,7 +2248,6 @@ def overlap_detail():
 @login_required
 def trip_ideas():
     """Trip Ideas page — 3-state system: setup / reengagement / populated."""
-    from collections import Counter
     from services.ideas_engine import build_ranked_idea_feed
     from services.open_dates import get_available_dates_for_user
     user = current_user
@@ -2259,16 +2258,12 @@ def trip_ideas():
     all_friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
     has_friends = bool(friend_ids)
 
-    # ── Name disambiguation: first-name-only, add last initial if duplicate ───
-    first_name_counts = Counter(f.first_name or "" for f in all_friends)
+    # Full names for Ideas feed — spec requires full name for 1-friend cards
     display_names = {}
     for f in all_friends:
         fname = f.first_name or ""
-        if first_name_counts[fname] > 1:
-            last_initial = (f.last_name or "")[:1]
-            display_names[f.id] = f"{fname} {last_initial}." if last_initial else fname
-        else:
-            display_names[f.id] = fname
+        lname = f.last_name or ""
+        display_names[f.id] = f"{fname} {lname}".strip() if lname else fname
 
     # ── Availability hint (soft prompt when no availability is set) ───────────
     has_availability = bool(get_available_dates_for_user(user))

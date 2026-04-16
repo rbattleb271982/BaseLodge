@@ -373,13 +373,25 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
             1 for f in friends_in_window
             if f.get("same_pass") and f.get("friend_pass") not in _BAD_PASSES
         )
+        pass_mismatch_count = sum(
+            1 for f in friends_in_window
+            if not f.get("same_pass") and f.get("friend_pass") not in _BAD_PASSES
+        )
 
-        # Supporting line: only show when BOTH destination is on user's wishlist
-        # AND passes align — otherwise omit entirely
-        if shared_resort_name and pass_match_count >= 1:
-            subtitle = "On both your lists. Passes align."
+        # pass_signal for feed card: "same" | "varies" | None
+        user_pass_clean = user_pass if user_pass not in _BAD_PASSES else None
+        if pass_match_count >= 1 and user_pass_clean:
+            pass_signal = "same"
+        elif (pass_mismatch_count >= 1 or pass_match_count == 0) and user_pass_clean:
+            # User has a pass but friends differ or have no pass — "Passes vary"
+            if pass_mismatch_count >= 1:
+                pass_signal = "varies"
+            else:
+                pass_signal = None
         else:
-            subtitle = None
+            pass_signal = None
+
+        subtitle = None  # feed subtitle replaced by template-level combined line
 
         anchor_friend_id = w.get("anchor_friend_id")
 
@@ -439,8 +451,13 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
             meta={
                 "window_length_phrase": length_phrase,
                 "display_date_long": display_date_long,
+                "pass_signal": pass_signal,
                 "friends_data": [
-                    {"id": f["friend_id"], "name": f.get("friend_name", "")}
+                    {
+                        "id": f["friend_id"],
+                        "name": f.get("friend_name", ""),
+                        "same_pass": f.get("same_pass", False),
+                    }
                     for f in friends_in_window
                 ],
             },
@@ -510,7 +527,11 @@ def build_wishlist_overlap_cards(user, wishlist_data, all_friends, user_dates):
             and p.get("pass_type") == user_pass
         )
 
-        subtitle = f"Several of you have {resort_name} saved."
+        anchor_full_name = f"{anchor.get('first_name', '')} {anchor.get('last_name', '')}".strip() or "a friend"
+        if n == 1:
+            subtitle = f"You and {anchor_full_name} have {resort_name} on your wishlist"
+        else:
+            subtitle = f"You and {n} friends have {resort_name} on your wishlist"
 
         friend_ids_param = ",".join(str(p["id"]) for p in overlapping_people)
         cta_url = (

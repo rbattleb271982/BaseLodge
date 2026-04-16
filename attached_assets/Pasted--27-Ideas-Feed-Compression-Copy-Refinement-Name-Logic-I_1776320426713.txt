@@ -1,0 +1,258 @@
+#27 - Ideas Feed Compression + Copy Refinement + Name Logic
+
+Implement a focused polish pass on the BaseLodge Ideas feed only. This is not a redesign of the detail screens or the ideas engine. The goal is to make each feed entry feel more horizontal, more compact, and more editorial, while preserving the existing route structure and ranking logic from Tasks #24–#26.
+
+This task must also lock the name-display rules correctly:
+- if an idea references exactly 1 friend, show that friend’s full name
+- if an idea references 2+ friends, do NOT list names; instead show a count like “With 2 others”
+- do not use first-name-only or first-name-plus-initial logic on the feed anymore
+- detail screens can keep their current full-name behavior
+
+Do not change unrelated parts of the app.
+Do not change route URLs or the data model.
+Use checkpoints sparingly.
+Do not finish until you have fully tested the Ideas feed end-to-end.
+
+--------------------------------------------------
+GOAL
+--------------------------------------------------
+
+Tighten the visual structure of the Ideas feed so each card uses fewer stacked lines, remove redundant eyebrow text, and update the copy system to match the latest direction.
+
+The feed should feel:
+- denser
+- more scannable
+- more horizontal
+- still premium/editorial
+- less vertically bloated
+
+--------------------------------------------------
+DONE LOOKS LIKE
+--------------------------------------------------
+
+1. Availability cards no longer show the eyebrow/kicker "AN OPENING"
+2. Availability cards no longer stack into 4 separate lines of content when avoidable
+3. Availability cards use this compact structure:
+   - headline: "A shared opening"
+   - date/destination line: "{DateRange} · {Destination}"
+   - compact support line:
+     - 1 friend exact-match example: "With Alex Torres · Same pass"
+     - multi-friend exact-match example: "With 2 others · Same pass"
+     - 1 friend mismatch example: "With Alex Torres · Passes vary"
+     - multi-friend mismatch example: "With 3 others · Passes vary"
+   - if there is no pass signal worth showing, just render:
+     - "With Alex Torres"
+     - or "With 2 others"
+4. If an availability card has exactly 1 overlapping friend, use FULL NAME on the feed:
+   - "With Alex Torres"
+5. If an availability card has 2+ overlapping friends, use count only on the feed:
+   - "With 2 others"
+   - "With 3 others"
+   Do not list any names in those cases
+6. Trip cards are compressed to a maximum of:
+   - headline
+   - one supporting line
+7. Trip cards use full names because each trip card refers to exactly 1 primary friend:
+   - "Jordan Keene is considering Mammoth Mountain"
+   - "Join Maya Chen in Palisades Tahoe"
+8. Trip card supporting line remains compact:
+   - exact pass match: "You both have Ikon"
+   - mismatch: "Passes vary"
+   - do not use "Ikon Pass" / "Epic Pass"
+9. Wishlist cards use the updated supporting line:
+   - if exactly 1 friend overlaps:
+     "You and Alex Torres have Mammoth Mountain on your wishlist"
+   - if 2+ friends overlap:
+     "You and 2 friends have Mammoth Mountain on your wishlist"
+10. Wishlist cards remain compact:
+   - headline
+   - one supporting line
+11. Feed cards feel visually tighter overall:
+   - fewer stacked lines
+   - less vertical dead space
+   - more information grouped horizontally where possible
+12. Existing detail screens remain functional and unchanged unless a tiny template tweak is absolutely required to support the new feed copy plumbing
+
+--------------------------------------------------
+OUT OF SCOPE
+--------------------------------------------------
+
+- Reworking the 3 detail screens beyond tiny compatibility fixes
+- Changing route URLs
+- Changing the data model
+- Redesigning the Ideas experience from scratch
+- Changing ranking logic beyond preserving current Task #26 behavior
+- Adding new CTAs or interaction patterns
+- Changing home, trips, friends, or profile tabs
+
+--------------------------------------------------
+COPY RULES
+--------------------------------------------------
+
+A. Availability cards
+- Remove the kicker "AN OPENING"
+- Headline must be exactly:
+  "A shared opening"
+- Second line must be:
+  "{DateRange} · {Destination}"
+- Third line should combine social + pass info into one line when possible
+
+Name rules for the third line:
+- exactly 1 overlapping friend:
+  "With {Full Name}"
+- 2+ overlapping friends:
+  "With {N} others"
+
+Pass phrase options for the third line:
+- exact pass alignment:
+  "Same pass"
+- mismatch / mixed:
+  "Passes vary"
+
+Examples:
+- "With Alex Torres · Same pass"
+- "With 2 others · Same pass"
+- "With Alex Torres · Passes vary"
+- "With 4 others · Passes vary"
+- if pass signal should not be shown, just render "With Alex Torres" or "With 2 others"
+
+Do not use:
+- "AN OPENING"
+- "Passes align"
+- "All same pass"
+- first-name-only display on the feed
+
+B. Trip cards
+Planning headline:
+- "{Full Name} is considering {Destination}"
+
+Going headline:
+- "Join {Full Name} in {Destination}"
+
+Supporting line:
+- exact match: "You both have Ikon"
+- mismatch: "Passes vary"
+
+CTA:
+- keep existing Task #26 CTA behavior if already implemented correctly
+- do not introduce new CTA language in this task unless needed to preserve existing spec alignment
+
+C. Wishlist cards
+Headline:
+- keep the existing resort-first headline structure
+
+Supporting line rules:
+- if exactly 1 overlapping friend:
+  "You and {Full Name} have {Destination} on your wishlist"
+- if 2+ overlapping friends:
+  "You and {N} friends have {Destination} on your wishlist"
+
+Examples:
+- "You and Alex Torres have Mammoth Mountain on your wishlist"
+- "You and 2 friends have Mammoth Mountain on your wishlist"
+
+Do not use:
+- "Several of you have..."
+- "wishlisted"
+- "saved"
+
+--------------------------------------------------
+NAME DISPLAY RULES (LOCK THESE)
+--------------------------------------------------
+
+Ideas feed only:
+
+1. If exactly 1 friend is referenced in the card:
+- show FULL NAME everywhere on that feed card where a person is named
+
+2. If 2+ friends are referenced in the card:
+- do not list names on the feed card
+- use count-based language only:
+  - "With 2 others"
+  - "With 3 others"
+  - "You and 2 friends have ..."
+
+3. Remove/replace any previous first-name-only or first-name-plus-initial feed logic
+- do not show:
+  - "Alex"
+  - "Alex T."
+- feed should now use either:
+  - full name for 1 person
+  - count for 2+ people
+
+4. Detail screens:
+- leave current full-name behavior intact
+- "You" should still render for the current user on detail screens
+
+--------------------------------------------------
+LAYOUT / TEMPLATE RULES
+--------------------------------------------------
+
+Compress the feed layout so cards are more horizontal and less tall.
+
+Implementation intent:
+- each feed card should ideally be 2–3 lines max
+- merge metadata into a single supporting line when possible
+- keep date + destination together on one line
+- keep social + pass information together on one line when possible
+- reduce unnecessary vertical spacing between internal text rows
+- preserve overall editorial styling and readability
+- do not make the cards feel cramped or cheap
+
+Specifically:
+- availability cards: 3 lines max
+- trip cards: 2 lines max where possible
+- wishlist cards: 2 lines max where possible
+
+Do not:
+- add badges
+- add icons
+- add chips/pills
+- add more decorative chrome
+
+--------------------------------------------------
+IMPLEMENTATION NOTES
+--------------------------------------------------
+
+- Update templates and any supporting formatting helpers needed to drive the new feed copy
+- Reuse centralized pass normalization if already present
+- If a helper is needed for count-based friend phrases, add a small shared helper rather than duplicating logic in templates
+- Preserve current ranking order from Task #26:
+  shared availability > planning trips > going trips > wishlist pulls
+
+--------------------------------------------------
+RELEVANT FILES
+--------------------------------------------------
+
+- templates/trip_ideas.html
+- services/ideas_engine.py
+- services/skills/trip_overlap.py
+- app.py
+- static/styles.css
+
+--------------------------------------------------
+QA CHECKLIST (REQUIRED)
+--------------------------------------------------
+
+Before finishing, verify all of the following in the actual Ideas feed:
+
+1. Availability cards no longer show "AN OPENING"
+2. Availability cards show "A shared opening"
+3. Availability cards show date + destination on one line
+4. Availability cards show:
+   - full name when exactly 1 friend is involved
+   - count-only language when 2+ friends are involved
+5. Availability cards compress social + pass information into one supporting line when applicable
+6. Trip cards show full names, not first names or initials
+7. Trip cards stay visually compact and use only one supporting line
+8. Wishlist cards use:
+   - "You and Alex Torres have {Destination} on your wishlist" for 1 friend
+   - "You and 2 friends have {Destination} on your wishlist" for 2+ friends
+9. No feed cards use "Several of you have..." anymore
+10. No feed cards use "saved" or "wishlisted"
+11. No feed cards use first-name-only or first-name-plus-initial logic
+12. Overall feed is visually tighter with less vertical stacking
+13. Existing detail-screen navigation still works from the feed
+14. demo@baselodge.app feed still renders correctly with seeded data
+
+Do not finish until every item above is tested and confirmed.

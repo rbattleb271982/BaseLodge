@@ -28,37 +28,31 @@
             line-height: 1.55;
         }
 
-        /* ── Featured availability card extras ── */
+        /* ── Availability card ── */
         .ideas-card-headline {
             font-family: Georgia, 'Times New Roman', serif;
             font-size: 22px;
             font-weight: 400;
             color: var(--bl-color-text);
-            margin: 0 0 3px 0;
+            margin: 0 0 2px 0;
             line-height: 1.2;
         }
 
-        .ideas-card-with {
-            font-size: 15px;
-            color: var(--bl-color-text-muted);
-            margin: 0 0 8px 0;
+        .ideas-card-headline--sm {
+            font-size: 19px;
         }
 
-        .ideas-card-date-resort {
+        .ideas-card-dateline {
             font-size: 13px;
             color: var(--bl-color-text-muted);
-            margin: 0 0 5px 0;
+            margin: 0 0 2px 0;
             letter-spacing: 0.1px;
         }
 
-        /* ── Availability card (non-featured) ── */
-        .ideas-card-avail-date {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.7px;
-            text-transform: uppercase;
+        .ideas-card-social {
+            font-size: 13px;
             color: var(--bl-color-text-muted);
-            margin: 0 0 5px 0;
+            margin: 0;
         }
 
         /* ── Wishlist pull card ── */
@@ -222,95 +216,54 @@
         <div class="ideas-windows-list">
             {% for card in idea_feed %}
 
-            {# ── FEATURED AVAILABILITY CARD (first card, availability_overlap) ── #}
-            {% if card.idea_type == 'availability_overlap' and card.is_first %}
+            {# ── AVAILABILITY CARD ── #}
+            {% if card.idea_type == 'availability_overlap' %}
             <a href="{{ card.cta_url }}"
-               class="ideas-window-row ideas-window-row--first">
+               class="ideas-window-row{% if card.is_first %} ideas-window-row--first{% endif %}">
                 <div class="ideas-window-body">
-                    <p class="ideas-window-eyebrow ideas-window-eyebrow--first">AN OPENING</p>
-                    <p class="ideas-card-headline">A shared opening</p>
+                    {# Line 1: Headline (larger for featured, standard for others) #}
+                    <p class="ideas-card-headline{% if not card.is_first %} ideas-card-headline--sm{% endif %}">A shared opening</p>
 
-                    {# With {name} / With X others #}
-                    {% set avail_friends = card.meta.get('friends_data', []) %}
-                    {% if avail_friends %}
-                    <p class="ideas-card-with">
-                        {% if avail_friends | length == 1 %}With {{ display_names.get(avail_friends[0].id, avail_friends[0].name) }}
-                        {% else %}With {{ avail_friends | length }} others
+                    {# Line 2: DateRange · Destination #}
+                    <p class="ideas-card-dateline">
+                        {{- card.meta.get('display_date_long', '') -}}
+                        {%- if card.resort_name %} · {{ card.resort_name }}{% endif %}
+                    </p>
+
+                    {# Line 3: With {Full Name | N others} [· Same pass | · Passes vary] #}
+                    {% set af = card.meta.get('friends_data', []) %}
+                    {% if af %}
+                        {% if af | length == 1 %}
+                            {% set with_text = "With " + af[0].name %}
+                        {% else %}
+                            {% set with_text = "With " + (af | length | string) + " others" %}
                         {% endif %}
-                    </p>
-                    {% endif %}
-
-                    <p class="ideas-card-date-resort">
-                        {{ card.meta.get('display_date_long', '') }}{% if card.resort_name %} · {{ card.resort_name }}{% endif %}
-                    </p>
-                    {% if card.subtitle %}
-                    <p class="ideas-window-sub">{{ card.subtitle }}</p>
+                        {% set ps = card.meta.get('pass_signal') %}
+                        {% if ps == 'same' %}
+                            {% set social_line = with_text + " · Same pass" %}
+                        {% elif ps == 'varies' %}
+                            {% set social_line = with_text + " · Passes vary" %}
+                        {% else %}
+                            {% set social_line = with_text %}
+                        {% endif %}
+                        <p class="ideas-card-social">{{ social_line }}</p>
                     {% endif %}
                 </div>
                 <span class="ideas-window-cta">{{ card.cta_label }}</span>
             </a>
 
-            {# ── STANDARD AVAILABILITY CARD (non-featured) ── #}
-            {% elif card.idea_type == 'availability_overlap' %}
-            <a href="{{ card.cta_url }}"
-               class="ideas-window-row">
-                <div class="ideas-window-body">
-                    <p class="ideas-window-eyebrow">AN OPENING</p>
-                    <p class="ideas-card-headline" style="font-size: 19px;">A shared opening</p>
-
-                    {% set avail_friends2 = card.meta.get('friends_data', []) %}
-                    {% if avail_friends2 %}
-                    <p class="ideas-card-with" style="font-size: 14px;">
-                        {% if avail_friends2 | length == 1 %}With {{ display_names.get(avail_friends2[0].id, avail_friends2[0].name) }}
-                        {% else %}With {{ avail_friends2 | length }} others
-                        {% endif %}
-                    </p>
-                    {% endif %}
-
-                    <p class="ideas-card-date-resort">
-                        {{ card.meta.get('display_date_long', '') }}{% if card.resort_name %} · {{ card.resort_name }}{% endif %}
-                    </p>
-                    {% if card.subtitle %}
-                    <p class="ideas-window-sub">{{ card.subtitle }}</p>
-                    {% endif %}
-                </div>
-                <span class="ideas-window-cta">{{ card.cta_label }}</span>
-            </a>
-
-            {# ── TRIP OVERLAP CARD ── #}
+            {# ── TRIP CARD ── #}
             {% elif card.idea_type == 'trip_overlap' %}
             <a href="{{ card.cta_url }}"
                class="ideas-window-row{% if card.is_first %} ideas-window-row--first{% endif %}">
                 <div class="ideas-window-body">
-                    {% if card.eyebrow %}
-                    <p class="ideas-window-eyebrow{% if card.is_first %} ideas-window-eyebrow--first{% endif %}">{{ card.eyebrow }}</p>
-                    {% endif %}
-
-                    {# Build disambiguated title from components #}
                     {% set trip_status = card.meta.get('trip_status', 'going') %}
-                    {% if card.friend_ids | length == 1 %}
-                        {% set disp_name = display_names.get(card.anchor_friend_id, card.anchor_friend_name) %}
-                        {% if trip_status == 'going' %}
-                        <p class="ideas-window-title">Join {{ disp_name }} in {{ card.resort_name }}</p>
-                        {% else %}
-                        <p class="ideas-window-title">{{ disp_name }} is considering {{ card.resort_name }}</p>
-                        {% endif %}
-                    {% elif card.friend_ids | length == 2 %}
-                        {% set dn0 = display_names.get(card.friend_ids[0], '') %}
-                        {% set dn1 = display_names.get(card.friend_ids[1], '') %}
-                        {% if trip_status == 'going' %}
-                        <p class="ideas-window-title">{{ dn0 }} and {{ dn1 }} are going to {{ card.resort_name }}</p>
-                        {% else %}
-                        <p class="ideas-window-title">{{ dn0 }} and {{ dn1 }} are thinking about {{ card.resort_name }}</p>
-                        {% endif %}
+                    {% set disp_name = display_names.get(card.anchor_friend_id, card.anchor_friend_name) %}
+                    {% if trip_status == 'going' %}
+                    <p class="ideas-window-title">Join {{ disp_name }} in {{ card.resort_name }}</p>
                     {% else %}
-                        {% if trip_status == 'going' %}
-                        <p class="ideas-window-title">{{ card.friend_ids | length }} friends are going to {{ card.resort_name }}</p>
-                        {% else %}
-                        <p class="ideas-window-title">{{ card.friend_ids | length }} friends are thinking about {{ card.resort_name }}</p>
-                        {% endif %}
+                    <p class="ideas-window-title">{{ disp_name }} is considering {{ card.resort_name }}</p>
                     {% endif %}
-
                     {% if card.subtitle %}
                     <p class="ideas-window-sub">{{ card.subtitle }}</p>
                     {% endif %}
@@ -318,10 +271,10 @@
                 <span class="ideas-window-cta">{{ card.cta_label }}</span>
             </a>
 
-            {# ── WISHLIST PULL CARD ── #}
+            {# ── WISHLIST CARD ── #}
             {% elif card.idea_type == 'wishlist_overlap' %}
             <a href="{{ card.cta_url }}"
-               class="ideas-window-row ideas-card--pull{% if card.is_first %} ideas-window-row--first{% endif %}">
+               class="ideas-window-row{% if card.is_first %} ideas-window-row--first{% endif %}">
                 <div class="ideas-window-body">
                     <p class="ideas-window-title" style="color: var(--bl-color-text-muted);">{{ card.title }}</p>
                     {% if card.subtitle %}
@@ -332,13 +285,10 @@
             </a>
 
             {% else %}
-            {# ── FALLBACK: generic card ── #}
+            {# ── FALLBACK ── #}
             <a href="{{ card.cta_url }}"
                class="ideas-window-row{% if card.is_first %} ideas-window-row--first{% endif %}">
                 <div class="ideas-window-body">
-                    {% if card.eyebrow %}
-                    <p class="ideas-window-eyebrow{% if card.is_first %} ideas-window-eyebrow--first{% endif %}">{{ card.eyebrow }}</p>
-                    {% endif %}
                     <p class="ideas-window-title">{{ card.title }}</p>
                     {% if card.subtitle %}
                     <p class="ideas-window-sub">{{ card.subtitle }}</p>
