@@ -1,0 +1,86 @@
+Add a robust seed-data set for BaseLodge that specifically powers the Ideas tab with believable overlap scenarios.
+
+Goal:
+Create enough seeded users, friendships, trips, availability windows, pass types, and wishlist overlap so the Ideas tab feels alive and intentionally populated.
+
+Important:
+I want AT LEAST 2 examples where MULTIPLE people overlap on:
+1. the exact same availability dates
+2. the same pass type(s)
+3. the same wishlist destination
+
+Those overlap clusters should be obvious enough that the Ideas logic can surface strong “shared availability / open window” ideas and “shared pull / shared wishlist” ideas.
+
+What to do:
+1. Review the current BaseLodge seed approach and data model first.
+   - Understand where users, friendships, trips, availability, passes, and wishlists are currently stored.
+   - Reuse existing seed patterns if they exist.
+   - Do not invent a conflicting schema.
+
+2. Add new seed users with realistic skiing/snowboarding profiles.
+   - Use distinct first names.
+   - Keep the data believable and varied.
+   - Make sure the primary test user has enough friend connections to generate Ideas-tab results.
+
+3. Create intentional overlap clusters.
+
+Required overlap cluster A:
+- At least 3 users total
+- Exact shared availability window: Jun 16–19, 2026
+- Shared wishlist destination: Telluride
+- Shared pass compatibility: Ikon (or another pass if the current schema requires it, but it must be shared exactly)
+- This cluster should be strong enough to generate a featured “open window” type idea
+
+Required overlap cluster B:
+- At least 3 users total
+- Exact shared availability window: Jan 22–25, 2027
+- Shared wishlist destination: Jackson Hole
+- Shared pass compatibility: Ikon or Mountain Collective or another shared pass, but again it must match exactly across the cluster
+- This cluster should also be strong enough to generate a second strong “open window” idea
+
+4. Also create supporting seed data for “friend trip / open invitation” ideas.
+Add several users with actual trips already planned, such as examples like:
+- Jackson Hole
+- Vail
+- Palisades Tahoe
+- Copper Mountain
+Use realistic future dates and make sure at least some of those destinations align with the main user’s pass and/or wishlist so the Ideas engine has good material.
+
+5. Also create at least 1 softer “shared pull” scenario.
+Example:
+- multiple users have Aspen or Telluride or Mammoth on their wishlist
+- but there is no shared date yet
+This should allow the Ideas tab to surface a lower-priority destination-interest idea.
+
+6. Make sure friendships are actually connected correctly.
+- Seed users should be connected in whatever way the current app expects for a user’s friend network
+- Do not leave them as disconnected accounts that the Ideas tab cannot see
+
+7. Keep dates in the future relative to current logic.
+- Avoid accidental past-date seeds that would be filtered out
+- Confirm the created dates will still render in upcoming/ideas logic
+
+8. Verify the output.
+After seeding, test the data paths needed for the Ideas tab and confirm:
+- there are multiple “friend trip” opportunities
+- there are at least 2 distinct multi-person shared-availability clusters
+- there is at least 1 shared-wishlist-only idea
+- the primary test user can actually see them through existing logic
+
+Deliverables:
+1. Updated seed data / seed script
+2. Any tiny helper fixes needed so the seed data flows into the Ideas tab correctly
+3. A short summary of exactly which seeded users belong to:
+   - Cluster A
+   - Cluster B
+   - Friend trip examples
+   - Shared pull example
+4. A short QA checklist with the exact user account to log into and what ideas should appear
+
+Guardrails:
+- Do not refactor the whole Ideas engine unless required
+- Do not change the schema unless absolutely necessary
+- Prefer targeted seed/data setup work
+- Keep names, destinations, and dates clean and readable
+- Use checkpoints sparingly
+- Do not finish until you have fully tested the seed data enough to confirm the Ideas tab is actually populated in a meaningful way

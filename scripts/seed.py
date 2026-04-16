@@ -338,7 +338,7 @@ def seed():
         avi_certified=True,
         home_resort_id=breck.id,
         visited_resort_ids=[vail.id, breck.id, park_city.id, mammoth.id, jackson.id],
-        wish_list_resorts=[whistler.id, telluride.id, abasin.id],
+        wish_list_resorts=[whistler.id, telluride.id, jackson.id],
         equipment_status='have_own_equipment',
         created_at=NOW - timedelta(days=180),
     )
@@ -351,8 +351,8 @@ def seed():
                    brand='Burton', model='Custom 157',
                    boot_brand='Burton', boot_model='Photon Boa', is_active=False)
 
-    # Availability: Jackson Hole window + Telluride window + free around Stowe
-    set_open_dates(alex, list(range(44, 51)) + list(range(13, 18)) + list(range(62, 68)))
+    # Availability: near-term window + Jackson Hole window + Telluride/Jun16 window + Jan 2027 Cluster B
+    set_open_dates(alex, list(range(13, 18)) + list(range(44, 51)) + list(range(61, 68)) + list(range(281, 285)))
 
     # ─────────────────────────────────────────────────────────────────────────
     # COHORT A — CORE SOCIAL GRAPH
@@ -478,9 +478,86 @@ def seed():
     make_equipment(tyler, EquipmentSlot.PRIMARY, EquipmentDiscipline.SKIER,
                    brand='Salomon', model='QST 99',
                    boot_brand='Lange', boot_model='XT3 Tour Pro 130', boot_flex=130)
-    set_open_dates(tyler, list(range(breck_start - 1, breck_end + 2)) + list(range(35, 39)))
+    set_open_dates(tyler, list(range(breck_start - 1, breck_end + 2)) + list(range(35, 39)) + list(range(281, 285)))
 
     print("    ✓ Primary account + Cohort A (6 users) created")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # COHORT C — IDEAS ENGINE OVERLAP CLUSTERS
+    # ─────────────────────────────────────────────────────────────────────────
+    # Purpose-built users to generate strong Ideas tab signals:
+    #
+    #   Cluster A (Jun 16–19 / Telluride / Ikon): Alex + Nina + Marco
+    #   Cluster B (Jan 22–25, 2027 / Jackson Hole / Ikon): Alex + Tyler + Casey
+    #   Soft pull (Whistler wishlist, no shared dates): Alex + Maya + Nina + Casey
+
+    # C1 — Nina Patel (Cluster A anchor: Jun 16–19, Telluride, Ikon)
+    nina = make_user(
+        first_name='Nina', last_name='Patel',
+        email='nina@seed.baselodge.app',
+        rider_types=['Skier'],
+        skill_level='Advanced',
+        pass_type='Ikon',
+        terrain_preferences=['Trees', 'Groomers'],
+        home_state='CO',
+        home_resort_id=telluride.id,
+        visited_resort_ids=[telluride.id, mammoth.id],
+        wish_list_resorts=[telluride.id, whistler.id, mammoth.id],
+        equipment_status='have_own_equipment',
+        created_at=NOW - timedelta(days=55),
+    )
+    db.session.flush()
+    make_equipment(nina, EquipmentSlot.PRIMARY, EquipmentDiscipline.SKIER,
+                   brand='Head', model='Kore 99',
+                   boot_brand='Atomic', boot_model='Hawx Ultra 110', boot_flex=110)
+    # Cluster A window: Jun 16–19 (T+61 to T+64) + some near-term days
+    set_open_dates(nina, list(range(61, 65)) + list(range(30, 35)))
+
+    # C2 — Marco Rivera (Cluster A anchor: Jun 16–19, Telluride, Ikon)
+    marco = make_user(
+        first_name='Marco', last_name='Rivera',
+        email='marco@seed.baselodge.app',
+        rider_types=['Skier', 'Snowboarder'],
+        skill_level='Advanced',
+        pass_type='Ikon',
+        terrain_preferences=['Steeps', 'Trees'],
+        home_state='NM',
+        home_resort_id=telluride.id,
+        visited_resort_ids=[telluride.id, vail.id, abasin.id],
+        wish_list_resorts=[telluride.id, mammoth.id, abasin.id],
+        equipment_status='have_own_equipment',
+        created_at=NOW - timedelta(days=40),
+    )
+    db.session.flush()
+    make_equipment(marco, EquipmentSlot.PRIMARY, EquipmentDiscipline.SKIER,
+                   brand='Nordica', model='Enforcer 100',
+                   boot_brand='Fischer', boot_model='Ranger One 110', boot_flex=110)
+    # Cluster A window: Jun 16–19 (T+61 to T+64) + some near-term days
+    set_open_dates(marco, list(range(61, 65)) + list(range(25, 30)))
+
+    # C3 — Casey Kim (Cluster B anchor: Jan 22–25, 2027, Jackson Hole, Ikon)
+    casey = make_user(
+        first_name='Casey', last_name='Kim',
+        email='casey@seed.baselodge.app',
+        rider_types=['Skier'],
+        skill_level='Intermediate',
+        pass_type='Ikon',
+        terrain_preferences=['Groomers', 'Trees'],
+        home_state='WA',
+        home_resort_id=jackson.id,
+        visited_resort_ids=[jackson.id, park_city.id],
+        wish_list_resorts=[jackson.id, whistler.id, mammoth.id],
+        equipment_status='have_own_equipment',
+        created_at=NOW - timedelta(days=25),
+    )
+    db.session.flush()
+    make_equipment(casey, EquipmentSlot.PRIMARY, EquipmentDiscipline.SKIER,
+                   brand='Blizzard', model='Rustler 10',
+                   boot_brand='Dalbello', boot_model='Panterra 100', boot_flex=100)
+    # Cluster B window: Jan 22–25, 2027 (T+281 to T+284) + some near-term days
+    set_open_dates(casey, list(range(281, 285)) + list(range(50, 55)))
+
+    print("    ✓ Cohort C (3 cluster users) created: Nina Patel, Marco Rivera, Casey Kim")
 
     # ─────────────────────────────────────────────────────────────────────────
     # COHORT B — CONNECTION STATE USERS
@@ -561,8 +638,11 @@ def seed():
     make_equipment(test5, EquipmentSlot.PRIMARY, EquipmentDiscipline.SKIER,
                    brand='Völkl', model='Mantra M6 102',
                    boot_brand='Tecnica', boot_model='Mach1 LV 120', boot_flex=120)
-    # Open dates: cover the Telluride/Vail/Copper window, the Jackson window, and Stowe window
-    set_open_dates(test5, list(range(35, 40)) + list(range(44, 52)) + list(range(60, 66)))
+    # Open dates: Vail/Copper window and Jackson overlap window.
+    # Intentionally excludes Jun 16–22 (T+61–67): test5 has a Stowe trip that week,
+    # and keeping that window clear ensures the Cluster A (Nina+Marco Jun 16–19) card
+    # surfaces cleanly on the demo@baselodge.app Ideas tab.
+    set_open_dates(test5, list(range(35, 40)) + list(range(44, 52)))
 
     print("    ✓ Cohort B (3 connection state users) created")
     print("    ✓ Taylor Reed <test5@gmail.com> created (personal demo, full social graph)")
@@ -581,6 +661,11 @@ def seed():
     make_friends(jordan, maya)
     make_friends(jordan, tyler)
 
+    # Cohort C — Cluster users connected to Alex
+    make_friends(alex, nina)
+    make_friends(alex, marco)
+    make_friends(alex, casey)
+
     # B1: Priya → Alex (incoming to Alex, pending)
     make_invitation(priya, alex, status='pending')
 
@@ -596,13 +681,18 @@ def seed():
     make_friends(test5, emma)
     make_friends(test5, tyler)
 
+    # test5 also connected to Cohort C cluster users
+    make_friends(test5, nina)
+    make_friends(test5, marco)
+    make_friends(test5, casey)
+
     # test5 incoming: Priya → test5 (pending, separate record from Priya → Alex)
     make_invitation(priya, test5, status='pending')
 
     # test5 outgoing: test5 → Rachel (pending; Rachel has no confirmed connection)
     make_invitation(test5, rachel, status='pending')
 
-    print("    ✓ 15 bidirectional friendships, 4 pending invitations")
+    print("    ✓ 21 bidirectional friendships, 4 pending invitations")
 
     # ─────────────────────────────────────────────────────────────────────────
     # TRIPS
@@ -855,17 +945,20 @@ def seed():
     print()
     print("  Seeded archetypes:")
     archetypes = [
-        (alex,   "Primary test account — Skier+Boarder, Advanced, Epic+Ikon"),
+        (alex,   "Primary test account — Skier+Boarder, Advanced, Epic+Ikon, wishlist: Whistler/Telluride/Jackson"),
         (jordan, "Power User — Expert Skier, Epic, 6 upcoming + 1 past trip"),
         (maya,   "Boarder — Snowboarder, Advanced, Ikon, Tahoe-based"),
         (sam,    "Mixed Rider — Skier+Boarder, Intermediate, past trips only"),
         (chris,  "Social/Empty — No pass, no trips, incomplete profile"),
         (emma,   "Beginner Planner — Indy, near-miss Breck trip"),
-        (tyler,  "The Regular — Advanced Skier, Ikon, CO-based"),
+        (tyler,  "The Regular — Advanced Skier, Ikon, CO-based; Cluster B anchor (Jan 22–25, Jackson)"),
         (priya,  "Incoming request → Alex + test5 (pending)"),
         (jake,   "Outgoing request from Alex (pending)"),
         (rachel, "No connection to Alex; pending request from test5"),
         (test5,  "Personal demo — Skier, Advanced, Epic+Ikon, 5 upcoming trips, friends with all core users"),
+        (nina,   "Cluster A anchor — Ikon, Telluride wishlist, free Jun 16–19"),
+        (marco,  "Cluster A anchor — Ikon, Telluride wishlist, free Jun 16–19"),
+        (casey,  "Cluster B anchor — Ikon, Jackson wishlist, free Jan 22–25 2027"),
     ]
     for user, label in archetypes:
         print(f"    {user.first_name} {user.last_name}  <{user.email}>")
@@ -886,7 +979,24 @@ def seed():
     print(f"    ✓ test5 exact overlap: Taylor + Alex + Jordan all at Jackson Hole T+45→T+49")
     print(f"    ✓ test5 near overlap: Taylor at Breck T+22→T+25 (1 day into main group T+21)")
     print(f"    ✓ test5 different resort: Taylor at Telluride T+35→T+38 (Jordan=Vail, Tyler=Copper)")
-    print(f"    ✓ test5 social graph: friends with all 7 core users, 1 incoming (Priya), 1 outgoing (Rachel)")
+    print(f"    ✓ test5 social graph: friends with all 10 core users, 1 incoming (Priya), 1 outgoing (Rachel)")
+    print()
+    print("  Ideas Engine clusters (demo@baselodge.app):")
+    print(f"    ✓ Cluster A — Jun 16–19 / Telluride / Ikon:  Alex + Nina + Marco")
+    print(f"      → Expect: availability_overlap card 'You, Nina, and Marco are free Jun 16–19'")
+    print(f"      → Expect: wishlist_overlap card 'Telluride is on your lists' (Alex + Jordan + Nina + Marco)")
+    print(f"    ✓ Cluster B — Jan 22–25, 2027 / Jackson Hole / Ikon:  Alex + Tyler + Casey")
+    print(f"      → Expect: availability_overlap card 'You, Tyler, and Casey are free Jan 22–25'")
+    print(f"      → Expect: wishlist_overlap card 'Jackson Hole is on your lists' (Alex + Tyler + Casey + Sam)")
+    print(f"    ✓ Soft pull — Whistler wishlist:  Alex + Maya + Nina + Casey (no shared avail)")
+    print(f"      → Expect: lower-priority wishlist_overlap card for Whistler")
+    print()
+    print("  QA checklist — log in as demo@baselodge.app / demo1234 and visit /trip-ideas:")
+    print("    □ At least 3 friend-trip cards (Jordan going to Jackson/Vail/Stowe, Maya to Palisades, Tyler to Copper)")
+    print("    □ Availability card for Jun 16–19 featuring Nina and/or Marco")
+    print("    □ Availability card for Jan 22–25, 2027 featuring Tyler and/or Casey")
+    print("    □ Wishlist card for Telluride (Alex + Jordan + Nina + Marco all want it)")
+    print("    □ Wishlist card for Jackson Hole (Alex + Tyler + Casey + Sam all want it)")
     print(divider + "\n")
 
 
