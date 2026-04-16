@@ -1,0 +1,49 @@
+#24 - Ideas Experience: Tab + Detail Screens
+What & Why
+Implement the finalized BaseLodge "Ideas" experience as specified. The current Ideas tab renders a generic card list with placeholder copy and no detail screens. This replaces it with an editorial, information-first UI matching the BaseLodge design system: a curated feed with three distinct card formats on the list, three informational-only detail screens for drill-in, name disambiguation, and a clean empty state.
+
+This task should also surface whether a friend is still planning a trip versus already going, because that changes how socially open or joinable the opportunity feels. This distinction should be communicated subtly through wording and ranking only — not through badges, pills, icons, or labels like “Planning” or “Confirmed.”
+
+Done looks like
+The Ideas tab header reads "Ideas" / "Where your plans and your friends line up."
+Availability overlap cards display: kicker "AN OPENING", headline derived from date window, "With {FirstName}", date range line, resort/pass supporting line, "Plan trip →" CTA
+Trip overlap cards display differently depending on state:
+- If the friend is still planning a public trip, copy uses softer, more open language like "Alex is thinking about Jackson Hole" or "Alex is considering Jackson Hole"
+- If the friend is already going, copy uses stronger existing-trip language like "Join Alex in Jackson Hole"
+Trip cards still include the date range and a pass coverage/supporting line
+Wishlist overlap cards (lowest priority) display: "{Resort} keeps coming up", friend count line, "Suggest dates →" CTA, no date
+Tapping an availability overlap card opens a detail screen showing the date window, participating friends' full names + passes, no CTA
+Tapping a wishlist overlap card opens a detail screen showing who's saved the resort, full names + passes, no CTA
+Tapping a trip overlap card opens a clean detail screen showing the trip dates, who's on the trip (host labeled), and "You, if you join" as final row, no CTA
+Trip detail screens also reflect status subtly in the explanatory copy:
+- planning example: "{FirstName} is considering this trip."
+- going example: "{FirstName} is going."
+If two friends share a first name, the Ideas tab shows first name + last initial (e.g., "Alex T.") — full names appear on detail screens
+When no ideas are surfaced, the empty state shows calm editorial copy: "Nothing lined up." / "Set availability or add a few resorts to your list to give it something to work with." with text-link actions to add availability and build wishlist
+Planning-state trip ideas rank above already-going trip ideas when both are otherwise similar, because planning-state ideas are more socially open
+All three detail screens render correctly for demo@baselodge.app with the seeded data
+
+Out of scope
+Changing the underlying Ideas Engine scoring model beyond the small ranking adjustment needed to prioritize planning-state trip ideas over already-going trip ideas
+Adding join/RSVP functionality on the new detail screens (informational only)
+Adding badges, chips, icons, or explicit status labels for planning vs going
+Modifying the existing /friend-trip/<trip_id> route used elsewhere in the app
+
+Tasks
+Ideas tab redesign — Replace the current ideas-window-* card loop with three distinct card layouts (featured availability, standard trip, pull wishlist), update the empty/reengagement state copy, and add name disambiguation logic in the route (detect duplicate first names among friends, pass a display-name dict to the template).
+
+Trip-state copy logic — Update the trip idea builder(s) so public trips surface different copy depending on whether the friend is still planning or already going. Keep this subtle and editorial:
+- planning state = softer/open language
+- going state = existing/firmer language
+Do not introduce visual status tags.
+
+New detail routes + templates — Add three new Flask routes (/idea/availability, /idea/wishlist, /idea/trip/<trip_id>) each rendering an informational-only detail template: full participant list with name + pass, date/resort header, no CTA. Update cta_url generation in the ideas engine builders to point to the new routes instead of /add-trip.
+
+Relevant files
+templates/trip_ideas.html
+services/ideas_engine.py
+services/skills/trip_overlap.py
+app.py
+static/styles.css
+templates/components/bottom_nav.html
+models.py

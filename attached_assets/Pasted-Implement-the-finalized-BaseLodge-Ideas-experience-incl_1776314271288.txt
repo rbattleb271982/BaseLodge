@@ -1,0 +1,327 @@
+Implement the finalized BaseLodge “Ideas” experience, including:
+- Ideas tab (editorial list with featured card)
+- Idea detail screens (3 types)
+- Name handling (first vs full vs disambiguation)
+- Empty state
+- No CTA on detail screens (intentional)
+
+Do not refactor unrelated parts of the app.
+Use checkpoints sparingly.
+Do not finish until you have fully tested the full flow end-to-end.
+
+---
+
+## 1. IDEAS TAB (MAIN SCREEN)
+
+### Header
+
+Title:
+Ideas
+
+Subhead:
+Where your plans and your friends line up.
+
+Do not change this copy.
+
+---
+
+### Structure
+
+Render a vertically stacked list of idea cards.
+
+Rules:
+- First card can be a featured “shared availability” card
+- Remaining cards are standard cards
+- Final card can be a “shared pull” (no date)
+
+---
+
+### Featured Card (Shared Availability)
+
+Structure:
+
+Kicker (small caps):
+AN OPENING
+
+Headline:
+A four-day window
+
+Sub-line:
+With {FirstName}
+
+Date line:
+June 16 – June 19 · Telluride
+
+Supporting text:
+On both your lists. Passes align.
+
+CTA:
+Plan trip →
+
+Rules:
+- Headline and “With {Name}” should be on separate lines
+- Keep tone observational, not suggestive
+- Only show this card if strong overlap exists
+
+---
+
+### Standard Cards (Friend Trips)
+
+Structure:
+
+Date:
+May 30 – June 3
+
+Headline:
+Join {FirstName} in {Destination}
+
+Supporting text:
+Covered on your Ikon pass.
+
+CTA:
+Join trip →
+
+Rules:
+- Use first name only
+- Do not include last name here
+- Keep copy neutral
+
+---
+
+### Shared Pull Card (No Dates)
+
+Structure:
+
+Headline:
+Telluride keeps coming up
+
+Supporting text:
+Three of you have it wishlisted.
+
+CTA:
+Suggest dates →
+
+Rules:
+- No date displayed
+- This should feel lighter and lower priority
+
+---
+
+### Name Handling (Ideas Tab)
+
+- Default: first name only
+- If duplicate names exist:
+  - Use first name + last initial (e.g., Alex T.)
+- Do not show full names on this screen
+
+---
+
+## 2. IDEA DETAIL SCREENS (DRILL-IN)
+
+These are accessed when tapping any idea card.
+
+IMPORTANT:
+- These screens are informational only
+- DO NOT include a primary CTA
+- DO NOT include “Plan trip”, “Suggest dates”, etc.
+- Let the screen end naturally
+
+---
+
+### Shared Availability Detail Screen
+
+Header:
+
+A four-day window
+
+With {FirstName} and {FirstName}
+
+Date line:
+June 16 – June 19 · Telluride
+
+Divider
+
+Why line (italic serif):
+All of you are free these dates.
+Telluride is on your lists.
+
+Section label (small caps):
+WHO’S INCLUDED
+
+List:
+
+You
+Epic · Ikon
+
+Alex Torres
+Ikon
+
+Jordan Keene
+Epic
+
+Rules:
+- Use FULL NAMES for other users
+- Always show “You” for current user
+- No avatars
+- No extra metadata beyond pass
+
+---
+
+### Shared Wishlist Detail Screen
+
+Header:
+
+Telluride keeps coming up
+
+Subhead:
+A shared pull · No dates yet
+
+Divider
+
+Why line:
+All of you have Telluride saved.
+
+Section label:
+WHO’S SAVED IT
+
+List:
+
+You
+Epic · Ikon
+
+Maya Chen
+Ikon
+
+Tyler Brooks
+Ikon
+
+Priya Anand
+Ikon
+
+Rules:
+- No dates anywhere on this screen
+- Maintain same list structure
+
+---
+
+### Friend Trip Detail Screen
+
+Header:
+
+Join {FirstName} in {Destination}
+
+Date line:
+May 30 – June 3 · {FirstName}’s trip
+
+Divider
+
+Why line:
+{FirstName} is going. Your pass covers it.
+
+Section label:
+ON THIS TRIP
+
+List:
+
+Alex Torres   (host)
+Ikon
+
+Jordan Keene
+Ikon
+
+You, if you join
+Epic · Ikon
+
+Rules:
+- Show “host” label for trip owner
+- Include “You, if you join” as final row
+- Keep tone observational
+
+---
+
+## 3. NAME LOGIC (GLOBAL)
+
+Implement consistent naming:
+
+Ideas tab:
+- First name only
+- Disambiguate with last initial if needed
+
+Detail screens:
+- Full name for all users
+- “You” for current user
+- No initials needed since full names are visible
+
+---
+
+## 4. EMPTY STATE (IDEAS TAB)
+
+When no ideas exist:
+
+Header:
+Ideas
+
+Subhead:
+Where your plans and your friends line up.
+
+Divider
+
+Main text:
+Nothing lined up this week.
+
+Supporting text:
+Set availability or add a few resorts to your list to give it something to work with.
+
+Actions (text links, not buttons):
+Set availability →
+Build your list →
+
+Rules:
+- No exclamation marks
+- No “we’re working on it”
+- Maintain calm, editorial tone
+
+---
+
+## 5. GENERAL DESIGN RULES
+
+- Keep spacing generous
+- Use serif for headlines, sans-serif for supporting text
+- Use subtle dividers only
+- Avoid badges, icons, or heavy UI elements
+- No emoji
+- No “AI” language
+- No behavioral or predictive phrasing
+
+Tone rule:
+Only state what is true.
+Do not interpret or suggest behavior.
+
+---
+
+## 6. QA CHECKLIST (REQUIRED)
+
+Test all of the following before finishing:
+
+1. Ideas tab renders:
+   - featured card (when applicable)
+   - at least 3 standard cards
+   - shared pull card
+
+2. Name disambiguation works:
+   - two users with same first name render correctly
+
+3. Detail screens:
+   - all 3 types render correctly
+   - full names appear correctly
+   - “You” appears correctly
+   - no CTA appears
+
+4. Empty state:
+   - renders cleanly when no ideas exist
+
+5. Navigation:
+   - tapping a card opens correct detail screen
+   - back navigation returns to Ideas tab
+
+Do not finish until all of the above are verified.
