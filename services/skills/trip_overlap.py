@@ -131,17 +131,18 @@ def trip_overlap_skill(user, all_friends):
         if has_wishlist_match:
             score += 20
 
-        if trip.start_date <= thirty_days:
+        if today <= trip.start_date <= thirty_days:
             score += 10
 
         resort_name = trip.mountain or "a resort"
 
+        anchor_fid = involved_friend_ids[0]
+        anchor_friend = friend_by_id.get(anchor_fid)
+        anchor_name = anchor_friend.first_name if anchor_friend else None
+
         n = len(involved_friend_ids)
         if n == 1:
-            anchor_fid = involved_friend_ids[0]
-            anchor_friend = friend_by_id.get(anchor_fid)
-            anchor_name = anchor_friend.first_name if anchor_friend else "Your friend"
-            title = f"{anchor_name} is going to {resort_name}"
+            title = f"{anchor_name or 'Your friend'} is going to {resort_name}"
         elif n == 2:
             names = sorted(
                 friend_by_id[fid].first_name
@@ -151,12 +152,6 @@ def trip_overlap_skill(user, all_friends):
             title = f"{' and '.join(names)} are going to {resort_name}"
         else:
             title = f"{n} friends are going to {resort_name}"
-            anchor_fid = involved_friend_ids[0]
-            anchor_name = friend_by_id.get(anchor_fid, user).first_name
-
-        anchor_fid = involved_friend_ids[0]
-        anchor_friend = friend_by_id.get(anchor_fid)
-        anchor_name = anchor_friend.first_name if anchor_friend else None
 
         eyebrow = None
         if trip.start_date and trip.end_date:
