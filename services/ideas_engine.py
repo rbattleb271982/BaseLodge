@@ -11,9 +11,10 @@ Do not duplicate this logic in routes.
 """
 
 from collections import Counter
-from datetime import date
+from datetime import date, timedelta
+from flask import url_for
 from utils.formatting import format_name
-from models import Resort
+from models import Resort, SkiTrip
 
 _BAD_PASSES = {None, "", "I don't have a pass", "Other"}
 
@@ -294,3 +295,333 @@ def make_idea_card(
         "meta": meta or {},
         "is_first": is_first,
     }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# V1 UNIFIED FEED HELPERS
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _format_date_range(start_str, end_str):
+    """Format a date range compactly: 'Jan 20', 'Jan 20–22', or 'Jan 30–Feb 2'."""
+    s = date.fromisoformat(start_str)
+    e = date.fromisoformat(end_str)
+    if s == e:
+        return s.strftime("%b %-d")
+    elif s.month == e.month:
+        return f"{s.strftime('%b %-d')}–{e.strftime('%-d')}"
+    else:
+        return f"{s.strftime('%b %-d')}–{e.strftime('%b %-d')}"
+
+
+def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
+    """
+    Convert build_overlap_windows() output into availability_overlap IdeaCards.
+
+    Each window becomes one card. Past windows are excluded.
+    Pass and wishlist signals enhance the subtitle but never create a card alone.
+
+    # FUTURE: /add_trip only supports single friend_id; multi-friend prefill TBD.
+    """
+    today = date.today()
+    friend_by_id = {f.id: f for f in all_friends}
+    user_pass = (user.pass_type or "").strip()
+
+    cards = []
+    for w in windows:
+        try:
+            start = date.fromisoformat(w["start_date"])
+        except (ValueError, KeyError):
+            continue
+        if start < today:
+            continue
+
+        days_until = (start - today).days
+        friends_in_window = w.get("friends_in_window", [])
+        n = len(friends_in_window)
+        if n == 0:
+            continue
+
+        date_range = _format_date_range(w["start_date"], w["end_date"])
+
+        if n == 1:
+            fname = friends_in_window[0].get("friend_name") or "your friend"
+            title = f"You and {fname} are free {date_range}"
+        elif n == 2:
+            names = [f.get("friend_name", "") for f in friends_in_window[:2]]
+            title = f"You, {names[0]}, and {names[1]} are free {date_range}"
+        else:
+            title = f"You and {n} friends are free {date_range}"
+
+        window_friend_ids = {f["friend_id"] for f in friends_in_window}
+
+        signals = []
+
+        shared_resort_name = None
+        if user_wishlist:
+            for fid in window_friend_ids:
+                friend_obj = friend_by_id.get(fid)
+                if friend_obj:
+                    shared = user_wishlist & set(friend_obj.wish_list_resorts or [])
+                    if shared:
+                        resort = Resort.query.get(next(iter(shared)))
+                        if resort:
+                            shared_resort_name = resort.name
+                            break
+        if shared_resort_name:
+            if n == 1:
+                signals.append(f"{shared_resort_name} is on both your lists")
+            else:
+                signals.append(f"{shared_resort_name} is on your lists")
+
+        pass_match_count = sum(
+            1 for f in friends_in_window
+            if f.get("same_pass") and f.get("friend_pass") not in _BAD_PASSES
+        )
+        if pass_match_count == 1 and n == 1:
+            pass_name = friends_in_window[0].get("friend_pass")
+            if pass_name:
+                signals.append(f"You both have {pass_name}")
+        elif pass_match_count >= 2 and user_pass and user_pass not in _BAD_PASSES:
+            signals.append(f"{pass_match_count} have {user_pass}")
+
+        subtitle = " · ".join(signals) if signals else None
+
+        anchor_friend_id = w.get("anchor_friend_id")
+        params = f"?start_date={w['start_date']}&end_date={w['end_date']}"
+        if anchor_friend_id:
+            params += f"&friend_id={anchor_friend_id}"
+        cta_url = url_for("add_trip") + params
+
+        score = 40
+        score += min(n * 5, 25)
+        if shared_resort_name:
+            score += 25
+        if pass_match_count >= 1:
+            score += 15
+        if days_until <= 14:
+            score += 10
+        elif days_until <= 30:
+            score += 5
+
+        cards.append(make_idea_card(
+            idea_type="availability_overlap",
+            title=title,
+            cta_url=cta_url,
+            cta_label="Create Trip →",
+            friend_ids=list(window_friend_ids),
+            score=float(score),
+            subtitle=subtitle,
+            start_date=w["start_date"],
+            end_date=w["end_date"],
+            anchor_friend_id=anchor_friend_id,
+            anchor_friend_name=friends_in_window[0].get("friend_name") if friends_in_window else None,
+        ))
+
+    return cards
+
+
+def build_wishlist_overlap_cards(user, wishlist_data, all_friends, user_dates):
+    """
+    Convert build_wishlist_overlaps() output into wishlist_overlap IdeaCards.
+
+    Shared wishlist resort is the trigger. Pass and date overlap enhance the subtitle.
+
+    # FUTURE: /add_trip only supports single friend_id; multi-friend prefill TBD.
+    """
+    from services.open_dates import get_available_dates_for_user as _get_avail
+
+    today = date.today()
+    sixty_days_out = today + timedelta(days=60)
+    user_pass = (user.pass_type or "").strip()
+    friend_by_id = {f.id: f for f in all_friends}
+
+    cards = []
+    for resort_data in wishlist_data:
+        resort_id = resort_data["resort_id"]
+        resort_name = resort_data["resort_name"]
+        overlapping_people = resort_data.get("overlapping_people", [])
+        if not overlapping_people:
+            continue
+
+        n = len(overlapping_people)
+        anchor = overlapping_people[0]
+        anchor_friend_id = anchor["id"]
+
+        title = (
+            f"{resort_name} is on both your lists"
+            if n == 1
+            else f"{resort_name} is on your lists"
+        )
+
+        signals = []
+
+        nearest_overlap_range = None
+        nearest_overlap_within_60 = False
+        if user_dates:
+            for person in overlapping_people:
+                fid = person["id"]
+                friend_obj = friend_by_id.get(fid)
+                if not friend_obj:
+                    continue
+                friend_dates = _get_avail(friend_obj)
+                shared_sorted = sorted(user_dates & friend_dates)
+                if not shared_sorted:
+                    continue
+                r_start = shared_sorted[0]
+                r_end = shared_sorted[0]
+                for d in shared_sorted[1:]:
+                    prev = date.fromisoformat(r_end)
+                    curr = date.fromisoformat(d)
+                    if (curr - prev).days == 1:
+                        r_end = d
+                    else:
+                        break
+                nearest_overlap_range = _format_date_range(r_start, r_end)
+                nearest_overlap_within_60 = date.fromisoformat(r_start) <= sixty_days_out
+                break
+        if nearest_overlap_range:
+            signals.append(f"You're both free {nearest_overlap_range}")
+
+        pass_match_count = sum(
+            1 for p in overlapping_people
+            if p.get("pass_type") and p.get("pass_type") not in _BAD_PASSES
+            and p.get("pass_type") == user_pass
+        )
+        if pass_match_count == 1 and n == 1:
+            signals.append(f"You both have {overlapping_people[0]['pass_type']}")
+        elif pass_match_count >= 2 and user_pass and user_pass not in _BAD_PASSES:
+            signals.append(f"{pass_match_count} have {user_pass}")
+
+        subtitle = " · ".join(signals) if signals else None
+
+        cta_url = (
+            url_for("add_trip")
+            + f"?resort_id={resort_id}&friend_id={anchor_friend_id}"
+        )
+
+        score = 30
+        score += min(n * 5, 25)
+        if pass_match_count >= 1:
+            score += 10
+        if nearest_overlap_range:
+            score += 10
+            if nearest_overlap_within_60:
+                score += 10
+
+        cards.append(make_idea_card(
+            idea_type="wishlist_overlap",
+            title=title,
+            cta_url=cta_url,
+            cta_label="Create Trip →",
+            friend_ids=[p["id"] for p in overlapping_people],
+            score=float(score),
+            subtitle=subtitle,
+            resort_id=resort_id,
+            resort_name=resort_name,
+            anchor_friend_id=anchor_friend_id,
+            anchor_friend_name=anchor.get("first_name"),
+        ))
+
+    return cards
+
+
+def apply_diversity_selection(candidates, max_cards=5):
+    """
+    Greedy diversity selection. Selects up to max_cards from candidates using
+    soft multiplicative penalties for repetitive signals (same friend, resort,
+    date window, or idea type).
+
+    Stronger ideas still win — penalties are soft, not hard exclusions.
+    """
+    if not candidates:
+        return []
+
+    pool = sorted(candidates, key=lambda c: c["score"], reverse=True)
+    selected = []
+
+    while pool and len(selected) < max_cards:
+        if not selected:
+            best = pool.pop(0)
+            selected.append(best)
+            continue
+
+        best_idx = 0
+        best_eff = -1.0
+
+        for i, candidate in enumerate(pool):
+            eff = float(candidate["score"])
+            cand_friends = set(candidate.get("friend_ids") or [])
+            cand_resort = candidate.get("resort_id")
+            cand_start = candidate.get("start_date")
+            cand_type = candidate.get("idea_type")
+
+            for sel in selected:
+                sel_friends = set(sel.get("friend_ids") or [])
+                if cand_friends & sel_friends:
+                    eff *= 0.70
+                if cand_resort and sel.get("resort_id") and cand_resort == sel["resort_id"]:
+                    eff *= 0.75
+                if cand_start and sel.get("start_date"):
+                    try:
+                        d1 = date.fromisoformat(cand_start)
+                        d2 = date.fromisoformat(sel["start_date"])
+                        if abs((d1 - d2).days) <= 3:
+                            eff *= 0.80
+                    except (ValueError, TypeError):
+                        pass
+                if cand_type and cand_type == sel.get("idea_type"):
+                    eff *= 0.85
+
+            if eff > best_eff:
+                best_eff = eff
+                best_idx = i
+
+        selected.append(pool.pop(best_idx))
+
+    for i, card in enumerate(selected):
+        card["is_first"] = (i == 0)
+
+    return selected
+
+
+def build_ranked_idea_feed(user, all_friends):
+    """
+    Coordinator: collect candidate IdeaCards from all skill builders, apply
+    unified diversity selection, and return the top 3–5 cards.
+
+    # FUTURE: /add_trip only supports single friend_id; multi-friend prefill TBD.
+    """
+    from services.skills.trip_overlap import trip_overlap_skill
+    from services.open_dates import get_available_dates_for_user, get_open_date_matches
+
+    user_dates = get_available_dates_for_user(user)
+    user_wishlist = set(user.wish_list_resorts or [])
+    friend_ids = [f.id for f in all_friends]
+
+    today = date.today()
+    _friend_trips = (
+        SkiTrip.query.filter(
+            SkiTrip.user_id.in_(friend_ids),
+            SkiTrip.end_date >= today,
+        ).all()
+        if friend_ids else []
+    )
+    friend_trip_statuses = {}
+    for _ft in _friend_trips:
+        fid = _ft.user_id
+        if fid not in friend_trip_statuses and _ft.trip_status == "going":
+            friend_trip_statuses[fid] = "going"
+
+    matches = get_open_date_matches(user)
+    windows = build_overlap_windows(
+        matches, user.pass_type, friend_trip_statuses=friend_trip_statuses
+    )
+    avail_cards = build_availability_overlap_cards(user, windows, all_friends, user_wishlist)
+
+    wishlist_data = build_wishlist_overlaps(user, all_friends)
+    wishlist_cards = build_wishlist_overlap_cards(user, wishlist_data, all_friends, user_dates)
+
+    trip_cards = trip_overlap_skill(user, all_friends)
+
+    all_candidates = avail_cards + wishlist_cards + trip_cards
+    return apply_diversity_selection(all_candidates, max_cards=5)

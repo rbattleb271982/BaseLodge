@@ -2248,7 +2248,8 @@ def overlap_detail():
 @login_required
 def trip_ideas():
     """Trip Ideas page — 3-state system: setup / reengagement / populated."""
-    from services.open_dates import get_open_date_matches, get_available_dates_for_user
+    from services.ideas_engine import build_ranked_idea_feed
+    from services.open_dates import get_available_dates_for_user
     user = current_user
 
     # ── Friends ────────────────────────────────────────────────────────────────
@@ -2257,69 +2258,32 @@ def trip_ideas():
     all_friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
     has_friends = bool(friend_ids)
 
-    # ── Availability & Overlap Matches ────────────────────────────────────────
-    matches = get_open_date_matches(user)
+    # ── Availability hint (soft prompt when no availability is set) ───────────
     has_availability = bool(get_available_dates_for_user(user))
-    has_overlaps = bool(matches)
+
+    # ── Unified idea feed ─────────────────────────────────────────────────────
+    idea_feed = build_ranked_idea_feed(user, all_friends) if has_friends else []
 
     # ── State determination ───────────────────────────────────────────────────
-    if not has_friends or not has_availability:
+    if not has_friends:
         ideas_state = "setup"
-    elif not has_overlaps:
+    elif not idea_feed:
         ideas_state = "reengagement"
     else:
         ideas_state = "populated"
 
-    # ── Overlap Windows (populated state only, harmless to build always) ──────
-    # Build friend trip status map for status-aware supporting lines
-    _today = date.today()
-    _friend_trips = (
-        SkiTrip.query.filter(
-            SkiTrip.user_id.in_(friend_ids),
-            SkiTrip.end_date >= _today,
-        ).all()
-        if friend_ids
-        else []
-    )
-    friend_trip_statuses = {}
-    for _ft in _friend_trips:
-        fid = _ft.user_id
-        if fid not in friend_trip_statuses and _ft.trip_status == "going":
-            friend_trip_statuses[fid] = "going"
-    overlap_windows = build_overlap_windows(matches, user.pass_type, friend_trip_statuses=friend_trip_statuses)
-
-    # ── Rank windows by quality score ────────────────────────────────────────
-    from services.ideas_ranking import score_overlap_windows as _rank_windows
-    user_wishlist_set = set(user.wish_list_resorts or [])
-    shared_wishlist_friend_ids = set()
-    if user_wishlist_set and all_friends:
-        for _f in all_friends:
-            if user_wishlist_set & set(_f.wish_list_resorts or []):
-                shared_wishlist_friend_ids.add(_f.id)
-    overlap_windows = _rank_windows(overlap_windows, user, shared_wishlist_friend_ids)
-    window_count = len(overlap_windows)
-
-    # ── Wishlist Overlaps (populated + reengagement states) ───────────────────
-    wishlist_overlaps = build_wishlist_overlaps(user, all_friends)
-
-    # ── Trip Overlap Cards ────────────────────────────────────────────────────
-    from services.skills.trip_overlap import trip_overlap_skill
-    trip_overlap_cards = trip_overlap_skill(user, all_friends)
-    print(f"[trip_ideas] trip_overlap_cards: {len(trip_overlap_cards)} card(s)")
-    for _c in trip_overlap_cards:
-        print(f"  • [{_c['score']:.0f}pts] {_c['title']}")
+    # ── Debug logging ─────────────────────────────────────────────────────────
+    print(f"[trip_ideas] state={ideas_state} feed={len(idea_feed)} card(s)")
+    for _c in idea_feed:
+        print(f"  • [{_c['score']:.0f}pts] [{_c['idea_type']}] {_c['title']}")
 
     return render_template(
         "trip_ideas.html",
         user=user,
         ideas_state=ideas_state,
-        overlap_windows=overlap_windows,
-        window_count=window_count,
-        wishlist_overlaps=wishlist_overlaps,
-        trip_overlap_cards=trip_overlap_cards,
+        idea_feed=idea_feed,
         has_friends=has_friends,
         has_availability=has_availability,
-        has_overlaps=has_overlaps,
     )
 
 @app.route("/api/mountains/<state>")

@@ -119,20 +119,24 @@ def trip_overlap_skill(user, all_friends):
         if not (has_date_overlap or has_wishlist_match):
             continue
 
-        score = 0
+        fourteen_days = today + timedelta(days=14)
 
+        score = 50  # base
         if has_date_overlap:
             score += 40
-
         trip_pass = (trip.pass_type or "").lower()
-        if user_pass and trip_pass and (user_pass in trip_pass or trip_pass in user_pass):
+        pass_aligns = bool(
+            user_pass and trip_pass
+            and (user_pass in trip_pass or trip_pass in user_pass)
+        )
+        if pass_aligns:
             score += 30
-
         if has_wishlist_match:
             score += 20
-
         if today <= trip.start_date <= thirty_days:
             score += 10
+        if today <= trip.start_date <= fourteen_days:
+            score += 10  # stackable with 30-day bonus
 
         resort_name = trip.mountain or "a resort"
 
@@ -153,6 +157,14 @@ def trip_overlap_skill(user, all_friends):
         else:
             title = f"{n} friends are going to {resort_name}"
 
+        subtitle = None
+        if pass_aligns and trip_pass:
+            display_pass = trip.pass_type or user_pass
+            if n == 1:
+                subtitle = f"You both have {display_pass}"
+            else:
+                subtitle = f"{n} friends have {display_pass}"
+
         eyebrow = None
         if trip.start_date and trip.end_date:
             fmt = "%b %-d"
@@ -162,9 +174,10 @@ def trip_overlap_skill(user, all_friends):
             idea_type="trip_overlap",
             title=title,
             cta_url=url_for("friend_trip_details", trip_id=trip.id),
-            cta_label="View trip →",
+            cta_label="View Trip →",
             friend_ids=involved_friend_ids,
             score=float(score),
+            subtitle=subtitle,
             eyebrow=eyebrow,
             start_date=trip.start_date.isoformat() if trip.start_date else None,
             end_date=trip.end_date.isoformat() if trip.end_date else None,
@@ -177,4 +190,4 @@ def trip_overlap_skill(user, all_friends):
         cards.append(card)
 
     cards.sort(key=lambda c: c["score"], reverse=True)
-    return cards[:3]
+    return cards  # no pre-limit; apply_diversity_selection in build_ranked_idea_feed handles cap
