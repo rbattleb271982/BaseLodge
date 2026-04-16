@@ -1,0 +1,116 @@
+We are refining the Ideas list screen and Idea detail page for BaseLodge to improve clarity, hierarchy, and UX — without breaking any existing working logic.
+Objectives
+Make overlap ideas clearer and more consistent
+Improve scannability of the Ideas list
+Strengthen visual hierarchy on the detail page
+Make friend rows tappable
+Remove unnecessary or confusing UI elements
+Maintain a clean, premium, editorial feel
+Scope of changes
+1. Standardize overlap idea titles
+All overlap/group ideas should use:
+“Your dates overlap at {Destination}”
+Do NOT apply this to friend-driven cards (e.g., “Jordan is considering…”), which should remain unchanged.
+Plan:
+Identify where titles are currently generated
+Add logic to conditionally apply this pattern only to overlap-type ideas
+2. Clean up subtitle logic
+All overlap cards should follow:
+Base format:
+Date range + people count
+Example:
+May 30–Jun 6 · 5 people
+Optional pass logic:
+2 people (same pass): “You both have Ikon”
+3+ people (same pass): “All have Ikon”
+3+ people (mixed): “Ikon + Epic”
+Otherwise: omit
+Plan:
+Locate where subtitle strings are constructed
+Centralize logic if needed (helper function preferred)
+Remove vague language like:
+“Different passes”
+“Same pass”
+3. Improve chevron affordance
+Make tappable rows feel interactive.
+Plan:
+Update chevron color to a darker brand tone (e.g., #8B3A2E)
+Slightly increase visual weight
+Ensure consistency across:
+Ideas list rows
+Detail page friend rows
+4. Remove persistent footer CTA
+Remove:
+“Refine your ideas — Add availability · Invite friends”
+Replace with:
+A conditional low-signal card that appears only when the Ideas feed is weak
+Plan:
+Identify how feed length is determined
+Add conditional rendering (e.g., fewer than 3 ideas)
+Insert a lightweight nudge card with links to:
+Add availability
+Invite friends
+5. Redesign Idea detail page hierarchy
+Make the page feel structured and destination-first.
+Target structure:
+Back link
+Destination (hero)
+Date (subtle)
+Supporting sentence
+People list
+Plan:
+Audit current template structure
+Reorder DOM elements if needed
+Ensure destination is visually dominant
+Replace robotic copy with:
+“Five of you are free these dates.”
+6. Make people rows tappable
+Enable navigation into friend profiles.
+Plan:
+Identify friend profile route
+Wrap friend rows in links
+Ensure:
+“You” row is NOT clickable
+Other rows ARE clickable
+Add chevron indicators
+Confirm back navigation works correctly
+7. Remove CTA from detail page
+The detail page should be informational only.
+Plan:
+Remove any:
+primary buttons
+secondary links like “Save”
+Ensure layout still feels complete without a CTA
+8. Preserve friend-driven cards
+Do NOT modify:
+“X is considering Y” cards
+Plan:
+Ensure new logic does not overwrite or conflict with these card types
+Technical approach
+Prefer minimal backend changes
+Keep idea generation logic intact
+Add or refine formatting at the presentation layer or helper level
+Avoid introducing unnecessary complexity
+Keep templates clean and readable
+Validation plan
+Before implementation, confirm:
+Where titles/subtitles are generated
+How idea types are distinguished (overlap vs friend-driven)
+Which templates control:
+Ideas list
+Idea detail
+How friend profile routing works
+Risks to watch
+Overwriting friend-driven card titles accidentally
+Breaking existing navigation to/from detail page
+Duplicating date or overlap information in multiple places
+Making rows look tappable without actually linking them
+Rendering pass logic incorrectly for mixed groups
+Deliverable from this plan
+Provide:
+Exact files that will be modified
+Where title/subtitle logic will live
+How idea types will be distinguished
+Template changes for list + detail pages
+CSS changes for chevrons and hierarchy
+Any edge cases to handle before implementation

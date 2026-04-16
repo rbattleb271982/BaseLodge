@@ -73,6 +73,23 @@
             text-decoration: none;
         }
 
+        /* ── Nudge card ── */
+        .ideas-nudge {
+            padding: 16px 0 0;
+        }
+
+        .ideas-nudge-text {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .ideas-nudge-text a {
+            color: var(--bl-color-primary);
+            text-decoration: none;
+        }
+
         /* ── Empty state ── */
         .ideas-empty {
             padding: 8px 0 32px;
@@ -221,39 +238,23 @@
             <a href="{{ card.cta_url }}"
                class="ideas-window-row{% if card.is_first %} ideas-window-row--first{% endif %}">
                 <div class="ideas-window-body">
-                    {# Line 1: "A shared opening at {Destination}" #}
+                    {# Line 1: "Your dates overlap at {Destination}" #}
                     {% if card.resort_name %}
-                    <p class="ideas-card-headline ideas-card-headline--sm">A shared opening at {{ card.resort_name }}</p>
+                    <p class="ideas-card-headline ideas-card-headline--sm">Your dates overlap at {{ card.resort_name }}</p>
                     {% else %}
-                    <p class="ideas-card-headline ideas-card-headline--sm">A shared opening</p>
+                    <p class="ideas-card-headline ideas-card-headline--sm">Your dates overlap</p>
                     {% endif %}
 
-                    {# Line 2: {Dates} · With {Name | N others} [· Pass phrase] #}
-                    {% set af = card.meta.get('friends_data', []) %}
-                    {% if af %}
-                        {% if af | length == 1 %}
-                            {% set with_text = "With " + af[0].name %}
+                    {# Line 2: {Dates} · {N} people [· pass_phrase from engine] #}
+                    {% set d = card.meta.get('date_short', '') %}
+                    {% set pc = card.meta.get('people_count', 0) %}
+                    {% set pp = card.meta.get('pass_phrase', '') %}
+                    {% if pc > 0 %}
+                        {% set people_text = (pc | string) + " people" %}
+                        {% if pp %}
+                            {% set meta_line = d + " · " + people_text + " · " + pp %}
                         {% else %}
-                            {% set with_text = "With " + (af | length | string) + " others" %}
-                        {% endif %}
-                        {% set ps = card.meta.get('pass_signal') %}
-                        {% set pn = card.meta.get('pass_name', '') %}
-                        {% if ps == 'same' and pn %}
-                            {% if af | length == 1 %}
-                                {% set pass_phrase = "You both have " + pn %}
-                            {% else %}
-                                {% set pass_phrase = "All have " + pn %}
-                            {% endif %}
-                        {% elif ps == 'varies' %}
-                            {% set pass_phrase = "Different passes" %}
-                        {% else %}
-                            {% set pass_phrase = "" %}
-                        {% endif %}
-                        {% set d = card.meta.get('date_short', '') %}
-                        {% if pass_phrase %}
-                            {% set meta_line = d + " · " + with_text + " · " + pass_phrase %}
-                        {% else %}
-                            {% set meta_line = d + " · " + with_text %}
+                            {% set meta_line = d + " · " + people_text %}
                         {% endif %}
                         <p class="ideas-card-dateline">{{ meta_line }}</p>
                     {% endif %}
@@ -268,7 +269,7 @@
                 <div class="ideas-window-body">
                     {# Line 1: title already has correct copy from trip_overlap.py #}
                     <p class="ideas-window-title">{{ card.title }}</p>
-                    {# Line 2: {Dates} [· Pass phrase] #}
+                    {# Line 2: {Dates} [· Pass phrase] — omit subtitle if empty #}
                     {% set d = card.meta.get('date_short', '') %}
                     {% if d or card.subtitle %}
                         {% if d and card.subtitle %}
@@ -312,13 +313,11 @@
             {% endfor %}
         </div>
 
-        <p class="ideas-footer">
-            {% if not has_availability %}
-            Add availability to surface more windows. — <a href="{{ url_for('add_open_dates') }}">Add availability</a>
-            {% else %}
-            Refine your ideas — <a href="{{ url_for('add_open_dates') }}">Add availability</a> · <a href="{{ url_for('invite') }}">Invite friends</a>
-            {% endif %}
-        </p>
+        {% if idea_feed | length < 3 %}
+        <div class="ideas-nudge">
+            <p class="ideas-nudge-text">Add <a href="{{ url_for('add_open_dates') }}">availability</a> or <a href="{{ url_for('invite') }}">invite friends</a> to surface more ideas.</p>
+        </div>
+        {% endif %}
 
         {% endif %}
 

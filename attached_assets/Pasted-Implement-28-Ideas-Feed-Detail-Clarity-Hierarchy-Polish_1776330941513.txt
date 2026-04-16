@@ -1,0 +1,129 @@
+Implement #28 - Ideas Feed & Detail — Clarity + Hierarchy Polish.
+Do not introduce new features. Do not change routes, ranking logic, or data models. Preserve all existing working behavior. Use checkpoints sparingly.
+Do not finish until all QA items are verified.
+Scope
+Feed
+All availability cards use:
+"Your dates overlap at {Destination}"
+If no destination exists, use:
+"Your dates overlap"
+Subtitle format:
+"{Dates} · {N} people [· {pass_phrase}]"
+Where:
+N = number of friends in window + 1 (user)
+Pass phrase rules:
+2 people, same pass → "You both have Ikon"
+2 people, different passes → "Different passes"
+3+ people, same pass → "All have Ikon"
+3+ people, mixed passes → "Different passes"
+no pass data → omit
+Remove ALL instances of:
+"Same pass"
+"With N others"
+Footer:
+Remove persistent footer text ("Refine your ideas")
+Add conditional nudge card only when idea_feed | length < 3
+Copy:
+"Add availability or invite friends to surface more ideas."
+Chevron:
+Use #8B3A2E for all feed row chevrons
+Detail — Availability
+Hero:
+Resort name if present
+Otherwise: "Your dates overlap"
+Dates:
+Directly below hero
+Supporting sentence:
+"{people_word} of you are free these dates."
+Use word-numbers for 1–10
+Use numerals for 11+
+Section label:
+"WHO'S IN"
+People rows:
+Friend rows:
+Wrapped in <a href="/friends/{friend_id}">
+Include chevron
+"You" row:
+Not clickable
+No chevron
+Detail — Trip & Wishlist
+Friend rows:
+Clickable if friend_id exists
+Include chevron
+"You" rows:
+Not clickable
+Backend updates
+services/ideas_engine.py
+Add to availability card meta:
+people_count
+pass_phrase
+Pass phrase logic:
+Normalize pass names
+Compare across friends + user
+Apply rules above
+Return empty string if no phrase
+Routes (app.py)
+Ensure each participant includes:
+friend_id
+Add:
+people_word (word version of count)
+Templates
+trip_ideas.html
+Use:
+Title: "Your dates overlap at {Destination}"
+Subtitle from:
+date_short
+meta.people_count
+meta.pass_phrase
+Remove all inline pass logic
+Add conditional nudge card
+idea_detail_availability.html
+Structure:
+Hero → date → supporting sentence → people list
+Wrap friend rows only when friend_id exists
+idea_detail_trip.html + idea_detail_wishlist.html
+Wrap rows conditionally
+Add chevrons to clickable rows
+CSS (static/styles.css)
+Chevron color → #8B3A2E
+Participant rows:
+display: flex
+justify-content: space-between
+align-items: center
+Add minimal styling for nudge card
+QA Checklist
+Titles:
+"Your dates overlap at X"
+Subtitle:
+Correct dates
+Correct people count
+Correct pass phrase logic:
+2 same → "You both have X"
+2 different → "Different passes"
+3+ same → "All have X"
+3+ mixed → "Different passes"
+No "Same pass" anywhere
+Chevron:
+Darker and consistent everywhere
+Footer:
+Removed
+Nudge card:
+Only shows when feed < 3
+Detail page:
+Destination is dominant
+Dates correct
+Supporting sentence correct
+No CTA present
+Friend rows:
+Clickable when friend_id exists
+Not clickable for "You"
+Navigation:
+Back navigation works correctly
+Friend-driven cards:
+Unchanged
+Done when
+Report:
+Files changed
+Logic added
+Edge cases handled
+QA results

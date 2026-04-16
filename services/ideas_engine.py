@@ -382,27 +382,35 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
                             shared_resort_id = rid
                             break
 
-        user_pass_clean = user_pass if user_pass not in _BAD_PASSES else None
-        friends_with_passes = [
-            f for f in friends_in_window
-            if f.get("friend_pass") not in _BAD_PASSES
-        ]
-
-        if user_pass_clean and friends_with_passes:
-            if all(f.get("same_pass") for f in friends_with_passes):
-                pass_signal = "same"
-            else:
-                pass_signal = "varies"
-        elif user_pass_clean:
-            # User has pass but no friend has a pass — treat as mismatch
-            pass_signal = "varies"
-        else:
-            pass_signal = None
-
-        pass_name = _norm_pass(user_pass) if pass_signal == "same" else ""
-
         # Abbreviated date range for feed line 2 (e.g. "Jun 16–19")
         date_short = _format_date_range(w["start_date"], w["end_date"])
+
+        # Total people including the user
+        people_count = n + 1
+
+        # Build pass_phrase for feed subtitle
+        user_pass_clean = user_pass if user_pass not in _BAD_PASSES else None
+        user_pass_name = _norm_pass(user_pass) if user_pass_clean else ""
+        friend_pass_names = set()
+        for _f in friends_in_window:
+            _fp = _f.get("friend_pass", "")
+            if _fp and _fp not in _BAD_PASSES:
+                _np = _norm_pass(_fp)
+                if _np:
+                    friend_pass_names.add(_np)
+
+        if user_pass_name and friend_pass_names:
+            _all = friend_pass_names | {user_pass_name}
+            if len(_all) == 1:
+                _p = next(iter(_all))
+                pass_phrase = f"You both have {_p}" if people_count == 2 else f"All have {_p}"
+            else:
+                pass_phrase = "Different passes"
+        else:
+            pass_phrase = ""
+
+        # Used for scoring only
+        pass_aligns = pass_phrase and not pass_phrase.startswith("Different")
 
         subtitle = None  # feed subtitle replaced by template-level combined line
 
@@ -441,7 +449,7 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
         score += min(n * 5, 20)   # up to 20 for overlapping friend count
         if shared_resort_name:
             score += 15
-        if pass_signal == "same":
+        if pass_aligns:
             score += 10
         if days_until <= 14:
             score += 5
@@ -465,13 +473,12 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
                 "window_length_phrase": length_phrase,
                 "display_date_long": display_date_long,
                 "date_short": date_short,
-                "pass_signal": pass_signal,
-                "pass_name": pass_name,
+                "people_count": people_count,
+                "pass_phrase": pass_phrase,
                 "friends_data": [
                     {
                         "id": f["friend_id"],
                         "name": f.get("friend_name", ""),
-                        "same_pass": f.get("same_pass", False),
                     }
                     for f in friends_in_window
                 ],

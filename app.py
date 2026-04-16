@@ -2370,9 +2370,15 @@ def idea_detail_availability():
         participants.append({
             "full_name": f"{f.first_name or ''} {f.last_name or ''}".strip(),
             "pass_display": _ideas_rider_pass_line(f),
+            "friend_id": f.id,
         })
 
     user_pass_display = _ideas_rider_pass_line(user)
+
+    _num_words = {1:"One",2:"Two",3:"Three",4:"Four",5:"Five",
+                  6:"Six",7:"Seven",8:"Eight",9:"Nine",10:"Ten"}
+    n_people = len(friends) + 1
+    people_word = _num_words.get(n_people, str(n_people))
 
     return render_template(
         "idea_detail_availability.html",
@@ -2381,6 +2387,7 @@ def idea_detail_availability():
         resort=resort,
         date_range_display=date_range_display,
         user_pass_display=user_pass_display,
+        people_word=people_word,
     )
 
 
@@ -2411,6 +2418,7 @@ def idea_detail_wishlist():
         participants.append({
             "full_name": f"{f.first_name or ''} {f.last_name or ''}".strip(),
             "pass_display": _ideas_rider_pass_line(f),
+            "friend_id": f.id,
         })
 
     user_pass_display = _ideas_rider_pass_line(user)
@@ -2474,6 +2482,7 @@ def idea_detail_trip(trip_id):
             "full_name": f"{trip_owner.first_name or ''} {trip_owner.last_name or ''}".strip(),
             "pass_display": _ideas_rider_pass_line(trip_owner),
             "is_host": True,
+            "friend_id": trip_owner.id,
         })
 
     accepted_rows = SkiTripParticipant.query.filter_by(
@@ -2490,6 +2499,7 @@ def idea_detail_trip(trip_id):
                 "full_name": f"{guest.first_name or ''} {guest.last_name or ''}".strip(),
                 "pass_display": _ideas_rider_pass_line(guest),
                 "is_host": False,
+                "friend_id": guest.id,
             })
 
     user_pass_display = _ideas_rider_pass_line(user)

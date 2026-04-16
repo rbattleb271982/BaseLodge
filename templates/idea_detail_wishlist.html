@@ -73,15 +73,26 @@
             padding: 0 16px;
         }
 
-        .idea-detail-participant {
+        .idea-detail-participant,
+        a.idea-detail-participant {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
             padding: 14px 0;
             border-bottom: 1px solid var(--bl-color-border-soft);
+            text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .idea-detail-participant:first-child {
             border-top: 1px solid var(--bl-color-border-soft);
+        }
+
+        .idea-detail-participant-info {
+            display: flex;
+            flex-direction: column;
         }
 
         .idea-detail-participant-name {
@@ -95,6 +106,14 @@
             font-size: 13px;
             color: var(--bl-color-text-muted);
             margin: 0;
+        }
+
+        .idea-detail-participant-chevron {
+            font-size: 18px;
+            color: #8B3A2E;
+            flex-shrink: 0;
+            margin-left: 10px;
+            user-select: none;
         }
     </style>
 </head>
@@ -116,20 +135,38 @@
 
         <div class="idea-detail-participant-list">
 
+            {# "You" — not clickable #}
             <div class="idea-detail-participant">
-                <p class="idea-detail-participant-name">You</p>
-                {% if user_pass_display %}
-                <p class="idea-detail-participant-pass">{{ user_pass_display }}</p>
-                {% endif %}
+                <div class="idea-detail-participant-info">
+                    <p class="idea-detail-participant-name">You</p>
+                    {% if user_pass_display %}
+                    <p class="idea-detail-participant-pass">{{ user_pass_display }}</p>
+                    {% endif %}
+                </div>
             </div>
 
+            {# Friends — tappable when friend_id exists #}
             {% for p in participants %}
+            {% if p.friend_id %}
+            <a href="{{ url_for('friend_profile', friend_id=p.friend_id) }}" class="idea-detail-participant">
+                <div class="idea-detail-participant-info">
+                    <p class="idea-detail-participant-name">{{ p.full_name }}</p>
+                    {% if p.pass_display %}
+                    <p class="idea-detail-participant-pass">{{ p.pass_display }}</p>
+                    {% endif %}
+                </div>
+                <span class="idea-detail-participant-chevron">›</span>
+            </a>
+            {% else %}
             <div class="idea-detail-participant">
-                <p class="idea-detail-participant-name">{{ p.full_name }}</p>
-                {% if p.pass_display %}
-                <p class="idea-detail-participant-pass">{{ p.pass_display }}</p>
-                {% endif %}
+                <div class="idea-detail-participant-info">
+                    <p class="idea-detail-participant-name">{{ p.full_name }}</p>
+                    {% if p.pass_display %}
+                    <p class="idea-detail-participant-pass">{{ p.pass_display }}</p>
+                    {% endif %}
+                </div>
             </div>
+            {% endif %}
             {% endfor %}
 
         </div>

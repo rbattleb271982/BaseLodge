@@ -73,16 +73,25 @@
             padding: 0 16px;
         }
 
-        .idea-detail-participant {
+        .idea-detail-participant,
+        a.idea-detail-participant {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: center;
             padding: 14px 0;
             border-bottom: 1px solid var(--bl-color-border-soft);
+            text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .idea-detail-participant:first-child {
             border-top: 1px solid var(--bl-color-border-soft);
+        }
+
+        .idea-detail-participant-info {
+            display: flex;
+            flex-direction: column;
         }
 
         .idea-detail-participant-name {
@@ -104,14 +113,25 @@
             margin: 0;
         }
 
+        .idea-detail-participant-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
         .idea-detail-host-label {
             font-size: 11px;
             font-weight: 700;
             letter-spacing: 0.5px;
             text-transform: uppercase;
             color: var(--bl-color-text-muted);
-            margin-top: 4px;
-            flex-shrink: 0;
+        }
+
+        .idea-detail-participant-chevron {
+            font-size: 18px;
+            color: #8B3A2E;
+            user-select: none;
         }
     </style>
 </head>
@@ -142,8 +162,24 @@
         <div class="idea-detail-participant-list">
 
             {% for p in participants %}
+            {% if p.friend_id %}
+            <a href="{{ url_for('friend_profile', friend_id=p.friend_id) }}" class="idea-detail-participant">
+                <div class="idea-detail-participant-info">
+                    <p class="idea-detail-participant-name">{{ p.full_name }}</p>
+                    {% if p.pass_display %}
+                    <p class="idea-detail-participant-pass">{{ p.pass_display }}</p>
+                    {% endif %}
+                </div>
+                <div class="idea-detail-participant-right">
+                    {% if p.is_host %}
+                    <span class="idea-detail-host-label">host</span>
+                    {% endif %}
+                    <span class="idea-detail-participant-chevron">›</span>
+                </div>
+            </a>
+            {% else %}
             <div class="idea-detail-participant">
-                <div>
+                <div class="idea-detail-participant-info">
                     <p class="idea-detail-participant-name">{{ p.full_name }}</p>
                     {% if p.pass_display %}
                     <p class="idea-detail-participant-pass">{{ p.pass_display }}</p>
@@ -153,11 +189,12 @@
                 <span class="idea-detail-host-label">host</span>
                 {% endif %}
             </div>
+            {% endif %}
             {% endfor %}
 
-            {# "You, if you join" — always last #}
+            {# "You, if you join" — never clickable #}
             <div class="idea-detail-participant">
-                <div>
+                <div class="idea-detail-participant-info">
                     <p class="idea-detail-participant-name idea-detail-participant-name--you">You, if you join</p>
                     {% if user_pass_display %}
                     <p class="idea-detail-participant-pass">{{ user_pass_display }}</p>
