@@ -458,15 +458,16 @@ def build_wishlist_overlap_cards(user, wishlist_data, all_friends, user_dates):
         nearest_overlap_range = None
         nearest_overlap_within_60 = False
         if user_dates:
+            all_shared = set()
             for person in overlapping_people:
                 fid = person["id"]
                 friend_obj = friend_by_id.get(fid)
                 if not friend_obj:
                     continue
                 friend_dates = _get_avail(friend_obj)
-                shared_sorted = sorted(user_dates & friend_dates)
-                if not shared_sorted:
-                    continue
+                all_shared |= (user_dates & friend_dates)
+            if all_shared:
+                shared_sorted = sorted(all_shared)
                 r_start = shared_sorted[0]
                 r_end = shared_sorted[0]
                 for d in shared_sorted[1:]:
@@ -478,7 +479,6 @@ def build_wishlist_overlap_cards(user, wishlist_data, all_friends, user_dates):
                         break
                 nearest_overlap_range = _format_date_range(r_start, r_end)
                 nearest_overlap_within_60 = date.fromisoformat(r_start) <= sixty_days_out
-                break
         if nearest_overlap_range:
             signals.append(f"You're both free {nearest_overlap_range}")
 
