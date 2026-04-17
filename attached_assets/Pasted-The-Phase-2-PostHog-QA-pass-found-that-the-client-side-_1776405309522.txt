@@ -1,0 +1,143 @@
+The Phase 2 PostHog QA pass found that the client-side events are working, but the server-side Phase 2 events were not actually implemented in app.py.
+
+This is a surgical bug-fix pass. Do not add new features. Do not refactor unrelated code. Do not touch Phase 1 logic.
+
+Goal:
+Implement the missing server-side PostHog Phase 2 events in app.py using ph_analytics.track().
+
+Important constraints:
+- Use ph_analytics.track() from analytics.py
+- Do NOT use emit_event() for PostHog
+- Do NOT change client-side analytics that already passed
+- Keep changes minimal
+- Use checkpoints sparingly
+
+Missing events to implement:
+- signup_completed
+- login_completed
+- auth_error
+- onboarding_completed
+- logout
+
+---
+
+# FIX 1 — signup_completed
+
+In the /auth POST signup success branch:
+
+After:
+- user creation succeeds
+- db.session.commit() succeeds
+- login_user(new_user)
+- existing Phase 1 alias/identify logic remains intact
+
+Add:
+ph_analytics.track(new_user.id, 'signup_completed', {
+  'method': 'email',
+  'signup_source': 'invite' if invite_token exists in session/context else 'organic'
+})
+
+Notes:
+- Do not break Phase 1 alias/identify
+- Fire only once on successful signup
+
+---
+
+# FIX 2 — login_completed
+
+In the /auth POST successful login branch:
+
+After:
+- successful authentication
+- any needed commit logic is complete
+- login_user(user)
+- existing Phase 1 identify logic remains intact
+
+Add:
+ph_analytics.track(user.id, 'login_completed', {
+  'method': 'email'
+})
+
+Fire only on successful login.
+
+---
+
+# FIX 3 — auth_error
+
+In the /auth POST route, add PostHog tracking for true server-side auth/validation failures only.
+
+Implement at these branches:
+- missing_fields
+- password_too_short
+- email_taken
+- invalid_credentials
+
+Use:
+ph_analytics.track(None, 'auth_error', {
+  'error_type': '<value>'
+})
+
+Use exactly these error_type values:
+- missing_fields
+- password_too_short
+- email_taken
+- invalid_credentials
+
+Do not add extra error types.
+Do not fire for harmless UI/client-side states.
+
+---
+
+# FIX 4 — onboarding_completed
+
+In the /identity-setup POST success path:
+
+After:
+- db.session.commit() succeeds
+
+Add:
+ph_analytics.track(current_user.id, 'onboarding_completed', {
+  'total_steps': 4
+})
+
+Important:
+- Do NOT remove legacy emit_event() unless clearly necessary
+- If emit_event() is still needed for the local DB/event table, keep it
+- But PostHog tracking must also happen via ph_analytics.track()
+
+---
+
+# FIX 5 — logout
+
+In the /logout route:
+
+Before logout_user():
+1. capture user_id = current_user.id
+2. call:
+   ph_analytics.track(user_id, 'logout')
+3. then call logout_user()
+
+Do not fire logout after the user has been cleared.
+
+---
+
+# VALIDATION
+
+After making the fixes, verify by code inspection that:
+- signup_completed exists in signup success path
+- login_completed exists in login success path
+- auth_error exists at all 4 required server-side failure branches
+- onboarding_completed uses ph_analytics.track(), not only emit_event
+- logout fires before logout_user()
+
+---
+
+# RETURN
+
+Provide:
+1. Files modified
+2. Exact locations where each server event was added
+3. Confirmation that:
+   - Phase 1 logic is untouched
+   - client-side passed events were untouched
+   - all 5 missing server-side events are now implemented

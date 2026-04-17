@@ -1637,15 +1637,18 @@ def auth():
 
             if not first_name or not last_name or not email or not password:
                 flash("Please fill in all fields.", "error")
+                ph_analytics.track(None, 'auth_error', {'error_type': 'missing_fields'})
                 return render_template("auth.html", has_invite=("invite_token" in session), posthog_reset=_ph_reset)
             
             if len(password) < 8:
                 flash("Password must be at least 8 characters.", "error")
+                ph_analytics.track(None, 'auth_error', {'error_type': 'password_too_short'})
                 return render_template("auth.html", has_invite=("invite_token" in session), posthog_reset=_ph_reset)
             
             existing_user = User.query.filter_by(email=email).first()
             if existing_user:
                 flash("An account with this email already exists.", "error")
+                ph_analytics.track(None, 'auth_error', {'error_type': 'email_taken'})
                 return render_template("auth.html", has_invite=("invite_token" in session), posthog_reset=_ph_reset)
             
             new_user = User(
@@ -1670,6 +1673,10 @@ def auth():
                 new_user.id,
                 set_once_props={"is_internal": ph_analytics.is_internal(new_user.email)},
             )
+            ph_analytics.track(new_user.id, 'signup_completed', {
+                'method': 'email',
+                'signup_source': 'invite' if "invite_token" in session else 'organic',
+            })
 
             # Connect with inviter if coming from invite link
             if "invite_token" in session:
@@ -1694,6 +1701,7 @@ def auth():
                     user.id,
                     set_once_props={"is_internal": ph_analytics.is_internal(user.email)},
                 )
+                ph_analytics.track(user.id, 'login_completed', {'method': 'email'})
 
                 # Connect with inviter if coming from invite link
                 if "invite_token" in session:
@@ -1705,6 +1713,7 @@ def auth():
                 return redirect(url_for("home"))
             
             flash("Invalid email or password.", "error")
+            ph_analytics.track(None, 'auth_error', {'error_type': 'invalid_credentials'})
 
     return render_template("auth.html", has_invite=("invite_token" in session), posthog_reset=_ph_reset)
 
@@ -1919,6 +1928,7 @@ def setup_profile():
         
         # Emit onboarding_completed event
         emit_event('onboarding_completed', user)
+        ph_analytics.track(current_user.id, 'onboarding_completed', {'total_steps': 4})
 
         return redirect(url_for("home"))
 
@@ -5986,6 +5996,8 @@ def mountains_visited():
 @app.route("/logout")
 @login_required
 def logout():
+    user_id = current_user.id
+    ph_analytics.track(user_id, 'logout')
     logout_user()
     session.clear()
     session['ph_reset'] = True
