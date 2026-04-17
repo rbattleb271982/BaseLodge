@@ -1,17 +1,21 @@
 """
-Seed 10 realistic fake users for empty-state testing.
+Seed 10 realistic fake users and connect them as friends with richardbat@gmail.com.
 Run with: python scripts/seed_more_users.py
+
+Idempotent — safe to re-run; skips users and friend links that already exist.
 """
 
 import os
 import sys
-from datetime import date, timedelta
+from datetime import datetime, date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import app
 from models import db, User, Friend, UserAvailability
 from werkzeug.security import generate_password_hash
+
+TARGET_EMAIL = "richardbat@gmail.com"
 
 NEW_USERS = [
     ("Ava", "Snow"),
@@ -26,45 +30,30 @@ NEW_USERS = [
     ("Levi", "Drop"),
 ]
 
-RIDER_TYPES = ["Skier", "Snowboarder", "Social"]
-PASS_TYPES = ["Epic", "Ikon", "Indy Pass", "No Pass"]
+RIDER_TYPES  = ["Skier", "Snowboarder", "Social"]
+PASS_TYPES   = ["Epic", "Ikon", "Indy Pass", "No Pass"]
 SKILL_LEVELS = ["Beginner", "Intermediate", "Advanced", "Expert"]
-HOME_STATES = ["CO", "UT", "CA", "WA", "MT", "VT", "NY", "WY", "OR", "ID"]
-HOME_MOUNTAINS = ["Vail", "Breckenridge", "Park City", "Mammoth", "Jackson Hole", "Telluride", "Stowe", "Copper Mountain"]
-WISH_LISTS = [
-    ["Jackson Hole", "Telluride"],
-    ["Vail", "Breckenridge"],
-    ["Mammoth", "Palisades Tahoe"],
-    ["Park City", "Alta"],
-    ["Whistler Blackcomb", "Stowe"],
-]
-
-
-def future_dates(offsets):
-    today = date.today()
-    return [today + timedelta(days=delta) for delta in offsets]
-
-
-def set_open_dates(user, offsets):
-    dates = [d.isoformat() for d in future_dates(offsets)]
-    user.open_dates = dates
-    for day in future_dates(offsets):
-        db.session.add(UserAvailability(user_id=user.id, date=day, is_available=True))
+HOME_STATES  = ["CO", "UT", "CA", "WA", "MT", "VT", "NY", "WY", "OR", "ID"]
+TODAY = date.today()
 
 
 def seed_more_users():
     with app.app_context():
+        target = User.query.filter_by(email=TARGET_EMAIL).first()
+        if not target:
+            print(f"❌  {TARGET_EMAIL} not found — run the main seed first.")
+            return
+        print(f"✓  Found target user: {target.first_name} {target.last_name} (id={target.id})")
+
         created = 0
-        skipped = 0
         users = []
-        richard = User.query.filter_by(email="richardbat@gmail.com").first()
 
         for i, (first, last) in enumerate(NEW_USERS):
             email = f"{first.lower()}.{last.lower()}@example.com"
             user = User.query.filter_by(email=email).first()
             if user:
-                skipped += 1
                 users.append(user)
+                print(f"  ⏭  {first} {last} already exists")
                 continue
 
             user = User(
@@ -73,53 +62,47 @@ def seed_more_users():
                 email=email,
                 password_hash=generate_password_hash("seed_pass_1!"),
                 rider_type=RIDER_TYPES[i % len(RIDER_TYPES)],
+                rider_types=[RIDER_TYPES[i % len(RIDER_TYPES)]],
                 pass_type=PASS_TYPES[i % len(PASS_TYPES)],
                 skill_level=SKILL_LEVELS[i % len(SKILL_LEVELS)],
                 home_state=HOME_STATES[i % len(HOME_STATES)],
-                home_mountain=HOME_MOUNTAINS[i % len(HOME_MOUNTAINS)],
-                gender="Prefer not to say",
-                birth_year=1985 + (i % 12),
                 profile_setup_complete=True,
                 is_seeded=True,
                 equipment_status="have_own_equipment",
-                wish_list_resorts=WISH_LISTS[i % len(WISH_LISTS)],
                 open_dates=[],
+                wish_list_resorts=[],
+                visited_resort_ids=[],
+                terrain_preferences=[],
+                lifecycle_stage="active",
+                created_at=datetime.utcnow(),
             )
             db.session.add(user)
             db.session.flush()
-            set_open_dates(user, [7 + i * 3, 14 + i * 2, 28 + i])
+
+            for delta in [7 + i * 3, 14 + i * 2, 28 + i]:
+                d = TODAY + timedelta(days=delta)
+                if not UserAvailability.query.filter_by(user_id=user.id, date=d).first():
+                    db.session.add(UserAvailability(user_id=user.id, date=d, is_available=True))
+            user.open_dates = [(TODAY + timedelta(days=7 + i * 3)).isoformat()]
             users.append(user)
             created += 1
+            print(f"  ✓  Created {first} {last}")
 
         db.session.commit()
 
-        connections = 0
-        all_users = User.query.all()
-        created_ids = {u.id for u in users if u.id}
+        added = 0
         for user in users:
-            for other in all_users:
-                if other.id == user.id:
-                    continue
-                if not Friend.query.filter_by(user_id=user.id, friend_id=other.id).first():
-                    db.session.add(Friend(user_id=user.id, friend_id=other.id, is_seeded=True))
-                    connections += 1
-                if not Friend.query.filter_by(user_id=other.id, friend_id=user.id).first():
-                    db.session.add(Friend(user_id=other.id, friend_id=user.id, is_seeded=True))
-                    connections += 1
-
-        if richard:
-            for other in all_users:
-                if other.id == richard.id:
-                    continue
-                if not Friend.query.filter_by(user_id=richard.id, friend_id=other.id).first():
-                    db.session.add(Friend(user_id=richard.id, friend_id=other.id, is_seeded=True))
-                    connections += 1
-                if not Friend.query.filter_by(user_id=other.id, friend_id=richard.id).first():
-                    db.session.add(Friend(user_id=other.id, friend_id=richard.id, is_seeded=True))
-                    connections += 1
+            if not Friend.query.filter_by(user_id=target.id, friend_id=user.id).first():
+                db.session.add(Friend(user_id=target.id, friend_id=user.id, is_seeded=True, created_at=datetime.utcnow()))
+                added += 1
+            if not Friend.query.filter_by(user_id=user.id, friend_id=target.id).first():
+                db.session.add(Friend(user_id=user.id, friend_id=target.id, is_seeded=True, created_at=datetime.utcnow()))
+                added += 1
 
         db.session.commit()
-        print(f"Created {created} users, skipped {skipped}, added {connections} friend links.")
+        total = Friend.query.filter_by(user_id=target.id).count()
+        print(f"\n✅  Created {created} users, added {added} friend links.")
+        print(f"    {target.first_name} now has {total} friends.")
 
 
 if __name__ == "__main__":
