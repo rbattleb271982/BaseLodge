@@ -54,10 +54,10 @@ def set_open_dates(user, offsets):
 
 def seed_more_users():
     with app.app_context():
-        existing_emails = {u.email for u in User.query.filter(User.email.like("%@example.com")).all()}
         created = 0
         skipped = 0
         users = []
+        richard = User.query.filter_by(email="richardbat@gmail.com").first()
 
         for i, (first, last) in enumerate(NEW_USERS):
             email = f"{first.lower()}.{last.lower()}@example.com"
@@ -107,16 +107,15 @@ def seed_more_users():
                     db.session.add(Friend(user_id=other.id, friend_id=user.id, is_seeded=True))
                     connections += 1
 
-        current_user = User.query.get(15)
-        if current_user:
+        if richard:
             for other in all_users:
-                if other.id == current_user.id:
+                if other.id == richard.id:
                     continue
-                if not Friend.query.filter_by(user_id=current_user.id, friend_id=other.id).first():
-                    db.session.add(Friend(user_id=current_user.id, friend_id=other.id, is_seeded=True))
+                if not Friend.query.filter_by(user_id=richard.id, friend_id=other.id).first():
+                    db.session.add(Friend(user_id=richard.id, friend_id=other.id, is_seeded=True))
                     connections += 1
-                if not Friend.query.filter_by(user_id=other.id, friend_id=current_user.id).first():
-                    db.session.add(Friend(user_id=other.id, friend_id=current_user.id, is_seeded=True))
+                if not Friend.query.filter_by(user_id=other.id, friend_id=richard.id).first():
+                    db.session.add(Friend(user_id=other.id, friend_id=richard.id, is_seeded=True))
                     connections += 1
 
         db.session.commit()
