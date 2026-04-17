@@ -466,7 +466,7 @@ def resolve_navigation(path, user_state, pending_intent=None):
     pending_intent is stubbed as None — not yet implemented.
     """
     if user_state == "ANONYMOUS":
-        allowed = {"/auth", "/login", "/signup"}
+        allowed = {"/auth", "/login", "/signup", "/logout"}
         if path in allowed or path.startswith("/legal"):
             return None
         return "/auth"
@@ -506,6 +506,7 @@ def before_request_handlers():
             path.startswith("/debug/") or
             path.startswith("/reset-password/") or
             path == "/forgot-password" or
+            path == "/logout" or
             request.endpoint in {"health_check"}):
         return None
 
