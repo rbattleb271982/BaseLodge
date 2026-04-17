@@ -477,9 +477,9 @@ def resolve_navigation(path, user_state, pending_intent=None):
         return "/auth/verify"
 
     if user_state == "ONBOARDING":
-        if path in {"/identity-setup", "/logout", "/auth/logout"}:
+        if path in {"/onboarding", "/logout", "/auth/logout"}:
             return None
-        return "/identity-setup"
+        return "/onboarding"
 
     # ACTIVE_* states — root and auth page redirect to home; everything else allowed
     if path in {"/", "/auth"}:
@@ -1743,7 +1743,7 @@ def auth():
                 session["post_onboarding_redirect"] = url_for("friends")
                 _connect_pending_inviter(new_user)
             
-            return redirect(url_for("identity_setup"))
+            return redirect(url_for("onboarding"))
         
         elif form_type == "login":
             email = request.form.get("email", "").lower().strip()
@@ -1787,10 +1787,10 @@ def auth_check_email():
     return jsonify({"exists": user is not None})
 
 
-@app.route("/identity-setup", methods=["GET", "POST"])
+@app.route("/onboarding", methods=["GET", "POST"])
 @login_required
-def identity_setup():
-    """Identity setup screen - shown immediately after signup to collect core identity."""
+def onboarding():
+    """Canonical onboarding screen — collects core identity immediately after signup."""
     if request.method == "POST":
         rider_types_raw = request.form.get("rider_types", "")
         rider_types = [r.strip() for r in rider_types_raw.split(",") if r.strip()]
@@ -1840,6 +1840,13 @@ def identity_setup():
         return redirect(url_for("home"))
 
     return render_template("identity_setup.html", grouped_locations=get_grouped_locations())
+
+
+@app.route("/identity-setup")
+@login_required
+def identity_setup():
+    """Legacy URL — redirect to canonical /onboarding."""
+    return redirect(url_for("onboarding"))
 
 
 @app.route("/location-setup", methods=["GET", "POST"])
@@ -2002,32 +2009,11 @@ def invite_token_landing(token):
     )
 
 
-@app.route("/setup-profile", methods=["GET", "POST"])
+@app.route("/setup-profile")
 @login_required
 def setup_profile():
-    user = current_user
-    
-    if request.method == "POST":
-        rider_types = request.form.getlist("rider_types")
-        passes = request.form.getlist("pass_type")
-
-        if not rider_types:
-            flash("Please select at least one rider type.", "error")
-            return redirect(url_for("setup_profile"))
-
-        user.rider_types = rider_types
-        user.pass_type = ",".join(sorted(set(passes))) if passes else "None"
-        user.onboarding_completed_at = datetime.utcnow()
-        user.update_lifecycle_stage()
-        db.session.commit()
-        
-        # Emit onboarding_completed event
-        emit_event('onboarding_completed', user)
-        ph_analytics.track(current_user.id, 'onboarding_completed', {'total_steps': 4})
-
-        return redirect(url_for("home"))
-
-    return render_template("setup_profile.html", rider_types=RIDER_TYPES, pass_options=CANONICAL_PASSES)
+    """Legacy URL — redirect to canonical /onboarding."""
+    return redirect(url_for("onboarding"))
 
 
 @app.route("/edit_profile", methods=["GET", "POST"])
@@ -6172,7 +6158,7 @@ def auth_google_callback():
             return redirect(url_for("friends"))
 
         if not user.is_core_profile_complete:
-            return redirect(url_for("identity_setup"))
+            return redirect(url_for("onboarding"))
 
         return redirect(url_for("home"))
 
