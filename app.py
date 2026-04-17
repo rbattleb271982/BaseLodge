@@ -4150,31 +4150,29 @@ def home():
     except Exception:
         db.session.rollback()
 
-    if not secondary_card and availability_nudge:
-        secondary_card = {
-            'type': 'overlap',
-            'text': availability_nudge['text'],
-            'href': availability_nudge['href'],
-        }
-
-    if not secondary_card and friend_ids:
+    # --- Happening signals (passive, text-only, max 3 public friend trips) ---
+    happening_signals = []
+    if friend_ids:
         try:
-            friend_trip = SkiTrip.query.filter(
+            friend_trips = SkiTrip.query.filter(
                 SkiTrip.user_id.in_(friend_ids),
                 SkiTrip.is_public == True,
                 SkiTrip.end_date >= today
-            ).order_by(SkiTrip.start_date.asc()).first()
-            if friend_trip:
-                trip_friend = User.query.get(friend_trip.user_id)
-                trip_resort = friend_trip.resort
-                mountain_name = trip_resort.name if trip_resort else friend_trip.mountain
-                secondary_card = {
-                    'type': 'friend_trip',
-                    'trip_id': friend_trip.id,
-                    'friend_name': trip_friend.first_name if trip_friend else 'A friend',
-                    'mountain': mountain_name,
-                    'trip_status': friend_trip.trip_status or 'planning',
-                }
+            ).order_by(SkiTrip.start_date.asc()).limit(3).all()
+            for ft in friend_trips:
+                ft_user = User.query.get(ft.user_id)
+                ft_resort = ft.resort
+                ft_mountain = ft_resort.name if ft_resort else ft.mountain
+                full_name = (
+                    f"{ft_user.first_name or ''} {ft_user.last_name or ''}".strip()
+                ) if ft_user else 'A friend'
+                status = ft.trip_status or 'planning'
+                text = (
+                    f"{full_name} is going to {ft_mountain}"
+                    if status == 'going'
+                    else f"{full_name} is planning {ft_mountain}"
+                )
+                happening_signals.append({'text': text})
         except Exception:
             db.session.rollback()
 
@@ -4186,6 +4184,7 @@ def home():
         banner_invite=banner_invite,
         banner_invite_count=banner_invite_count,
         secondary_card=secondary_card,
+        happening_signals=happening_signals,
         next_match=next_match,
         has_overlaps=has_overlaps,
         stat_mountains=user.visited_resorts_count,

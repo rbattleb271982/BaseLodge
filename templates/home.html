@@ -222,7 +222,7 @@
             text-decoration: none;
         }
 
-        /* ── Activity rows (populated: friend activity) ── */
+        /* ── Activity rows (connect invite only) ── */
         .home-activity-rows {
             margin-bottom: 12px;
         }
@@ -276,6 +276,42 @@
         .home-activity-action {
             flex-shrink: 0;
             padding-top: 1px;
+        }
+
+        /* ── Happening rows (passive signals, text-only) ── */
+        .home-happening-rows {
+            margin-bottom: 12px;
+        }
+        .home-happening-row {
+            display: flex;
+            align-items: center;
+            padding: 6px 0 6px 10px;
+            border-bottom: 1px solid #E5DFD0;
+            position: relative;
+        }
+        .home-happening-row::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #D4CEC4;
+            border-radius: 1px;
+        }
+        .home-happening-row:first-child {
+            border-top: 1px solid #E5DFD0;
+        }
+        .home-happening-text {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 14px;
+            font-weight: 400;
+            color: #6B665A;
+            margin: 0;
+            line-height: 1.3;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .home-activity-btn {
             background: #5C1219;
@@ -564,36 +600,26 @@
             <p class="type-caption" style="margin-top: 20px; text-align: center;">Bring your crew · <a href="{{ url_for('invite') }}" style="color: var(--bl-color-primary); text-decoration: none; font-weight: 500;">Invite friends →</a></p>
             {% endif %}
 
-            {% if secondary_card %}
+            {% if secondary_card and secondary_card.type == 'connect_invite' %}
             <p class="home-section-label">Friend Activity</p>
-
             <div class="home-activity-rows">
-                {% if secondary_card.type == 'connect_invite' %}
                 <div class="home-activity-row" id="secondary-card">
                     <p class="home-activity-text" style="flex:1;min-width:0;">{{ secondary_card.sender_name }} wants to connect</p>
                     <div class="home-activity-action">
                         <button class="home-activity-btn" onclick="acceptConnectInvite({{ secondary_card.invitation_id }})">Accept</button>
                     </div>
                 </div>
+            </div>
+            {% endif %}
 
-                {% elif secondary_card.type == 'overlap' %}
-                <a href="{{ secondary_card.href }}" class="home-activity-row">
-                    <p class="home-activity-text" style="flex:1;min-width:0;">{{ secondary_card.text }}</p>
-                    <div class="home-activity-action">
-                        <span class="home-activity-link">See overlaps →</span>
-                    </div>
-                </a>
-
-                {% elif secondary_card.type == 'friend_trip' %}
-                <a href="{{ url_for('trip_detail', trip_id=secondary_card.trip_id) }}" class="home-activity-row">
-                    <p class="home-activity-text" style="flex:1;min-width:0;">
-                        {% if secondary_card.trip_status == 'going' %}{{ secondary_card.friend_name | format_name }} is going to {{ secondary_card.mountain }}{% else %}{{ secondary_card.friend_name | format_name }} is planning {{ secondary_card.mountain }}{% endif %}
-                    </p>
-                    <div class="home-activity-action">
-                        <span class="home-activity-link">View →</span>
-                    </div>
-                </a>
-                {% endif %}
+            {% if happening_signals %}
+            <p class="home-section-label">Happening</p>
+            <div class="home-happening-rows">
+                {% for signal in happening_signals %}
+                <div class="home-happening-row">
+                    <p class="home-happening-text">{{ signal.text }}</p>
+                </div>
+                {% endfor %}
             </div>
             {% endif %}
 
