@@ -491,45 +491,16 @@
 
             {% include 'components/stat_row.html' %}
 
-            <p class="home-welcome-sub" style="margin-bottom: 20px;">Let's get your first trip on the calendar.</p>
-
-            <div class="home-hero">
-                <p class="home-hero-eyebrow">Get Started</p>
-                <p class="home-hero-title">Plan your first trip</p>
-                <a href="{{ url_for('add_trip') }}" class="home-hero-cta">Plan a trip →</a>
-            </div>
-
-            {% if has_overlaps and next_match %}
-            <p class="home-match-section-label">Best Match</p>
-            <div class="home-match-card">
-                <p class="home-match-line1">You and {{ next_match.friend_name | format_name }} are both free</p>
-                <p class="home-match-date">{{ next_match.display_date }}</p>
-                {% if next_match.same_day_count > 0 %}
-                <p class="home-match-meta">+{{ next_match.same_day_count }} other{{ 's' if next_match.same_day_count > 1 }} free that day</p>
-                {% else %}
-                <p class="home-match-meta">Make it a trip.</p>
-                {% endif %}
-                <div class="home-match-actions">
-                    <a href="{{ url_for('add_trip') }}?start_date={{ next_match.match_date }}&end_date={{ next_match.match_date }}&friend_id={{ next_match.friend_id }}" class="home-match-primary">Plan this trip</a>
-                </div>
-            </div>
-            {% endif %}
-
-            <div class="home-module">
-                <div class="home-module-header">
-                    <h2 class="home-module-title">Friends</h2>
-                    <span class="home-module-tag">Empty</span>
-                </div>
-                <p class="home-module-empty-text">Connect with friends to see each other's trips and plan together.</p>
-                <a href="{{ url_for('invite') }}" class="home-module-cta">Add friends →</a>
-            </div>
-
-            <div class="home-module">
-                <div class="home-module-header">
-                    <h2 class="home-module-title">Invites</h2>
-                    <span class="home-module-tag">Empty</span>
-                </div>
-                <p class="home-module-empty-text">Trip invites from friends will appear here.</p>
+            <div style="margin-top: 24px;">
+                <h2 style="font-family: Georgia, 'Times New Roman', serif; font-size: 20px; font-weight: 400; color: #1A1A1A; margin: 0 0 12px 0; line-height: 1.2;">What you'll see here</h2>
+                <p style="font-size: 14px; color: #6B665A; line-height: 1.55; margin: 0 0 16px 0;">This page fills in as you use the app. Invite friends or start planning a trip and it becomes your home base for everything on the mountain.</p>
+                <ul style="list-style: disc; padding-left: 18px; margin: 0 0 20px 0; display: flex; flex-direction: column; gap: 8px;">
+                    <li style="font-size: 14px; color: #6B665A; line-height: 1.45;">Who's going where and when</li>
+                    <li style="font-size: 14px; color: #6B665A; line-height: 1.45;">Trips that overlap with yours</li>
+                    <li style="font-size: 14px; color: #6B665A; line-height: 1.45;">What your friends are planning</li>
+                    <li style="font-size: 14px; color: #6B665A; line-height: 1.45;">Invitations and shared itineraries</li>
+                </ul>
+                <p style="font-size: 13px; color: #9A8F82; margin: 0;">Explore the menu below</p>
             </div>
 
         {% endif %}
