@@ -84,6 +84,15 @@ To prevent UI and architectural regressions, the following ownership rules must 
 -   **Friend Profile Stats (stat_row.html):** Rewritten to show Trips / Mountains / Wish list for all contexts. Mountains and Wishlist tiles are tappable when `stat_mountains_url`/`stat_wishlist_url` are provided. Zero-safe with `or 0` guards.
 -   **Personalization Features:** Terrain preferences, smart resort defaults, next trip countdown, availability match nudges, and relevance-based friend ordering.
 
+### Account Management (Implemented)
+- **Logout** (`/logout`): `@login_required`, calls `logout_user()` only — never `session.clear()` — then redirects to `/auth`.
+- **Forgot password** (`/forgot-password`): Generates itsdangerous token only for `auth_provider == 'email'` accounts. OAuth accounts receive the same generic flash message but no email. Always shows the same "If an account exists..." message to prevent email enumeration.
+- **Reset password** (`/reset-password/<token>`): 30-minute window via `verify_reset_token(max_age=1800)`. Single-use enforcement: on success, `user.password_changed_at` is set to `utcnow()`. Any future attempt to verify a token issued before that moment is rejected.
+- **Change password** (`/change-password`): Google-auth users (`auth_provider != 'email'`) see a friendly "Your account uses Google sign-in" message; the form is not rendered. Email-auth users get the normal current-password → new-password flow. Sets `password_changed_at` on success.
+- **Delete account** (`POST /delete-account`): `@login_required`. Requires `confirm_email` to exactly match `current_user.email` (case-insensitive). Deletes all FK-linked rows in safe order (Activity → EmailLog → Event → DismissedNudge → EquipmentSetup → InviteToken → Invitation → SkiTripParticipant → TripGuest → Friend → owned SkiTrips+participants → hosted GroupTrips+guests), then calls `logout_user()`, deletes the User row, commits, and redirects to `/auth`. Wrapped in `try/except` with full rollback on failure. No `session.clear()`.
+- **Profile Account section**: Three rows — Change password / Log out / Delete account. Delete account opens an inline confirmation modal requiring the user to type their email before posting to `POST /delete-account`.
+- **`password_changed_at` column**: Nullable DateTime on `User`. Migrated to production via Alembic (`272f5f30536f`).
+
 ### Hardening Measures (Phase 2B)
 - **Dedicated Application Role**: Created `baselodge_app` role with restricted permissions (LOGIN enabled, no superuser/createrole privileges).
 - **Credential Separation**: The application now connects using `baselodge_app` instead of the `postgres` superuser.

@@ -175,7 +175,8 @@ class User(UserMixin, db.Model):
     backcountry_capable = db.Column(db.Boolean, default=False, nullable=True)  # Does user ski backcountry?
     avi_certified = db.Column(db.Boolean, nullable=True)  # Avalanche certified (only relevant if backcountry_capable)
     previous_pass = db.Column(db.String(100), nullable=True)  # Pass held last season
-    
+    password_changed_at = db.Column(db.DateTime, nullable=True)  # Set on every successful password change/reset
+
     trips = db.relationship('SkiTrip', foreign_keys='SkiTrip.user_id', backref='user', lazy=True)
     friend_requests_sent = db.relationship('Invitation', foreign_keys='Invitation.sender_id', backref='sender', lazy=True)
     friend_requests_received = db.relationship('Invitation', foreign_keys='Invitation.receiver_id', backref='receiver', lazy=True)
@@ -201,7 +202,12 @@ class User(UserMixin, db.Model):
     
     @staticmethod
     def verify_reset_token(token, max_age=1800):
-        """Verify password reset token and return user if valid (30 min expiry)."""
+        """Verify password reset token and return user if valid (30 min expiry).
+
+        Tokens are single-use: once the user successfully resets their password
+        (password_changed_at is set), any token issued before that moment is
+        rejected, even if it is still within the 30-minute window.
+        """
         from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
         from flask import current_app
         
@@ -210,11 +216,24 @@ class User(UserMixin, db.Model):
         
         s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
         try:
-            user_id = s.loads(token, salt='password-reset', max_age=max_age)
+            user_id, issued_at = s.loads(
+                token, salt='password-reset', max_age=max_age, return_timestamp=True
+            )
         except (SignatureExpired, BadSignature):
             return None
         
-        return User.query.get(user_id)
+        user = User.query.get(user_id)
+        if not user:
+            return None
+
+        # Reject if the password was already changed after this token was issued
+        if user.password_changed_at:
+            # issued_at from itsdangerous may be timezone-aware; normalise to naive UTC
+            issued_naive = issued_at.replace(tzinfo=None) if issued_at.tzinfo else issued_at
+            if user.password_changed_at > issued_naive:
+                return None
+
+        return user
 
     def __repr__(self):
         return f'<User {self.email}>'

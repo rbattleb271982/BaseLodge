@@ -1,0 +1,164 @@
+PUT THIS IN AGENT
+
+Implement Account Management Phase for BaseLodge in the following safe order.
+
+Read:
+
+* app.py:1565-1604
+* app.py:1606-1642
+* app.py:6046-6057
+* app.py:6150-6181
+* app.py:6463-6496
+* models.py:110-220
+* models.py:523-546
+* models.py:721-730
+* models.py:737-744
+* models.py:826-870
+* models.py:922-980
+* models.py:962-994
+* models.py:997-1014
+* models.py:1029-1043
+* templates/profile.html:216-225
+* templates/change_password.html
+* templates/forgot_password.html
+* templates/reset_password.html
+
+Implement exactly this:
+
+---
+
+1. Add password_changed_at to User
+
+In models.py:
+
+* add nullable DateTime column:
+  password_changed_at
+
+Update reset token validation so reset links become invalid after password has already been changed.
+
+Implementation requirement:
+
+* when verifying reset token, compare token issue time vs password_changed_at
+* reject token if password_changed_at is later than the token issue time
+
+Also set password_changed_at when:
+
+* password reset succeeds
+* change password succeeds
+
+Run the migration safely.
+
+---
+
+2. Guard OAuth users on password surfaces
+
+Forgot password:
+
+* if the looked-up user has auth_provider != "email"
+* do NOT generate a token
+* do NOT send email
+* still show the same generic success flash message
+
+Change password:
+
+* if current_user.auth_provider != "email"
+* do NOT show the normal password form
+* show a friendly message explaining the account uses Google sign-in
+
+Do this cleanly for both GET and POST behavior.
+
+---
+
+3. Clean up reset-password dead code
+
+* Remove the hidden token input from reset_password.html
+* Remove the redundant empty-password check in the reset_password route if it is fully covered by the later validation
+
+Do not change working reset behavior beyond the security fix above.
+
+---
+
+4. Build POST /delete-account route
+
+Create a production user-facing delete account route:
+
+* POST only
+* @login_required
+* route: /delete-account
+
+Requirements:
+
+* require confirm_email form field
+* compare to current_user.email case-insensitively
+* if mismatch:
+
+  * flash error
+  * redirect back safely
+  * do not touch data
+
+On success, delete data in safe order:
+
+1. Activity where actor_user_id = user.id or recipient_user_id = user.id
+2. EmailLog for user
+3. DismissedNudge for user
+4. EquipmentSetup for user
+5. InviteToken where inviter_id = user.id
+6. Invitation where sender_id = user.id or receiver_id = user.id
+7. SkiTripParticipant rows where user_id = user.id on other users' trips
+8. Friend rows where user_id = user.id or friend_id = user.id
+9. SkiTrip owned by user
+10. Event / GroupTrip hosted by user and related participant rows
+11. logout_user()
+12. db.session.delete(user)
+13. db.session.commit()
+
+Wrap in try/except:
+
+* rollback on failure
+* flash an error if deletion fails
+* do not leave partial deletes committed
+
+After successful deletion:
+
+* redirect to /auth
+* flash:
+  "Your account has been deleted."
+
+Do NOT use session.clear()
+
+---
+
+5. Add Delete Account UI to profile
+
+In profile.html:
+
+* add a third account row:
+  Delete account
+
+This should open a confirmation modal.
+
+Modal requirements:
+
+* explain that deletion is permanent
+* mention trips, friends, invites, and account data will be removed
+* require the user to type their email
+* submit to POST /delete-account
+
+Keep styling consistent with current profile/account section.
+
+---
+
+6. Verify
+
+Confirm all of these work:
+
+* forgot password still works for email-auth users
+* reset link becomes invalid immediately after first successful use
+* Google-auth users do not receive reset emails
+* Google-auth users do not see a broken change-password form
+* email-auth users can still change password normally
+* delete account requires email confirmation
+* successful deletion removes the user and related records
+* deleted user lands on /auth and cannot log back in
+
+Use minimal changes. Do not refactor unrelated systems.

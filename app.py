@@ -1569,8 +1569,9 @@ def forgot_password():
             email = request.form.get("email", "").lower().strip()
             user = User.query.filter(sa.func.lower(User.email) == email).first()
             
-            if user:
-                # Generate token using itsdangerous
+            if user and user.auth_provider == 'email':
+                # Only generate a reset token for email-auth accounts.
+                # OAuth accounts (Google, etc.) do not have a local password to reset.
                 token = user.get_reset_token()
                 
                 # Send Email via SendGrid
@@ -1620,10 +1621,6 @@ def reset_password(token=None):
         password = request.form.get("password")
         confirm_password = request.form.get("confirm_password")
         
-        if not password:
-            flash("Password cannot be empty.", "error")
-            return redirect(request.url)
-        
         if not password or len(password) < 8:
             flash("Password must be at least 8 characters.", "error")
             return render_template("reset_password.html", token=token)
@@ -1633,6 +1630,7 @@ def reset_password(token=None):
             return render_template("reset_password.html", token=token)
 
         user.set_password(password)
+        user.password_changed_at = datetime.utcnow()
         db.session.commit()
 
         login_user(user)
@@ -6150,6 +6148,10 @@ def auth_apple_callback():
 @app.route("/change-password", methods=["GET", "POST"])
 @login_required
 def change_password():
+    # Google (and any future OAuth) accounts have no local password.
+    if current_user.auth_provider != 'email':
+        return render_template("change_password.html", oauth_user=True)
+
     if request.method == "POST":
         current_password = request.form.get("current_password", "")
         new_password = request.form.get("new_password", "")
@@ -6168,6 +6170,7 @@ def change_password():
             return redirect(url_for("change_password"))
         
         current_user.set_password(new_password)
+        current_user.password_changed_at = datetime.utcnow()
         try:
             db.session.commit()
             flash("Password updated successfully.", "success")
@@ -6178,7 +6181,96 @@ def change_password():
             flash("Something went wrong while updating your password. Please try again.", "error")
             return redirect(url_for("change_password"))
     
-    return render_template("change_password.html")
+    return render_template("change_password.html", oauth_user=False)
+
+
+@app.route("/delete-account", methods=["POST"])
+@login_required
+def delete_account():
+    confirm_email = request.form.get("confirm_email", "").lower().strip()
+    if confirm_email != current_user.email.lower():
+        flash("Email address did not match. Account was not deleted.", "error")
+        return redirect(url_for("profile"))
+
+    user = current_user._get_current_object()
+    user_id = user.id
+
+    try:
+        # 1. Activity feed rows (actor or recipient)
+        Activity.query.filter(
+            db.or_(Activity.actor_user_id == user_id, Activity.recipient_user_id == user_id)
+        ).delete(synchronize_session=False)
+
+        # 2. EmailLog rows for this user
+        EmailLog.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+
+        # 3. Null out source_event_id on any remaining EmailLog that references this
+        #    user's events (could belong to other users), then delete the events
+        user_event_ids = [r[0] for r in db.session.query(Event.id).filter_by(user_id=user_id).all()]
+        if user_event_ids:
+            db.session.query(EmailLog).filter(
+                EmailLog.source_event_id.in_(user_event_ids)
+            ).update({EmailLog.source_event_id: None}, synchronize_session=False)
+        Event.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+
+        # 4. Dismissed nudges
+        DismissedNudge.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+
+        # 5. Equipment setups
+        EquipmentSetup.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+
+        # 6. Invite tokens created by this user
+        InviteToken.query.filter_by(inviter_id=user_id).delete(synchronize_session=False)
+
+        # 7. Friend invitations (sent or received)
+        Invitation.query.filter(
+            db.or_(Invitation.sender_id == user_id, Invitation.receiver_id == user_id)
+        ).delete(synchronize_session=False)
+
+        # 8. SkiTripParticipant rows where this user is a guest on someone else's trip
+        SkiTripParticipant.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+
+        # 9. TripGuest rows where this user is a guest on someone else's GroupTrip
+        TripGuest.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+
+        # 10. Friend rows (both directions)
+        Friend.query.filter(
+            db.or_(Friend.user_id == user_id, Friend.friend_id == user_id)
+        ).delete(synchronize_session=False)
+
+        # 11. SkiTrips owned by this user — delete other participants first, then trips
+        owned_trip_ids = [r[0] for r in db.session.query(SkiTrip.id).filter_by(user_id=user_id).all()]
+        if owned_trip_ids:
+            SkiTripParticipant.query.filter(
+                SkiTripParticipant.trip_id.in_(owned_trip_ids)
+            ).delete(synchronize_session=False)
+        SkiTrip.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+
+        # 12. GroupTrips hosted by this user — delete guests first, then trips
+        hosted_group_ids = [r[0] for r in db.session.query(GroupTrip.id).filter_by(host_id=user_id).all()]
+        if hosted_group_ids:
+            TripGuest.query.filter(
+                TripGuest.trip_id.in_(hosted_group_ids)
+            ).delete(synchronize_session=False)
+        GroupTrip.query.filter_by(host_id=user_id).delete(synchronize_session=False)
+
+        # 13. Log the user out before deleting the row
+        logout_user()
+        # NOTE: do NOT call session.clear() — same reason as /logout
+
+        # 14. Delete the user row and commit everything
+        db.session.delete(user)
+        db.session.commit()
+
+        flash("Your account has been deleted.", "success")
+        return redirect(url_for("auth"))
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error deleting account for user {user_id}: {e}")
+        flash("Something went wrong while deleting your account. Please try again.", "error")
+        return redirect(url_for("profile"))
+
 
 @app.route("/skip-pass-prompt")
 @login_required

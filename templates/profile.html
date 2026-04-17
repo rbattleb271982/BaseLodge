@@ -127,6 +127,14 @@
             text-decoration: none;
             color: inherit;
             -webkit-tap-highlight-color: transparent;
+            width: 100%;
+            background: none;
+            border-left: none;
+            border-right: none;
+            border-top: none;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
         }
         .account-row:first-child {
             border-top: 1px solid var(--bl-color-border-soft);
@@ -134,6 +142,9 @@
         .account-row-label {
             font-size: 0.875rem;
             color: var(--bl-color-text-muted);
+        }
+        .account-row--danger .account-row-label {
+            color: #8B1A1A;
         }
     </style>
 </head>
@@ -222,8 +233,47 @@
             <a href="{{ url_for('logout') }}" class="account-row">
                 <span class="account-row-label">Log out</span>
             </a>
+            <button type="button" class="account-row account-row--danger" onclick="document.getElementById('delete-account-modal').style.display='flex'">
+                <span class="account-row-label">Delete account</span>
+            </button>
         </div>
 
+    </div>
+
+    <!-- Delete Account confirmation modal -->
+    <div id="delete-account-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:16px;">
+        <div style="background:var(--bl-color-surface); border-radius:var(--bl-radius-lg); padding:24px; width:100%; max-width:360px; box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+            <h2 style="font-size:18px; font-weight:600; margin:0 0 8px;">Delete account?</h2>
+            <p style="font-size:14px; color:var(--bl-color-text-muted); line-height:1.5; margin:0 0 20px;">
+                This is permanent and cannot be undone. Your trips, friends, invitations, and all account data will be removed.
+            </p>
+            <form method="POST" action="{{ url_for('delete_account') }}">
+                <label style="display:block; font-size:13px; font-weight:500; margin-bottom:6px;">
+                    Type your email address to confirm
+                </label>
+                <input
+                    type="email"
+                    name="confirm_email"
+                    placeholder="{{ current_user.email }}"
+                    autocomplete="off"
+                    required
+                    style="width:100%; padding:12px; border:1px solid var(--bl-color-border); border-radius:var(--bl-radius-md); font-size:15px; font-family:inherit; background:var(--bl-color-surface); color:var(--bl-color-text); box-sizing:border-box; margin-bottom:16px;"
+                >
+                <button
+                    type="submit"
+                    style="width:100%; padding:14px; background:#8B1A1A; color:#fff; border:none; border-radius:var(--bl-radius-md); font-size:15px; font-weight:600; font-family:inherit; cursor:pointer; margin-bottom:10px;"
+                >
+                    Delete my account
+                </button>
+            </form>
+            <button
+                type="button"
+                onclick="document.getElementById('delete-account-modal').style.display='none'"
+                style="width:100%; padding:14px; background:transparent; color:var(--bl-color-text-muted); border:1px solid var(--bl-color-border); border-radius:var(--bl-radius-md); font-size:15px; font-family:inherit; cursor:pointer;"
+            >
+                Cancel
+            </button>
+        </div>
     </div>
 
     {% include 'components/bottom_nav.html' %}
