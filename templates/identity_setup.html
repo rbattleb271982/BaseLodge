@@ -462,13 +462,23 @@
 <script>
     var slider = document.getElementById('ob-slider');
     var currentStep = 1;
+    var lastOnboardingStepFired = 0;
+    var stepNames = { 1: 'ride_type', 2: 'level', 3: 'pass', 4: 'location' };
 
     function slideTo(n) {
         slider.style.transform = 'translateX(' + (-(n - 1) * 25) + '%)';
         currentStep = n;
     }
 
-    function goNext(from) { slideTo(from + 1); }
+    function goNext(from) {
+        if (from > lastOnboardingStepFired && typeof posthog !== 'undefined') {
+            lastOnboardingStepFired = from;
+            if (from <= 3) {
+                posthog.capture('onboarding_step_completed', { step_index: from, step_name: stepNames[from] });
+            }
+        }
+        slideTo(from + 1);
+    }
     function goBack(from) { slideTo(from - 1); }
 
     /* rider and pass are multi-select (max 2); skill is single */

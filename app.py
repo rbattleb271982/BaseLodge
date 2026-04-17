@@ -6034,7 +6034,6 @@ def auth_google_callback():
             raise ValueError("Google did not return an email address")
 
         user = User.query.filter_by(email=email).first()
-        is_new_user = False
 
         if user:
             if user.auth_provider != "google":
@@ -6043,7 +6042,6 @@ def auth_google_callback():
                 user.provider_id = sub
             db.session.commit()
         else:
-            is_new_user = True
             user = User(
                 email=email,
                 first_name=given_name or email.split("@")[0],
@@ -6063,7 +6061,7 @@ def auth_google_callback():
             _connect_pending_inviter(user)
             return redirect(url_for("friends"))
 
-        if is_new_user or not user.is_core_profile_complete:
+        if not user.is_core_profile_complete:
             return redirect(url_for("identity_setup"))
 
         return redirect(url_for("home"))
