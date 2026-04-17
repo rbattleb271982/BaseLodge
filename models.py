@@ -147,6 +147,7 @@ class User(UserMixin, db.Model):
     first_connection_at = db.Column(db.DateTime, nullable=True)
     first_trip_created_at = db.Column(db.DateTime, nullable=True)
     is_seeded = db.Column(db.Boolean, default=False)
+    is_verified = db.Column(db.Boolean, default=True, nullable=False, server_default='true')
     # HISTORICAL METADATA: invited_by_user_id records who invited this user.
     # This field is intentionally retained permanently and must NOT be cleared.
     # It enables referral tracking, analytics, and inviter lineage queries.

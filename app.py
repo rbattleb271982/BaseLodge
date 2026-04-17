@@ -430,40 +430,99 @@ def format_name_filter(name):
     return format_name(name)
 
 
+def compute_user_state(user):
+    """
+    Returns the canonical navigation state for the given user.
+
+    States (in priority order):
+      ANONYMOUS             — not authenticated
+      PENDING_VERIFICATION  — authenticated but is_verified == False
+      ONBOARDING            — authenticated, verified, core profile incomplete
+      ACTIVE_EMPTY          — onboarded, 0 friends, 0 trips
+      ACTIVE_SOCIAL         — onboarded, ≥1 friend, 0 trips
+      ACTIVE_FULL           — onboarded, ≥1 trip (friend count irrelevant)
+
+    This is the single source of truth for all navigation decisions.
+    """
+    if not user.is_authenticated:
+        return "ANONYMOUS"
+    if not user.is_verified:
+        return "PENDING_VERIFICATION"
+    if not user.is_core_profile_complete:
+        return "ONBOARDING"
+    trip_count = SkiTrip.query.filter_by(user_id=user.id).count()
+    if trip_count > 0:
+        return "ACTIVE_FULL"
+    friend_count = Friend.query.filter_by(user_id=user.id).count()
+    if friend_count > 0:
+        return "ACTIVE_SOCIAL"
+    return "ACTIVE_EMPTY"
+
+
+def resolve_navigation(path, user_state, pending_intent=None):
+    """
+    Returns a redirect path string if the user must be moved, or None to allow through.
+
+    pending_intent is stubbed as None — not yet implemented.
+    """
+    if user_state == "ANONYMOUS":
+        allowed = {"/auth", "/login", "/signup"}
+        if path in allowed or path.startswith("/legal"):
+            return None
+        return "/auth"
+
+    if user_state == "PENDING_VERIFICATION":
+        if path in {"/auth/verify", "/logout"}:
+            return None
+        return "/auth/verify"
+
+    if user_state == "ONBOARDING":
+        if path in {"/identity-setup", "/logout"}:
+            return None
+        return "/identity-setup"
+
+    # ACTIVE_* states — root and auth page redirect to home; everything else allowed
+    if path in {"/", "/auth"}:
+        return "/home"
+    return None
+
+
 @app.before_request
 def before_request_handlers():
     import sys
-    
+
     # Make sessions permanent for Replit iframe compatibility
     session.permanent = True
-    
-    # HARD BYPASS: Invite routes must work for anonymous users - skip ALL auth/profile logic
-    if request.path.startswith("/invite/"):
+
+    # ── Gate skip list ────────────────────────────────────────────────────────
+    # These paths bypass the nav gate and are handled by their own logic.
+    path = request.path
+    if (path.startswith("/static/") or
+            path.startswith("/api/") or
+            path.startswith("/invite/") or
+            path.startswith("/auth/google") or
+            path.startswith("/auth/apple") or
+            path.startswith("/admin/") or
+            path.startswith("/debug/") or
+            path.startswith("/reset-password/") or
+            path == "/forgot-password" or
+            request.endpoint in {"health_check"}):
         return None
-    
-    # Bypass for health check endpoint
-    if request.endpoint == 'health_check':
-        return None
-    
-    # Require profile setup for authenticated users
-    excluded_endpoints = {'auth', 'identity_setup', 'setup_profile', 'logout', 'static', 'invite_token_landing', 'test_login_direct', 'forgot_password', 'reset_password', 'index', 'login', 'signup', 'auth_google', 'auth_google_callback', 'auth_apple', 'auth_apple_callback', 'auth_check_email'}
-    if request.endpoint in excluded_endpoints:
-        return None
-    
-    # DIAGNOSTIC: before_request (only for non-bypassed routes)
-    if request.endpoint and request.endpoint not in ['static', 'root']:
+
+    # ── Diagnostic logging ────────────────────────────────────────────────────
+    if request.endpoint and request.endpoint not in ("static",):
         print("=== BEFORE_REQUEST ===", file=sys.stderr)
         print("endpoint:", request.endpoint, file=sys.stderr)
         print("current_user.is_authenticated:", current_user.is_authenticated, file=sys.stderr)
         print("session:", dict(session), file=sys.stderr)
         print("cookies:", dict(request.cookies), file=sys.stderr)
         print("=====================", file=sys.stderr)
-    if current_user.is_authenticated:
-        # Check for profile completion: rider_types (new) or primary_rider_type/rider_type (legacy) + pass_type
-        has_rider_types = current_user.rider_types and len(current_user.rider_types) > 0
-        has_rider_type_legacy = current_user.primary_rider_type or current_user.rider_type
-        if not (has_rider_types or has_rider_type_legacy) or not current_user.pass_type:
-            return redirect(url_for('identity_setup'))
+
+    # ── Navigation gate ───────────────────────────────────────────────────────
+    user_state = compute_user_state(current_user)
+    redirect_to = resolve_navigation(path, user_state)
+    if redirect_to and redirect_to != path:
+        return redirect(redirect_to)
     return None
 
 def admin_required(f):
@@ -1619,9 +1678,7 @@ def build_trip_idea(user, idea_type, destination=None, resort_id=None, start_dat
 
 @app.route("/")
 def index():
-    if current_user.is_authenticated:
-        return redirect(url_for("home"))
-    return redirect(url_for("auth"))
+    return redirect(url_for("home"))
 
 @app.route("/auth", methods=["GET", "POST"])
 def auth():
@@ -1732,10 +1789,6 @@ def auth_check_email():
 @login_required
 def identity_setup():
     """Identity setup screen - shown immediately after signup to collect core identity."""
-    # If user already has core identity, redirect to home
-    if current_user.is_core_profile_complete:
-        return redirect(url_for("home"))
-    
     if request.method == "POST":
         rider_types_raw = request.form.get("rider_types", "")
         rider_types = [r.strip() for r in rider_types_raw.split(",") if r.strip()]
@@ -1792,10 +1845,6 @@ def identity_setup():
 def location_setup():
     """Location setup screen - step 2 of onboarding to collect home state only."""
     user = current_user
-    
-    # If user hasn't completed identity setup, redirect back
-    if not user.is_core_profile_complete:
-        return redirect(url_for("identity_setup"))
     
     # If user already has home_state, redirect to home
     if user.home_state:
