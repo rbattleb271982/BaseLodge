@@ -256,6 +256,48 @@
             white-space: nowrap;
         }
 
+        /* ── Empty state ── */
+        .home-empty-stats {
+            display: flex;
+            align-items: center;
+            margin: 0 0 28px 0;
+            padding: 18px 0;
+            border-top: 1px solid var(--bl-color-border-soft);
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+        .home-empty-stats-tile {
+            flex: 1;
+            text-align: center;
+        }
+        .home-empty-stats-divider {
+            width: 0.5px;
+            height: 28px;
+            background: var(--bl-color-border);
+            flex-shrink: 0;
+        }
+        .home-empty-editorial {
+            text-align: center;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .home-empty-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 24px 0;
+            text-align: left;
+        }
+        .home-empty-list-item {
+            display: flex;
+            align-items: baseline;
+            gap: 14px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        .home-empty-list-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
         /* ── Stat row ── */
         .stat-row {
             display: flex;
@@ -482,42 +524,42 @@
             <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; color: var(--bl-color-primary); margin: 0 0 24px 0;">Complete your profile</a>
             {%- endif %}
 
-            {# ── Premium stats strip ── #}
-            <div style="display: flex; align-items: center; margin: 0 0 36px 0; padding: 20px 0; border-top: 1px solid #E5DFD0; border-bottom: 1px solid #E5DFD0;">
-                <div style="flex: 1; text-align: center;">
+            {# ── Stats strip ── #}
+            <div class="home-empty-stats">
+                <div class="home-empty-stats-tile">
                     <p class="type-stat" style="margin: 0 0 5px 0;">{{ stat_trips_total or 0 }}</p>
                     <p class="type-label" style="margin: 0;">TRIPS</p>
                 </div>
-                <div style="width: 0.5px; height: 32px; background: #D5CFCA; flex-shrink: 0;"></div>
-                <div style="flex: 1; text-align: center;">
+                <div class="home-empty-stats-divider"></div>
+                <div class="home-empty-stats-tile">
                     <p class="type-stat" style="margin: 0 0 5px 0;">{{ stat_mountains or 0 }}</p>
                     <p class="type-label" style="margin: 0;">MOUNTAINS</p>
                 </div>
-                <div style="width: 0.5px; height: 32px; background: #D5CFCA; flex-shrink: 0;"></div>
-                <div style="flex: 1; text-align: center;">
+                <div class="home-empty-stats-divider"></div>
+                <div class="home-empty-stats-tile">
                     <p class="type-stat" style="margin: 0 0 5px 0;">{{ stat_wishlist or 0 }}</p>
                     <p class="type-label" style="margin: 0;">WISHLIST</p>
                 </div>
             </div>
 
             {# ── Editorial block ── #}
-            <div style="text-align: center; max-width: 400px; margin: 0 auto;">
-                <p class="type-tagline" style="margin: 0 0 20px 0;">The best days on the mountain don't just happen. They're made.</p>
-                <p class="type-body" style="margin: 0 0 36px 0;">Your season lives here. Plan trips, see where your friends are headed, and find weekends that work.</p>
-                <ol style="list-style: none; padding: 0; margin: 0 0 36px 0; text-align: left;">
-                    <li style="display: flex; align-items: baseline; gap: 16px; padding: 14px 0; border-bottom: 1px solid #E5DFD0;">
+            <div class="home-empty-editorial">
+                <p class="type-tagline" style="margin: 0 0 16px 0;">The best days on the mountain don't just happen. They're made.</p>
+                <p class="type-body" style="margin: 0 0 24px 0;">Your season lives here. Plan trips, see where your friends are headed, and find weekends that work.</p>
+                <ol class="home-empty-list">
+                    <li class="home-empty-list-item">
                         <span class="type-label" style="min-width: 18px; flex-shrink: 0; letter-spacing: 0.3px;">01</span>
                         <span class="type-list">Your trips, past and upcoming</span>
                     </li>
-                    <li style="display: flex; align-items: baseline; gap: 16px; padding: 14px 0; border-bottom: 1px solid #E5DFD0;">
+                    <li class="home-empty-list-item">
                         <span class="type-label" style="min-width: 18px; flex-shrink: 0; letter-spacing: 0.3px;">02</span>
                         <span class="type-list">Friends' plans and availability</span>
                     </li>
-                    <li style="display: flex; align-items: baseline; gap: 16px; padding: 14px 0; border-bottom: 1px solid #E5DFD0;">
+                    <li class="home-empty-list-item">
                         <span class="type-label" style="min-width: 18px; flex-shrink: 0; letter-spacing: 0.3px;">03</span>
                         <span class="type-list">Overlapping weekends to ride together</span>
                     </li>
-                    <li style="display: flex; align-items: baseline; gap: 16px; padding: 14px 0;">
+                    <li class="home-empty-list-item">
                         <span class="type-label" style="min-width: 18px; flex-shrink: 0; letter-spacing: 0.3px;">04</span>
                         <span class="type-list">Mountains you've visited or want to visit</span>
                     </li>
