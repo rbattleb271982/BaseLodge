@@ -1,0 +1,77 @@
+PostHog is installed for BaseLodge and Phase 1 was previously working, but after I changed the POSTHOG_KEY secret I am no longer seeing any new activity in PostHog Live Events.
+
+I need you to DEBUG the existing Phase 1 setup only. Do not move on to Phase 2. Do not add any new product events.
+
+Goal:
+Find out why new app_loaded / identify events are not appearing after the PostHog secret change, and fix it safely.
+
+Context:
+- Flask app
+- Jinja templates
+- static/analytics.js
+- analytics.py
+- analytics partial included in home.html and auth.html
+- POSTHOG_KEY is stored in Replit secrets
+- POSTHOG_HOST should be https://us.i.posthog.com unless otherwise configured
+- We previously saw app_loaded and identify in PostHog, so this is a regression/debug task
+
+What I need you to check:
+
+1. Verify the current PostHog key is actually being read
+- Confirm whether the backend can see POSTHOG_KEY
+- Confirm whether the frontend receives the correct project key needed for posthog.init
+- Check whether the secret change requires a restart/redeploy in this Replit setup
+- If needed, tell me exactly that the server must be restarted
+
+2. Verify client-side initialization
+- Check static/analytics.js
+- Confirm posthog.init is still being called
+- Confirm it uses the correct key and host
+- Confirm app_loaded is still firing on page load
+- Confirm identify still runs when window.__USER__.id exists
+- Confirm posthog.reset logic is not accidentally clearing before capture
+
+3. Verify template wiring
+- Confirm templates/components/analytics_head.html is still loaded in:
+  - home.html
+  - auth.html
+- Confirm the script tag for analytics.js is present and valid
+- Confirm window.__USER__ and window.__POSTHOG_RESET__ are still being injected correctly
+
+4. Verify no console/runtime errors
+- Check for likely JS errors that would stop analytics.js from running
+- Check for syntax issues in the partial or JS file
+- Check whether posthog is being referenced before it is initialized
+
+5. Verify network/event delivery assumptions
+- Determine whether the issue is likely:
+  - bad key
+  - app not restarted after secret change
+  - JS not loading
+  - init failing
+  - capture not firing
+  - identify/capture blocked by a conditional
+
+6. Fix only what is needed
+- Keep the Phase 1 footprint minimal
+- Do not add any new analytics events
+- Do not rewrite the architecture unless necessary
+
+7. Add temporary debug help if useful
+If needed, add TEMPORARY safe debug logging such as:
+- console.log that PostHog initialized
+- console.log before app_loaded fires
+- console.log whether window.__USER__ exists
+- server log confirming POSTHOG_KEY present/missing
+But keep these minimal and clearly marked for removal
+
+Return:
+- Root cause found
+- Files changed
+- Exact fix made
+- Exact steps I should take next to verify it works again
+
+Important:
+- This is a debugging pass, not a new implementation
+- Use checkpoints sparingly
+- Do not finish until you have fully traced the failure point and either fixed it or identified the exact blocking issue

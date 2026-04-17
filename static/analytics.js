@@ -20,6 +20,7 @@
     autocapture: false,
     capture_pageview: false,
     loaded: function (ph) {
+      console.log('PostHog init ok', !!window.__USER__, window.__USER__ && window.__USER__.id ? 'logged-in' : 'anonymous');
       /* 1. Reset session if flagged (user just logged out) */
       if (window.__POSTHOG_RESET__) {
         ph.reset();
@@ -34,6 +35,7 @@
       }
 
       /* 3. Test event — fires for all users (anonymous, internal, external) */
+      console.log('PostHog capture app_loaded');
       ph.capture('app_loaded');
     }
   });
