@@ -1,0 +1,47 @@
+Tighten invite token handling so used_at is treated consistently and single-use semantics are explicit.
+Problem:
+The current logged-in invite flow works, but the behavior for already-used tokens depends on check order. In some cases, a used token effectively “works” only because the friendship already exists. That is acceptable short term but creates fuzzy token semantics and could cause confusion later.
+Goal:
+Make token behavior explicit and consistent everywhere without redesigning the system.
+Required behavior for /invite/<token>:
+If token is missing → render invite_invalid.html
+If token is expired → render invite_expired.html
+If token is already used:
+if the current user is authenticated and is already connected to the inviter, redirect to /friends with a friendly flash message like “You’re already connected”
+otherwise handle it as no longer usable and do not allow it to proceed as an active invite
+If inviter == current user → redirect cleanly to /friends
+If valid, unused, and not already connected → proceed normally
+Required behavior for the shared invite helper and _connect_pending_inviter():
+Preserve strict single-use semantics
+Once used_at is set, the token should not be treated as active anymore
+Keep idempotent friendship creation protections
+Do not create duplicate Friend rows
+Do not redesign token expiry
+Do not change schema
+Do not touch the separate email Invitation system
+Implementation guidance:
+Update the shared invite helper and/or invite_token_landing route so the order of checks is intentional
+Distinguish clearly between:
+valid unused token
+expired token
+used token
+already-connected user revisiting an old used token
+If helpful, add a tiny internal helper to centralize “used token but already connected” handling
+Done looks like:
+Used tokens are no longer treated as active invites
+Already-connected users who revisit an old used token get a clean redirect, not a silent quasi-success path
+Logged-out flow still works
+Logged-in flow still works
+No duplicate friendships
+Behavior is easier to reason about for future analytics and support
+Test and report:
+valid unused token, logged-in
+valid unused token, logged-out
+used token, already-connected logged-in user
+used token, logged-out user
+used token, different logged-in user who is not the connected recipient
+expired token
+self-invite
+already-friends with unused token
+refresh after successful connection
+Do not use checkpoints unless I explicitly ask for them.
