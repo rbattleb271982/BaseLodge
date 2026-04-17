@@ -1,0 +1,103 @@
+PUT THIS IN AGENT
+
+Implement Google OAuth using Authlib by replacing the existing /auth/google and /auth/google/callback stubs.
+
+Follow the existing plan exactly. Do not modify templates or database schema.
+
+Step 1: Install Authlib
+
+* Add Authlib to dependencies
+* Confirm: from authlib.integrations.flask_client import OAuth works after restart
+
+Step 2: Configure OAuth client in app.py
+
+* Initialize OAuth(app)
+* Register 'google' client using:
+
+  * server_metadata_url = "https://accounts.google.com/.well-known/openid-configuration"
+  * client_id = os.getenv("GOOGLE_CLIENT_ID")
+  * client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+  * client_kwargs = { "scope": "openid email profile" }
+
+Step 3: Implement GET /auth/google
+
+* Replace stub
+* Call oauth.google.authorize_redirect(redirect_uri)
+* redirect_uri should point to /auth/google/callback
+* Wrap in try/except:
+
+  * On error: flash message and redirect to /auth
+
+Step 4: Implement GET /auth/google/callback
+
+* Replace stub
+* Inside try/except:
+
+1. Call oauth.google.authorize_access_token()
+
+2. Extract user info from token:
+
+   * email
+   * sub (provider_id)
+   * given_name
+   * family_name (nullable)
+
+3. Look up user by email:
+
+   * If exists:
+
+     * Set auth_provider = 'google'
+     * Set provider_id if not already set
+   * If not:
+
+     * Create user with:
+
+       * email
+       * first_name = given_name
+       * last_name = family_name (nullable)
+       * auth_provider = 'google'
+       * provider_id = sub
+       * password_hash = None
+
+4. Call:
+
+   * login_user(user, remember=True)
+   * session.modified = True
+
+5. Invite handling:
+
+   * If 'invite_token' exists in session:
+
+     * call _connect_pending_inviter(user)
+     * redirect to /friends
+
+6. Redirect logic:
+
+   * If new user OR not user.is_core_profile_complete:
+     → redirect to /identity-setup
+   * Else:
+     → redirect to /home
+
+Step 5: Error handling
+
+* Catch all exceptions
+* flash("Something went wrong signing in with Google")
+* redirect to /auth
+
+Step 6: Validation
+Confirm:
+
+* /auth/google redirects to Google
+* callback creates or links users correctly
+* no duplicate users
+* sessions persist
+* invite flow still works
+* email login still works
+
+Do NOT:
+
+* modify templates
+* implement Apple OAuth
+* change database schema
+
+Wait for confirmation after implementation.

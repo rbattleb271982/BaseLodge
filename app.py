@@ -47,6 +47,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps
 from flask_migrate import Migrate
+from authlib.integrations.flask_client import OAuth
 from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, Event, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType
 from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
@@ -930,6 +931,15 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
 migrate = Migrate(app, db)
+
+oauth = OAuth(app)
+oauth.register(
+    name="google",
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    client_kwargs={"scope": "openid email profile"},
+)
 
 # Auto-create tables for SQLite (local development only)
 if "sqlite" in app.config.get("SQLALCHEMY_DATABASE_URI", ""):
@@ -5968,12 +5978,70 @@ def signup():
 
 @app.route("/auth/google")
 def auth_google():
-    return redirect(url_for("auth"))
+    try:
+        redirect_uri = url_for("auth_google_callback", _external=True)
+        return oauth.google.authorize_redirect(redirect_uri)
+    except Exception as e:
+        app.logger.error(f"Google OAuth redirect error: {e}")
+        flash("Google sign-in is not available right now. Please try again.", "error")
+        return redirect(url_for("auth"))
 
 
 @app.route("/auth/google/callback")
 def auth_google_callback():
-    return redirect(url_for("auth"))
+    try:
+        token = oauth.google.authorize_access_token()
+        userinfo = token.get("userinfo") or oauth.google.parse_id_token(token)
+        if not userinfo:
+            raise ValueError("No user info returned from Google")
+
+        email = (userinfo.get("email") or "").lower().strip()
+        sub = userinfo.get("sub", "")
+        given_name = (userinfo.get("given_name") or "").strip()
+        family_name = (userinfo.get("family_name") or "").strip() or None
+
+        if not email:
+            raise ValueError("Google did not return an email address")
+
+        user = User.query.filter_by(email=email).first()
+        is_new_user = False
+
+        if user:
+            if user.auth_provider != "google":
+                user.auth_provider = "google"
+            if not user.provider_id:
+                user.provider_id = sub
+            db.session.commit()
+        else:
+            is_new_user = True
+            user = User(
+                email=email,
+                first_name=given_name or email.split("@")[0],
+                last_name=family_name,
+                auth_provider="google",
+                provider_id=sub,
+                buddy_passes_available=True,
+            )
+            db.session.add(user)
+            db.session.commit()
+
+        login_user(user, remember=True)
+        session.modified = True
+
+        if "invite_token" in session:
+            session["post_onboarding_redirect"] = url_for("friends")
+            _connect_pending_inviter(user)
+            return redirect(url_for("friends"))
+
+        if is_new_user or not user.is_core_profile_complete:
+            return redirect(url_for("identity_setup"))
+
+        return redirect(url_for("home"))
+
+    except Exception as e:
+        app.logger.error(f"Google OAuth callback error: {e}")
+        flash("Something went wrong signing in with Google. Please try again.", "error")
+        return redirect(url_for("auth"))
 
 
 @app.route("/auth/apple")
