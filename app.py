@@ -2086,7 +2086,6 @@ def my_trips():
     user = current_user
     today = date.today()
     active_tab = request.args.get("tab", "my_trips")
-    show_connected_banner = request.args.get("connected") == "true"
 
     # Trip queries (wrapped for production safety)
     try:
@@ -2242,7 +2241,6 @@ def my_trips():
         accepted_guest_trips=accepted_guest_trips or [],
         requested_trips=requested_trips,
         active_tab=active_tab,
-        show_connected_banner=show_connected_banner,
         friends=friends or [],
         friend_trips=friend_trips or [],
         overlaps=overlaps or [],
