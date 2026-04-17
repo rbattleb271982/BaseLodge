@@ -103,11 +103,18 @@
             background: #F0DDD8;
             border: 0.5px solid #5C1219;
             border-radius: 8px;
-            padding: 20px;
+            padding: 14px 16px;
             margin-bottom: 20px;
             display: block;
             text-decoration: none;
             color: inherit;
+        }
+        .home-hero-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
         }
         .home-hero-eyebrow {
             font-size: 11px;
@@ -115,29 +122,12 @@
             letter-spacing: 0.8px;
             color: #5C1219;
             text-transform: uppercase;
-            margin-bottom: 8px;
+            margin: 0;
+            line-height: 1.2;
         }
-        .home-hero-title {
-            font-family: Georgia, 'Times New Roman', serif;
-            font-size: 22px;
-            font-weight: 400;
-            color: #1A1A1A;
-            margin-bottom: 6px;
-            line-height: 1.25;
-        }
-        .home-hero-sub {
-            font-size: 14px;
-            color: #6B665A;
-            margin-bottom: 4px;
-        }
-        .home-hero-meta {
-            font-size: 13px;
-            color: #8A857A;
-            margin-bottom: 16px;
-        }
-        .home-hero-cta {
+        .home-hero-action {
             display: inline-block;
-            padding: 8px 16px;
+            padding: 6px 10px;
             border: 1px solid #5C1219;
             border-radius: 4px;
             color: #5C1219;
@@ -145,6 +135,32 @@
             font-weight: 600;
             text-decoration: none;
             background: transparent;
+            white-space: nowrap;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+        .home-hero-body {
+            min-width: 0;
+        }
+        .home-hero-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 22px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin: 0 0 2px 0;
+            line-height: 1.2;
+        }
+        .home-hero-sub {
+            font-size: 14px;
+            color: #6B665A;
+            margin: 0;
+            line-height: 1.35;
+        }
+        .home-hero-meta {
+            font-size: 13px;
+            color: #8A857A;
+            margin: 3px 0 0 0;
+            line-height: 1.3;
         }
 
         /* ── Empty modules (friends, invites) ── */
@@ -501,15 +517,21 @@
             {% set people = next_trip.accepted_count %}
 
             <a href="{{ url_for('trip_detail', trip_id=next_trip.id) }}" class="home-hero">
-                {% if next_trip_countdown %}
-                    <p class="home-hero-eyebrow">{{ next_trip_countdown }}</p>
-                {% endif %}
-                <p class="home-hero-title">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-                <p class="home-hero-sub">{{ format_trip_dates(next_trip) }}</p>
-                {% if people and people > 1 %}
-                    <p class="home-hero-meta">{{ people }} going</p>
-                {% endif %}
-                <span class="home-hero-cta">View trip →</span>
+                <div class="home-hero-top">
+                    {% if next_trip_countdown %}
+                        <p class="home-hero-eyebrow">{{ next_trip_countdown }}</p>
+                    {% else %}
+                        <span class="home-hero-eyebrow">&nbsp;</span>
+                    {% endif %}
+                    <span class="home-hero-action">{% if next_trip.user_id == user.id %}Edit{% else %}View trip →{% endif %}</span>
+                </div>
+                <div class="home-hero-body">
+                    <p class="home-hero-title">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+                    <p class="home-hero-sub">{{ format_trip_dates(next_trip) }}</p>
+                    {% if people and people > 1 %}
+                        <p class="home-hero-meta">{{ people }} going</p>
+                    {% endif %}
+                </div>
             </a>
 
             {% if has_overlaps and next_match %}
