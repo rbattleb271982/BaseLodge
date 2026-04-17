@@ -272,8 +272,20 @@
         }
         .sticky-action-container.visible { display: block; }
         .sticky-action-content { max-width: 900px; margin: 0 auto; }
-        .sticky-action-buttons { display: flex; gap: 10px; }
-        .sticky-action-buttons form { flex: 1; }
+        .sticky-action-buttons { display: flex; align-items: center; gap: 12px; }
+        .sticky-action-buttons .accept-form { flex: 1; }
+        .td-decline-link {
+            background: none;
+            border: none;
+            color: #6B665A;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 0;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            white-space: nowrap;
+        }
 
         /* ── Invite friends modal ── */
         .modal-overlay {
@@ -755,13 +767,13 @@
     <div class="sticky-action-container visible">
         <div class="sticky-action-content">
             <div class="sticky-action-buttons">
-                <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}">
+                <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}" class="accept-form">
                     <input type="hidden" name="action" value="accept">
                     <button type="submit" class="bl-btn-primary">Accept</button>
                 </form>
                 <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}">
                     <input type="hidden" name="action" value="decline">
-                    <button type="submit" class="bl-btn-outline">Decline</button>
+                    <button type="submit" class="td-decline-link">Decline</button>
                 </form>
             </div>
         </div>

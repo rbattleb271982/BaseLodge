@@ -44,29 +44,14 @@
             color: #5C1219;
             display: inline;
         }
-        .home-banner-actions { display: flex; gap: 6px; flex-shrink: 0; }
-        .banner-btn-accept {
-            background: #5C1219;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            padding: 6px 12px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
+        .home-banner-view {
+            color: var(--bl-color-primary);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            text-decoration: none;
             white-space: nowrap;
-            line-height: 1;
-        }
-        .banner-btn-decline {
-            background: transparent;
-            color: #6B665A;
-            border: 1px solid #D9D2BF;
-            border-radius: 6px;
-            padding: 6px 12px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
-            white-space: nowrap;
+            flex-shrink: 0;
             line-height: 1;
         }
 
@@ -511,10 +496,7 @@
                     <div class="home-row-left">
                         <p class="home-banner-headline">{{ banner_invite.inviter_name }} invited you to {{ b_mountain }}</p>
                     </div>
-                    <div class="home-banner-actions">
-                        <button class="banner-btn-accept" onclick="respondTripInvite({{ banner_invite.trip_id }}, 'accept')">Accept</button>
-                        <button class="banner-btn-decline" onclick="respondTripInvite({{ banner_invite.trip_id }}, 'decline')">Decline</button>
-                    </div>
+                    <a href="{{ url_for('trip_detail', trip_id=banner_invite.trip_id) }}" class="home-banner-view">View →</a>
                 </div>
                 <p class="home-banner-sub">{{ format_trip_dates(b_trip) }}{% if banner_invite_count > 1 %} · <span class="home-banner-count">+{{ banner_invite_count - 1 }} more invite{{ 's' if banner_invite_count - 1 > 1 else '' }}</span>{% endif %}</p>
             </div>
@@ -592,10 +574,7 @@
                     <div class="home-row-left">
                         <p class="home-banner-headline">{{ banner_invite.inviter_name }} invited you to {{ b_mountain }}</p>
                     </div>
-                    <div class="home-banner-actions">
-                        <button class="banner-btn-accept" onclick="respondTripInvite({{ banner_invite.trip_id }}, 'accept')">Accept</button>
-                        <button class="banner-btn-decline" onclick="respondTripInvite({{ banner_invite.trip_id }}, 'decline')">Decline</button>
-                    </div>
+                    <a href="{{ url_for('trip_detail', trip_id=banner_invite.trip_id) }}" class="home-banner-view">View →</a>
                 </div>
                 <p class="home-banner-sub">{{ format_trip_dates(b_trip) }}{% if banner_invite_count > 1 %} · <span class="home-banner-count">+{{ banner_invite_count - 1 }} more invite{{ 's' if banner_invite_count - 1 > 1 else '' }}</span>{% endif %}</p>
             </div>
@@ -684,37 +663,6 @@
     {% include 'components/bottom_nav.html' %}
 
     <script>
-    function respondTripInvite(tripId, action) {
-        var banner = document.getElementById('home-banner');
-        if (banner) {
-            banner.style.opacity = '0.5';
-            banner.style.pointerEvents = 'none';
-        }
-        fetch('/trips/' + tripId + '/respond', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({action: action})
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data.success) {
-                if (banner) banner.style.display = 'none';
-                setTimeout(function() { window.location.reload(); }, 350);
-            } else {
-                if (banner) {
-                    banner.style.opacity = '1';
-                    banner.style.pointerEvents = '';
-                }
-            }
-        })
-        .catch(function() {
-            if (banner) {
-                banner.style.opacity = '1';
-                banner.style.pointerEvents = '';
-            }
-        });
-    }
-
     function acceptConnectInvite(invitationId) {
         var card = document.getElementById('secondary-card');
         if (card) {
