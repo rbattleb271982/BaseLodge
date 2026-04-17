@@ -198,13 +198,13 @@ def health_check():
 
 def get_upcoming_trip_count(user):
     """
-    Returns the count of unique strictly future trips a user is committed to.
+    Returns the count of unique upcoming trips a user is committed to.
     'Committed' means being the owner or an ACCEPTED participant.
     Filters:
     - Deduplicate by trip.id
     - Includes owner or ACCEPTED participant role
-    - Filters for start_date > today (upcoming strictly future)
-    - Excludes in-progress, past, canceled, archived, or pending states
+    - Filters for end_date >= today (includes in-progress trips, consistent with all route queries)
+    - Excludes past, canceled, archived, or pending states
     """
     if not user:
         return 0
@@ -214,7 +214,7 @@ def get_upcoming_trip_count(user):
     # 1. Trips owned by the user
     owned_trips = SkiTrip.query.filter(
         SkiTrip.user_id == user.id,
-        SkiTrip.start_date > today
+        SkiTrip.end_date >= today
     ).all()
 
     # 2. Trips where the user is an ACCEPTED participant
@@ -224,7 +224,7 @@ def get_upcoming_trip_count(user):
         .filter(
             SkiTripParticipant.user_id == user.id,
             SkiTripParticipant.status == GuestStatus.ACCEPTED,
-            SkiTrip.start_date > today
+            SkiTrip.end_date >= today
         )
         .all()
     )
@@ -2156,11 +2156,9 @@ def my_trips():
 
     # Get friends (wrapped for production safety)
     try:
-        friend_links = Friend.query.filter_by(user_id=user.id).all()
-        friend_ids = [f.friend_id for f in friend_links] if friend_links else []
+        friend_ids = get_friend_ids(user.id)
         friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
     except Exception:
-        friend_links = []
         friend_ids = []
         friends = []
 
@@ -3093,9 +3091,15 @@ def friends():
     for my_trip in user_trips:
         for friend_trip in friend_trips:
             if my_trip.user_id != friend_trip.user_id:
-                my_mountain = my_trip.mountain if my_trip.mountain else (my_trip.resort.name if my_trip.resort else None)
-                friend_mountain = friend_trip.mountain if friend_trip.mountain else (friend_trip.resort.name if friend_trip.resort else None)
-                if my_mountain and friend_mountain and my_mountain == friend_mountain:
+                # Resort match: prefer resort_id (canonical), fall back to mountain string
+                if my_trip.resort_id and friend_trip.resort_id:
+                    same_resort = (my_trip.resort_id == friend_trip.resort_id)
+                    my_mountain = my_trip.mountain if my_trip.mountain else (my_trip.resort.name if my_trip.resort else None)
+                else:
+                    my_mountain = my_trip.mountain if my_trip.mountain else (my_trip.resort.name if my_trip.resort else None)
+                    friend_mountain = friend_trip.mountain if friend_trip.mountain else (friend_trip.resort.name if friend_trip.resort else None)
+                    same_resort = bool(my_mountain and friend_mountain and my_mountain == friend_mountain)
+                if same_resort:
                     if date_ranges_overlap(my_trip.start_date, my_trip.end_date, friend_trip.start_date, friend_trip.end_date):
                         resort = my_trip.resort or friend_trip.resort
                         overlap_start = max(my_trip.start_date, friend_trip.start_date)
@@ -4038,8 +4042,7 @@ def home():
 
     # --- Friend IDs ---
     try:
-        friend_links = Friend.query.filter_by(user_id=user.id).all()
-        friend_ids = [f.friend_id for f in friend_links]
+        friend_ids = get_friend_ids(user.id)
     except Exception:
         db.session.rollback()
         friend_ids = []
@@ -4189,9 +4192,7 @@ def home():
         secondary_card=secondary_card,
         next_match=next_match,
         has_overlaps=has_overlaps,
-        stat_upcoming=get_upcoming_trip_count(user),
         stat_mountains=user.visited_resorts_count,
-        stat_past=get_past_trip_count(user),
         stat_trips_total=SkiTrip.query.filter_by(user_id=user.id).count(),
         stat_wishlist=len(user.wish_list_resorts or []),
         stat_trips_url=url_for('my_trips'),
@@ -4506,8 +4507,6 @@ def profile():
     wish_list_count = len(wish_list_ids)
     wish_list_resorts = Resort.query.filter(Resort.id.in_(wish_list_ids)).all() if wish_list_ids else []
 
-    friends_count = Friend.query.filter_by(user_id=current_user.id).count()
-
     # Total trips (all, not just upcoming) — owned by user
     all_trips_count = SkiTrip.query.filter_by(user_id=current_user.id).count()
 
@@ -4518,8 +4517,6 @@ def profile():
                            equipment_summary=equipment_summary,
                            wish_list_count=wish_list_count,
                            wish_list_resorts=wish_list_resorts,
-                           friends_count=friends_count,
-                           upcoming_count=get_upcoming_trip_count(current_user),
                            all_trips_count=all_trips_count)
 
 @app.route("/settings")
