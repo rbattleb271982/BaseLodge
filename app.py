@@ -1708,13 +1708,13 @@ def identity_setup():
         return redirect(url_for("home"))
     
     if request.method == "POST":
-        rider_types = request.form.getlist("rider_types")
+        rider_types_raw = request.form.get("rider_types", "")
+        rider_types = [r.strip() for r in rider_types_raw.split(",") if r.strip()]
         skill_level = request.form.get("skill_level", "").strip()
         pass_type = request.form.get("pass_type", "").strip()
         home_state = request.form.get("home_state", "").strip()
-        backcountry_capable = request.form.get("backcountry_capable") == "1"
-        avi_certified_raw = request.form.get("avi_certified")
-        avi_certified = (avi_certified_raw == "1") if backcountry_capable else None
+        backcountry_capable = False
+        avi_certified = None
 
         # Validate required fields
         if not rider_types:
