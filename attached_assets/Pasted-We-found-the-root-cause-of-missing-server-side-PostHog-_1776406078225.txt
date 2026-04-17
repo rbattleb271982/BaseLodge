@@ -1,0 +1,57 @@
+We found the root cause of missing server-side PostHog events in BaseLodge:
+
+The PostHog Python client is being initialized incorrectly in analytics.py and is failing with:
+Client.__init__() got an unexpected keyword argument 'api_key'
+
+This is a surgical bug fix. Do not change app flow. Do not add features. Do not modify client-side analytics.
+
+Goal:
+Fix analytics.py so the server-side PostHog client initializes correctly and server-side ph_analytics.track() calls actually send events.
+
+Context:
+- Client-side PostHog works
+- Server-side events do not reach PostHog
+- The running app logs show the Python client init is broken
+- We are using the Python PostHog package from requirements.txt
+- analytics.py currently provides ph_analytics.track(), identify(), alias(), and no-op behavior when key is missing
+
+Tasks:
+
+1. Inspect analytics.py and correct the PostHog Python client initialization
+- Remove the invalid constructor usage causing:
+  Client.__init__() got an unexpected keyword argument 'api_key'
+- Use the correct initialization pattern for the installed Python PostHog library version
+- Respect:
+  - POSTHOG_KEY
+  - POSTHOG_HOST
+- If POSTHOG_KEY is missing, keep no-op behavior
+
+2. Verify helper methods still work
+- ph_analytics.track(...)
+- ph_analytics.identify(...)
+- ph_analytics.alias(...)
+
+3. Keep internal tagging behavior intact
+- Do not remove is_internal logic
+- Do not modify Phase 1 or Phase 2 event definitions
+
+4. Add TEMP minimal debug logging if useful
+- log once on startup whether server-side PostHog initialized successfully
+- log a short message when track() is called and client is unavailable
+- keep logs minimal and clearly marked temporary
+
+5. Do not change client-side analytics.js
+6. Do not change templates
+7. Do not change route logic unless absolutely required by this init fix
+
+Validation:
+- confirm analytics.py now initializes without error
+- confirm ph_analytics is no longer in broken/no-op state when POSTHOG_KEY is present
+- confirm server-side events like signup_completed / onboarding_completed can now be sent
+
+Return:
+1. Exact root cause in analytics.py
+2. Exact fix made
+3. File modified
+4. Any temporary debug logging added
+5. Exact next step I should do to verify server-side events now appear in PostHog

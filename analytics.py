@@ -13,16 +13,20 @@ POSTHOG_KEY = os.environ.get("POSTHOG_KEY", "")
 POSTHOG_HOST = os.environ.get("POSTHOG_HOST", "https://us.i.posthog.com")
 
 _client = None
+_init_logged = False
 
 
 def _get_client():
-    global _client
+    global _client, _init_logged
     if not POSTHOG_KEY:
         return None
     if _client is None:
         try:
             from posthog import Posthog
-            _client = Posthog(api_key=POSTHOG_KEY, host=POSTHOG_HOST)
+            _client = Posthog(project_api_key=POSTHOG_KEY, host=POSTHOG_HOST)
+            if not _init_logged:
+                logger.info("PostHog server client initialized")
+                _init_logged = True
         except Exception as exc:
             logger.warning("PostHog init failed: %s", exc)
     return _client
@@ -69,6 +73,7 @@ def track(user_id, event, properties=None, set_props=None, set_once_props=None):
     """
     client = _get_client()
     if not client:
+        logger.info("PostHog track skipped: client unavailable")
         return
     props = dict(properties or {})
     if set_props:
