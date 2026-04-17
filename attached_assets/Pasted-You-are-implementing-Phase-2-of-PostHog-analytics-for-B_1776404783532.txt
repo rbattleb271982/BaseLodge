@@ -1,0 +1,224 @@
+You are implementing Phase 2 of PostHog analytics for BaseLodge.
+
+Follow this plan exactly. Do NOT skip steps. Do NOT go beyond Phase 2.
+
+---
+
+# GOAL
+
+Add authentication + onboarding tracking events so we can measure:
+- signup funnel
+- login behavior
+- auth errors
+- onboarding completion
+
+Phase 1 (identity + app_loaded) is already implemented. Do NOT modify it.
+
+---
+
+# CONSTRAINTS
+
+- Keep implementation minimal and clean
+- Do not break existing functionality
+- Do NOT use emit_event() (legacy)
+- Use ph_analytics.track() from analytics.py for ALL server-side events
+- Do NOT duplicate events (no same event client + server)
+- Do NOT add any events outside this list
+- Only email-based auth exists (NO Google OAuth, NO Apple login)
+
+---
+
+# CLEANUP REQUIREMENT (IMPORTANT)
+
+Before adding analytics:
+
+- Remove or disable any remaining Google OAuth or Apple login code paths
+- This includes:
+  - routes
+  - callbacks
+  - buttons in templates
+  - unused helpers
+- Ensure there are no dead auth flows that could fire events or confuse tracking
+- Do NOT break current working email login/signup
+
+---
+
+# EVENTS TO ADD
+
+Client:
+- signup_started
+
+Server:
+- signup_completed
+- login_completed
+- logout
+- auth_error
+- onboarding_completed
+
+Client (UI progression only):
+- onboarding_step_completed
+
+---
+
+# SERVER IMPLEMENTATION (app.py)
+
+## AUTH ROUTE (/auth POST)
+
+### auth_error
+Fire for server-side validation/auth failures only:
+- missing_fields
+- password_too_short
+- email_taken
+- invalid_credentials
+
+Example:
+ph_analytics.track(None, 'auth_error', {
+  'error_type': 'missing_fields'
+})
+
+Do NOT fire for client-side UI issues.
+
+---
+
+### signup_completed (email signup)
+
+After:
+- user is created
+- db.session.commit() succeeds
+- login_user(new_user) is called
+
+Fire:
+ph_analytics.track(new_user.id, 'signup_completed', {
+  'method': 'email',
+  'signup_source': 'invite' OR 'organic'
+})
+
+Determine signup_source from session/invite logic if available.
+
+---
+
+### login_completed (email login)
+
+After:
+login_user(user)
+
+Fire:
+ph_analytics.track(user.id, 'login_completed', {
+  'method': 'email'
+})
+
+---
+
+## LOGOUT ROUTE
+
+Before logout_user():
+
+1. Capture:
+user_id = current_user.id
+
+2. Fire:
+ph_analytics.track(user_id, 'logout')
+
+3. Then call:
+logout_user()
+
+---
+
+## ONBOARDING ROUTE (/identity-setup POST)
+
+After:
+- db.session.commit() succeeds
+
+Fire:
+ph_analytics.track(current_user.id, 'onboarding_completed', {
+  'total_steps': 4
+})
+
+This is the ONLY server-side onboarding event.
+
+Do NOT modify legacy setup_profile route.
+
+---
+
+# CLIENT IMPLEMENTATION
+
+## auth.html → signup_started
+
+In existing <script> block:
+
+- Attach listener ONLY to signup form inputs (not login form)
+- Fire once per page load (use a boolean flag)
+- Trigger on first interaction (focus or input)
+
+Example:
+if (!signupStartedFired) {
+  posthog.capture('signup_started')
+  signupStartedFired = true
+}
+
+Guard:
+if (typeof posthog !== 'undefined')
+
+---
+
+## identity_setup.html
+
+### Add analytics partial
+
+Inside <head>:
+{% include 'components/analytics_head.html' %}
+
+---
+
+### onboarding_step_completed
+
+In existing goNext(from) function:
+
+Map:
+1 → ride_type  
+2 → level  
+3 → pass  
+4 → location  
+
+Fire:
+posthog.capture('onboarding_step_completed', {
+  step_index: from,
+  step_name: mapped_name
+})
+
+Guard:
+if (typeof posthog !== 'undefined')
+
+---
+
+### IMPORTANT NOTE
+
+Add a code comment:
+This event represents UI step progression only.
+It does NOT mean data has been saved server-side.
+
+---
+
+# RULES
+
+- ALL server events must fire AFTER db.session.commit()
+- signup_started fires ONLY client-side
+- onboarding_step_completed fires ONLY client-side
+- All other events are server-side
+- No duplicate events
+- Use snake_case naming
+- Do NOT touch Phase 1 identity logic
+
+---
+
+# RETURN
+
+Provide:
+
+1. Files modified
+2. Exact locations where each event was added
+3. Confirmation:
+   - no duplicate events
+   - all server events fire after commit
+   - signup_started fires only once
+   - all Google/Apple auth remnants removed or safely disabled
