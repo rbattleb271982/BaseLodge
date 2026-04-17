@@ -1890,14 +1890,14 @@ def _connect_pending_inviter(user):
 
 @app.route("/invite/<token>")
 def invite_token_landing(token):
-    """Time-limited invite landing page."""
+    """Invite landing page — handles both authenticated and unauthenticated visitors."""
     invite = InviteToken.query.filter_by(token=token).first()
 
-    # Invalid token
+    # 1. Token not found
     if not invite:
         return render_template("invite_invalid.html")
 
-    # Expired token
+    # 2. Token expired
     if invite.is_expired():
         return render_template("invite_expired.html")
 
@@ -1905,27 +1905,42 @@ def invite_token_landing(token):
     if not inviter:
         return render_template("invite_expired.html")
 
-    # ── Authenticated user: connect immediately ──────────────────────────────
-    if current_user.is_authenticated:
-        # Self-invite guard
-        if current_user.id == inviter.id:
-            flash("That's your own invite link.", "info")
-            return redirect(url_for("friends"))
+    # 3. Token already used — explicit single-use enforcement
+    if invite.is_used():
+        if current_user.is_authenticated:
+            # If the current user is already connected to the inviter, redirect cleanly
+            existing = Friend.query.filter_by(
+                user_id=current_user.id, friend_id=inviter.id
+            ).first()
+            if existing:
+                flash(f"You're already connected with {inviter.first_name}.", "info")
+                return redirect(url_for("friends"))
+        # Used token, not already connected (or logged-out) — no longer active
+        return render_template("invite_expired.html")
 
-        # Already friends — idempotent, no duplicate rows
+    # 4. Inviter is the current user — self-invite guard
+    if current_user.is_authenticated and current_user.id == inviter.id:
+        flash("That's your own invite link.", "info")
+        return redirect(url_for("friends"))
+
+    # ── Authenticated visitor with a valid unused token ──────────────────────
+    if current_user.is_authenticated:
+        # Already friends (with an unused token) — mark used, redirect cleanly
         existing = Friend.query.filter_by(
             user_id=current_user.id, friend_id=inviter.id
         ).first()
         if existing:
+            invite.used_at = datetime.utcnow()
+            db.session.commit()
             flash(f"You're already connected with {inviter.first_name}.", "info")
             return redirect(url_for("friends"))
 
-        # Valid and not yet connected — apply and redirect
+        # Valid, unused, not yet connected — create the friendship
         _apply_invite_token(invite, current_user)
         flash(f"You're now connected with {inviter.first_name}!", "success")
         return redirect(url_for("friends"))
 
-    # ── Unauthenticated user: store token, show landing page ────────────────
+    # ── Unauthenticated visitor — store token, show landing page ─────────────
     session["invite_token"] = token
     inviter_trips_count = get_upcoming_trip_count(inviter)
 
