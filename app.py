@@ -6094,7 +6094,10 @@ def logout():
     user_id = current_user.id
     ph_analytics.track(user_id, 'logout')
     logout_user()
-    session.clear()
+    # NOTE: do NOT call session.clear() here — it erases Flask-Login's internal
+    # _remember='clear' flag, which prevents the remember_token cookie from being
+    # deleted and causes the user to be silently re-authenticated on the next request.
+    # logout_user() already removes _user_id, _fresh, and _id from the session.
     session['ph_reset'] = True
     return redirect(url_for("auth"))
 
