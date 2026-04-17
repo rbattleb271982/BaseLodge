@@ -207,10 +207,10 @@
         }
         .home-activity-row {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
             gap: 12px;
-            padding: 14px 0;
+            padding: 11px 0;
             border-bottom: 1px solid #E5DFD0;
             text-decoration: none;
             color: inherit;
@@ -226,31 +226,24 @@
             text-transform: uppercase;
             color: #5C1219;
             margin-bottom: 3px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .home-activity-tag::before {
-            content: '';
-            display: inline-block;
-            width: 4px;
-            height: 4px;
-            border-radius: 50%;
-            background: #5C1219;
-            flex-shrink: 0;
         }
         .home-activity-text {
             font-size: 14px;
             font-weight: 500;
             color: #1A1A1A;
-            margin-bottom: 2px;
+            margin: 0 0 1px 0;
             line-height: 1.3;
         }
         .home-activity-sub {
-            font-size: 13px;
-            color: #6B665A;
+            font-size: 12px;
+            color: #8A857A;
+            margin: 0;
+            line-height: 1.3;
         }
-        .home-activity-action { flex-shrink: 0; }
+        .home-activity-action {
+            flex-shrink: 0;
+            padding-top: 1px;
+        }
         .home-activity-btn {
             background: #5C1219;
             color: #fff;
@@ -263,8 +256,9 @@
             white-space: nowrap;
         }
         .home-activity-link {
-            font-size: 13px;
-            font-weight: 600;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
             color: #5C1219;
             text-decoration: none;
             white-space: nowrap;
@@ -565,13 +559,12 @@
                 {% elif secondary_card.type == 'friend_trip' %}
                 <a href="{{ url_for('trip_detail', trip_id=secondary_card.trip_id) }}" class="home-activity-row">
                     <div class="home-activity-content">
-                        <p class="home-activity-tag">Friend's Trip</p>
                         {% if secondary_card.trip_status == 'going' %}
                         <p class="home-activity-text">{{ secondary_card.friend_name | format_name }} is going to {{ secondary_card.mountain }}</p>
                         {% else %}
                         <p class="home-activity-text">{{ secondary_card.friend_name | format_name }} is planning {{ secondary_card.mountain }}</p>
                         {% endif %}
-                        <p class="home-activity-sub">See their trip details</p>
+                        <p class="home-activity-sub">See trip details</p>
                     </div>
                     <div class="home-activity-action">
                         <span class="home-activity-link">View →</span>
