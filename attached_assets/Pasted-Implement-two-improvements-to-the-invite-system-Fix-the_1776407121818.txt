@@ -1,0 +1,109 @@
+Implement two improvements to the invite system:
+Fix the logged-in invite link flow so friendships are created immediately
+Default the auth page to the Sign Up tab when a user comes from an invite
+Do not redesign the system. Keep changes minimal, production-safe, and consistent with the current Flask app.
+PART 1 — Fix logged-in invite link flow
+Problem
+Currently:
+/invite/<token> validates the token and stores session["invite_token"]
+_connect_pending_inviter() only runs after login/signup
+If a user is already logged in and opens an invite link, no connection is made
+Required behavior
+When an authenticated user visits /invite/<token>:
+Validate the token:
+If invalid → show invite_invalid.html
+If expired → show invite_expired.html
+Prevent bad states:
+If inviter == current user → do nothing (no self-friendship)
+If users are already friends → do not create duplicates (optionally show already_friends.html or redirect cleanly)
+If valid and not already connected:
+Create mutual Friend rows (both directions)
+Set current_user.invited_by_user_id if not already set
+Mark token.used_at
+Commit safely
+Redirect:
+Redirect user to /friends
+Show a success flash message like: “You’re now connected”
+Preserve existing behavior
+For unauthenticated users:
+/invite/<token> should continue to:
+store session["invite_token"]
+render invite_landing.html
+After signup/login, _connect_pending_inviter() should still run as it does now
+Implementation guidance
+Update /invite/<token> route in app.py
+Reuse _connect_pending_inviter() if clean
+If needed, extract shared logic into a single helper to avoid duplication
+That helper should handle:
+token validation
+self-invite prevention
+existing friendship check
+mutual friend creation
+invited_by_user_id assignment
+marking token used
+Do NOT:
+create duplicate logic paths
+modify the Invitation (email-based) system
+redesign models or flows
+Edge cases to handle
+self-invite
+invalid token
+expired token
+used token
+already friends
+logged-in user opening valid token
+logged-out user opening valid token
+refreshing after success (idempotent behavior)
+PART 2 — Default auth page to Sign Up for invite users
+Goal
+If a user comes from an invite, the /auth page should default to Sign Up, not Login.
+Required behavior
+If session["invite_token"] exists:
+/auth loads with Sign Up tab active
+If no invite token:
+Keep current default (Login)
+This should work whether:
+user clicks from invite landing page
+user navigates manually to /auth after opening invite
+Implementation guidance
+Backend:
+In /auth route:
+add: from_invite = "invite_token" in session
+pass from_invite into auth.html
+Frontend (auth.html):
+Use from_invite to control default tab:
+If true → Sign Up tab active
+Else → Login tab active
+Support both:
+server-rendered active class OR
+JS-based tab initialization
+Do NOT:
+break existing tab switching
+change layout or styling
+add new routes
+Done looks like
+Invite flow
+Logged-in user opens /invite/<token> → instantly connected
+Redirected to /friends
+No duplicate friendships created
+invited_by_user_id is set correctly
+Token marked used
+Logged-out flow
+Invite still works as before
+Token stored in session
+Connection happens after signup/login
+Auth UX
+Invite users see Sign Up tab first
+Normal users see default (Login)
+Tab switching still works normally
+Testing (required before finishing)
+Test all of the following and confirm results:
+Logged-out user opens valid token → lands on invite page → goes to auth → Sign Up tab is default
+Logged-in user opens valid token → becomes friends immediately → redirected to /friends
+Logged-in user opens token from existing friend → no duplicate created
+User opens their own invite link → no connection created
+Invalid token → correct error page
+Expired token → correct error page
+Used token → handled gracefully (no duplicate connection)
+Refresh after successful connection → no duplicate rows
+Direct visit to /auth (no invite) → default remains Login

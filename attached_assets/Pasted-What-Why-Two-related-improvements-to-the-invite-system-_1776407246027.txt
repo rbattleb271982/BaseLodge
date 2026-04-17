@@ -1,0 +1,128 @@
+What & Why
+Two related improvements to the invite system:
+1) Logged-in invite link
+Currently, if an authenticated user visits /invite/<token>, the token is stored in session but no friend connection is made. The connection only fires at login/signup, which never happens for an already-logged-in user. This silently drops a meaningful share of invite completions.
+2) Auth page signup default
+When a user arrives at /auth carrying an invite token in session, the page defaults to the Login tab. Invite recipients are usually new users who need to Sign Up, so the default should match likely intent.
+Done looks like
+Logged-in user opens a valid invite link → mutual Friend rows are created immediately → redirected to /friends with a success flash message
+No duplicate friendships are created
+Behavior is idempotent on refresh/reopen
+invited_by_user_id is set appropriately
+Token is marked used_at
+Logged-out user opens invite link → unchanged behavior:
+invite_landing.html shown
+token stored in session
+connection still happens after signup/login
+User visits /auth with an invite token in session → Sign Up tab is active by default
+User visits /auth without an invite token → Login remains default
+Edge cases handled cleanly:
+invalid token
+expired token
+self-invite
+already friends
+used token
+refresh after success
+Out of scope
+Redesigning the email-based Invitation system
+Adding email notifications
+Changing token expiry behavior beyond existing route checks
+Any model schema changes
+Any visual redesign of auth or invite templates
+Tasks
+1) Extract shared invite connection logic
+Pull the token validation + mutual Friend creation + invited_by_user_id assignment + used_at marking out of _connect_pending_inviter into a small reusable helper, or extend the current structure cleanly so the same logic can be called from both:
+the invite landing route
+the post-login/post-signup flow
+Avoid duplicating friendship logic in multiple places.
+The shared helper should handle:
+loading invite token
+invalid token handling
+expired token handling using the existing current route behavior
+self-invite prevention
+existing friendship check
+creation of mutual Friend rows
+setting user.invited_by_user_id if appropriate
+marking token.used_at
+safe, idempotent behavior
+Do not create a second parallel implementation.
+2) Handle logged-in users in /invite/<token>
+Update the invite_token_landing route so it has a clear authenticated branch.
+For authenticated users:
+validate token
+invalid token → existing invite_invalid.html
+expired token → existing invite_expired.html
+self-invite → redirect cleanly to /friends with a helpful flash message
+already friends → redirect cleanly to /friends without creating duplicates
+valid, not already connected → call the shared helper immediately
+commit safely
+redirect to /friends with a success flash message
+For unauthenticated users:
+keep current behavior unchanged
+store session["invite_token"]
+render invite_landing.html
+Do not break the existing later signup/login completion flow.
+3) Default auth page to Sign Up for invite visitors
+In the /auth GET route:
+set from_invite = "invite_token" in session
+pass from_invite into auth.html
+In templates/auth.html:
+use from_invite to make the Sign Up tab active by default when true
+otherwise preserve the current default Login tab
+do this either with Jinja-rendered active classes or the existing JS tab initialization, whichever fits the current template best
+do not break manual tab switching behavior
+This should work whether the user:
+clicked through from invite_landing.html
+or manually navigated to /auth after first opening an invite link
+Relevant files
+app.py:1827-1873
+app.py:1874-1915
+app.py:1619-1632
+templates/auth.html
+templates/invite_landing.html
+templates/invite_expired.html
+templates/invite_invalid.html
+templates/already_friends.html
+models.py:720-735
+models.py:847-867
+Constraints
+Keep changes minimal and production-safe
+Keep route structure intact unless a very small adjustment is necessary
+Do not touch the separate email-based Invitation workflow
+Do not add migrations
+Do not change model schema
+Do not redesign template styling
+Do not use checkpoints unless I explicitly ask for them
+Required test coverage before finishing
+Test and report exact results for all of these:
+Logged-out user opens valid token
+sees invite landing page
+token stored in session
+goes to /auth
+Sign Up tab is default
+Logged-in user opens valid token
+becomes friends immediately
+redirected to /friends
+Logged-in user opens token from someone they are already friends with
+no duplicate rows created
+redirected cleanly
+User opens their own token
+no self-friendship created
+redirected cleanly
+Invalid token
+correct invalid template shown
+Expired token
+correct expired template shown using existing route logic
+Used token
+handled gracefully
+no duplicate friendship created
+Refresh/reopen after successful connection
+remains idempotent
+no duplicate rows
+Direct visit to /auth with no invite token
+Login remains default
+Existing signup/login invite completion flow still works
+logged-out recipient opens invite
+signs up or logs in
+friendship is created as before
+Do not finish until you have fully tested the flow end to end and tell me exactly which files changed.

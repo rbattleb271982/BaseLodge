@@ -307,10 +307,11 @@
             }, { once: true });
         });
 
-        // If the server returned a signup error, stay on signup tab
+        // Default to Sign Up tab for invite visitors; stay on signup after a failed signup POST
         (function() {
             const formType = '{{ request.form.get("form_type", "") }}';
-            if (formType === 'signup') {
+            const fromInvite = {{ 'true' if from_invite else 'false' }};
+            if (formType === 'signup' || (formType === '' && fromInvite)) {
                 switchTab('signup');
             }
         })();

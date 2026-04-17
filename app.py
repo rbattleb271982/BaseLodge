@@ -1715,7 +1715,8 @@ def auth():
             flash("Invalid email or password.", "error")
             ph_analytics.track(None, 'auth_error', {'error_type': 'invalid_credentials'})
 
-    return render_template("auth.html", has_invite=("invite_token" in session), posthog_reset=_ph_reset)
+    from_invite = "invite_token" in session
+    return render_template("auth.html", has_invite=from_invite, from_invite=from_invite, posthog_reset=_ph_reset)
 
 
 @app.route("/auth/check-email")
@@ -1824,6 +1825,36 @@ def location_setup():
     return render_template("location_setup.html", grouped_locations=grouped_locations)
 
 
+def _apply_invite_token(invite, user):
+    """
+    Core invite connection logic given a pre-loaded, pre-validated InviteToken and recipient user.
+    Caller must have already confirmed: invite is not None, not expired, inviter != user.
+
+    - Creates mutual Friend rows if not already connected (idempotent)
+    - Sets user.invited_by_user_id if not already set
+    - Marks invite.used_at
+    - Commits
+
+    Returns True if a new connection was made, False if users were already friends.
+    """
+    inviter = User.query.get(invite.inviter_id)
+    connected = False
+    if inviter and inviter.id != user.id:
+        existing = Friend.query.filter_by(user_id=user.id, friend_id=inviter.id).first()
+        if not existing:
+            f1 = Friend(user_id=user.id, friend_id=inviter.id)
+            f2 = Friend(user_id=inviter.id, friend_id=user.id)
+            db.session.add_all([f1, f2])
+            if not user.invited_by_user_id:
+                user.invited_by_user_id = inviter.id
+            connected = True
+            app.logger.info(f"Connected {user.id} with inviter {inviter.id} via token")
+        # Mark token used whether or not they were already friends (prevent reuse)
+        invite.used_at = datetime.utcnow()
+        db.session.commit()
+    return connected
+
+
 def _connect_pending_inviter(user):
     """Helper to connect user with pending inviter from session invite_token."""
     invite_token_str = session.get("invite_token")
@@ -1849,24 +1880,10 @@ def _connect_pending_inviter(user):
         session.pop("invite_token", None)
         return False
 
-    inviter = User.query.get(invite.inviter_id)
     connected = False
-    if inviter and inviter.id != user.id:
-        # Idempotent: check if friend connection already exists
-        existing = Friend.query.filter_by(user_id=user.id, friend_id=inviter.id).first()
-        if not existing:
-            f1 = Friend(user_id=user.id, friend_id=inviter.id)
-            f2 = Friend(user_id=inviter.id, friend_id=user.id)
-            db.session.add_all([f1, f2])
-            user.invited_by_user_id = inviter.id
-            connected = True
-            app.logger.info(f"Connected {user.id} with inviter {inviter.id} via token {invite_token_str}")
-        
-        # Mark token as used (even if already friends, prevent reuse)
-        invite.used_at = datetime.utcnow()
-        db.session.commit()
-        connected = True
-    
+    if invite.inviter_id != user.id:
+        connected = _apply_invite_token(invite, user)
+
     session.pop("invite_token", None)
     return connected
 
@@ -1874,33 +1891,42 @@ def _connect_pending_inviter(user):
 @app.route("/invite/<token>")
 def invite_token_landing(token):
     """Time-limited invite landing page."""
-    now_utc = datetime.utcnow()
     invite = InviteToken.query.filter_by(token=token).first()
 
-    # ── Diagnostic logging for invite debugging ────────────────────────────
-    print(f"[INVITE] token={token[:8]}... | found={invite is not None} | now_utc={now_utc.isoformat()}")
-    if invite:
-        print(
-            f"[INVITE] created_at={invite.created_at} | expires_at={invite.expires_at} "
-            f"| used_at={invite.used_at} | is_expired()={invite.is_expired()} "
-            f"| is_used()={invite.is_used()} | inviter_id={invite.inviter_id}"
-        )
-        if invite.expires_at:
-            delta = invite.expires_at - now_utc
-            print(f"[INVITE] time_until_expiry={delta} (positive = not yet expired)")
-    else:
-        print(f"[INVITE] Token not found in DB — BASE_URL={BASE_URL}")
-    # ──────────────────────────────────────────────────────────────────────
+    # Invalid token
+    if not invite:
+        return render_template("invite_invalid.html")
 
-    if not invite or invite.is_expired():
+    # Expired token
+    if invite.is_expired():
         return render_template("invite_expired.html")
-
-    session["invite_token"] = token
 
     inviter = User.query.get(invite.inviter_id)
     if not inviter:
         return render_template("invite_expired.html")
 
+    # ── Authenticated user: connect immediately ──────────────────────────────
+    if current_user.is_authenticated:
+        # Self-invite guard
+        if current_user.id == inviter.id:
+            flash("That's your own invite link.", "info")
+            return redirect(url_for("friends"))
+
+        # Already friends — idempotent, no duplicate rows
+        existing = Friend.query.filter_by(
+            user_id=current_user.id, friend_id=inviter.id
+        ).first()
+        if existing:
+            flash(f"You're already connected with {inviter.first_name}.", "info")
+            return redirect(url_for("friends"))
+
+        # Valid and not yet connected — apply and redirect
+        _apply_invite_token(invite, current_user)
+        flash(f"You're now connected with {inviter.first_name}!", "success")
+        return redirect(url_for("friends"))
+
+    # ── Unauthenticated user: store token, show landing page ────────────────
+    session["invite_token"] = token
     inviter_trips_count = get_upcoming_trip_count(inviter)
 
     return render_template(
