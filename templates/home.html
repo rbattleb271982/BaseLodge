@@ -540,7 +540,11 @@
             <div class="home-match-card">
                 <div class="home-row">
                     <div class="home-row-left">
-                        <p class="home-match-date">{{ next_match.display_date }}</p>
+                        {% if next_match.same_day_count == 0 %}
+                        <p class="home-match-line1">You + {{ next_match.friend_name | format_name }} are free</p>
+                        {% else %}
+                        <p class="home-match-line1">You + {{ next_match.same_day_count + 1 }} others are free</p>
+                        {% endif %}
                     </div>
                     <div class="home-match-actions">
                         <a href="{{ url_for('add_trip') }}?start_date={{ next_match.match_date }}&end_date={{ next_match.match_date }}&friend_id={{ next_match.friend_id }}" class="home-match-primary">Plan</a>
@@ -548,11 +552,7 @@
                 </div>
                 <div class="home-row" style="padding-top: 0;">
                     <div class="home-row-left">
-                        {% if next_match.same_day_count == 0 %}
-                        <p class="home-match-line1">You + {{ next_match.friend_name | format_name }} are free</p>
-                        {% else %}
-                        <p class="home-match-line1">You + {{ next_match.same_day_count + 1 }} others are free</p>
-                        {% endif %}
+                        <p class="home-match-date">{{ next_match.display_date }}</p>
                     </div>
                 </div>
             </div>

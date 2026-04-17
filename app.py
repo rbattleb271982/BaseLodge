@@ -4065,7 +4065,7 @@ def home():
                 'trip_id': trip.id,
                 'trip': trip,
                 'resort': resort,
-                'inviter_name': inviter.first_name if inviter else 'Someone',
+                'inviter_name': (f"{inviter.first_name or ''} {inviter.last_name or ''}".strip()) if inviter else 'Someone',
             }
     except Exception:
         db.session.rollback()
@@ -4110,7 +4110,7 @@ def home():
             secondary_card = {
                 'type': 'connect_invite',
                 'invitation_id': connect_inv.id,
-                'sender_name': sender.first_name if sender else 'Someone',
+                'sender_name': (f"{sender.first_name or ''} {sender.last_name or ''}".strip()) if sender else 'Someone',
             }
     except Exception:
         db.session.rollback()
