@@ -1,0 +1,162 @@
+PUT THIS IN AGENT
+
+Create 30 seed users with structured tiers of activity for BaseLodge.
+
+Important:
+
+* Do NOT change production logic
+* This is only for testing and design validation
+* All new seed users should be connected to the current users already in the system where appropriate so populated social states are realistic
+
+---
+
+1. Create 30 users total
+
+Use 3 tiers of activity:
+
+TIER 1 — LOW ACTIVITY (10 users)
+
+* 0–1 trips
+* 0–2 friends of their own
+* minimal or partially incomplete profile
+* some missing equipment
+
+Purpose:
+
+* test empty and near-empty states
+* test sparse network behavior
+
+TIER 2 — MID ACTIVITY (10 users)
+
+* 2–4 trips
+* 3–6 friends
+* some overlapping trips
+* mostly complete profiles
+* varied equipment
+
+Purpose:
+
+* test normal user states
+* test overlap logic
+* test friend activity and social modules
+
+TIER 3 — HIGH ACTIVITY (10 users)
+
+* 5–10 trips
+* 6–12 friends
+* multiple overlapping trips
+* fully completed profiles
+* varied equipment and passes
+
+Purpose:
+
+* test dense UI states
+* test scaling of lists/cards/modules
+* test multiple populated sections at once
+
+---
+
+2. Connect seed users to existing users
+
+This is important.
+
+* Seed users should not exist as an isolated fake cluster
+* Connect them into the current user graph so current real/test users can see populated Home, Friends, and Trips states
+* Where safe, create Friend relationships between seed users and existing users
+* Ensure the current users in the system have meaningful social visibility into this seed dataset
+
+Goal:
+When logging into an existing current user, populated social states should appear naturally.
+
+---
+
+3. Data requirements
+
+Across the 30 users:
+
+* Use realistic names
+* Use different resorts / mountains
+* Include a mix of:
+
+  * upcoming trips
+  * in-progress trips
+  * past trips
+* Ensure some trips overlap by:
+
+  * resort_id
+  * date range
+* Ensure some users share mountains but do NOT overlap in dates
+* Ensure some users have no overlap at all
+
+Goal:
+We need both positive and negative cases.
+
+---
+
+4. Profile variation
+
+Across users vary:
+
+* rider type
+* skill level
+* pass type
+* equipment completeness
+* profile completeness
+
+Include:
+
+* some users with long equipment values for layout testing
+* some users with no equipment
+* some with partial profile data
+
+---
+
+5. Social variation
+
+Do NOT make all users look the same.
+
+Create a spread of:
+
+* isolated users
+* lightly social users
+* highly connected users
+* users with lots of activity but few friends
+* users with many friends but fewer trips
+
+---
+
+6. Access / usability
+
+Make the dataset easy to use.
+
+Provide one of these:
+
+* known login credentials for all 30 users
+* OR a debug/admin route to view/switch among the seed users easily
+
+Also return:
+
+* email + password for each created user
+* a short summary of their tier and activity pattern
+
+---
+
+7. Safety / cleanup
+
+* Keep seed data clearly identifiable as test data
+* Avoid interfering with existing real records beyond creating realistic Friend relationships
+* If there is an existing seed/debug convention in the app, follow it
+
+---
+
+Goal:
+
+Create a realistic, structured 30-user dataset that lets us test:
+
+* empty states
+* social states
+* overlap logic
+* populated Home states
+* dense real-world UI states
+
+And make sure the current existing users can actually benefit from that dataset when viewing the app.
