@@ -24,6 +24,25 @@ BaseLodge is a Flask-based ski/snowboard trip planning application. It helps use
 - Text: `#1A1A1A` | Muted: `#6B665A` | Tertiary: `#8A857A`
 - No shadows. Radii: sm:4px / md:8px / lg:12px
 
+**Font families:**
+- Serif (editorial): `Georgia, 'Times New Roman', serif` → `var(--bl-font-serif)`
+- Sans (UI): `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif` → `var(--bl-font-sans)`
+- Cormorant Garamond: auth branding only (not used in app UI)
+
+**Unified typography roles (`static/styles.css` → `.type-*` classes):**
+| Class | Role | Size | Font |
+|---|---|---|---|
+| `.type-display` | Page-anchor name (empty home) | 38px | serif |
+| `.type-heading` | Page/section titles | 26px | serif |
+| `.type-body` | Editorial paragraphs | 17px | sans |
+| `.type-list` | List item text | 16px | sans |
+| `.type-caption` | Identity lines, metadata | 14px | sans |
+| `.type-label` | Uppercase stat labels, eyebrows | 11px | sans |
+| `.type-tagline` | Italic serif pull-quote | 15px | serif italic |
+| `.type-stat` | Large serif numerals | 32px | serif |
+
+**Legacy classes** (still in use where not yet migrated): `.bl-heading-xl/l/m`, `.bl-body`, `.bl-label`, `.bl-caption`, `.bl-heading-serif-xl/l/m`
+
 **Hero block standard:** `background: #F0DDD8; border: 0.5px solid #5C1219; border-radius: 8px; padding: 20px`
 **Activity tags:** bordeaux dot `::before` + uppercase label, single color `#5C1219`
 **Selection state (pills):** blush bg + soft neutral border + bold hint text

@@ -350,7 +350,7 @@
             {%- if user.skill_level %}{% set _ = _id.append(user.skill_level) %}{% endif -%}
             {%- if user.pass_type %}{% set _ = _id.append(user.pass_type | pass_display) %}{% endif -%}
             {%- if _id %}
-            <p style="font-size: 13px; color: var(--bl-color-text-muted); margin: 0 0 14px 0; line-height: 1.4;">{{ _id | join(' · ') }}</p>
+            <p class="type-caption" style="margin: 0 0 14px 0;">{{ _id | join(' · ') }}</p>
             {%- endif %}
 
             {# ── Equipment row (Row 2 — single constrained line) ── #}
@@ -360,9 +360,9 @@
             {%- if _has_gear -%}{%- set _gear_val = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_gear_val) -%}{%- endif -%}
             {%- if _has_boots -%}{%- set _boot_val = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_boot_val) -%}{%- endif -%}
             {%- if _eq_parts %}
-            <a href="{{ url_for('settings_equipment') }}" style="display: block; text-decoration: none; font-size: 13px; color: var(--bl-color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0 0 20px 0;">{{ _eq_parts | join(' · ') }}</a>
+            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0 0 20px 0;">{{ _eq_parts | join(' · ') }}</a>
             {%- else %}
-            <a href="{{ url_for('settings_equipment') }}" style="display: block; text-decoration: none; font-size: 13px; color: var(--bl-color-primary); margin: 0 0 20px 0;">Complete your profile</a>
+            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; color: var(--bl-color-primary); margin: 0 0 20px 0;">Complete your profile</a>
             {%- endif %}
 
             {% include 'components/stat_row.html' %}
@@ -403,7 +403,7 @@
             {% endif %}
 
             {% if secondary_card is none and friend_count == 0 %}
-            <p style="margin-top: 20px; font-size: 14px; color: #6B665A; text-align: center;">Bring your crew · <a href="{{ url_for('invite') }}" style="color: #5C1219; text-decoration: none; font-weight: 500;">Invite friends →</a></p>
+            <p class="type-caption" style="margin-top: 20px; text-align: center;">Bring your crew · <a href="{{ url_for('invite') }}" style="color: var(--bl-color-primary); text-decoration: none; font-weight: 500;">Invite friends →</a></p>
             {% endif %}
 
             {% if secondary_card %}
@@ -458,7 +458,7 @@
             {# FIRST-TIME / EMPTY STATE                          #}
             {# ────────────────────────────────────────────────── #}
 
-            <h1 style="font-family: Georgia, 'Times New Roman', serif; font-size: 38px; font-weight: 400; color: #1A1A1A; line-height: 1.1; margin: 0 0 8px 0; letter-spacing: -0.5px;">{{ user.first_name | format_name }}.</h1>
+            <h1 class="type-display" style="margin: 0 0 8px 0;">{{ user.first_name | format_name }}.</h1>
 
             {# ── Identity line ── #}
             {%- set _id = [] -%}
@@ -467,7 +467,7 @@
             {%- if user.skill_level %}{% set _ = _id.append(user.skill_level) %}{% endif -%}
             {%- if user.pass_type %}{% set _ = _id.append(user.pass_type | pass_display) %}{% endif -%}
             {%- if _id %}
-            <p style="font-size: 15px; color: var(--bl-color-text-muted); margin: 0 0 6px 0; line-height: 1.4;">{{ _id | join(' · ') }}</p>
+            <p class="type-caption" style="margin: 0 0 6px 0;">{{ _id | join(' · ') }}</p>
             {%- endif %}
 
             {# ── Equipment row (Row 2 — single constrained line) ── #}
@@ -477,52 +477,52 @@
             {%- if _has_gear -%}{%- set _gear_val = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_gear_val) -%}{%- endif -%}
             {%- if _has_boots -%}{%- set _boot_val = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_boot_val) -%}{%- endif -%}
             {%- if _eq_parts %}
-            <a href="{{ url_for('settings_equipment') }}" style="display: block; text-decoration: none; font-size: 14px; color: var(--bl-color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0 0 24px 0;">{{ _eq_parts | join(' · ') }}</a>
+            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0 0 24px 0;">{{ _eq_parts | join(' · ') }}</a>
             {%- else %}
-            <a href="{{ url_for('settings_equipment') }}" style="display: block; text-decoration: none; font-size: 14px; color: var(--bl-color-primary); margin: 0 0 24px 0;">Complete your profile</a>
+            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; color: var(--bl-color-primary); margin: 0 0 24px 0;">Complete your profile</a>
             {%- endif %}
 
             {# ── Premium stats strip ── #}
             <div style="display: flex; align-items: center; margin: 0 0 36px 0; padding: 20px 0; border-top: 1px solid #E5DFD0; border-bottom: 1px solid #E5DFD0;">
                 <div style="flex: 1; text-align: center;">
-                    <p style="font-family: Georgia, 'Times New Roman', serif; font-size: 32px; font-weight: 400; color: #1A1A1A; line-height: 1; margin: 0 0 5px 0;">{{ stat_trips_total or 0 }}</p>
-                    <p style="font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #8A857A; margin: 0;">TRIPS</p>
+                    <p class="type-stat" style="margin: 0 0 5px 0;">{{ stat_trips_total or 0 }}</p>
+                    <p class="type-label" style="margin: 0;">TRIPS</p>
                 </div>
                 <div style="width: 0.5px; height: 32px; background: #D5CFCA; flex-shrink: 0;"></div>
                 <div style="flex: 1; text-align: center;">
-                    <p style="font-family: Georgia, 'Times New Roman', serif; font-size: 32px; font-weight: 400; color: #1A1A1A; line-height: 1; margin: 0 0 5px 0;">{{ stat_mountains or 0 }}</p>
-                    <p style="font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #8A857A; margin: 0;">MOUNTAINS</p>
+                    <p class="type-stat" style="margin: 0 0 5px 0;">{{ stat_mountains or 0 }}</p>
+                    <p class="type-label" style="margin: 0;">MOUNTAINS</p>
                 </div>
                 <div style="width: 0.5px; height: 32px; background: #D5CFCA; flex-shrink: 0;"></div>
                 <div style="flex: 1; text-align: center;">
-                    <p style="font-family: Georgia, 'Times New Roman', serif; font-size: 32px; font-weight: 400; color: #1A1A1A; line-height: 1; margin: 0 0 5px 0;">{{ stat_wishlist or 0 }}</p>
-                    <p style="font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #8A857A; margin: 0;">WISHLIST</p>
+                    <p class="type-stat" style="margin: 0 0 5px 0;">{{ stat_wishlist or 0 }}</p>
+                    <p class="type-label" style="margin: 0;">WISHLIST</p>
                 </div>
             </div>
 
             {# ── Editorial block ── #}
             <div style="text-align: center; max-width: 400px; margin: 0 auto;">
-                <p style="font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-size: 15px; color: #8A857A; line-height: 1.6; margin: 0 0 20px 0;">The best days on the mountain don't just happen. They're made.</p>
-                <p style="font-size: 17px; color: #6B665A; line-height: 1.7; margin: 0 0 36px 0;">Your season lives here. Plan trips, see where your friends are headed, and find weekends that work.</p>
+                <p class="type-tagline" style="margin: 0 0 20px 0;">The best days on the mountain don't just happen. They're made.</p>
+                <p class="type-body" style="margin: 0 0 36px 0;">Your season lives here. Plan trips, see where your friends are headed, and find weekends that work.</p>
                 <ol style="list-style: none; padding: 0; margin: 0 0 36px 0; text-align: left;">
                     <li style="display: flex; align-items: baseline; gap: 16px; padding: 14px 0; border-bottom: 1px solid #E5DFD0;">
-                        <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8A857A; min-width: 18px; flex-shrink: 0;">01</span>
-                        <span style="font-size: 16px; color: #1A1A1A; line-height: 1.35;">Your trips, past and upcoming</span>
+                        <span class="type-label" style="min-width: 18px; flex-shrink: 0; letter-spacing: 0.3px;">01</span>
+                        <span class="type-list">Your trips, past and upcoming</span>
                     </li>
                     <li style="display: flex; align-items: baseline; gap: 16px; padding: 14px 0; border-bottom: 1px solid #E5DFD0;">
-                        <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8A857A; min-width: 18px; flex-shrink: 0;">02</span>
-                        <span style="font-size: 16px; color: #1A1A1A; line-height: 1.35;">Friends' plans and availability</span>
+                        <span class="type-label" style="min-width: 18px; flex-shrink: 0; letter-spacing: 0.3px;">02</span>
+                        <span class="type-list">Friends' plans and availability</span>
                     </li>
                     <li style="display: flex; align-items: baseline; gap: 16px; padding: 14px 0; border-bottom: 1px solid #E5DFD0;">
-                        <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8A857A; min-width: 18px; flex-shrink: 0;">03</span>
-                        <span style="font-size: 16px; color: #1A1A1A; line-height: 1.35;">Overlapping weekends to ride together</span>
+                        <span class="type-label" style="min-width: 18px; flex-shrink: 0; letter-spacing: 0.3px;">03</span>
+                        <span class="type-list">Overlapping weekends to ride together</span>
                     </li>
                     <li style="display: flex; align-items: baseline; gap: 16px; padding: 14px 0;">
-                        <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8A857A; min-width: 18px; flex-shrink: 0;">04</span>
-                        <span style="font-size: 16px; color: #1A1A1A; line-height: 1.35;">Mountains you've visited or want to visit</span>
+                        <span class="type-label" style="min-width: 18px; flex-shrink: 0; letter-spacing: 0.3px;">04</span>
+                        <span class="type-list">Mountains you've visited or want to visit</span>
                     </li>
                 </ol>
-                <p style="font-size: 14px; color: #8A857A; margin: 0;">Explore the menu below</p>
+                <p class="type-caption bl-text-tertiary" style="margin: 0;">Explore the menu below</p>
             </div>
 
         {% endif %}
