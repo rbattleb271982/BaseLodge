@@ -256,46 +256,111 @@
             white-space: nowrap;
         }
 
-        /* ── Empty state ── */
+        /* ── Home: empty state ── */
+        .home-empty {
+            padding: 28px 24px 48px;
+        }
+        .home-empty-header {
+            margin: 0 0 36px 0;
+        }
+        .home-empty-name {
+            margin: 0 0 10px 0;
+            line-height: 1;
+            letter-spacing: -1px;
+        }
+        .home-empty-identity {
+            margin: 0 0 4px 0;
+            color: var(--bl-color-text-muted);
+        }
+        .home-empty-profile-link,
+        .home-empty-equipment {
+            display: inline-block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+            border-bottom: 0.5px solid rgba(139, 26, 26, 0.4);
+            padding-bottom: 1px;
+            letter-spacing: 0.01em;
+        }
+        .home-empty-equipment {
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--bl-color-text-muted);
+            border-bottom-color: var(--bl-color-border-soft);
+            font-weight: 400;
+        }
         .home-empty-stats {
             display: flex;
-            align-items: center;
-            margin: 0 0 28px 0;
-            padding: 18px 0;
-            border-top: 1px solid var(--bl-color-border-soft);
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            padding: 16px 0;
+            border-top: 0.5px solid var(--bl-color-border-soft);
+            border-bottom: 0.5px solid var(--bl-color-border-soft);
+            margin: 0 0 36px 0;
         }
         .home-empty-stats-tile {
             flex: 1;
-            text-align: center;
+            padding-right: 12px;
+            text-align: left;
         }
-        .home-empty-stats-divider {
-            width: 0.5px;
-            height: 28px;
-            background: var(--bl-color-border);
-            flex-shrink: 0;
+        .home-empty-stats-tile + .home-empty-stats-tile {
+            padding-left: 16px;
+            border-left: 0.5px solid var(--bl-color-border-soft);
+        }
+        .home-empty-stats-label {
+            display: block;
+            margin-bottom: 6px;
+        }
+        .home-empty-stats-num {
+            display: block;
+            font-size: 22px;
+            line-height: 1;
+            letter-spacing: -0.5px;
         }
         .home-empty-editorial {
-            text-align: center;
-            max-width: 400px;
-            margin: 0 auto;
+            margin: 0 0 32px 0;
+        }
+        .home-empty-tagline {
+            margin: 0 0 20px 0;
+            font-size: 20px;
+            line-height: 1.4;
+            letter-spacing: -0.2px;
+        }
+        .home-empty-body {
+            margin: 0 0 28px 0;
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--bl-color-text-muted);
         }
         .home-empty-list {
             list-style: none;
+            margin: 0;
             padding: 0;
-            margin: 0 0 24px 0;
-            text-align: left;
         }
         .home-empty-list-item {
             display: flex;
             align-items: baseline;
-            gap: 14px;
-            padding: 12px 0;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            gap: 16px;
+            padding: 5px 0;
         }
-        .home-empty-list-item:last-child {
-            border-bottom: none;
-            padding-bottom: 0;
+        .home-empty-list-num {
+            flex-shrink: 0;
+            min-width: 18px;
+            font-variant-numeric: tabular-nums;
+            color: var(--bl-color-text-tertiary);
+        }
+        .home-empty-list-text {
+            font-size: 14.5px;
+            line-height: 1.5;
+            color: var(--bl-color-text);
+        }
+        .home-empty-closing {
+            margin: 32px 0 0 0;
+            text-align: center;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            color: var(--bl-color-text-tertiary);
         }
 
         /* ── Stat row ── */
@@ -500,72 +565,81 @@
             {# FIRST-TIME / EMPTY STATE                          #}
             {# ────────────────────────────────────────────────── #}
 
-            <h1 class="type-display" style="margin: 0 0 8px 0;">{{ user.first_name | format_name }}.</h1>
+            <section class="home-empty">
+              <header class="home-empty-header">
+                <h1 class="type-display home-empty-name">{{ user.first_name | format_name }}.</h1>
 
-            {# ── Identity line ── #}
-            {%- set _id = [] -%}
-            {%- set _rt = user.display_rider_type -%}
-            {%- if _rt %}{% set _ = _id.append(_rt) %}{% endif -%}
-            {%- if user.skill_level %}{% set _ = _id.append(user.skill_level) %}{% endif -%}
-            {%- if user.pass_type %}{% set _ = _id.append(user.pass_type | pass_display) %}{% endif -%}
-            {%- if _id %}
-            <p class="type-caption" style="margin: 0 0 6px 0;">{{ _id | join(' · ') }}</p>
-            {%- endif %}
+                {%- set _id = [] -%}
+                {%- set _rt = user.display_rider_type -%}
+                {%- if _rt %}{% set _ = _id.append(_rt) %}{% endif -%}
+                {%- if user.skill_level %}{% set _ = _id.append(user.skill_level) %}{% endif -%}
+                {%- if user.pass_type %}{% set _ = _id.append(user.pass_type | pass_display) %}{% endif -%}
+                {% if _id %}
+                  <p class="type-caption home-empty-identity">{{ _id | join(' · ') }}</p>
+                {% endif %}
 
-            {# ── Equipment row (Row 2 — single constrained line) ── #}
-            {%- set _has_gear = home_eq and (home_eq.brand or home_eq.model) -%}
-            {%- set _has_boots = home_eq and (home_eq.boot_brand or home_eq.boot_model) -%}
-            {%- set _eq_parts = [] -%}
-            {%- if _has_gear -%}{%- set _gear_val = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_gear_val) -%}{%- endif -%}
-            {%- if _has_boots -%}{%- set _boot_val = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_boot_val) -%}{%- endif -%}
-            {%- if _eq_parts %}
-            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0 0 24px 0;">{{ _eq_parts | join(' · ') }}</a>
-            {%- else %}
-            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; color: var(--bl-color-primary); margin: 0 0 24px 0;">Complete your profile</a>
-            {%- endif %}
+                {%- set _has_gear = home_eq and (home_eq.brand or home_eq.model) -%}
+                {%- set _has_boots = home_eq and (home_eq.boot_brand or home_eq.boot_model) -%}
+                {%- set _eq_parts = [] -%}
+                {%- if _has_gear -%}{%- set _gear_val = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_gear_val) -%}{%- endif -%}
+                {%- if _has_boots -%}{%- set _boot_val = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_boot_val) -%}{%- endif -%}
+                {% if _eq_parts %}
+                  <a href="{{ url_for('settings_equipment') }}" class="home-empty-equipment">
+                    {{ _eq_parts | join(' · ') }}
+                  </a>
+                {% else %}
+                  <a href="{{ url_for('settings_equipment') }}" class="home-empty-profile-link">
+                    Complete your profile
+                  </a>
+                {% endif %}
+              </header>
 
-            {# ── Stats strip ── #}
-            <div class="home-empty-stats">
+              <div class="home-empty-stats">
                 <div class="home-empty-stats-tile">
-                    <p class="type-stat" style="margin: 0 0 5px 0;">{{ stat_trips_total or 0 }}</p>
-                    <p class="type-label" style="margin: 0;">TRIPS</p>
+                  <span class="type-label home-empty-stats-label">Trips</span>
+                  <span class="type-stat home-empty-stats-num">{{ stat_trips_total or 0 }}</span>
                 </div>
-                <div class="home-empty-stats-divider"></div>
                 <div class="home-empty-stats-tile">
-                    <p class="type-stat" style="margin: 0 0 5px 0;">{{ stat_mountains or 0 }}</p>
-                    <p class="type-label" style="margin: 0;">MOUNTAINS</p>
+                  <span class="type-label home-empty-stats-label">Mountains</span>
+                  <span class="type-stat home-empty-stats-num">{{ stat_mountains or 0 }}</span>
                 </div>
-                <div class="home-empty-stats-divider"></div>
                 <div class="home-empty-stats-tile">
-                    <p class="type-stat" style="margin: 0 0 5px 0;">{{ stat_wishlist or 0 }}</p>
-                    <p class="type-label" style="margin: 0;">WISHLIST</p>
+                  <span class="type-label home-empty-stats-label">Wishlist</span>
+                  <span class="type-stat home-empty-stats-num">{{ stat_wishlist or 0 }}</span>
                 </div>
-            </div>
+              </div>
 
-            {# ── Editorial block ── #}
-            <div class="home-empty-editorial">
-                <p class="type-tagline" style="margin: 0 0 16px 0;">The best days on the mountain don't just happen. They're made.</p>
-                <p class="type-body" style="margin: 0 0 24px 0;">Your season lives here. Plan trips, see where your friends are headed, and find weekends that work.</p>
+              <div class="home-empty-editorial">
+                <p class="type-tagline home-empty-tagline">
+                  The best days on the mountain don't just happen. They're made.
+                </p>
+
+                <p class="type-body home-empty-body">
+                  Your season lives here. Plan trips, see where your friends are headed, and find weekends that work.
+                </p>
+
                 <ol class="home-empty-list">
-                    <li class="home-empty-list-item">
-                        <span class="type-label" style="min-width: 18px; flex-shrink: 0; letter-spacing: 0.3px;">01</span>
-                        <span class="type-list">Your trips, past and upcoming</span>
-                    </li>
-                    <li class="home-empty-list-item">
-                        <span class="type-label" style="min-width: 18px; flex-shrink: 0; letter-spacing: 0.3px;">02</span>
-                        <span class="type-list">Friends' plans and availability</span>
-                    </li>
-                    <li class="home-empty-list-item">
-                        <span class="type-label" style="min-width: 18px; flex-shrink: 0; letter-spacing: 0.3px;">03</span>
-                        <span class="type-list">Overlapping weekends to ride together</span>
-                    </li>
-                    <li class="home-empty-list-item">
-                        <span class="type-label" style="min-width: 18px; flex-shrink: 0; letter-spacing: 0.3px;">04</span>
-                        <span class="type-list">Mountains you've visited or want to visit</span>
-                    </li>
+                  <li class="home-empty-list-item">
+                    <span class="type-label home-empty-list-num">01</span>
+                    <span class="type-list home-empty-list-text">Your trips, past and upcoming</span>
+                  </li>
+                  <li class="home-empty-list-item">
+                    <span class="type-label home-empty-list-num">02</span>
+                    <span class="type-list home-empty-list-text">Friends' plans and availability</span>
+                  </li>
+                  <li class="home-empty-list-item">
+                    <span class="type-label home-empty-list-num">03</span>
+                    <span class="type-list home-empty-list-text">Overlapping weekends to ride together</span>
+                  </li>
+                  <li class="home-empty-list-item">
+                    <span class="type-label home-empty-list-num">04</span>
+                    <span class="type-list home-empty-list-text">Mountains you've visited or want to visit</span>
+                  </li>
                 </ol>
-                <p class="type-caption bl-text-tertiary" style="margin: 0;">Explore the menu below</p>
-            </div>
+              </div>
+
+              <p class="type-caption home-empty-closing">Explore the menu below</p>
+            </section>
 
         {% endif %}
 
