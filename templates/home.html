@@ -428,23 +428,6 @@
 <body>
     <div class="page-container" style="padding: 16px 16px 96px;">
 
-        <!-- Trip Invite Banner — preserved exactly, JS depends on home-banner ID -->
-        {% if banner_invite %}
-        <div class="home-banner" id="home-banner">
-            <div class="home-banner-body">
-                {% set b_trip = banner_invite.trip %}
-                {% set b_resort = banner_invite.resort %}
-                {% set b_mountain = b_resort.name if b_resort else b_trip.mountain %}
-                <p class="home-banner-headline">{{ banner_invite.inviter_name }} invited you to {{ b_mountain }}</p>
-                <p class="home-banner-sub">{{ format_trip_dates(b_trip) }}{% if banner_invite_count > 1 %} · <span class="home-banner-count">+{{ banner_invite_count - 1 }} more invite{{ 's' if banner_invite_count - 1 > 1 else '' }}</span>{% endif %}</p>
-            </div>
-            <div class="home-banner-actions">
-                <button class="banner-btn-accept" onclick="respondTripInvite({{ banner_invite.trip_id }}, 'accept')">Accept</button>
-                <button class="banner-btn-decline" onclick="respondTripInvite({{ banner_invite.trip_id }}, 'decline')">Decline</button>
-            </div>
-        </div>
-        {% endif %}
-
         {% if next_trip %}
             {# ────────────────────────────────────────────────── #}
             {# POPULATED STATE                                    #}
@@ -498,6 +481,23 @@
                     <p class="home-hero-sub">{{ format_trip_dates(next_trip) }}{% if people and people > 1 %} · {{ people }} going{% endif %}{% if _trip_pass_display %} · {{ _trip_pass_display }}{% endif %}</p>
                 </div>
             </a>
+
+            <!-- Trip Invite Banner — JS depends on home-banner ID, do not change -->
+            {% if banner_invite %}
+            <div class="home-banner" id="home-banner">
+                <div class="home-banner-body">
+                    {% set b_trip = banner_invite.trip %}
+                    {% set b_resort = banner_invite.resort %}
+                    {% set b_mountain = b_resort.name if b_resort else b_trip.mountain %}
+                    <p class="home-banner-headline">{{ banner_invite.inviter_name }} invited you to {{ b_mountain }}</p>
+                    <p class="home-banner-sub">{{ format_trip_dates(b_trip) }}{% if banner_invite_count > 1 %} · <span class="home-banner-count">+{{ banner_invite_count - 1 }} more invite{{ 's' if banner_invite_count - 1 > 1 else '' }}</span>{% endif %}</p>
+                </div>
+                <div class="home-banner-actions">
+                    <button class="banner-btn-accept" onclick="respondTripInvite({{ banner_invite.trip_id }}, 'accept')">Accept</button>
+                    <button class="banner-btn-decline" onclick="respondTripInvite({{ banner_invite.trip_id }}, 'decline')">Decline</button>
+                </div>
+            </div>
+            {% endif %}
 
             {% if has_overlaps and next_match %}
             <p class="home-match-section-label">Best Match</p>
@@ -569,6 +569,23 @@
             {# ────────────────────────────────────────────────── #}
             {# FIRST-TIME / EMPTY STATE                          #}
             {# ────────────────────────────────────────────────── #}
+
+            <!-- Trip Invite Banner — top of empty state -->
+            {% if banner_invite %}
+            <div class="home-banner" id="home-banner">
+                <div class="home-banner-body">
+                    {% set b_trip = banner_invite.trip %}
+                    {% set b_resort = banner_invite.resort %}
+                    {% set b_mountain = b_resort.name if b_resort else b_trip.mountain %}
+                    <p class="home-banner-headline">{{ banner_invite.inviter_name }} invited you to {{ b_mountain }}</p>
+                    <p class="home-banner-sub">{{ format_trip_dates(b_trip) }}{% if banner_invite_count > 1 %} · <span class="home-banner-count">+{{ banner_invite_count - 1 }} more invite{{ 's' if banner_invite_count - 1 > 1 else '' }}</span>{% endif %}</p>
+                </div>
+                <div class="home-banner-actions">
+                    <button class="banner-btn-accept" onclick="respondTripInvite({{ banner_invite.trip_id }}, 'accept')">Accept</button>
+                    <button class="banner-btn-decline" onclick="respondTripInvite({{ banner_invite.trip_id }}, 'decline')">Decline</button>
+                </div>
+            </div>
+            {% endif %}
 
             <section class="home-empty">
               <header class="home-empty-header">
