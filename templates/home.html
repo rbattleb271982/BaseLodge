@@ -548,9 +548,12 @@
                 </div>
                 <div class="home-row" style="padding-top: 0;">
                     <div class="home-row-left">
-                        <p class="home-match-line1">You + {{ next_match.friend_name | format_name }} free</p>
+                        {% if next_match.same_day_count == 0 %}
+                        <p class="home-match-line1">You + {{ next_match.friend_name | format_name }} are free</p>
+                        {% else %}
+                        <p class="home-match-line1">You + {{ next_match.same_day_count + 1 }} others are free</p>
+                        {% endif %}
                     </div>
-                    {% if next_match.same_day_count > 0 %}<span class="home-match-meta">+{{ next_match.same_day_count }} others</span>{% endif %}
                 </div>
             </div>
             {% endif %}
