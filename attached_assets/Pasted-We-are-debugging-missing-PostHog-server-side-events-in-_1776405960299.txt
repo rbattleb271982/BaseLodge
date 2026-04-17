@@ -1,0 +1,97 @@
+We are debugging missing PostHog server-side events in BaseLodge.
+
+Context:
+- Phase 2 events were implemented
+- Client-side events are working
+- Server-side events (signup_completed, onboarding_completed) are NOT appearing in PostHog
+- The user completed the full flow and reached /home
+
+This is a debugging task, not a rewrite.
+
+---
+
+# GOAL
+
+Find why these server events are not firing in the real execution flow:
+
+- signup_completed
+- onboarding_completed
+
+---
+
+# STEP 1 — VERIFY EXECUTION PATHS
+
+For BOTH:
+
+### signup_completed
+- Trace the exact signup POST flow
+- Identify the exact line where:
+  - user is created
+  - db.session.commit() happens
+  - login_user() happens
+- Confirm:
+  - ph_analytics.track('signup_completed') is AFTER commit
+  - AND BEFORE redirect
+  - AND inside the executed branch (not skipped)
+
+---
+
+### onboarding_completed
+- Trace /identity-setup POST route
+- Confirm:
+  - db.session.commit() is reached
+  - ph_analytics.track('onboarding_completed') is AFTER commit
+  - AND BEFORE redirect
+- Confirm that THIS route is actually being hit (not another route)
+
+---
+
+# STEP 2 — ADD TEMP DEBUG LOGGING
+
+Add TEMP logs right before the track calls:
+
+Example:
+print("DEBUG: firing signup_completed")
+print("DEBUG: firing onboarding_completed")
+
+Also log:
+print("DEBUG: user id =", current_user.id)
+
+---
+
+# STEP 3 — VERIFY ph_analytics.track() is actually executing
+
+- Confirm analytics.py is not in no-op mode
+- Confirm POSTHOG_KEY is present in backend environment
+- Confirm no silent failure
+
+---
+
+# STEP 4 — CHECK FOR EARLY RETURNS
+
+Look for:
+- return redirect(...)
+- return render_template(...)
+
+Make sure:
+- track() is not AFTER a return
+- track() is not in a branch that doesn’t execute
+
+---
+
+# STEP 5 — FIX ONLY THE ROOT CAUSE
+
+- Move track() calls if needed
+- Do NOT rewrite the flow
+- Do NOT change working client events
+
+---
+
+# RETURN
+
+1. Root cause found
+2. Exact reason events were not firing
+3. Exact fix made (line-level)
+4. Confirmation that:
+   - signup_completed now fires
+   - onboarding_completed now fires
