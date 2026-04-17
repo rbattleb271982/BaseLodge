@@ -93,19 +93,17 @@ def seed_more_users():
 
         db.session.commit()
 
-        richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
-        jonathan = User.query.filter_by(email="jonathanmschmitz@gmail.com").first()
-        sam = User.query.filter_by(email="samstookes@gmail.com").first()
-        anchors = [u for u in [richard, jonathan, sam] if u]
-
         connections = 0
+        all_users = User.query.all()
         for user in users:
-            for anchor in anchors:
-                if not Friend.query.filter_by(user_id=user.id, friend_id=anchor.id).first():
-                    db.session.add(Friend(user_id=user.id, friend_id=anchor.id, is_seeded=True))
+            for other in all_users:
+                if other.id == user.id:
+                    continue
+                if not Friend.query.filter_by(user_id=user.id, friend_id=other.id).first():
+                    db.session.add(Friend(user_id=user.id, friend_id=other.id, is_seeded=True))
                     connections += 1
-                if not Friend.query.filter_by(user_id=anchor.id, friend_id=user.id).first():
-                    db.session.add(Friend(user_id=anchor.id, friend_id=user.id, is_seeded=True))
+                if not Friend.query.filter_by(user_id=other.id, friend_id=user.id).first():
+                    db.session.add(Friend(user_id=other.id, friend_id=user.id, is_seeded=True))
                     connections += 1
 
         db.session.commit()
