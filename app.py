@@ -1770,6 +1770,9 @@ def identity_setup():
         current_user.avi_certified = avi_certified
 
         db.session.commit()
+        ph_analytics.track(current_user.id, 'onboarding_completed', {
+            'total_steps': 4
+        })
 
         # Redirect — invite signups go to friends, others go to home
         next_url = (
