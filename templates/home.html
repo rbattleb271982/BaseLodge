@@ -69,12 +69,13 @@
 
         /* ── Greeting ── */
         .home-welcome {
-            font-family: Georgia, 'Times New Roman', serif;
-            font-size: 26px;
+            font-family: var(--bl-font-serif);
+            font-size: 38px;
             font-weight: 400;
-            color: #1A1A1A;
-            line-height: 1.2;
-            margin-bottom: 6px;
+            color: var(--bl-color-text);
+            line-height: 1;
+            letter-spacing: -1px;
+            margin-bottom: 4px;
         }
         .home-welcome-sub {
             font-size: 15px;
@@ -483,7 +484,7 @@
             {# POPULATED STATE                                    #}
             {# ────────────────────────────────────────────────── #}
 
-            <h1 class="home-welcome" style="margin-bottom: 4px;">Hi, {{ user.first_name | format_name }}.</h1>
+            <h1 class="home-welcome">Welcome, {{ user.first_name | format_name }}.</h1>
 
             {# ── Identity line ── #}
             {%- set _id = [] -%}
@@ -492,7 +493,7 @@
             {%- if user.skill_level %}{% set _ = _id.append(user.skill_level) %}{% endif -%}
             {%- if user.pass_type %}{% set _ = _id.append(user.pass_type | pass_display) %}{% endif -%}
             {%- if _id %}
-            <p class="type-caption" style="margin: 0 0 14px 0;">{{ _id | join(' · ') }}</p>
+            <p class="type-caption" style="margin: 0 0 6px 0;">{{ _id | join(' · ') }}</p>
             {%- endif %}
 
             {# ── Equipment row (Row 2 — single constrained line) ── #}
@@ -502,9 +503,9 @@
             {%- if _has_gear -%}{%- set _gear_val = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_gear_val) -%}{%- endif -%}
             {%- if _has_boots -%}{%- set _boot_val = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_boot_val) -%}{%- endif -%}
             {%- if _eq_parts %}
-            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0 0 20px 0;">{{ _eq_parts | join(' · ') }}</a>
+            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0 0 12px 0;">{{ _eq_parts | join(' · ') }}</a>
             {%- else %}
-            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; color: var(--bl-color-primary); margin: 0 0 20px 0;">Complete your profile</a>
+            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; color: var(--bl-color-primary); margin: 0 0 12px 0;">Complete your profile</a>
             {%- endif %}
 
             {% include 'components/stat_row.html' %}
