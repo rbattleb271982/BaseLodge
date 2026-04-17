@@ -1627,11 +1627,10 @@ def auth():
         if form_type == "signup":
             email = request.form.get("email", "").lower().strip()
             password = request.form.get("password", "")
-            # Name fields optional — use email prefix as fallback for first_name
-            first_name = request.form.get("first_name", "").strip() or email.split("@")[0]
-            last_name = request.form.get("last_name", "").strip() or None
-            
-            if not email or not password:
+            first_name = request.form.get("first_name", "").strip()
+            last_name = request.form.get("last_name", "").strip()
+
+            if not first_name or not last_name or not email or not password:
                 flash("Please fill in all fields.", "error")
                 return render_template("auth.html", has_invite=("invite_token" in session))
             

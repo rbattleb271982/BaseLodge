@@ -26,12 +26,12 @@
 
         .auth-wrap {
             width: 100%;
-            max-width: 420px;
+            max-width: 400px;
         }
 
         .auth-brand {
             text-align: center;
-            margin-bottom: 58px;
+            margin-bottom: 40px;
         }
 
         .auth-logo {
@@ -48,26 +48,56 @@
             color: #9A8F82;
             margin-top: 10px;
             letter-spacing: 0;
+            line-height: 1.45;
         }
 
+        /* Tab toggle */
+        .auth-tabs {
+            display: flex;
+            background: #EDE9E1;
+            border-radius: 999px;
+            padding: 4px;
+            margin-bottom: 28px;
+        }
+
+        .auth-tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px 0;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 999px;
+            cursor: pointer;
+            color: #9A8F82;
+            transition: background 0.18s, color 0.18s;
+            user-select: none;
+        }
+
+        .auth-tab.active {
+            background: #fff;
+            color: #1A1A1A;
+        }
+
+        /* Flash messages */
         .auth-error {
-            background: rgba(139, 58, 46, 0.07);
-            border: 1px solid rgba(139, 58, 46, 0.18);
+            background: rgba(122, 30, 30, 0.07);
+            border: 1px solid rgba(122, 30, 30, 0.18);
             border-radius: 14px;
             padding: 13px 18px;
             font-size: 14px;
-            color: #8B3A2E;
+            color: #7A1E1E;
             margin-bottom: 20px;
             line-height: 1.4;
         }
 
+        /* Fields */
         .auth-field {
-            margin-bottom: 16px;
+            margin-bottom: 14px;
         }
 
         .auth-input {
             width: 100%;
-            padding: 17px 22px;
+            padding: 16px 20px;
             font-size: 16px;
             font-family: inherit;
             background: #EDE9E1;
@@ -83,9 +113,17 @@
         .auth-input::placeholder { color: #9A8F82; }
         .auth-input:focus { background: #E7E2D8; box-shadow: inset 0 1px 4px rgba(0,0,0,0.09); }
 
+        .field-error {
+            font-size: 13px;
+            color: #7A1E1E;
+            padding: 6px 20px 0;
+            display: none;
+        }
+
+        /* Button */
         .auth-btn {
             width: 100%;
-            padding: 14px;
+            padding: 15px;
             font-size: 15px;
             font-weight: 500;
             font-family: inherit;
@@ -94,45 +132,30 @@
             border: none;
             border-radius: 999px;
             cursor: pointer;
-            margin-top: 18px;
+            margin-top: 8px;
             letter-spacing: 0.01em;
             transition: opacity 0.15s;
             -webkit-appearance: none;
         }
 
-        .auth-btn:active { opacity: 0.82; }
-        .auth-btn:disabled { opacity: 0.55; cursor: default; }
+        .auth-btn:hover { opacity: 0.9; }
+        .auth-btn:active { opacity: 0.8; }
 
+        /* Forgot password */
         .auth-forgot {
             text-align: center;
-            margin-top: 14px;
-            display: none;
+            margin-top: 18px;
         }
 
         .auth-forgot a {
-            font-size: 13px;
+            font-size: 13.5px;
             color: #9A8F82;
             text-decoration: none;
         }
 
         .auth-forgot a:hover { color: #1A1A1A; }
 
-        .auth-new {
-            text-align: center;
-            margin-top: 30px;
-            font-size: 15px;
-            color: #9A8F82;
-        }
-
-        .auth-new a {
-            color: #7A1E1E;
-            text-decoration: none;
-            font-weight: 500;
-            transition: opacity 0.15s;
-        }
-
-        .auth-new a:hover { opacity: 0.7; }
-
+        /* Footer */
         .auth-footer {
             text-align: center;
             margin-top: 48px;
@@ -168,29 +191,60 @@
             {% endif %}
         {% endwith %}
 
-        <form id="auth-form" method="POST" action="{{ url_for('auth') }}">
-            <input type="hidden" name="form_type" id="form-type" value="login">
+        <div class="auth-tabs">
+            <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Log in</div>
+            <div class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Create account</div>
+        </div>
+
+        <!-- LOGIN FORM -->
+        <form id="form-login" method="POST" action="{{ url_for('auth') }}">
+            <input type="hidden" name="form_type" value="login">
 
             <div class="auth-field">
-                <input type="email" name="email" id="email-input" class="auth-input"
-                    placeholder="Your email" autocomplete="email" required>
+                <input type="email" name="email" class="auth-input"
+                    placeholder="Email" autocomplete="email" required
+                    value="{{ request.form.get('email', '') if request.form.get('form_type') == 'login' else '' }}">
+            </div>
+            <div class="auth-field">
+                <input type="password" name="password" class="auth-input"
+                    placeholder="Password" autocomplete="current-password" required>
             </div>
 
-            <div class="auth-field hidden" id="password-field">
-                <input type="password" name="password" id="password-input" class="auth-input"
-                    placeholder="Password" autocomplete="current-password">
-            </div>
-
-            <button type="button" id="main-btn" class="auth-btn">Continue</button>
+            <button type="submit" class="auth-btn">Log in</button>
         </form>
 
         <div class="auth-forgot" id="forgot-wrap">
             <a href="{{ url_for('forgot_password') }}">Forgot password?</a>
         </div>
 
-        <div class="auth-new" id="new-user-line">
-            New to BaseLodge? <a href="#" id="signup-trigger">Create an account</a>
-        </div>
+        <!-- SIGNUP FORM -->
+        <form id="form-signup" class="hidden" method="POST" action="{{ url_for('auth') }}">
+            <input type="hidden" name="form_type" value="signup">
+
+            <div class="auth-field">
+                <input type="text" name="first_name" class="auth-input"
+                    placeholder="First name" autocomplete="given-name" required
+                    value="{{ request.form.get('first_name', '') if request.form.get('form_type') == 'signup' else '' }}">
+            </div>
+            <div class="auth-field">
+                <input type="text" name="last_name" class="auth-input"
+                    placeholder="Last name" autocomplete="family-name" required
+                    value="{{ request.form.get('last_name', '') if request.form.get('form_type') == 'signup' else '' }}">
+            </div>
+            <div class="auth-field">
+                <input type="email" name="email" class="auth-input"
+                    placeholder="Email" autocomplete="email" required
+                    value="{{ request.form.get('email', '') if request.form.get('form_type') == 'signup' else '' }}">
+            </div>
+            <div class="auth-field">
+                <input type="password" name="password" id="signup-password" class="auth-input"
+                    placeholder="Password (8+ characters)" autocomplete="new-password" required
+                    minlength="8">
+                <div class="field-error" id="pw-error">Password must be at least 8 characters</div>
+            </div>
+
+            <button type="submit" class="auth-btn" id="signup-btn">Create account</button>
+        </form>
 
         <div class="auth-footer">
             <a href="#">Terms</a> &middot; <a href="#">Privacy</a>
@@ -199,96 +253,56 @@
     </div>
 
     <script>
-        const emailInput   = document.getElementById('email-input');
-        const passwordField = document.getElementById('password-field');
-        const passwordInput = document.getElementById('password-input');
-        const mainBtn      = document.getElementById('main-btn');
-        const forgotWrap   = document.getElementById('forgot-wrap');
-        const newUserLine  = document.getElementById('new-user-line');
-        const formType     = document.getElementById('form-type');
-        const authForm     = document.getElementById('auth-form');
-        const signupTrigger = document.getElementById('signup-trigger');
+        function switchTab(mode) {
+            const loginForm   = document.getElementById('form-login');
+            const signupForm  = document.getElementById('form-signup');
+            const forgotWrap  = document.getElementById('forgot-wrap');
+            const tabLogin    = document.getElementById('tab-login');
+            const tabSignup   = document.getElementById('tab-signup');
 
-        let step = 1;
-        let userExists = null;
-
-        async function advanceToStep2() {
-            const email = emailInput.value.trim();
-            if (!email || !email.includes('@')) {
-                emailInput.focus();
-                return;
-            }
-
-            mainBtn.disabled = true;
-            mainBtn.textContent = '...';
-
-            try {
-                const res = await fetch('/auth/check-email?email=' + encodeURIComponent(email));
-                const data = await res.json();
-                userExists = data.exists;
-            } catch {
-                userExists = false;
-            }
-
-            step = 2;
-            newUserLine.classList.add('hidden');
-            passwordField.classList.remove('hidden');
-            passwordInput.required = true;
-            passwordInput.focus();
-
-            if (userExists) {
-                formType.value = 'login';
-                mainBtn.textContent = 'Continue';
-                mainBtn.disabled = false;
-                forgotWrap.style.display = 'block';
-                passwordInput.setAttribute('autocomplete', 'current-password');
-                passwordInput.placeholder = 'Password';
+            if (mode === 'login') {
+                loginForm.classList.remove('hidden');
+                forgotWrap.classList.remove('hidden');
+                signupForm.classList.add('hidden');
+                tabLogin.classList.add('active');
+                tabSignup.classList.remove('active');
             } else {
-                formType.value = 'signup';
-                mainBtn.textContent = 'Create account';
-                mainBtn.disabled = false;
-                passwordInput.setAttribute('autocomplete', 'new-password');
-                passwordInput.placeholder = 'Create a password';
+                signupForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
+                forgotWrap.classList.add('hidden');
+                tabSignup.classList.add('active');
+                tabLogin.classList.remove('active');
             }
         }
 
-        function submitStep2() {
-            const password = passwordInput.value;
-            if (!password || password.length < 8) {
-                passwordInput.focus();
-                return;
+        // Inline password length validation
+        const pwInput  = document.getElementById('signup-password');
+        const pwError  = document.getElementById('pw-error');
+        const signupBtn = document.getElementById('signup-btn');
+
+        pwInput.addEventListener('input', function() {
+            if (this.value.length > 0 && this.value.length < 8) {
+                pwError.style.display = 'block';
+            } else {
+                pwError.style.display = 'none';
             }
-            mainBtn.disabled = true;
-            mainBtn.textContent = '...';
-            authForm.submit();
-        }
-
-        mainBtn.addEventListener('click', () => {
-            if (step === 1) { advanceToStep2(); }
-            else { submitStep2(); }
         });
 
-        emailInput.addEventListener('keydown', e => {
-            if (e.key === 'Enter') { e.preventDefault(); if (step === 1) advanceToStep2(); }
+        document.getElementById('form-signup').addEventListener('submit', function(e) {
+            if (pwInput.value.length < 8) {
+                e.preventDefault();
+                pwError.style.display = 'block';
+                pwInput.focus();
+            }
         });
 
-        passwordInput.addEventListener('keydown', e => {
-            if (e.key === 'Enter') { e.preventDefault(); if (step === 2) submitStep2(); }
-        });
-
-        signupTrigger.addEventListener('click', e => {
-            e.preventDefault();
-            userExists = false;
-            step = 2;
-            newUserLine.classList.add('hidden');
-            passwordField.classList.remove('hidden');
-            passwordInput.required = true;
-            formType.value = 'signup';
-            mainBtn.textContent = 'Create account';
-            passwordInput.setAttribute('autocomplete', 'new-password');
-            passwordInput.placeholder = 'Create a password';
-            passwordInput.focus();
-        });
+        // If the server returned a signup error, stay on signup tab
+        (function() {
+            const formType = '{{ request.form.get("form_type", "") }}';
+            if (formType === 'signup') {
+                switchTab('signup');
+            }
+        })();
     </script>
 </body>
 </html>

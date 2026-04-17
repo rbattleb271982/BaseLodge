@@ -1,0 +1,159 @@
+PUT THIS IN AGENT
+
+Replace the current auth implementation with a straightforward, standard auth flow.
+
+This is NOT a progressive email-first flow.
+This is a simple login + signup experience.
+
+Use the same BaseLodge visual styling already established:
+- cream background
+- serif BaseLodge wordmark
+- premium, minimal, mobile-first
+- maroon primary button
+- soft pill inputs
+
+Do NOT redesign beyond what is needed to support the correct flow.
+
+---
+
+GOAL
+
+Existing user:
+- enters Email + Password
+- taps Log in
+- can access Forgot password if needed
+
+New user:
+- taps Create account
+- sees fields for:
+  - First Name
+  - Last Name
+  - Email
+  - Password
+- password must be at least 8 characters
+- taps Create account
+- is routed directly into the first onboarding screen after successful signup
+
+---
+
+REQUIRED UX
+
+1. AUTH SCREEN STRUCTURE
+
+Use ONE auth page with two clear modes:
+- Log in
+- Create account
+
+This can be:
+- tabs
+- segmented control
+- clear toggle buttons
+- or another simple pattern
+
+But it must be obvious and standard.
+
+---
+
+2. LOGIN MODE
+
+Fields:
+- Email
+- Password
+
+Elements:
+- Log in button
+- Forgot password link
+
+Behavior:
+- submit existing login flow
+- if success, route user into app normally
+
+---
+
+3. SIGNUP MODE
+
+Fields in this EXACT order:
+- First Name
+- Last Name
+- Email
+- Password
+
+Requirements:
+- Password minimum = 8 characters
+- Show inline validation error if under 8:
+  "Password must be at least 8 characters"
+
+Button:
+- Create account
+
+Behavior:
+- create the account
+- then immediately route user to the first onboarding screen
+
+---
+
+4. BACKEND / ROUTING
+
+Keep or update existing backend auth handlers as needed so this works cleanly.
+
+Requirements:
+- login accepts email + password
+- signup accepts first_name, last_name, email, password
+- first_name and last_name are required
+- remove any signup fallback that creates names from email prefix
+- forgot password flow remains accessible from login mode
+- after successful signup, redirect to the first onboarding route
+
+If current routes already exist, use them.
+If route names differ in this codebase, wire to the correct existing endpoints.
+
+---
+
+5. STYLING
+
+Keep the current BaseLodge style direction:
+- Background: #F5F1E8
+- Primary text: #1A1A1A
+- Accent/button: maroon already in use
+- Serif heading for BaseLodge
+- Soft neutral pill inputs
+- Mobile-first layout
+- No clutter
+
+Do NOT:
+- add social login
+- add Google/Apple login
+- use a card container unless the current implementation already requires it
+- overcomplicate interactions
+
+---
+
+6. COPY
+
+Login mode:
+- Button: Log in
+- Link: Forgot password?
+
+Signup mode:
+- Button: Create account
+
+Tagline:
+The best days on the mountain don't just happen. They're made.
+
+---
+
+7. DONE WHEN
+
+- Existing users can log in with email + password
+- Forgot password is available in login mode
+- New users can create an account with:
+  - First Name
+  - Last Name
+  - Email
+  - Password
+- Password enforces 8+ characters
+- Successful signup routes into first onboarding screen
+- UI remains clean and consistent with BaseLodge branding
+
+Do not invent a new auth concept.
+Implement the standard flow exactly as described.
