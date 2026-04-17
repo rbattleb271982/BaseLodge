@@ -4198,6 +4198,7 @@ def home():
         stat_mountains_url=url_for('mountains_visited'),
         stat_wishlist_url=url_for('settings_wish_list'),
         home_eq=user.get_active_equipment(),
+        friend_count=len(friend_ids),
     )
 
 

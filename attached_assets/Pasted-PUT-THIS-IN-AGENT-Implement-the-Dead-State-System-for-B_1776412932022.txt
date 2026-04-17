@@ -1,0 +1,150 @@
+PUT THIS IN AGENT
+
+Implement the Dead State System for BaseLodge core surfaces.
+
+Read:
+
+* app.py:4224-4240 — home() render_template
+* app.py:4040-4050 — friend_ids computation
+* templates/home.html:417-462, 464-518
+* templates/my_trips.html:462-479
+* templates/friends.html:371-374
+
+---
+
+1. Pass friend_count into home template
+
+In home() route:
+
+* friend_ids already exists
+
+* add:
+  friend_count = len(friend_ids)
+
+* pass into render_template:
+  friend_count=friend_count
+
+Do NOT add any new queries.
+
+---
+
+2. Replace Home empty state (no trips)
+
+In home.html:
+
+* Locate the {% else %} branch where next_trip is None
+* Remove the entire "What you'll see here" block
+
+Replace with:
+
+Primary:
+
+* Hero card
+
+* Headline:
+  If friend_count == 0:
+  "Plan your first trip"
+  Else:
+  "Your friends are ready — plan something together"
+
+* Primary CTA:
+  "Plan a trip" → url_for('add_trip')
+
+Secondary (only if friend_count == 0):
+
+* Text line:
+  "Or invite a friend first →"
+* Link → url_for('invite')
+
+---
+
+3. Add "bring your crew" nudge (trips but no friends)
+
+In home.html:
+
+* Inside {% if next_trip %}
+* After the {% if secondary_card %} block
+
+Add:
+
+* Only render if:
+  secondary_card is None AND friend_count == 0
+
+* Content:
+  "Bring your crew · Invite friends →"
+  link → url_for('invite')
+
+* Keep it visually light (text link, not a card)
+
+---
+
+4. Fix Trips screen (Friends' Trips tab)
+
+In templates/my_trips.html:
+
+Find:
+
+* branch: has friends but no friend_trips
+
+Change:
+
+* CTA text:
+  "Invite more friends" → "Plan a trip together"
+
+* CTA link:
+  url_for('invite') → url_for('add_trip')
+
+* Update sub-copy:
+  "None of your friends have added a trip yet. Start one and invite them."
+
+---
+
+5. Fix Friends screen empty state
+
+In templates/friends.html:
+
+Find:
+
+* <p class="fr-trips-empty">No upcoming trips yet.</p>
+
+Replace with:
+
+* Small block:
+  Headline: "No trips planned yet"
+  Sub-copy (reuse fr-trips-empty class):
+  "Start a trip and invite your friends to join."
+  CTA:
+  "Start a trip →" → url_for('add_trip')
+
+---
+
+6. Do NOT change
+
+* populated home state logic
+* secondary_card behavior
+* route logic beyond friend_count
+* styling system (reuse existing classes)
+
+---
+
+7. Verify
+
+* New user (no friends, no trips) sees:
+  → "Plan your first trip" + invite option
+
+* User with friends but no trips sees:
+  → "Your friends are ready — plan something together"
+
+* User with trips but no friends sees:
+  → "Bring your crew" nudge
+
+* Trips tab empty state pushes to create trip (not invite)
+
+* Friends tab empty trips pushes to create trip
+
+---
+
+Goal:
+
+No screen should feel empty or passive.
+Every state has one clear next action.
