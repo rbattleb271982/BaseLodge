@@ -16,8 +16,8 @@
             background: #F0DDD8;
             border: 1px solid #D9D2BF;
             border-radius: 8px;
-            padding: 10px 14px;
-            margin-bottom: 20px;
+            padding: 8px 12px;
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
             gap: 12px;
@@ -39,7 +39,7 @@
             font-size: 0.78rem;
             font-weight: 600;
             color: #5C1219;
-            margin: 3px 0 0 0;
+            display: inline;
         }
         .home-banner-actions { display: flex; gap: 6px; flex-shrink: 0; }
         .banner-btn-accept {
@@ -70,11 +70,11 @@
         /* ── Greeting ── */
         .home-welcome {
             font-family: var(--bl-font-serif);
-            font-size: 38px;
+            font-size: 26px;
             font-weight: 400;
             color: var(--bl-color-text);
             line-height: 1;
-            letter-spacing: -1px;
+            letter-spacing: -0.5px;
             margin-bottom: 4px;
         }
         .home-welcome-sub {
@@ -96,7 +96,7 @@
             letter-spacing: 0.8px;
             color: #8A857A;
             text-transform: uppercase;
-            margin-bottom: 10px;
+            margin: 0 0 8px 0;
         }
 
         /* ── Hero block ── */
@@ -197,14 +197,14 @@
 
         /* ── Activity rows (populated: friend activity) ── */
         .home-activity-rows {
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
         .home-activity-row {
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
             gap: 12px;
-            padding: 11px 0;
+            padding: 8px 0;
             border-bottom: 1px solid #E5DFD0;
             text-decoration: none;
             color: inherit;
@@ -389,8 +389,8 @@
         .stat-row {
             display: flex;
             align-items: center;
-            margin: 8px 0 16px;
-            padding: 14px 0;
+            margin: 6px 0 12px;
+            padding: 10px 0;
             border-top: 0.5px solid #E5DFD0;
             border-bottom: 0.5px solid #E5DFD0;
         }
@@ -426,7 +426,7 @@
     </style>
 </head>
 <body>
-    <div class="page-container" style="padding: 24px 16px 96px;">
+    <div class="page-container" style="padding: 16px 16px 96px;">
 
         <!-- Trip Invite Banner — preserved exactly, JS depends on home-banner ID -->
         {% if banner_invite %}
@@ -436,10 +436,7 @@
                 {% set b_resort = banner_invite.resort %}
                 {% set b_mountain = b_resort.name if b_resort else b_trip.mountain %}
                 <p class="home-banner-headline">{{ banner_invite.inviter_name }} invited you to {{ b_mountain }}</p>
-                <p class="home-banner-sub">{{ format_trip_dates(b_trip) }}</p>
-                {% if banner_invite_count > 1 %}
-                <p class="home-banner-count">+{{ banner_invite_count - 1 }} more invite{{ 's' if banner_invite_count - 1 > 1 else '' }}</p>
-                {% endif %}
+                <p class="home-banner-sub">{{ format_trip_dates(b_trip) }}{% if banner_invite_count > 1 %} · <span class="home-banner-count">+{{ banner_invite_count - 1 }} more invite{{ 's' if banner_invite_count - 1 > 1 else '' }}</span>{% endif %}</p>
             </div>
             <div class="home-banner-actions">
                 <button class="banner-btn-accept" onclick="respondTripInvite({{ banner_invite.trip_id }}, 'accept')">Accept</button>
@@ -462,7 +459,7 @@
             {%- if user.skill_level %}{% set _ = _id.append(user.skill_level) %}{% endif -%}
             {%- if user.pass_type %}{% set _ = _id.append(user.pass_type | pass_display) %}{% endif -%}
             {%- if _id %}
-            <p class="type-caption" style="margin: 0 0 6px 0;">{{ _id | join(' · ') }}</p>
+            <p class="type-caption" style="margin: 0 0 4px 0;">{{ _id | join(' · ') }}</p>
             {%- endif %}
 
             {# ── Equipment row (Row 2 — single constrained line) ── #}
@@ -472,9 +469,9 @@
             {%- if _has_gear -%}{%- set _gear_val = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_gear_val) -%}{%- endif -%}
             {%- if _has_boots -%}{%- set _boot_val = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_boot_val) -%}{%- endif -%}
             {%- if _eq_parts %}
-            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0 0 6px 0;">{{ _eq_parts | join(' · ') }}</a>
+            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0 0 4px 0;">{{ _eq_parts | join(' · ') }}</a>
             {%- else %}
-            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; color: var(--bl-color-primary); margin: 0 0 6px 0;">Complete your profile</a>
+            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; color: var(--bl-color-primary); margin: 0 0 4px 0;">Complete your profile</a>
             {%- endif %}
 
             {% include 'components/stat_row.html' %}
