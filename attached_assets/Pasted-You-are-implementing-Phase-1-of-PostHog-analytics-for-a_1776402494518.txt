@@ -1,0 +1,132 @@
+You are implementing Phase 1 of PostHog analytics for a Flask app called BaseLodge.
+
+Follow the attached implementation brief exactly. Do NOT skip steps. Do NOT implement beyond Phase 1.
+
+Goal of Phase 1:
+- Set up PostHog (client + server)
+- Implement identity foundation (identify, alias, reset)
+- Add internal user exclusion
+- Fire a single test event: app_loaded
+
+Constraints:
+- Keep changes minimal and clean
+- Do not implement any product events yet (no trips, no friends, no onboarding)
+- Do not break existing functionality
+- Use environment variables for all keys
+- Do not hardcode secrets
+- Use existing Flask app structure and base template
+
+---
+
+### STEP 1 — Install dependencies
+
+Add:
+- posthog-js (frontend via script tag or npm if applicable)
+- posthog-python to requirements.txt
+
+---
+
+### STEP 2 — Create analytics.py (server)
+
+Create a module with:
+
+- PostHog client initialization
+- track(user_id, event, properties, set_props, set_once_props)
+- identify(user_id, properties)
+- alias(user_id, anon_id)
+- helper to detect internal users (based on email or env list)
+
+Use environment variables:
+- POSTHOG_KEY
+- POSTHOG_HOST
+
+---
+
+### STEP 3 — Create analytics.js (client)
+
+Add a JS file that:
+- initializes PostHog
+- disables autocapture pageviews if needed
+- exports a track() helper
+- runs identify() on page load if user is logged in
+- reads window.__USER__
+
+---
+
+### STEP 4 — Update base template
+
+Modify the main layout template:
+
+- Inject:
+  window.__USER__ = {
+    id: user.id,
+    is_internal: true/false
+  }
+
+- Load analytics.js
+- Initialize PostHog
+
+---
+
+### STEP 5 — Identity wiring
+
+- On signup:
+  - call alias(user.id)
+  - then identify(user.id)
+
+- On login:
+  - call identify(user.id)
+
+- On logout:
+  - call posthog.reset()
+
+Ensure:
+- alias ONLY on signup
+- identify happens AFTER auth success
+
+---
+
+### STEP 6 — Internal user exclusion
+
+- Set person property:
+  is_internal = true/false
+
+- Logic:
+  - true if email matches internal domain or env list
+  - otherwise false
+
+Use $set_once
+
+---
+
+### STEP 7 — Fire test event
+
+On every page load (client-side), fire:
+
+posthog.capture('app_loaded')
+
+---
+
+### STEP 8 — VERIFY
+
+After implementation:
+
+- Open app in browser
+- Check PostHog Live Events
+- Confirm:
+  - app_loaded fires
+  - distinct_id exists
+  - identify works after login
+  - no duplicate events
+
+---
+
+STOP after this.
+
+Do NOT proceed to Phase 2.
+Do NOT add any other events.
+
+Return:
+- files created
+- files modified
+- confirmation of working PostHog connection

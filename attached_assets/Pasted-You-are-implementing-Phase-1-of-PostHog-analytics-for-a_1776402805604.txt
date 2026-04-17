@@ -1,0 +1,251 @@
+You are implementing Phase 1 of PostHog analytics for a Flask app called BaseLodge.
+
+Follow this plan exactly. Do NOT skip steps. Do NOT implement beyond Phase 1.
+
+---
+
+# GOAL
+
+Set up a working PostHog foundation:
+- Server-side Python client
+- Client-side JS initialization
+- Identity lifecycle (identify, alias, reset)
+- Internal user tagging (not exclusion)
+- Single test event: app_loaded
+
+NO product analytics yet.
+
+---
+
+# CONSTRAINTS
+
+- Keep implementation minimal and clean
+- Do not break existing functionality
+- Do not hardcode any secrets
+- Use environment variables only
+- Do not implement trips, friends, onboarding, or any other product events
+- Only wire analytics into:
+  - home.html
+  - auth.html
+- This is intentionally partial coverage for Phase 1
+
+---
+
+# ARCHITECTURE NOTE
+
+There is NO base.html template.
+
+Instead:
+- Create a reusable partial:
+  templates/components/analytics_head.html
+- Include it manually in home.html and auth.html only
+
+---
+
+# STEP 1 — Install dependencies
+
+- Add `posthog` to requirements.txt (Python SDK)
+- Do NOT install posthog-js via npm
+- Use CDN for client-side
+
+---
+
+# STEP 2 — Create analytics.py (server)
+
+Create a module with:
+
+### Initialization
+- Read:
+  - POSTHOG_KEY
+  - POSTHOG_HOST (default to https://us.i.posthog.com if not set)
+- If POSTHOG_KEY is missing → all functions become no-ops
+
+### Functions
+
+track(user_id, event, properties={}, set_props=None, set_once_props=None)
+
+identify(user_id, properties={})
+
+alias(anon_id, user_id)
+- This MUST alias the anonymous browser/session identity to the newly created user ID
+- This is ONLY used on signup
+
+is_internal(email)
+- Returns true if:
+  - email domain matches INTERNAL_EMAIL_DOMAINS (comma-separated env var)
+  - OR email is in INTERNAL_USER_EMAILS list
+- Otherwise false
+
+### Rules
+
+- Always call track AFTER db.session.commit()
+- Never fire events before a successful DB write
+- Use $set and $set_once correctly in PostHog payloads
+
+---
+
+# STEP 3 — Create static/analytics.js (client)
+
+This file should:
+
+### Initialize PostHog
+- Use CDN snippet
+- Use POSTHOG_KEY and POSTHOG_HOST
+
+### Read global variables
+- window.__USER__
+- window.__POSTHOG_RESET__
+
+### Behavior
+
+1. If window.__POSTHOG_RESET__ is true:
+   - call posthog.reset() immediately
+
+2. If window.__USER__.id exists:
+   - ALWAYS call posthog.identify(user.id)
+   - DO NOT skip internal users
+
+3. Fire test event:
+   posthog.capture('app_loaded')
+   - Fire for ALL users (anonymous, internal, external)
+
+### Notes
+
+- Do NOT suppress tracking for internal users
+- Filtering happens later in PostHog dashboards
+- Do NOT double-initialize PostHog
+
+---
+
+# STEP 4 — Create analytics partial
+
+Create:
+templates/components/analytics_head.html
+
+This must:
+
+- Be inserted inside <head>
+- Inject:
+
+window.__USER__ = {
+  id: current_user.id OR null,
+  is_internal: true/false
+}
+
+window.__POSTHOG_RESET__ = true/false
+
+- Load:
+  static/analytics.js via url_for
+
+### Notes
+
+- Handle anonymous users safely (no current_user)
+- Add a comment: "Phase 1: only included in select templates, not global coverage"
+
+---
+
+# STEP 5 — Wire identity in auth routes (app.py)
+
+### Signup flow
+
+After:
+login_user(new_user)
+
+Do:
+1. analytics.alias(anon_id, user.id)
+   - anon_id should come from PostHog cookie if available
+2. analytics.identify(user.id, {
+   is_internal: true/false
+})
+
+### Login flow
+
+After:
+login_user(user)
+
+Do:
+analytics.identify(user.id, {
+  is_internal: true/false
+})
+
+### Logout flow
+
+Before redirect:
+session['ph_reset'] = True
+
+### Auth GET route
+
+- Pop session['ph_reset']
+- Pass:
+  posthog_reset=True/False into template
+
+---
+
+# STEP 6 — Internal user tagging
+
+- Set person property:
+  is_internal = true/false
+
+- Use $set_once
+- DO NOT skip tracking for internal users
+- These users will be filtered out later in PostHog dashboards
+
+---
+
+# STEP 7 — Add analytics partial to templates
+
+Update:
+
+templates/home.html
+templates/auth.html
+
+Inside <head>, add:
+
+{% include 'components/analytics_head.html' %}
+
+---
+
+# STEP 8 — Environment variables
+
+Ensure these exist:
+
+POSTHOG_KEY
+POSTHOG_HOST (optional, default if missing)
+
+DO NOT hardcode values anywhere
+
+---
+
+# STEP 9 — Verification
+
+After implementation:
+
+1. Load the app
+2. Open PostHog Live Events
+3. Confirm:
+   - app_loaded fires
+   - anonymous user tracked
+   - after login → same user is identified
+   - no duplicate events
+   - internal users still tracked (with is_internal=true)
+
+---
+
+# STOP HERE
+
+Do NOT:
+- add any other events
+- expand to other templates
+- build dashboards
+- implement Phase 2
+
+---
+
+# RETURN
+
+Provide:
+
+1. Files created
+2. Files modified
+3. Confirmation PostHog is working
+4. Any assumptions made

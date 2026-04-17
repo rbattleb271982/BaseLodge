@@ -60,6 +60,7 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 import unicodedata
 import re
+import analytics as ph_analytics
 
 
 def generate_resort_slug(name):
@@ -1447,6 +1448,9 @@ app.jinja_env.globals['get_ride_term'] = get_ride_term
 app.jinja_env.globals['format_trip_dates'] = format_trip_dates
 app.jinja_env.globals['get_season_context'] = get_season_context
 app.jinja_env.globals['get_seasonal_empty_state'] = get_seasonal_empty_state
+app.jinja_env.globals['is_internal_user'] = ph_analytics.is_internal
+app.jinja_env.globals['POSTHOG_KEY'] = ph_analytics.POSTHOG_KEY
+app.jinja_env.globals['POSTHOG_HOST'] = ph_analytics.POSTHOG_HOST
 
 
 def group_trips_by_month(trips):
@@ -1621,6 +1625,7 @@ def index():
 
 @app.route("/auth", methods=["GET", "POST"])
 def auth():
+    _ph_reset = session.pop('ph_reset', False)
     if request.method == "POST":
         form_type = request.form.get("form_type", "login")
         
@@ -1632,16 +1637,16 @@ def auth():
 
             if not first_name or not last_name or not email or not password:
                 flash("Please fill in all fields.", "error")
-                return render_template("auth.html", has_invite=("invite_token" in session))
+                return render_template("auth.html", has_invite=("invite_token" in session), posthog_reset=_ph_reset)
             
             if len(password) < 8:
                 flash("Password must be at least 8 characters.", "error")
-                return render_template("auth.html", has_invite=("invite_token" in session))
+                return render_template("auth.html", has_invite=("invite_token" in session), posthog_reset=_ph_reset)
             
             existing_user = User.query.filter_by(email=email).first()
             if existing_user:
                 flash("An account with this email already exists.", "error")
-                return render_template("auth.html", has_invite=("invite_token" in session))
+                return render_template("auth.html", has_invite=("invite_token" in session), posthog_reset=_ph_reset)
             
             new_user = User(
                 first_name=first_name,
@@ -1657,7 +1662,15 @@ def auth():
             
             login_user(new_user, remember=True)
             session.modified = True
-            
+
+            # Analytics: alias anon browser id → new user id, then identify
+            _ph_anon_id = ph_analytics.get_anon_id(request.cookies)
+            ph_analytics.alias(_ph_anon_id, new_user.id)
+            ph_analytics.identify(
+                new_user.id,
+                set_once_props={"is_internal": ph_analytics.is_internal(new_user.email)},
+            )
+
             # Connect with inviter if coming from invite link
             if "invite_token" in session:
                 # Pre-set post-onboarding redirect to friends before token is consumed
@@ -1675,7 +1688,13 @@ def auth():
                 login_user(user, remember=True)
                 session.modified = True
                 db.session.commit()
-                
+
+                # Analytics: identify on login
+                ph_analytics.identify(
+                    user.id,
+                    set_once_props={"is_internal": ph_analytics.is_internal(user.email)},
+                )
+
                 # Connect with inviter if coming from invite link
                 if "invite_token" in session:
                     connected = _connect_pending_inviter(user)
@@ -1687,7 +1706,7 @@ def auth():
             
             flash("Invalid email or password.", "error")
 
-    return render_template("auth.html", has_invite=("invite_token" in session))
+    return render_template("auth.html", has_invite=("invite_token" in session), posthog_reset=_ph_reset)
 
 
 @app.route("/auth/check-email")
@@ -5969,6 +5988,7 @@ def mountains_visited():
 def logout():
     logout_user()
     session.clear()
+    session['ph_reset'] = True
     return redirect(url_for("auth"))
 
 
