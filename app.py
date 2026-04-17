@@ -444,7 +444,7 @@ def before_request_handlers():
         return None
     
     # Require profile setup for authenticated users
-    excluded_endpoints = {'auth', 'identity_setup', 'setup_profile', 'logout', 'static', 'invite_token_landing', 'test_login_direct', 'forgot_password', 'reset_password', 'index'}
+    excluded_endpoints = {'auth', 'identity_setup', 'setup_profile', 'logout', 'static', 'invite_token_landing', 'test_login_direct', 'forgot_password', 'reset_password', 'index', 'login', 'signup', 'auth_google', 'auth_google_callback', 'auth_apple', 'auth_apple_callback'}
     if request.endpoint in excluded_endpoints:
         return None
     
@@ -5950,6 +5950,41 @@ def logout():
     logout_user()
     session.clear()
     return redirect(url_for("auth"))
+
+
+@app.route("/login")
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for("home"))
+    return render_template("auth.html", default_tab="login", has_invite=("invite_token" in session))
+
+
+@app.route("/signup")
+def signup():
+    if current_user.is_authenticated:
+        return redirect(url_for("home"))
+    return render_template("auth.html", default_tab="signup", has_invite=("invite_token" in session))
+
+
+@app.route("/auth/google")
+def auth_google():
+    return redirect(url_for("auth"))
+
+
+@app.route("/auth/google/callback")
+def auth_google_callback():
+    return redirect(url_for("auth"))
+
+
+@app.route("/auth/apple")
+def auth_apple():
+    return redirect(url_for("auth"))
+
+
+@app.route("/auth/apple/callback")
+def auth_apple_callback():
+    return redirect(url_for("auth"))
+
 
 @app.route("/change-password", methods=["GET", "POST"])
 @login_required

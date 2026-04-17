@@ -107,9 +107,12 @@ class TripEquipmentStatus(PyEnum):
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(80), nullable=False)
-    last_name = db.Column(db.String(80), nullable=False)
+    last_name = db.Column(db.String(80), nullable=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
+    password_hash = db.Column(db.String(256), nullable=True)
+    auth_provider = db.Column(db.String(20), nullable=True)
+    provider_id = db.Column(db.String(256), nullable=True)
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.utcnow)
     # DEPRECATED: rider_type, primary_rider_type, secondary_rider_types are legacy. Use rider_types instead. Kept for backward compatibility.
     rider_type = db.Column(db.String(50))
     primary_rider_type = db.Column(db.String(50))  # DEPRECATED - use rider_types
@@ -184,6 +187,8 @@ class User(UserMixin, db.Model):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
+        if not self.password_hash:
+            return False
         return check_password_hash(self.password_hash, password)
     
     def get_reset_token(self):
