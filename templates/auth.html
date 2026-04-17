@@ -3,273 +3,287 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge - Sign In</title>
+    <title>BaseLodge</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
     <link rel="shortcut icon" href="/static/icons/favicon.ico">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        .auth-tabs {
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #F5F1E8;
+            color: #1A1A1A;
+            font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
             display: flex;
-            background: var(--bl-color-border-soft);
-            border-radius: 999px;
-            padding: 4px;
-            margin-bottom: var(--bl-space-8);
+            align-items: center;
+            justify-content: center;
+            padding: 32px 20px;
         }
 
-        .auth-tab-btn {
-            flex: 1;
-            background: transparent;
-            border: none;
-            padding: 10px 16px;
+        .auth-wrap {
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .auth-brand {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .auth-logo {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 46px;
+            font-weight: 500;
+            color: #1A1A1A;
+            letter-spacing: 0.02em;
+            line-height: 1;
+        }
+
+        .auth-tagline {
+            font-size: 15px;
+            color: #9A8F82;
+            margin-top: 10px;
+            letter-spacing: 0.01em;
+        }
+
+        .auth-error {
+            background: rgba(139, 58, 46, 0.07);
+            border: 1px solid rgba(139, 58, 46, 0.18);
+            border-radius: 14px;
+            padding: 13px 18px;
             font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            color: var(--bl-color-text-muted);
+            color: #8B3A2E;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        .auth-field {
+            margin-bottom: 10px;
+        }
+
+        .auth-input {
+            width: 100%;
+            padding: 17px 22px;
+            font-size: 16px;
+            font-family: inherit;
+            background: #ECE7DE;
+            border: none;
             border-radius: 999px;
-            transition: all 0.2s ease;
+            color: #1A1A1A;
+            outline: none;
+            -webkit-appearance: none;
+            transition: background 0.15s;
         }
 
-        .auth-tab-btn.active {
-            background: var(--bl-color-primary);
-            color: #FFFFFF;
+        .auth-input::placeholder { color: #9A8F82; }
+        .auth-input:focus { background: #E6DFD3; }
+
+        .auth-btn {
+            width: 100%;
+            padding: 17px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            background: #8B3A2E;
+            color: #fff;
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            margin-top: 10px;
+            letter-spacing: 0.01em;
+            transition: opacity 0.15s;
+            -webkit-appearance: none;
         }
 
-        .auth-tab-btn:not(.active):hover {
-            color: var(--bl-color-text);
-        }
+        .auth-btn:active { opacity: 0.82; }
+        .auth-btn:disabled { opacity: 0.55; cursor: default; }
 
-        .auth-form {
+        .auth-forgot {
+            text-align: center;
+            margin-top: 14px;
             display: none;
         }
 
-        .auth-form.active {
-            display: block;
-        }
-
-        .form-group {
-            margin-bottom: var(--bl-space-6);
-        }
-
-        .form-label {
-            display: block;
+        .auth-forgot a {
             font-size: 13px;
+            color: #9A8F82;
+            text-decoration: none;
+        }
+
+        .auth-forgot a:hover { color: #1A1A1A; }
+
+        .auth-new {
+            text-align: center;
+            margin-top: 22px;
+            font-size: 14px;
+            color: #9A8F82;
+        }
+
+        .auth-new a {
+            color: #8B3A2E;
+            text-decoration: none;
             font-weight: 500;
-            color: var(--bl-color-text);
-            margin-bottom: var(--bl-space-3);
         }
 
-        .form-input {
-            width: 100%;
-            padding: var(--bl-space-4) var(--bl-space-5);
-            font-size: 15px;
-            border: 1px solid var(--bl-color-border);
-            border-radius: var(--bl-radius-md);
-            background: var(--bl-color-surface);
-            color: var(--bl-color-text);
-            transition: border-color 0.2s ease;
-            font-family: inherit;
-            box-sizing: border-box;
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: var(--bl-color-primary);
-        }
-
-        .form-input::placeholder {
-            color: var(--bl-color-text-muted);
-        }
-
-        .password-wrapper {
-            position: relative;
-        }
-
-        .password-wrapper .form-input {
-            padding-right: 48px;
-        }
-
-        .password-toggle {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: var(--bl-color-text-muted);
-            font-size: 13px;
-            font-weight: 500;
-            padding: 4px 8px;
-        }
-
-        .password-toggle:hover {
-            color: var(--bl-color-text);
-        }
-
-        .form-helper {
+        .auth-footer {
+            text-align: center;
+            margin-top: 48px;
             font-size: 12px;
-            color: var(--bl-color-text-muted);
-            margin-top: 6px;
+            color: #9A8F82;
         }
 
-        .form-submit {
-            width: 100%;
-            margin-bottom: var(--bl-space-6);
+        .auth-footer a {
+            color: #9A8F82;
+            text-decoration: none;
         }
 
-        .form-error {
-            background: rgba(92, 18, 25, 0.06);
-            border: 1px solid rgba(92, 18, 25, 0.25);
-            border-radius: var(--bl-radius-md);
-            padding: var(--bl-space-5);
-            margin-bottom: var(--bl-space-6);
-            font-size: 13px;
-            color: var(--bl-color-primary);
-        }
+        .auth-footer a:hover { text-decoration: underline; }
 
-        .auth-card {
-            max-width: 500px;
-        }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
-    <div class="auth-container">
-        <div class="auth-card">
-            <div class="auth-header">
-                <h1 class="auth-title">BaseLodge</h1>
-                <p class="auth-subtitle">The best days on the mountain don't just happen — they're made.</p>
-            </div>
+    <div class="auth-wrap">
 
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% set auth_messages = [] %}
-                    {% for category, message in messages %}
-                        {% if category in ['error', 'auth', 'message'] %}
-                            {% set _ = auth_messages.append(message) %}
-                        {% endif %}
-                    {% endfor %}
-                    {% if auth_messages %}
-                    <div class="form-error">
-                        {% for message in auth_messages %}
-                            {{ message }}<br>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                {% endif %}
-            {% endwith %}
-
-            <div class="auth-tabs">
-                <button class="auth-tab-btn {% if not has_invite %}active{% endif %}" id="tab-login">Log In</button>
-                <button class="auth-tab-btn {% if has_invite %}active{% endif %}" id="tab-signup">Sign Up</button>
-            </div>
-
-            <!-- Login Form -->
-            <form class="auth-form {% if not has_invite %}active{% endif %}" id="login-form" method="POST" action="{{ url_for('auth') }}">
-                <input type="hidden" name="form_type" value="login">
-
-                <div class="form-group">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-input" required placeholder="you@example.com" autocomplete="email">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Password</label>
-                    <div class="password-wrapper">
-                        <input type="password" name="password" class="form-input" required placeholder="Your password" autocomplete="current-password" id="login-password">
-                        <button type="button" class="password-toggle" data-target="login-password">Show</button>
-                    </div>
-                </div>
-
-                <button type="submit" class="bl-btn-primary form-submit">Log In</button>
-            </form>
-
-            <div id="forgot-password-link" style="text-align: right; margin-top: -12px; margin-bottom: 24px; display: {% if has_invite %}none{% else %}block{% endif %};">
-                <a href="{{ url_for('forgot_password') }}" style="color: var(--bl-color-primary); text-decoration: none; font-size: 13px;">Forgot password?</a>
-            </div>
-
-            <!-- Signup Form -->
-            <form class="auth-form {% if has_invite %}active{% endif %}" id="signup-form" method="POST" action="{{ url_for('auth') }}">
-                <input type="hidden" name="form_type" value="signup">
-
-                <div class="form-group">
-                    <label class="form-label">First Name</label>
-                    <input type="text" name="first_name" class="form-input" required placeholder="First name" autocomplete="given-name">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Last Name</label>
-                    <input type="text" name="last_name" class="form-input" required placeholder="Last name" autocomplete="family-name">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-input" required placeholder="you@example.com" autocomplete="email">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Password</label>
-                    <div class="password-wrapper">
-                        <input type="password" name="password" class="form-input" required placeholder="Create a password" autocomplete="new-password" id="signup-password">
-                        <button type="button" class="password-toggle" data-target="signup-password">Show</button>
-                    </div>
-                    <p class="form-helper">At least 8 characters</p>
-                </div>
-
-                <button type="submit" class="bl-btn-primary form-submit">Create Account</button>
-            </form>
-            <p class="auth-footer" id="auth-footer-text">You're joining an early test version of BaseLodge.</p>
+        <div class="auth-brand">
+            <div class="auth-logo">BaseLodge</div>
+            <div class="auth-tagline">Plan trips. Find your people.</div>
         </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    {% if category in ['error', 'auth', 'message'] %}
+                    <div class="auth-error">{{ message }}</div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form id="auth-form" method="POST" action="{{ url_for('auth') }}">
+            <input type="hidden" name="form_type" id="form-type" value="login">
+
+            <div class="auth-field">
+                <input type="email" name="email" id="email-input" class="auth-input"
+                    placeholder="Your email" autocomplete="email" required>
+            </div>
+
+            <div class="auth-field hidden" id="password-field">
+                <input type="password" name="password" id="password-input" class="auth-input"
+                    placeholder="Password" autocomplete="current-password">
+            </div>
+
+            <button type="button" id="main-btn" class="auth-btn">Continue</button>
+        </form>
+
+        <div class="auth-forgot" id="forgot-wrap">
+            <a href="{{ url_for('forgot_password') }}">Forgot password?</a>
+        </div>
+
+        <div class="auth-new" id="new-user-line">
+            New to BaseLodge? <a href="#" id="signup-trigger">Create an account</a>
+        </div>
+
+        <div class="auth-footer">
+            <a href="#">Terms</a> &middot; <a href="#">Privacy</a>
+        </div>
+
     </div>
 
     <script>
-        const tabSignup = document.getElementById('tab-signup');
-        const tabLogin = document.getElementById('tab-login');
-        const formSignup = document.getElementById('signup-form');
-        const formLogin = document.getElementById('login-form');
-        const forgotPasswordLink = document.getElementById('forgot-password-link');
+        const emailInput   = document.getElementById('email-input');
+        const passwordField = document.getElementById('password-field');
+        const passwordInput = document.getElementById('password-input');
+        const mainBtn      = document.getElementById('main-btn');
+        const forgotWrap   = document.getElementById('forgot-wrap');
+        const newUserLine  = document.getElementById('new-user-line');
+        const formType     = document.getElementById('form-type');
+        const authForm     = document.getElementById('auth-form');
+        const signupTrigger = document.getElementById('signup-trigger');
 
-        tabSignup.addEventListener('click', () => {
-            tabSignup.classList.add('active');
-            tabLogin.classList.remove('active');
-            formSignup.classList.add('active');
-            formLogin.classList.remove('active');
-            forgotPasswordLink.style.display = 'none';
+        let step = 1;
+        let userExists = null;
+
+        async function advanceToStep2() {
+            const email = emailInput.value.trim();
+            if (!email || !email.includes('@')) {
+                emailInput.focus();
+                return;
+            }
+
+            mainBtn.disabled = true;
+            mainBtn.textContent = '...';
+
+            try {
+                const res = await fetch('/auth/check-email?email=' + encodeURIComponent(email));
+                const data = await res.json();
+                userExists = data.exists;
+            } catch {
+                userExists = false;
+            }
+
+            step = 2;
+            newUserLine.classList.add('hidden');
+            passwordField.classList.remove('hidden');
+            passwordInput.required = true;
+            passwordInput.focus();
+
+            if (userExists) {
+                formType.value = 'login';
+                mainBtn.textContent = 'Continue';
+                mainBtn.disabled = false;
+                forgotWrap.style.display = 'block';
+                passwordInput.setAttribute('autocomplete', 'current-password');
+                passwordInput.placeholder = 'Password';
+            } else {
+                formType.value = 'signup';
+                mainBtn.textContent = 'Create account';
+                mainBtn.disabled = false;
+                passwordInput.setAttribute('autocomplete', 'new-password');
+                passwordInput.placeholder = 'Create a password';
+            }
+        }
+
+        function submitStep2() {
+            const password = passwordInput.value;
+            if (!password || password.length < 8) {
+                passwordInput.focus();
+                return;
+            }
+            mainBtn.disabled = true;
+            mainBtn.textContent = '...';
+            authForm.submit();
+        }
+
+        mainBtn.addEventListener('click', () => {
+            if (step === 1) { advanceToStep2(); }
+            else { submitStep2(); }
         });
 
-        tabLogin.addEventListener('click', () => {
-            tabLogin.classList.add('active');
-            tabSignup.classList.remove('active');
-            formLogin.classList.add('active');
-            formSignup.classList.remove('active');
-            forgotPasswordLink.style.display = 'block';
+        emailInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); if (step === 1) advanceToStep2(); }
         });
 
-        document.querySelectorAll('.password-toggle').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const targetId = btn.getAttribute('data-target');
-                const input = document.getElementById(targetId);
-                if (input.type === 'password') {
-                    input.type = 'text';
-                    btn.textContent = 'Hide';
-                } else {
-                    input.type = 'password';
-                    btn.textContent = 'Show';
-                }
-            });
+        passwordInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); if (step === 2) submitStep2(); }
         });
 
-        // Prevent multiple form submissions
-        let isSubmitting = false;
-        document.querySelectorAll('form').forEach(form => {
-            form.addEventListener('submit', (e) => {
-                if (isSubmitting) {
-                    e.preventDefault();
-                    return false;
-                }
-                isSubmitting = true;
-            });
+        signupTrigger.addEventListener('click', e => {
+            e.preventDefault();
+            userExists = false;
+            step = 2;
+            newUserLine.classList.add('hidden');
+            passwordField.classList.remove('hidden');
+            passwordInput.required = true;
+            formType.value = 'signup';
+            mainBtn.textContent = 'Create account';
+            passwordInput.setAttribute('autocomplete', 'new-password');
+            passwordInput.placeholder = 'Create a password';
+            passwordInput.focus();
         });
     </script>
 </body>

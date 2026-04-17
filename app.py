@@ -445,7 +445,7 @@ def before_request_handlers():
         return None
     
     # Require profile setup for authenticated users
-    excluded_endpoints = {'auth', 'identity_setup', 'setup_profile', 'logout', 'static', 'invite_token_landing', 'test_login_direct', 'forgot_password', 'reset_password', 'index', 'login', 'signup', 'auth_google', 'auth_google_callback', 'auth_apple', 'auth_apple_callback'}
+    excluded_endpoints = {'auth', 'identity_setup', 'setup_profile', 'logout', 'static', 'invite_token_landing', 'test_login_direct', 'forgot_password', 'reset_password', 'index', 'login', 'signup', 'auth_google', 'auth_google_callback', 'auth_apple', 'auth_apple_callback', 'auth_check_email'}
     if request.endpoint in excluded_endpoints:
         return None
     
@@ -1625,12 +1625,13 @@ def auth():
         form_type = request.form.get("form_type", "login")
         
         if form_type == "signup":
-            first_name = request.form.get("first_name", "").strip()
-            last_name = request.form.get("last_name", "").strip()
             email = request.form.get("email", "").lower().strip()
             password = request.form.get("password", "")
+            # Name fields optional — use email prefix as fallback for first_name
+            first_name = request.form.get("first_name", "").strip() or email.split("@")[0]
+            last_name = request.form.get("last_name", "").strip() or None
             
-            if not first_name or not last_name or not email or not password:
+            if not email or not password:
                 flash("Please fill in all fields.", "error")
                 return render_template("auth.html", has_invite=("invite_token" in session))
             
@@ -1647,6 +1648,7 @@ def auth():
                 first_name=first_name,
                 last_name=last_name,
                 email=email,
+                auth_provider="email",
                 buddy_passes_available=True
             )
             new_user.set_password(password)
@@ -1687,6 +1689,15 @@ def auth():
             flash("Invalid email or password.", "error")
 
     return render_template("auth.html", has_invite=("invite_token" in session))
+
+
+@app.route("/auth/check-email")
+def auth_check_email():
+    email = request.args.get("email", "").lower().strip()
+    if not email:
+        return jsonify({"exists": False})
+    user = User.query.filter_by(email=email).first()
+    return jsonify({"exists": user is not None})
 
 
 @app.route("/identity-setup", methods=["GET", "POST"])

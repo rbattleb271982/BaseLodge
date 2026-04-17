@@ -1,0 +1,174 @@
+PUT THIS IN AGENT
+
+Replace the existing /auth screen with a simplified, progressive email-first auth flow.
+
+Do NOT redesign beyond what is specified. Implement exactly.
+
+---
+
+GOAL
+
+- Remove login/signup toggle
+- Use a 2-step progressive flow:
+  Step 1 → Email only
+  Step 2 → Password appears after Continue
+
+- Keep BaseLodge branding (serif, cream, maroon)
+- Keep UI minimal, airy, mobile-first
+
+---
+
+FILES
+
+Update:
+- templates/auth.html
+
+Ensure compatibility with existing Flask routes:
+- POST /login
+- POST /signup
+
+---
+
+IMPLEMENTATION
+
+1. LAYOUT
+
+Top:
+- BaseLodge (serif)
+- Tagline: “Plan trips. Find your people.”
+
+Middle:
+- Email input (always visible)
+- Password input (hidden initially)
+- “Forgot password?” (hidden initially)
+
+Button:
+- Step 1 → Continue
+- Step 2:
+  - existing user → Continue
+  - new user → Create account
+
+Below button:
+- “New to BaseLodge? Create an account”
+- Visible ONLY in Step 1
+
+Bottom:
+- Terms · Privacy
+
+---
+
+2. STYLING
+
+Use these exact tokens:
+
+Background: #F5F1E8  
+Primary text: #1A1A1A  
+Muted: #9A8F82  
+Input background: #ECE7DE  
+Accent (button + CTA): #8B3A2E  
+
+Typography:
+- BaseLodge: serif (Cormorant Garamond or Georgia fallback)
+- Body: DM Sans or system sans-serif
+
+Inputs:
+- Full width
+- Border-radius: 999px
+- No borders
+- Soft background
+
+Button:
+- Full width
+- Border-radius: 999px
+- Background: #8B3A2E
+- White text
+
+Spacing:
+- Max width: 420px
+- Centered
+- Generous vertical spacing
+
+NO:
+- card container
+- shadows
+- heavy borders
+
+---
+
+3. BEHAVIOR (CRITICAL)
+
+Use JS to manage steps:
+
+STATE 1:
+- Only email visible
+- Button: Continue
+
+On click:
+- Validate email exists
+- Call backend endpoint (or stub for now):
+  /auth/check-email
+
+Expected response:
+- { exists: true/false }
+
+STATE 2:
+- Show password field
+- Hide secondary “Create account” line
+- Update button:
+  exists = true → Continue
+  exists = false → Create account
+
+If exists:
+- show “Forgot password?”
+
+---
+
+4. FORM SUBMISSION
+
+On Step 2 submit:
+
+If existing user:
+→ POST /login
+
+If new user:
+→ POST /signup
+
+Send:
+- email
+- password
+
+---
+
+5. FALLBACK (IMPORTANT)
+
+If /auth/check-email is not implemented yet:
+- Stub logic in JS:
+  treat all emails as new users
+  OR simulate based on simple rule
+
+Do NOT block implementation.
+
+---
+
+6. CONSTRAINTS
+
+Do NOT:
+- reintroduce login/signup toggle
+- add Google/Apple login
+- add extra fields
+- add tabs or segmented controls
+
+---
+
+7. DONE WHEN
+
+- Clean mobile layout
+- Email-first flow works
+- Password appears after Continue
+- Button updates correctly
+- Login and signup both work
+- UI matches BaseLodge brand (cream + maroon + serif)
+
+---
+
+Use minimal code. Do not over-engineer.
