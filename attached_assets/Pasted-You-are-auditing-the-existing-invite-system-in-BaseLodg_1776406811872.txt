@@ -1,0 +1,91 @@
+You are auditing the existing invite system in BaseLodge.
+
+Goal:
+Provide a clear, structured breakdown of what invite-related functionality already exists, what is partially implemented, and what is missing.
+
+This is an audit only. Do NOT implement new features. Do NOT refactor code.
+
+---
+
+# SCOPE
+
+Analyze all invite-related logic across:
+
+- routes (Flask endpoints)
+- models (Invitation, InviteToken, Friend, etc.)
+- templates (Friends page, invite UI, landing pages)
+- any services or helper functions
+
+---
+
+# WHAT TO FIND
+
+## 1. Invite creation
+- How are invites generated?
+- Is there an InviteToken model?
+- Where is the token created?
+- What data is stored (inviter_id, expiration, etc.)?
+
+## 2. Invite link behavior
+- What happens when someone visits an invite link?
+- Which route handles it?
+- Does it store anything in session?
+- Does it redirect to signup/login?
+
+## 3. Invite acceptance
+- How does a user accept an invite?
+- When is a Friend connection created?
+- Is it automatic after signup or explicit?
+
+## 4. Friend connection system
+- How are friendships stored?
+- Is it one-way or mutual?
+- What triggers friend creation?
+
+## 5. UI surfaces
+- Where can users send invites?
+- Friends tab?
+- Profile page?
+- Anywhere else?
+
+## 6. Edge cases
+- What happens if:
+  - invite token is invalid
+  - invite is expired
+  - user already has an account
+  - user is already friends
+
+## 7. Duplicate / legacy paths
+- Are there multiple invite flows?
+- Any unused or legacy code?
+- Anything that should be removed?
+
+---
+
+# OUTPUT FORMAT
+
+Return a structured report:
+
+## What is fully implemented
+(list clearly)
+
+## What is partially implemented
+(list clearly)
+
+## What is missing
+(list clearly)
+
+## Risks / inconsistencies
+(any duplicate logic, unclear flows, or potential bugs)
+
+## Recommended next step
+(one clear recommendation: clean up, extend, or rebuild)
+
+---
+
+# IMPORTANT
+
+- Do NOT modify any code
+- Do NOT suggest analytics yet
+- Focus only on the invite system itself
+- Be specific and reference files/lines where possible
