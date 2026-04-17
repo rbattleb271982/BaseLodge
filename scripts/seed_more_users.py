@@ -82,7 +82,7 @@ def seed_more_users():
                 profile_setup_complete=True,
                 is_seeded=True,
                 equipment_status="have_own_equipment",
-                wishlist_resorts=WISH_LISTS[i % len(WISH_LISTS)] if hasattr(User, "wishlist_resorts") else None,
+                wish_list_resorts=WISH_LISTS[i % len(WISH_LISTS)],
                 open_dates=[],
             )
             db.session.add(user)
