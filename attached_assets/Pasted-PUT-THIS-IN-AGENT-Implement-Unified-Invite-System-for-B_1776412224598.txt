@@ -1,0 +1,89 @@
+PUT THIS IN AGENT
+
+Implement Unified Invite System for BaseLodge.
+
+Read these files first:
+
+* app.py:1886-1945 — _apply_invite_token() and _connect_pending_inviter()
+* app.py:1949-2012 — invite_token_landing() route
+* app.py:1680-1780 — auth() route
+* app.py:3825-3850 — legacy invite_link() route
+* app.py:493-530 — before_request gate and skip list
+* templates/invite_landing.html
+* templates/auth.html
+
+Do the following:
+
+1. Redirect anonymous users from /invite/<token> straight to /auth
+
+* In invite_token_landing(), if the visitor is unauthenticated:
+
+  * store the raw token in session["invite_token"]
+  * redirect to url_for("auth")
+* Do not render invite_landing.html for anonymous users anymore
+* Remove inviter_trips_count work from that anonymous branch if it is no longer needed there
+
+2. Pass inviter data into auth.html on GET
+
+* In auth() GET only:
+
+  * if session["invite_token"] exists, look up the InviteToken
+  * load the inviter user
+  * pass inviter (or None) into render_template for auth.html
+* Do not change POST behavior
+
+3. Add inline inviter preview card to auth.html
+
+* If inviter is present, render a card above the login/signup form showing:
+
+  * inviter name
+  * identity line
+  * trip count using get_upcoming_trip_count(inviter)
+* Reuse the visual feel from invite_landing.html as much as possible
+* Keep changes minimal and clean
+
+4. Remove dead pending_inviter_id logic
+
+* In _connect_pending_inviter(), remove the legacy pending_inviter_id fallback branch entirely
+* Keep session["invite_token"] flow intact
+
+5. Retire legacy /invite/[int:user_id](int:user_id) route
+
+* Replace invite_link() behavior so it no longer creates friendships
+* Make it either:
+
+  * redirect to url_for("invite")
+  * or return 410
+    Choose the safer option that will not break navigation
+
+6. Retire invite_landing.html
+
+* Remove the template if it is no longer used anywhere
+* Confirm there are no remaining render_template references to it
+
+7. Preserve current post-auth and post-onboarding behavior
+
+* _apply_invite_token() must remain the single friendship-creation mechanism for token invites
+* Invite signup/login should still connect the users and land on Friends
+* If onboarding happens first, preserve post_onboarding_redirect behavior so completion still lands on Friends
+
+8. Leave untouched
+
+* Invitation model flows
+* /api/friends/invite and /api/friends/invite/<id>/accept
+* /connect/[int:user_id](int:user_id) and /connect/[int:user_id](int:user_id)/add
+* InviteToken expiry logic
+* invite limits
+
+9. Verify
+   Confirm all of these:
+
+* Anonymous /invite/<token> → redirects to /auth
+* Auth page shows inviter preview card
+* Login/signup through invite still connects users
+* Onboarding after invite still lands on Friends
+* No orphaned references to pending_inviter_id remain
+* No render path to invite_landing.html remains
+* Existing /invite/<token> links still work
+
+Use minimal changes. Do not refactor unrelated code.

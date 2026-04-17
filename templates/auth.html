@@ -172,6 +172,38 @@
         .auth-footer a:hover { text-decoration: underline; }
 
         .hidden { display: none !important; }
+
+        /* Invite preview card */
+        .auth-invite-card {
+            background: #F0E8DC;
+            border: 0.5px solid #C2A882;
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 20px;
+        }
+
+        .auth-invite-name {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 20px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin: 0 0 3px 0;
+        }
+
+        .auth-invite-meta {
+            font-size: 13px;
+            color: #6B5E52;
+            margin: 0 0 2px 0;
+        }
+
+        .auth-invite-desc {
+            font-size: 14px;
+            color: #1A1A1A;
+            line-height: 1.45;
+            margin: 10px 0 0 0;
+        }
+
+        .auth-invite-desc b { font-weight: 600; }
     </style>
 </head>
 <body>
@@ -181,6 +213,18 @@
             <div class="auth-logo">BaseLodge</div>
             <div class="auth-tagline">The best days on the mountain don't just happen. They're made.</div>
         </div>
+
+        {% if inviter %}
+        <div class="auth-invite-card">
+            <h2 class="auth-invite-name">{{ inviter.first_name | format_name }}{% if inviter.last_name %} {{ inviter.last_name | format_name }}{% endif %}</h2>
+            {% set identity = inviter | identity_line %}
+            {% if identity %}
+            <p class="auth-invite-meta">{{ identity }}</p>
+            {% endif %}
+            <p class="auth-invite-meta">{{ inviter_trips_count }} upcoming trip{{ 's' if inviter_trips_count != 1 else '' }}</p>
+            <p class="auth-invite-desc"><b>Wants to connect on BaseLodge</b> to see when you're both heading to the mountains.</p>
+        </div>
+        {% endif %}
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}

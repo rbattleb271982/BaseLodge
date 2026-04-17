@@ -1685,6 +1685,18 @@ def index():
 @app.route("/auth", methods=["GET", "POST"])
 def auth():
     _ph_reset = session.pop('ph_reset', False)
+
+    # Load inviter from session token for invite preview card
+    _invite_inviter = None
+    _invite_trips_count = 0
+    _invite_token_str = session.get("invite_token")
+    if _invite_token_str:
+        _invite_obj = InviteToken.query.filter_by(token=_invite_token_str).first()
+        if _invite_obj and not _invite_obj.is_used() and not _invite_obj.is_expired():
+            _invite_inviter = User.query.get(_invite_obj.inviter_id)
+            if _invite_inviter:
+                _invite_trips_count = get_upcoming_trip_count(_invite_inviter)
+
     if request.method == "POST":
         form_type = request.form.get("form_type", "login")
         
@@ -1697,18 +1709,18 @@ def auth():
             if not first_name or not last_name or not email or not password:
                 flash("Please fill in all fields.", "error")
                 ph_analytics.track(None, 'auth_error', {'error_type': 'missing_fields'})
-                return render_template("auth.html", has_invite=("invite_token" in session), posthog_reset=_ph_reset)
+                return render_template("auth.html", has_invite=("invite_token" in session), posthog_reset=_ph_reset, inviter=_invite_inviter, inviter_trips_count=_invite_trips_count)
             
             if len(password) < 8:
                 flash("Password must be at least 8 characters.", "error")
                 ph_analytics.track(None, 'auth_error', {'error_type': 'password_too_short'})
-                return render_template("auth.html", has_invite=("invite_token" in session), posthog_reset=_ph_reset)
+                return render_template("auth.html", has_invite=("invite_token" in session), posthog_reset=_ph_reset, inviter=_invite_inviter, inviter_trips_count=_invite_trips_count)
             
             existing_user = User.query.filter_by(email=email).first()
             if existing_user:
                 flash("An account with this email already exists.", "error")
                 ph_analytics.track(None, 'auth_error', {'error_type': 'email_taken'})
-                return render_template("auth.html", has_invite=("invite_token" in session), posthog_reset=_ph_reset)
+                return render_template("auth.html", has_invite=("invite_token" in session), posthog_reset=_ph_reset, inviter=_invite_inviter, inviter_trips_count=_invite_trips_count)
             
             new_user = User(
                 first_name=first_name,
@@ -1775,7 +1787,7 @@ def auth():
             ph_analytics.track(None, 'auth_error', {'error_type': 'invalid_credentials'})
 
     from_invite = "invite_token" in session
-    return render_template("auth.html", has_invite=from_invite, from_invite=from_invite, posthog_reset=_ph_reset)
+    return render_template("auth.html", has_invite=from_invite, from_invite=from_invite, posthog_reset=_ph_reset, inviter=_invite_inviter, inviter_trips_count=_invite_trips_count)
 
 
 @app.route("/auth/check-email")
@@ -1917,19 +1929,6 @@ def _connect_pending_inviter(user):
     """Helper to connect user with pending inviter from session invite_token."""
     invite_token_str = session.get("invite_token")
     if not invite_token_str:
-        # Legacy fallback
-        legacy_inviter_id = session.get("pending_inviter_id")
-        if legacy_inviter_id:
-            inviter = User.query.get(legacy_inviter_id)
-            if inviter and inviter.id != user.id:
-                existing = Friend.query.filter_by(user_id=user.id, friend_id=inviter.id).first()
-                if not existing:
-                    f1 = Friend(user_id=user.id, friend_id=inviter.id)
-                    f2 = Friend(user_id=inviter.id, friend_id=user.id)
-                    db.session.add_all([f1, f2])
-                    user.invited_by_user_id = inviter.id
-                    db.session.commit()
-            session.pop("pending_inviter_id", None)
         return False
 
     invite = InviteToken.query.filter_by(token=invite_token_str).first()
@@ -1998,15 +1997,9 @@ def invite_token_landing(token):
         flash(f"You're now connected with {inviter.first_name}!", "success")
         return redirect(url_for("friends"))
 
-    # ── Unauthenticated visitor — store token, show landing page ─────────────
+    # ── Unauthenticated visitor — store token, redirect to auth ──────────────
     session["invite_token"] = token
-    inviter_trips_count = get_upcoming_trip_count(inviter)
-
-    return render_template(
-        "invite_landing.html",
-        inviter=inviter,
-        inviter_trips_count=inviter_trips_count
-    )
+    return redirect(url_for("auth"))
 
 
 @app.route("/setup-profile")
@@ -3824,30 +3817,8 @@ def connect_add(user_id):
 
 @app.route("/invite/<int:user_id>")
 def invite_link(user_id):
-    inviter = User.query.get_or_404(user_id)
-
-    # If not logged in → send to login/signup
-    if not current_user.is_authenticated:
-        return redirect(url_for("auth", next=url_for("invite_link", user_id=user_id)))
-
-    # Prevent connecting to self
-    if current_user.id == inviter.id:
-        return render_template("connect_self.html")
-
-    # Check if already friends
-    existing = Friend.query.filter_by(user_id=current_user.id, friend_id=inviter.id).first()
-    if existing:
-        return render_template("already_friends.html", friend=inviter)
-
-    # Create mutual friendship
-    pair1 = Friend(user_id=current_user.id, friend_id=inviter.id)
-    pair2 = Friend(user_id=inviter.id, friend_id=current_user.id)
-
-    db.session.add(pair1)
-    db.session.add(pair2)
-    db.session.commit()
-
-    return render_template("connect_success.html", friend=inviter)
+    """Legacy integer-based invite URL — retired. Redirect to the invite page."""
+    return redirect(url_for("invite"))
 
 def date_ranges_overlap(start1, end1, start2, end2):
     """Check if two date ranges overlap"""
