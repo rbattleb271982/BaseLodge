@@ -95,6 +95,7 @@ def seed_more_users():
 
         connections = 0
         all_users = User.query.all()
+        created_ids = {u.id for u in users if u.id}
         for user in users:
             for other in all_users:
                 if other.id == user.id:
@@ -104,6 +105,18 @@ def seed_more_users():
                     connections += 1
                 if not Friend.query.filter_by(user_id=other.id, friend_id=user.id).first():
                     db.session.add(Friend(user_id=other.id, friend_id=user.id, is_seeded=True))
+                    connections += 1
+
+        current_user = User.query.get(15)
+        if current_user:
+            for other in all_users:
+                if other.id == current_user.id:
+                    continue
+                if not Friend.query.filter_by(user_id=current_user.id, friend_id=other.id).first():
+                    db.session.add(Friend(user_id=current_user.id, friend_id=other.id, is_seeded=True))
+                    connections += 1
+                if not Friend.query.filter_by(user_id=other.id, friend_id=current_user.id).first():
+                    db.session.add(Friend(user_id=other.id, friend_id=current_user.id, is_seeded=True))
                     connections += 1
 
         db.session.commit()
