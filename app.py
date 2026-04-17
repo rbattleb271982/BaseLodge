@@ -466,18 +466,18 @@ def resolve_navigation(path, user_state, pending_intent=None):
     pending_intent is stubbed as None — not yet implemented.
     """
     if user_state == "ANONYMOUS":
-        allowed = {"/auth", "/login", "/signup", "/logout"}
+        allowed = {"/auth", "/login", "/signup", "/logout", "/auth/logout"}
         if path in allowed or path.startswith("/legal"):
             return None
         return "/auth"
 
     if user_state == "PENDING_VERIFICATION":
-        if path in {"/auth/verify", "/logout"}:
+        if path in {"/auth/verify", "/logout", "/auth/logout"}:
             return None
         return "/auth/verify"
 
     if user_state == "ONBOARDING":
-        if path in {"/identity-setup", "/logout"}:
+        if path in {"/identity-setup", "/logout", "/auth/logout"}:
             return None
         return "/identity-setup"
 
@@ -502,6 +502,7 @@ def before_request_handlers():
             path.startswith("/invite/") or
             path.startswith("/auth/google") or
             path.startswith("/auth/apple") or
+            path.startswith("/auth/logout") or
             path.startswith("/admin/") or
             path.startswith("/debug/") or
             path.startswith("/reset-password/") or
