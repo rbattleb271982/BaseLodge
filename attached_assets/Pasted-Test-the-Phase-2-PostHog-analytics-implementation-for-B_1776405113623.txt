@@ -1,0 +1,140 @@
+Test the Phase 2 PostHog analytics implementation for BaseLodge.
+
+Goal:
+Validate that the newly added auth + onboarding analytics events fire correctly and do not duplicate.
+
+Important:
+- This is a QA/testing pass only
+- Do NOT implement new features
+- Do NOT modify code unless you find a clear bug
+- If you find a bug, report it clearly instead of making broad changes
+- Use checkpoints sparingly
+
+Scope:
+Test only these events:
+- signup_started
+- signup_completed
+- login_completed
+- logout
+- auth_error
+- onboarding_step_completed
+- onboarding_completed
+
+Phase 1 events (like app_loaded / identify) may appear, but they are not the focus except as supporting context.
+
+---
+
+# TEST CASES
+
+## Test 1 — signup_started fires once
+1. Open the auth page
+2. Interact with the SIGNUP form only
+3. Verify signup_started fires exactly once
+4. Continue interacting with signup form fields
+5. Verify signup_started does NOT fire again on the same page load
+
+Pass condition:
+- signup_started appears once and only once
+
+---
+
+## Test 2 — login form does NOT trigger signup_started
+1. Refresh the auth page
+2. Interact with the LOGIN form only
+3. Verify signup_started does NOT fire
+
+Pass condition:
+- no signup_started event from login-only interaction
+
+---
+
+## Test 3 — signup_completed fires correctly
+1. Create a new test account through email signup
+2. Complete signup successfully
+3. Verify signup_completed fires
+4. Verify event properties include:
+   - method = email
+   - signup_source = organic OR invite
+
+Pass condition:
+- signup_completed appears once after successful signup with correct properties
+
+---
+
+## Test 4 — login_completed fires correctly
+1. Log out if needed
+2. Log in with an existing test account
+3. Verify login_completed fires
+4. Verify event properties include:
+   - method = email
+
+Pass condition:
+- login_completed appears once after successful login
+
+---
+
+## Test 5 — auth_error fires for invalid login
+1. Attempt login with invalid credentials
+2. Verify auth_error fires
+3. Verify error_type is appropriate, such as:
+   - invalid_credentials
+   - missing_fields
+
+Pass condition:
+- auth_error appears with the correct error_type
+
+---
+
+## Test 6 — onboarding_step_completed fires during UI progression
+1. Go through identity setup
+2. Click Continue through the onboarding steps
+3. Verify onboarding_step_completed fires for forward progression
+4. Verify properties:
+   - step_index
+   - step_name
+5. Re-click the same Continue action if possible
+6. Verify the same step does NOT fire twice
+
+Pass condition:
+- onboarding_step_completed fires once per forward step and does not duplicate for the same step
+
+---
+
+## Test 7 — onboarding_completed fires on successful submit
+1. Finish identity setup and submit successfully
+2. Verify onboarding_completed fires once
+3. Verify event property:
+   - total_steps = 4
+
+Pass condition:
+- onboarding_completed appears once after successful completion
+
+---
+
+# VALIDATION REQUIREMENTS
+
+For each test case, report:
+- PASS or FAIL
+- what event fired
+- whether it duplicated
+- what key properties were present
+- anything unexpected observed
+
+If you find a bug:
+- identify the exact failing event
+- identify likely root cause
+- name the file or area likely responsible
+- do NOT make broad fixes automatically
+
+---
+
+# FINAL OUTPUT FORMAT
+
+Return a concise QA report with:
+1. Tests passed
+2. Tests failed
+3. Duplicate event issues, if any
+4. Missing property issues, if any
+5. Recommended next action:
+   - no changes needed
+   - or specific bug fix needed
