@@ -202,6 +202,72 @@
             margin: 0;
         }
 
+        /* ── Mountain filter ──────────────────────────────────────────── */
+        .fr-mtn-filter-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: none;
+            border: none;
+            padding: 6px 0 14px 0;
+            margin: 0;
+            font-size: 14px;
+            color: #5C1219;
+            cursor: pointer;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .fr-mtn-filter-btn:active { opacity: 0.6; }
+        .fr-mtn-filter-chevron {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
+        /* ── Mountain filter modal ────────────────────────────────────── */
+        .fr-mtn-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            z-index: 200;
+        }
+        .fr-mtn-overlay.open { display: block; }
+        .fr-mtn-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #F5F1E8;
+            border-radius: 16px 16px 0 0;
+            padding: 12px 0 40px 0;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        .fr-mtn-handle {
+            width: 36px;
+            height: 4px;
+            border-radius: 2px;
+            background: #C4B8B0;
+            margin: 0 auto 16px;
+        }
+        .fr-mtn-option {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            border-bottom: 0.5px solid rgba(0,0,0,0.07);
+            padding: 14px 24px;
+            font-size: 15px;
+            color: #1A1A1A;
+            font-family: inherit;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .fr-mtn-option:last-child { border-bottom: none; }
+        .fr-mtn-option.selected { color: #5C1219; font-weight: 600; }
+        .fr-mtn-option:active { background: rgba(0,0,0,0.04); }
+
         /* ── Empty state ──────────────────────────────────────────────── */
         .fr-empty-section {
             margin-bottom: 28px;
@@ -351,10 +417,19 @@
         <div id="fr-tab-trips" role="tabpanel" style="display: none;">
 
             {% if friends_trips_tab %}
+                <!-- Filter control -->
+                <button class="fr-mtn-filter-btn" id="fr-mtn-filter-btn" onclick="openMtnFilter()">
+                    <span id="fr-mtn-filter-label">All mountains</span>
+                    <span class="fr-mtn-filter-chevron">⌄</span>
+                </button>
+
+                <!-- Trip list -->
+                <div id="fr-trips-list">
                 {% for month in friends_trips_tab %}
-                <p class="fr-month-header">{{ month.month_label }}</p>
+                {% set month_idx = loop.index %}
+                <p class="fr-month-header" data-month="{{ month_idx }}">{{ month.month_label }}</p>
                 {% for dest in month.destinations %}
-                <div class="fr-dest-block">
+                <div class="fr-dest-block" data-mountain="{{ dest.name }}" data-month="{{ month_idx }}">
                     <p class="fr-dest-name">{{ dest.name }}</p>
                     {% for row in dest.rows %}
                     <div class="fr-trip-meta-row">
@@ -369,6 +444,7 @@
                 </div>
                 {% endfor %}
                 {% endfor %}
+                </div>
             {% else %}
                 <div style="padding-top: 28px; text-align: center;">
                     <p style="font-size: 15px; font-weight: 500; color: #1A1A1A; margin: 0 0 8px 0;">No trips planned yet</p>
@@ -377,6 +453,14 @@
                 </div>
             {% endif %}
 
+        </div>
+
+        <!-- Mountain filter overlay / bottom sheet -->
+        <div class="fr-mtn-overlay" id="fr-mtn-overlay" onclick="closeMtnFilter()">
+            <div class="fr-mtn-sheet" onclick="event.stopPropagation()">
+                <div class="fr-mtn-handle"></div>
+                <div id="fr-mtn-options"></div>
+            </div>
         </div>
 
         {% endif %}
@@ -463,6 +547,68 @@
         } else {
             if (noResultsEl) noResultsEl.style.display = 'none';
         }
+    }
+
+    // ── Mountain filter ────────────────────────────────────────────────────
+    var _activeMtn = null;  // null = "All mountains"
+
+    function openMtnFilter() {
+        var optionsEl = document.getElementById('fr-mtn-options');
+        if (!optionsEl) return;
+
+        // Collect unique mountain names from rendered blocks
+        var blocks = document.querySelectorAll('.fr-dest-block');
+        var seen = Object.create(null);
+        var mountains = [];
+        blocks.forEach(function (b) {
+            var m = b.getAttribute('data-mountain');
+            if (m && !seen[m]) { seen[m] = true; mountains.push(m); }
+        });
+        mountains.sort();
+
+        // Build option buttons
+        var html = '';
+        var allSelected = !_activeMtn ? ' selected' : '';
+        html += '<button class="fr-mtn-option' + allSelected + '" onclick="selectMtn(null)">All mountains</button>';
+        mountains.forEach(function (m) {
+            var sel = (_activeMtn === m) ? ' selected' : '';
+            html += '<button class="fr-mtn-option' + sel + '" onclick="selectMtn(' + JSON.stringify(m) + ')">' + m + '</button>';
+        });
+        optionsEl.innerHTML = html;
+
+        document.getElementById('fr-mtn-overlay').classList.add('open');
+    }
+
+    function closeMtnFilter() {
+        document.getElementById('fr-mtn-overlay').classList.remove('open');
+    }
+
+    function selectMtn(mountain) {
+        _activeMtn = mountain;
+
+        // Update button label
+        var label = document.getElementById('fr-mtn-filter-label');
+        if (label) label.textContent = mountain || 'All mountains';
+
+        // Filter destination blocks
+        var blocks = document.querySelectorAll('.fr-dest-block');
+        blocks.forEach(function (b) {
+            var m = b.getAttribute('data-mountain');
+            var show = !mountain || m === mountain;
+            b.style.display = show ? '' : 'none';
+        });
+
+        // Hide month headers that have no visible destination blocks
+        var headers = document.querySelectorAll('.fr-month-header');
+        headers.forEach(function (h) {
+            var monthIdx = h.getAttribute('data-month');
+            var visibleInMonth = document.querySelectorAll(
+                '.fr-dest-block[data-month="' + monthIdx + '"]:not([style*="display: none"])'
+            ).length;
+            h.style.display = visibleInMonth > 0 ? '' : 'none';
+        });
+
+        closeMtnFilter();
     }
     </script>
 </body>
