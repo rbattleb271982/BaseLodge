@@ -1,0 +1,44 @@
+PUT THIS IN ASSISTANT
+
+Audit and fix BaseLodge trip logic as a core system pass. This is not a UI task. The goal is to make trip counts, statuses, overlap logic, and mountain-level trip data fully consistent before we lock the Mountain Detail Page and continue mobile app work.
+
+Please inspect the current codebase and identify all trip-related helper functions, route-level trip queries, and count calculations used across Home, Trips, Friends, Profile, invites, and mountain/resort detail pages.
+
+I want you to audit and standardize the following:
+
+1. Upcoming vs in-progress vs past trip definitions
+2. Deduping of trips by unique trip.id
+3. Owner vs participant counting logic
+4. Participant status handling (accepted, pending, invited, declined, removed, etc.)
+5. Overlap logic between users/friends/trips
+6. Mountain-specific trip counts and friend presence logic
+7. Any duplicated or conflicting trip logic across routes/helpers/templates
+
+Please use these target rules unless the current data model requires a small adjustment:
+
+* Upcoming = trip start_date > today
+* In progress = start_date <= today <= end_date
+* Past = end_date < today
+* Going = owner + accepted participants
+* Considering = only include pending/requested if explicitly surfaced by product logic
+* Never double-count the same trip if the user is both owner and participant
+* Use canonical resort_id for mountain overlap and mountain page calculations whenever possible, not mountain name strings
+* Overlap exists when two trips are for the same resort_id and trip_a.start_date <= trip_b.end_date and trip_b.start_date <= trip_a.end_date
+* Mountain “friends going” should count distinct friend users
+* Mountain “upcoming trips” should count distinct trip records
+
+What I want back from you:
+
+1. A short audit summary of what is currently inconsistent or risky
+2. A proposed canonical logic ruleset for this app
+3. The exact code changes needed
+4. Refactors to centralize duplicate logic into shared helpers where appropriate
+5. A validation checklist showing which screens/routes were tested after the fix
+
+Important:
+
+* Do not start with UI polish
+* Do not change product behavior unless necessary to make logic consistent
+* Keep the implementation lean and compatible with the current Flask/Jinja/Replit architecture
+* Use checkpoints sparingly
+* Do not finish until you have fully tested the affected flows and confirmed counts/logic are consistent across the app
