@@ -373,25 +373,33 @@
             text-underline-offset: 2px;
         }
 
-        /* ── Trip summary card (step 3) ── */
-        .at-summary-card {
-            background: #F0DDD8;
-            border: 0.5px solid #5C1219;
-            border-radius: 10px;
-            padding: 18px 20px;
-            margin-bottom: 20px;
-        }
-        .at-summary-mountain {
-            font-size: 17px;
-            font-weight: 600;
-            color: #1A1A1A;
-            margin: 0 0 4px;
-        }
-        .at-summary-dates {
+        /* ── Add details toggle ── */
+        .at-details-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+            background: none;
+            border: none;
+            padding: 0;
             font-size: 14px;
             color: #6B665A;
-            margin: 0;
+            cursor: pointer;
+            font-family: inherit;
         }
+        .at-details-toggle-chevron {
+            font-size: 13px;
+            transition: transform 0.2s;
+            display: inline-block;
+        }
+        .at-details-toggle.open .at-details-toggle-chevron {
+            transform: rotate(180deg);
+        }
+        .at-details-body {
+            display: none;
+            margin-top: 12px;
+        }
+        .at-details-body.open { display: block; }
 
         /* ── Visibility toggle ── */
         .at-visibility {
@@ -477,13 +485,11 @@
         <!-- Back -->
         <a href="{{ url_for('home') }}" class="at-back">&#8592; Back</a>
 
-        <!-- Progress indicator -->
+        <!-- Progress indicator (2 steps) -->
         <div class="at-progress">
             <div class="at-prog-dot active" id="dot-1"></div>
             <div class="at-prog-line"></div>
             <div class="at-prog-dot" id="dot-2"></div>
-            <div class="at-prog-line"></div>
-            <div class="at-prog-dot" id="dot-3"></div>
         </div>
 
         <!-- Overlap modal (shown when server detects overlapping trip) -->
@@ -523,7 +529,7 @@
             <!-- STEP 1 — WHERE                                      -->
             <!-- ═══════════════════════════════════════════════════ -->
             <div class="at-step-panel active" id="step-1">
-                <p class="at-eyebrow">Step 1 of 3</p>
+                <p class="at-eyebrow">Step 1 of 2</p>
                 <h1 class="at-title">Where are you going?</h1>
                 <p class="at-subhead">Search any mountain. We'll handle the rest.</p>
 
@@ -553,10 +559,10 @@
             </div>
 
             <!-- ═══════════════════════════════════════════════════ -->
-            <!-- STEP 2 — WHEN                                       -->
+            <!-- STEP 2 — WHEN + CREATE                              -->
             <!-- ═══════════════════════════════════════════════════ -->
             <div class="at-step-panel" id="step-2">
-                <p class="at-eyebrow">Step 2 of 3</p>
+                <p class="at-eyebrow">Step 2 of 2</p>
                 <h1 class="at-title">When?</h1>
                 <p class="at-subhead">Tap your start day, then your end day.</p>
 
@@ -583,32 +589,22 @@
                     <button type="button" class="at-clear-btn" id="clear-dates-btn" style="display:none;" onclick="clearDates()">Clear</button>
                 </div>
 
+                <!-- Add details (collapsed by default) -->
+                <button type="button" class="at-details-toggle" id="details-toggle" onclick="toggleDetails()">
+                    Add details <span class="at-details-toggle-chevron">⌄</span>
+                </button>
+                <div class="at-details-body" id="details-body">
+                    <div class="at-visibility">
+                        <label class="at-vis-label">
+                            <input type="checkbox" id="visibility-toggle" checked>
+                            Make this trip visible to friends
+                        </label>
+                        <p class="at-vis-hint">Only friends can see this trip.</p>
+                    </div>
+                </div>
+
                 <button type="button" class="at-btn-secondary" onclick="goToStep(1)">Back</button>
-                <button type="button" class="at-btn-primary" id="step2-continue" disabled onclick="goToStep(3)">Continue</button>
-            </div>
-
-            <!-- ═══════════════════════════════════════════════════ -->
-            <!-- STEP 3 — VISIBILITY                                 -->
-            <!-- ═══════════════════════════════════════════════════ -->
-            <div class="at-step-panel" id="step-3">
-                <p class="at-eyebrow">Step 3 of 3</p>
-                <h1 class="at-title">Who can see it?</h1>
-
-                <div class="at-summary-card">
-                    <p class="at-summary-mountain" id="summary-mountain">&#8212;</p>
-                    <p class="at-summary-dates" id="summary-dates">&#8212;</p>
-                </div>
-
-                <div class="at-visibility">
-                    <label class="at-vis-label">
-                        <input type="checkbox" id="visibility-toggle" checked>
-                        Make this trip visible to friends
-                    </label>
-                    <p class="at-vis-hint">Only friends can see this trip.</p>
-                </div>
-
-                <button type="button" class="at-btn-secondary" onclick="goToStep(2)">Back</button>
-                <button type="submit" class="at-btn-primary">{% if prefill_friend and is_group %}Send invite{% else %}Save trip{% endif %}</button>
+                <button type="submit" class="at-btn-primary" id="step2-submit" disabled>{% if prefill_friend and is_group %}Send invite{% else %}Create trip{% endif %}</button>
             </div>
         </form>
 
@@ -666,19 +662,24 @@
                 renderCalendar();
                 updateRangeSummary();
             }
-            if (n === 3) {
-                updateTripSummary();
-            }
             window.scrollTo(0, 0);
         }
 
         function updateProgressDots() {
-            [1, 2, 3].forEach(i => {
+            [1, 2].forEach(i => {
                 const dot = document.getElementById('dot-' + i);
                 dot.classList.remove('active', 'done');
                 if (i < currentStep) dot.classList.add('done');
                 if (i === currentStep) dot.classList.add('active');
             });
+        }
+
+        // ── Add details toggle ────────────────────────────────────────
+        function toggleDetails() {
+            const btn  = document.getElementById('details-toggle');
+            const body = document.getElementById('details-body');
+            const open = body.classList.toggle('open');
+            btn.classList.toggle('open', open);
         }
 
         // ── Mountain search ───────────────────────────────────────────
@@ -915,13 +916,13 @@
 
         function navigateMonth(delta) {
             calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + delta, 1);
-            renderCalendar();  // Full re-render only on month change — correct
+            renderCalendar();
         }
 
         function updateRangeSummary() {
             const rangeText  = document.getElementById('range-text');
             const clearBtn   = document.getElementById('clear-dates-btn');
-            const step2Btn   = document.getElementById('step2-continue');
+            const submitBtn  = document.getElementById('step2-submit');
 
             if (selStart && selEnd) {
                 const label = sameDay(selStart, selEnd)
@@ -929,15 +930,15 @@
                     : fmtShort(selStart) + '–' + fmtShort(selEnd);
                 rangeText.textContent   = label;
                 clearBtn.style.display  = 'inline';
-                step2Btn.disabled       = false;
+                submitBtn.disabled      = false;
             } else if (selStart) {
                 rangeText.textContent  = fmtShort(selStart) + ' — pick end date';
                 clearBtn.style.display = 'inline';
-                step2Btn.disabled      = true;
+                submitBtn.disabled     = true;
             } else {
                 rangeText.textContent  = 'Select your trip dates';
                 clearBtn.style.display = 'none';
-                step2Btn.disabled      = true;
+                submitBtn.disabled     = true;
             }
         }
 
@@ -947,18 +948,6 @@
             startDateInput.value = endDateInput.value = '';
             updateCalendarClasses();
             updateRangeSummary();
-        }
-
-        // ── Trip summary (step 3) ─────────────────────────────────────
-        function updateTripSummary() {
-            document.getElementById('summary-mountain').textContent = selResortName || '—';
-            let dateLabel = '—';
-            if (selStart && selEnd) {
-                dateLabel = sameDay(selStart, selEnd)
-                    ? fmtShort(selStart) + ', ' + selStart.getFullYear() + ' · Day trip'
-                    : fmtShort(selStart) + '–' + fmtShort(selEnd) + ', ' + selStart.getFullYear();
-            }
-            document.getElementById('summary-dates').textContent = dateLabel;
         }
 
         // ── Visibility toggle ─────────────────────────────────────────
@@ -988,7 +977,7 @@
             // Determine the starting step
             if (PREFILL_RESORT_ID && initStartVal && initEndVal) {
                 updateRangeSummary();
-                goToStep(3);
+                goToStep(2);
             } else if (PREFILL_RESORT_ID) {
                 goToStep(2);
             } else {

@@ -1,0 +1,96 @@
+Refactor the /add_trip experience in BaseLodge into a simple, mobile-first 2-step flow.
+Goal
+Make creating a trip feel fast and lightweight:
+Step 1: choose mountain
+Step 2: choose dates
+Then create trip
+All other fields must be hidden behind an optional “Add details” section.
+Do not change the backend model or routes. This is a frontend + template refactor only.
+Requirements
+1. Convert /add_trip into a 2-step flow
+Step 1: Mountain selection
+Show:
+Search input (existing behavior)
+List of results
+User selects a mountain (resort_id)
+When selected:
+Move to Step 2
+Persist selection in state (JS or form)
+Step 2: Date selection
+Show:
+Start date
+End date
+Requirements:
+Must select both dates before continuing
+Validate:
+end_date >= start_date
+2. Primary CTA
+At bottom (sticky on mobile):
+Button text:
+→ Create trip
+Rules:
+Disabled until:
+resort selected
+both dates selected
+On tap:
+Submit to existing POST /add_trip
+No backend changes
+3. Hide optional fields
+All of these must be hidden by default:
+public/private
+ride intent
+equipment
+friend invite
+group flag
+any other secondary fields
+Replace them with:
+“Add details” toggle
+Collapsed by default
+When expanded, show existing optional fields
+Do NOT change their logic
+Just move them into this section
+4. Preserve backend behavior
+Do NOT change:
+POST route
+validation
+model fields
+Ensure:
+resort_id still required
+dates still required
+5. Editing compatibility
+Do NOT break edit flow
+If edit uses same template:
+Pre-fill Step 1 + Step 2
+Allow editing both
+Edit should feel like same UI, just prefilled
+6. Mobile-first behavior
+Sticky CTA at bottom
+Large tap targets
+No long scrolling form
+Each step should feel focused and short
+7. Minimal design rules
+Keep existing styles/colors
+Do NOT introduce new design system
+Do NOT redesign entire page
+This is a structural refactor, not a visual overhaul
+Implementation notes
+Likely files:
+templates/add_trip.html (or similar)
+any JS handling search + form state
+Use simple JS state (no framework needed)
+Can conditionally show Step 1 vs Step 2 sections
+Deliverable
+After implementation, report:
+Files changed
+How Step 1 and Step 2 are implemented
+How optional fields were moved under “Add details”
+Confirmation:
+no backend changes
+edit flow still works
+validation still works
+Important
+Do NOT over-engineer this
+Do NOT add new features
+Do NOT change data models
+Keep logic simple
+Use checkpoints sparingly
