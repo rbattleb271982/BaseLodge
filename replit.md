@@ -125,7 +125,29 @@ To prevent UI and architectural regressions, the following ownership rules must 
 -   **Narrative Continuity:** Four narrative states (Early Onboarding, Profile Complete/Not Planning, Planning Started, Active User) dynamically adjust UI copy.
 -   **Next Best Action (NBA) System:** Prioritizes a single primary CTA per screen using styling and copy.
 
+## Seed Data
+
+**Run:** `python scripts/seed.py` (safe to re-run — wipes `is_seeded=True` records only, never touches real user data)
+
+**Primary test account:** `demo@baselodge.app` / `demo1234` | **Secondary:** `test5@gmail.com` / `12345678`
+
+**20 seeded users across 4 cohorts:**
+
+| Cohort | Users | Purpose |
+|---|---|---|
+| A (Core) | Jordan, Maya, Sam, Chris, Emma, Tyler | Core social graph — varied passes, skills, rider types |
+| B (States) | Priya, Jake, Rachel | Connection states: incoming request, outgoing request, no connection |
+| C (Ideas) | Nina, Marco, Casey | Availability overlap clusters for Ideas engine |
+| D (Scoring) | Preet, Lena, Dev, Sofia, Zara, Owen | Join a Trip scoring diversity + next-season Upcoming volume |
+
+**Join a Trip curated scores (demo@baselodge.app):** Score 6 (Jackson×3, Telluride×1), Score 5 (Whistler), Score 3 (Stowe, Vail, Palisades), Score 1 (various), Score 0 (Mammoth/Sofia — fallback). Multi-friend: Jordan+Sofia+Zara all at Mammoth Jul 6–10.
+
+**Friends > Upcoming monthly spread:** May, Jun, Jul 2026, Dec 2026, Jan, Feb, Mar 2027 (7 months, 29 trips total)
+
+**Ideas clusters:** Cluster A = Jun 16–19 Telluride/Ikon (Alex+Nina+Marco). Cluster B = Jan 22–25 Jackson/Ikon (Alex+Tyler+Casey).
+
 ## External Dependencies
+
 -   **Flask:** Python web framework.
 -   **Flask-Login:** User session management.
 -   **SQLAlchemy:** SQL toolkit and ORM.

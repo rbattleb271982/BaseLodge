@@ -648,6 +648,148 @@ def seed():
     print("    ✓ Taylor Reed <test5@gmail.com> created (personal demo, full social graph)")
 
     # ─────────────────────────────────────────────────────────────────────────
+    # COHORT D — JOIN A TRIP SCORING DIVERSITY + FRIENDS > UPCOMING VOLUME
+    # ─────────────────────────────────────────────────────────────────────────
+    # Each user is deliberately designed to produce a specific curated score
+    # for Alex (demo@baselodge.app) in the "Join a Trip" tab.
+    #
+    #  Preet → Telluride T+62–66   wishlist(3)+overlap(2)+pass(1) = 6
+    #  Lena  → Whistler  T+14–18   wishlist(3)+overlap(2)+no_pass = 5
+    #  Dev   → Vail      T+15–19   no_wishlist + overlap(2)+pass(1) = 3
+    #  Sofia → Mammoth   T+77–81   no_wishlist + no_overlap + no_pass = 0
+    #  Zara  → Mammoth   T+77–81   no_wishlist + no_overlap + Ikon(1) = 1
+    #  Owen  → Park City T+100–4   no_wishlist + no_overlap + Epic(1) = 1
+    #
+    # Sofia + Zara + Jordan all at Mammoth T+77–81 → multi-friend scenario.
+    # Dev, Sofia, Zara, Owen, Lena, Preet also carry next-season trips
+    # (Dec 2026 – Mar 2027) to fill out Friends > Upcoming across more months.
+
+    # D1 — Preet Singh (score=6 trip: Telluride, Ikon, overlaps Alex's Jun window)
+    preet = make_user(
+        first_name='Preet', last_name='Singh',
+        email='preet@seed.baselodge.app',
+        rider_types=['Skier'],
+        skill_level='Advanced',
+        pass_type='Ikon',
+        terrain_preferences=['Steeps', 'Trees'],
+        home_state='CO',
+        home_resort_id=telluride.id,
+        visited_resort_ids=[telluride.id, abasin.id],
+        wish_list_resorts=[telluride.id, mammoth.id],
+        equipment_status='have_own_equipment',
+        created_at=NOW - timedelta(days=30),
+    )
+    db.session.flush()
+    make_equipment(preet, EquipmentSlot.PRIMARY, EquipmentDiscipline.SKIER,
+                   brand='Dynastar', model='Speed 4x4 96',
+                   boot_brand='Dalbello', boot_model='Panterra 130', boot_flex=130)
+    set_open_dates(preet, list(range(60, 68)))
+
+    # D2 — Lena Kowalski (score=5 trip: Whistler, Mountain Collective, overlaps Alex's early window)
+    lena = make_user(
+        first_name='Lena', last_name='Kowalski',
+        email='lena@seed.baselodge.app',
+        rider_types=['Snowboarder'],
+        skill_level='Advanced',
+        pass_type='Mountain Collective',
+        terrain_preferences=['Steeps', 'Trees', 'Park'],
+        home_state='WA',
+        home_resort_id=whistler.id,
+        visited_resort_ids=[whistler.id, palisades.id],
+        wish_list_resorts=[whistler.id, jackson.id],
+        equipment_status='have_own_equipment',
+        created_at=NOW - timedelta(days=60),
+    )
+    db.session.flush()
+    make_equipment(lena, EquipmentSlot.PRIMARY, EquipmentDiscipline.SNOWBOARDER,
+                   brand='Never Summer', model='Harpoon 154',
+                   boot_brand='ThirtyTwo', boot_model='Lashed BC', boot_flex=57)
+    set_open_dates(lena, list(range(13, 20)) + list(range(258, 267)))
+
+    # D3 — Dev Sharma (score=3 trip: Vail, Epic, overlaps Alex's early window but not wishlist)
+    dev = make_user(
+        first_name='Dev', last_name='Sharma',
+        email='dev@seed.baselodge.app',
+        rider_types=['Skier'],
+        skill_level='Intermediate',
+        pass_type='Epic',
+        terrain_preferences=['Groomers', 'Trees'],
+        home_state='CO',
+        home_resort_id=vail.id,
+        visited_resort_ids=[vail.id, breck.id, copper.id],
+        wish_list_resorts=[vail.id, stowe.id],
+        equipment_status='have_own_equipment',
+        created_at=NOW - timedelta(days=80),
+    )
+    db.session.flush()
+    make_equipment(dev, EquipmentSlot.PRIMARY, EquipmentDiscipline.SKIER,
+                   brand='Atomic', model='Redster X9S',
+                   boot_brand='Atomic', boot_model='Hawx Prime 110', boot_flex=110)
+    set_open_dates(dev, list(range(14, 20)) + list(range(240, 248)))
+
+    # D4 — Sofia Reyes (score=0: no pass, no overlap, non-wishlist; Mammoth multi-friend)
+    sofia = make_user(
+        first_name='Sofia', last_name='Reyes',
+        email='sofia@seed.baselodge.app',
+        rider_types=['Skier'],
+        skill_level='Beginner',
+        pass_type='No Pass',
+        terrain_preferences=['Groomers'],
+        home_state='CA',
+        home_resort_id=mammoth.id,
+        visited_resort_ids=[mammoth.id],
+        wish_list_resorts=[palisades.id],
+        equipment_status='needs_rentals',
+        created_at=NOW - timedelta(days=10),
+    )
+    db.session.flush()
+
+    # D5 — Zara Ahmed (score=1: Ikon pass match only; also at Mammoth multi-friend)
+    zara = make_user(
+        first_name='Zara', last_name='Ahmed',
+        email='zara@seed.baselodge.app',
+        rider_types=['Skier'],
+        skill_level='Advanced',
+        pass_type='Ikon',
+        terrain_preferences=['Steeps', 'Trees'],
+        home_state='CA',
+        home_resort_id=mammoth.id,
+        visited_resort_ids=[mammoth.id, palisades.id, jackson.id],
+        wish_list_resorts=[mammoth.id, jackson.id],
+        equipment_status='have_own_equipment',
+        created_at=NOW - timedelta(days=50),
+    )
+    db.session.flush()
+    make_equipment(zara, EquipmentSlot.PRIMARY, EquipmentDiscipline.SKIER,
+                   brand='Volkl', model='Kenja 88',
+                   boot_brand='Salomon', boot_model='X Pro 100', boot_flex=100)
+    set_open_dates(zara, list(range(75, 83)) + list(range(282, 290)))
+
+    # D6 — Owen Park (score=1: Epic pass match, non-wishlist, non-overlap;
+    #                 carries multiple next-season trips for Friends > Upcoming volume)
+    owen = make_user(
+        first_name='Owen', last_name='Park',
+        email='owen@seed.baselodge.app',
+        rider_types=['Skier'],
+        skill_level='Advanced',
+        pass_type='Epic',
+        terrain_preferences=['Trees', 'Steeps'],
+        home_state='UT',
+        home_resort_id=park_city.id,
+        visited_resort_ids=[park_city.id, vail.id, breck.id, stowe.id],
+        wish_list_resorts=[jackson.id, mammoth.id],
+        equipment_status='have_own_equipment',
+        created_at=NOW - timedelta(days=95),
+    )
+    db.session.flush()
+    make_equipment(owen, EquipmentSlot.PRIMARY, EquipmentDiscipline.SKIER,
+                   brand='K2', model='Reckoner 102',
+                   boot_brand='Technica', boot_model='Mach Sport HV 80', boot_flex=80)
+    set_open_dates(owen, list(range(100, 106)) + list(range(244, 252)) + list(range(302, 310)))
+
+    print("    ✓ Cohort D (6 users) created: Preet, Lena, Dev, Sofia, Zara, Owen")
+
+    # ─────────────────────────────────────────────────────────────────────────
     # FRIENDSHIPS
     # ─────────────────────────────────────────────────────────────────────────
     print("🤝  Creating friendships...")
@@ -665,6 +807,22 @@ def seed():
     make_friends(alex, nina)
     make_friends(alex, marco)
     make_friends(alex, casey)
+
+    # Cohort D — Scoring diversity + volume users
+    make_friends(alex, preet)
+    make_friends(alex, lena)
+    make_friends(alex, dev)
+    make_friends(alex, sofia)
+    make_friends(alex, zara)
+    make_friends(alex, owen)
+
+    # test5 also connected to Cohort D
+    make_friends(test5, preet)
+    make_friends(test5, lena)
+    make_friends(test5, dev)
+    make_friends(test5, sofia)
+    make_friends(test5, zara)
+    make_friends(test5, owen)
 
     # B1: Priya → Alex (incoming to Alex, pending)
     make_invitation(priya, alex, status='pending')
@@ -692,7 +850,7 @@ def seed():
     # test5 outgoing: test5 → Rachel (pending; Rachel has no confirmed connection)
     make_invitation(test5, rachel, status='pending')
 
-    print("    ✓ 21 bidirectional friendships, 4 pending invitations")
+    print("    ✓ 33 bidirectional friendships, 4 pending invitations")
 
     # ─────────────────────────────────────────────────────────────────────────
     # TRIPS
@@ -812,6 +970,102 @@ def seed():
                                    trip_status='planning', pass_type='Ikon', is_public=True)
     trip_count += 1
 
+    # ── COHORT D: current-season scoring trips ────────────────────────────────
+    #
+    # These are the trips that produce intentional curated scores for Alex on
+    # the "Join a Trip" tab. Trip at each score tier is seeded exactly once
+    # (except the Mammoth cluster which needs three to show multi-friend).
+
+    # Preet: Telluride T+62–66 → score=6 for Alex (wishlist+overlap+pass)
+    trip_telluride_preet = make_trip(preet, telluride, 62, 66,
+                                     trip_status='planning', pass_type='Ikon',
+                                     is_public=True)
+    trip_count += 1
+
+    # Lena: Whistler T+14–18 → score=5 for Alex (wishlist+overlap, no pass match)
+    trip_whistler_lena = make_trip(lena, whistler, 14, 18,
+                                   trip_status='planning', pass_type='Mountain Collective',
+                                   is_public=True)
+    trip_count += 1
+
+    # Dev: Vail T+15–19 → score=3 for Alex (overlap+pass, not on wishlist)
+    trip_vail_dev = make_trip(dev, vail, 15, 19,
+                              trip_status='planning', pass_type='Epic',
+                              is_public=True)
+    trip_count += 1
+
+    # Sofia: Mammoth T+77–81 → score=0 for Alex (no signals — fallback row)
+    trip_mammoth_sofia = make_trip(sofia, mammoth, 77, 81,
+                                   trip_status='planning', pass_type='No Pass',
+                                   is_public=True)
+    trip_count += 1
+
+    # Zara: Mammoth T+77–81 → score=1 for Alex (Ikon pass only)
+    # Combined with Jordan (T+77–81) + Sofia: 3 friends at Mammoth same weekend
+    trip_mammoth_zara = make_trip(zara, mammoth, 77, 81,
+                                  trip_status='planning', pass_type='Ikon',
+                                  is_public=True)
+    trip_count += 1
+
+    # Owen: Park City T+100–104 → score=1 for Alex (Epic pass, nothing else)
+    trip_park_city_owen = make_trip(owen, park_city, 100, 104,
+                                    trip_status='planning', pass_type='Epic',
+                                    is_public=True)
+    trip_count += 1
+
+    # ── COHORT D: next-season volume trips (Dec 2026 – Mar 2027) ─────────────
+    # Purpose: fill out Friends > Upcoming so it shows Dec / Jan / Feb / Mar
+    # month sections, not just the summer cluster.
+
+    # Dec 2026 cluster (~T+240 = Dec 16)
+    trip_vail_dev_winter = make_trip(dev, vail, 243, 247,
+                                     trip_status='planning', pass_type='Epic',
+                                     is_public=True)
+    trip_count += 1
+
+    trip_park_city_owen_winter = make_trip(owen, park_city, 246, 250,
+                                           trip_status='planning', pass_type='Epic',
+                                           is_public=True)
+    trip_count += 1
+
+    trip_breck_sofia_winter = make_trip(sofia, breck, 250, 254,
+                                        trip_status='planning', pass_type='No Pass',
+                                        is_public=True)
+    trip_count += 1
+
+    # Jan 2027 cluster (~T+260 = Jan 5, T+281 = Jan 26)
+    trip_whistler_lena_winter = make_trip(lena, whistler, 260, 265,
+                                          trip_status='planning', pass_type='Mountain Collective',
+                                          is_public=True)
+    trip_count += 1
+
+    trip_jackson_zara_winter = make_trip(zara, jackson, 283, 288,
+                                         trip_status='planning', pass_type='Ikon',
+                                         is_public=True)
+    trip_count += 1
+
+    # Feb 2027 cluster (~T+302 = Feb 16)
+    trip_killington_owen_winter = make_trip(owen, killington, 302, 306,
+                                            trip_status='planning', pass_type='Epic',
+                                            is_public=True)
+    trip_count += 1
+
+    trip_telluride_preet_winter = make_trip(preet, telluride, 305, 309,
+                                            trip_status='planning', pass_type='Ikon',
+                                            is_public=True)
+    trip_count += 1
+
+    # Mar 2027 (~T+328 = Mar 14)
+    trip_vail_dev_spring = make_trip(dev, vail, 328, 332,
+                                     trip_status='planning', pass_type='Epic',
+                                     is_public=True)
+    trip_count += 1
+
+    trip_mammoth_zara_spring = make_trip(zara, mammoth, 332, 336,
+                                         trip_status='planning', pass_type='Ikon',
+                                         is_public=True)
+    trip_count += 1
+
     print(f"    ✓ {trip_count} trips created")
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -895,6 +1149,25 @@ def seed():
     add_activity(tyler, test5, ActivityType.TRIP_CREATED, 'trip', trip_copper_tyler.id)
     n_activities += 4
 
+    # Cohort D trips visible to Alex
+    add_activity(preet, alex, ActivityType.TRIP_CREATED, 'trip', trip_telluride_preet.id)
+    add_activity(lena,  alex, ActivityType.TRIP_CREATED, 'trip', trip_whistler_lena.id)
+    add_activity(dev,   alex, ActivityType.TRIP_CREATED, 'trip', trip_vail_dev.id)
+    add_activity(sofia, alex, ActivityType.TRIP_CREATED, 'trip', trip_mammoth_sofia.id)
+    add_activity(zara,  alex, ActivityType.TRIP_CREATED, 'trip', trip_mammoth_zara.id)
+    add_activity(owen,  alex, ActivityType.TRIP_CREATED, 'trip', trip_park_city_owen.id)
+    n_activities += 6
+
+    # Mammoth multi-friend signal → Alex sees all three going
+    add_activity(jordan, alex, ActivityType.TRIP_CREATED, 'trip', trip_mammoth_jordan.id)
+    n_activities += 1
+
+    # New Cohort D connections
+    add_activity(preet, alex, ActivityType.CONNECTION_ACCEPTED, 'user', preet.id)
+    add_activity(lena,  alex, ActivityType.CONNECTION_ACCEPTED, 'user', lena.id)
+    add_activity(dev,   alex, ActivityType.CONNECTION_ACCEPTED, 'user', dev.id)
+    n_activities += 3
+
     print(f"    ✓ {n_activities} activity records created")
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -945,20 +1218,26 @@ def seed():
     print()
     print("  Seeded archetypes:")
     archetypes = [
-        (alex,   "Primary test account — Skier+Boarder, Advanced, Epic+Ikon, wishlist: Whistler/Telluride/Jackson"),
+        (alex,   "PRIMARY — Skier+Boarder, Advanced, Epic+Ikon, wishlist: Whistler/Telluride/Jackson"),
         (jordan, "Power User — Expert Skier, Epic, 6 upcoming + 1 past trip"),
         (maya,   "Boarder — Snowboarder, Advanced, Ikon, Tahoe-based"),
-        (sam,    "Mixed Rider — Skier+Boarder, Intermediate, past trips only"),
+        (sam,    "Mixed Rider — Skier+Boarder, Intermediate, past trips only (empty upcoming)"),
         (chris,  "Social/Empty — No pass, no trips, incomplete profile"),
         (emma,   "Beginner Planner — Indy, near-miss Breck trip"),
-        (tyler,  "The Regular — Advanced Skier, Ikon, CO-based; Cluster B anchor (Jan 22–25, Jackson)"),
+        (tyler,  "The Regular — Advanced Skier, Ikon, CO-based; Cluster B anchor"),
         (priya,  "Incoming request → Alex + test5 (pending)"),
         (jake,   "Outgoing request from Alex (pending)"),
         (rachel, "No connection to Alex; pending request from test5"),
-        (test5,  "Personal demo — Skier, Advanced, Epic+Ikon, 5 upcoming trips, friends with all core users"),
+        (test5,  "Personal demo — Skier, Advanced, Epic+Ikon, 5 upcoming trips, full social graph"),
         (nina,   "Cluster A anchor — Ikon, Telluride wishlist, free Jun 16–19"),
         (marco,  "Cluster A anchor — Ikon, Telluride wishlist, free Jun 16–19"),
         (casey,  "Cluster B anchor — Ikon, Jackson wishlist, free Jan 22–25 2027"),
+        (preet,  "Score-6 trip: Telluride T+62–66, Ikon (wishlist+overlap+pass for Alex)"),
+        (lena,   "Score-5 trip: Whistler T+14–18, Mountain Collective (wishlist+overlap, no pass)"),
+        (dev,    "Score-3 trip: Vail T+15–19, Epic (overlap+pass, not on Alex's wishlist)"),
+        (sofia,  "Score-0 trip: Mammoth T+77–81, No Pass (no signals — fallback row)"),
+        (zara,   "Score-1 trip: Mammoth T+77–81, Ikon (pass only) + next-season Jackson"),
+        (owen,   "Score-1 trip: Park City T+100–4, Epic (pass only) + Dec/Feb next season"),
     ]
     for user, label in archetypes:
         print(f"    {user.first_name} {user.last_name}  <{user.email}>")
@@ -979,7 +1258,28 @@ def seed():
     print(f"    ✓ test5 exact overlap: Taylor + Alex + Jordan all at Jackson Hole T+45→T+49")
     print(f"    ✓ test5 near overlap: Taylor at Breck T+22→T+25 (1 day into main group T+21)")
     print(f"    ✓ test5 different resort: Taylor at Telluride T+35→T+38 (Jordan=Vail, Tyler=Copper)")
-    print(f"    ✓ test5 social graph: friends with all 10 core users, 1 incoming (Priya), 1 outgoing (Rachel)")
+    print(f"    ✓ test5 social graph: friends with all 16 core users, 1 incoming (Priya), 1 outgoing (Rachel)")
+    print()
+    print("  Join a Trip curated scoring (demo@baselodge.app):")
+    print(f"    ✓ Score 6: Jackson Hole (Jordan, T+45, Ikon)  — wishlist+overlap+pass")
+    print(f"    ✓ Score 6: Telluride (Preet, T+62, Ikon)     — wishlist+overlap+pass")
+    print(f"    ✓ Score 5: Whistler (Lena, T+14, MC)         — wishlist+overlap, no pass")
+    print(f"    ✓ Score 3: Stowe (Jordan, T+14, Epic)        — overlap+pass, not wishlist")
+    print(f"    ✓ Score 3: Palisades (Maya, T+42, Ikon)      — overlap+pass, not wishlist")
+    print(f"    ✓ Score 3: Vail (Dev, T+15, Epic)            — overlap+pass, not wishlist")
+    print(f"    ✓ Score 1: Various (Vail J, Copper T, Killington J, Mammoth J, Zara, Owen)")
+    print(f"    ✓ Score 0: Mammoth (Sofia, T+77, No Pass)    — fallback row")
+    print(f"    ✓ Multi-friend Mammoth: Jordan + Sofia + Zara all T+77–81")
+    print()
+    print("  Friends > Upcoming monthly spread (demo@baselodge.app):")
+    print(f"    ✓ May 2026   — Stowe (Jordan), Whistler (Lena), Vail (Dev), Breck (Emma)")
+    print(f"    ✓ Jun 2026   — Vail (Jordan), Copper (Tyler), Palisades (Maya),")
+    print(f"                   Jackson (Jordan), Killington (Jordan), Telluride (Preet)")
+    print(f"    ✓ Jul 2026   — Mammoth x3 (Jordan+Sofia+Zara), Copper (Jordan)")
+    print(f"    ✓ Dec 2026   — Vail (Dev), Park City (Owen), Breck (Sofia)")
+    print(f"    ✓ Jan 2027   — Whistler (Lena), Jackson (Zara)")
+    print(f"    ✓ Feb 2027   — Killington (Owen), Telluride (Preet)")
+    print(f"    ✓ Mar 2027   — Vail (Dev), Mammoth (Zara)")
     print()
     print("  Ideas Engine clusters (demo@baselodge.app):")
     print(f"    ✓ Cluster A — Jun 16–19 / Telluride / Ikon:  Alex + Nina + Marco")
@@ -988,15 +1288,39 @@ def seed():
     print(f"    ✓ Cluster B — Jan 22–25, 2027 / Jackson Hole / Ikon:  Alex + Tyler + Casey")
     print(f"      → Expect: availability_overlap card 'You, Tyler, and Casey are free Jan 22–25'")
     print(f"      → Expect: wishlist_overlap card 'Jackson Hole is on your lists' (Alex + Tyler + Casey + Sam)")
-    print(f"    ✓ Soft pull — Whistler wishlist:  Alex + Maya + Nina + Casey (no shared avail)")
+    print(f"    ✓ Soft pull — Whistler wishlist:  Alex + Maya + Nina + Casey + Lena (no shared avail)")
     print(f"      → Expect: lower-priority wishlist_overlap card for Whistler")
     print()
-    print("  QA checklist — log in as demo@baselodge.app / demo1234 and visit /trip-ideas:")
-    print("    □ At least 3 friend-trip cards (Jordan going to Jackson/Vail/Stowe, Maya to Palisades, Tyler to Copper)")
-    print("    □ Availability card for Jun 16–19 featuring Nina and/or Marco")
-    print("    □ Availability card for Jan 22–25, 2027 featuring Tyler and/or Casey")
-    print("    □ Wishlist card for Telluride (Alex + Jordan + Nina + Marco all want it)")
-    print("    □ Wishlist card for Jackson Hole (Alex + Tyler + Casey + Sam all want it)")
+    print("  QA checklist — log in as demo@baselodge.app / demo1234:")
+    print()
+    print("  /trip-ideas:")
+    print("    □ Friend-trip cards: Jordan (Jackson/Vail/Stowe), Maya (Palisades), Tyler (Copper)")
+    print("    □ Availability overlap card Jun 16–19 featuring Nina and/or Marco")
+    print("    □ Availability overlap card Jan 22–25, 2027 featuring Tyler and/or Casey")
+    print("    □ Wishlist card for Telluride (Alex + Jordan + Nina + Marco)")
+    print("    □ Wishlist card for Jackson Hole (Alex + Tyler + Casey + Sam)")
+    print()
+    print("  /my-trips → Join a Trip tab:")
+    print("    □ Score-6 trips at top: Jackson (Jordan) and Telluride (Preet)")
+    print("    □ Score-5 Whistler (Lena) appears before score-3 group")
+    print("    □ Score-3 group: Stowe (Jordan), Palisades (Maya), Vail (Dev)")
+    print("    □ Score-1 and score-0 entries appear last (or are capped out)")
+    print("    □ Multi-friend Mammoth weekend shows Jordan + Sofia + Zara")
+    print()
+    print("  /friends → Upcoming tab:")
+    print("    □ Month headers: May, June, July, Dec 2026, Jan 2027, Feb 2027, Mar 2027")
+    print("    □ Mammoth in July shows 3 friends (Jordan, Sofia, Zara)")
+    print("    □ Next-season Dec/Jan/Feb/Mar entries are visible below summer cluster")
+    print()
+    print("  /friends → Friends tab:")
+    print("    □ 16 friends visible (not counting pending Priya/Jake/Rachel)")
+    print("    □ Mix of skill levels, passes, rider types visible in list")
+    print()
+    print("  Friend profiles:")
+    print("    □ Jordan: 6 upcoming trips, full gear, full profile")
+    print("    □ Sam: past trips only, no upcoming")
+    print("    □ Chris: no trips, no equipment, incomplete profile")
+    print("    □ Preet: Telluride specialist, Ikon, score-6 alignment with Alex")
     print(divider + "\n")
 
 

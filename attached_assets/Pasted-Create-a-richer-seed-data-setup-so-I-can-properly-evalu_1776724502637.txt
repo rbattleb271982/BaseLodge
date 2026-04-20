@@ -1,0 +1,130 @@
+Create a richer seed-data setup so I can properly evaluate the Trips, Friends, Home, and Ideas experiences with realistic permutations. Right now I do not have enough examples on screen to judge whether the new structure is right.
+Goal
+Seed enough realistic users, friendships, profiles, and trips so the app visibly exercises the different UI states and product logic across:
+Home
+Trips
+Friends
+Ideas
+Join a Trip
+Friend profiles
+Invite-related surfaces if they already exist
+I do not want random junk data. I want intentional seed data that helps test product and UX decisions.
+What to do
+Audit the existing seed/dev population approach and then extend it so local/dev data includes a meaningful variety of cases.
+Create or expand seed users so we have a realistic network with:
+different names
+skier and snowboarder mix
+different skill levels
+Epic / Ikon / Other / None mix
+a mix of friends and non-friends if needed by current logic
+enough accepted friendships for the social surfaces to populate well
+Seed at least these categories of scenarios
+1. User has no upcoming trip
+Create a state where the main signed-in user can be tested with:
+no upcoming trip
+friends who do have trips
+some overlap opportunities
+some no-overlap cases
+2. User has one upcoming trip
+Create a state where the main user has:
+one owned trip
+at least one friend also going to that same mountain on overlapping dates
+at least one friend going same mountain but different dates
+at least one friend going somewhere else entirely
+3. User has multiple upcoming trips
+Create:
+one soon upcoming trip
+one later trip
+one trip with accepted participants
+one trip with pending/invite-related state if that exists in the product already
+4. Join a Trip permutations
+Seed enough friend trips so the new curated Trips surface can visibly show multiple cases like:
+shared wishlist mountain
+shared date overlap
+pass alignment
+multiple friends going
+weak relevance case
+no-signal fallback case
+I want to be able to see whether the scoring and curation actually feel smart.
+5. Friends > Upcoming permutations
+Seed the broader feed so it clearly includes:
+multiple mountains
+multiple months
+multiple friends on same destination
+mixed statuses if supported
+trips with and without pass overlap
+enough volume to feel like a feed, not a stub
+6. Ideas tab permutations
+Seed enough data to make the Ideas tab show different idea types if those are currently supported, such as:
+friend trip opportunities
+open date overlaps
+wishlist overlaps
+different pass situations
+sparse state and populated state if possible
+7. Home screen permutations
+I want the Home screen to surface multiple meaningful states across seeded data, including where applicable:
+next trip hero
+friend overlap / social signal cards
+join-opportunity card
+idea/recommendation card
+empty-ish state when the user has little activity
+populated state when there is a lot happening
+8. Friend list permutations
+Seed friends so the Friends list is useful to evaluate:
+users with different rider types
+different pass types
+different levels
+some with several upcoming trips
+some with none
+enough rows to assess spacing and scroll behavior
+9. Friend profile permutations
+If friend profile pages exist, make sure the seed data supports testing:
+friend with upcoming trips
+friend with no upcoming trips
+friend with shared mountain interest
+friend with a different pass and different skill level
+Important implementation rules
+Keep it intentional
+Do not generate meaningless random dates or nonsense combinations.
+Create realistic ski travel patterns across recognizable mountains/resorts already supported in the app.
+Use varied but plausible dates
+Use upcoming dates across the next few months so:
+some trips overlap
+some do not
+some cluster around the same weekends
+some are midweek or longer weekend patterns
+Use realistic resort distribution
+Seed trips across multiple destinations already in the system so I can test:
+same destination, same dates
+same destination, different dates
+different destination, same weekend
+destination clusters by month
+Preserve current architecture
+Do not rewrite the entire app just to support this.
+Use the existing models and relationships.
+Keep all seeding dev-safe.
+Make this easy to rerun
+If there is not already a clean seed/dev command or route, add a simple dev-safe way to populate or reset this seed data.
+It must be clearly limited to local/dev use, not exposed publicly in production.
+Deliverables
+Expand or create seed logic with intentional scenario coverage
+Ensure the main signed-in test user can see multiple populated surfaces
+Make it easy to rerun or refresh the dataset in dev
+Give me a summary of which seeded scenarios now exist
+QA expectations
+After seeding, verify that the data actually causes visible UI coverage across:
+Home
+Trips
+Join a Trip
+Ideas
+Friends
+Friends > Upcoming
+Friend list
+Friend profiles if present
+Do not just say the seed completed. Actually check that the screens now have enough permutations to be useful.
+At the end, report back with:
+files changed
+how to run/reset the seed data
+which scenarios are now covered
+any surfaces that still do not have enough variety and why
+Only use checkpoints if I explicitly ask for them.

@@ -2501,7 +2501,8 @@ def trip_ideas():
     # ── Debug logging ─────────────────────────────────────────────────────────
     print(f"[trip_ideas] state={ideas_state} feed={len(dest_feed)} row(s)")
     for _r in dest_feed:
-        print(f"  • {_r['date_range']} — {_r['resort'].name} [{_r['going']}g·{_r['considering']}c]")
+        _signal = {1: 'friend_trip', 2: 'overlap', 3: 'wishlist'}.get(_r.get('signal_type'), '?')
+        print(f"  • {_r.get('date_range','?')} — {_r['resort'].name} [{_signal}] {_r.get('line2','')}")
 
     return render_template(
         "trip_ideas.html",
