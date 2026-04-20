@@ -1,0 +1,90 @@
+Validate trip logic consistency across the BaseLodge app after the recent refactor.
+
+Goal:
+Confirm that the new helpers (get_trip_status and compute_trip_overlaps) are being used correctly and that counts, statuses, and overlaps are consistent across all user-facing surfaces.
+
+Validation checklist:
+
+1. Trip Status Consistency
+
+* Verify that get_trip_status is used everywhere trip status is needed
+* Confirm consistency across:
+
+  * Home
+  * My Trips page
+  * Friends page
+  * Friend profile
+  * Mountain Detail Page
+* Ensure no route is still using direct date comparisons
+
+2. Upcoming Trip Counts
+
+* Validate that upcoming counts are consistent across:
+
+  * Home
+  * Profile
+  * Friends directory
+  * Mountain page
+* Confirm:
+
+  * Owner + accepted guest trips are included
+  * No double-counting of the same trip
+  * Pending/invited trips are excluded
+
+3. Overlap Logic
+
+* Validate compute_trip_overlaps behavior:
+
+  * Uses resort_id first, string fallback only when necessary
+  * Correct date overlap logic
+  * No self-overlap (same trip compared against itself)
+* Confirm overlaps appear correctly across:
+
+  * Friends page
+  * Mountain page
+  * Any overlap-based UI
+
+4. Mountain Detail Page Integrity
+
+* Validate:
+
+  * “Friends going” = distinct users
+  * “Trips” = distinct trip records
+  * Only upcoming + valid trips are shown
+  * Accepted guest trips are included
+
+5. Edge Cases
+   Test and confirm behavior for:
+
+* User who owns a trip AND is a participant in another
+* User with multiple trips to same mountain
+* Friend with only accepted guest trips (no owned trips)
+* Trips with same dates but different resorts (no overlap)
+* Trips with same resort but non-overlapping dates (no overlap)
+
+6. Helper Usage Audit
+
+* Confirm:
+
+  * No duplicate overlap logic exists outside compute_trip_overlaps
+  * No duplicate status logic exists outside get_trip_status
+* Refactor only if any remaining duplication is found
+
+Output:
+
+1. Pass/fail summary per validation section
+2. Any inconsistencies found
+3. Any additional fixes applied
+4. Final confirmation that:
+
+   * Trip counts match across all surfaces
+   * Overlaps are correct and consistent
+   * Mountain page reflects true data
+
+Important:
+
+* Do not redesign anything
+* Do not change UI
+* Only fix inconsistencies if found
+* Use checkpoints sparingly
+* Do not finish until all validations pass cleanly
