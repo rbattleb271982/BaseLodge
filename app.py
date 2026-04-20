@@ -48,7 +48,7 @@ from flask_login import LoginManager, login_required, current_user, login_user, 
 from functools import wraps
 from flask_migrate import Migrate
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, Event, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, Event, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType
 from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps

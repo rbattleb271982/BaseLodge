@@ -535,8 +535,111 @@ class Resort(db.Model):
             return self.country_name_override
         return self.country_name or ''
 
+    def get_passes(self):
+        """
+        Returns pass brands for this resort as a list of dicts.
+
+        Priority:
+          1. resort_pass mapping table (canonical, normalized)
+          2. get_pass_brands_list() / pass_brands_json (legacy fallback)
+
+        Returns: [{'pass_name': 'Epic', 'is_primary': True}, ...]
+        'None' entries (explicit no-pass marker) are excluded from the list.
+        An empty list means the resort has no major pass affiliation.
+
+        This is the preferred read path for all new code.
+        """
+        try:
+            rows = self.pass_mappings.all()
+        except Exception:
+            rows = []
+        if rows:
+            return [
+                {'pass_name': r.pass_name, 'is_primary': r.is_primary}
+                for r in rows
+                if r.pass_name and r.pass_name != 'None'
+            ]
+        # Fall back to JSON/legacy column
+        legacy = self.get_pass_brands_list()
+        if not legacy:
+            return []
+        result = []
+        for i, brand in enumerate(legacy):
+            if brand and brand != 'None':
+                result.append({'pass_name': brand, 'is_primary': (i == 0)})
+        return result
+
+    def get_primary_pass(self):
+        """
+        Returns the primary pass name for this resort, or None if no major pass.
+        Reads from resort_pass mapping first, falls back to legacy columns.
+        """
+        passes = self.get_passes()
+        if not passes:
+            return None
+        primary = [p for p in passes if p['is_primary']]
+        if primary:
+            return primary[0]['pass_name']
+        return passes[0]['pass_name']
+
+    def get_pass_names(self):
+        """
+        Convenience wrapper — returns a plain list of pass name strings.
+        Equivalent to [p['pass_name'] for p in self.get_passes()].
+        """
+        return [p['pass_name'] for p in self.get_passes()]
+
     def __repr__(self):
         return f'<Resort {self.name} ({self.state_code or self.state})>'
+
+
+class ResortPass(db.Model):
+    """
+    Normalized resort-to-pass mapping table.
+
+    Canonical layer for resort-pass relationships, replacing Resort.pass_brands_json
+    as the authoritative source over time. Populated via backfill from existing
+    pass_brands_json data; kept in sync by admin tooling.
+
+    Design choices:
+    - One row per (resort, pass) pair (unique constraint enforced)
+    - is_primary flags the main pass affiliation where a resort supports several
+    - 'None' is never stored here; absence of rows = no major pass affiliation
+    - Backward-compat columns (Resort.pass_brands, Resort.brand) remain untouched
+
+    Read path (for new code): resort.get_passes() → this table → JSON fallback
+    """
+    __tablename__ = 'resort_pass'
+    __table_args__ = (
+        db.UniqueConstraint('resort_id', 'pass_name', name='uq_resort_pass'),
+    )
+
+    VALID_PASS_NAMES = ['Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other']
+
+    id = db.Column(db.Integer, primary_key=True)
+    resort_id = db.Column(
+        db.Integer,
+        db.ForeignKey('resort.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    pass_name = db.Column(db.String(50), nullable=False)
+    is_primary = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=False,
+        server_default='false',
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    resort = db.relationship(
+        'Resort',
+        backref=db.backref('pass_mappings', lazy='dynamic', cascade='all, delete-orphan'),
+    )
+
+    def __repr__(self):
+        label = 'primary' if self.is_primary else 'secondary'
+        return f'<ResortPass resort_id={self.resort_id} pass={self.pass_name} ({label})>'
 
 
 class SkiTrip(db.Model):

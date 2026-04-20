@@ -1,0 +1,68 @@
+PUT THIS IN AGENT
+
+Implement the smallest safe next step for BaseLodge resort/pass normalization using the existing structure.
+
+What we already know from the audit:
+
+* Resort already exists as a real model/table
+* resort_id is already the canonical trip-to-resort link
+* Resort.pass_brands_json is currently the canonical pass data source
+* Resort.pass_brands and Resort.brand are legacy compatibility fields
+* There is no Pass model and no resort_pass mapping table yet
+* Recommendation is to extend the current structure, not replace it
+
+Goal:
+Add a lightweight normalized mapping layer for resort-to-pass relationships while preserving backward compatibility.
+
+Requirements:
+
+1. Add the smallest practical normalized layer
+
+* Create a lightweight ResortPass mapping model/table or equivalent join structure
+* Keep it simple and MVP-focused
+* It must support:
+
+  * one resort on multiple passes
+  * primary vs secondary pass
+  * resorts with no major pass
+  * display-ready use on a future Mountain Detail Page
+  * future filtering by pass
+
+2. Preserve compatibility
+
+* Do NOT break Resort.pass_brands_json
+* Do NOT remove legacy Resort.pass_brands or Resort.brand yet
+* Do NOT redesign SkiTrip, User, or the rest of the data model
+* Existing app flows must continue working
+
+3. Source-of-truth transition
+
+* Seed or backfill the new mapping layer from existing Resort.pass_brands_json where possible
+* Keep current resort data usable during transition
+* If needed, add a small helper so new reads can use the mapping layer first and fall back to current fields safely
+
+4. Implementation scope
+   Please implement only what is needed now:
+
+* model/table
+* migration
+* minimal seed/backfill path
+* helper/query support for future resort pass reads
+  Do NOT build the Mountain Detail Page yet.
+  Do NOT build a full Pass model if it is not necessary for the MVP mapping step.
+  Do NOT overbuild admin tooling.
+
+5. Deliver back:
+
+* What files changed
+* What model/table was added
+* How existing resort pass data was mapped into it
+* Any compatibility helpers added
+* Confirmation that existing app behavior still works
+
+Important:
+
+* Smallest safe implementation only
+* Keep current architecture intact
+* Use checkpoints sparingly
+* Do not finish until migration/backfill has been tested and existing resort-related flows still run cleanly
