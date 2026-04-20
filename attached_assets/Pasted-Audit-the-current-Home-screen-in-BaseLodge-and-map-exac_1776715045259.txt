@@ -1,0 +1,76 @@
+Audit the current Home screen in BaseLodge and map exactly what can appear there today, what powers each section, and what files are involved.
+Goal
+Create a precise implementation inventory of the Home screen so we can use that output as input to Claude for a cleanup/simplification pass.
+Do not change code yet. This is an audit only.
+Please inspect and report back on the following:
+1. Files involved
+List every file connected to the Home screen, including:
+route files
+service/helper files
+templates
+partials/includes
+JS files if any
+CSS files if any are specific to Home
+Be specific about what each file does.
+2. Route + data flow
+Explain:
+what route renders the Home screen
+what function builds the Home screen context
+what queries/helpers/services are used
+what major context variables are passed into the template
+3. Full content inventory
+List every major module, card, banner, section, empty state, and conditional state that can appear on Home today.
+For each one, include:
+name of the module/section
+what it shows
+when it appears
+what data powers it
+whether it can appear at the same time as other similar modules
+Examples to check for:
+next trip / top trip block
+invite banner
+overlap cards
+best match card
+destination cluster cards
+suggestion cards
+empty state modules
+onboarding/setup prompts
+any fallback or re-engagement states
+Do not summarize vaguely. I want the full list.
+4. Conditional logic
+For each Home module/state, explain:
+the exact condition that triggers it
+whether it is mutually exclusive with any other module
+whether it can stack with other modules and create clutter
+5. Priority / ordering
+Explain:
+in what order Home modules are rendered today
+whether there is any prioritization or suppression logic
+whether multiple overlapping signals can appear together
+where duplication or clutter risk currently exists
+6. Data source quality
+Call out any important dependencies or risks such as:
+logic based on resort_id vs string fallback
+overlapping signals from multiple helper functions
+duplicated calculations
+logic split across route + template + service
+seed-data-driven states that may hide real behavior
+7. Recommendation for Claude handoff
+At the end, provide a clean summary with:
+the top clutter sources
+the modules that are highest priority
+the modules that are low value or redundant
+the exact files Claude should focus on first
+Output format
+Files involved
+Route + data flow
+Full content inventory
+Conditional logic
+Current ordering / prioritization
+Data/logic risks
+Claude handoff summary
+Important
+Audit only
+Do not change code yet
+Be specific and grounded in the actual implementation
+Use checkpoints sparingly
