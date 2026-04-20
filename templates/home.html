@@ -534,115 +534,10 @@
 
             {% include 'components/stat_row.html' %}
 
-            <p class="home-section-label">Next Up</p>
-
-            {% set resort = next_trip.resort %}
-            {% set mountain_name = resort.name if resort else next_trip.mountain %}
-            {% set state_abbr = resort|state_abbrev if resort else next_trip.state %}
-            {% set people = next_trip.accepted_count %}
-
-            <a href="{{ url_for('trip_detail', trip_id=next_trip.id) }}" class="home-hero">
-                <div class="home-row">
-                    <div class="home-row-left">
-                        <p class="home-hero-title">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-                    </div>
-                    <span class="home-hero-action">{% if next_trip.user_id == user.id %}Edit →{% else %}View trip →{% endif %}</span>
-                </div>
-                <div class="home-row" style="padding-top: 0;">
-                    <div class="home-row-left">
-                        {%- set _trip_pass_display = next_trip.pass_type | pass_display -%}
-                        <p class="home-hero-sub">{{ format_trip_dates(next_trip) }}{% if people and people > 1 %} · {{ people }} going{% endif %}{% if _trip_pass_display %} · {{ _trip_pass_display }}{% endif %}</p>
-                    </div>
-                    {% if next_trip_countdown %}<span class="home-hero-eyebrow">{{ next_trip_countdown }}</span>{% endif %}
-                </div>
-            </a>
-
-            <!-- Trip Invite Banner — JS depends on home-banner ID, do not change -->
-            {% if banner_invite %}
-            <div class="home-banner" id="home-banner">
-                {% set b_trip = banner_invite.trip %}
-                {% set b_resort = banner_invite.resort %}
-                {% set b_mountain = b_resort.name if b_resort else b_trip.mountain %}
-                <div class="home-row">
-                    <div class="home-row-left">
-                        <p class="home-banner-headline">{{ banner_invite.inviter_name }} invited you to {{ b_mountain }}</p>
-                    </div>
-                    <a href="{{ url_for('trip_detail', trip_id=banner_invite.trip_id) }}" class="home-banner-view">View →</a>
-                </div>
-                <p class="home-banner-sub">{{ format_trip_dates(b_trip) }}{% if banner_invite_count > 1 %} · <span class="home-banner-count">+{{ banner_invite_count - 1 }} more invite{{ 's' if banner_invite_count - 1 > 1 else '' }}</span>{% endif %}</p>
-            </div>
-            {% endif %}
-
-            {% if has_overlaps and next_match %}
-            <p class="home-match-section-label">Best Match</p>
-            <div class="home-match-card">
-                <div class="home-row">
-                    <div class="home-row-left">
-                        {% if next_match.same_day_count == 0 %}
-                        <p class="home-match-line1">You + {{ next_match.friend_name | format_name }} are free</p>
-                        {% else %}
-                        <p class="home-match-line1">You + {{ next_match.same_day_count + 1 }} others are free</p>
-                        {% endif %}
-                    </div>
-                    <div class="home-match-actions">
-                        <a href="{{ url_for('add_trip') }}?start_date={{ next_match.match_date }}&end_date={{ next_match.match_date }}&friend_id={{ next_match.friend_id }}" class="home-match-primary">Plan</a>
-                    </div>
-                </div>
-                <div class="home-row" style="padding-top: 0;">
-                    <div class="home-row-left">
-                        <p class="home-match-date">{{ next_match.display_date }}</p>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if secondary_card is none and friend_count == 0 %}
-            <p class="type-caption" style="margin-top: 20px; text-align: center;">Bring your crew · <a href="{{ url_for('invite') }}" style="color: var(--bl-color-primary); text-decoration: none; font-weight: 500;">Invite friends →</a></p>
-            {% endif %}
-
-            {% if secondary_card and secondary_card.type == 'connect_invite' %}
-            <p class="home-section-label">Friend Activity</p>
-            <div class="home-activity-rows">
-                <div class="home-activity-row" id="secondary-card">
-                    <p class="home-activity-text" style="flex:1;min-width:0;">{{ secondary_card.sender_name }} wants to connect</p>
-                    <div class="home-activity-action">
-                        <button class="home-activity-btn" onclick="acceptConnectInvite({{ secondary_card.invitation_id }})">Accept</button>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if happening_signals %}
-            <p class="home-section-label">Happening</p>
-            <div class="home-happening-rows">
-                {% for signal in happening_signals %}
-                <div class="home-happening-row">
-                    <p class="home-happening-text">{{ signal.text }}</p>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-
         {% else %}
             {# ────────────────────────────────────────────────── #}
-            {# FIRST-TIME / EMPTY STATE                          #}
+            {# EMPTY STATE — top block only (greeting + stats)   #}
             {# ────────────────────────────────────────────────── #}
-
-            <!-- Trip Invite Banner — top of empty state -->
-            {% if banner_invite %}
-            <div class="home-banner" id="home-banner">
-                {% set b_trip = banner_invite.trip %}
-                {% set b_resort = banner_invite.resort %}
-                {% set b_mountain = b_resort.name if b_resort else b_trip.mountain %}
-                <div class="home-row">
-                    <div class="home-row-left">
-                        <p class="home-banner-headline">{{ banner_invite.inviter_name }} invited you to {{ b_mountain }}</p>
-                    </div>
-                    <a href="{{ url_for('trip_detail', trip_id=banner_invite.trip_id) }}" class="home-banner-view">View →</a>
-                </div>
-                <p class="home-banner-sub">{{ format_trip_dates(b_trip) }}{% if banner_invite_count > 1 %} · <span class="home-banner-count">+{{ banner_invite_count - 1 }} more invite{{ 's' if banner_invite_count - 1 > 1 else '' }}</span>{% endif %}</p>
-            </div>
-            {% endif %}
 
             <section class="home-empty">
               <header class="home-empty-header">
@@ -663,13 +558,9 @@
                 {%- if _has_gear -%}{%- set _gear_val = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_gear_val) -%}{%- endif -%}
                 {%- if _has_boots -%}{%- set _boot_val = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_boot_val) -%}{%- endif -%}
                 {% if _eq_parts %}
-                  <a href="{{ url_for('settings_equipment') }}" class="home-empty-equipment">
-                    {{ _eq_parts | join(' · ') }}
-                  </a>
+                  <a href="{{ url_for('settings_equipment') }}" class="home-empty-equipment">{{ _eq_parts | join(' · ') }}</a>
                 {% else %}
-                  <a href="{{ url_for('settings_equipment') }}" class="home-empty-profile-link">
-                    Complete your profile
-                  </a>
+                  <a href="{{ url_for('settings_equipment') }}" class="home-empty-profile-link">Complete your profile</a>
                 {% endif %}
               </header>
 
@@ -687,40 +578,122 @@
                   <span class="type-label home-empty-stats-label">{{ "Wishlist" if (stat_wishlist or 0) == 1 else "Wishlist" }}</span>
                 </div>
               </div>
-
-              <div class="home-empty-editorial">
-                <p class="type-tagline home-empty-tagline">
-                  The best days on the mountain don't just happen. They're made.
-                </p>
-
-                <p class="type-body home-empty-body">
-                  Your season lives here. Plan trips, see where your friends are headed, and find weekends that work.
-                </p>
-
-                <ol class="home-empty-list">
-                  <li class="home-empty-list-item">
-                    <span class="type-label home-empty-list-num">01</span>
-                    <span class="type-list home-empty-list-text">Your trips, past and upcoming</span>
-                  </li>
-                  <li class="home-empty-list-item">
-                    <span class="type-label home-empty-list-num">02</span>
-                    <span class="type-list home-empty-list-text">Friends' plans and availability</span>
-                  </li>
-                  <li class="home-empty-list-item">
-                    <span class="type-label home-empty-list-num">03</span>
-                    <span class="type-list home-empty-list-text">Overlapping weekends to ride together</span>
-                  </li>
-                  <li class="home-empty-list-item">
-                    <span class="type-label home-empty-list-num">04</span>
-                    <span class="type-list home-empty-list-text">Mountains you've visited or want to visit</span>
-                  </li>
-                </ol>
-              </div>
-
-              <p class="type-caption home-empty-closing">Explore the menu below</p>
             </section>
 
         {% endif %}
+
+        {# ────────────────────────────────────────────────────────── #}
+        {# MODULE RENDERING — resolver in app.py picks ≤ 2 modules   #}
+        {# ────────────────────────────────────────────────────────── #}
+
+        {% for module in home_modules %}
+
+            {# ── Module: My next trip ── #}
+            {% if module.type == 'my_next_trip' %}
+            <p class="home-section-label">My next trip</p>
+            {% set resort = next_trip.resort %}
+            {% set mountain_name = resort.name if resort else next_trip.mountain %}
+            {% set state_abbr = resort|state_abbrev if resort else next_trip.state %}
+            {% set people = next_trip.accepted_count %}
+            <a href="{{ url_for('trip_detail', trip_id=next_trip.id) }}" class="home-hero">
+                <div class="home-row">
+                    <div class="home-row-left">
+                        <p class="home-hero-title">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+                    </div>
+                    <span class="home-hero-action">{% if next_trip.user_id == user.id %}Edit →{% else %}View trip →{% endif %}</span>
+                </div>
+                <div class="home-row" style="padding-top: 0;">
+                    <div class="home-row-left">
+                        {%- set _trip_pass_display = next_trip.pass_type | pass_display -%}
+                        <p class="home-hero-sub">{{ format_trip_dates(next_trip) }}{% if people and people > 1 %} · {{ people }} going{% endif %}{% if _trip_pass_display %} · {{ _trip_pass_display }}{% endif %}</p>
+                    </div>
+                    {% if next_trip_countdown %}<span class="home-hero-eyebrow">{{ next_trip_countdown }}</span>{% endif %}
+                </div>
+            </a>
+
+            {# ── Module: Invites (trip invites + connect invite, unified) ── #}
+            {% elif module.type == 'invites' %}
+            <p class="home-section-label">Invites</p>
+            <div class="home-activity-rows">
+                {% for inv in trip_invites %}
+                {%- set inv_resort = inv.resort -%}
+                {%- set inv_mountain = inv_resort.name if inv_resort else inv.trip.mountain -%}
+                <a href="{{ url_for('trip_detail', trip_id=inv.trip_id) }}" class="home-activity-row" style="text-decoration: none;">
+                    <div class="home-activity-content">
+                        <p class="home-activity-text">{{ inv.inviter_name }} invited you to {{ inv_mountain }}</p>
+                        <p class="home-activity-sub">{{ format_trip_dates(inv.trip) }}</p>
+                    </div>
+                    <div class="home-activity-action">
+                        <span class="home-activity-link">View →</span>
+                    </div>
+                </a>
+                {% endfor %}
+                {% if secondary_card and secondary_card.type == 'connect_invite' %}
+                <div class="home-activity-row" id="secondary-card">
+                    <div class="home-activity-content">
+                        <p class="home-activity-text">{{ secondary_card.sender_name }} wants to connect</p>
+                    </div>
+                    <div class="home-activity-action">
+                        <button class="home-activity-btn" onclick="acceptConnectInvite({{ secondary_card.invitation_id }})">Accept</button>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            {# ── Module: Best Match (no label) ── #}
+            {% elif module.type == 'best_match' %}
+            <div class="home-match-card" style="margin-top: 12px;">
+                <div class="home-row">
+                    <div class="home-row-left">
+                        {% if next_match.same_day_count == 0 %}
+                        <p class="home-match-line1">You + {{ next_match.friend_name | format_name }} are free</p>
+                        {% else %}
+                        <p class="home-match-line1">You + {{ next_match.same_day_count + 1 }} others are free</p>
+                        {% endif %}
+                    </div>
+                    <div class="home-match-actions">
+                        <a href="{{ url_for('add_trip') }}?start_date={{ next_match.match_date }}&end_date={{ next_match.match_date }}&friend_id={{ next_match.friend_id }}" class="home-match-primary">Plan</a>
+                    </div>
+                </div>
+                <div class="home-row" style="padding-top: 0;">
+                    <div class="home-row-left">
+                        <p class="home-match-date">{{ next_match.display_date }}</p>
+                    </div>
+                </div>
+            </div>
+
+            {# ── Module: Empty state editorial ── #}
+            {% elif module.type == 'empty_state' %}
+            <div class="home-empty-editorial">
+                <p class="type-tagline home-empty-tagline">
+                    The best days on the mountain don't just happen. They're made.
+                </p>
+                <p class="type-body home-empty-body">
+                    Your season lives here. Plan trips, see where your friends are headed, and find weekends that work.
+                </p>
+                <ol class="home-empty-list">
+                    <li class="home-empty-list-item">
+                        <span class="type-label home-empty-list-num">01</span>
+                        <span class="type-list home-empty-list-text">Your trips, past and upcoming</span>
+                    </li>
+                    <li class="home-empty-list-item">
+                        <span class="type-label home-empty-list-num">02</span>
+                        <span class="type-list home-empty-list-text">Friends' plans and availability</span>
+                    </li>
+                    <li class="home-empty-list-item">
+                        <span class="type-label home-empty-list-num">03</span>
+                        <span class="type-list home-empty-list-text">Overlapping weekends to ride together</span>
+                    </li>
+                    <li class="home-empty-list-item">
+                        <span class="type-label home-empty-list-num">04</span>
+                        <span class="type-list home-empty-list-text">Mountains you've visited or want to visit</span>
+                    </li>
+                </ol>
+                <p class="type-caption home-empty-closing">Explore the menu below</p>
+            </div>
+            {% endif %}
+
+        {% endfor %}
 
     </div>
 

@@ -4116,6 +4116,54 @@ def format_availability_ranges(ranges):
     remaining_count = max(0, len(ranges) - 2)
     return ' · '.join(formatted), remaining_count
 
+def resolve_home_modules(next_trip, trip_invites, secondary_card, has_overlaps, next_match):
+    """
+    Decides which modules render below the top block on Home, in priority order.
+    Returns a list of at most 2 module dicts.
+
+    Module types: 'my_next_trip', 'invites', 'best_match', 'empty_state'
+    """
+    has_trip_invite = bool(trip_invites)
+    has_connect_invite = (
+        secondary_card is not None
+        and secondary_card.get('type') == 'connect_invite'
+    )
+    has_invites = has_trip_invite or has_connect_invite
+    has_best_match = has_overlaps and next_match is not None
+
+    modules = []
+
+    # State 1: trip + invites
+    if next_trip and has_invites:
+        modules.append({'type': 'my_next_trip'})
+        modules.append({'type': 'invites'})
+        return modules
+
+    # State 2: trip, no invites
+    if next_trip and not has_invites:
+        modules.append({'type': 'my_next_trip'})
+        if has_best_match:
+            modules.append({'type': 'best_match'})
+        return modules
+
+    # State 3: no trip, has invites
+    if not next_trip and has_invites:
+        modules.append({'type': 'invites'})
+        invite_count = len(trip_invites) + (1 if has_connect_invite else 0)
+        if has_best_match and invite_count == 1:
+            modules.append({'type': 'best_match'})
+        return modules
+
+    # State 4: no trip, no invites, has overlaps
+    if not next_trip and not has_invites and has_best_match:
+        modules.append({'type': 'best_match'})
+        return modules
+
+    # State 5: nothing to show
+    modules.append({'type': 'empty_state'})
+    return modules
+
+
 @app.route("/home")
 @login_required
 def home():
@@ -4152,12 +4200,11 @@ def home():
     next_trip_countdown = None
     if next_trip:
         days_until = (next_trip.start_date - today).days
-        if days_until == 0:
-            next_trip_countdown = "Starts today"
-        elif days_until == 1:
+        if days_until == 1:
             next_trip_countdown = "Tomorrow"
-        else:
+        elif days_until > 1:
             next_trip_countdown = f"In {days_until} days"
+        # days_until == 0 ("Starts today") intentionally suppressed
 
     # --- Friend IDs ---
     try:
@@ -4169,6 +4216,7 @@ def home():
     # --- Trip Invite Banner (soonest active pending trip invite) ---
     banner_invite = None
     banner_invite_count = 0
+    trip_invites = []
     try:
         invited_participations = SkiTripParticipant.query.filter(
             SkiTripParticipant.user_id == user.id,
@@ -4179,17 +4227,18 @@ def home():
             key=lambda p: p.trip.start_date
         )
         banner_invite_count = len(active_invites)
-        if active_invites:
-            p = active_invites[0]
+        for p in active_invites:
             trip = p.trip
             inviter = User.query.get(trip.user_id)
             resort = trip.resort
-            banner_invite = {
+            trip_invites.append({
                 'trip_id': trip.id,
                 'trip': trip,
                 'resort': resort,
                 'inviter_name': (f"{inviter.first_name or ''} {inviter.last_name or ''}".strip()) if inviter else 'Someone',
-            }
+            })
+        if trip_invites:
+            banner_invite = trip_invites[0]
     except Exception:
         db.session.rollback()
 
@@ -4299,6 +4348,14 @@ def home():
         except Exception:
             db.session.rollback()
 
+    home_modules = resolve_home_modules(
+        next_trip=next_trip,
+        trip_invites=trip_invites,
+        secondary_card=secondary_card,
+        has_overlaps=has_overlaps,
+        next_match=next_match,
+    )
+
     return render_template(
         'home.html',
         user=user,
@@ -4306,10 +4363,12 @@ def home():
         next_trip_countdown=next_trip_countdown,
         banner_invite=banner_invite,
         banner_invite_count=banner_invite_count,
+        trip_invites=trip_invites,
         secondary_card=secondary_card,
         happening_signals=happening_signals,
         next_match=next_match,
         has_overlaps=has_overlaps,
+        home_modules=home_modules,
         stat_mountains=user.visited_resorts_count,
         stat_trips_total=SkiTrip.query.filter_by(user_id=user.id).count(),
         stat_wishlist=len(user.wish_list_resorts or []),

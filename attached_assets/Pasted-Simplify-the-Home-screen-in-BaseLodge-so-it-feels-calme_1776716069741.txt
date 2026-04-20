@@ -1,0 +1,155 @@
+Simplify the Home screen in BaseLodge so it feels calmer, more important, and less cluttered on mobile.
+Goal
+Home should feel like:
+important information for me to know
+calm and editorial
+not noisy
+not full of extra labels
+not full of fake urgency
+This is a suppression and prioritization pass, not a redesign.
+Keep the top section exactly as it is
+Do not redesign or remove the top block.
+Keep:
+Welcome / greeting
+Identity line
+Complete profile link (if applicable)
+Stats row
+That entire top section stays as-is.
+What to change below the top block
+Only allow these module types below the top block:
+My next trip
+Invites
+Best Match card content only (no label)
+Empty state
+Do not introduce any new module types.
+Labels / eyebrows rules
+Keep:
+My next trip as a small, quiet label above the trip card
+Invites as the label above the invites block
+Remove:
+“Next Up”
+“Best Match”
+“Happening”
+extra section labels/eyebrows
+any unnecessary labels that make the page feel busy
+Important:
+Do not add fake urgency language
+Remove things like:
+“Starts today”
+countdown-style urgency labels
+any other urgency framing that makes the page feel noisy
+Home philosophy
+This page should answer:
+“What is important for me to know right now?”
+Not:
+a dashboard of everything
+a social feed
+a stack of competing prompts
+Module priority below the top block
+Use this priority order:
+My next trip
+Invites
+Best Match
+Empty state
+Below the fixed top block, render no more than 2 modules.
+Prefer fewer modules over more.
+Required state logic
+State 1 — User has a trip and has invites
+Show:
+Module 1: My next trip
+Module 2: Invites
+Suppress:
+Best Match
+Empty state
+any passive activity/happening rows
+duplicate prompts
+Reason:
+trip + action-required invites are the two most important things
+State 2 — User has a trip and no invites
+Show:
+Module 1: My next trip
+Module 2: Best Match only if it is truly useful and not cluttering the page
+Rules:
+no urgency label
+no “Starts today”
+no countdown language
+if the page feels better with only the trip, prefer only the trip
+Suppress:
+Empty state
+passive activity/happening rows
+duplicate prompts
+State 3 — User has no trip, but has invites
+Show:
+Module 1: Invites
+Module 2: Best Match only if invites are light and there is clear value
+If Invites already contains multiple invite rows, suppress Best Match.
+Suppress:
+Empty state
+passive activity/happening rows
+duplicate prompts
+State 4 — User has no trip, no invites, but has overlap signal
+Show:
+Module 1: Best Match card content only
+Important:
+no “Best Match” label above it
+just let the card content speak for itself
+Suppress:
+Empty state
+passive activity/happening rows
+duplicate prompts
+State 5 — User has no trip, no invites, no overlaps
+Show:
+Module 1: Empty state
+Keep it short and honest.
+Do not try to artificially fill the page with extra prompts.
+Invites block rules
+If both of these exist:
+trip invite
+connect invite
+Do not render them as separate big modules/cards.
+Instead:
+render them inside one Invites block
+each invite appears as its own row
+For now:
+connect invite should only show Accept
+do not add Decline in this pass unless current behavior requires it somewhere else
+trip invite can keep its current action behavior if already implemented
+Remove / suppress these from Home
+Remove or suppress any of these if they currently appear below the top block:
+Happening rows
+passive activity-feed style rows
+“Best Match” label
+“Next Up” label
+fake urgency like “Starts today”
+duplicate prompts like “bring your crew”
+extra stacked modules that repeat the same meaning
+Implementation guidance
+In app.py
+Create or update a small resolver/helper that decides which modules render below the top block and in what order.
+The goal is to move prioritization logic out of scattered template conditionals.
+In templates/home.html
+Keep the top section unchanged.
+Refactor the lower portion so it renders only the allowed modules in the correct priority order with the suppression rules above.
+In static/styles.css
+Only make minor spacing/cleanup changes if needed after modules are removed or merged.
+Do not redesign the page.
+Deliverable
+After implementation, report back with:
+files changed
+which Home modules were found
+which labels/eyebrows were removed
+how invite modules were unified
+what suppression logic was added
+confirmation that:
+top block stayed unchanged
+stats row was preserved
+“My next trip” replaced “Next Up”
+“Starts today” or similar urgency language was removed
+no more than 2 modules render below the top block
+Guardrails
+no full redesign
+no new features
+no data model changes
+no ideas_engine rewrite
+no changes to Trips/Friends/Profile/Ideas
+use checkpoints sparingly
