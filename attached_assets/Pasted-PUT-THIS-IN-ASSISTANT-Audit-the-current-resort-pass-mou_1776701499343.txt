@@ -1,0 +1,71 @@
+PUT THIS IN ASSISTANT
+
+Audit the current resort / pass / mountain data structure in BaseLodge before we build anything new.
+
+I believe resort and pass data already exist in the app in some form, but I am not sure:
+
+* where that data currently lives
+* how resorts are modeled
+* how passes are modeled
+* whether resort-to-pass relationships already exist
+* whether the current data is accurate enough to support a real Mountain Detail Page
+
+Please inspect the codebase and tell me:
+
+1. What currently exists
+
+* Current models, tables, seed files, constants, JSON/CSV files, helpers, or route logic related to:
+
+  * resorts
+  * mountains
+  * passes
+  * resort-to-pass mappings
+* Any existing endpoints or pages already using this data
+
+2. How it is currently structured
+
+* What fields exist today
+* Whether resort_id is already canonical
+* Whether passes are normalized or stored as plain strings
+* Whether relationships already exist between resorts and passes
+
+3. What is correct vs incomplete vs risky
+
+* What parts of the current setup are solid and can be kept
+* What parts are missing, fragile, duplicated, or likely to cause problems for:
+
+  * Mountain Detail Page
+  * filtering by pass
+  * overlap logic
+  * mobile app readiness
+
+4. Compare current state to this target direction
+   Target direction:
+
+* lean normalized structure for resorts, passes, and resort_pass mappings
+* support one resort on multiple passes
+* support a primary pass plus secondary passes
+* allow resorts with no major pass
+* keep the system practical for the current Flask/Replit app
+
+5. Recommendation
+   Tell me which of these is best:
+   A. Keep current structure with small fixes
+   B. Extend current structure with a new mapping layer
+   C. Replace current structure with a cleaner MVP model
+
+Output format:
+
+1. Current state summary
+2. Files/models/routes involved
+3. Gaps and risks
+4. Recommendation: A, B, or C
+5. If recommending B or C, list the smallest next implementation step
+
+Important:
+
+* This is an audit first, not a redesign
+* Do not implement changes yet
+* Do not overbuild
+* Keep the recommendation grounded in what already exists in the codebase
+* Use checkpoints sparingly
