@@ -1,0 +1,99 @@
+Add Remove Friend to BaseLodge as a real, production-safe flow.
+Goal
+A user must be able to remove an existing friend connection.
+This should be a hard delete of the friendship connection.
+No undo, no archive, no soft delete.
+Keep the implementation simple, safe, and consistent with the current app.
+Product rules
+1. Where this action should live
+Do not put Remove Friend on the main Friends list.
+Instead:
+add it on the friend profile page
+place it low on the page as a destructive action
+it should feel intentional, not easy to tap by accident
+2. Behavior
+When the user taps Remove Friend:
+show a confirmation step
+confirmation copy should be simple and clear, for example:
+Remove friend?
+This will remove them from your friends list.
+confirmation options:
+Cancel
+Remove friend
+If confirmed:
+delete the friend connection
+remove access that depends on that friendship where applicable
+redirect the user back to the Friends tab
+show a small success flash/message:
+Friend removed
+3. Data behavior
+This should be a real delete of the friendship record.
+Requirements:
+remove the friend relationship in the correct direction(s)
+if friendship is stored symmetrically or as paired rows, clean up both sides correctly
+do not delete the other user
+do not delete their trips
+only delete the connection
+4. Access / safety
+Only allow this for:
+the logged-in user removing one of their own friends
+Do not allow:
+removing non-friends
+removing arbitrary users
+removing without auth
+If the friendship does not exist:
+fail safely
+redirect back with a harmless flash message
+Implementation tasks
+1. Audit current friend model and routing
+First inspect:
+friend model/table structure
+how friendships are currently queried
+how friend profiles are routed
+whether friendship is stored as one row or mirrored rows
+Then implement the correct delete logic based on the actual structure.
+2. Add backend route
+Add a POST route for removing a friend.
+Requirements:
+POST only
+login required
+validate the friendship belongs to the current user
+delete the correct friendship record(s)
+commit safely
+redirect back to Friends after success
+3. Add UI on friend profile page
+On the friend profile page:
+add a clearly separated destructive action near the bottom
+use existing design language
+do not over-design it
+keep it calm and minimal
+4. Add confirmation
+Use the simplest confirmation method that fits the current app cleanly:
+either a small inline confirm state
+or a browser confirm
+or an existing modal pattern if one already exists
+Do not build a giant new component just for this.
+5. Keep Friends list behavior unchanged
+Do not redesign the Friends list page.
+Do not add remove buttons to every row.
+This action belongs on the friend profile page only.
+Scope guardrails
+no redesign of Friends page
+no new social features
+no undo
+no soft delete
+no new data model unless absolutely required
+do not touch unrelated tabs
+keep it production-safe and minimal
+Deliverable
+After implementation, report back with:
+files changed
+how friendship storage works today
+what delete logic was implemented
+where Remove Friend appears in the UI
+how confirmation works
+confirmation that this is a hard delete of the connection only
+Important
+use checkpoints sparingly
+do not over-engineer
+do not change unrelated flows

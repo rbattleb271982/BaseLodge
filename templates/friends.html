@@ -316,6 +316,16 @@
 <body>
     <div class="page-container" style="padding: 20px 16px 88px;">
 
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div style="background:#F0DDD8; border:0.5px solid #5C1219; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:14px; color:#1A1A1A;">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
         {% if friend_count == 0 %}
         <!-- ══════════════════════════════════════════════════════════════
              EMPTY STATE — 0 friends

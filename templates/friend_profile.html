@@ -168,6 +168,53 @@
             border-bottom: 1px solid #E5DFD0;
         }
 
+        /* ── Remove friend ── */
+        .fp-remove-zone {
+            margin-top: 32px;
+            padding-top: 20px;
+            border-top: 1px solid #E5DFD0;
+            text-align: center;
+        }
+        .fp-remove-trigger {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 14px;
+            color: #B04040;
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+        .fp-remove-confirm-text {
+            font-size: 14px;
+            color: #1A1A1A;
+            margin: 0 0 14px 0;
+            line-height: 1.45;
+        }
+        .fp-remove-confirm-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            align-items: center;
+        }
+        .fp-remove-cancel {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 14px;
+            color: #6B665A;
+            cursor: pointer;
+        }
+        .fp-remove-submit {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 14px;
+            color: #B04040;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
         /* ── stat_row.html override ── */
         .stat-row {
             display: flex;
@@ -335,6 +382,32 @@
                     Connect
                 </button>
             </form>
+        </div>
+        {% endif %}
+
+        <!-- Remove friend (existing friends only) -->
+        {% if is_friend %}
+        <div class="fp-remove-zone">
+            <div id="fp-remove-idle">
+                <button type="button" class="fp-remove-trigger"
+                    onclick="document.getElementById('fp-remove-idle').style.display='none';
+                             document.getElementById('fp-remove-confirm').style.display='block';">
+                    Remove friend
+                </button>
+            </div>
+            <div id="fp-remove-confirm" style="display:none;">
+                <p class="fp-remove-confirm-text">Remove friend?<br>This will remove them from your friends list.</p>
+                <div class="fp-remove-confirm-actions">
+                    <button type="button" class="fp-remove-cancel"
+                        onclick="document.getElementById('fp-remove-idle').style.display='block';
+                                 document.getElementById('fp-remove-confirm').style.display='none';">
+                        Cancel
+                    </button>
+                    <form method="POST" action="{{ url_for('remove_friend_web', friend_id=friend.id) }}" style="margin:0;">
+                        <button type="submit" class="fp-remove-submit">Remove friend</button>
+                    </form>
+                </div>
+            </div>
         </div>
         {% endif %}
 

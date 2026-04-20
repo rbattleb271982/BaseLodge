@@ -3606,7 +3606,27 @@ def friend_profile(friend_id):
         stat_past=get_past_trip_count(friend),
         stat_wishlist=len(friend.wish_list_resorts or []),
         stat_trips_total=SkiTrip.query.filter_by(user_id=friend.id).count(),
+        is_friend=already_friends,
     )
+
+@app.route("/friends/<int:friend_id>/remove", methods=["POST"])
+@login_required
+def remove_friend_web(friend_id):
+    # Only allow removing an actual friend of the current user
+    row_a = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
+    if not row_a:
+        flash("Friend not found.", "info")
+        return redirect(url_for("friends"))
+
+    # Delete both directions — friendship is always stored as mirrored rows
+    row_b = Friend.query.filter_by(user_id=friend_id, friend_id=current_user.id).first()
+    db.session.delete(row_a)
+    if row_b:
+        db.session.delete(row_b)
+    db.session.commit()
+
+    flash("Friend removed.", "success")
+    return redirect(url_for("friends"))
 
 @app.route("/profile/<int:user_id>")
 @login_required
