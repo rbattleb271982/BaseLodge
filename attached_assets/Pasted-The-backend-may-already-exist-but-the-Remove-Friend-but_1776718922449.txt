@@ -1,0 +1,52 @@
+The backend may already exist, but the Remove Friend button is not visible in the actual friend profile UI. Fix that now.
+Goal
+Make sure the Remove Friend action visibly appears on the real friend profile page that users reach from the Friends tab.
+First: inspect before editing
+Find the exact template and route used when I tap a friend from the Friends list.
+I want you to identify:
+the route that renders a friend’s profile page
+the template actually used by that route
+whether there are multiple profile templates or multiple friend-detail routes
+where the current friend profile action buttons/links are rendered
+Do not guess. Use the actual current implementation.
+Then: add the visible Remove Friend action
+On the real friend profile page template:
+add a Remove Friend button/link near the bottom of the page
+make it visually separated from normal actions
+keep styling minimal and consistent with the app
+do not put it on the main Friends list
+do not hide it behind admin logic or wrong conditions
+Behavior
+When tapped:
+trigger the existing remove-friend POST route if it already exists
+if no working POST route exists yet, add/fix it
+require confirmation before submit
+after confirm:
+remove the friendship connection
+redirect back to Friends
+show a small success flash: Friend removed
+Requirements
+logged-in users only
+only show the button when the viewed profile is actually a current friend
+do not show it on my own profile
+do not show it for non-friends
+hard delete the friendship connection only
+do not delete users or trips
+Confirmation
+Use the simplest clean option:
+browser confirm() is fine
+or a very small inline confirm if that’s easier with the current template
+Do not build a large modal for this.
+Deliverable
+Report back with:
+exact route used for friend profile
+exact template updated
+files changed
+where the Remove Friend button now appears
+whether the backend route already existed or was fixed
+confirmation that the button is visible on the real friend profile page
+Important
+this is a visibility + hookup fix
+do not redesign the page
+do not touch unrelated profile screens
+use checkpoints sparingly
