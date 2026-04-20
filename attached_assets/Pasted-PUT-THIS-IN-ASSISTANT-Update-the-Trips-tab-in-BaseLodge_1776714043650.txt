@@ -1,0 +1,81 @@
+PUT THIS IN ASSISTANT
+Update the Trips tab in BaseLodge with very light, high-confidence UX cleanup only.
+Goal:
+Preserve the current editorial list design while tightening copy consistency and keeping the Trips tab focused on simple browsing and management, not social intelligence.
+Context from audit
+The current Trips tab structure is good and should stay largely intact
+My Trips should stay minimal and focused only on the user’s own trips
+Friends’ Trips should stay a clean browse view of friends’ upcoming trips
+Home screen is where overlap and smart social signals belong, not Trips
+The real stored trip status set today is:
+planning
+going
+Date-derived lifecycle helpers like past / in_progress / upcoming should not replace or muddy the stored trip status in the Trips tab UI
+Please make the following updates:
+Preserve the existing layout
+Do not redesign the page
+Do not convert rows into cards
+Do not add badges, chips, or extra UI treatment
+Keep the current editorial list look almost exactly as-is
+Keep the current tab structure:
+My Trips
+Friends’ Trips
+Keep the mountain filter on Friends’ Trips exactly as-is
+Standardize trip status display in the Trips tab
+For Trips tab surfaces only, use the stored trip status vocabulary consistently:
+planning -> Planning
+going -> Going
+Rules:
+Do not show Confirmed, You’re going, You’re Going, Upcoming, or other variants on Trips tab rows
+Do not mix date-derived lifecycle wording into the trip-status label on the Trips tab
+If current code falls back from null to planning, preserve that behavior for now, but display it as Planning
+My Trips requirements
+Keep the row secondary line as:
+date · status
+Keep it focused only on the user’s own trip
+Do not add friend counts
+Do not add overlap language
+Do not add social signals
+Keep the CTA text as:
+Plan a trip
+Keep that CTA in the same place it is now
+If there is an empty state and it currently uses different CTA text, make it also say:
+Plan a trip
+Friends’ Trips requirements
+Keep rows visually uniform
+Keep pure date ordering
+Do not prioritize overlaps here
+Do not add overlap labels
+Do not add “same mountain” labels
+Do not add social intelligence copy
+This tab should remain a simple browse view of friends’ upcoming trips
+Keep row interaction behavior intact unless there is a very small cleanup needed for consistency
+Scope guardrails
+This is not a redesign
+This is not a Home screen rewrite
+This is not an “interest” feature
+Do not add new product concepts
+Do not change data models
+Do not change trip ordering logic beyond preserving pure date order on Friends’ Trips
+Do not change the detail page unless needed for consistency with existing Trips tab navigation
+Audit before edit
+Before making changes, quickly inspect:
+Trips tab templates
+Any shared trip row partials/helpers
+Status formatting logic used by:
+My Trips
+Friends’ Trips
+CTA copy sources for:
+populated My Trips state
+empty My Trips state
+Deliverable
+After making changes, report back with:
+Files changed
+Exact copy/status changes made
+Any places where Trips tab status wording was inconsistent before
+Confirmation that layout and visual structure were preserved
+Important
+Keep changes minimal but polished
+Be specific and grounded in the current app
+Use checkpoints sparingly
+Do not do extra cleanup outside this scope
