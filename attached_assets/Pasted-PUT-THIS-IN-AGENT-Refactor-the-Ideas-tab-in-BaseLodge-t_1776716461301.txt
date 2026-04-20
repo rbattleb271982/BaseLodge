@@ -1,0 +1,69 @@
+PUT THIS IN AGENT
+Refactor the Ideas tab in BaseLodge to follow a simplified, high-signal system focused on social coordination.
+Goal
+Make Ideas feel:
+clean
+intentional
+focused on real opportunities to connect with friends
+Not a feed of all possibilities.
+Core rules
+1. Only 3 idea types (in priority order)
+Overlap window
+Friend trip
+Wishlist overlap
+Do not introduce new idea types.
+2. One idea per destination
+If multiple ideas exist for the same destination:
+collapse them into ONE idea
+Each destination should appear only once in the Ideas feed.
+3. Select the BEST idea per destination
+When choosing the best idea, apply this strict priority:
+Highest number of friends involved
+Closest upcoming date
+Strongest signal type:
+Friend trip > Overlap > Wishlist
+Example:
+Prefer a real trip with 2 friends over a wishlist with 4
+Prefer overlap with 3 friends next weekend over overlap with 3 friends in 2 months
+4. Ranking of final feed
+Sort the final list by:
+Number of friends (descending)
+Date proximity (closest first)
+5. Overlap is primary behavior
+If an overlap exists for a destination:
+prefer it over wishlist
+only fall back to wishlist if no stronger signal exists
+6. Card requirement
+Each idea card must clearly communicate:
+who is involved
+when it matters
+Example:
+“You + 3 friends are free Apr 25–28”
+Do not show vague or low-signal ideas.
+7. Remove duplication and noise
+Do not allow:
+multiple cards for the same destination
+multiple cards for the same date window
+slightly different variations of the same idea
+If multiple similar ideas exist, select one and discard the rest.
+Implementation guidance
+Update the Ideas builder logic (likely in services/ideas_engine.py) to:
+group all candidate ideas by destination (resort_id)
+evaluate all candidates per destination
+select a single best idea using the rules above
+discard lower-priority candidates
+return a clean, deduplicated list
+Do not redesign UI in this step.
+Deliverable
+After implementation, report back with:
+files changed
+how grouping by destination was implemented
+how “best idea” was selected
+how many ideas were removed as duplicates
+confirmation that no duplicate destinations appear
+Guardrails
+no UI redesign
+no new idea types
+no data model changes
+keep logic simple and readable
+use checkpoints sparingly

@@ -660,26 +660,66 @@ def _fmt_date_range_short(start, end):
 
 def build_destination_feed(user, all_friends):
     """
-    Simplified dated-destination feed for the Ideas tab.
+    Builds the Ideas feed: one card per destination (resort_id), best signal wins.
 
-    Queries all public upcoming friend trips that have a linked resort.
-    Groups by (resort_id, start_date, end_date) and counts going vs considering.
-    Returns rows sorted by start_date ascending, then more going first.
+    Sources collected per resort (in signal-strength order):
+      1. Friend trip  – a friend is publicly going/planning to that resort
+      2. Overlap      – open-date window that shares a wishlist resort
+      3. Wishlist     – shared wishlist resort (no dates required)
+
+    Selection rules per resort (applied in order until a winner is found):
+      1. Most friends involved
+      2. Closest upcoming start date
+      3. Signal strength: Friend trip > Overlap > Wishlist
+
+    Final sort: friend_count desc, then date proximity asc (no-date rows last).
 
     Each row dict:
         resort      – Resort ORM object (slug, name)
-        start_date  – date
-        end_date    – date
-        date_range  – formatted string e.g. "Apr 20–24"
-        going       – int (trip_status == 'going')
-        considering – int (trip_status != 'going')
+        resort_id   – int
+        start_date  – date or None
+        end_date    – date or None
+        date_range  – formatted string e.g. "Apr 20–24", or None
+        friend_count– int
+        line2       – pre-formatted second line for the card
+        idea_type   – "friend_trip" | "availability_overlap" | "wishlist_overlap"
+        signal_type – int (1=friend trip, 2=overlap, 3=wishlist)
     """
+    from services.open_dates import get_open_date_matches
+
     today = date.today()
     friend_ids = [f.id for f in all_friends]
 
     if not friend_ids:
         return []
 
+    # Signal type constants — lower value = stronger signal
+    _FRIEND_TRIP = 1
+    _OVERLAP     = 2
+    _WISHLIST    = 3
+
+    by_resort = {}  # resort_id -> best candidate dict
+
+    def _prefer(new, old):
+        """Return True if new candidate should replace old."""
+        if new["friend_count"] > old["friend_count"]:
+            return True
+        if new["friend_count"] < old["friend_count"]:
+            return False
+        old_d = old["start_date"] or date.max
+        new_d = new["start_date"] or date.max
+        if new_d < old_d:
+            return True
+        if new_d > old_d:
+            return False
+        return new["signal_type"] < old["signal_type"]
+
+    def _try_add(candidate):
+        rid = candidate["resort_id"]
+        if rid not in by_resort or _prefer(candidate, by_resort[rid]):
+            by_resort[rid] = candidate
+
+    # ── 1. Friend trips ──────────────────────────────────────────────────────
     friend_trips = (
         SkiTrip.query
         .filter(
@@ -692,28 +732,152 @@ def build_destination_feed(user, all_friends):
         .all()
     )
 
-    groups = {}
+    # Group by resort, then find best date window per resort
+    resort_trip_data = {}
     for trip in friend_trips:
-        key = (trip.resort_id, trip.start_date, trip.end_date)
-        if key not in groups:
-            groups[key] = {
-                "resort": trip.resort,
-                "start_date": trip.start_date,
-                "end_date": trip.end_date,
-                "going": 0,
-                "considering": 0,
-            }
+        rid = trip.resort_id
+        if rid not in resort_trip_data:
+            resort_trip_data[rid] = {"resort": trip.resort, "date_windows": {}}
+        key = (trip.start_date, trip.end_date)
+        dw = resort_trip_data[rid]["date_windows"]
+        if key not in dw:
+            dw[key] = {"going": 0, "considering": 0, "friend_count": 0}
+        dw[key]["friend_count"] += 1
         if (trip.trip_status or "planning") == "going":
-            groups[key]["going"] += 1
+            dw[key]["going"] += 1
         else:
-            groups[key]["considering"] += 1
+            dw[key]["considering"] += 1
 
-    rows = sorted(
-        groups.values(),
-        key=lambda r: (r["start_date"], -r["going"]),
-    )
-    for row in rows:
-        row["date_range"] = _fmt_date_range_short(row["start_date"], row["end_date"])
+    for rid, rdata in resort_trip_data.items():
+        dw = rdata["date_windows"]
+        # Best window: most friends, then soonest date
+        best_key = max(dw.keys(), key=lambda k: (dw[k]["friend_count"], -k[0].toordinal()))
+        g = dw[best_key]
+        start_d, end_d = best_key
+        parts = []
+        if g["going"] > 0:
+            parts.append(f"{g['going']} going")
+        if g["considering"] > 0:
+            parts.append(f"{g['considering']} considering")
+        _try_add({
+            "resort": rdata["resort"],
+            "resort_id": rid,
+            "start_date": start_d,
+            "end_date": end_d,
+            "date_range": _fmt_date_range_short(start_d, end_d),
+            "friend_count": g["friend_count"],
+            "line2": " · ".join(parts) if parts else "Considering",
+            "signal_type": _FRIEND_TRIP,
+            "idea_type": "friend_trip",
+        })
+
+    # ── 2. Overlap windows with a shared wishlist resort ─────────────────────
+    try:
+        matches = get_open_date_matches(user)
+        if matches:
+            user_wishlist = set(user.wish_list_resorts or [])
+            friend_by_id = {f.id: f for f in all_friends}
+            windows = build_overlap_windows(matches, user.pass_type)
+
+            for w in windows:
+                try:
+                    start = date.fromisoformat(w["start_date"])
+                    end   = date.fromisoformat(w["end_date"])
+                except (ValueError, KeyError):
+                    continue
+                if start < today:
+                    continue
+
+                friends_in_window = w.get("friends_in_window", [])
+                n = len(friends_in_window)
+                if n == 0:
+                    continue
+
+                window_friend_ids = {f["friend_id"] for f in friends_in_window}
+
+                # Only include if there is a shared wishlist resort to anchor it
+                if not user_wishlist:
+                    continue
+                shared_resort_id = None
+                shared_resort    = None
+                for fid in window_friend_ids:
+                    friend_obj = friend_by_id.get(fid)
+                    if not friend_obj:
+                        continue
+                    shared = user_wishlist & set(friend_obj.wish_list_resorts or [])
+                    if shared:
+                        rid = next(iter(shared))
+                        r = Resort.query.get(rid)
+                        if r:
+                            shared_resort_id = rid
+                            shared_resort    = r
+                            break
+
+                if not shared_resort_id:
+                    continue
+
+                if n == 1:
+                    fname = friends_in_window[0].get("friend_name") or "your friend"
+                    line2 = f"You + {fname} are free"
+                else:
+                    line2 = f"You + {n} friends are free"
+
+                _try_add({
+                    "resort": shared_resort,
+                    "resort_id": shared_resort_id,
+                    "start_date": start,
+                    "end_date": end,
+                    "date_range": _fmt_date_range_short(start, end),
+                    "friend_count": n,
+                    "line2": line2,
+                    "signal_type": _OVERLAP,
+                    "idea_type": "availability_overlap",
+                })
+    except Exception:
+        pass
+
+    # ── 3. Wishlist overlaps ─────────────────────────────────────────────────
+    try:
+        wishlist_data = build_wishlist_overlaps(user, all_friends)
+        for rd in wishlist_data:
+            rid        = rd["resort_id"]
+            overlapping = rd.get("overlapping_people", [])
+            if not overlapping:
+                continue
+            resort_obj = Resort.query.get(rid)
+            if not resort_obj:
+                continue
+            n      = len(overlapping)
+            anchor = overlapping[0]
+            anchor_name = (
+                f"{anchor.get('first_name', '')} {anchor.get('last_name', '')}".strip()
+                or "a friend"
+            )
+            line2 = (
+                f"You + {anchor_name} — both on your wishlists"
+                if n == 1
+                else f"You + {n} friends — all on your wishlists"
+            )
+            _try_add({
+                "resort": resort_obj,
+                "resort_id": rid,
+                "start_date": None,
+                "end_date": None,
+                "date_range": None,
+                "friend_count": n,
+                "line2": line2,
+                "signal_type": _WISHLIST,
+                "idea_type": "wishlist_overlap",
+            })
+    except Exception:
+        pass
+
+    # ── Sort: friend_count desc, then closest date first, no-date rows last ──
+    rows = list(by_resort.values())
+    rows.sort(key=lambda r: (
+        -r["friend_count"],
+        (r["start_date"] or date.max).toordinal(),
+    ))
 
     return rows
 

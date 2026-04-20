@@ -267,20 +267,13 @@
             <a href="{{ url_for('mountain_detail', slug=row.resort.slug) }}" class="dest-row">
                 <div class="dest-row-body">
                     <p class="dest-row-line1">
+                        {% if row.date_range %}
                         <span class="dest-row-date">{{ row.date_range }}</span>
                         <span class="dest-row-sep"> — </span>
+                        {% endif %}
                         <span class="dest-row-mountain">{{ row.resort.name }}</span>
                     </p>
-                    <p class="dest-row-line2">
-                        {% if row.going > 0 and row.considering > 0 %}
-                            <span class="dest-row-going">{{ row.going }} going</span>
-                            <span> · {{ row.considering }} considering</span>
-                        {% elif row.going > 0 %}
-                            <span class="dest-row-going">{{ row.going }} going</span>
-                        {% else %}
-                            <span>{{ row.considering }} considering</span>
-                        {% endif %}
-                    </p>
+                    <p class="dest-row-line2">{{ row.line2 }}</p>
                 </div>
                 <span class="dest-row-cta">›</span>
             </a>
