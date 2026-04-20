@@ -15,7 +15,7 @@
         .md-nav {
             display: flex;
             align-items: center;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
         .md-back {
             display: flex;
@@ -30,44 +30,62 @@
 
         /* ── Hero ── */
         .md-hero {
-            padding: 0 0 32px 0;
-        }
-        .md-state {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.9px;
-            text-transform: uppercase;
-            color: #8A857A;
-            margin: 0 0 8px 0;
+            padding: 0 0 20px 0;
         }
         .md-name {
             font-family: Georgia, 'Times New Roman', serif;
-            font-size: 34px;
+            font-size: 32px;
             font-weight: 400;
             color: #1A1A1A;
             line-height: 1.15;
-            margin: 0 0 16px 0;
+            margin: 0 0 5px 0;
+        }
+        .md-state {
+            font-size: 13px;
+            color: #8A857A;
+            margin: 0 0 10px 0;
+            font-weight: 400;
+        }
+        .md-social {
+            font-size: 13px;
+            color: #8A857A;
+            margin: 0 0 14px 0;
+            font-weight: 400;
+        }
+        .md-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 0;
         }
         .md-pass-pill {
             display: inline-block;
-            background: #5C1219;
-            color: #FFFFFF;
+            background: transparent;
+            color: #6b1a1a;
+            border: 1px solid #6b1a1a;
             font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 0.3px;
-            padding: 5px 12px;
+            font-weight: 500;
+            letter-spacing: 0.2px;
+            padding: 4px 11px;
             border-radius: 20px;
         }
         .md-pass-pill--ghost {
-            background: transparent;
             color: #8A857A;
-            border: 1px solid #D9D2BF;
-            font-weight: 500;
+            border-color: #D9D2BF;
+        }
+        .md-hero-divider {
+            height: 0.5px;
+            background: rgba(0, 0, 0, 0.1);
+            margin: 20px 0 0 0;
         }
 
         /* ── Date groups ── */
         .md-group {
             margin-bottom: 28px;
+            padding-top: 20px;
+        }
+        .md-group:first-child {
+            padding-top: 20px;
         }
         .md-group-header {
             display: flex;
@@ -164,16 +182,42 @@
 
         <!-- Hero -->
         <div class="md-hero">
-            {% if resort.state_code %}
-            <p class="md-state">{{ resort.state_code }}</p>
-            {% endif %}
+            <!-- Name: primary focal point -->
             <h1 class="md-name">{{ resort.name }}</h1>
-            {% if primary_pass %}
-            <span class="md-pass-pill">{{ primary_pass }}</span>
-            {% else %}
-            <span class="md-pass-pill md-pass-pill--ghost">No major pass</span>
+
+            <!-- State: full name, muted, below name -->
+            {% if state_full %}
+            <p class="md-state">{{ state_full }}</p>
             {% endif %}
+
+            <!-- Social context: only when there is real data -->
+            {%- set has_social = (social_going > 0 or social_considering > 0) -%}
+            {% if has_social %}
+            <p class="md-social">
+                {%- if social_going > 0 and social_considering > 0 -%}
+                    {{ social_going }} {{ 'friend' if social_going == 1 else 'friends' }} going · {{ social_considering }} considering
+                {%- elif social_going > 0 -%}
+                    {{ social_going }} {{ 'friend' if social_going == 1 else 'friends' }} going
+                {%- else -%}
+                    {{ social_considering }} considering
+                {%- endif -%}
+            </p>
+            {% endif %}
+
+            <!-- Pass pills: outline style, multiple passes supported -->
+            <div class="md-pills">
+                {%- if pass_names -%}
+                    {%- for pname in pass_names -%}
+                    <span class="md-pass-pill">{{ pname }}</span>
+                    {%- endfor -%}
+                {%- else -%}
+                <span class="md-pass-pill md-pass-pill--ghost">No major pass</span>
+                {%- endif -%}
+            </div>
         </div>
+
+        <!-- Hairline divider between hero and list -->
+        <div class="md-hero-divider"></div>
 
         <!-- Friends by date -->
         {% if date_groups %}
@@ -226,8 +270,8 @@
             </div>
             {% endfor %}
         {% else %}
-        <!-- Empty state -->
-        <div class="md-empty">
+        <!-- Empty state (offset from divider with group padding) -->
+        <div class="md-empty" style="padding-top: 36px;">
             <p class="md-empty-line1">No friends are going yet.</p>
             <p class="md-empty-line2">When someone plans a trip here, it will show up.</p>
         </div>

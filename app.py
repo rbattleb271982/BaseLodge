@@ -4831,12 +4831,42 @@ def mountain_detail(slug):
         })
 
     primary_pass = resort.get_primary_pass()
+    pass_names = resort.get_pass_names()
+
+    # Full state name: STATE_NAMES (abbr→name) first for US states,
+    # then fall back to state_name column (may hold full name for non-US resorts)
+    state_full = ''
+    if resort.state_code:
+        state_full = STATE_NAMES.get(resort.state_code, '')
+    if not state_full:
+        state_full = (resort.state_name or '').strip()
+    if not state_full and resort.state_code:
+        state_full = resort.state_code
+
+    # Social context counts — friends only (current user excluded)
+    _seen_going = set()
+    _seen_considering = set()
+    for group in date_groups:
+        for row in group['rows']:
+            if row['is_me']:
+                continue
+            uid = row['user_id']
+            if row['status_label'] == 'Going':
+                _seen_going.add(uid)
+            else:
+                _seen_considering.add(uid)
+    social_going = len(_seen_going)
+    social_considering = len(_seen_considering)
 
     return render_template(
         'mountain_detail.html',
         resort=resort,
         primary_pass=primary_pass,
+        pass_names=pass_names,
         date_groups=date_groups,
+        state_full=state_full,
+        social_going=social_going,
+        social_considering=social_considering,
     )
 
 
