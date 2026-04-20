@@ -1,0 +1,68 @@
+The seed may have run, but I still do not see any friends in the UI. Debug this end-to-end and fix the root cause.
+Goal
+Figure out why the Friends screen is empty even though the seeded users were supposed to be connected to richardbattlebaxter@gmail.com.
+Do not just reseed again blindly. First verify the actual data and the retrieval logic used by the Friends page.
+Debug in this order
+1. Confirm the main account
+Verify that richardbattlebaxter@gmail.com exists in the current dev database and identify its user ID.
+Report:
+user ID
+email
+name
+pass type
+rider type
+skill level
+2. Confirm friendships actually exist in the database
+Inspect the friendship / connection tables and report:
+how many accepted friends richardbattlebaxter@gmail.com currently has
+the names/emails of those connected users
+whether the relationships are stored in the expected accepted state
+whether the app expects symmetric rows or a single directional row
+whether the seed created the relationships in the wrong direction
+This is important. I want the real database truth, not assumptions.
+3. Confirm the Friends page query logic
+Find the exact route/service/query that powers the Friends list UI.
+Report:
+which route renders the Friends page
+which query fetches friends
+what filters it applies
+whether it expects:
+accepted status
+reciprocal rows
+non-null profile fields
+only active users
+some other requirement
+4. Compare database reality vs UI query expectations
+Identify the mismatch.
+Examples:
+friends exist but in the wrong direction
+friends exist but status value is wrong
+friendships exist but the route is filtering differently
+seeded users are connected but missing required profile fields
+the UI is rendering the wrong tab/state
+the logged-in account is not actually Richard
+5. Fix the root cause
+Once identified, fix the real issue.
+Possible fixes may include:
+correcting seed friendship creation
+correcting friendship directionality
+correcting accepted status values
+fixing the Friends query
+fixing tab rendering/state logic
+ensuring seeded users meet required profile completeness rules
+Do not apply random fixes. Make the minimal correct fix.
+After the fix
+Verify in the UI and/or with direct query inspection that:
+richardbattlebaxter@gmail.com has visible friends
+the Friends list renders populated rows
+the friend count matches the database
+Friends > Upcoming can also populate if trip data exists
+Deliverables
+At the end, report back with:
+root cause
+files changed
+whether the issue was data, query logic, or both
+the final accepted friend count for Richard
+confirmation that friends are now visible in the UI
+Only use checkpoints if I explicitly ask for them.
+Also, one thing to manually sanity check right now: make sure you are actually logged in as richardbattlebaxter@gmail.com, because if Replit seeded around that account but you’re viewing another user, the page can still look empty.

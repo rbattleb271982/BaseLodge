@@ -506,6 +506,7 @@ def seed():
 
     print("    ✓ Richard Battle-Baxter seed user prepared")
     print("    ✓ Cohort A (5 users) created")
+    db.session.flush()
     # ─────────────────────────────────────────────────────────────────────────
     # FRIENDSHIPS
     # ─────────────────────────────────────────────────────────────────────────
@@ -560,6 +561,7 @@ def seed():
     make_invitation(priya, test5, status='pending')
     make_invitation(test5, rachel, status='pending')
 
+    db.session.flush()
     print("    ✓ 33 bidirectional friendships, 4 pending invitations")
 
     # ─────────────────────────────────────────────────────────────────────────
