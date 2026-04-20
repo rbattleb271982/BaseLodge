@@ -247,6 +247,29 @@ def get_past_trip_count(user):
     ).count()
 
 
+def get_trip_status(trip, today=None):
+    """
+    Canonical trip phase classification.
+    Returns one of: 'past', 'in_progress', 'upcoming'.
+
+    Rules:
+      past:        end_date < today
+      in_progress: start_date <= today <= end_date
+      upcoming:    start_date > today
+
+    Trips with missing dates default to 'upcoming'.
+    """
+    if today is None:
+        today = date.today()
+    if not trip.start_date or not trip.end_date:
+        return 'upcoming'
+    if trip.end_date < today:
+        return 'past'
+    if trip.start_date <= today:
+        return 'in_progress'
+    return 'upcoming'
+
+
 @app.template_filter('display_name')
 def display_name_filter(user, current_user_id=None):
     """
@@ -2080,6 +2103,69 @@ def edit_profile():
     
     return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=CANONICAL_PASSES, rider_types=RIDER_TYPES, all_states=ALL_US_STATES, primary_equipment=primary_equipment, secondary_equipment=secondary_equipment, resorts_by_state=resorts_by_state, grouped_locations=get_grouped_locations())
 
+def compute_trip_overlaps(user_trips, friend_trips):
+    """
+    Canonical trip-overlap detection.
+
+    Compares a user's trips (owned + accepted guest) against friends' public trips
+    to find cases where the user and a friend are at the same resort at the same time.
+
+    Resort matching rules (in order):
+      1. Both trips have resort_id  → compare resort_id (canonical)
+      2. Either trip missing resort_id → compare mountain name strings (legacy fallback)
+
+    Date overlap rule: start1 <= end2 AND start2 <= end1  (inclusive)
+
+    Guards:
+      - Skips comparing a trip against itself (my.id == ft.id)
+      - Requires both trips to have start_date and end_date
+
+    Returns list of dicts with keys:
+        type, my_trip_id, friend_trip_id,
+        friend_id, friend_name, friend_first_name,
+        mountain, state, brand, resort_id, resort,
+        start_date, end_date
+    """
+    overlaps = []
+    for my in user_trips:
+        for ft in friend_trips:
+            if my.id == ft.id:
+                continue
+            # Resort match
+            if my.resort_id and ft.resort_id:
+                same_resort = (my.resort_id == ft.resort_id)
+            else:
+                my_mtn = my.mountain or (my.resort.name if my.resort else None)
+                ft_mtn = ft.mountain or (ft.resort.name if ft.resort else None)
+                same_resort = bool(my_mtn and ft_mtn and my_mtn == ft_mtn)
+            if not same_resort:
+                continue
+            if not (my.start_date and my.end_date and ft.start_date and ft.end_date):
+                continue
+            if not date_ranges_overlap(my.start_date, my.end_date, ft.start_date, ft.end_date):
+                continue
+            resort = my.resort or ft.resort
+            mtn_str = my.mountain or (my.resort.name if my.resort else ft.mountain or (ft.resort.name if ft.resort else None))
+            friend_user = ft.user
+            friend_first = friend_user.first_name if friend_user else "Friend"
+            overlaps.append({
+                "type": "trip",
+                "my_trip_id": my.id,
+                "friend_trip_id": ft.id,
+                "friend_id": ft.user_id,
+                "friend_name": friend_first,
+                "friend_first_name": friend_first,
+                "mountain": resort.name if resort else mtn_str,
+                "state": resort.state if resort else (getattr(my, 'state', None) or ""),
+                "brand": resort.brand if resort else None,
+                "resort_id": resort.id if resort else None,
+                "resort": resort,
+                "start_date": max(my.start_date, ft.start_date),
+                "end_date": min(my.end_date, ft.end_date),
+            })
+    return overlaps
+
+
 @app.route("/my-trips")
 @login_required
 def my_trips():
@@ -2171,37 +2257,11 @@ def my_trips():
     except Exception:
         friend_trips = []
 
-    # Build overlaps list (wrapped for production safety)
-    overlaps = []
+    # Build overlaps list — include both owned trips and accepted guest trips
+    # so a user who is a guest on a friend's trip at Vail also triggers an overlap
+    # with any other friend going to Vail at the same time.
     try:
-        for my in upcoming_trips:
-            for friend_trip in friend_trips:
-                if my.user_id != friend_trip.user_id:
-                    # Resort match: prefer resort_id (canonical), fall back to mountain string
-                    if my.resort_id and friend_trip.resort_id:
-                        same_resort = (my.resort_id == friend_trip.resort_id)
-                    else:
-                        my_mountain = my.mountain if my.mountain else (my.resort.name if my.resort else None)
-                        friend_mountain = friend_trip.mountain if friend_trip.mountain else (friend_trip.resort.name if friend_trip.resort else None)
-                        same_resort = bool(my_mountain and friend_mountain and my_mountain == friend_mountain)
-                    if same_resort:
-                        if my.start_date and my.end_date and friend_trip.start_date and friend_trip.end_date:
-                            if date_ranges_overlap(my.start_date, my.end_date, friend_trip.start_date, friend_trip.end_date):
-                                resort = my.resort or friend_trip.resort
-                                my_mountain_str = my.mountain if my.mountain else (my.resort.name if my.resort else None)
-                                friend_first_name = friend_trip.user.first_name if friend_trip.user else "Friend"
-                                overlaps.append({
-                                    "my_trip_id": my.id,
-                                    "friend_name": friend_first_name,
-                                    "friend_first_name": friend_first_name,
-                                    "friend_id": friend_trip.user_id,
-                                    "mountain": resort.name if resort else my_mountain_str,
-                                    "state": resort.state if resort else (my.state or ""),
-                                    "brand": resort.brand if resort else None,
-                                    "resort_id": resort.id if resort else None,
-                                    "start_date": max(my.start_date, friend_trip.start_date),
-                                    "end_date": min(my.end_date, friend_trip.end_date)
-                                })
+        overlaps = compute_trip_overlaps(upcoming_trips + accepted_guest_trips, friend_trips)
     except Exception:
         overlaps = []
 
@@ -3076,42 +3136,30 @@ def friends():
             SkiTrip.is_public == True
         ).order_by(SkiTrip.start_date.asc()).all()
     
-    # User's upcoming trips for overlap detection
+    # User's upcoming trips for overlap detection (owned + accepted guest)
     user_trips = SkiTrip.query.filter(
         SkiTrip.user_id == user.id,
         SkiTrip.end_date >= today
     ).all()
-    
-    # Build trip overlaps list (user trips vs friend trips at same location)
-    trip_overlaps = []
-    for my_trip in user_trips:
-        for friend_trip in friend_trips:
-            if my_trip.user_id != friend_trip.user_id:
-                # Resort match: prefer resort_id (canonical), fall back to mountain string
-                if my_trip.resort_id and friend_trip.resort_id:
-                    same_resort = (my_trip.resort_id == friend_trip.resort_id)
-                    my_mountain = my_trip.mountain if my_trip.mountain else (my_trip.resort.name if my_trip.resort else None)
-                else:
-                    my_mountain = my_trip.mountain if my_trip.mountain else (my_trip.resort.name if my_trip.resort else None)
-                    friend_mountain = friend_trip.mountain if friend_trip.mountain else (friend_trip.resort.name if friend_trip.resort else None)
-                    same_resort = bool(my_mountain and friend_mountain and my_mountain == friend_mountain)
-                if same_resort:
-                    if date_ranges_overlap(my_trip.start_date, my_trip.end_date, friend_trip.start_date, friend_trip.end_date):
-                        resort = my_trip.resort or friend_trip.resort
-                        overlap_start = max(my_trip.start_date, friend_trip.start_date)
-                        overlap_end = min(my_trip.end_date, friend_trip.end_date)
-                        trip_overlaps.append({
-                            "type": "trip",
-                            "mountain": my_mountain,
-                            "resort": resort,
-                            "resort_id": resort.id if resort else None,
-                            "friend_id": friend_trip.user_id,
-                            "friend_first_name": friend_trip.user.first_name,
-                            "friend_trip_id": friend_trip.id,
-                            "my_trip_id": my_trip.id,
-                            "start_date": overlap_start,
-                            "end_date": overlap_end
-                        })
+    try:
+        _user_accepted_ids = [
+            p.trip_id for p in SkiTripParticipant.query.filter(
+                SkiTripParticipant.user_id == user.id,
+                SkiTripParticipant.status == GuestStatus.ACCEPTED
+            ).all()
+        ]
+        if _user_accepted_ids:
+            _user_guest_trips = SkiTrip.query.filter(
+                SkiTrip.id.in_(_user_accepted_ids),
+                SkiTrip.user_id != user.id,
+                SkiTrip.end_date >= today
+            ).all()
+            user_trips = user_trips + _user_guest_trips
+    except Exception:
+        pass
+
+    # Build trip overlaps list using canonical helper
+    trip_overlaps = compute_trip_overlaps(user_trips, friend_trips)
     
     # Build open date overlaps (user open dates vs friend open dates)
     open_date_overlaps = []
@@ -3482,7 +3530,7 @@ def friend_profile(friend_id):
         visited_resorts=friend_visited_resorts,
         wishlist_resorts=friend_wishlist_resorts,
         overlap_context=overlap_context,
-        stat_upcoming=len(trips),
+        stat_upcoming=get_upcoming_trip_count(friend),
         stat_mountains=friend.visited_resorts_count,
         stat_past=get_past_trip_count(friend),
         stat_wishlist=len(friend.wish_list_resorts or []),
@@ -3912,9 +3960,13 @@ def check_trip_invite_eligibility(user_id, friend_id):
     
     for ut in user_trips:
         for ft in friend_trips:
-            if ut.mountain == ft.mountain:
-                if date_ranges_overlap(ut.start_date, ut.end_date, ft.start_date, ft.end_date):
-                    return True
+            # Resort match: prefer resort_id (canonical), fall back to mountain string
+            if ut.resort_id and ft.resort_id:
+                same_resort = (ut.resort_id == ft.resort_id)
+            else:
+                same_resort = bool(ut.mountain and ft.mountain and ut.mountain == ft.mountain)
+            if same_resort and date_ranges_overlap(ut.start_date, ut.end_date, ft.start_date, ft.end_date):
+                return True
     
     # Check 3: Shared open availability
     user = User.query.get(user_id)
