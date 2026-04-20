@@ -964,7 +964,87 @@ def seed():
                                          trip_status='planning', pass_type='Ikon', is_public=True)
     trip_count += 1
 
-    print(f"    ✓ {trip_count} trips created")
+    # ── CLUSTER 1: Jackson Hole HIGH OVERLAP (with Richard T+45→49) ───────────
+    # Richard + Jordan (existing exact) + 4 new friends at same destination.
+    # Produces: exact overlaps, partial overlaps, Friends > Upcoming cluster.
+
+    # Nina: arrives 1 day early, leaves 1 day early → partial overlap T+45→48
+    trip_jackson_nina = make_trip(nina, jackson, 44, 48,
+                                  trip_status='planning', pass_type='Ikon', is_public=True)
+    trip_count += 1
+
+    # Marco: exact match with Richard → full overlap T+45→49
+    trip_jackson_marco = make_trip(marco, jackson, 45, 49,
+                                   trip_status='planning', pass_type='Ikon', is_public=True)
+    trip_count += 1
+
+    # Sam: starts 1 day late, leaves 1 day late → partial overlap T+46→49
+    trip_jackson_sam = make_trip(sam, jackson, 46, 50,
+                                 trip_status='going', pass_type='Epic,Ikon', is_public=True)
+    trip_count += 1
+
+    # Tyler: starts 2 days in, leaves 2 days late → partial overlap T+47→49
+    trip_jackson_tyler = make_trip(tyler, jackson, 47, 51,
+                                   trip_status='planning', pass_type='Ikon', is_public=True)
+    trip_count += 1
+
+    # ── CLUSTER 2: Whistler MEDIUM OVERLAP (during Richard's open dates T+13→17) ──
+    # Whistler is on Richard's wishlist. Lena already at Whistler T+14→18.
+    # Join a Trip score: wishlist(+3) + open-date overlap(+2) + pass(+1) → up to 6.
+
+    # Casey: core of Richard's free window T+14→17, Ikon pass
+    trip_whistler_casey = make_trip(casey, whistler, 14, 17,
+                                    trip_status='planning', pass_type='Ikon', is_public=True)
+    trip_count += 1
+
+    # Sam: Richard's open window start T+13→16 (Sam now has an upcoming trip)
+    trip_whistler_sam = make_trip(sam, whistler, 13, 16,
+                                  trip_status='planning', pass_type='Epic,Ikon', is_public=True)
+    trip_count += 1
+
+    # Owen: partial overlap with Lena (T+16→20) — slightly outside Richard's open window
+    trip_whistler_owen = make_trip(owen, whistler, 16, 20,
+                                   trip_status='planning', pass_type='Epic', is_public=True)
+    trip_count += 1
+
+    # ── CLUSTER 3: Telluride LIGHT OVERLAP (with Richard T+63→67) ─────────────
+    # Telluride is on Richard's wishlist. Preet already at T+62→66 (near-miss).
+    # Nina: exact overlap T+63→67 — highest-score friend for this cluster
+    trip_telluride_nina = make_trip(nina, telluride, 63, 67,
+                                    trip_status='planning', pass_type='Ikon', is_public=True)
+    trip_count += 1
+
+    # Marco: late partial overlap T+65→69 — shares T+65→67 with Richard
+    trip_telluride_marco = make_trip(marco, telluride, 65, 69,
+                                     trip_status='planning', pass_type='Ikon', is_public=True)
+    trip_count += 1
+
+    # ── CLUSTER 4: NOISE + Breck home-screen signal ──────────────────────────
+    # Scattered trips across other destinations to populate Friends > Upcoming
+    # and add a Breck overlap that triggers a home-screen social card.
+
+    # Rachel: Vail T+30→33 — gives Rachel her first upcoming trip
+    trip_vail_rachel = make_trip(rachel, vail, 30, 33,
+                                 trip_status='planning', pass_type='Mountain Collective', is_public=True)
+    trip_count += 1
+
+    # Jake: Mammoth T+50→54 — gives Jake his first upcoming trip
+    trip_mammoth_jake = make_trip(jake, mammoth, 50, 54,
+                                  trip_status='planning', pass_type='Ikon', is_public=True)
+    trip_count += 1
+
+    # Zara: Breck T+22→25 — overlaps Richard's Breck T+21→24 → home-screen signal
+    trip_breck_zara = make_trip(zara, breck, 22, 25,
+                                trip_status='planning', pass_type='Ikon', is_public=True)
+    trip_count += 1
+
+    # Chris: Stowe T+60→63 — near-miss with Richard's Telluride window;
+    #        gives Chris an upcoming trip (he had none)
+    trip_stowe_chris = make_trip(chris, stowe, 60, 63,
+                                 trip_status='planning', pass_type='No Pass', is_public=True)
+    trip_count += 1
+
+    print(f"    ✓ {trip_count} trips created  (+13 overlap-cluster trips)")
 
     # ─────────────────────────────────────────────────────────────────────────
     # GROUP TRIP PARTICIPANTS
@@ -1034,6 +1114,49 @@ def seed():
     add_activity(lena,  richard, ActivityType.CONNECTION_ACCEPTED, 'user', lena.id)
     add_activity(dev,   richard, ActivityType.CONNECTION_ACCEPTED, 'user', dev.id)
     n_activities += 3
+
+    # ── Cluster 1: Jackson Hole — all 4 new friends notify Richard ────────────
+    add_activity(nina,  richard, ActivityType.TRIP_CREATED, 'trip', trip_jackson_nina.id)
+    add_activity(marco, richard, ActivityType.TRIP_CREATED, 'trip', trip_jackson_marco.id)
+    add_activity(sam,   richard, ActivityType.TRIP_CREATED, 'trip', trip_jackson_sam.id)
+    add_activity(tyler, richard, ActivityType.TRIP_CREATED, 'trip', trip_jackson_tyler.id)
+    n_activities += 4
+
+    # Record the strongest overlaps as TRIP_OVERLAP activities for home screen
+    # (Marco is exact match; Nina is partial — both high-value signals)
+    add_activity(marco, richard, ActivityType.TRIP_OVERLAP, 'trip', trip_jackson_marco.id)
+    add_activity(richard, marco, ActivityType.TRIP_OVERLAP, 'trip', trip_jackson_richard.id)
+    add_activity(nina,  richard, ActivityType.TRIP_OVERLAP, 'trip', trip_jackson_nina.id)
+    add_activity(richard, nina,  ActivityType.TRIP_OVERLAP, 'trip', trip_jackson_richard.id)
+    n_activities += 4
+
+    # ── Cluster 2: Whistler — friends notify Richard about trips ──────────────
+    add_activity(casey, richard, ActivityType.TRIP_CREATED, 'trip', trip_whistler_casey.id)
+    add_activity(sam,   richard, ActivityType.TRIP_CREATED, 'trip', trip_whistler_sam.id)
+    add_activity(owen,  richard, ActivityType.TRIP_CREATED, 'trip', trip_whistler_owen.id)
+    n_activities += 3
+
+    # ── Cluster 3: Telluride — Nina (exact) and Marco (partial) ──────────────
+    add_activity(nina,  richard, ActivityType.TRIP_CREATED, 'trip', trip_telluride_nina.id)
+    add_activity(marco, richard, ActivityType.TRIP_CREATED, 'trip', trip_telluride_marco.id)
+    n_activities += 2
+
+    # Telluride overlap activities (Nina exact match)
+    add_activity(nina,  richard, ActivityType.TRIP_OVERLAP, 'trip', trip_telluride_nina.id)
+    add_activity(richard, nina,  ActivityType.TRIP_OVERLAP, 'trip', trip_telluride_richard.id)
+    n_activities += 2
+
+    # ── Cluster 4: Noise trips ────────────────────────────────────────────────
+    add_activity(rachel, richard, ActivityType.TRIP_CREATED, 'trip', trip_vail_rachel.id)
+    add_activity(jake,   richard, ActivityType.TRIP_CREATED, 'trip', trip_mammoth_jake.id)
+    add_activity(zara,   richard, ActivityType.TRIP_CREATED, 'trip', trip_breck_zara.id)
+    add_activity(chris,  richard, ActivityType.TRIP_CREATED, 'trip', trip_stowe_chris.id)
+    n_activities += 4
+
+    # Breck home-screen signal: Zara overlaps with Richard's Breck T+21→24
+    add_activity(zara,   richard, ActivityType.TRIP_OVERLAP, 'trip', trip_breck_zara.id)
+    add_activity(richard, zara,   ActivityType.TRIP_OVERLAP, 'trip', trip_breck.id)
+    n_activities += 2
 
     print(f"    ✓ {n_activities} activity records created")
 
