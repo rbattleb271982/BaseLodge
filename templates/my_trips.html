@@ -543,7 +543,7 @@
                 </div>
                 <!-- Mountain filter -->
                 <button class="ft-mtn-filter-btn" id="ft-mtn-filter-btn" onclick="ftOpenMtnFilter()">
-                    <span id="ft-mtn-filter-label">All mountains</span>
+                    <span id="ft-mtn-filter-label">Filter for a mountain</span>
                     <span class="ft-mtn-filter-chevron">⌄</span>
                 </button>
                 {% for trip in friend_trips %}
@@ -627,7 +627,7 @@
         mountains.sort();
         var html = '';
         var allSel = !_ftActiveMtn ? ' selected' : '';
-        html += '<button class="ft-mtn-option' + allSel + '" onclick="ftSelectMtn(null)">All mountains</button>';
+        html += '<button class="ft-mtn-option' + allSel + '" onclick="ftSelectMtn(null)">All mountains</button>';  // option label stays "All mountains"
         mountains.forEach(function(m) {
             var sel = (_ftActiveMtn === m) ? ' selected' : '';
             html += '<button class="ft-mtn-option' + sel + '" onclick="ftSelectMtn(' + JSON.stringify(m) + ')">' + m + '</button>';
@@ -644,7 +644,7 @@
     function ftSelectMtn(mountain) {
         _ftActiveMtn = mountain;
         var label = document.getElementById('ft-mtn-filter-label');
-        if (label) label.textContent = mountain || 'All mountains';
+        if (label) label.textContent = mountain || 'Filter for a mountain';
         document.querySelectorAll('.ft-row[data-mountain]').forEach(function(r) {
             var m = r.getAttribute('data-mountain');
             r.style.display = (!mountain || m === mountain) ? '' : 'none';
