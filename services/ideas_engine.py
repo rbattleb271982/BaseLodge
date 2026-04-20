@@ -551,9 +551,9 @@ def build_wishlist_overlap_cards(user, wishlist_data, all_friends, user_dates):
 
         anchor_full_name = f"{anchor.get('first_name', '')} {anchor.get('last_name', '')}".strip() or "a friend"
         if n == 1:
-            subtitle = f"You and {anchor_full_name} have {resort_name} on your wishlist"
+            subtitle = f"You and {anchor_full_name} have {resort_name} on your wishlists"
         else:
-            subtitle = f"You and {n} friends have {resort_name} on your wishlist"
+            subtitle = f"You and {n} friends have {resort_name} on your wishlists"
 
         friend_ids_param = ",".join(str(p["id"]) for p in overlapping_people)
         cta_url = (
