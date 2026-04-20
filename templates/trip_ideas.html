@@ -29,36 +29,67 @@
             line-height: 1.55;
         }
 
-        /* ── Availability card ── */
-        .ideas-card-headline {
-            font-family: Georgia, 'Times New Roman', serif;
-            font-size: 22px;
-            font-weight: 400;
+        /* ── Destination feed ── */
+        .dest-feed {
+            margin: 0;
+            padding: 0;
+        }
+
+        .dest-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-top: 1px solid var(--bl-color-border-soft);
+            text-decoration: none;
+            color: inherit;
+            gap: 8px;
+        }
+
+        .dest-row:first-child {
+            border-top: none;
+            padding-top: 4px;
+        }
+
+        .dest-row-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .dest-row-line1 {
+            font-size: 15px;
             color: var(--bl-color-text);
-            margin: 0 0 2px 0;
-            line-height: 1.2;
+            margin: 0 0 3px 0;
+            line-height: 1.3;
         }
 
-        .ideas-card-headline--sm {
-            font-size: 19px;
-        }
-
-        .ideas-card-dateline {
-            font-size: 13px;
+        .dest-row-date {
             color: var(--bl-color-text-muted);
-            margin: 0 0 2px 0;
-            letter-spacing: 0.1px;
         }
 
-        .ideas-card-social {
+        .dest-row-sep {
+            color: var(--bl-color-text-muted);
+        }
+
+        .dest-row-mountain {
+            font-weight: 600;
+            color: var(--bl-color-text);
+        }
+
+        .dest-row-line2 {
             font-size: 13px;
             color: var(--bl-color-text-muted);
             margin: 0;
         }
 
-        /* ── Wishlist pull card ── */
-        .ideas-card--pull .ideas-window-title {
+        .dest-row-going {
+            color: var(--bl-color-primary);
+        }
+
+        .dest-row-cta {
             color: var(--bl-color-text-muted);
+            font-size: 16px;
+            flex-shrink: 0;
         }
 
         /* ── Footer hint ── */
@@ -220,101 +251,43 @@
 
         <div class="ideas-empty">
             <hr class="ideas-empty-divider">
-            <p class="ideas-empty-main">Nothing lined up this week.</p>
-            <p class="ideas-empty-sub">Set availability or add a few resorts to your list to give it something to work with.</p>
+            <p class="ideas-empty-main">Nothing lined up yet.</p>
+            <p class="ideas-empty-sub">Your feed shows up when friends add trips. Add availability so you don't miss a window.</p>
             <div class="ideas-empty-actions">
-                <a href="{{ url_for('add_open_dates') }}" class="ideas-empty-link">Set availability →</a>
-                <a href="{{ url_for('settings_wish_list') }}" class="ideas-empty-link">Build your list →</a>
+                <a href="{{ url_for('add_open_dates') }}" class="ideas-empty-link">Add availability →</a>
+                <a href="{{ url_for('invite') }}" class="ideas-empty-link">Invite friends →</a>
             </div>
         </div>
 
         {% else %}
         {# ── POPULATED STATE ── #}
 
-        <div class="ideas-windows-list">
-            {% for card in idea_feed %}
-
-            {# ── AVAILABILITY CARD ── #}
-            {% if card.idea_type == 'availability_overlap' %}
-            <a href="{{ card.cta_url }}"
-               class="ideas-window-row{% if card.is_first %} ideas-window-row--first{% endif %}">
-                <div class="ideas-window-body">
-                    {# Line 1: "Your dates overlap at {Destination}" #}
-                    {% if card.resort_name %}
-                    <p class="ideas-card-headline ideas-card-headline--sm">Your dates overlap at {{ card.resort_name }}</p>
-                    {% else %}
-                    <p class="ideas-card-headline ideas-card-headline--sm">Your dates overlap</p>
-                    {% endif %}
-
-                    {# Line 2: {Dates} · {N} people [· pass_phrase from engine] #}
-                    {% set d = card.meta.get('date_short', '') %}
-                    {% set pc = card.meta.get('people_count', 0) %}
-                    {% set pp = card.meta.get('pass_phrase', '') %}
-                    {% if pc > 0 %}
-                        {% set people_text = (pc | string) + " people" %}
-                        {% if pp %}
-                            {% set meta_line = d + " · " + people_text + " · " + pp %}
+        <div class="dest-feed">
+            {% for row in dest_feed %}
+            <a href="{{ url_for('mountain_detail', slug=row.resort.slug) }}" class="dest-row">
+                <div class="dest-row-body">
+                    <p class="dest-row-line1">
+                        <span class="dest-row-date">{{ row.date_range }}</span>
+                        <span class="dest-row-sep"> — </span>
+                        <span class="dest-row-mountain">{{ row.resort.name }}</span>
+                    </p>
+                    <p class="dest-row-line2">
+                        {% if row.going > 0 and row.considering > 0 %}
+                            <span class="dest-row-going">{{ row.going }} going</span>
+                            <span> · {{ row.considering }} considering</span>
+                        {% elif row.going > 0 %}
+                            <span class="dest-row-going">{{ row.going }} going</span>
                         {% else %}
-                            {% set meta_line = d + " · " + people_text %}
+                            <span>{{ row.considering }} considering</span>
                         {% endif %}
-                        <p class="ideas-card-dateline">{{ meta_line }}</p>
-                    {% endif %}
+                    </p>
                 </div>
-                <span class="ideas-window-cta">›</span>
+                <span class="dest-row-cta">›</span>
             </a>
-
-            {# ── TRIP CARD ── #}
-            {% elif card.idea_type == 'trip_overlap' %}
-            <a href="{{ card.cta_url }}"
-               class="ideas-window-row{% if card.is_first %} ideas-window-row--first{% endif %}">
-                <div class="ideas-window-body">
-                    {# Line 1: title already has correct copy from trip_overlap.py #}
-                    <p class="ideas-window-title">{{ card.title }}</p>
-                    {# Line 2: {Dates} [· Pass phrase] — omit subtitle if empty #}
-                    {% set d = card.meta.get('date_short', '') %}
-                    {% if d or card.subtitle %}
-                        {% if d and card.subtitle %}
-                            {% set meta_line = d + " · " + card.subtitle %}
-                        {% elif d %}
-                            {% set meta_line = d %}
-                        {% else %}
-                            {% set meta_line = card.subtitle %}
-                        {% endif %}
-                        <p class="ideas-window-sub">{{ meta_line }}</p>
-                    {% endif %}
-                </div>
-                <span class="ideas-window-cta">›</span>
-            </a>
-
-            {# ── WISHLIST CARD ── #}
-            {% elif card.idea_type == 'wishlist_overlap' %}
-            <a href="{{ card.cta_url }}"
-               class="ideas-window-row{% if card.is_first %} ideas-window-row--first{% endif %}">
-                <div class="ideas-window-body">
-                    {# Single sentence — subtitle holds "You and {Name} have {Resort} on your wishlist" #}
-                    <p class="ideas-window-title" style="color: var(--bl-color-text-muted);">{{ card.subtitle or card.title }}</p>
-                </div>
-                <span class="ideas-window-cta">›</span>
-            </a>
-
-            {% else %}
-            {# ── FALLBACK ── #}
-            <a href="{{ card.cta_url }}"
-               class="ideas-window-row{% if card.is_first %} ideas-window-row--first{% endif %}">
-                <div class="ideas-window-body">
-                    <p class="ideas-window-title">{{ card.title }}</p>
-                    {% if card.subtitle %}
-                    <p class="ideas-window-sub">{{ card.subtitle }}</p>
-                    {% endif %}
-                </div>
-                <span class="ideas-window-cta">›</span>
-            </a>
-            {% endif %}
-
             {% endfor %}
         </div>
 
-        {% if idea_feed | length < 3 %}
+        {% if dest_feed | length < 3 %}
         <div class="ideas-nudge">
             <p class="ideas-nudge-text">Add <a href="{{ url_for('add_open_dates') }}">availability</a> or <a href="{{ url_for('invite') }}">invite friends</a> to surface more ideas.</p>
         </div>

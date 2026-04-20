@@ -647,9 +647,83 @@ def apply_diversity_selection(candidates, max_cards=5):
     return selected
 
 
+def _fmt_date_range_short(start, end):
+    """Format a date range as 'Apr 20', 'Apr 20–24', or 'May 31–Jun 4'."""
+    if not start:
+        return ""
+    if not end or start == end:
+        return start.strftime("%b %-d")
+    if start.month == end.month:
+        return f"{start.strftime('%b %-d')}\u2013{end.strftime('%-d')}"
+    return f"{start.strftime('%b %-d')}\u2013{end.strftime('%b %-d')}"
+
+
+def build_destination_feed(user, all_friends):
+    """
+    Simplified dated-destination feed for the Ideas tab.
+
+    Queries all public upcoming friend trips that have a linked resort.
+    Groups by (resort_id, start_date, end_date) and counts going vs considering.
+    Returns rows sorted by start_date ascending, then more going first.
+
+    Each row dict:
+        resort      – Resort ORM object (slug, name)
+        start_date  – date
+        end_date    – date
+        date_range  – formatted string e.g. "Apr 20–24"
+        going       – int (trip_status == 'going')
+        considering – int (trip_status != 'going')
+    """
+    today = date.today()
+    friend_ids = [f.id for f in all_friends]
+
+    if not friend_ids:
+        return []
+
+    friend_trips = (
+        SkiTrip.query
+        .filter(
+            SkiTrip.user_id.in_(friend_ids),
+            SkiTrip.end_date >= today,
+            SkiTrip.is_public == True,
+            SkiTrip.resort_id.isnot(None),
+        )
+        .order_by(SkiTrip.start_date.asc())
+        .all()
+    )
+
+    groups = {}
+    for trip in friend_trips:
+        key = (trip.resort_id, trip.start_date, trip.end_date)
+        if key not in groups:
+            groups[key] = {
+                "resort": trip.resort,
+                "start_date": trip.start_date,
+                "end_date": trip.end_date,
+                "going": 0,
+                "considering": 0,
+            }
+        if (trip.trip_status or "planning") == "going":
+            groups[key]["going"] += 1
+        else:
+            groups[key]["considering"] += 1
+
+    rows = sorted(
+        groups.values(),
+        key=lambda r: (r["start_date"], -r["going"]),
+    )
+    for row in rows:
+        row["date_range"] = _fmt_date_range_short(row["start_date"], row["end_date"])
+
+    return rows
+
+
 def build_ranked_idea_feed(user, all_friends):
     """
-    Coordinator: collect candidate IdeaCards from all skill builders, apply
+    Legacy coordinator — kept for potential future secondary surfaces.
+    The main Ideas tab now uses build_destination_feed() instead.
+
+    Collect candidate IdeaCards from all skill builders, apply
     unified diversity selection, and return the top 3–5 cards.
 
     # FUTURE: /add_trip only supports single friend_id; multi-friend prefill TBD.

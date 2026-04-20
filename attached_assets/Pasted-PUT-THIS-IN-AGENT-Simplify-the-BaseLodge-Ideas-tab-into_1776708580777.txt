@@ -1,0 +1,182 @@
+PUT THIS IN AGENT
+
+Simplify the BaseLodge Ideas tab into one clean primary feed.
+
+This is a product simplification + UI implementation step. Use the existing ideas engine where possible, but change the Ideas tab so it becomes a single dated-destination feed.
+
+Goal:
+The Ideas tab should now be built around one unified grammar only:
+
+[Date Range] — [Mountain Name]
+[X going · Y considering]
+
+Examples:
+
+* Apr 20–24 — Vail
+  3 going · 2 considering
+* May 31–Jun 4 — Mammoth
+  2 going
+* Apr 20 — Breckenridge
+  1 considering
+
+This should become the dominant Ideas tab experience.
+
+---
+
+### WHAT TO KEEP
+
+Keep these idea sources in the main feed:
+
+* availability_overlap
+* trip_overlap
+
+But transform both into one shared output shape and one shared visual treatment.
+
+---
+
+### WHAT TO REMOVE FROM THE MAIN FEED
+
+Remove from the primary feed for v1:
+
+* wishlist_overlap
+* any name-heavy friend-centric card styling
+* any mixed prompt-like populated card types
+* any separate visual branches for different active idea types
+
+Do NOT delete wishlist logic yet.
+Just remove it from the main Ideas feed surface.
+
+---
+
+### NEW FEED RULES
+
+1. One feed type only
+   Each rendered item should have:
+
+* date_range
+* mountain_name
+* going_count
+* considering_count
+* mountain slug / resort slug for navigation
+
+2. Date formatting
+   Use:
+
+* Apr 20
+* Apr 20–24
+* May 31–Jun 4
+* No year unless needed
+* No nights count
+
+3. Counts only
+   Do NOT show friend names in the feed.
+   Use:
+
+* “1 going”
+* “3 going · 2 considering”
+* “2 considering”
+
+4. Sorting
+   Prioritize:
+
+* earliest date first
+* then stronger signal (more going)
+* use existing fit/ranking only if needed as a tie-breaker
+
+5. Interaction
+   Entire row should be clickable
+   Tap → /mountain/<slug>
+
+---
+
+### UI / LAYOUT
+
+Use a compact two-line row format.
+
+Line 1:
+[Date Range] — [Mountain Name]
+
+Line 2:
+[X going · Y considering]
+
+Design:
+
+* flat list
+* no cards
+* no heavy containers
+* no visual card zoo
+* editorial, dense, easy to scan
+* match BaseLodge aesthetic
+
+Hierarchy:
+
+* Date = secondary
+* Mountain = stronger
+* Counts = smaller, muted
+* “going” can use bordeaux accent subtly
+* “considering” muted gray
+
+Spacing:
+
+* compact rows
+* mobile-friendly
+* subtle hairline separators or whitespace only
+
+---
+
+### EMPTY STATE
+
+Use one simple empty state when there are no dated destination ideas:
+
+“Nothing lined up yet.”
+CTA to add availability
+CTA to invite friends
+
+Do not show wishlist overlap cards in this state.
+
+---
+
+### IMPLEMENTATION PLAN
+
+1. Feed builder
+
+* Keep availability_overlap and trip_overlap
+* Convert both to one shared feed item shape
+* Exclude wishlist_overlap from the main returned feed
+
+2. Template
+
+* Replace multiple renderer branches with one renderer path for the unified row
+* Remove distinct visual treatments for active idea types
+
+3. Navigation
+
+* Ensure each row links to /mountain/<slug>
+
+4. Keep legacy logic safely
+
+* Do not delete wishlist overlap builder logic yet
+* Just stop rendering it in the main Ideas tab
+
+---
+
+### DELIVER BACK
+
+1. Files changed
+2. How availability_overlap and trip_overlap were unified
+3. How wishlist_overlap was removed from the main feed
+4. Sorting logic used
+5. Confirmation that:
+
+   * Ideas tab is now one clean feed
+   * rows use the approved format
+   * rows link to mountain pages
+   * empty state works correctly
+
+Important:
+
+* Do not overbuild
+* Do not redesign unrelated parts of the tab
+* Keep this as the smallest strong simplification
+* Use checkpoints sparingly
+* Do not finish until the Ideas tab is visually verified on mobile

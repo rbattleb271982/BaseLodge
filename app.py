@@ -2425,8 +2425,7 @@ def overlap_detail():
 @login_required
 def trip_ideas():
     """Trip Ideas page — 3-state system: setup / reengagement / populated."""
-    from services.ideas_engine import build_ranked_idea_feed
-    from services.open_dates import get_available_dates_for_user
+    from services.ideas_engine import build_destination_feed
     user = current_user
 
     # ── Friends ────────────────────────────────────────────────────────────────
@@ -2435,40 +2434,28 @@ def trip_ideas():
     all_friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
     has_friends = bool(friend_ids)
 
-    # Full names for Ideas feed — spec requires full name for 1-friend cards
-    display_names = {}
-    for f in all_friends:
-        fname = f.first_name or ""
-        lname = f.last_name or ""
-        display_names[f.id] = f"{fname} {lname}".strip() if lname else fname
-
-    # ── Availability hint (soft prompt when no availability is set) ───────────
-    has_availability = bool(get_available_dates_for_user(user))
-
-    # ── Unified idea feed ─────────────────────────────────────────────────────
-    idea_feed = build_ranked_idea_feed(user, all_friends) if has_friends else []
+    # ── Destination feed ──────────────────────────────────────────────────────
+    dest_feed = build_destination_feed(user, all_friends) if has_friends else []
 
     # ── State determination ───────────────────────────────────────────────────
     if not has_friends:
         ideas_state = "setup"
-    elif not idea_feed:
+    elif not dest_feed:
         ideas_state = "reengagement"
     else:
         ideas_state = "populated"
 
     # ── Debug logging ─────────────────────────────────────────────────────────
-    print(f"[trip_ideas] state={ideas_state} feed={len(idea_feed)} card(s)")
-    for _c in idea_feed:
-        print(f"  • [{_c['score']:.0f}pts] [{_c['idea_type']}] {_c['title']}")
+    print(f"[trip_ideas] state={ideas_state} feed={len(dest_feed)} row(s)")
+    for _r in dest_feed:
+        print(f"  • {_r['date_range']} — {_r['resort'].name} [{_r['going']}g·{_r['considering']}c]")
 
     return render_template(
         "trip_ideas.html",
         user=user,
         ideas_state=ideas_state,
-        idea_feed=idea_feed,
+        dest_feed=dest_feed,
         has_friends=has_friends,
-        has_availability=has_availability,
-        display_names=display_names,
     )
 
 
