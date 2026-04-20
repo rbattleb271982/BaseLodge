@@ -1,0 +1,234 @@
+PUT THIS IN AGENT
+
+Build the Mountain Detail Page for BaseLodge using the approved simplified design and current backend reality.
+
+This is the first real implementation of the page. Do not overbuild it. Do not add extra sections.
+
+Context:
+
+* Trip logic audit/refactor is complete
+* ResortPass mapping layer is live
+* Resort.get_primary_pass() and get_pass_names() are working
+* resort_id is the canonical trip-to-resort link
+* This page is for logged-in users
+* The design direction is premium, calm, editorial, and mobile-first
+* This page should match BaseLodge’s color system and overall aesthetic
+
+Goal:
+Create a focused Mountain Detail Page that answers:
+
+1. What mountain is this
+2. What pass is it on
+3. Which of my friends are going there, and when
+
+Approved page structure:
+
+1. Hero
+   Show only:
+
+* State (small uppercase)
+* Mountain name (large serif, allow natural line break if needed)
+* Primary pass only as a pill
+
+Do NOT show:
+
+* counts
+* stats rows
+* extra metadata
+* secondary pass pills
+
+Hero data mapping:
+
+* Resort.state_code
+* Resort.name
+* Resort.get_primary_pass()
+
+Fallback:
+
+* If there is no primary pass, show a subtle ghost pill: “No major pass”
+
+---
+
+2. Friends-by-date content
+
+This is the main body of the page.
+
+Trip filtering:
+
+* Include only:
+
+  * upcoming trips (start_date > today)
+  * in-progress trips (start_date <= today <= end_date)
+* Exclude past trips (end_date < today)
+* Use canonical trip logic (get_trip_status) to validate
+
+Query rules:
+
+* Query SkiTrip where resort_id == resort.id
+* Include owner + accepted participants
+* Only include:
+
+  * current user
+  * friends of current user
+
+Grouping:
+
+* Group by (start_date, end_date)
+* Sort groups chronologically by start_date
+* Do NOT create empty groups
+
+Within each group:
+
+* Show date range on the left
+* Show nights count on the right (end_date - start_date)
+
+---
+
+3. Row structure
+
+Each row represents one real person tied to a real trip.
+
+Line 1:
+
+* Full name on the left (or “You” for current user)
+* Status text on the right
+
+Line 2:
+
+* Rider type · Skill level · Pass
+
+Row rules:
+
+* Show “You” instead of the user’s actual name
+* If “You” is present in a group, always place “You” first
+* After that, sort alphabetically by full name
+* Use full first + last names for friends
+* A friend can appear in multiple groups (do NOT dedupe across groups)
+
+Pass formatting:
+
+* Normalize pass_type to main pass family only
+
+  * e.g. "Ikon Base+", "Ikon Pass" → "Ikon"
+* If no pass → show “No pass”
+
+Identity line formatting:
+
+* Format exactly as:
+  [rider_type] · [skill_level if present] · [pass]
+
+Rules:
+
+* If skill_level is null → omit it cleanly (no extra separator)
+* If pass is null → show “No pass”
+* No malformed separators (no double dots or trailing dots)
+
+Status labels:
+
+* “Going” for accepted
+* “Considering” for invited/pending (if surfaced in current logic)
+* Do NOT use any other status labels
+
+Status design:
+
+* Plain right-aligned text only
+* No pills
+* No heavy styling
+
+---
+
+4. Empty / sparse states
+
+* If no friends AND user is not going:
+  Show:
+  “No friends are going yet.”
+  “When someone plans a trip here, it will show up.”
+
+* If only the user is going:
+  Show only the “You” row
+  Do NOT show empty state
+
+---
+
+5. Tap behavior
+
+* Friend rows → link to /friends/<user_id>
+* “You” row → no link (or disabled)
+
+---
+
+6. Visual / layout requirements
+
+* No avatars or profile bubbles
+* No section labels (no “Friends going”)
+* No cards
+* No heavy containers
+* No dashboard styling
+* Use spacing + hairline dividers only
+* Keep the page quiet, editorial, and mobile-first
+
+Row design:
+Line 1:
+[Full Name]                            [Status]
+
+Line 2:
+[Rider type] · [Skill level if present] · [Pass or No pass]
+
+Mobile spacing guidance:
+
+* Hero padding: ~24px sides, generous bottom spacing
+* Body padding: ~24px sides
+* Group spacing separates date windows (no boxes)
+* Hairline row dividers only
+* No visual clutter
+
+---
+
+7. Implementation notes
+
+* Reuse existing helpers and trip logic
+* Use resort_id-based queries only (no string matching)
+* Do not redesign the resort model
+* Do not remove legacy compatibility fields
+* Do not add unsupported metadata blocks
+* Do not add About sections, relationship chips, trip cards, or CTA bars
+
+Data expectations:
+
+* Resort.name
+* Resort.state_code
+* Resort.get_primary_pass()
+* SkiTrip (filtered correctly)
+* user.first_name / last_name
+* user.rider_type
+* user.skill_level
+* user.pass_type
+* trip participant status
+* trip start/end dates
+
+---
+
+8. Deliver back
+
+9. Files changed
+
+10. New route(s) and template(s)
+
+11. Any helper/query additions
+
+12. How grouping + sorting was implemented
+
+13. How pass normalization was handled
+
+14. Confirmation that:
+
+    * page works cleanly on mobile
+    * logic matches requirements
+    * friend rows link correctly
+
+Important:
+
+* Build exactly this scope
+* Do not add extra features
+* Use checkpoints sparingly
+* Do not finish until the page is fully tested and working end-to-end

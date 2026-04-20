@@ -2501,6 +2501,61 @@ def _ideas_rider_pass_line(user_obj):
     return rider or norm_pass
 
 
+def normalize_pass_family(pass_type):
+    """
+    Map a user's pass_type to its primary pass family name for clean row display.
+    Handles canonical values from CANONICAL_PASSES and legacy variants.
+
+    Examples:
+      'Ikon', 'Ikon Base', 'Ikon Pass'  -> 'Ikon'
+      'Epic', 'Epic Local', 'Epic Pass' -> 'Epic'
+      'MountainCollective'              -> 'Mountain Collective'
+      'PowderAlliance'                  -> 'Powder Alliance'
+      'SkiCalifornia'                   -> 'Ski California'
+      None / 'Other' / junk             -> 'No pass'
+    """
+    import re as _re
+    JUNK = frozenset({"none", "i don't have a pass", "other", "no pass", "not sure", "unsure", ""})
+    if not pass_type:
+        return "No pass"
+    for part in str(pass_type).split(","):
+        part = part.strip()
+        if part.lower() in JUNK:
+            continue
+        lower = part.lower()
+        if lower.startswith("ikon"):
+            return "Ikon"
+        if lower.startswith("epic"):
+            return "Epic"
+        if lower in ("mountaincollective", "mountain collective", "mountain_collective"):
+            return "Mountain Collective"
+        if lower.startswith("indy"):
+            return "Indy"
+        if lower in ("powderalliance", "powder alliance"):
+            return "Powder Alliance"
+        if lower in ("skicalifornia", "ski california"):
+            return "Ski California"
+        if lower.startswith("freedom"):
+            return "Freedom"
+        cleaned = _re.sub(r"\s+[Pp]ass\b.*$", "", part).strip()
+        return cleaned if cleaned else part
+    return "No pass"
+
+
+def _mountain_row_identity(rider_type, skill_level, pass_type):
+    """
+    Build the identity line for a mountain detail person row.
+    Format: 'Rider type · Skill level · Pass'  (skill level omitted if blank)
+    """
+    parts = []
+    if rider_type:
+        parts.append(rider_type)
+    if skill_level:
+        parts.append(skill_level)
+    parts.append(normalize_pass_family(pass_type))
+    return " \u00b7 ".join(parts)
+
+
 @app.route("/idea/availability")
 @login_required
 def idea_detail_availability():
@@ -4679,6 +4734,110 @@ def settings_equipment_status():
     db.session.commit()
     
     return jsonify({"success": True})
+
+
+# ── Mountain Detail Page ─────────────────────────────────────────────────────
+
+@app.route("/mountain/<slug>")
+@login_required
+def mountain_detail(slug):
+    """
+    Focused detail page for a single resort:
+    - Hero: state, name, primary pass pill
+    - Body: upcoming trips grouped by date window, showing current user + friends
+    """
+    resort = Resort.query.filter_by(slug=slug, is_active=True).first_or_404()
+    today = date.today()
+
+    # Current user's friend IDs (bidirectional friendship model: Friend row = user_id → friend_id)
+    friend_ids = set(
+        f.friend_id for f in Friend.query.filter_by(user_id=current_user.id).all()
+    )
+    allowed_ids = friend_ids | {current_user.id}
+
+    # Upcoming + in-progress trips for this resort only (resort_id canonical; no string fallback)
+    raw_trips = (
+        SkiTrip.query
+        .filter(
+            SkiTrip.resort_id == resort.id,
+            SkiTrip.end_date >= today
+        )
+        .order_by(SkiTrip.start_date.asc())
+        .all()
+    )
+
+    # Accumulate rows per date window.
+    # Key: (start_date, end_date); value: dict of uid -> row_dict (deduped within window)
+    rows_by_window = {}
+
+    for trip in raw_trips:
+        # Canonical validation: skip any trip get_trip_status classifies as past
+        if get_trip_status(trip, today=today) == 'past':
+            continue
+
+        # Owner always counts as accepted; also gather explicit accepted participants
+        people_ids = {trip.user_id}
+        for p in trip.get_accepted_participants():
+            people_ids.add(p.user_id)
+
+        relevant_ids = people_ids & allowed_ids
+        if not relevant_ids:
+            continue
+
+        window = (trip.start_date, trip.end_date)
+        if window not in rows_by_window:
+            rows_by_window[window] = {}
+
+        status_label = "Going" if (trip.trip_status == 'going') else "Considering"
+
+        for uid in relevant_ids:
+            if uid in rows_by_window[window]:
+                # If we see the person again in a different trip for the same window,
+                # upgrade status to 'Going' if warranted; otherwise leave as-is.
+                if status_label == 'Going':
+                    rows_by_window[window][uid]['status_label'] = 'Going'
+                continue
+
+            person = db.session.get(User, uid)
+            if not person:
+                continue
+
+            is_me = (uid == current_user.id)
+            rows_by_window[window][uid] = {
+                'user_id': uid,
+                'is_me': is_me,
+                'full_name': f"{(person.first_name or '').strip()} {(person.last_name or '').strip()}".strip(),
+                'identity_line': _mountain_row_identity(
+                    person.display_rider_type,
+                    person.skill_level,
+                    person.pass_type,
+                ),
+                'status_label': status_label,
+            }
+
+    # Build sorted groups: chronological by start_date; rows within group: "You" first, then alpha
+    date_groups = []
+    for (start_date, end_date), rows_map in sorted(rows_by_window.items(), key=lambda x: x[0][0]):
+        rows = sorted(
+            rows_map.values(),
+            key=lambda r: (0 if r['is_me'] else 1, r['full_name'])
+        )
+        nights = (end_date - start_date).days
+        date_groups.append({
+            'start_date': start_date,
+            'end_date': end_date,
+            'nights': nights,
+            'rows': rows,
+        })
+
+    primary_pass = resort.get_primary_pass()
+
+    return render_template(
+        'mountain_detail.html',
+        resort=resort,
+        primary_pass=primary_pass,
+        date_groups=date_groups,
+    )
 
 
 @app.route("/settings/mountains-visited")

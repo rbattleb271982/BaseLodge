@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ resort.name }} — BaseLodge</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
+    <link rel="shortcut icon" href="/static/icons/favicon.ico">
+    {% include 'components/analytics_head.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        /* ── Back nav ── */
+        .md-nav {
+            display: flex;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .md-back {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #6B665A;
+            text-decoration: none;
+            font-size: 14px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .md-back:active { opacity: 0.6; }
+
+        /* ── Hero ── */
+        .md-hero {
+            padding: 0 0 32px 0;
+        }
+        .md-state {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.9px;
+            text-transform: uppercase;
+            color: #8A857A;
+            margin: 0 0 8px 0;
+        }
+        .md-name {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 34px;
+            font-weight: 400;
+            color: #1A1A1A;
+            line-height: 1.15;
+            margin: 0 0 16px 0;
+        }
+        .md-pass-pill {
+            display: inline-block;
+            background: #5C1219;
+            color: #FFFFFF;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            padding: 5px 12px;
+            border-radius: 20px;
+        }
+        .md-pass-pill--ghost {
+            background: transparent;
+            color: #8A857A;
+            border: 1px solid #D9D2BF;
+            font-weight: 500;
+        }
+
+        /* ── Date groups ── */
+        .md-group {
+            margin-bottom: 28px;
+        }
+        .md-group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #D9D2BF;
+            margin-bottom: 0;
+        }
+        .md-group-dates {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1A1A1A;
+        }
+        .md-group-nights {
+            font-size: 13px;
+            color: #8A857A;
+        }
+
+        /* ── Person rows ── */
+        .md-person-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 13px 0;
+            border-bottom: 1px solid #E5DFD0;
+            text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .md-person-row:last-child {
+            border-bottom: none;
+        }
+        .md-person-row:active .md-person-name {
+            color: #5C1219;
+        }
+        .md-person-left {
+            flex: 1;
+            min-width: 0;
+        }
+        .md-person-name {
+            font-size: 16px;
+            color: #1A1A1A;
+            margin: 0 0 3px 0;
+            line-height: 1.3;
+        }
+        .md-person-identity {
+            font-size: 13px;
+            color: #8A857A;
+            margin: 0;
+            line-height: 1.3;
+        }
+        .md-person-status {
+            font-size: 13px;
+            color: #8A857A;
+            white-space: nowrap;
+            margin-left: 12px;
+            padding-top: 1px;
+            flex-shrink: 0;
+        }
+        .md-person-status--going {
+            color: #5C1219;
+            font-weight: 500;
+        }
+
+        /* ── Empty state ── */
+        .md-empty {
+            padding: 40px 0 24px;
+        }
+        .md-empty-line1 {
+            font-size: 16px;
+            color: #1A1A1A;
+            margin: 0 0 6px 0;
+        }
+        .md-empty-line2 {
+            font-size: 14px;
+            color: #8A857A;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container" style="padding: 20px 24px 88px;">
+
+        <!-- Back nav -->
+        <div class="md-nav">
+            <a href="javascript:history.back()" class="md-back">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+                Back
+            </a>
+        </div>
+
+        <!-- Hero -->
+        <div class="md-hero">
+            {% if resort.state_code %}
+            <p class="md-state">{{ resort.state_code }}</p>
+            {% endif %}
+            <h1 class="md-name">{{ resort.name }}</h1>
+            {% if primary_pass %}
+            <span class="md-pass-pill">{{ primary_pass }}</span>
+            {% else %}
+            <span class="md-pass-pill md-pass-pill--ghost">No major pass</span>
+            {% endif %}
+        </div>
+
+        <!-- Friends by date -->
+        {% if date_groups %}
+            {% for group in date_groups %}
+            <div class="md-group">
+                <!-- Group header: date range + night count -->
+                <div class="md-group-header">
+                    <span class="md-group-dates">
+                        {%- set s = group.start_date -%}
+                        {%- set e = group.end_date -%}
+                        {%- if s.month == e.month and s.year == e.year -%}
+                            {{ s.strftime('%b %-d') }}–{{ e.strftime('%-d') }}
+                        {%- else -%}
+                            {{ s.strftime('%b %-d') }}–{{ e.strftime('%b %-d') }}
+                        {%- endif -%}
+                    </span>
+                    <span class="md-group-nights">
+                        {%- if group.nights == 0 -%}
+                            Day trip
+                        {%- elif group.nights == 1 -%}
+                            1 night
+                        {%- else -%}
+                            {{ group.nights }} nights
+                        {%- endif -%}
+                    </span>
+                </div>
+
+                <!-- Person rows -->
+                {% for row in group.rows %}
+                    {% if row.is_me %}
+                    <div class="md-person-row" style="cursor: default;">
+                    {% else %}
+                    <a href="{{ url_for('friend_profile', friend_id=row.user_id) }}" class="md-person-row">
+                    {% endif %}
+                        <div class="md-person-left">
+                            <p class="md-person-name">
+                                {%- if row.is_me -%}You{%- else -%}{{ row.full_name }}{%- endif -%}
+                            </p>
+                            <p class="md-person-identity">{{ row.identity_line }}</p>
+                        </div>
+                        <span class="md-person-status{% if row.status_label == 'Going' %} md-person-status--going{% endif %}">
+                            {{ row.status_label }}
+                        </span>
+                    {% if row.is_me %}
+                    </div>
+                    {% else %}
+                    </a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endfor %}
+        {% else %}
+        <!-- Empty state -->
+        <div class="md-empty">
+            <p class="md-empty-line1">No friends are going yet.</p>
+            <p class="md-empty-line2">When someone plans a trip here, it will show up.</p>
+        </div>
+        {% endif %}
+
+    </div>
+
+    {% include 'components/bottom_nav.html' %}
+</body>
+</html>
