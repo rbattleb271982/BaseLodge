@@ -188,6 +188,65 @@
         }
         .ft-row:first-child { border-top: 1px solid #E5DFD0; }
         .ft-row:active { opacity: 0.7; }
+
+        /* ── Mountain filter ── */
+        .ft-mtn-filter-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: none;
+            border: none;
+            padding: 10px 0 12px 0;
+            margin: 0;
+            font-size: 14px;
+            color: #5C1219;
+            cursor: pointer;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .ft-mtn-filter-btn:active { opacity: 0.6; }
+        .ft-mtn-filter-chevron { font-size: 11px; opacity: 0.7; }
+
+        .ft-mtn-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            z-index: 200;
+        }
+        .ft-mtn-overlay.open { display: block; }
+        .ft-mtn-sheet {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: #F5F1E8;
+            border-radius: 16px 16px 0 0;
+            padding: 12px 0 40px 0;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        .ft-mtn-handle {
+            width: 36px; height: 4px;
+            border-radius: 2px;
+            background: #C4B8B0;
+            margin: 0 auto 16px;
+        }
+        .ft-mtn-option {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            border-bottom: 0.5px solid rgba(0,0,0,0.07);
+            padding: 14px 24px;
+            font-size: 15px;
+            color: #1A1A1A;
+            font-family: inherit;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .ft-mtn-option:last-child { border-bottom: none; }
+        .ft-mtn-option.selected { color: #5C1219; font-weight: 600; }
+        .ft-mtn-option:active { background: rgba(0,0,0,0.04); }
         .ft-grid {
             display: grid;
             grid-template-columns: minmax(0, 38%) 1fr auto;
@@ -482,12 +541,17 @@
                     <p class="mt-section-title">Friends' Upcoming</p>
                     <p class="mt-section-count">{{ friend_trips|length }}</p>
                 </div>
+                <!-- Mountain filter -->
+                <button class="ft-mtn-filter-btn" id="ft-mtn-filter-btn" onclick="ftOpenMtnFilter()">
+                    <span id="ft-mtn-filter-label">All mountains</span>
+                    <span class="ft-mtn-filter-chevron">⌄</span>
+                </button>
                 {% for trip in friend_trips %}
                     {% if trip and trip.id %}
                     {% set resort = trip.resort %}
                     {% set mountain_name = resort.name if resort else (trip.mountain or 'Mountain TBD') %}
                     {% set state_abbr = resort|state_abbrev if resort else trip.state %}
-                    <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="ft-row">
+                    <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="ft-row" data-mountain="{{ mountain_name }}">
                         <div class="ft-grid">
                             <span class="ft-name">{% if trip.user %}{{ trip.user.first_name | format_name }} {{ trip.user.last_name | format_name }}{% endif %}</span>
                             <span class="ft-dest">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</span>
@@ -500,6 +564,14 @@
             {% endif %}
         </div>
 
+    </div>
+
+    <!-- Mountain filter overlay / bottom sheet -->
+    <div class="ft-mtn-overlay" id="ft-mtn-overlay" onclick="ftCloseMtnFilter()">
+        <div class="ft-mtn-sheet" onclick="event.stopPropagation()">
+            <div class="ft-mtn-handle"></div>
+            <div id="ft-mtn-options"></div>
+        </div>
     </div>
 
     {% include 'components/bottom_nav.html' %}
@@ -538,6 +610,47 @@
             if (saved && saved !== 'upcoming') selectTab(saved, false);
         }
     });
+
+    // ── Mountain filter (Friends' Trips tab) ──────────────────────────────
+    var _ftActiveMtn = null;
+
+    function ftOpenMtnFilter() {
+        var optionsEl = document.getElementById('ft-mtn-options');
+        if (!optionsEl) return;
+        var rows = document.querySelectorAll('.ft-row[data-mountain]');
+        var seen = Object.create(null);
+        var mountains = [];
+        rows.forEach(function(r) {
+            var m = r.getAttribute('data-mountain');
+            if (m && !seen[m]) { seen[m] = true; mountains.push(m); }
+        });
+        mountains.sort();
+        var html = '';
+        var allSel = !_ftActiveMtn ? ' selected' : '';
+        html += '<button class="ft-mtn-option' + allSel + '" onclick="ftSelectMtn(null)">All mountains</button>';
+        mountains.forEach(function(m) {
+            var sel = (_ftActiveMtn === m) ? ' selected' : '';
+            html += '<button class="ft-mtn-option' + sel + '" onclick="ftSelectMtn(' + JSON.stringify(m) + ')">' + m + '</button>';
+        });
+        optionsEl.innerHTML = html;
+        document.getElementById('ft-mtn-overlay').classList.add('open');
+    }
+
+    function ftCloseMtnFilter() {
+        var overlay = document.getElementById('ft-mtn-overlay');
+        if (overlay) overlay.classList.remove('open');
+    }
+
+    function ftSelectMtn(mountain) {
+        _ftActiveMtn = mountain;
+        var label = document.getElementById('ft-mtn-filter-label');
+        if (label) label.textContent = mountain || 'All mountains';
+        document.querySelectorAll('.ft-row[data-mountain]').forEach(function(r) {
+            var m = r.getAttribute('data-mountain');
+            r.style.display = (!mountain || m === mountain) ? '' : 'none';
+        });
+        ftCloseMtnFilter();
+    }
     </script>
 </body>
 </html>
