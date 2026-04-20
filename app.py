@@ -372,13 +372,22 @@ def mountain_passes_filter(resort):
     """
     if not resort:
         return ""
-    pass_brands = getattr(resort, 'pass_brands', None)
-    if not pass_brands:
-        return ""
-    # Split comma-separated, filter empties and normalize
-    brands = [b.strip() for b in str(pass_brands).split(',') if b.strip()]
-    # Filter out placeholder values
-    brands = [b for b in brands if b.lower() not in ('none', 'n/a', '')]
+    passes = []
+    if hasattr(resort, 'get_passes'):
+        try:
+            passes = resort.get_passes() or []
+        except Exception:
+            passes = []
+    if not passes:
+        pass_brands = getattr(resort, 'pass_brands_json', None) or getattr(resort, 'pass_brands', None)
+        if not pass_brands:
+            return ""
+        if isinstance(pass_brands, list):
+            brands = [str(b).strip() for b in pass_brands if str(b).strip()]
+        else:
+            brands = [b.strip() for b in str(pass_brands).split(',') if b.strip()]
+        passes = [{'pass_name': b, 'is_primary': False} for b in brands]
+    brands = [p.get('pass_name') for p in passes if p.get('pass_name') and p.get('pass_name') != 'None']
     if not brands:
         return ""
     return ' · '.join(brands)
@@ -1382,13 +1391,19 @@ CANONICAL_PASSES = [
 ]
 
 def get_sorted_passes():
-    """Return passes sorted: Epic, Ikon, others (alphabetical), Other, None"""
-    epic = [p for p in CANONICAL_PASSES if p == "Epic Pass"]
-    ikon = [p for p in CANONICAL_PASSES if p == "Ikon Pass"]
-    middle = sorted([p for p in CANONICAL_PASSES if p not in ["Epic Pass", "Ikon Pass", "Other", "None"]])
-    other = [p for p in CANONICAL_PASSES if p == "Other"]
-    none = [p for p in CANONICAL_PASSES if p == "None"]
-    return epic + ikon + middle + other + none
+    """Return passes sorted in canonical display order."""
+    order = [
+        "Epic",
+        "Ikon",
+        "Mountain Collective",
+        "Indy",
+        "Freedom",
+        "SkiCalifornia",
+        "Powder Alliance",
+        "Other",
+        "I don't have a pass",
+    ]
+    return order
 
 PASS_OPTIONS = get_sorted_passes()
 

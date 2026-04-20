@@ -686,25 +686,25 @@
         const PASS_DISPLAY_NAMES = {
             'ikon': 'Ikon', 'epic': 'Epic', 'indy': 'Indy',
             'mountain_collective': 'Mountain Collective',
+            'mountaincollective': 'Mountain Collective',
             'powder_alliance': 'Powder Alliance',
+            'powderalliance': 'Powder Alliance',
             'freedom': 'Freedom', 'unlimited': 'Unlimited',
             'super_pass': 'Super Pass', 'max': 'Max',
         };
 
         function formatPassName(p) {
             const key = p.trim().toLowerCase();
-            return PASS_DISPLAY_NAMES[key] || (key.charAt(0).toUpperCase() + key.slice(1));
+            return PASS_DISPLAY_NAMES[key] || p.trim();
         }
 
         function getPassLabel(resort) {
-            if (!USER_PASSES || USER_PASSES.length === 0) return null;
-            const brands = (resort.pass_brands || '').split(',').map(b => b.trim().toLowerCase());
-            const match = USER_PASSES.find(p => brands.includes(p.trim().toLowerCase()));
-            return match ? formatPassName(match) : null;
-        }
-
-        function isPassCompatible(resort) {
-            return getPassLabel(resort) !== null;
+            if (!resort || !resort.pass_brands && !resort.pass_brands_json) return null;
+            const raw = Array.isArray(resort.pass_brands_json)
+                ? resort.pass_brands_json
+                : (resort.pass_brands || '').split(',');
+            const brands = raw.map(b => formatPassName(String(b).trim())).filter(Boolean);
+            return brands.length ? brands[0] : null;
         }
 
         function getResortMeta(r) {

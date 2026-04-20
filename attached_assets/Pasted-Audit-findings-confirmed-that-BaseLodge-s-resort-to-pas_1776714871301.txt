@@ -1,0 +1,62 @@
+Audit findings confirmed that BaseLodge’s resort-to-pass system is partially canonical but still has naming drift and mixed legacy fallback paths. Do a focused cleanup now so the resort/pass layer is trustworthy before more product logic is built on top of it.
+Goal
+Make resort pass display and pass lookup consistent across the app with minimal structural change.
+This is a cleanup pass, not a full redesign.
+What to do
+1. Standardize canonical pass names
+Create and use one canonical display set everywhere pass names are surfaced:
+Epic
+Ikon
+Mountain Collective
+Indy
+Freedom
+SkiCalifornia
+Powder Alliance
+Other
+If there is a true no-pass case, keep that internal as needed, but do not let inconsistent variants leak into UI.
+2. Fix naming drift
+Find and clean up inconsistent variants such as:
+MountainCollective vs Mountain Collective
+PowderAlliance vs Powder Alliance
+Epic Pass / Ikon Pass if those do not match the canonical set
+legacy comma-string variants that do not normalize correctly
+Normalize these to the canonical set above.
+3. Preserve one read path
+Wherever practical in the current code, make pass display and lookup flow through the existing canonical helper path:
+get_passes()
+get_primary_pass()
+Do not create a new parallel pass logic system.
+4. Prefer the practical fallback structure for now
+Until the normalized mapping table is fully trusted everywhere:
+treat pass_brands_json as the practical fallback source
+keep legacy fields only for compatibility
+do not let UI rendering depend directly on raw legacy strings if avoidable
+5. Fix obviously broken helper behavior
+The audit suggests get_sorted_passes() may be broken because values like Epic Pass / Ikon Pass do not match the canonical set.
+Inspect and fix that helper so sorting and display work with the canonical names above.
+6. Check key app surfaces
+Verify pass display consistency on at least these surfaces:
+mountain detail page
+add trip flow pass badge / related UI
+any resort list or resort summary UI
+any helper used by future filtering logic
+Do not redesign these pages. Just make pass values consistent.
+Scope guardrails
+Do not redesign the resort model
+Do not build a new normalization system from scratch
+Do not remove legacy fields if that risks breakage
+Do not over-engineer a new pass architecture
+Do not start Ideas logic yet
+Keep this a focused cleanup for trust and consistency
+Deliverable
+After making changes, report back with:
+files changed
+exact naming mismatches fixed
+helper functions updated
+which surfaces now use canonical pass names consistently
+any remaining legacy risks still left in place intentionally
+Important
+keep changes minimal but real
+prioritize correctness over elegance
+do not do unrelated cleanup
+use checkpoints sparingly
