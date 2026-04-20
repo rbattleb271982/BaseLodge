@@ -427,7 +427,7 @@
             <button type="button" class="tab-btn active" data-tab="upcoming">
                 My Trips{% if ns.invite_count > 0 %}<span class="tab-badge">{{ ns.invite_count }}</span>{% endif %}
             </button>
-            <button type="button" class="tab-btn" data-tab="friends">Friends' Trips</button>
+            <button type="button" class="tab-btn" data-tab="friends">Join a Trip</button>
         </div>
 
         <!-- ── UPCOMING ── -->
@@ -517,9 +517,9 @@
             {% endif %}
         </div>
 
-        <!-- ── FRIENDS' TRIPS ── -->
+        <!-- ── JOIN A TRIP ── -->
         <div id="segment-friends" class="segment-content">
-            {% if not friend_trips %}
+            {% if not curated_friend_trips %}
                 {% if not friends %}
                 <!-- No friends yet -->
                 <div class="mt-hero">
@@ -531,22 +531,23 @@
                 {% else %}
                 <!-- Has friends, but no upcoming friend trips -->
                 <div style="padding-top: 32px; text-align: center;">
-                    <p style="font-size: 15px; font-weight: 500; color: #1A1A1A; margin: 0 0 8px 0;">No friend trips yet</p>
+                    <p style="font-size: 15px; font-weight: 500; color: #1A1A1A; margin: 0 0 8px 0;">Nothing to join yet</p>
                     <p style="font-size: 14px; color: #6B665A; margin: 0 0 20px 0; line-height: 1.5;">None of your friends have added a trip yet. Start one and invite them.</p>
                     <a href="{{ url_for('add_trip') }}" class="mt-plan-btn" style="display: inline-block; width: auto; padding: 10px 24px;">Plan a trip together</a>
                 </div>
                 {% endif %}
             {% else %}
                 <div class="mt-section-header">
-                    <p class="mt-section-title">Friends' Upcoming</p>
-                    <p class="mt-section-count">{{ friend_trips|length }}</p>
+                    <p class="mt-section-title">Trips You Can Join</p>
+                    <p class="mt-section-count">{{ curated_friend_trips|length }}</p>
                 </div>
+                <p style="font-size: 13px; color: #8A857A; margin: 0 0 16px 0; line-height: 1.5;">Relevant trips based on overlap, interest, or shared mountains.</p>
                 <!-- Mountain filter -->
                 <button class="ft-mtn-filter-btn" id="ft-mtn-filter-btn" onclick="ftOpenMtnFilter()">
                     <span id="ft-mtn-filter-label">Filter for a mountain</span>
                     <span class="ft-mtn-filter-chevron">⌄</span>
                 </button>
-                {% for trip in friend_trips %}
+                {% for trip in curated_friend_trips %}
                     {% if trip and trip.id %}
                     {% set resort = trip.resort %}
                     {% set mountain_name = resort.name if resort else (trip.mountain or 'Mountain TBD') %}
@@ -557,7 +558,7 @@
                             <span class="ft-dest">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</span>
                             <span class="ft-date">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</span>
                         </div>
-                        <span class="ft-cta">→</span>
+                        <span class="ft-cta" style="font-size: 13px; font-weight: 500; color: #5C1219; white-space: nowrap;">View Trip</span>
                     </a>
                     {% endif %}
                 {% endfor %}

@@ -2272,6 +2272,43 @@ def my_trips():
     except Exception:
         friend_trips = []
 
+    # Curated friend trips for "Trips You Can Join" — ranked by relevance, capped at 6
+    curated_friend_trips = []
+    try:
+        if friend_trips:
+            user_wishlist    = set(user.wish_list_resorts or [])
+            today_str        = today.strftime('%Y-%m-%d')
+            user_open_dates  = set(d for d in (user.open_dates or []) if d >= today_str)
+            user_passes      = set(p.strip() for p in (user.pass_type or '').split(',') if p.strip())
+
+            def _trip_relevance(trip):
+                score = 0
+                # Wishlist match: the destination is on the user's wishlist
+                if trip.resort_id and trip.resort_id in user_wishlist:
+                    score += 3
+                # Date overlap: any of the trip's days fall in user's open dates
+                if trip.start_date and trip.end_date and user_open_dates:
+                    d = trip.start_date
+                    while d <= trip.end_date:
+                        if d.strftime('%Y-%m-%d') in user_open_dates:
+                            score += 2
+                            break
+                        d += timedelta(days=1)
+                # Pass alignment: user's pass is accepted at the resort
+                if trip.resort and user_passes:
+                    resort_pass_str = trip.resort.pass_brands or trip.resort.brand or ''
+                    resort_passes = set(p.strip() for p in resort_pass_str.split(',') if p.strip())
+                    if user_passes & resort_passes:
+                        score += 1
+                return score
+
+            curated_friend_trips = sorted(
+                friend_trips,
+                key=lambda t: (-_trip_relevance(t), (t.start_date or date.max).toordinal())
+            )[:6]
+    except Exception:
+        curated_friend_trips = friend_trips[:6] if friend_trips else []
+
     # Build overlaps list — include both owned trips and accepted guest trips
     # so a user who is a guest on a friend's trip at Vail also triggers an overlap
     # with any other friend going to Vail at the same time.
@@ -2318,6 +2355,7 @@ def my_trips():
         active_tab=active_tab,
         friends=friends or [],
         friend_trips=friend_trips or [],
+        curated_friend_trips=curated_friend_trips or [],
         overlaps=overlaps or [],
         today=today
     )

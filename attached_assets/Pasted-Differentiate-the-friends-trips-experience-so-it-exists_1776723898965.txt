@@ -1,0 +1,124 @@
+Differentiate the “friends trips” experience so it exists in both Trips and Friends, but each surface has a clearly different purpose and does not feel duplicated.
+We are not removing both views. We are keeping both because they surface different things.
+Product decision to implement
+1) Trips tab = curated, action-oriented
+This area should help the user decide whether there is a trip worth joining or exploring.
+Use a section/title like:
+Trips You Can Join
+or
+Join a Trip
+This should be a more filtered and more intentional experience.
+It should only surface friend trip opportunities that are more relevant, such as:
+shared or overlapping dates
+same mountain on the user’s wishlist
+pass alignment when helpful
+stronger social relevance
+This should feel like:
+curated
+opportunity-based
+actionable
+lighter-weight than the full Friends feed
+2) Friends tab = broad social awareness
+Keep the Friends page with:
+Friends tab = friend list
+Upcoming tab = where friends are going
+The Upcoming tab under Friends should be the broader, more exploratory social feed.
+This should feel like:
+social
+browseable
+awareness-oriented
+less filtered than Trips
+Important principle
+These two surfaces may use some overlapping underlying data, but they must not feel identical.
+Do not show the same exact section title, same card framing, same intro copy, and same filtering behavior in both places.
+We want:
+Trips = “What should I do?”
+Friends = “What are my friends doing?”
+What to change
+A. Trips tab
+Find the current place where friend trip opportunities / friends’ trips are shown within Trips.
+Refactor that area so it becomes a curated module, not a duplicate feed.
+Requirements
+Rename the section to something action-oriented:
+preferred: Trips You Can Join
+if that is too long in the UI, use Join a Trip
+Add a short helper line under the heading if the layout supports it, something like:
+“Relevant trips based on overlap, interest, or shared mountains.”
+Keep this subtle and premium. No loud CTA language.
+Limit this surface to a smaller set of higher-signal items.
+Do not dump the full friends upcoming feed here.
+Card framing in Trips should feel more utility-oriented. Example signals to emphasize:
+destination
+date range
+number of friends going
+overlap / wishlist / pass signal when available
+Primary CTA on these cards should be action-oriented, for example:
+View Trip
+See Trip
+Do not use “See their trip details.”
+Keep this section visually tighter than the Friends Upcoming feed.
+It should read like a curated module within Trips, not a full browsing destination.
+B. Friends tab
+Keep the Friends page split clearly into:
+Friends
+Upcoming
+Friends tab requirements
+The Friends sub-tab should remain focused on the friend list, not trips.
+The Upcoming sub-tab should remain the broad feed of where friends are going.
+Keep this view more exploratory and socially framed than the Trips version.
+If both surfaces currently use identical cards, adjust the Friends Upcoming cards so they feel like a broader social feed rather than a curated join-opportunity module.
+Content / UX distinction to enforce
+Trips version
+Should feel like:
+a shortlist
+more relevant
+more likely to drive an action
+less dense
+more filtered
+Friends Upcoming version
+Should feel like:
+a feed
+broader
+more socially informative
+suitable for browsing
+Implementation guidance
+Audit the current routes, feed builders, and templates that power:
+Trips tab friend trip surfacing
+Friends page Upcoming tab
+Then do the following:
+Reuse existing backend logic where possible
+Add a light relevance filter or capped shortlist for the Trips version
+Preserve the fuller dataset for Friends > Upcoming
+Update headings, helper copy, and CTA copy so the two surfaces are clearly distinct
+Adjust template structure/classes if needed so the layouts do not feel like clones
+Design direction
+Keep everything mobile-first and premium.
+Use the existing BaseLodge visual system.
+No noisy boxes, no overly appy clutter, no extra explanation text unless it adds clarity.
+The distinction should come primarily from:
+naming
+filtering
+density
+framing
+CTA language
+Do not do
+Do not remove either surface
+Do not merge Trips and Friends into one experience
+Do not introduce a new major navigation concept
+Do not add placeholder mock data
+Do not rebuild unrelated trip or friend architecture
+QA expectations
+After implementation, verify all of the following:
+Trips tab still works and now shows a curated action-oriented module for relevant friend trips
+Friends page still has Friends and Upcoming
+Friends > Upcoming remains broader than the Trips version
+The two surfaces no longer feel like duplicates
+Mobile layout looks intentional and clean
+No broken links, empty-state regressions, or template errors
+Existing friend list functionality, including remove friend, still works
+Existing ideas, trips, and home behavior are not regressed
+At the end, give me:
+the files changed
+what logic distinguishes Trips vs Friends now
+any edge cases or follow-up recommendations
+Only use checkpoints if I explicitly ask for them.
