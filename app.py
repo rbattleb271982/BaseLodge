@@ -2213,6 +2213,7 @@ def my_trips():
 
     # Get trips where user is INVITED (pending invites)
     invited_trips = []
+    invite_inviters = {}
     try:
         invited_participations = SkiTripParticipant.query.filter(
             SkiTripParticipant.user_id == current_user.id,
@@ -2228,11 +2229,17 @@ def my_trips():
                 SkiTrip.end_date >= today
             ).order_by(SkiTrip.start_date.asc()).all() or []
             print(f"  Invited trips found: {[t.id for t in invited_trips]}")
+            # Batch-load inviters (trip owner = inviter) — one query, no N+1
+            inviter_ids = list({t.user_id for t in invited_trips})
+            inviter_users = User.query.filter(User.id.in_(inviter_ids)).all() if inviter_ids else []
+            _inviter_map = {u.id: u for u in inviter_users}
+            invite_inviters = {t.id: _inviter_map.get(t.user_id) for t in invited_trips}
         print(f"  Final invited_trips count: {len(invited_trips)}")
         print(f"-------------------------------------------")
     except Exception as e:
         print(f"  ERROR fetching invited trips: {e}")
         invited_trips = []
+        invite_inviters = {}
 
     # Get trips where user is ACCEPTED as guest (not owner)
     accepted_guest_trips = []
@@ -2350,6 +2357,7 @@ def my_trips():
         upcoming_trips=upcoming_trips or [],
         past_trips=past_trips or [],
         invited_trips=invited_trips or [],
+        invite_inviters=invite_inviters or {},
         accepted_guest_trips=accepted_guest_trips or [],
         requested_trips=requested_trips,
         active_tab=active_tab,

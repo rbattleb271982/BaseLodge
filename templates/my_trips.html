@@ -486,10 +486,14 @@
                 {% set resort = trip.resort %}
                 {% set mountain_name = resort.name if resort else (trip.mountain or 'Mountain TBD') %}
                 {% set state_abbr = resort|state_abbrev if resort else trip.state %}
+                {% set inviter = invite_inviters.get(trip.id) if invite_inviters else None %}
+                {% set inviter_name = inviter.first_name if inviter and inviter.first_name else None %}
                 <a href="{{ url_for('trip_invite_detail', trip_id=trip.id) }}" class="trip-row">
                     <div class="trip-row-content">
-                        <p class="trip-row-dest">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-                        <p class="trip-row-dates">{{ format_trip_dates(trip) }}</p>
+                        <p class="trip-row-dest">
+                            {% if inviter_name %}{{ inviter_name }} invited you to a trip{% else %}You were invited to a trip{% endif %}
+                        </p>
+                        <p class="trip-row-dates">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %} · {{ format_trip_dates(trip) }}</p>
                     </div>
                     <span class="secondary-action-inline">View →</span>
                 </a>

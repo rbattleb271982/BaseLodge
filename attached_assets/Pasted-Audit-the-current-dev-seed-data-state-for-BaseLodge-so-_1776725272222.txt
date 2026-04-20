@@ -1,0 +1,82 @@
+Audit the current dev/seed data state for BaseLodge so we can understand exactly what test data currently exists before reseeding anything.
+Goal
+I think some or all of the seed data may have been removed or overwritten. I need a clear inventory of what dev data currently exists across users, friendships, trips, invites, and related social surfaces.
+Do not reseed yet. First inspect and report.
+What to audit
+Please inspect the current local/dev database and report the current counts and meaningful examples for at least the following:
+Users
+Report:
+total user count
+list of current users with:
+name
+email
+rider type
+skill level
+pass type
+identify which user is the primary/main test user if there is one
+Friendships / connections
+Report:
+total accepted friendships
+total pending friendships/invites if that model exists
+which users are connected to the main test user
+whether there are enough friend relationships to populate Friends and social feeds
+Trips
+Report:
+total trip count
+trips by user
+for each trip include:
+owner
+destination
+start/end date
+status if relevant
+whether it is upcoming or past
+identify whether the main user has:
+no trips
+one trip
+multiple trips
+pending invite trips
+Trip participants / invites
+Report:
+any participant relationships
+any pending trip invites
+for pending invites, show:
+inviter
+invitee
+destination
+dates
+confirm whether Pending Invites in Trips should currently have data to render
+Ideas / overlap signals
+Audit whether the current data would generate meaningful content for:
+Join a Trip
+Friends > Upcoming
+Ideas tab
+Home social cards
+Be explicit. For example:
+“Main user has no shared wishlist overlaps”
+“There are 4 friend trips but only 1 with date overlap”
+“No pass alignment cases exist”
+etc.
+Deliverable format
+Give me a structured report with:
+counts by entity
+sample records by entity
+which important product scenarios currently exist
+which scenarios are missing
+Important
+Do not mutate data yet
+Do not create any new records yet
+Do not fix anything yet
+This is a pure audit
+Also do this
+If there is already a seed script, seed helper, admin/dev route, CLI command, or fixture file in the codebase, identify:
+where it lives
+how it works
+whether it clears existing data
+whether it is safe to rerun
+what scenarios it currently creates
+At the end
+Tell me:
+whether seed data was likely lost
+whether reseeding is the best next step
+whether we should preserve anything currently in dev before reseeding
+Only use checkpoints if I explicitly ask for them.

@@ -1,0 +1,60 @@
+Update the Pending Invites section in the Trips tab so that each invite is framed around the inviting person, not just the destination.
+Goal
+Make Pending Invites feel personal and immediately understandable by showing who invited the user, instead of only showing the trip destination.
+Current behavior
+Pending Invites currently display:
+Destination (e.g., Cerro Catedral, Rio Negro)
+Dates
+CTA (View →)
+This lacks context and forces the user to infer who invited them.
+Required changes
+1. Update primary line (most important change)
+Replace the destination as the primary line with:
+"[Inviter Name] invited you to a trip"
+Examples:
+"Jordan invited you to a trip"
+"Alex invited you to a trip"
+If the inviter name is easily available, use first name only for a clean, social feel.
+2. Move destination + dates to secondary line
+Display:
+Cerro Catedral, Rio Negro · Apr 23–26
+Keep formatting consistent with existing date/location formatting used elsewhere in the app.
+3. Keep CTA the same
+Keep:
+View →
+No need to change CTA behavior.
+4. Data requirements
+Ensure the Pending Invite object passed to the template includes:
+inviter name (from User model)
+trip destination
+trip dates
+If inviter data is not currently included, update the query/join logic to include it.
+Do not introduce N+1 query issues — use proper joins or eager loading if needed.
+5. Visual hierarchy
+Primary line (inviter) should be visually stronger
+Secondary line (destination + dates) should be slightly muted
+Keep alignment and spacing consistent with existing list items
+Edge cases
+If inviter name is missing (should be rare):
+fallback to: “You were invited to a trip”
+If multiple invites exist from same person:
+show each separately (do not group for now)
+Do not change
+Do not change invite acceptance logic
+Do not change routing
+Do not redesign the entire Trips page
+Do not modify non-invite sections
+QA expectations
+After implementation, verify:
+Pending Invites now clearly show inviter name on every row
+Destination + date still visible and formatted correctly
+CTA still works and routes correctly
+Layout still looks clean and aligned on mobile
+No broken queries or missing data
+Works with multiple invites
+At the end, report:
+files changed
+how inviter name is sourced
+any edge cases encountered
+Only use checkpoints if I explicitly ask for them.
+This is a high-impact UX win — you’re moving from “data display” to “social context,” which is exactly what this product needs.
