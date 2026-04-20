@@ -1,0 +1,150 @@
+PUT THIS IN AGENT
+
+Refine the trip rows on the Mountain Detail Page to match the approved inline layout.
+
+This is a row layout refinement only. Do not change the hero, route, sorting logic, filtering logic, or navigation.
+
+Goal:
+Make each entry read as a single clean unit where the date and name live on the same first line, like this:
+
+Apr 20–24 — Ava Snow                          Going
+Skier · Beginner · Epic
+
+This should replace the current layout where the date sits as a separate header above the person row.
+
+---
+
+### NEW ROW STRUCTURE
+
+Each trip/person entry should be rendered as a single row block:
+
+Line 1:
+[Date Display] — [Full Name or You]                    [Status]
+
+Line 2:
+[Rider Type] · [Skill Level if present] · [Pass or No pass]
+
+Examples:
+
+* Apr 20 — You                                  Considering
+* Apr 20–24 — Ava Snow                          Going
+* May 31–Jun 4 — Levi Drop                      Considering
+
+---
+
+### DATE DISPLAY RULES
+
+Use per-row date display, not group headers.
+
+Formatting:
+
+* Single-day trip:
+  Apr 20
+* Multi-day trip in same month:
+  Apr 20–24
+* Multi-day trip across months:
+  May 31–Jun 4
+* Different year edge case:
+  Dec 28–Jan 2, 2027
+
+Rules:
+
+* No group header rows
+* No nights count
+* No grouped date sections
+* One row per person per trip
+
+---
+
+### SORTING / DUPLICATION
+
+* Sort all rows chronologically by trip.start_date ascending
+* Do NOT group by date window
+* Do NOT dedupe across rows
+* If the same person has multiple trips, they appear multiple times
+* “You” should appear as “You,” not the user’s full name
+
+---
+
+### STATUS
+
+* Keep right-aligned text status only
+* “Going” in bordeaux
+* “Considering” in muted gray
+* No pills
+
+---
+
+### STYLING REQUIREMENTS
+
+* Keep the cream BaseLodge background
+* Keep the refined serif hero unchanged
+* Use hairline separators between rows
+* No cards
+* No containers
+* No heavy section breaks
+* Keep it editorial and mobile-first
+
+Line 1 hierarchy:
+
+* Date = secondary brown, slightly smaller than name
+* Name = primary dark text, stronger weight
+* Status = right-aligned
+
+Line 2 hierarchy:
+
+* Muted metadata line
+* Clean separators
+* No malformed dots if skill is missing
+
+Suggested spacing:
+
+* Row vertical padding: ~14px
+* Gap between line 1 and line 2: ~4px
+* Side padding should match page body
+* Separator: 0.5px subtle hairline on row bottom
+
+---
+
+### REMOVE
+
+* Date group headers
+* Nights count
+* Separate date sections
+* Any extra spacing created for grouped windows
+
+---
+
+### KEEP UNCHANGED
+
+* Hero
+* Back link
+* Social context line
+* Pass pills in hero
+* Route and template logic outside row rendering
+* Friend profile linking behavior
+* Underlying trip filtering logic
+* Status mapping logic already in use
+
+---
+
+### DELIVER BACK
+
+1. Files changed
+2. How row rendering was updated
+3. Confirmation that:
+
+   * dates are now inline with names
+   * group headers are removed
+   * nights counts are removed
+   * rows still sort chronologically
+   * multiple trips still render separately
+4. Mobile validation confirmation
+
+Important:
+
+* This is a layout correction, not a redesign
+* Do not touch the hero
+* Do not reintroduce grouped sections
+* Use checkpoints sparingly
+* Do not finish until visually verified against the approved inline row format

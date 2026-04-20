@@ -79,66 +79,64 @@
             margin: 20px 0 0 0;
         }
 
-        /* ── Date groups ── */
-        .md-group {
-            margin-bottom: 28px;
-            padding-top: 20px;
-        }
-        .md-group:first-child {
-            padding-top: 20px;
-        }
-        .md-group-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #D9D2BF;
-            margin-bottom: 0;
-        }
-        .md-group-dates {
-            font-size: 14px;
-            font-weight: 600;
-            color: #1A1A1A;
-        }
-        .md-group-nights {
-            font-size: 13px;
-            color: #8A857A;
-        }
-
-        /* ── Person rows ── */
-        .md-person-row {
+        /* ── Inline trip rows ── */
+        .md-row {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            padding: 13px 0;
-            border-bottom: 1px solid #E5DFD0;
+            padding: 14px 0;
+            border-bottom: 0.5px solid rgba(0, 0, 0, 0.08);
             text-decoration: none;
             color: inherit;
             -webkit-tap-highlight-color: transparent;
         }
-        .md-person-row:last-child {
+        .md-row:last-child {
             border-bottom: none;
         }
-        .md-person-row:active .md-person-name {
+        .md-row:active .md-row-name {
             color: #5C1219;
         }
-        .md-person-left {
+        .md-row-left {
             flex: 1;
             min-width: 0;
         }
-        .md-person-name {
-            font-size: 16px;
-            color: #1A1A1A;
-            margin: 0 0 3px 0;
+        .md-row-line1 {
+            margin: 0 0 4px 0;
             line-height: 1.3;
+            display: flex;
+            align-items: baseline;
+            gap: 0;
+            flex-wrap: nowrap;
         }
-        .md-person-identity {
+        .md-row-date {
+            font-size: 13px;
+            color: #8A857A;
+            font-weight: 400;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .md-row-sep {
+            font-size: 13px;
+            color: #8A857A;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .md-row-name {
+            font-size: 15px;
+            color: #1A1A1A;
+            font-weight: 600;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .md-row-line2 {
             font-size: 13px;
             color: #8A857A;
             margin: 0;
             line-height: 1.3;
         }
-        .md-person-status {
+        .md-row-status {
             font-size: 13px;
             color: #8A857A;
             white-space: nowrap;
@@ -146,14 +144,14 @@
             padding-top: 1px;
             flex-shrink: 0;
         }
-        .md-person-status--going {
+        .md-row-status--going {
             color: #5C1219;
             font-weight: 500;
         }
 
         /* ── Empty state ── */
         .md-empty {
-            padding: 40px 0 24px;
+            padding: 36px 0 24px;
         }
         .md-empty-line1 {
             font-size: 16px;
@@ -180,17 +178,12 @@
             </a>
         </div>
 
-        <!-- Hero -->
+        <!-- Hero (unchanged) -->
         <div class="md-hero">
-            <!-- Name: primary focal point -->
             <h1 class="md-name">{{ resort.name }}</h1>
-
-            <!-- State: full name, muted, below name -->
             {% if state_full %}
             <p class="md-state">{{ state_full }}</p>
             {% endif %}
-
-            <!-- Social context: only when there is real data -->
             {%- set has_social = (social_going > 0 or social_considering > 0) -%}
             {% if has_social %}
             <p class="md-social">
@@ -203,8 +196,6 @@
                 {%- endif -%}
             </p>
             {% endif %}
-
-            <!-- Pass pills: outline style, multiple passes supported -->
             <div class="md-pills">
                 {%- if pass_names -%}
                     {%- for pname in pass_names -%}
@@ -216,62 +207,52 @@
             </div>
         </div>
 
-        <!-- Hairline divider between hero and list -->
+        <!-- Hairline divider -->
         <div class="md-hero-divider"></div>
 
-        <!-- Friends by date -->
-        {% if date_groups %}
-            {% for group in date_groups %}
-            <div class="md-group">
-                <!-- Group header: date range + night count -->
-                <div class="md-group-header">
-                    <span class="md-group-dates">
-                        {%- set s = group.start_date -%}
-                        {%- set e = group.end_date -%}
-                        {%- if s.month == e.month and s.year == e.year -%}
-                            {{ s.strftime('%b %-d') }}–{{ e.strftime('%-d') }}
-                        {%- else -%}
-                            {{ s.strftime('%b %-d') }}–{{ e.strftime('%b %-d') }}
-                        {%- endif -%}
-                    </span>
-                    <span class="md-group-nights">
-                        {%- if group.nights == 0 -%}
-                            Day trip
-                        {%- elif group.nights == 1 -%}
-                            1 night
-                        {%- else -%}
-                            {{ group.nights }} nights
-                        {%- endif -%}
-                    </span>
-                </div>
+        <!-- Flat trip rows: each row is one person + their date inline -->
+        {% if flat_rows %}
+        <div style="padding-top: 4px;">
+            {% for row in flat_rows %}
+                {%- set s = row.start_date -%}
+                {%- set e = row.end_date -%}
+                {%- if s == e -%}
+                    {%- set date_str = s.strftime('%b %-d') -%}
+                {%- elif s.month == e.month and s.year == e.year -%}
+                    {%- set date_str = s.strftime('%b %-d') ~ '–' ~ e.strftime('%-d') -%}
+                {%- elif s.year == e.year -%}
+                    {%- set date_str = s.strftime('%b %-d') ~ '–' ~ e.strftime('%b %-d') -%}
+                {%- else -%}
+                    {%- set date_str = s.strftime('%b %-d') ~ '–' ~ e.strftime('%b %-d, %Y') -%}
+                {%- endif -%}
 
-                <!-- Person rows -->
-                {% for row in group.rows %}
-                    {% if row.is_me %}
-                    <div class="md-person-row" style="cursor: default;">
-                    {% else %}
-                    <a href="{{ url_for('friend_profile', friend_id=row.user_id) }}" class="md-person-row">
-                    {% endif %}
-                        <div class="md-person-left">
-                            <p class="md-person-name">
+                {% if row.is_me %}
+                <div class="md-row" style="cursor: default;">
+                {% else %}
+                <a href="{{ url_for('friend_profile', friend_id=row.user_id) }}" class="md-row">
+                {% endif %}
+                    <div class="md-row-left">
+                        <div class="md-row-line1">
+                            <span class="md-row-date">{{ date_str }}</span>
+                            <span class="md-row-sep">&nbsp;—&nbsp;</span>
+                            <span class="md-row-name">
                                 {%- if row.is_me -%}You{%- else -%}{{ row.full_name }}{%- endif -%}
-                            </p>
-                            <p class="md-person-identity">{{ row.identity_line }}</p>
+                            </span>
                         </div>
-                        <span class="md-person-status{% if row.status_label == 'Going' %} md-person-status--going{% endif %}">
-                            {{ row.status_label }}
-                        </span>
-                    {% if row.is_me %}
+                        <p class="md-row-line2">{{ row.identity_line }}</p>
                     </div>
-                    {% else %}
-                    </a>
-                    {% endif %}
-                {% endfor %}
-            </div>
+                    <span class="md-row-status{% if row.status_label == 'Going' %} md-row-status--going{% endif %}">
+                        {{ row.status_label }}
+                    </span>
+                {% if row.is_me %}
+                </div>
+                {% else %}
+                </a>
+                {% endif %}
             {% endfor %}
+        </div>
         {% else %}
-        <!-- Empty state (offset from divider with group padding) -->
-        <div class="md-empty" style="padding-top: 36px;">
+        <div class="md-empty">
             <p class="md-empty-line1">No friends are going yet.</p>
             <p class="md-empty-line2">When someone plans a trip here, it will show up.</p>
         </div>

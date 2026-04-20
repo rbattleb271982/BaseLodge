@@ -4815,20 +4815,15 @@ def mountain_detail(slug):
                 'status_label': status_label,
             }
 
-    # Build sorted groups: chronological by start_date; rows within group: "You" first, then alpha
-    date_groups = []
+    # Build flat sorted rows: chronological by start_date, then alphabetical within same window.
+    # "You" sorts as 'You' (Y) — no special priority in the flat layout.
+    flat_rows = []
     for (start_date, end_date), rows_map in sorted(rows_by_window.items(), key=lambda x: x[0][0]):
-        rows = sorted(
-            rows_map.values(),
-            key=lambda r: (0 if r['is_me'] else 1, r['full_name'])
-        )
-        nights = (end_date - start_date).days
-        date_groups.append({
-            'start_date': start_date,
-            'end_date': end_date,
-            'nights': nights,
-            'rows': rows,
-        })
+        for row in sorted(rows_map.values(), key=lambda r: 'You' if r['is_me'] else r['full_name']):
+            flat_row = dict(row)
+            flat_row['start_date'] = start_date
+            flat_row['end_date'] = end_date
+            flat_rows.append(flat_row)
 
     primary_pass = resort.get_primary_pass()
     pass_names = resort.get_pass_names()
@@ -4843,18 +4838,17 @@ def mountain_detail(slug):
     if not state_full and resort.state_code:
         state_full = resort.state_code
 
-    # Social context counts — friends only (current user excluded)
+    # Social context counts — friends only (current user excluded), deduped by user_id
     _seen_going = set()
     _seen_considering = set()
-    for group in date_groups:
-        for row in group['rows']:
-            if row['is_me']:
-                continue
-            uid = row['user_id']
-            if row['status_label'] == 'Going':
-                _seen_going.add(uid)
-            else:
-                _seen_considering.add(uid)
+    for row in flat_rows:
+        if row['is_me']:
+            continue
+        uid = row['user_id']
+        if row['status_label'] == 'Going':
+            _seen_going.add(uid)
+        else:
+            _seen_considering.add(uid)
     social_going = len(_seen_going)
     social_considering = len(_seen_considering)
 
@@ -4863,7 +4857,7 @@ def mountain_detail(slug):
         resort=resort,
         primary_pass=primary_pass,
         pass_names=pass_names,
-        date_groups=date_groups,
+        flat_rows=flat_rows,
         state_full=state_full,
         social_going=social_going,
         social_considering=social_considering,
