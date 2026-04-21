@@ -25,8 +25,8 @@
         .prof-stat-row {
             display: flex;
             align-items: center;
-            margin: 20px 0 28px;
-            padding-bottom: 24px;
+            margin: 12px 0 18px;
+            padding-bottom: 18px;
             border-bottom: 1px solid var(--bl-color-border-soft);
         }
         .prof-stat {
@@ -74,7 +74,7 @@
 
         /* ── Profile groups ───────────────────────────── */
         .profile-group {
-            margin-bottom: 28px;
+            margin-bottom: 20px;
         }
         .profile-group-label {
             font-size: 11px;
@@ -82,7 +82,7 @@
             color: var(--bl-color-text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin: 0 0 8px 0;
+            margin: 0 0 6px 0;
         }
 
         /* ── Main profile rows (navigable) ────────────── */
@@ -91,8 +91,8 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            min-height: 56px;
-            padding: 12px 0;
+            min-height: 52px;
+            padding: 10px 0;
             border-bottom: 1px solid var(--bl-color-border-soft);
             text-decoration: none;
             color: inherit;
@@ -162,7 +162,7 @@
     </style>
 </head>
 <body>
-    <div class="page-container" style="padding: 28px 16px 88px;">
+    <div class="page-container" style="padding: 20px 16px 88px;">
 
         {% set rider_types = current_user.rider_types or [] %}
         {% set rider_label = (rider_types[0] if rider_types else '') | replace(',', ', ') %}
@@ -172,7 +172,7 @@
         {% if current_user.pass_type %}{% set _ = ctx_parts.append(current_user.pass_type) %}{% endif %}
 
         <!-- Name headline -->
-        <h1 class="prof-name">{{ current_user.first_name | format_name }}</h1>
+        <h1 class="prof-name">{{ current_user.first_name | format_name }}{% if current_user.last_name %} {{ current_user.last_name | format_name }}{% endif %}</h1>
 
         <!-- Identity summary line -->
         {% set id_parts = [] %}
