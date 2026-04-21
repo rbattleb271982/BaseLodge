@@ -68,7 +68,7 @@
             display: flex;
             justify-content: space-between;
             align-items: baseline;
-            padding: 11px 0;
+            padding: 12px 0;
             border-bottom: 1px solid #E5DFD0;
         }
         .ftd-info-row:first-child { border-top: 1px solid #E5DFD0; }
@@ -149,7 +149,7 @@
         {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
 
         <div class="ftd-hero">
-            <p class="ftd-hero-eyebrow">{{ friend.first_name | format_name }}'s Trip</p>
+            <p class="ftd-hero-eyebrow">Upcoming Trip</p>
             <p class="ftd-hero-mountain">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
             <p class="ftd-hero-sub">{{ format_trip_dates(trip) }}</p>
         </div>
@@ -177,12 +177,14 @@
             <span class="ftd-info-label">Equipment</span>
             <span class="ftd-info-value">{{ trip.equipment_display }}</span>
         </div>
+        {% if trip.ride_intent in ('can_offer', 'need_ride') %}
         <div class="ftd-info-row">
             <span class="ftd-info-label">Ride Status</span>
             <span class="ftd-info-value">
-                {% if trip.ride_intent == 'can_offer' %}Has space for more{% elif trip.ride_intent == 'need_ride' %}Needs a ride{% else %}Not specified{% endif %}
+                {% if trip.ride_intent == 'can_offer' %}Has space for more{% else %}Needs a ride{% endif %}
             </span>
         </div>
+        {% endif %}
 
         <!-- Overlap note -->
         {% if has_overlap %}
@@ -210,6 +212,7 @@
             <button class="bl-btn-outline" style="width: 100%; padding: 14px; font-size: 15px; opacity: 0.7;" disabled>
                 Request Sent
             </button>
+            <p style="font-size: 12px; color: #8A857A; text-align: center; margin: 8px 0 0 0;">You'll hear back from {{ friend.first_name | format_name }} soon.</p>
         </div>
         {% endif %}
 
