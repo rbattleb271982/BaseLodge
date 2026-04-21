@@ -50,7 +50,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, Event, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType
 from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
@@ -4247,6 +4247,122 @@ def resolve_home_modules(next_trip, trip_invites, secondary_card, has_overlaps, 
     return modules
 
 
+def build_friend_at_mountain_card(user, today, friend_ids):
+    """
+    Returns a card dict if: user has an upcoming trip whose resort is on their
+    wishlist AND at least one friend has a past trip to that same resort.
+    Returns None if no qualifying combination exists or it's been dismissed.
+
+    Card dict keys: friend_id, friend_name, resort_id, resort_name, trip_id, card_key
+    """
+    if not friend_ids:
+        return None
+
+    wishlist_set = set(user.wish_list_resorts or [])
+    if not wishlist_set:
+        return None
+
+    # Find the user's soonest upcoming trip whose resort is on the wishlist
+    # AND where at least one friend has a past trip to that resort
+    target_trip = None
+    target_resort_id = None
+    past_friend_trips = []
+    for trip in SkiTrip.query.filter(
+        SkiTrip.user_id == user.id,
+        SkiTrip.resort_id.isnot(None),
+        SkiTrip.start_date >= today
+    ).order_by(SkiTrip.start_date.asc()).all():
+        if trip.resort_id not in wishlist_set:
+            continue
+        candidate_trips = (
+            SkiTrip.query
+            .filter(
+                SkiTrip.user_id.in_(friend_ids),
+                SkiTrip.resort_id == trip.resort_id,
+                SkiTrip.end_date < today
+            )
+            .order_by(SkiTrip.end_date.desc())
+            .all()
+        )
+        if candidate_trips:
+            target_trip = trip
+            target_resort_id = trip.resort_id
+            past_friend_trips = candidate_trips
+            break
+
+    if not target_trip or not past_friend_trips:
+        return None
+
+    # Build a ranked list: most recent trip → earliest friendship → alphabetical name
+    # Collect best trip per friend (already sorted by desc end_date)
+    seen_friends = {}
+    for pt in past_friend_trips:
+        if pt.user_id not in seen_friends:
+            seen_friends[pt.user_id] = pt  # most recent trip
+
+    # Load friend records for tie-breaking
+    friend_rows = {
+        fr.friend_id: fr
+        for fr in Friend.query.filter(
+            Friend.user_id == user.id,
+            Friend.friend_id.in_(list(seen_friends.keys()))
+        ).all()
+    }
+
+    # Load User objects for name sorting
+    friend_users = {
+        u.id: u
+        for u in User.query.filter(User.id.in_(list(seen_friends.keys()))).all()
+    }
+
+    def sort_key(fid):
+        trip = seen_friends[fid]
+        fu = friend_users.get(fid)
+        fr = friend_rows.get(fid)
+        # 1. Most recent past trip (negate date for descending)
+        recency = -(trip.end_date.toordinal()) if trip.end_date else 0
+        # 2. Earliest friendship record
+        friendship_age = fr.created_at.toordinal() if fr and fr.created_at else 999999999
+        # 3. Alphabetical by full name
+        name = f"{fu.first_name or ''} {fu.last_name or ''}".strip().lower() if fu else 'zzz'
+        return (recency, friendship_age, name)
+
+    ranked_friend_ids = sorted(seen_friends.keys(), key=sort_key)
+    best_friend_id = ranked_friend_ids[0]
+
+    # Check if this exact combination has been dismissed
+    card_key = f"{best_friend_id}:{target_resort_id}:{target_trip.id}"
+    already_dismissed = DismissedInsightCard.query.filter_by(
+        user_id=user.id,
+        card_type='friend_at_mountain',
+        card_key=card_key
+    ).first()
+    if already_dismissed:
+        return None
+
+    # Build card data
+    best_friend = friend_users.get(best_friend_id)
+    if not best_friend:
+        return None
+
+    resort = db.session.get(Resort, target_resort_id)
+    if not resort:
+        return None
+
+    friend_full_name = f"{best_friend.first_name or ''} {best_friend.last_name or ''}".strip()
+    if not friend_full_name:
+        return None
+
+    return {
+        'friend_id': best_friend_id,
+        'friend_name': friend_full_name,
+        'resort_id': target_resort_id,
+        'resort_name': resort.name,
+        'trip_id': target_trip.id,
+        'card_key': card_key,
+    }
+
+
 @app.route("/home")
 @login_required
 def home():
@@ -4439,6 +4555,13 @@ def home():
         next_match=next_match,
     )
 
+    # Friend-at-mountain insight card
+    try:
+        friend_at_mountain_card = build_friend_at_mountain_card(user, today, friend_ids)
+    except Exception:
+        db.session.rollback()
+        friend_at_mountain_card = None
+
     return render_template(
         'home.html',
         user=user,
@@ -4452,6 +4575,7 @@ def home():
         next_match=next_match,
         has_overlaps=has_overlaps,
         home_modules=home_modules,
+        friend_at_mountain_card=friend_at_mountain_card,
         stat_mountains=user.visited_resorts_count,
         stat_trips_total=SkiTrip.query.filter_by(user_id=user.id).count(),
         stat_wishlist=len(user.wish_list_resorts or []),
@@ -4565,6 +4689,32 @@ def dismiss_nudge():
         except ValueError:
             pass
     return redirect(url_for("home"))
+
+
+@app.route("/dismiss-insight-card", methods=["POST"])
+@login_required
+def dismiss_insight_card():
+    """Persist a dismissal for a home insight card so it doesn't resurface."""
+    card_type = request.form.get("card_type", "").strip()
+    card_key = request.form.get("card_key", "").strip()
+    if card_type and card_key:
+        try:
+            existing = DismissedInsightCard.query.filter_by(
+                user_id=current_user.id,
+                card_type=card_type,
+                card_key=card_key,
+            ).first()
+            if not existing:
+                dismissal = DismissedInsightCard(
+                    user_id=current_user.id,
+                    card_type=card_type,
+                    card_key=card_key,
+                )
+                db.session.add(dismissal)
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+    return ('', 204)
 
 
 @app.route("/friend-trip/<int:trip_id>")

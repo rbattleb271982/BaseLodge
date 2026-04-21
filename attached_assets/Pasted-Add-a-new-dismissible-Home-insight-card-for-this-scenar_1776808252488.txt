@@ -1,0 +1,57 @@
+Add a new dismissible Home insight card for this scenario:
+
+SHOW THE CARD WHEN:
+- The user has an upcoming trip
+- The trip mountain is also on the user’s wishlist
+- At least one friend has previously been to that same mountain
+
+CARD COPY:
+- Use this exact message format:
+  “[First Name Last Name] has been to [Mountain Name]. Ask about it.”
+
+EXAMPLE:
+- “Jake Thompson has been to Vail. Ask about it.”
+
+LOGIC:
+- If multiple friends qualify, just show one friend for now
+- Prefer the most relevant friend using this order:
+  1. Friend with the most recent past trip to that mountain
+  2. If tied, choose the friend with the closest relationship / earliest existing friendship record if available
+  3. If still tied, choose alphabetically
+- Only show this card once per relevant trip/mountain/friend combination
+- Only show for upcoming trips, not past trips
+
+UI / BEHAVIOR:
+- Place this as a Home insight card in the insights area
+- Include a small X dismiss control in the top right
+- Dismissing should hide only this card, not all Home insights
+- Make the whole card tappable
+- On tap, take the user to that friend’s profile page
+
+DISMISSAL:
+- Dismissal should persist so the card does not immediately come back on refresh
+- Scope dismissal to that specific user + friend + mountain + trip combination if possible
+- If there is not yet a clean persistence model for this, implement the safest lightweight approach already consistent with the app
+
+STYLING:
+- Match the existing Home insight / card system
+- Keep it compact
+- Do not make it louder than the main Home hero
+- Maintain mobile-first spacing and tap targets
+
+CONSTRAINTS:
+- Do not redesign the whole Home screen
+- Do not add chat or messaging features
+- Do not add “tips” functionality
+- Do not use checkpoints unless I explicitly ask
+
+TESTING:
+- Test these cases:
+  1. User has qualifying trip + wishlist overlap + qualifying friend past trip → card appears
+  2. User dismisses card → card stays gone after refresh
+  3. User taps card → goes to friend profile
+  4. No qualifying friend → card does not show
+  5. Mountain not on wishlist → card does not show
+  6. Trip is past → card does not show
+
+Do not finish until all of the above is working cleanly.

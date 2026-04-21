@@ -705,6 +705,23 @@
 
         {% endfor %}
 
+        {% if friend_at_mountain_card %}
+        <div class="home-insight-card" id="friend-at-mountain-card">
+            <a class="home-insight-card-link" href="{{ url_for('friend_profile', friend_id=friend_at_mountain_card.friend_id) }}">
+                <span class="home-insight-card-icon">&#9968;</span>
+                <span class="home-insight-card-text">
+                    <strong>{{ friend_at_mountain_card.friend_name }}</strong> has been to {{ friend_at_mountain_card.resort_name }}. Ask about it.
+                </span>
+            </a>
+            <button
+                class="home-insight-card-dismiss"
+                aria-label="Dismiss"
+                onclick="dismissInsightCard('friend_at_mountain', '{{ friend_at_mountain_card.card_key }}')">
+                &times;
+            </button>
+        </div>
+        {% endif %}
+
     </div>
 
     {% include 'components/bottom_nav.html' %}
@@ -716,6 +733,19 @@
         });
         var btn = document.getElementById('show-all-invites-btn');
         if (btn) btn.style.display = 'none';
+    }
+
+    function dismissInsightCard(cardType, cardKey) {
+        var card = document.getElementById('friend-at-mountain-card');
+        if (card) {
+            card.style.transition = 'opacity 0.2s';
+            card.style.opacity = '0';
+            setTimeout(function() { card.style.display = 'none'; }, 200);
+        }
+        var fd = new FormData();
+        fd.append('card_type', cardType);
+        fd.append('card_key', cardKey);
+        fetch('/dismiss-insight-card', { method: 'POST', body: fd });
     }
 
     function acceptConnectInvite(invitationId) {

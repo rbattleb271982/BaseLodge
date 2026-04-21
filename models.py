@@ -1101,6 +1101,26 @@ class DismissedNudge(db.Model):
         return f'<DismissedNudge user={self.user_id} {self.date_range_start} to {self.date_range_end}>'
 
 
+class DismissedInsightCard(db.Model):
+    """Tracks dismissed home insight cards so they don't resurface for the same combination."""
+    __tablename__ = 'dismissed_insight_card'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    card_type = db.Column(db.String(64), nullable=False)
+    card_key = db.Column(db.String(255), nullable=False)
+    dismissed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref='dismissed_insight_cards')
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'card_type', 'card_key', name='uq_dismissed_insight_card'),
+    )
+
+    def __repr__(self):
+        return f'<DismissedInsightCard user={self.user_id} type={self.card_type} key={self.card_key}>'
+
+
 class Event(db.Model):
     """High-signal user events for email & notification triggers."""
     __tablename__ = 'event'
