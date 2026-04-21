@@ -1,0 +1,110 @@
+PUT THIS IN AGENT
+
+Run a read-only implementation audit for the next system-hardening batch so we can prepare a precise execution prompt.
+
+Goal:
+I want to batch the following together:
+- 4.1 Rate Limiting
+- 4.3 Remove Legacy Fields
+- 4.4 Fix SQLAlchemy `.query.get()`
+
+Before changing code, I need a factual audit of the current implementation so we can scope this correctly.
+
+Do NOT change any code. This is read-only.
+
+---
+
+## 1. Rate Limiting Audit
+
+Identify all auth and other sensitive routes that should likely be rate-limited.
+
+At minimum, inspect routes related to:
+- login
+- signup
+- password reset request
+- password reset submit
+- invite acceptance / token flows
+- join request actions
+- friend invite flows
+- any admin auth-sensitive actions
+- any public endpoints that could be abused
+
+For each route, report:
+- route path
+- HTTP method(s)
+- purpose
+- whether it is currently rate-limited
+- whether it is a good candidate for rate limiting
+
+Also report:
+- whether the codebase already uses any rate-limiting library or middleware
+- if yes, where and how
+- if no, what framework/pattern would best fit this app
+
+---
+
+## 2. Legacy Fields Audit
+
+Audit the User model and related models for deprecated or duplicate columns.
+
+Specifically:
+- identify legacy/deprecated user fields
+- identify duplicate concepts stored in multiple columns
+- identify fields that appear unused
+- identify fields that are still read anywhere in routes, services, templates, forms, or admin tools
+
+Return a table with:
+- field name
+- model
+- suspected status: active / legacy / duplicate / unknown
+- where it is referenced in the codebase
+- recommendation: keep / deprecate / remove later
+
+Important:
+Do not guess. Search references.
+
+---
+
+## 3. `.query.get()` Audit
+
+Search the codebase for all remaining uses of SQLAlchemy `.query.get()` and similar legacy retrieval patterns that should be upgraded for SQLAlchemy 2.x safety.
+
+For each occurrence, report:
+- file
+- function/route/context
+- model involved
+- whether it is user-facing, admin-only, or internal
+- approximate risk level if left unchanged
+
+Also tell me:
+- whether replacements should use `db.session.get(...)` or another pattern
+- whether there are any trickier cases that need care
+
+---
+
+## 4. Migration / Cleanup Readiness
+
+Report:
+- how schema changes are currently managed
+- whether removing legacy fields would require a migration now or could be staged
+- whether the safer sequence is:
+  1. stop reading legacy fields
+  2. deploy / verify
+  3. remove columns later
+
+I want the safest practical path, not the most aggressive one.
+
+---
+
+## 5. Deliverable Format
+
+Return:
+1. Rate limiting candidates
+2. Legacy fields audit
+3. `.query.get()` audit
+4. Recommended implementation sequence for batching 4.1 + 4.3 + 4.4 together
+
+Do not implement anything yet.
+Only audit and report reality.
+
+Only use checkpoints if I explicitly ask for them.
