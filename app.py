@@ -167,6 +167,34 @@ from utils.countries import COUNTRIES, STATE_ABBR_MAP
 def inject_countries():
     return {'COUNTRIES': COUNTRIES}
 
+
+_NOTIF_TYPES = [
+    'join_request_received', 'join_request_accepted', 'join_request_declined',
+    'connection_accepted', 'trip_invite_received', 'trip_invite_accepted', 'trip_invite_declined',
+]
+
+
+@app.context_processor
+def inject_notif_count():
+    """Inject notification unread count into every template."""
+    if not current_user.is_authenticated:
+        return {'notif_unread_count': 0}
+    try:
+        q = Activity.query.filter(
+            Activity.recipient_user_id == current_user.id,
+            Activity.type.in_(_NOTIF_TYPES)
+        )
+        last_viewed = session.get('notif_last_viewed_at')
+        if last_viewed:
+            try:
+                last_viewed_dt = datetime.fromisoformat(last_viewed)
+                q = q.filter(Activity.created_at > last_viewed_dt)
+            except (ValueError, TypeError):
+                pass
+        return {'notif_unread_count': q.count()}
+    except Exception:
+        return {'notif_unread_count': 0}
+
 # Helper to normalize country code
 def normalize_country_code(code):
     if not code:
@@ -4739,6 +4767,111 @@ def profile():
                            wish_list_resorts=wish_list_resorts,
                            all_trips_count=all_trips_count)
 
+@app.route("/notifications")
+@login_required
+def notifications():
+    """Lightweight in-app notification center using Activity records + pending connect invites."""
+    # --- Pending incoming connection requests (not Activity — from Invitation model) ---
+    pending_connects = []
+    try:
+        connects = Invitation.query.filter_by(
+            receiver_id=current_user.id,
+            status='pending'
+        ).filter(Invitation.trip_id == None).order_by(Invitation.created_at.desc()).all()
+        for inv in connects:
+            sender = db.session.get(User, inv.sender_id)
+            if sender:
+                sender_name = f"{sender.first_name or ''} {sender.last_name or ''}".strip() or 'Someone'
+                pending_connects.append({
+                    'invitation_id': inv.id,
+                    'sender_name': sender_name,
+                    'sender_id': sender.id,
+                })
+    except Exception:
+        db.session.rollback()
+
+    # --- Activity-based notifications ---
+    raw_activities = []
+    try:
+        raw_activities = Activity.query.filter(
+            Activity.recipient_user_id == current_user.id,
+            Activity.type.in_(_NOTIF_TYPES)
+        ).order_by(Activity.created_at.desc()).limit(50).all()
+    except Exception:
+        db.session.rollback()
+
+    notifs = []
+    today = datetime.utcnow()
+    for act in raw_activities:
+        actor = act.actor
+        actor_first = (actor.first_name or 'Someone') if actor else 'Someone'
+        actor_name = f"{actor.first_name or ''} {actor.last_name or ''}".strip() if actor else 'Someone'
+
+        trip = act.get_trip() if act.object_type == 'trip' else None
+        trip_name = None
+        if trip:
+            if trip.resort:
+                trip_name = trip.resort.name
+            else:
+                trip_name = trip.mountain or 'a trip'
+
+        action_url = None
+        if act.type == 'join_request_received':
+            text = f"{actor_name} wants to join your trip{' to ' + trip_name if trip_name else ''}"
+            action_url = url_for('trip_detail', trip_id=act.object_id) if act.object_type == 'trip' else None
+        elif act.type == 'join_request_accepted':
+            text = f"Your request to join {trip_name or 'the trip'} was accepted"
+            action_url = url_for('trip_detail', trip_id=act.object_id) if act.object_type == 'trip' else None
+        elif act.type == 'join_request_declined':
+            text = f"Your request to join {trip_name or 'the trip'} was declined"
+            action_url = None
+        elif act.type == 'trip_invite_received':
+            text = f"{actor_first} invited you to {trip_name or 'a trip'}"
+            action_url = url_for('trip_detail', trip_id=act.object_id) if act.object_type == 'trip' else None
+        elif act.type == 'trip_invite_accepted':
+            text = f"{actor_first} accepted your invite to {trip_name or 'a trip'}"
+            action_url = url_for('trip_detail', trip_id=act.object_id) if act.object_type == 'trip' else None
+        elif act.type == 'trip_invite_declined':
+            text = f"{actor_first} declined your invite to {trip_name or 'a trip'}"
+            action_url = None
+        elif act.type == 'connection_accepted':
+            text = f"{actor_first} accepted your connection request"
+            action_url = url_for('friend_profile', friend_id=act.actor_user_id) if actor else None
+        else:
+            text = f"Update from {actor_first}"
+            action_url = None
+
+        # Relative time
+        delta = today - act.created_at
+        if delta.days == 0:
+            if delta.seconds < 60:
+                rel_time = "just now"
+            elif delta.seconds < 3600:
+                rel_time = f"{delta.seconds // 60}m ago"
+            else:
+                rel_time = f"{delta.seconds // 3600}h ago"
+        elif delta.days == 1:
+            rel_time = "yesterday"
+        elif delta.days < 7:
+            rel_time = f"{delta.days}d ago"
+        else:
+            rel_time = act.created_at.strftime("%-d %b")
+
+        notifs.append({
+            'text': text,
+            'action_url': action_url,
+            'rel_time': rel_time,
+            'type': act.type,
+        })
+
+    # Mark all as viewed
+    session['notif_last_viewed_at'] = datetime.utcnow().isoformat()
+
+    return render_template('notifications.html',
+                           pending_connects=pending_connects,
+                           notifs=notifs)
+
+
 @app.route("/settings")
 @login_required
 def settings():
@@ -6070,6 +6203,8 @@ def request_to_join_trip(trip_id):
         status='pending'
     )
     db.session.add(join_request)
+    # Notify the trip owner
+    create_activity(current_user.id, trip.user_id, ActivityType.JOIN_REQUEST_RECEIVED, 'trip', trip.id)
     db.session.commit()
     
     return jsonify({"success": True, "message": "Request sent to owner."})
@@ -6113,12 +6248,19 @@ def respond_to_join_request(request_id):
         # Mark trip as group trip if not already
         if not trip.is_group_trip:
             trip.is_group_trip = True
-            
+
+        # Notify the requester their request was accepted
+        create_activity(current_user.id, invitation.sender_id, ActivityType.JOIN_REQUEST_ACCEPTED, 'trip', trip.id)
+
         db.session.commit()
         return jsonify({"success": True, "message": "Request accepted."})
         
     elif action == "decline":
         invitation.status = 'declined'
+
+        # Notify the requester their request was declined
+        create_activity(current_user.id, invitation.sender_id, ActivityType.JOIN_REQUEST_DECLINED, 'trip', trip.id)
+
         db.session.commit()
         return jsonify({"success": True, "message": "Request declined."})
         

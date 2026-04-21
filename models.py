@@ -1146,6 +1146,9 @@ class ActivityType(PyEnum):
     TRIP_OVERLAP = "trip_overlap"
     FRIEND_TRIP_OVERLAPS_AVAILABILITY = "friend_trip_overlaps_availability"
     CARPOOL_OFFERED = "carpool_offered"
+    JOIN_REQUEST_RECEIVED = "join_request_received"
+    JOIN_REQUEST_ACCEPTED = "join_request_accepted"
+    JOIN_REQUEST_DECLINED = "join_request_declined"
 
 
 class Activity(db.Model):

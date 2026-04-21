@@ -1,0 +1,209 @@
+PUT THIS IN AGENT
+
+Implement Batch 2: Social System Completion.
+
+Goal:
+Make the app feel more alive and socially complete by improving the friend graph and adding a lightweight in-app notification layer using the systems that already exist.
+
+This batch includes:
+- 1.2 Friend Graph Completion
+- 3.1 Notification System (Lite)
+- 3.2 Join Request Notifications
+
+Do not ask for confirmation again. Execute this batch.
+
+Important:
+This should be a practical, lightweight batch that builds on the existing Activity model and current social flows. Do not overengineer this into a full push system yet. Keep it mobile-first, clear, and minimal.
+
+---
+
+## 1.2 Friend Graph Completion
+
+Current state:
+- Friend connections exist
+- Friends render in the UI
+- Connections are primarily created through invite link / email flows
+- There is no surfaced unfriend action
+- There is no in-app pending incoming friend request UI
+
+Goal:
+Complete the social graph enough that users can manage friendships cleanly inside the app.
+
+### Required changes
+
+#### A. Add unfriend / remove friend action
+- Add a clean, low-drama way to remove a friend connection
+- This should live in an intentional place, such as:
+  - friend profile page
+  - or friend row overflow / action area
+- Do not make it overly prominent or destructive-looking
+- Use confirmation if needed, but keep it simple and mobile-friendly
+
+Behavior:
+- removing a friend should remove the active friendship connection cleanly
+- after removal, the UI should update appropriately
+- the removed user should no longer appear in friend-based surfaces where applicable
+
+#### B. Audit and surface incoming friend request / pending friend state if it already exists in the data model
+- First, inspect whether the app currently stores any pending friend/invite state that can be represented in-app
+- If such state exists and can be surfaced cleanly, add a lightweight UI for it
+- If it does not meaningfully exist in a reusable way, do not invent a giant new system in this batch
+
+What I want:
+- a practical improvement, not a giant rebuild
+- if pending incoming requests are not really implemented under the hood, explicitly say so in the final report and keep this batch focused on unfriend + notifications
+
+#### C. Keep existing friend invite flows intact
+- Do not break InviteToken flows
+- Do not redesign friend acquisition in this batch
+- This is about completing management, not rebuilding acquisition
+
+---
+
+## 3.1 Notification System (Lite)
+
+Current state:
+- Activity model exists
+- Activity feed exists on Home
+- No real in-app notification center / bell
+- No push notifications yet
+
+Goal:
+Create a lightweight in-app notification surface using the existing activity/event infrastructure.
+
+### Required changes
+
+#### A. Add a simple notification entry point
+Choose the cleanest minimal option based on the current app structure, such as:
+- a bell icon with unread count
+- or a Notifications entry inside Profile/settings
+- or another small, clearly intentional surface
+
+Preferred:
+- a bell or visible notification entry that feels native enough for a social app
+- keep it lightweight and not visually noisy
+
+#### B. Create a notifications view
+Build a simple notifications screen or panel that shows recent actionable/social events.
+
+Examples of events that belong there:
+- someone requested to join your trip
+- your join request was accepted
+- your join request was declined
+- you were invited to a trip
+- meaningful social events already represented in Activity
+
+Requirements:
+- newest first
+- clean mobile-friendly rows
+- timestamp or relative time if already available
+- unread/read distinction if feasible with current model
+- if true unread state does not exist yet, implement the lightest clean version possible or clearly note that it is deferred
+
+#### C. Reuse existing data where possible
+- Prefer Activity and existing event records
+- Do not create a second overlapping event system unless absolutely necessary
+- If the current Activity model needs a small extension to support notification rendering cleanly, do it carefully
+
+---
+
+## 3.2 Join Request Notifications
+
+Goal:
+Make the join request flow visible and alive within the app.
+
+### Required changes
+
+Ensure the following generate or surface notifications in the lite notification system:
+
+#### A. Owner-side events
+- when someone requests to join a trip, the trip owner should get a notification
+
+#### B. Requester-side events
+- when the owner accepts a join request, the requester should get a notification
+- when the owner declines a join request, the requester should get a notification
+
+#### C. Existing activity alignment
+- if some of these events are already logged in Activity, make sure they appear in the notifications view
+- if they are not yet logged consistently, add the minimum needed event creation logic so they do appear
+
+Important:
+- do not add push notifications yet
+- do not add email notifications in this batch
+- keep this entirely in-app
+
+---
+
+## UX / Product constraints
+
+Do NOT:
+- redesign the whole nav
+- build a huge social inbox
+- add chat
+- build a full friend-request architecture from scratch unless it is already mostly there
+- create duplicate event systems
+- add push, SMS, or email in this batch
+
+Do:
+- keep everything lightweight
+- use existing models and flows where possible
+- make the app feel more alive
+- improve social trust and clarity
+
+---
+
+## Likely areas to inspect/update
+
+Audit and update as needed, including but not limited to:
+- friend profile template(s)
+- friends list / row actions
+- Activity model / ActivityType enum
+- join request creation and response handlers
+- home / shared nav / profile entry points
+- any new notifications template/view
+- app.py routes and handlers
+- any badge/count rendering logic
+
+---
+
+## QA Requirements
+
+Verify all of the following:
+
+### Friend Graph
+- user can remove/unfriend someone cleanly
+- removed friend disappears from the appropriate surfaces
+- no broken friend profile links remain
+- existing invite flows still work
+
+### Notifications (Lite)
+- there is a clear in-app notification entry point
+- recent notifications render in a clean list
+- social/join-request events show up correctly
+- mobile layout is clean and readable
+
+### Join Request Notifications
+- owner gets notified when someone requests to join
+- requester gets notified when request is accepted
+- requester gets notified when request is declined
+- no duplicate notifications are created unnecessarily
+
+### General
+- no regressions to Home, Trips, Friends, or friend trip detail page
+- no broken auth/session behavior
+- no obvious performance regressions from notification queries
+
+---
+
+## Deliverables
+
+When done, report back with:
+- files changed
+- exactly what was implemented for unfriend / friend graph completion
+- whether pending incoming friend request UI was added or intentionally deferred
+- how the new in-app notification system works
+- what events now generate notifications
+- whether unread state exists and how it works
+- any edge cases or follow-up recommendations
+
+Only use checkpoints if I explicitly ask for them.
