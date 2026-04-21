@@ -1,0 +1,97 @@
+Add a new Home insight card for real-time trip overlap (friends at the same mountain today).
+
+---
+
+### WHEN TO SHOW
+
+Show this card ONLY if:
+- The user has an active trip where today’s date falls within the trip range
+- At least one friend also has an active trip at the SAME mountain where today is within their trip dates
+
+---
+
+### CARD COPY
+
+Case 1 — ONE friend:
+- “[First Name Last Name] is at [Mountain Name] today. See them.”
+
+Example:
+- “Jordan Walsh is at Aspen today. See them.”
+
+Case 2 — MULTIPLE friends:
+- “You’re at [Mountain Name] today. See who else is there.”
+
+Example:
+- “You’re at Aspen today. See who else is there.”
+
+---
+
+### TAP BEHAVIOR
+
+Case 1 — ONE friend:
+- Tap takes user directly to that friend’s profile
+
+Case 2 — MULTIPLE friends:
+- Tap takes user to the Mountain Detail page
+- That page should show the relevant people for that mountain (existing or filtered view)
+
+---
+
+### DISMISS BEHAVIOR
+
+- Include an “×” dismiss button in the top right
+- Dismissal hides only this specific card
+- Persist dismissal so it does not reappear on refresh
+- Scope dismissal to:
+  - user + mountain + date
+
+---
+
+### LOGIC DETAILS
+
+- Only consider FRIENDS (not all users)
+- Only consider trips where:
+  - start_date <= today <= end_date
+- Only consider the SAME mountain (match by resort_id, not string)
+
+If multiple friends:
+- Do NOT list names in the card
+- Just use the generic “See who else is there” version
+
+If exactly one friend:
+- Use full first + last name
+
+---
+
+### UI / PLACEMENT
+
+- Add this as a Home insight card
+- Place it near the top of the insights section
+- It should not overpower the main hero, but should be clearly visible
+- Match existing card styling (same padding, radius, font system)
+
+---
+
+### CONSTRAINTS
+
+- Do not redesign the Home screen
+- Do not introduce chat/messaging
+- Do not show non-friends
+- Do not show for past or future days — TODAY only
+- Do not use checkpoints unless explicitly requested
+
+---
+
+### TESTING
+
+Test these cases:
+
+1. User has active trip today + one friend at same mountain → correct personalized card shows
+2. User has active trip today + multiple friends → generic “See who else is there” card shows
+3. User taps card (single friend) → goes to friend profile
+4. User taps card (multiple friends) → goes to mountain page
+5. User dismisses card → it stays hidden after refresh
+6. No overlapping friends → card does not show
+7. Trip is not today → card does not show
+
+Do not finish until all of the above are working cleanly.

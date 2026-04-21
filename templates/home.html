@@ -705,6 +705,32 @@
 
         {% endfor %}
 
+        {% if trip_overlap_today_card %}
+        <div class="home-insight-card" id="trip-overlap-today-card">
+            {% if trip_overlap_today_card.friend_count == 1 %}
+            <a class="home-insight-card-link" href="{{ url_for('friend_profile', friend_id=trip_overlap_today_card.friend_id) }}">
+                <span class="home-insight-card-icon">&#9968;</span>
+                <span class="home-insight-card-text">
+                    <strong>{{ trip_overlap_today_card.friend_name }}</strong> is at {{ trip_overlap_today_card.resort_name }} today. See them.
+                </span>
+            </a>
+            {% else %}
+            <a class="home-insight-card-link" href="{{ url_for('mountain_detail', slug=trip_overlap_today_card.resort_slug) }}">
+                <span class="home-insight-card-icon">&#9968;</span>
+                <span class="home-insight-card-text">
+                    You're at <strong>{{ trip_overlap_today_card.resort_name }}</strong> today. See who else is there.
+                </span>
+            </a>
+            {% endif %}
+            <button
+                class="home-insight-card-dismiss"
+                aria-label="Dismiss"
+                onclick="dismissInsightCard('trip_overlap_today', '{{ trip_overlap_today_card.card_key }}', 'trip-overlap-today-card')">
+                &times;
+            </button>
+        </div>
+        {% endif %}
+
         {% if friend_at_mountain_card %}
         <div class="home-insight-card" id="friend-at-mountain-card">
             <a class="home-insight-card-link" href="{{ url_for('friend_profile', friend_id=friend_at_mountain_card.friend_id) }}">
@@ -716,7 +742,7 @@
             <button
                 class="home-insight-card-dismiss"
                 aria-label="Dismiss"
-                onclick="dismissInsightCard('friend_at_mountain', '{{ friend_at_mountain_card.card_key }}')">
+                onclick="dismissInsightCard('friend_at_mountain', '{{ friend_at_mountain_card.card_key }}', 'friend-at-mountain-card')">
                 &times;
             </button>
         </div>
@@ -735,8 +761,8 @@
         if (btn) btn.style.display = 'none';
     }
 
-    function dismissInsightCard(cardType, cardKey) {
-        var card = document.getElementById('friend-at-mountain-card');
+    function dismissInsightCard(cardType, cardKey, cardElementId) {
+        var card = document.getElementById(cardElementId || 'friend-at-mountain-card');
         if (card) {
             card.style.transition = 'opacity 0.2s';
             card.style.opacity = '0';

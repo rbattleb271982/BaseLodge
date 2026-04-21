@@ -4247,6 +4247,79 @@ def resolve_home_modules(next_trip, trip_invites, secondary_card, has_overlaps, 
     return modules
 
 
+def build_trip_overlap_today_card(user, today, friend_ids):
+    """
+    Returns a card dict if the user has an active trip today AND at least one
+    friend has an active trip at the SAME resort today.
+
+    Card dict keys:
+      resort_id, resort_name, resort_slug, card_key, friend_count
+      friend_id + friend_name (only when friend_count == 1)
+    """
+    if not friend_ids:
+        return None
+
+    # Find user's active trip(s) today
+    user_active = SkiTrip.query.filter(
+        SkiTrip.user_id == user.id,
+        SkiTrip.resort_id.isnot(None),
+        SkiTrip.start_date <= today,
+        SkiTrip.end_date >= today,
+    ).order_by(SkiTrip.start_date.asc()).first()
+
+    if not user_active:
+        return None
+
+    resort_id = user_active.resort_id
+
+    # Find friends who are ALSO at the same resort today
+    friend_trips_today = SkiTrip.query.filter(
+        SkiTrip.user_id.in_(friend_ids),
+        SkiTrip.resort_id == resort_id,
+        SkiTrip.start_date <= today,
+        SkiTrip.end_date >= today,
+    ).all()
+
+    if not friend_trips_today:
+        return None
+
+    # Distinct qualifying friend IDs
+    qualifying_friend_ids = list({t.user_id for t in friend_trips_today})
+    friend_count = len(qualifying_friend_ids)
+
+    # Check dismissal scoped to user + mountain + date
+    today_str = today.isoformat()
+    card_key = f"{resort_id}:{today_str}"
+    already_dismissed = DismissedInsightCard.query.filter_by(
+        user_id=user.id,
+        card_type='trip_overlap_today',
+        card_key=card_key,
+    ).first()
+    if already_dismissed:
+        return None
+
+    resort = db.session.get(Resort, resort_id)
+    if not resort:
+        return None
+
+    card = {
+        'resort_id': resort_id,
+        'resort_name': resort.name,
+        'resort_slug': resort.slug,
+        'card_key': card_key,
+        'friend_count': friend_count,
+    }
+
+    if friend_count == 1:
+        friend_user = db.session.get(User, qualifying_friend_ids[0])
+        if not friend_user:
+            return None
+        card['friend_id'] = friend_user.id
+        card['friend_name'] = f"{friend_user.first_name or ''} {friend_user.last_name or ''}".strip()
+
+    return card
+
+
 def build_friend_at_mountain_card(user, today, friend_ids):
     """
     Returns a card dict if: user has an upcoming trip whose resort is on their
@@ -4555,6 +4628,13 @@ def home():
         next_match=next_match,
     )
 
+    # Real-time trip overlap insight card (user + friend at same mountain today)
+    try:
+        trip_overlap_today_card = build_trip_overlap_today_card(user, today, friend_ids)
+    except Exception:
+        db.session.rollback()
+        trip_overlap_today_card = None
+
     # Friend-at-mountain insight card
     try:
         friend_at_mountain_card = build_friend_at_mountain_card(user, today, friend_ids)
@@ -4575,6 +4655,7 @@ def home():
         next_match=next_match,
         has_overlaps=has_overlaps,
         home_modules=home_modules,
+        trip_overlap_today_card=trip_overlap_today_card,
         friend_at_mountain_card=friend_at_mountain_card,
         stat_mountains=user.visited_resorts_count,
         stat_trips_total=SkiTrip.query.filter_by(user_id=user.id).count(),
