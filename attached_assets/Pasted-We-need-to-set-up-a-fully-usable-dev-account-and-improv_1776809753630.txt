@@ -1,0 +1,140 @@
+We need to set up a fully usable dev account and improve seed data quality for realistic testing.
+
+DO NOT overwrite existing user emails.
+DO NOT merge users.
+DO NOT break authentication.
+
+---
+
+### STEP 1 — CREATE / ENSURE DEV USER
+
+Ensure a user exists with:
+email = "fullseed@gmail.com"
+
+If not, create it.
+
+Set:
+- is_admin = True (or equivalent)
+- fully active account
+
+---
+
+### STEP 2 — CONNECT DEV USER TO ALL SEEDED USERS
+
+- Create mutual friend relationships between fullseed@gmail.com and ALL seeded users
+
+Ensure:
+- No duplicates
+- No self-connections
+- All friendships are ACCEPTED
+
+---
+
+### STEP 3 — POPULATE DEV USER DATA
+
+Populate fullseed@gmail.com with realistic data:
+
+#### Trips (5 total)
+- Mix of:
+  - 2 trips = "Trip being planned"
+  - 3 trips = "Trip confirmed"
+- Include:
+  - At least 1 trip happening TODAY
+  - At least 2 upcoming trips
+  - At least 1 past trip
+- Use real seeded mountains (via resort_id)
+
+---
+
+#### Mountains Visited (23 total)
+- Add 23 unique mountains to "visited"
+- Ensure:
+  - These are real resorts already in the system
+  - Some overlap with other users' past trips
+
+---
+
+#### Wishlist (3 mountains)
+- Add 3 wishlist mountains
+- Ensure:
+  - At least 1 overlaps with:
+    - a future trip
+    - AND a friend's past trip
+  - At least 1 overlaps with a friend's current or future trip
+
+---
+
+### STEP 4 — EXPAND SEEDED SCENARIOS (IF NEEDED)
+
+Ensure the following exist across users:
+
+1. SAME DAY OVERLAP
+- Multiple friends at same mountain TODAY
+
+2. SINGLE FRIEND OVERLAP
+- Exactly one friend at same mountain today
+
+3. MULTI-FRIEND OVERLAP
+- 2–4 friends at same mountain today
+
+4. WISHLIST MATCH
+- fullseed user has upcoming trip to wishlist mountain
+- at least one friend has past trip there
+
+5. MIXED SIGNALS
+- Same mountain:
+  - one friend there today
+  - different friend has been there before
+
+---
+
+### STEP 5 — UPDATE HOME CARD COPY
+
+Update the “friend has been to wishlist mountain” card text:
+
+OLD:
+“[First Name Last Name] has been to [Mountain Name]. Ask about it.”
+
+NEW:
+“[First Name Last Name] has been to your wishlist mountain, [Mountain Name]. Ask about it.”
+
+Ensure:
+- Uses full first + last name
+- Includes mountain name
+- Matches exact phrasing
+
+---
+
+### STEP 6 — DATA RULES
+
+- Always match mountains using resort_id
+- Ensure trips have:
+  - start_date
+  - end_date
+  - correct status
+- Ensure “today” logic works based on current date
+
+---
+
+### STEP 7 — SAFETY
+
+- Only run in development environment
+- Add guard:
+  if ENV != "development": do nothing
+
+---
+
+### STEP 8 — TESTING
+
+Log in as:
+fullseed@gmail.com
+
+Confirm:
+- All seeded users appear as friends
+- Trips populate correctly
+- Home cards trigger:
+  - “friend at mountain today”
+  - “friend has been to your wishlist mountain”
+- Multiple scenarios are visible without manual setup
+
+Do not finish until all scenarios can be triggered reliably.
