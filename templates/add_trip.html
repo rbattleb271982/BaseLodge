@@ -373,41 +373,57 @@
             text-underline-offset: 2px;
         }
 
-        /* ── Add details toggle ── */
-        .at-details-toggle {
+        /* ── Options section ── */
+        .at-options-card {
+            margin-top: 16px;
+            background: #FFFFFF;
+            border: 1px solid #E5DFD0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .at-options-header {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-top: 20px;
-            background: none;
-            border: none;
-            padding: 0;
-            font-size: 14px;
-            color: #6B665A;
+            justify-content: space-between;
+            padding: 14px 16px;
             cursor: pointer;
-            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
-        .at-details-toggle-chevron {
-            font-size: 13px;
+        .at-options-header-left {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .at-options-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1A1A1A;
+        }
+        .at-options-current {
+            font-size: 12px;
+            color: #8A857A;
+        }
+        .at-options-chevron {
+            font-size: 18px;
+            color: #B5AFA5;
             transition: transform 0.2s;
             display: inline-block;
         }
-        .at-details-toggle.open .at-details-toggle-chevron {
+        .at-options-card.open .at-options-chevron {
             transform: rotate(180deg);
         }
-        .at-details-body {
+        .at-options-body {
             display: none;
-            margin-top: 12px;
+            border-top: 1px solid #E5DFD0;
+            padding: 16px;
         }
-        .at-details-body.open { display: block; }
+        .at-options-card.open .at-options-body { display: block; }
 
         /* ── Visibility toggle ── */
         .at-visibility {
-            background: #FFFFFF;
-            border: 1px solid #E5DFD0;
-            border-radius: 10px;
-            padding: 16px 18px;
-            margin-bottom: 8px;
+            padding: 0;
+            margin-bottom: 0;
         }
         .at-vis-label {
             display: flex;
@@ -589,22 +605,28 @@
                     <button type="button" class="at-clear-btn" id="clear-dates-btn" style="display:none;" onclick="clearDates()">Clear</button>
                 </div>
 
-                <!-- Add details (collapsed by default) -->
-                <button type="button" class="at-details-toggle" id="details-toggle" onclick="toggleDetails()">
-                    Add details <span class="at-details-toggle-chevron">⌄</span>
-                </button>
-                <div class="at-details-body" id="details-body">
-                    <div class="at-visibility">
-                        <label class="at-vis-label">
-                            <input type="checkbox" id="visibility-toggle" checked>
-                            Make this trip visible to friends
-                        </label>
-                        <p class="at-vis-hint">Only friends can see this trip.</p>
+                <!-- Options card (collapsed) -->
+                <div class="at-options-card" id="options-card">
+                    <div class="at-options-header" onclick="toggleOptions()">
+                        <div class="at-options-header-left">
+                            <span class="at-options-label">Sharing settings</span>
+                            <span class="at-options-current" id="options-current-label">Visible to friends</span>
+                        </div>
+                        <span class="at-options-chevron">⌄</span>
+                    </div>
+                    <div class="at-options-body">
+                        <div class="at-visibility">
+                            <label class="at-vis-label">
+                                <input type="checkbox" id="visibility-toggle" checked>
+                                Make this trip visible to friends
+                            </label>
+                            <p class="at-vis-hint">Only your friends can see this trip.</p>
+                        </div>
                     </div>
                 </div>
 
+                <button type="submit" class="at-btn-primary" id="step2-submit" style="margin-top:20px;" disabled>{% if prefill_friend and is_group %}Send invite{% else %}Create trip{% endif %}</button>
                 <button type="button" class="at-btn-secondary" onclick="goToStep(1)">Back</button>
-                <button type="submit" class="at-btn-primary" id="step2-submit" disabled>{% if prefill_friend and is_group %}Send invite{% else %}Create trip{% endif %}</button>
             </div>
         </form>
 
@@ -674,12 +696,16 @@
             });
         }
 
-        // ── Add details toggle ────────────────────────────────────────
-        function toggleDetails() {
-            const btn  = document.getElementById('details-toggle');
-            const body = document.getElementById('details-body');
-            const open = body.classList.toggle('open');
-            btn.classList.toggle('open', open);
+        // ── Options card toggle ───────────────────────────────────────
+        function toggleOptions() {
+            const card = document.getElementById('options-card');
+            card.classList.toggle('open');
+        }
+
+        function updateOptionsLabel() {
+            const checked = document.getElementById('visibility-toggle').checked;
+            document.getElementById('options-current-label').textContent =
+                checked ? 'Visible to friends' : 'Private';
         }
 
         // ── Mountain search ───────────────────────────────────────────
@@ -953,6 +979,7 @@
         // ── Visibility toggle ─────────────────────────────────────────
         document.getElementById('visibility-toggle').addEventListener('change', function () {
             isPublicInput.value = this.checked ? 'on' : 'off';
+            updateOptionsLabel();
         });
 
         // ── Initialisation ────────────────────────────────────────────

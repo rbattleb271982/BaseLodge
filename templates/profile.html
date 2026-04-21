@@ -161,6 +161,15 @@
         <!-- Name headline -->
         <h1 class="prof-name">{{ current_user.first_name | format_name }}</h1>
 
+        <!-- Identity summary line -->
+        {% set id_parts = [] %}
+        {% if current_user.rider_types %}{% set _ = id_parts.append(current_user.rider_types[0]) %}{% endif %}
+        {% if current_user.skill_level and not (current_user.rider_types == ['Social']) %}{% set _ = id_parts.append(current_user.skill_level) %}{% endif %}
+        {% if current_user.pass_type and current_user.pass_type != 'None' %}{% set _ = id_parts.append(current_user.pass_type.split(',')[0]) %}{% endif %}
+        {% if id_parts %}
+        <p style="font-size:14px; color:#8A857A; margin:6px 0 0; line-height:1.4;">{{ id_parts | join(' · ') }}</p>
+        {% endif %}
+
         <!-- Stat row: Trips / Mountains visited / Wishlist (all tappable) -->
         <div class="prof-stat-row">
             <a href="{{ url_for('my_trips') }}" class="prof-stat" style="text-decoration:none;color:inherit;">
