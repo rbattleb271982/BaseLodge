@@ -223,21 +223,21 @@
         <a href="{{ url_for('profile') }}" class="eq-back">‹</a>
 
         <p class="eq-eyebrow">Equipment</p>
-        <h1 class="eq-title">Your setup</h1>
+        <h1 class="eq-title">Your equipment setup</h1>
         <p class="eq-subtitle">Optional — helps friends know what you ride</p>
 
         <!-- Own / Rentals pill selector -->
         <div class="eq-status-row">
             <button class="eq-status-pill {% if not user.equipment_status or user.equipment_status == 'have_own_equipment' %}active{% endif %}"
-                    id="pill-own" onclick="setStatus('have_own_equipment')">I own equipment</button>
+                    id="pill-own" onclick="setStatus('have_own_equipment')">I have my own equipment</button>
             <button class="eq-status-pill {% if user.equipment_status == 'needs_rentals' %}active{% endif %}"
-                    id="pill-rentals" onclick="setStatus('needs_rentals')">I use rentals</button>
+                    id="pill-rentals" onclick="setStatus('needs_rentals')">I rent</button>
         </div>
 
         <!-- Equipment detail panels (hidden when rentals) -->
         <div id="eq-detail-section" {% if user.equipment_status == 'needs_rentals' %}style="display:none;"{% endif %}>
-            <!-- Primary Setup -->
-            <p class="eq-section-label">Primary Setup</p>
+            <!-- Main Setup -->
+            <p class="eq-section-label">Main setup</p>
             <div class="eq-card" id="primary-card">
                 {% if primary_equipment %}
                 <!-- Display mode -->
@@ -298,10 +298,6 @@
                                 <input type="number" id="primary-width" placeholder="98" value="{{ primary_equipment.width_mm or '' if primary_equipment else '' }}">
                             </div>
                         </div>
-                        <div>
-                            <label class="eq-field-label">Binding type</label>
-                            <select id="primary-binding"></select>
-                        </div>
                         <div class="eq-row-2">
                             <div>
                                 <label class="eq-field-label">Boot brand</label>
@@ -359,9 +355,6 @@
                 </div>
                 <div id="secondary-edit" style="display:none;">
             {% else %}
-            <div id="add-secondary-wrap" style="margin-bottom: 12px;">
-                <button class="eq-add-btn" onclick="showAddSecondary()">+ Add another setup</button>
-            </div>
             <div id="secondary-form-wrap" style="display:none;">
                 <p class="eq-section-label">Secondary Setup</p>
                 <div class="eq-card" id="secondary-card">
@@ -398,10 +391,6 @@
                                 <label class="eq-field-label">Width (mm)</label>
                                 <input type="number" id="secondary-width" placeholder="98" value="{{ secondary_equipment.width_mm or '' if secondary_equipment else '' }}">
                             </div>
-                        </div>
-                        <div>
-                            <label class="eq-field-label">Binding type</label>
-                            <select id="secondary-binding"></select>
                         </div>
                         <div class="eq-row-2">
                             <div>
@@ -483,8 +472,9 @@
     }
 
     function updateBindings(slot, savedVal) {
-        const disc = document.getElementById(slot + '-discipline').value;
         const el = document.getElementById(slot + '-binding');
+        if (!el) return;
+        const disc = document.getElementById(slot + '-discipline').value;
         el.innerHTML = makeBindingOptions(disc, savedVal || '');
     }
 
@@ -496,16 +486,6 @@
     function hideEdit(slot) {
         document.getElementById(slot + '-edit').style.display = 'none';
         document.getElementById(slot + '-display').style.display = 'block';
-    }
-
-    function showAddSecondary() {
-        document.getElementById('add-secondary-wrap').style.display = 'none';
-        document.getElementById('secondary-form-wrap').style.display = 'block';
-    }
-
-    function hideAddSecondary() {
-        document.getElementById('secondary-form-wrap').style.display = 'none';
-        document.getElementById('add-secondary-wrap').style.display = 'block';
     }
 
     function showToast(msg) {
@@ -536,7 +516,8 @@
         fd.append('model', document.getElementById(slot + '-model').value);
         fd.append('length_cm', document.getElementById(slot + '-length').value);
         fd.append('width_mm', document.getElementById(slot + '-width').value);
-        fd.append('binding_type', document.getElementById(slot + '-binding').value);
+        const bindingEl = document.getElementById(slot + '-binding');
+        fd.append('binding_type', bindingEl ? bindingEl.value : '');
         fd.append('boot_brand', document.getElementById(slot + '-boot-brand').value);
         fd.append('boot_model', document.getElementById(slot + '-boot-model').value);
         fd.append('boot_flex', document.getElementById(slot + '-boot-flex').value);

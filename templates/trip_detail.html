@@ -45,39 +45,40 @@
         }
         .header-edit-link:hover { color: var(--bl-color-primary); }
 
-        /* ── Blush Hero ── */
-        .td-hero {
-            background: #F0DDD8;
-            border: 0.5px solid #5C1219;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 24px;
+        /* ── Clean trip header ── */
+        .td-header {
+            margin-bottom: 20px;
         }
-        .td-hero-eyebrow {
+        .td-header-eyebrow {
             font-size: 11px;
             font-weight: 700;
             letter-spacing: 0.8px;
-            color: #5C1219;
+            color: #8A857A;
             text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-        .td-hero-title {
-            font-family: Georgia, 'Times New Roman', serif;
-            font-size: 24px;
-            font-weight: 400;
-            color: #1A1A1A;
-            line-height: 1.2;
             margin-bottom: 6px;
         }
-        .td-hero-sub {
-            font-size: 14px;
-            color: #6B665A;
+        .td-header-mountain {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 28px;
+            font-weight: 400;
+            color: #1A1A1A;
+            line-height: 1.15;
             margin-bottom: 4px;
         }
-        .td-hero-meta {
+        .td-header-location {
+            font-size: 14px;
+            color: #6B665A;
+            margin-bottom: 2px;
+        }
+        .td-header-dates {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1A1A1A;
+            margin-bottom: 2px;
+        }
+        .td-header-meta {
             font-size: 13px;
             color: #8A857A;
-            margin-bottom: 0;
         }
 
         /* ── Info rows (pass, length, visibility) ── */
@@ -410,27 +411,30 @@
             {% endif %}
         </div>
 
-        <!-- Hero block -->
+        <!-- Trip header -->
         {% set mountain_name = trip.resort.name if trip.resort else trip.mountain %}
         {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
         {% set people = all_participants|length if all_participants else 0 %}
+        {% set ts = trip.trip_status or 'planning' %}
 
-        <div class="td-hero">
-            {% set ts = trip.trip_status or 'planning' %}
+        <div class="td-header">
             {% if is_invited %}
-            <p class="td-hero-eyebrow">{{ (owner.first_name if owner else 'Someone') | format_name }} invited you</p>
+            <p class="td-header-eyebrow">{{ (owner.first_name if owner else 'Someone') | format_name }} invited you</p>
             {% elif ts == 'going' %}
-            <p class="td-hero-eyebrow">Going</p>
-            {% elif is_owner or is_guest %}
-            <p class="td-hero-eyebrow">Upcoming</p>
+            <p class="td-header-eyebrow" style="color:#5C1219;">Confirmed</p>
+            {% else %}
+            <p class="td-header-eyebrow">Planning</p>
             {% endif %}
-            <p class="td-hero-title">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-            <p class="td-hero-sub">{{ format_trip_dates(trip) }}</p>
+            <p class="td-header-mountain">{{ mountain_name }}</p>
+            {% if state_abbr %}
+            <p class="td-header-location">{{ state_abbr }}{% if trip.resort and trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}</p>
+            {% endif %}
+            <p class="td-header-dates">{{ format_trip_dates(trip) }}</p>
             {% if people > 1 %}
-            <p class="td-hero-meta">{{ people }} going</p>
+            <p class="td-header-meta">{{ people }} going</p>
             {% endif %}
             {% if is_invited %}
-            <p class="td-hero-meta" style="margin-top: 4px;">{{ (owner.first_name if owner else 'The organizer') | format_name }} wants you to join.</p>
+            <p class="td-header-meta" style="margin-top: 4px;">{{ (owner.first_name if owner else 'The organizer') | format_name }} wants you to join.</p>
             {% endif %}
         </div>
 
@@ -497,19 +501,9 @@
             <span class="td-info-value">{{ 'Public' if trip.is_public else 'Private' }}</span>
         </div>
         {% endif %}
-        {% if is_owner and ts == 'planning' and trip.start_date %}
-            {% set days_until = (trip.start_date - today).days if today is defined else 99 %}
-            {% if days_until is not none and days_until <= 14 and days_until >= 0 %}
-            <div style="padding: 10px 0; border-bottom: 1px solid #E5DFD0;">
-                <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" style="font-size: 13px; color: #5C1219; text-decoration: none;">
-                    Is this trip happening? Mark it as Going →
-                </a>
-            </div>
-            {% endif %}
-        {% endif %}
 
-        <!-- Invite friends CTA (owner or accepted guest) -->
-        {% if is_owner or is_guest %}
+        <!-- Invite friends CTA (only when trip is confirmed) -->
+        {% if (is_owner or is_guest) and ts == 'going' %}
         <div class="invite-cta">
             <button class="td-btn-invite" onclick="handleInviteClick()">Invite friends</button>
             {% if invite_count > 0 %}

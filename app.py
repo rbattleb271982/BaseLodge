@@ -5484,6 +5484,8 @@ def add_trip():
         is_public = request.form.get("is_public") == "on"
         ride_intent = request.form.get("ride_intent") or None
         trip_equipment_status = request.form.get("trip_equipment_status") or "use_default"
+        trip_status_raw = request.form.get("trip_status", "planning")
+        trip_status_form = trip_status_raw if trip_status_raw in ("planning", "going") else "planning"
         
         friend_id = request.form.get("friend_id", type=int)
         is_group_trip = request.form.get("is_group") == "1"
@@ -5575,7 +5577,7 @@ def add_trip():
             start_date=start_date,
             end_date=end_date,
             is_public=is_public,
-            trip_status='planning',
+            trip_status=trip_status_form,
             ride_intent=ride_intent,
             trip_duration=trip_duration,
             trip_equipment_status=trip_equipment_status if trip_equipment_status != 'use_default' else None,

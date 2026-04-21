@@ -373,6 +373,45 @@
             text-underline-offset: 2px;
         }
 
+        /* ── Trip Status row ── */
+        .at-status-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 12px;
+            padding: 12px 16px;
+            background: #FFFFFF;
+            border: 1px solid #E5DFD0;
+            border-radius: 10px;
+        }
+        .at-status-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1A1A1A;
+        }
+        .at-status-pills {
+            display: flex;
+            gap: 6px;
+        }
+        .at-status-pill {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid #D9D2BF;
+            background: transparent;
+            font-size: 13px;
+            font-weight: 500;
+            color: #6B665A;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+        }
+        .at-status-pill.active {
+            background: #5C1219;
+            border-color: #5C1219;
+            color: #FFFFFF;
+            font-weight: 600;
+        }
+
         /* ── Options section ── */
         .at-options-card {
             margin-top: 16px;
@@ -560,14 +599,13 @@
                 <div class="at-search-results" id="search-results"></div>
 
                 <div id="selected-mountain-wrap" style="display:none; margin-top:10px;">
-                    <div class="at-selected-card">
+                    <div class="at-selected-card" style="position:relative;">
                         <div>
                             <div class="at-selected-name" id="sel-name"></div>
                             <div class="at-selected-meta" id="sel-meta"></div>
                         </div>
-                        <div class="at-checkmark">&#10003;</div>
+                        <button type="button" onclick="clearMountain()" aria-label="Change mountain" style="background:none;border:none;cursor:pointer;padding:4px 6px;color:#8A857A;font-size:18px;line-height:1;flex-shrink:0;" title="Change mountain">&#10005;</button>
                     </div>
-                    <span class="at-change-link" onclick="clearMountain()">Change mountain</span>
                 </div>
 
                 <button type="button" class="at-btn-primary" id="step1-continue" disabled onclick="goToStep(2)">Continue</button>
@@ -603,6 +641,16 @@
                 <div class="at-range-row">
                     <span class="at-range-label" id="range-text">Select your trip dates</span>
                     <button type="button" class="at-clear-btn" id="clear-dates-btn" style="display:none;" onclick="clearDates()">Clear</button>
+                </div>
+
+                <!-- Trip Status -->
+                <input type="hidden" id="trip_status_input" name="trip_status" value="planning">
+                <div class="at-status-row">
+                    <span class="at-status-label">Trip status</span>
+                    <div class="at-status-pills">
+                        <button type="button" class="at-status-pill active" id="status-planning" onclick="setTripStatus('planning')">Planning</button>
+                        <button type="button" class="at-status-pill" id="status-going" onclick="setTripStatus('going')">Confirmed</button>
+                    </div>
                 </div>
 
                 <!-- Options card (collapsed) -->
@@ -696,6 +744,13 @@
             });
         }
 
+        // ── Trip status toggle ────────────────────────────────────────
+        function setTripStatus(val) {
+            document.getElementById('trip_status_input').value = val;
+            document.getElementById('status-planning').classList.toggle('active', val === 'planning');
+            document.getElementById('status-going').classList.toggle('active', val === 'going');
+        }
+
         // ── Options card toggle ───────────────────────────────────────
         function toggleOptions() {
             const card = document.getElementById('options-card');
@@ -742,6 +797,12 @@
         const searchInput = document.getElementById('mountain-search');
         const searchResults = document.getElementById('search-results');
         const selectedWrap = document.getElementById('selected-mountain-wrap');
+
+        searchInput.addEventListener('focus', function () {
+            setTimeout(() => {
+                this.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        });
 
         searchInput.addEventListener('input', function () {
             const q = this.value.trim().toLowerCase();
