@@ -2324,33 +2324,6 @@ def my_trips():
     except Exception:
         overlaps = []
 
-    # Load requested trips (join requests sent by me, not yet accepted/promoted to participant)
-    requested_trips = []
-    try:
-        requests = Invitation.query.filter_by(
-            sender_id=current_user.id,
-            invite_type=InviteType.REQUEST
-        ).all()
-        for req in requests:
-            if req.status == 'accepted':
-                exists = SkiTripParticipant.query.filter_by(
-                    trip_id=req.trip_id,
-                    user_id=current_user.id,
-                    status=GuestStatus.ACCEPTED
-                ).first()
-                if exists:
-                    continue
-            trip = SkiTrip.query.get(req.trip_id)
-            if trip and trip.end_date >= today:
-                requested_trips.append({
-                    'invitation_id': req.id,
-                    'trip': trip,
-                    'owner': User.query.get(req.receiver_id),
-                    'status': req.status.capitalize()
-                })
-    except Exception:
-        requested_trips = []
-
     return render_template(
         "my_trips.html",
         user=user,
@@ -2359,7 +2332,6 @@ def my_trips():
         invited_trips=invited_trips or [],
         invite_inviters=invite_inviters or {},
         accepted_guest_trips=accepted_guest_trips or [],
-        requested_trips=requested_trips,
         active_tab=active_tab,
         friends=friends or [],
         friend_trips=friend_trips or [],

@@ -1,0 +1,114 @@
+PUT THIS IN AGENT
+
+Proceed with implementing the Discovery vs. Action refactor exactly as outlined.
+
+Do not re-audit. Do not redesign. Execute the plan.
+
+Goal:
+Joining or expressing interest in a trip should ONLY happen on the friend trip detail page (`/friend-trip/<trip_id>`). All other surfaces must be discovery-only.
+
+---
+
+## Non-negotiable rules
+
+- No “Join” or action language outside the trip detail page
+- No ability to request, cancel, or express interest from list surfaces
+- No request state shown outside the trip detail page
+- Discovery surfaces remain browse-only
+
+---
+
+## Naming (lock this in)
+
+- Tab label: **Friend Trips**
+- Section header: **Your Friends’ Trips**
+
+Do NOT use:
+- “Join a Trip”
+- “Trips You Can Join”
+- Any variation implying action
+
+---
+
+## Execute the following changes
+
+### 1. Rename tab + header
+Update `templates/my_trips.html`:
+- “Join a Trip” → **Friend Trips**
+- “Trips You Can Join” → **Your Friends’ Trips**
+
+---
+
+### 2. Neutralize empty state
+Replace any “Nothing to join yet” style copy with neutral language:
+- “No friend trips yet”
+
+No action implication.
+
+---
+
+### 3. Remove Requested section (important)
+- Remove `{% if requested_trips %}` block entirely
+- Remove inline Cancel button
+- Remove all list-based request state
+
+---
+
+### 4. Remove backend dependency
+In `app.py` → `my_trips()`:
+- delete `requested_trips` query
+- remove from template render
+
+---
+
+### 5. Keep discovery intact
+Do NOT modify:
+- Friends > Upcoming
+- Ideas tab
+- Trip ranking logic
+
+---
+
+### 6. Strengthen trip detail page ONLY
+File: `templates/friend_trip_details.html`
+
+Ensure:
+- CTA is prominent
+- States render correctly:
+  - Request to Join
+  - Request Sent
+  - You’re Going
+- Add small helper text:
+  “The trip organizer will review your request.”
+
+---
+
+## Do NOT
+
+- Do not touch backend join logic
+- Do not change routes
+- Do not redesign layouts
+- Do not add new features
+
+---
+
+## QA before finishing
+
+Confirm:
+- No join language exists outside trip detail page
+- No request state exists in list views
+- Friend Trips tab is clean and browse-only
+- Trip detail page is the ONLY place to act
+- No regressions
+
+---
+
+## Deliverables
+
+- files changed
+- what was removed vs renamed
+- confirmation that join is ONLY on trip detail page
+
+---
+
+Proceed now without re-scoping.

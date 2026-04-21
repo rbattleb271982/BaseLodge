@@ -130,7 +130,7 @@
             padding-bottom: 8px;
         }
 
-        /* ── Trip rows (upcoming + invites + requested) ── */
+        /* ── Trip rows (upcoming + invites) ── */
         .trip-row {
             display: flex;
             align-items: center;
@@ -427,7 +427,7 @@
             <button type="button" class="tab-btn active" data-tab="upcoming">
                 My Trips{% if ns.invite_count > 0 %}<span class="tab-badge">{{ ns.invite_count }}</span>{% endif %}
             </button>
-            <button type="button" class="tab-btn" data-tab="friends">Join a Trip</button>
+            <button type="button" class="tab-btn" data-tab="friends">Friend Trips</button>
         </div>
 
         <!-- ── UPCOMING ── -->
@@ -500,28 +500,9 @@
             {% endfor %}
             {% endif %}
 
-            <!-- Requested trips -->
-            {% if requested_trips %}
-            <p class="sub-section-label">Requested</p>
-            {% for req in requested_trips %}
-                <div class="trip-row" style="cursor: pointer;" onclick="window.location.href='{{ url_for('friend_trip_details', trip_id=req.trip.id) }}'">
-                    <div class="trip-row-content">
-                        <p class="trip-row-dest">{% if req.trip.resort %}{{ req.trip.resort.name }}{% else %}{{ req.trip.mountain }}{% endif %}</p>
-                        <p class="trip-row-dates">{{ format_trip_dates(req.trip) }} · {{ req.owner.first_name | format_name }} {{ req.owner.last_name | format_name }}</p>
-                        <p class="trip-row-people" style="color: {% if req.status == 'Pending' %}#5C1219{% elif req.status == 'Accepted' %}#1B7A4E{% else %}#8A857A{% endif %};">{{ req.status }}</p>
-                    </div>
-                    {% if req.status == 'Pending' %}
-                    <form action="{{ url_for('cancel_join_request', request_id=req.invitation_id) }}" method="POST"
-                          onsubmit="return confirm('Cancel request?');" onclick="event.stopPropagation();">
-                        <button type="submit" class="secondary-action-inline" style="background: none; border: none; padding: 0; cursor: pointer;">Cancel</button>
-                    </form>
-                    {% endif %}
-                </div>
-            {% endfor %}
-            {% endif %}
         </div>
 
-        <!-- ── JOIN A TRIP ── -->
+        <!-- ── FRIEND TRIPS ── -->
         <div id="segment-friends" class="segment-content">
             {% if not curated_friend_trips %}
                 {% if not friends %}
@@ -535,14 +516,14 @@
                 {% else %}
                 <!-- Has friends, but no upcoming friend trips -->
                 <div style="padding-top: 32px; text-align: center;">
-                    <p style="font-size: 15px; font-weight: 500; color: #1A1A1A; margin: 0 0 8px 0;">Nothing to join yet</p>
-                    <p style="font-size: 14px; color: #6B665A; margin: 0 0 20px 0; line-height: 1.5;">None of your friends have added a trip yet. Start one and invite them.</p>
-                    <a href="{{ url_for('add_trip') }}" class="mt-plan-btn" style="display: inline-block; width: auto; padding: 10px 24px;">Plan a trip together</a>
+                    <p style="font-size: 15px; font-weight: 500; color: #1A1A1A; margin: 0 0 8px 0;">No friend trips yet</p>
+                    <p style="font-size: 14px; color: #6B665A; margin: 0 0 20px 0; line-height: 1.5;">None of your friends have added a trip yet. Start one and invite them along.</p>
+                    <a href="{{ url_for('add_trip') }}" class="mt-plan-btn" style="display: inline-block; width: auto; padding: 10px 24px;">Plan a trip</a>
                 </div>
                 {% endif %}
             {% else %}
                 <div class="mt-section-header">
-                    <p class="mt-section-title">Trips You Can Join</p>
+                    <p class="mt-section-title">Your Friends' Trips</p>
                     <p class="mt-section-count">{{ curated_friend_trips|length }}</p>
                 </div>
                 <p style="font-size: 13px; color: #8A857A; margin: 0 0 16px 0; line-height: 1.5;">Relevant trips based on overlap, interest, or shared mountains.</p>

@@ -1,0 +1,158 @@
+PUT THIS IN AGENT
+
+Refactor trip discovery and joining behavior so that a user can only join a trip or express interest in a trip from the friend trip detail page.
+
+Goal:
+I only want a user to be able to join a trip or express interest in a trip if they are on a trip detail page. All other surfaces should be discovery-only. If anything in the current implementation conflicts with that, fix it.
+
+Product rule to enforce:
+- Discovery can happen in lists, feeds, tabs, and idea cards
+- Action can only happen on the friend trip detail page
+- No list surface should imply that the user can join from there
+- No list surface should use “Join,” “Request to Join,” “Express Interest,” or similar action language
+- The actual action should live only on the friend trip detail page for a trip the user is not already part of
+
+Current context to preserve:
+- There is already a working friend trip detail page at `/friend-trip/<trip_id>`
+- There is already join request backend logic in place
+- Owners can accept or decline
+- Do not rip out working backend flows unless they are broken
+- Use what exists where possible, but fix anything necessary to align with this product decision
+
+What to do
+
+1. Audit and identify every surface that currently references joinability or implies action
+Search and identify all places that currently:
+- say “Join a Trip”
+- imply a trip is joinable from a list
+- mention “Request to Join” outside the detail page
+- mention “requested trips” or other request state outside the detail page if that conflicts with the desired experience
+
+Include at least:
+- `/my-trips`
+- `templates/my_trips.html`
+- `/friends`
+- Friends > Upcoming
+- `/trip-ideas`
+- Ideas cards
+- Home
+- any nav labels, tab labels, helper copy, CTA copy, empty-state copy, or section headings
+
+2. Remove or neutralize join language from discovery surfaces
+Any discovery surface should be informational only.
+
+That means:
+- remove “Join a Trip” as a tab/label if it exists
+- rename it to something neutral if the surface still needs to exist
+- examples of acceptable neutral naming:
+  - “Friend Trips”
+  - “Explore Trips”
+  - “Upcoming Friend Trips”
+Choose the cleanest option based on what is actually in the product
+
+Important:
+- Do not leave any ambiguous join language in the UI outside the trip detail page
+- Do not imply inline action from a list
+- Do not show “requested trips” on list surfaces if that creates an action-oriented or stateful join surface outside the detail page
+
+3. Keep discovery intact
+Do not gut discovery.
+
+Users should still be able to discover friend trips through the appropriate surfaces, such as:
+- Friends > Upcoming
+- any neutralized friend trip section on Trips, if that still belongs there
+- Ideas, if it is meant for broader discovery
+
+But those surfaces must remain browse-only and not imply the user can act there.
+
+4. Make the friend trip detail page the only action surface
+Use `/friend-trip/<trip_id>` as the canonical place where joining or expressing interest happens.
+
+On that page:
+- ensure the join/request action exists and works
+- if the current implementation already uses “Request to Join,” keep it unless a better wording is needed
+- if “express interest” is a separate concept and not currently implemented, decide whether that should map to the same join request flow or whether only “Request to Join” should exist
+- if any backend or template fixes are needed to make this page the single source of action, make them
+
+5. Strengthen the friend trip detail page if needed
+Because this is now the only action surface, make sure it is clear and complete.
+
+The page should clearly show:
+- destination
+- dates
+- trip owner / friend context
+- who is going, if supported
+- overlap context, if available
+- the action state
+
+Required action states:
+- not requested → actionable primary button
+- pending → disabled or alternate “Request Sent” state
+- accepted → “You’re Going” or equivalent
+- if already part of the trip, do not show a redundant request CTA
+
+If useful, add one small explanatory line near the CTA such as:
+- “The trip organizer will approve your request.”
+But keep it premium and not too verbose.
+
+6. Fix any backend, routing, or template issues required to support this rule
+If the current codebase has scattered assumptions that joining can start elsewhere, clean that up.
+
+Examples:
+- list state or helper sections that surface requested trips outside the detail page
+- tab names or filters built around join behavior
+- template logic that incorrectly exposes action states in list views
+- route assumptions that no longer match the desired UX
+
+Do not break the existing request workflow. Refactor it cleanly.
+
+7. Keep the product mentally clean
+The final model should be:
+
+- Discovery happens in feeds/lists/tabs/cards
+- Decision happens on the friend trip detail page
+- Request happens on the friend trip detail page
+- Approval happens with the owner’s existing workflow
+
+8. QA this end-to-end
+After implementation, verify all of the following:
+
+A. Discovery surfaces
+- No discovery surface uses “Join a Trip” or other action language unless it truly belongs
+- Users can still discover trips from the appropriate browse surfaces
+- Lists feel informational, not transactional
+
+B. Friend trip detail page
+- Request action is visible and working there
+- Pending state works
+- Accepted state works
+- Already-going state works
+- Explanatory/context copy is clear
+- No duplicate or conflicting buttons appear
+
+C. Backend flow
+- Submitting a request still creates the correct record
+- Owner can still accept or decline
+- Accepting still adds the participant correctly
+- No regressions to invitation/request models
+
+D. General UX
+- Mobile layout still looks intentional
+- No broken navigation
+- No stale labels remain
+- No dead code or obsolete template branches remain if they are clearly part of the old “Join a Trip” concept
+
+Deliverables when done:
+- files changed
+- exact labels/sections/routes that were changed
+- what was removed, renamed, or neutralized
+- what was improved on the friend trip detail page
+- confirmation that joining/expressing interest is now only possible from the trip detail page
+- any edge cases or follow-up recommendations
+
+Important implementation guidance:
+- Do not ask me to choose between multiple options unless something is truly blocked
+- Make the cleanest product decision based on the intent above
+- Prefer refactoring existing logic over layering on more UI complexity
+- Keep everything mobile-first
+- Only use checkpoints if I explicitly ask for them
