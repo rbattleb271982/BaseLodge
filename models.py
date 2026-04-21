@@ -222,7 +222,7 @@ class User(UserMixin, db.Model):
         except (SignatureExpired, BadSignature):
             return None
         
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if not user:
             return None
 
@@ -376,7 +376,7 @@ class User(UserMixin, db.Model):
         if not self.home_resort_id:
             return None
         from models import Resort
-        return Resort.query.get(self.home_resort_id)
+        return db.session.get(Resort, self.home_resort_id)
     
     def get_wishlist_resorts(self):
         """
@@ -718,7 +718,7 @@ class SkiTrip(db.Model):
     
     def get_organizer(self):
         """Return the organizer User object."""
-        return User.query.get(self.organizer_id)
+        return db.session.get(User, self.organizer_id)
     
     def is_organizer(self, user_id):
         """Check if given user_id is the trip organizer."""
@@ -1173,12 +1173,12 @@ class Activity(db.Model):
     def get_trip(self):
         """Get the associated trip if object_type is 'trip'."""
         if self.object_type == 'trip':
-            return SkiTrip.query.get(self.object_id)
+            return db.session.get(SkiTrip, self.object_id)
         return None
     
     def get_actor_user(self):
         """Get the actor User object."""
-        return User.query.get(self.actor_user_id)
+        return db.session.get(User, self.actor_user_id)
 
 
 def check_shared_upcoming_trip(user_a_id: int, user_b_id: int) -> bool:

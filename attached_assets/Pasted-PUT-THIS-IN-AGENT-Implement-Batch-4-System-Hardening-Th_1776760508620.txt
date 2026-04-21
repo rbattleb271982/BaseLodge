@@ -1,0 +1,126 @@
+PUT THIS IN AGENT
+
+Implement Batch 4: System Hardening
+
+This includes:
+- 4.1 Rate Limiting
+- 4.3 Stop using legacy fields (code-only)
+- 4.4 Replace SQLAlchemy .query.get()
+
+Do not ask for confirmation. Execute this batch.
+
+IMPORTANT:
+- Do NOT drop any database columns
+- Do NOT change product behavior
+- This is safety + cleanup only
+
+---
+
+## 4.1 Rate Limiting
+
+Install and configure flask-limiter.
+
+Use:
+- in-memory storage (default is fine)
+- per-IP limiting
+
+Apply limits to these routes:
+
+CRITICAL:
+- POST /auth → 10 per minute per IP
+- POST /forgot-password → 5 per hour per IP
+- POST /reset-password/<token> → 10 per hour per IP
+- POST /change-password → 10 per minute per IP
+
+ADDITIONAL (anti-spam):
+- POST /connect/<user_id>/add → 20 per hour per user
+- POST /api/friends/invite → 20 per hour per user
+- POST /trips/<trip_id>/request-join → 20 per hour per user
+
+Implementation notes:
+- Use decorators directly on routes
+- Do not break existing auth/session logic
+- Fail gracefully with standard rate limit response
+
+---
+
+## 4.4 Replace `.query.get()`
+
+Replace all instances of:
+
+Model.query.get(id)
+
+with:
+
+db.session.get(Model, id)
+
+Apply across:
+- app.py
+- models.py
+- services/ideas_engine.py
+
+Do NOT modify:
+- scripts/ directory (non-production)
+
+This is a mechanical replacement:
+- no logic changes
+- no behavioral changes
+
+---
+
+## 4.3 Stop using legacy fields (code-only)
+
+DO NOT drop columns.
+
+Only stop writing to these fields:
+
+- profile_setup_complete
+- home_mountain
+- secondary_rider_types
+- planning_dismissed_timestamp
+
+Specifically:
+
+- Remove writes from seed/setup routes
+- Remove home_mountain = None assignments in edit_profile
+- Remove secondary_rider_types writes in profile update API
+- Remove any remaining planning_dismissed_timestamp writes
+
+DO NOT touch:
+- mountains_visited (still active)
+- open_dates
+- primary_rider_type (still used)
+- gear
+
+---
+
+## QA Requirements
+
+Verify:
+
+### Rate limiting
+- Requests over limit are blocked
+- Normal usage unaffected
+- No crashes or broken flows
+
+### query.get replacement
+- No missing records or crashes
+- All pages still load correctly
+
+### legacy fields
+- App runs normally
+- No missing data errors
+- No writes to deprecated fields
+
+---
+
+## Deliverables
+
+Return:
+- files changed
+- number of `.query.get()` replacements
+- where rate limiting was applied
+- confirmation legacy fields are no longer written to
+- any edge cases
+
+Only use checkpoints if I explicitly ask for them.

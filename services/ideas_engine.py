@@ -226,7 +226,7 @@ def build_wishlist_overlaps(user, all_friends):
                     "pass_type": friend.pass_type,
                 })
         if overlapping_friends:
-            resort = Resort.query.get(resort_id)
+            resort = db.session.get(Resort, resort_id)
             if resort:
                 results[resort_id] = {
                     "resort_id": resort.id,
@@ -376,7 +376,7 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
                     shared = user_wishlist & set(friend_obj.wish_list_resorts or [])
                     if shared:
                         rid = next(iter(shared))
-                        resort = Resort.query.get(rid)
+                        resort = db.session.get(Resort, rid)
                         if resort:
                             shared_resort_name = resort.name
                             shared_resort_id = rid
@@ -843,7 +843,7 @@ def build_destination_feed(user, all_friends):
                     shared = user_wishlist & set(friend_obj.wish_list_resorts or [])
                     if shared:
                         rid = next(iter(shared))
-                        r = Resort.query.get(rid)
+                        r = db.session.get(Resort, rid)
                         if r:
                             shared_resort_id = rid
                             shared_resort    = r
@@ -880,7 +880,7 @@ def build_destination_feed(user, all_friends):
             overlapping = rd.get("overlapping_people", [])
             if not overlapping:
                 continue
-            resort_obj = Resort.query.get(rid)
+            resort_obj = db.session.get(Resort, rid)
             if not resort_obj:
                 continue
             n      = len(overlapping)

@@ -47,6 +47,8 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps
 from flask_migrate import Migrate
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
 from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, Event, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType
 from debug_routes import debug_bp
@@ -119,6 +121,22 @@ if not SUPABASE_URL:
 
 app = Flask(__name__)
 app.config["PREFERRED_URL_SCHEME"] = "https"
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri="memory://",
+)
+
+def _user_or_ip():
+    from flask_login import current_user as _cu
+    try:
+        if _cu.is_authenticated:
+            return f"user:{_cu.id}"
+    except Exception:
+        pass
+    return get_remote_address()
 
 @app.before_request
 def redirect_to_canonical_domain():
@@ -907,13 +925,13 @@ def compute_friend_trip_availability_overlaps(user):
                 range_end = d
         ranges.append((range_start, range_end))
         
-        resort = Resort.query.get(trip.resort_id) if trip.resort_id else None
+        resort = db.session.get(Resort, trip.resort_id) if trip.resort_id else None
         resort_name = resort.name if resort else (trip.mountain or "Unknown")
         state = resort.state_code if resort else None
         country = resort.country_code if resort else None
         
         # Get friend user data for display
-        friend_user = User.query.get(trip.user_id)
+        friend_user = db.session.get(User, trip.user_id)
         friend_first_name = friend_user.first_name if friend_user else "Friend"
         friend_last_name = friend_user.last_name if friend_user else ""
         
@@ -1020,7 +1038,7 @@ def emit_availability_overlap_activities_for_trip(trip):
     friend_ids = get_friend_ids(trip.user_id)
     
     for friend_id in friend_ids:
-        friend = User.query.get(friend_id)
+        friend = db.session.get(User, friend_id)
         if friend and friend.open_dates:
             emit_availability_overlap_activities_for_user(friend)
 
@@ -1629,6 +1647,7 @@ MOUNTAINS_BY_STATE = {
 }
 
 @app.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("5 per hour")
 def forgot_password():
     if request.method == "POST":
         try:
@@ -1672,6 +1691,7 @@ def forgot_password():
 
 @app.route("/reset-password", methods=["GET", "POST"])
 @app.route("/reset-password/<token>", methods=["GET", "POST"])
+@limiter.limit("10 per hour")
 def reset_password(token=None):
     # Support both /reset-password?token=... and /reset-password/<token>
     if token is None:
@@ -1747,6 +1767,7 @@ def index():
     return redirect(url_for("home"))
 
 @app.route("/auth", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
 def auth():
     _ph_reset = session.pop('ph_reset', False)
 
@@ -1757,7 +1778,7 @@ def auth():
     if _invite_token_str:
         _invite_obj = InviteToken.query.filter_by(token=_invite_token_str).first()
         if _invite_obj and not _invite_obj.is_used() and not _invite_obj.is_expired():
-            _invite_inviter = User.query.get(_invite_obj.inviter_id)
+            _invite_inviter = db.session.get(User, _invite_obj.inviter_id)
             if _invite_inviter:
                 _invite_trips_count = get_upcoming_trip_count(_invite_inviter)
 
@@ -1971,7 +1992,7 @@ def _apply_invite_token(invite, user):
 
     Returns True if a new connection was made, False if users were already friends.
     """
-    inviter = User.query.get(invite.inviter_id)
+    inviter = db.session.get(User, invite.inviter_id)
     connected = False
     if inviter and inviter.id != user.id:
         existing = Friend.query.filter_by(user_id=user.id, friend_id=inviter.id).first()
@@ -2022,7 +2043,7 @@ def invite_token_landing(token):
     if invite.is_expired():
         return render_template("invite_expired.html")
 
-    inviter = User.query.get(invite.inviter_id)
+    inviter = db.session.get(User, invite.inviter_id)
     if not inviter:
         return render_template("invite_expired.html")
 
@@ -2101,16 +2122,13 @@ def edit_profile():
         user.gear = request.form.get("gear") or None
         home_resort_id_raw = request.form.get("home_resort_id") or None
         if home_resort_id_raw:
-            home_resort = Resort.query.get(int(home_resort_id_raw))
+            home_resort = db.session.get(Resort, int(home_resort_id_raw))
             if home_resort:
                 user.home_resort_id = home_resort.id
-                user.home_mountain = home_resort.name  # Keep legacy field in sync
             else:
                 user.home_resort_id = None
-                user.home_mountain = None
         else:
             user.home_resort_id = None
-            user.home_mountain = None
         
         terrain_raw = request.form.get("terrain_preferences", "")
         terrain_list = [t.strip() for t in terrain_raw.split(",") if t.strip()][:2]
@@ -2447,7 +2465,7 @@ def overlap_detail():
     friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
     
     # Get resort info if available
-    resort = Resort.query.get(resort_id) if resort_id else None
+    resort = db.session.get(Resort, resort_id) if resort_id else None
     
     # Build display info
     if overlap_type == 'trip':
@@ -2629,7 +2647,7 @@ def idea_detail_availability():
     friend_ids = [fid for fid in raw_ids if fid in user_friend_ids]
 
     friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
-    resort = Resort.query.get(resort_id) if resort_id else None
+    resort = db.session.get(Resort, resort_id) if resort_id else None
 
     # Format date range for display
     date_range_display = None
@@ -2692,7 +2710,7 @@ def idea_detail_wishlist():
     friend_ids = [fid for fid in raw_ids if fid in user_friend_ids]
 
     friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
-    resort = Resort.query.get(resort_id) if resort_id else None
+    resort = db.session.get(Resort, resort_id) if resort_id else None
 
     participants = []
     for f in friends:
@@ -2734,7 +2752,7 @@ def idea_detail_trip(trip_id):
     if trip.user_id not in user_friend_ids and trip.user_id != user.id:
         abort(404)
 
-    trip_owner = User.query.get(trip.user_id)
+    trip_owner = db.session.get(User, trip.user_id)
     trip_status = trip.trip_status or "planning"
     anchor_name = trip_owner.first_name if trip_owner else "Your friend"
 
@@ -2774,7 +2792,7 @@ def idea_detail_trip(trip_id):
             continue
         if row.user_id == user.id:
             continue
-        guest = User.query.get(row.user_id)
+        guest = db.session.get(User, row.user_id)
         if guest:
             participants.append({
                 "full_name": f"{guest.first_name or ''} {guest.last_name or ''}".strip(),
@@ -2826,7 +2844,7 @@ def create_trip():
     resolved_resort = None
     if resort_id_raw:
         try:
-            resolved_resort = Resort.query.get(int(resort_id_raw))
+            resolved_resort = db.session.get(Resort, int(resort_id_raw))
         except (ValueError, TypeError):
             resolved_resort = None
         if resolved_resort:
@@ -3050,6 +3068,7 @@ def update_participant_settings(trip_id):
 
 @app.route("/api/friends/invite", methods=["POST"])
 @login_required
+@limiter.limit("20 per hour", key_func=_user_or_ip)
 def invite_friend():
     # Authentication guard (already protected by @login_required)
     if not current_user.is_authenticated:
@@ -3110,7 +3129,7 @@ def get_friends():
 @login_required
 def get_friend_profile(friend_id):
     
-    friend = User.query.get(friend_id)
+    friend = db.session.get(User, friend_id)
     if not friend:
         return jsonify({"success": False, "error": "User not found"}), 404
     
@@ -3128,7 +3147,7 @@ def get_friend_profile(friend_id):
 @app.route("/api/friends/invite/<int:invitation_id>/accept", methods=["POST"])
 @login_required
 def accept_invitation(invitation_id):
-    invitation = Invitation.query.get(invitation_id)
+    invitation = db.session.get(Invitation, invitation_id)
     
     if not invitation:
         return jsonify({"success": False, "error": "Invitation not found"}), 404
@@ -3505,7 +3524,7 @@ def friend_profile(friend_id):
     overlap_end = request.args.get('overlap_end')
     
     if resort_id and overlap_start:
-        resort = Resort.query.get(resort_id)
+        resort = db.session.get(Resort, resort_id)
         if resort:
             try:
                 start_date = datetime.strptime(overlap_start, '%Y-%m-%d').date()
@@ -3702,10 +3721,6 @@ def update_profile():
         user.primary_rider_type = data.get("rider_type", "").strip()
     if "primary_rider_type" in data:
         user.primary_rider_type = data.get("primary_rider_type", "").strip()
-    if "secondary_rider_types" in data:
-        secondary = data.get("secondary_rider_types", [])
-        if isinstance(secondary, list):
-            user.secondary_rider_types = secondary[:2]
     if "pass_type" in data:
         user.pass_type = data.get("pass_type", "").strip()
     
@@ -3984,6 +3999,7 @@ def connect_via_qr(user_id):
 
 @app.route("/connect/<int:user_id>/add", methods=["POST"])
 @login_required
+@limiter.limit("20 per hour", key_func=_user_or_ip)
 def connect_add(user_id):
     inviter = User.query.get_or_404(user_id)
     
@@ -4107,8 +4123,8 @@ def check_trip_invite_eligibility(user_id, friend_id):
                 return True
     
     # Check 3: Shared open availability
-    user = User.query.get(user_id)
-    friend = User.query.get(friend_id)
+    user = db.session.get(User, user_id)
+    friend = db.session.get(User, friend_id)
     if user and friend:
         user_open_dates = set(d for d in (user.open_dates or []) if d >= today_str)
         friend_open_dates = set(d for d in (friend.open_dates or []) if d >= today_str)
@@ -4296,7 +4312,7 @@ def home():
         banner_invite_count = len(active_invites)
         for p in active_invites:
             trip = p.trip
-            inviter = User.query.get(trip.user_id)
+            inviter = db.session.get(User, trip.user_id)
             resort = trip.resort
             trip_invites.append({
                 'trip_id': trip.id,
@@ -4345,7 +4361,7 @@ def home():
             status='pending'
         ).filter(Invitation.trip_id == None).first()
         if connect_inv:
-            sender = User.query.get(connect_inv.sender_id)
+            sender = db.session.get(User, connect_inv.sender_id)
             secondary_card = {
                 'type': 'connect_invite',
                 'invitation_id': connect_inv.id,
@@ -4399,7 +4415,7 @@ def home():
                 SkiTrip.end_date >= today
             ).order_by(SkiTrip.start_date.asc()).limit(3).all()
             for ft in friend_trips:
-                ft_user = User.query.get(ft.user_id)
+                ft_user = db.session.get(User, ft.user_id)
                 ft_resort = ft.resort
                 ft_mountain = ft_resort.name if ft_resort else ft.mountain
                 full_name = (
@@ -4556,7 +4572,7 @@ def dismiss_nudge():
 def friend_trip_details(trip_id):
     """View details of a friend's trip."""
     trip = SkiTrip.query.get_or_404(trip_id)
-    friend = User.query.get(trip.user_id)
+    friend = db.session.get(User, trip.user_id)
 
     # Prevent users from viewing trips of non-friends (unless it's their own)
     if trip.user_id != current_user.id:
@@ -5156,7 +5172,7 @@ def settings_wish_list_save():
     # Validate resort IDs exist
     valid_ids = []
     for rid in resort_ids:
-        resort = Resort.query.get(rid)
+        resort = db.session.get(Resort, rid)
         if resort:
             valid_ids.append(rid)
     
@@ -5177,7 +5193,7 @@ def api_mountains_visited_add():
     resort_id = data.get("resort_id")
     if not resort_id:
         return jsonify({"error": "resort_id required"}), 400
-    resort = Resort.query.get(resort_id)
+    resort = db.session.get(Resort, resort_id)
     if not resort:
         return jsonify({"error": "Resort not found"}), 404
     ids = list(current_user.visited_resort_ids or [])
@@ -5199,7 +5215,7 @@ def api_mountains_visited_remove():
     resort_id = data.get("resort_id")
     if not resort_id:
         return jsonify({"error": "resort_id required"}), 400
-    resort = Resort.query.get(resort_id)
+    resort = db.session.get(Resort, resort_id)
     ids = [i for i in (current_user.visited_resort_ids or []) if i != resort_id]
     names = list(current_user.mountains_visited or [])
     if resort and resort.name in names:
@@ -5221,7 +5237,7 @@ def api_wishlist_add():
     resort_id = data.get("resort_id")
     if not resort_id:
         return jsonify({"error": "resort_id required"}), 400
-    resort = Resort.query.get(resort_id)
+    resort = db.session.get(Resort, resort_id)
     if not resort:
         return jsonify({"error": "Resort not found"}), 404
     ids = list(current_user.wish_list_resorts or [])
@@ -5455,11 +5471,11 @@ def add_trip():
     
     prefill_friend = None
     if prefill_friend_id is not None:
-        prefill_friend = User.query.get(prefill_friend_id)
+        prefill_friend = db.session.get(User, prefill_friend_id)
 
     prefill_resort = None
     if prefill_resort_id is not None:
-        prefill_resort = Resort.query.get(prefill_resort_id)
+        prefill_resort = db.session.get(Resort, prefill_resort_id)
 
     if request.method == "POST":
         resort_id = request.form.get("resort_id")
@@ -5483,7 +5499,7 @@ def add_trip():
 
         resort = None
         if resort_id:
-            resort = Resort.query.get(resort_id)
+            resort = db.session.get(Resort, resort_id)
             if not resort:
                 errors.append("Invalid resort selected.")
 
@@ -5655,7 +5671,7 @@ def edit_trip_form(trip_id):
 
         resort = None
         if resort_id:
-            resort = Resort.query.get(resort_id)
+            resort = db.session.get(Resort, resort_id)
             if not resort:
                 errors.append("Invalid resort selected.")
 
@@ -5820,7 +5836,7 @@ def trip_detail(trip_id):
                 })
     
     # Get trip owner info
-    owner = User.query.get(trip.user_id)
+    owner = db.session.get(User, trip.user_id)
     
     # Get group signals for aggregated view
     group_signals = trip.get_group_signals()
@@ -5861,7 +5877,7 @@ def trip_detail(trip_id):
         if other_user_ids:
             # Find overlapping trips from other participants
             for user_id in other_user_ids:
-                other_user = User.query.get(user_id)
+                other_user = db.session.get(User, user_id)
                 if not other_user:
                     continue
                 
@@ -5967,7 +5983,7 @@ def trip_invite_detail(trip_id):
     show_nudge = request.args.get("just_accepted") == "1" and is_accepted
     
     # Get trip owner
-    owner = User.query.get(trip.user_id)
+    owner = db.session.get(User, trip.user_id)
     
     # Get all participants
     all_participants = SkiTripParticipant.query.filter_by(trip_id=trip_id).all()
@@ -6164,6 +6180,7 @@ def send_trip_invites(trip_id):
 
 @app.route("/trips/<int:trip_id>/request-join", methods=["POST"])
 @login_required
+@limiter.limit("20 per hour", key_func=_user_or_ip)
 def request_to_join_trip(trip_id):
     """Create a join request for a trip."""
     trip = SkiTrip.query.get_or_404(trip_id)
@@ -6476,7 +6493,7 @@ def mountains_visited():
             try:
                 rid = int(rid_str)
                 if rid not in seen_ids:
-                    resort = Resort.query.get(rid)
+                    resort = db.session.get(Resort, rid)
                     if resort:
                         resort_ids.append(rid)
                         mountain_names.append(resort.name)
@@ -6642,6 +6659,7 @@ def auth_apple_callback():
 
 @app.route("/change-password", methods=["GET", "POST"])
 @login_required
+@limiter.limit("10 per minute", key_func=_user_or_ip)
 def change_password():
     # Google (and any future OAuth) accounts have no local password.
     if current_user.auth_provider != 'email':
@@ -6827,7 +6845,6 @@ def generate_dummy_users():
             last_name=f"Test{i+1}",
             email=email,
             primary_rider_type=random.choice(rider_types),
-            secondary_rider_types=[],
             skill_level=random.choice(skill_levels),
             pass_type=random.choice(pass_types)
         )
@@ -6962,7 +6979,6 @@ def create_extra_dummy_users():
             last_name=f"Test{idx}",
             email=email,
             primary_rider_type=random.choice(rider_types),
-            secondary_rider_types=[],
             pass_type=random.choice(pass_types),
             skill_level=random.choice(skill_levels),
         )
@@ -7503,7 +7519,6 @@ def backfill_primary_rider_type_endpoint():
         for user in users:
             if user.rider_type and not user.primary_rider_type:
                 user.primary_rider_type = user.rider_type
-                user.secondary_rider_types = []
                 users_updated += 1
             else:
                 users_skipped += 1
@@ -7697,7 +7712,7 @@ def invite_to_group_trip(trip_id):
         return redirect(url_for("view_group_trip", trip_id=trip_id))
     
     # Validate target user exists
-    friend = User.query.get(friend_id)
+    friend = db.session.get(User, friend_id)
     if not friend:
         flash("User not found.", "error")
         return redirect(url_for("view_group_trip", trip_id=trip_id))
@@ -8108,9 +8123,9 @@ def seed_full_demo_world():
             richard = User(
                 first_name="Richard", last_name="Battle-Baxter",
                 email="richardbattlebaxter@gmail.com",
-                primary_rider_type="Skier", secondary_rider_types=[],
+                primary_rider_type="Skier",
                 pass_type="Epic", skill_level="Advanced",
-                home_state="Colorado", birth_year=1985, profile_setup_complete=True
+                home_state="Colorado", birth_year=1985
             )
             richard.set_password("12345678")
             db.session.add(richard)
@@ -8123,9 +8138,9 @@ def seed_full_demo_world():
             jonathan = User(
                 first_name="Jonathan", last_name="Schmitz",
                 email="jonathanmschmitz@gmail.com",
-                primary_rider_type="Skier", secondary_rider_types=[],
+                primary_rider_type="Skier",
                 pass_type="Ikon,MountainCollective", skill_level="Advanced",
-                home_state="Utah", birth_year=1990, profile_setup_complete=True
+                home_state="Utah", birth_year=1990
             )
             jonathan.set_password("12345678")
             db.session.add(jonathan)
@@ -8150,11 +8165,9 @@ def seed_full_demo_world():
                 last_name=random.choice(LAST_NAMES),
                 email=email,
                 primary_rider_type=primary_rt,
-                secondary_rider_types=[],
                 skill_level=random.choice(["Beginner", "Intermediate", "Advanced", "Expert"]),
                 home_state=random.choice(["Colorado", "Utah", "California", "Wyoming", "Montana", "Idaho", "Washington"]),
-                birth_year=random.randint(1970, 2005),
-                profile_setup_complete=True
+                birth_year=random.randint(1970, 2005)
             )
             
             # 70% single pass, 30% multi-pass
@@ -9012,7 +9025,7 @@ def admin_update_pass_brand():
     if 'None' in pass_brands:
         pass_brands = ['None']  # Preserve as explicit marker, not empty list
         
-    resort = Resort.query.get(resort_id)
+    resort = db.session.get(Resort, resort_id)
     if not resort:
         return jsonify({'status': 'error', 'message': 'Resort not found'}), 404
     
@@ -9035,7 +9048,7 @@ def admin_update_resort_field():
     if field not in allowed_fields:
         return jsonify({'success': False, 'message': f'Field {field} not allowed'}), 400
     
-    resort = Resort.query.get(resort_id)
+    resort = db.session.get(Resort, resort_id)
     if not resort:
         return jsonify({'success': False, 'message': 'Resort not found'}), 404
     
@@ -9061,7 +9074,7 @@ def admin_update_country_name():
     resort_id = data.get('resort_id')
     country_name_override = data.get('country_name_override', '').strip()
     
-    resort = Resort.query.get(resort_id)
+    resort = db.session.get(Resort, resort_id)
     if not resort:
         return jsonify({'success': False, 'message': 'Resort not found'}), 404
     
@@ -9081,7 +9094,7 @@ def admin_toggle_resort_active():
     resort_id = data.get('resort_id')
     is_active = data.get('is_active', True)
     
-    resort = Resort.query.get(resort_id)
+    resort = db.session.get(Resort, resort_id)
     if not resort:
         return jsonify({'success': False, 'message': 'Resort not found'}), 404
     
@@ -9098,7 +9111,7 @@ def admin_delete_resort_post():
     data = request.get_json()
     resort_id = data.get('resort_id')
     
-    resort = Resort.query.get(resort_id)
+    resort = db.session.get(Resort, resort_id)
     if not resort:
         return jsonify({'success': False, 'message': 'Resort not found'}), 404
     
@@ -9339,7 +9352,7 @@ def admin_import_resorts_excel():
                 continue
             
             # UPDATE MODE: ID is present
-            resort = Resort.query.get(resort_id)
+            resort = db.session.get(Resort, resort_id)
             if not resort:
                 rows_skipped += 1
                 errors.append({'row': row_idx, 'reason': f'Resort ID {resort_id} not found'})
@@ -9482,7 +9495,7 @@ def admin_bulk_delete_resorts():
     blocked = []
     
     for resort_id in ids:
-        resort = Resort.query.get(resort_id)
+        resort = db.session.get(Resort, resort_id)
         if not resort:
             blocked.append({'id': resort_id, 'name': 'Unknown', 'reason': 'Not found'})
             continue
@@ -9599,7 +9612,7 @@ def admin_merge_resorts():
     if canonical_id in duplicate_ids:
         return jsonify({'status': 'error', 'message': 'Canonical resort cannot be in duplicate list'}), 400
     
-    canonical = Resort.query.get(canonical_id)
+    canonical = db.session.get(Resort, canonical_id)
     if not canonical:
         return jsonify({'status': 'error', 'message': 'Canonical resort not found'}), 404
     
