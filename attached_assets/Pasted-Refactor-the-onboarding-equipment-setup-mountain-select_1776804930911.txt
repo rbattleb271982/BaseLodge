@@ -1,0 +1,116 @@
+Refactor the onboarding, equipment setup, mountain selection, and trip creation/editing UX for mobile clarity and consistency. Follow all instructions exactly. Do not introduce new features beyond what is specified. Use checkpoints sparingly.
+1. EQUIPMENT SETUP (Profile Page)
+Update copy:
+Change page title to: “Your equipment setup”
+Change toggle options:
+“I own equipment” → “I have my own equipment”
+“I use rentals” → “I rent”
+Behavior:
+Use a segmented control or radio-style toggle for selection
+If user selects “I have my own equipment”:
+Show full form (brand, model, etc.)
+If user selects “I rent”:
+Collapse the form
+Only show:
+Rider Type (auto-filled, editable)
+Form updates:
+Remove Binding Type
+Rename section header:
+→ “Main setup”
+Remove:
+→ “+ Add another setup”
+Rider Type:
+Auto-populate from onboarding
+Allow editing
+Persist changes globally (profile + future logic)
+2. MOUNTAIN SEARCH UX
+Fix keyboard + selection behavior:
+Ensure input is never hidden behind keyboard (scroll into view)
+Keep results visible above keyboard
+On selecting a mountain:
+Dismiss keyboard
+Replace input with selected mountain card
+Selected state:
+Remove “Change mountain” link
+Add an X (clear) button inside the selected mountain card
+On tap:
+Clear selection
+Re-open search input automatically
+3. TRIP CREATION FLOW
+Step structure remains:
+Mountain
+Dates
+Add new section AFTER dates:
+→ Trip Status
+Options:
+Trip being planned (default)
+Trip confirmed
+Then show:
+→ Visibility
+Label: “Visible to friends”
+Always visible
+Styled as a secondary control
+4. CALENDAR FIXES
+Fix alignment issues (grid + padding consistency)
+Ensure selected date range highlights correctly
+Ensure selected date text (e.g. “Apr 23–Apr 25”) is clearly visible and aligned
+5. TRIP DETAIL PAGE (MAJOR SIMPLIFICATION)
+Header redesign:
+Remove pink “confirmation-style” header
+Replace with:
+Large mountain name (e.g. Vail)
+Subtext:
+Location (e.g. Colorado, United States)
+Dates (make larger and more prominent than before)
+6. REMOVE REDUNDANT EDIT STRUCTURE
+Remove or deprecate separate “Edit trip” screen
+Make trip detail page the source of truth for editing
+Each row becomes tappable:
+Opens inline modal or selector
+Examples:
+Dates
+Status
+Visibility
+7. TRIP STATUS (DETAIL PAGE)
+Add a row:
+→ Status
+Options:
+Trip being planned
+Trip confirmed
+Remove:
+→ “Is this trip happening? Mark it as going”
+8. INVITE FRIENDS (CONDITIONAL)
+Only show Invite Friends IF:
+→ Trip status = Trip confirmed
+Placement:
+Lower on the page (after trip details)
+Behavior:
+Tap opens modal
+Modal includes:
+Search bar
+List of friends
+Checkbox selection
+CTA button: “Send invites”
+9. ONBOARDING COPY FIXES
+Update text:
+“How do you ride?” → “What kind of riding do you do?”
+“Where are you based?” → “Which state do you live in?”
+Visual improvements:
+Increase font size slightly across onboarding
+Increase font weight for headers
+Make selected states (buttons/cards) darker and more obvious
+10. GENERAL UI CONSISTENCY
+Ensure Trips tab and Ideas tab use consistent card styling
+Make Trips tab background match Ideas tab (white)
+Ensure spacing and padding are consistent across all screens
+11. DO NOT CHANGE
+Do not redesign authentication toggle yet
+Do not introduce new fields or data models beyond what is specified
+Do not change navigation structure
+FINAL INSTRUCTION
+After implementing:
+Test all flows:
+onboarding → profile → trip creation → trip detail → invite flow
+Ensure no keyboard overlap issues remain
+Ensure all conditional rendering behaves correctly
+Do not finish until everything is tested end-to-end.
