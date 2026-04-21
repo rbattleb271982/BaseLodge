@@ -35,6 +35,19 @@
             flex-direction: column;
             align-items: center;
             gap: 5px;
+            min-height: 44px;
+            justify-content: center;
+            cursor: pointer;
+            transition: opacity 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .prof-stat:active {
+            opacity: 0.55;
+        }
+        @media (hover: hover) {
+            .prof-stat:hover {
+                opacity: 0.72;
+            }
         }
         .prof-stat-num {
             font-family: Georgia, 'Times New Roman', serif;
@@ -177,12 +190,12 @@
                 <span class="prof-stat-label">{{ "Trip" if all_trips_count == 1 else "Trips" }}</span>
             </a>
             <div class="prof-stat-divider"></div>
-            <a href="{{ url_for('mountains_visited') }}" class="prof-stat" style="text-decoration:none;color:inherit;">
+            <a href="#section-mountains-visited" class="prof-stat" style="text-decoration:none;color:inherit;" onclick="event.preventDefault();document.getElementById('section-mountains-visited').scrollIntoView({behavior:'smooth',block:'center'});">
                 <span class="prof-stat-num">{{ mountains_visited_count }}</span>
                 <span class="prof-stat-label">{% if mountains_visited_count == 1 %}Mountain<br>Visited{% else %}Mountains<br>Visited{% endif %}</span>
             </a>
             <div class="prof-stat-divider"></div>
-            <a href="{{ url_for('settings_wish_list') }}" class="prof-stat" style="text-decoration:none;color:inherit;">
+            <a href="#section-wishlist" class="prof-stat" style="text-decoration:none;color:inherit;" onclick="event.preventDefault();document.getElementById('section-wishlist').scrollIntoView({behavior:'smooth',block:'center'});">
                 <span class="prof-stat-num">{{ wish_list_count }}</span>
                 <span class="prof-stat-label">{% if wish_list_count == 1 %}Wishlist<br>Mountain{% else %}Wishlist<br>Mountains{% endif %}</span>
             </a>
@@ -229,7 +242,7 @@
                 </div>
             </a>
 
-            <a href="{{ url_for('settings_mountains') }}" class="profile-row">
+            <a id="section-mountains-visited" href="{{ url_for('settings_mountains') }}" class="profile-row">
                 <div class="profile-row-left">
                     <span class="profile-row-label">Mountains visited</span>
                     <span class="profile-row-sub">{% if mountains_visited_count %}{{ mountains_visited_count }} mountain{{ 's' if mountains_visited_count != 1 else '' }}{% else %}None yet{% endif %}</span>
@@ -239,7 +252,7 @@
                 </div>
             </a>
 
-            <a href="{{ url_for('settings_wish_list') }}" class="profile-row">
+            <a id="section-wishlist" href="{{ url_for('settings_wish_list') }}" class="profile-row">
                 <div class="profile-row-left">
                     <span class="profile-row-label">Wish list</span>
                     <span class="profile-row-sub">{% if wish_list_count %}{{ wish_list_count }} mountain{{ 's' if wish_list_count != 1 else '' }} saved{% else %}Nothing saved yet{% endif %}</span>
@@ -303,5 +316,18 @@
     </div>
 
     {% include 'components/bottom_nav.html' %}
+    <script>
+    (function() {
+        var hash = window.location.hash;
+        if (hash) {
+            var target = document.querySelector(hash);
+            if (target) {
+                setTimeout(function() {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 80);
+            }
+        }
+    })();
+    </script>
 </body>
 </html>
