@@ -9,3 +9,17 @@
   window.__POSTHOG_HOST__ = {{ POSTHOG_HOST | tojson }};
 </script>
 <script src="{{ url_for('static', filename='analytics.js') }}" defer></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('submit', function(e) {
+      var form = e.target;
+      if (form.tagName !== 'FORM') return;
+      var btn = form.querySelector('button[type="submit"], input[type="submit"]');
+      if (!btn || btn.dataset.noLoader === 'true') return;
+      btn.disabled = true;
+      if (!btn.dataset.loadingText) return;
+      btn._origText = btn.textContent;
+      btn.textContent = btn.dataset.loadingText;
+    });
+  });
+</script>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BaseLodge</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
+    <link rel="shortcut icon" href="/static/icons/favicon.ico">
+    {% include 'components/analytics_head.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .error-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 48px 28px;
+            max-width: 480px;
+            margin: 0 auto;
+        }
+        .error-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #B5AFA5;
+            margin: 0 0 16px 0;
+        }
+        .error-headline {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 28px;
+            font-weight: 400;
+            color: #1A1A1A;
+            line-height: 1.25;
+            margin: 0 0 12px 0;
+        }
+        .error-body {
+            font-size: 15px;
+            line-height: 1.55;
+            color: #6B665A;
+            margin: 0 0 36px 0;
+        }
+        .error-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+        .error-nav-primary {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: 8px;
+            background: #1A1A1A;
+            color: #F5F2EC;
+            box-sizing: border-box;
+        }
+        .error-nav-secondary {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 400;
+            text-decoration: none;
+            border-radius: 8px;
+            border: 1px solid #D5CFCA;
+            color: #1A1A1A;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-page">
+        <p class="error-eyebrow">Access Restricted</p>
+        <h1 class="error-headline">You can't view this trip.</h1>
+        <p class="error-body">This trip is only visible to friends or invited guests. Add this person as a friend to see their plans.</p>
+        <nav class="error-nav">
+            <a href="{{ url_for('friends') }}" class="error-nav-primary">Back to Friends</a>
+            <a href="{{ url_for('home') }}" class="error-nav-secondary">Go Home</a>
+        </nav>
+    </div>
+</body>
+</html>

@@ -1,0 +1,182 @@
+PUT THIS IN AGENT
+
+Implement Batch 1: Close the Obvious Gaps.
+
+Goal:
+Make the app feel more complete and polished by closing a set of visible UX gaps in one pass. These are UI/UX and light behavior fixes only. Do not redesign core architecture or change product flows beyond what is specified.
+
+This batch includes:
+- 1.1 Cancel Join Request UI
+- 1.4 Fix Raw 403 Page
+- 2.3 Loading States
+- 2.4 Activity Feed Control
+
+Do not ask for confirmation again. Execute this batch.
+
+---
+
+## 1.1 Cancel Join Request UI
+
+Current state:
+- The backend cancel route already exists
+- The friend trip detail page currently shows:
+  - Request to Join
+  - Request Sent
+  - You’re Going
+- But there is no visible way to cancel a pending join request
+
+Required:
+- Add a visible cancel action when the request is pending on `/friend-trip/<trip_id>`
+- Keep the primary state clear:
+  - If request is pending, show “Request Sent”
+  - Also show a secondary action to cancel the request
+- Keep the UI premium and clean, not noisy
+- Do not expose cancel request in list views or discovery surfaces
+- This action should exist only on the friend trip detail page
+
+Behavior:
+- Cancel should call the existing backend cancel route
+- After cancel, the page should return to the normal “Request to Join” state
+- Handle errors gracefully
+
+---
+
+## 1.4 Fix Raw 403 Page
+
+Current state:
+- Non-friend or unauthorized access to `/friend-trip/<trip_id>` can return a raw 403
+
+Required:
+- Replace raw/ugly unauthorized behavior with a friendly styled error experience
+- This can be:
+  - a dedicated 403 template
+  - or a friendlier inline error page for this surface
+- It should feel intentional and on-brand
+
+Suggested copy direction:
+- “You can’t view this trip”
+- “This trip is only visible to friends or invited guests.”
+
+Also include:
+- a clear way back, such as:
+  - Back to Friends
+  - Back to Trips
+  - Back to Home
+
+Do not expose sensitive trip details in this state.
+
+---
+
+## 2.3 Loading States
+
+Goal:
+Add lightweight loading / pending feedback where it materially improves UX.
+
+Important:
+- This is a server-rendered app, so do not overbuild fake SPA loaders
+- Focus on form/button/action feedback and any obvious page-level wait states
+
+Add loading/pending feedback for:
+- Request to Join action
+- Cancel Join Request action
+- Invite friend actions if applicable on trip pages
+- Any obvious submit buttons on key surfaces where double-taps could occur
+
+Requirements:
+- buttons should visually enter a pending/loading state after tap/submit
+- prevent accidental duplicate submits
+- keep styling minimal and consistent
+- do not add noisy spinners everywhere
+
+If there are existing utility classes or JS patterns for button pending states, reuse them.
+
+---
+
+## 2.4 Activity Feed Control
+
+Current state:
+- Home activity feed can render all items with no limit/pagination
+- If a user has many activity items, the screen can become noisy
+
+Required:
+- Add a reasonable default display limit to the Home activity feed
+- Recommended: show the newest 8–12 items by default
+- Add a simple “View more” / “Show all” behavior if needed
+- Keep this implementation lightweight and mobile-friendly
+
+Important:
+- Preserve sort order (newest first)
+- Do not break existing activity rendering logic
+- Do not remove any activity types
+- Prefer a minimal solution over building a full heavy pagination system unless the route already supports it cleanly
+
+---
+
+## Files / areas likely involved
+
+Audit and update as needed, including but not limited to:
+- `templates/friend_trip_details.html`
+- `app.py`
+- home template / activity feed partial
+- any shared button JS or submit-state helpers
+- any 403 template or error handling route/template
+
+---
+
+## Constraints
+
+Do NOT:
+- redesign unrelated pages
+- change join request backend logic beyond what is needed for cancel UX
+- add join/cancel actions to list views
+- introduce a heavy client-side framework
+- change the broader discovery vs action model
+
+Do:
+- keep everything mobile-first
+- keep styling premium and minimal
+- make the smallest clean changes needed to fully close these gaps
+
+---
+
+## QA Requirements
+
+Verify all of the following:
+
+### Cancel Join Request
+- Pending request on `/friend-trip/<trip_id>` shows a cancel option
+- Cancel works
+- State returns correctly to “Request to Join”
+- No duplicate request/cancel states appear
+- No cancel action appears outside the trip detail page
+
+### Friendly 403
+- Unauthorized access no longer shows a raw 403 page
+- Friendly copy renders
+- Back navigation/action works
+- No sensitive trip data leaks
+
+### Loading States
+- Key actions have visible pending feedback
+- Duplicate submissions are prevented
+- No broken button states remain after success/failure
+
+### Activity Feed Control
+- Home feed is limited to a sane number by default
+- Sort order remains correct
+- Expanded view works if implemented
+- Screen feels cleaner on mobile
+
+---
+
+## Deliverables
+
+When done, report back with:
+- files changed
+- exactly what was added for cancel join request UI
+- how the 403 experience now works
+- what loading states were added and where
+- how the activity feed limit/show-more works
+- any edge cases or follow-up recommendations
+
+Only use checkpoints if I explicitly ask for them.

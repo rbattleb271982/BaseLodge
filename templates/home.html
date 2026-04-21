@@ -618,11 +618,14 @@
             {# ── Module: Invites (trip invites + connect invite, unified) ── #}
             {% elif module.type == 'invites' %}
             <p class="home-section-label">Invites</p>
+            {%- set _invite_limit = 3 -%}
+            {%- set _invite_total = trip_invites | length -%}
+            {%- set _invite_overflow = _invite_total > _invite_limit -%}
             <div class="home-activity-rows">
                 {% for inv in trip_invites %}
                 {%- set inv_resort = inv.resort -%}
                 {%- set inv_mountain = inv_resort.name if inv_resort else inv.trip.mountain -%}
-                <a href="{{ url_for('trip_detail', trip_id=inv.trip_id) }}" class="home-activity-row" style="text-decoration: none;">
+                <a href="{{ url_for('trip_detail', trip_id=inv.trip_id) }}" class="home-activity-row{% if loop.index > _invite_limit %} home-invite-overflow{% endif %}" style="text-decoration: none;{% if loop.index > _invite_limit %} display:none;{% endif %}">
                     <div class="home-activity-content">
                         <p class="home-activity-text">{{ inv.inviter_name }} invited you to {{ inv_mountain }}</p>
                         <p class="home-activity-sub">{{ format_trip_dates(inv.trip) }}</p>
@@ -643,6 +646,9 @@
                 </div>
                 {% endif %}
             </div>
+            {% if _invite_overflow %}
+            <button id="show-all-invites-btn" onclick="showAllInvites()" style="background:none;border:none;padding:8px 0 0;font-size:12px;color:#8A857A;cursor:pointer;font-family:inherit;text-decoration:underline;">Show {{ _invite_total - _invite_limit }} more {{ 'invite' if (_invite_total - _invite_limit) == 1 else 'invites' }}</button>
+            {% endif %}
 
             {# ── Module: Best Match (no label) ── #}
             {% elif module.type == 'best_match' %}
@@ -704,6 +710,14 @@
     {% include 'components/bottom_nav.html' %}
 
     <script>
+    function showAllInvites() {
+        document.querySelectorAll('.home-invite-overflow').forEach(function(el) {
+            el.style.display = '';
+        });
+        var btn = document.getElementById('show-all-invites-btn');
+        if (btn) btn.style.display = 'none';
+    }
+
     function acceptConnectInvite(invitationId) {
         var card = document.getElementById('secondary-card');
         if (card) {

@@ -4538,7 +4538,7 @@ def friend_trip_details(trip_id):
         ).first()
 
         if not is_friend:
-            return "Unauthorized", 403
+            return render_template('403.html'), 403
 
     # Calculate overlapping days with current user's trips at the same resort
     your_trips = SkiTrip.query.filter_by(user_id=current_user.id).all()
@@ -4587,6 +4587,7 @@ def friend_trip_details(trip_id):
     can_request_join = False
     has_pending_request = False
     is_accepted = False
+    pending_request = None
     
     if trip.user_id != current_user.id:
         # 1. Check if viewer is already an accepted participant (CRITICAL: status=ACCEPTED only)
@@ -4616,6 +4617,8 @@ def friend_trip_details(trip_id):
             if not has_pending_request:
                 can_request_join = True
 
+    pending_request_id = pending_request.id if has_pending_request and pending_request else None
+
     return render_template(
         "friend_trip_details.html",
         trip=trip,
@@ -4626,6 +4629,7 @@ def friend_trip_details(trip_id):
         friends_open_on_trip=[],  # Privacy protection
         can_request_join=can_request_join,
         has_pending_request=has_pending_request,
+        pending_request_id=pending_request_id,
         is_accepted=is_accepted
     )
 
@@ -6138,7 +6142,10 @@ def cancel_join_request(request_id):
         
     db.session.delete(invitation)
     db.session.commit()
-    
+
+    if request.is_json or request.accept_mimetypes.best == 'application/json':
+        return jsonify({"success": True})
+
     flash("Join request cancelled.", "info")
     return redirect(url_for("my_trips"))
 
