@@ -1,0 +1,86 @@
+We need to expand the dev seed data around fullseed@gmail.com so the Home screen can show many realistic examples of what may appear there for a user.
+Do not redesign the Home screen.
+Do not change UI logic unless needed to support existing scenarios.
+This is a dev-only data/state coverage task.
+Goal
+Create enough realistic seeded users, friendships, trips, invites, and wishlist overlaps so that fullseed@gmail.com can experience a wide range of Home screen states during QA.
+Dev account
+Use:
+fullseed@gmail.com
+If this account does not exist, create it.
+This is the primary QA account.
+What must be able to appear on Home
+Seed data so the following can render naturally through the current app logic:
+My Next Trip
+at least one clear upcoming trip
+at least one version where the trip is planning
+at least one version where the trip is confirmed
+Friend at same mountain today
+one scenario with exactly one friend at the same mountain today
+one scenario with multiple friends at the same mountain today
+Friend has been to your wishlist mountain
+at least 2 different examples
+use different mountains
+at least one example with a different friend than the “today” overlap friend
+Invites
+incoming friend invite
+outgoing friend invite
+incoming trip invite
+outgoing trip invite
+No-overlap control cases
+friend with same dates but different mountain
+non-friend at same mountain today who should NOT appear in friend-based Home signals
+friend with many trips but no relevant overlap
+friend with no trips
+Mixed state coverage
+one friend currently at the same mountain today
+another friend who has been to a wishlist mountain
+one pending invite visible at same time
+one setup where multiple Home cards can stack
+Friend / non-friend mix
+Do NOT connect everyone to fullseed@gmail.com.
+Create:
+a meaningful set of accepted friends
+a smaller set of non-friends with visible system data for boundary testing
+Trip mix across seeded users
+Across the friend network, create:
+past trips
+active trips happening today
+upcoming trips
+planning trips
+confirmed trips
+For fullseed@gmail.com, ensure:
+at least 5 total trips
+mix of planning and confirmed
+at least 1 active trip today
+at least 2 future trips
+at least 1 past trip
+Wishlist / visited setup
+For fullseed@gmail.com, ensure:
+23 visited mountains
+3 wishlist mountains
+For the seeded network, ensure:
+multiple friends have been to at least one of fullseed@gmail.com’s wishlist mountains
+at least one friend is currently at a mountain also relevant to fullseed@gmail.com
+at least one wishlist mountain overlap that does NOT produce a same-day overlap card
+Matching rules
+use resort_id for all mountain matching
+do not rely on string equality
+make dates realistic relative to today
+Safety
+development only
+environment-guarded
+idempotent if possible
+no duplicate friendships
+no duplicate invites
+no duplicate identical trips if avoidable
+Verification
+After seeding, log in as fullseed@gmail.com and verify that Home can show a meaningful variety of states.
+Return a summary with:
+friend count
+non-friend QA count
+trip counts by status/type
+invite counts by type
+wishlist overlap scenarios created
+same-day overlap scenarios created
+which Home-relevant scenarios are now testable
