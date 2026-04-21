@@ -71,24 +71,35 @@ def resolve_resorts():
 # TEARDOWN
 # ─────────────────────────────────────────────────────────────────────────────
 
+RICHARD_EMAIL = 'richardbattlebaxter@gmail.com'
+SEED_PASSWORD = 'seed_pass_1!'
+
+
 def teardown():
     print("🗑   Tearing down prior seed data...")
 
     seeded_users = User.query.filter_by(is_seeded=True).all()
 
-    if not seeded_users:
+    # Richard's real account is never marked is_seeded, but his seeded trips,
+    # equipment, availability and friend rows must be cleaned up on re-runs.
+    richard = User.query.filter_by(email=RICHARD_EMAIL).first()
+    richard_id = richard.id if richard else None
+
+    if not seeded_users and not richard_id:
         print("    No seeded users found — nothing to remove.")
         return
 
     seeded_ids = [u.id for u in seeded_users]
+    all_ids_to_clean = seeded_ids + ([richard_id] if richard_id else [])
 
+    # Collect trip IDs owned by all seeded users + Richard
     seeded_trip_ids = [
-        t.id for t in SkiTrip.query.filter(SkiTrip.user_id.in_(seeded_ids)).all()
+        t.id for t in SkiTrip.query.filter(SkiTrip.user_id.in_(all_ids_to_clean)).all()
     ]
 
     Activity.query.filter(
-        (Activity.actor_user_id.in_(seeded_ids)) |
-        (Activity.recipient_user_id.in_(seeded_ids))
+        (Activity.actor_user_id.in_(all_ids_to_clean)) |
+        (Activity.recipient_user_id.in_(all_ids_to_clean))
     ).delete(synchronize_session=False)
 
     if seeded_trip_ids:
@@ -97,28 +108,28 @@ def teardown():
         ).delete(synchronize_session=False)
 
     SkiTripParticipant.query.filter(
-        SkiTripParticipant.user_id.in_(seeded_ids)
+        SkiTripParticipant.user_id.in_(all_ids_to_clean)
     ).delete(synchronize_session=False)
 
     Invitation.query.filter(
-        (Invitation.sender_id.in_(seeded_ids)) |
-        (Invitation.receiver_id.in_(seeded_ids))
+        (Invitation.sender_id.in_(all_ids_to_clean)) |
+        (Invitation.receiver_id.in_(all_ids_to_clean))
     ).delete(synchronize_session=False)
 
     InviteToken.query.filter(
-        InviteToken.inviter_id.in_(seeded_ids)
+        InviteToken.inviter_id.in_(all_ids_to_clean)
     ).delete(synchronize_session=False)
 
     DismissedNudge.query.filter(
-        DismissedNudge.user_id.in_(seeded_ids)
+        DismissedNudge.user_id.in_(all_ids_to_clean)
     ).delete(synchronize_session=False)
 
     EquipmentSetup.query.filter(
-        EquipmentSetup.user_id.in_(seeded_ids)
+        EquipmentSetup.user_id.in_(all_ids_to_clean)
     ).delete(synchronize_session=False)
 
     UserAvailability.query.filter(
-        UserAvailability.user_id.in_(seeded_ids)
+        UserAvailability.user_id.in_(all_ids_to_clean)
     ).delete(synchronize_session=False)
 
     if seeded_trip_ids:
@@ -127,14 +138,22 @@ def teardown():
         )
 
     Friend.query.filter(
-        (Friend.user_id.in_(seeded_ids)) |
-        (Friend.friend_id.in_(seeded_ids))
+        (Friend.user_id.in_(all_ids_to_clean)) |
+        (Friend.friend_id.in_(all_ids_to_clean))
     ).delete(synchronize_session=False)
 
-    User.query.filter(User.id.in_(seeded_ids)).delete(synchronize_session=False)
+    # Delete seeded users — but NEVER delete Richard's account (preserve login)
+    seeded_ids_minus_richard = [i for i in seeded_ids if i != richard_id]
+    if seeded_ids_minus_richard:
+        User.query.filter(User.id.in_(seeded_ids_minus_richard)).delete(synchronize_session=False)
+    # Reset Richard's is_seeded flag so he's never treated as a disposable seed user again
+    if richard:
+        richard.is_seeded = False
+        db.session.flush()
 
     db.session.commit()
-    print(f"    Removed {len(seeded_users)} seeded user(s) and all related records.")
+    n_removed = len(seeded_users)
+    print(f"    Removed {n_removed} seeded user(s) and all related records (Richard's data reset).")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -323,9 +342,12 @@ def seed():
     # ─────────────────────────────────────────────────────────────────────────
     print("🌱  Creating users...")
 
-    richard = User.query.filter_by(email='richardbattlebaxter@gmail.com').first()
+    richard = User.query.filter_by(email=RICHARD_EMAIL).first()
     if richard:
-        richard.is_seeded        = True
+        # Enrich in-place — do NOT set is_seeded=True so teardown never deletes
+        # the real account. Always reset the password to SEED_PASSWORD so demo
+        # logins are always predictable regardless of prior manual changes.
+        richard.password_hash    = generate_password_hash(SEED_PASSWORD)
         richard.lifecycle_stage  = 'active'
         richard.profile_completed_at   = NOW
         richard.onboarding_completed_at = NOW
@@ -345,9 +367,10 @@ def seed():
         richard.open_dates       = []
         db.session.flush()
     else:
+        # First-time setup in a fresh environment — create as seeded user
         richard = make_user(
             first_name='Richard', last_name='Battle-Baxter',
-            email='richardbattlebaxter@gmail.com',
+            email=RICHARD_EMAIL,
             rider_types=['Skier', 'Snowboarder'],
             skill_level='Advanced',
             pass_type='Epic,Ikon',
@@ -363,8 +386,7 @@ def seed():
         )
         db.session.flush()
 
-    # Clear old equipment for richard so we don't duplicate
-    EquipmentSetup.query.filter_by(user_id=richard.id).delete()
+    # Equipment was cleared in teardown; re-add fresh
     db.session.flush()
 
     make_equipment(richard, EquipmentSlot.PRIMARY, EquipmentDiscipline.SKIER,
