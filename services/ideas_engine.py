@@ -658,6 +658,37 @@ def _fmt_date_range_short(start, end):
     return f"{start.strftime('%b %-d')}\u2013{end.strftime('%b %-d')}"
 
 
+def _fmt_social_names(names, suffix):
+    """
+    Format a name list for social lines, e.g.:
+      ["Nina", "Marco", "Sam"]        -> "Nina, Marco, Sam going"
+      ["Nina", "Marco", "Sam", "Ty"]  -> "Nina, Marco, Sam + 1 other going"
+    """
+    if not names:
+        return suffix
+    shown = names[:3]
+    overflow = len(names) - 3
+    s = ", ".join(shown)
+    if overflow > 0:
+        s += f" + {overflow} other{'s' if overflow != 1 else ''}"
+    return f"{s} {suffix}"
+
+
+def _fmt_wishlist_names(friend_names, suffix):
+    """
+    Format a wishlist social line starting with 'You', e.g.:
+      1 friend  -> "You, Nina — both on your wishlists"
+      3 friends -> "You, Nina, Marco, Sam — all on your wishlists"
+      6 friends -> "You, Nina, Marco, Sam + 3 others — all on your wishlists"
+    """
+    all_parts = ["You"] + list(friend_names[:3])
+    overflow = max(0, len(friend_names) - 3)
+    s = ", ".join(all_parts)
+    if overflow > 0:
+        s += f" + {overflow} other{'s' if overflow != 1 else ''}"
+    return f"{s} {suffix}"
+
+
 def build_destination_feed(user, all_friends):
     """
     Builds the Ideas feed: one card per destination (resort_id), best signal wins.
@@ -689,6 +720,7 @@ def build_destination_feed(user, all_friends):
 
     today = date.today()
     friend_ids = [f.id for f in all_friends]
+    friend_by_id = {f.id: f for f in all_friends}
 
     if not friend_ids:
         return []
@@ -741,12 +773,16 @@ def build_destination_feed(user, all_friends):
         key = (trip.start_date, trip.end_date)
         dw = resort_trip_data[rid]["date_windows"]
         if key not in dw:
-            dw[key] = {"going": 0, "considering": 0, "friend_count": 0}
+            dw[key] = {"going": 0, "considering": 0, "friend_count": 0,
+                       "going_names": [], "considering_names": []}
         dw[key]["friend_count"] += 1
+        first_name = getattr(friend_by_id.get(trip.user_id), "first_name", None) or "Friend"
         if (trip.trip_status or "planning") == "going":
             dw[key]["going"] += 1
+            dw[key]["going_names"].append(first_name)
         else:
             dw[key]["considering"] += 1
+            dw[key]["considering_names"].append(first_name)
 
     for rid, rdata in resort_trip_data.items():
         dw = rdata["date_windows"]
@@ -756,9 +792,9 @@ def build_destination_feed(user, all_friends):
         start_d, end_d = best_key
         parts = []
         if g["going"] > 0:
-            parts.append(f"{g['going']} going")
+            parts.append(_fmt_social_names(g["going_names"], "going"))
         if g["considering"] > 0:
-            parts.append(f"{g['considering']} considering")
+            parts.append(_fmt_social_names(g["considering_names"], "considering"))
         _try_add({
             "resort": rdata["resort"],
             "resort_id": rid,
@@ -816,11 +852,11 @@ def build_destination_feed(user, all_friends):
                 if not shared_resort_id:
                     continue
 
-                if n == 1:
-                    fname = friends_in_window[0].get("friend_name") or "your friend"
-                    line2 = f"You + {fname} are free"
-                else:
-                    line2 = f"You + {n} friends are free"
+                first_names = []
+                for fw in friends_in_window:
+                    raw = fw.get("friend_name") or ""
+                    first_names.append(raw.split()[0] if raw.strip() else "Friend")
+                line2 = _fmt_wishlist_names(first_names, "— free this window")
 
                 _try_add({
                     "resort": shared_resort,
@@ -848,16 +884,12 @@ def build_destination_feed(user, all_friends):
             if not resort_obj:
                 continue
             n      = len(overlapping)
-            anchor = overlapping[0]
-            anchor_name = (
-                f"{anchor.get('first_name', '')} {anchor.get('last_name', '')}".strip()
-                or "a friend"
-            )
-            line2 = (
-                f"You + {anchor_name} — both on your wishlists"
-                if n == 1
-                else f"You + {n} friends — all on your wishlists"
-            )
+            friend_first_names = [
+                (p.get("first_name") or "").strip() or "Friend"
+                for p in overlapping
+            ]
+            suffix = "— both on your wishlists" if n == 1 else "— all on your wishlists"
+            line2 = _fmt_wishlist_names(friend_first_names, suffix)
             _try_add({
                 "resort": resort_obj,
                 "resort_id": rid,
