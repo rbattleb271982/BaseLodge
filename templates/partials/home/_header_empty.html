@@ -1,0 +1,64 @@
+<!--
+Component: Home Header (Empty State)
+Purpose: Displays the welcome greeting, identity line, equipment line, and inline stat
+         tiles when the user has no upcoming trips. Replaces the populated header and
+         uses a larger serif name treatment with self-contained stat tiles (not stat_row).
+Used on: Home screen (empty state only — when next_trip is falsy)
+Variants: equipment set / equipment missing ("Complete your profile" CTA)
+
+Inputs:
+  user              — User object
+    .first_name           string
+    .display_rider_type   string | None
+    .skill_level          string | None
+    .pass_type            string | None   (rendered via pass_display filter)
+  home_eq           — EquipmentSetup object | None
+    .brand          string | None
+    .model          string | None
+    .boot_brand     string | None
+    .boot_model     string | None
+  stat_trips_total  int
+  stat_mountains    int
+  stat_wishlist     int
+-->
+
+<section class="home-empty">
+  <header class="home-empty-header">
+    <h1 class="home-empty-name"><span class="home-greeting-prefix">Welcome,</span><span class="home-greeting-name">{{ user.first_name | format_name }}.</span></h1>
+
+    {%- set _id = [] -%}
+    {%- set _rt = user.display_rider_type -%}
+    {%- if _rt %}{% set _ = _id.append(_rt) %}{% endif -%}
+    {%- if user.skill_level %}{% set _ = _id.append(user.skill_level) %}{% endif -%}
+    {%- if user.pass_type %}{% set _ = _id.append(user.pass_type | pass_display) %}{% endif -%}
+    {% if _id %}
+      <p class="type-caption home-empty-identity">{{ _id | join(' · ') }}</p>
+    {% endif %}
+
+    {%- set _has_gear = home_eq and (home_eq.brand or home_eq.model) -%}
+    {%- set _has_boots = home_eq and (home_eq.boot_brand or home_eq.boot_model) -%}
+    {%- set _eq_parts = [] -%}
+    {%- if _has_gear -%}{%- set _gear_val = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_gear_val) -%}{%- endif -%}
+    {%- if _has_boots -%}{%- set _boot_val = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_boot_val) -%}{%- endif -%}
+    {% if _eq_parts %}
+      <a href="{{ url_for('settings_equipment') }}" class="home-empty-equipment">{{ _eq_parts | join(' · ') }}</a>
+    {% else %}
+      <a href="{{ url_for('settings_equipment') }}" class="home-empty-profile-link">Complete your profile</a>
+    {% endif %}
+  </header>
+
+  <div class="home-empty-stats">
+    <div class="home-empty-stats-tile">
+      <span class="type-stat home-empty-stats-num">{{ stat_trips_total or 0 }}</span>
+      <span class="type-label home-empty-stats-label">{{ "Trip" if (stat_trips_total or 0) == 1 else "Trips" }}</span>
+    </div>
+    <div class="home-empty-stats-tile">
+      <span class="type-stat home-empty-stats-num">{{ stat_mountains or 0 }}</span>
+      <span class="type-label home-empty-stats-label">{{ "Mountain" if (stat_mountains or 0) == 1 else "Mountains" }}</span>
+    </div>
+    <div class="home-empty-stats-tile">
+      <span class="type-stat home-empty-stats-num">{{ stat_wishlist or 0 }}</span>
+      <span class="type-label home-empty-stats-label">{{ "Wishlist" if (stat_wishlist or 0) == 1 else "Wishlist" }}</span>
+    </div>
+  </div>
+</section>

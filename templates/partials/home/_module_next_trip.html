@@ -1,0 +1,43 @@
+<!--
+Component: Module — My Next Trip
+Purpose: Shows the user's nearest upcoming trip as a tappable hero card with
+         mountain name, date range, pass type, people going, and a countdown badge.
+Used on: Home screen (module type "my_next_trip")
+Variants: own trip (Edit →) / guest trip (View trip →) / countdown visible / hidden
+
+Inputs:
+  next_trip           — SkiTrip object
+    .id               int
+    .user_id          int
+    .mountain         string (fallback when no resort relation)
+    .resort           Resort | None
+      .name           string
+    .start_date       date
+    .end_date         date
+    .pass_type        string | None   (rendered via pass_display filter)
+    .accepted_count   int | None
+  next_trip_countdown — string | None   e.g. "Tomorrow", "In 5 days"
+  user                — User object
+    .id               int
+-->
+
+<p class="home-section-label">My next trip</p>
+{% set resort = next_trip.resort %}
+{% set mountain_name = resort.name if resort else next_trip.mountain %}
+{% set state_abbr = resort|state_abbrev if resort else next_trip.state %}
+{% set people = next_trip.accepted_count %}
+<a href="{{ url_for('trip_detail', trip_id=next_trip.id) }}" class="home-hero">
+    <div class="home-row">
+        <div class="home-row-left">
+            <p class="home-hero-title">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+        </div>
+        <span class="home-hero-action">{% if next_trip.user_id == user.id %}Edit →{% else %}View trip →{% endif %}</span>
+    </div>
+    <div class="home-row" style="padding-top: 0;">
+        <div class="home-row-left">
+            {%- set _trip_pass_display = next_trip.pass_type | pass_display -%}
+            <p class="home-hero-sub">{{ format_trip_dates(next_trip) }}{% if people and people > 1 %} · {{ people }} going{% endif %}{% if _trip_pass_display %} · {{ _trip_pass_display }}{% endif %}</p>
+        </div>
+        {% if next_trip_countdown %}<span class="home-hero-eyebrow">{{ next_trip_countdown }}</span>{% endif %}
+    </div>
+</a>

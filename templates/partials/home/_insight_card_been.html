@@ -1,0 +1,29 @@
+<!--
+Component: Insight Card — Friend at Wishlist Mountain
+Purpose: Notifies the user when a friend has previously visited a mountain that is
+         on the user's wishlist, prompting them to ask about it.
+Used on: Home screen (rendered after all modules, when friend_at_mountain_card is set)
+Variants: none (single layout, links to friend's profile)
+
+Inputs:
+  friend_at_mountain_card — dict
+    .friend_id      int    friend's user ID
+    .friend_name    string friend's full name
+    .resort_name    string mountain name
+    .card_key       string unique dismissal key e.g. "182:28:254"
+-->
+
+<div class="home-insight-card" id="friend-at-mountain-card">
+    <a class="home-insight-card-link" href="{{ url_for('friend_profile', friend_id=friend_at_mountain_card.friend_id) }}">
+        <span class="home-insight-card-icon">&#9968;</span>
+        <span class="home-insight-card-text">
+            <strong>{{ friend_at_mountain_card.friend_name }}</strong> has been to your wishlist mountain, {{ friend_at_mountain_card.resort_name }}. Ask about it.
+        </span>
+    </a>
+    <button
+        class="home-insight-card-dismiss"
+        aria-label="Dismiss"
+        onclick="dismissInsightCard('friend_at_mountain', '{{ friend_at_mountain_card.card_key }}', 'friend-at-mountain-card')">
+        &times;
+    </button>
+</div>

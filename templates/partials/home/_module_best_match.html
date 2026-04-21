@@ -1,0 +1,35 @@
+<!--
+Component: Module — Best Match
+Purpose: Highlights the best open-date overlap between the user and their friends,
+         with a "Plan" CTA that pre-fills the add-trip form.
+Used on: Home screen (module type "best_match")
+Variants: single friend overlap / multi-friend overlap (same_day_count > 0)
+
+Inputs:
+  next_match        — dict
+    .match_date     string   ISO date "YYYY-MM-DD" (used in add_trip URL)
+    .display_date   string   human-readable e.g. "Saturday · Apr 26"
+    .friend_name    string   first name of the anchor friend
+    .friend_id      int      anchor friend's user ID
+    .same_day_count int      number of *additional* friends free same day (0 = just one friend)
+-->
+
+<div class="home-match-card" style="margin-top: 12px;">
+    <div class="home-row">
+        <div class="home-row-left">
+            {% if next_match.same_day_count == 0 %}
+            <p class="home-match-line1">You + {{ next_match.friend_name | format_name }} are free</p>
+            {% else %}
+            <p class="home-match-line1">You + {{ next_match.same_day_count + 1 }} others are free</p>
+            {% endif %}
+        </div>
+        <div class="home-match-actions">
+            <a href="{{ url_for('add_trip') }}?start_date={{ next_match.match_date }}&end_date={{ next_match.match_date }}&friend_id={{ next_match.friend_id }}" class="home-match-primary">Plan</a>
+        </div>
+    </div>
+    <div class="home-row" style="padding-top: 0;">
+        <div class="home-row-left">
+            <p class="home-match-date">{{ next_match.display_date }}</p>
+        </div>
+    </div>
+</div>

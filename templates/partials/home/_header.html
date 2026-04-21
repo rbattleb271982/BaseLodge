@@ -1,0 +1,53 @@
+<!--
+Component: Home Header (Populated State)
+Purpose: Displays the welcome greeting, identity line, equipment line, and stat bar
+         when the user has at least one upcoming or active trip.
+Used on: Home screen (populated state only — when next_trip is truthy)
+Variants: equipment set / equipment missing ("Complete your profile" CTA)
+
+Inputs:
+  user            — User object
+    .first_name         string
+    .display_rider_type string | None
+    .skill_level        string | None
+    .pass_type          string | None   (rendered via pass_display filter)
+  home_eq         — EquipmentSetup object | None
+    .brand        string | None
+    .model        string | None
+    .boot_brand   string | None
+    .boot_model   string | None
+
+  Via stat_row.html include:
+    stat_trips_total    int
+    stat_mountains      int
+    stat_wishlist       int
+    stat_trips_url      string | None
+    stat_mountains_url  string | None
+    stat_wishlist_url   string | None
+-->
+
+<h1 class="home-welcome">Welcome, {{ user.first_name | format_name }}.</h1>
+
+{# ── Identity line ── #}
+{%- set _id = [] -%}
+{%- set _rt = user.display_rider_type -%}
+{%- if _rt %}{% set _ = _id.append(_rt) %}{% endif -%}
+{%- if user.skill_level %}{% set _ = _id.append(user.skill_level) %}{% endif -%}
+{%- if user.pass_type %}{% set _ = _id.append(user.pass_type | pass_display) %}{% endif -%}
+{%- if _id %}
+<p class="type-caption" style="margin: 0 0 4px 0;">{{ _id | join(' · ') }}</p>
+{%- endif %}
+
+{# ── Equipment row (Row 2 — single constrained line) ── #}
+{%- set _has_gear = home_eq and (home_eq.brand or home_eq.model) -%}
+{%- set _has_boots = home_eq and (home_eq.boot_brand or home_eq.boot_model) -%}
+{%- set _eq_parts = [] -%}
+{%- if _has_gear -%}{%- set _gear_val = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_gear_val) -%}{%- endif -%}
+{%- if _has_boots -%}{%- set _boot_val = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_boot_val) -%}{%- endif -%}
+{%- if _eq_parts %}
+<a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0 0 4px 0;">{{ _eq_parts | join(' · ') }}</a>
+{%- else %}
+<a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; color: var(--bl-color-primary); margin: 0 0 4px 0;">Complete your profile</a>
+{%- endif %}
+
+{% include 'components/stat_row.html' %}

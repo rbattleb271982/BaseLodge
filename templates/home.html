@@ -520,84 +520,49 @@
     </style>
 </head>
 <body>
+    <!-- HOME SCREEN STRUCTURE
+    ══════════════════════════════════════════════════════════════
+    1. Header
+       a. Populated state  → partials/home/_header.html
+          - Welcome greeting
+          - Identity line (rider type · skill · pass)
+          - Equipment line (gear · boots) or "Complete your profile" CTA
+          - Stat bar (Trips / Mountains / Wishlist) via components/stat_row.html
+       b. Empty state      → partials/home/_header_empty.html
+          - Large serif welcome name
+          - Identity line + equipment line (same logic, different style)
+          - Inline stat tiles (no next-trip context)
+
+    2. Modules (≤ 2, resolved by resolve_home_modules in app.py)
+       a. My Next Trip     → partials/home/_module_next_trip.html
+       b. Invites          → partials/home/_module_invites.html
+          - Trip invites (up to 3, overflow hidden behind "Show more")
+          - Connect invite row (secondary_card.type == "connect_invite")
+       c. Best Match       → partials/home/_module_best_match.html
+       d. Empty Editorial  → partials/home/_module_empty_editorial.html
+
+    3. Insight Cards (independent of modules, shown after all modules)
+       a. Trip Overlap Today  → partials/home/_insight_card_today.html
+          Condition: trip_overlap_today_card is truthy
+       b. Friend at Mountain  → partials/home/_insight_card_been.html
+          Condition: friend_at_mountain_card is truthy
+
+    4. Bottom Nav → components/bottom_nav.html
+    ══════════════════════════════════════════════════════════════ -->
+
     <div class="page-container" style="padding: 16px 16px 96px;">
 
         {% if next_trip %}
             {# ────────────────────────────────────────────────── #}
             {# POPULATED STATE                                    #}
             {# ────────────────────────────────────────────────── #}
-
-            <h1 class="home-welcome">Welcome, {{ user.first_name | format_name }}.</h1>
-
-            {# ── Identity line ── #}
-            {%- set _id = [] -%}
-            {%- set _rt = user.display_rider_type -%}
-            {%- if _rt %}{% set _ = _id.append(_rt) %}{% endif -%}
-            {%- if user.skill_level %}{% set _ = _id.append(user.skill_level) %}{% endif -%}
-            {%- if user.pass_type %}{% set _ = _id.append(user.pass_type | pass_display) %}{% endif -%}
-            {%- if _id %}
-            <p class="type-caption" style="margin: 0 0 4px 0;">{{ _id | join(' · ') }}</p>
-            {%- endif %}
-
-            {# ── Equipment row (Row 2 — single constrained line) ── #}
-            {%- set _has_gear = home_eq and (home_eq.brand or home_eq.model) -%}
-            {%- set _has_boots = home_eq and (home_eq.boot_brand or home_eq.boot_model) -%}
-            {%- set _eq_parts = [] -%}
-            {%- if _has_gear -%}{%- set _gear_val = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_gear_val) -%}{%- endif -%}
-            {%- if _has_boots -%}{%- set _boot_val = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_boot_val) -%}{%- endif -%}
-            {%- if _eq_parts %}
-            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0 0 4px 0;">{{ _eq_parts | join(' · ') }}</a>
-            {%- else %}
-            <a href="{{ url_for('settings_equipment') }}" class="type-caption" style="display: block; text-decoration: none; color: var(--bl-color-primary); margin: 0 0 4px 0;">Complete your profile</a>
-            {%- endif %}
-
-            {% include 'components/stat_row.html' %}
+            {% include 'partials/home/_header.html' %}
 
         {% else %}
             {# ────────────────────────────────────────────────── #}
             {# EMPTY STATE — top block only (greeting + stats)   #}
             {# ────────────────────────────────────────────────── #}
-
-            <section class="home-empty">
-              <header class="home-empty-header">
-                <h1 class="home-empty-name"><span class="home-greeting-prefix">Welcome,</span><span class="home-greeting-name">{{ user.first_name | format_name }}.</span></h1>
-
-                {%- set _id = [] -%}
-                {%- set _rt = user.display_rider_type -%}
-                {%- if _rt %}{% set _ = _id.append(_rt) %}{% endif -%}
-                {%- if user.skill_level %}{% set _ = _id.append(user.skill_level) %}{% endif -%}
-                {%- if user.pass_type %}{% set _ = _id.append(user.pass_type | pass_display) %}{% endif -%}
-                {% if _id %}
-                  <p class="type-caption home-empty-identity">{{ _id | join(' · ') }}</p>
-                {% endif %}
-
-                {%- set _has_gear = home_eq and (home_eq.brand or home_eq.model) -%}
-                {%- set _has_boots = home_eq and (home_eq.boot_brand or home_eq.boot_model) -%}
-                {%- set _eq_parts = [] -%}
-                {%- if _has_gear -%}{%- set _gear_val = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_gear_val) -%}{%- endif -%}
-                {%- if _has_boots -%}{%- set _boot_val = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_boot_val) -%}{%- endif -%}
-                {% if _eq_parts %}
-                  <a href="{{ url_for('settings_equipment') }}" class="home-empty-equipment">{{ _eq_parts | join(' · ') }}</a>
-                {% else %}
-                  <a href="{{ url_for('settings_equipment') }}" class="home-empty-profile-link">Complete your profile</a>
-                {% endif %}
-              </header>
-
-              <div class="home-empty-stats">
-                <div class="home-empty-stats-tile">
-                  <span class="type-stat home-empty-stats-num">{{ stat_trips_total or 0 }}</span>
-                  <span class="type-label home-empty-stats-label">{{ "Trip" if (stat_trips_total or 0) == 1 else "Trips" }}</span>
-                </div>
-                <div class="home-empty-stats-tile">
-                  <span class="type-stat home-empty-stats-num">{{ stat_mountains or 0 }}</span>
-                  <span class="type-label home-empty-stats-label">{{ "Mountain" if (stat_mountains or 0) == 1 else "Mountains" }}</span>
-                </div>
-                <div class="home-empty-stats-tile">
-                  <span class="type-stat home-empty-stats-num">{{ stat_wishlist or 0 }}</span>
-                  <span class="type-label home-empty-stats-label">{{ "Wishlist" if (stat_wishlist or 0) == 1 else "Wishlist" }}</span>
-                </div>
-              </div>
-            </section>
+            {% include 'partials/home/_header_empty.html' %}
 
         {% endif %}
 
@@ -609,158 +574,30 @@
 
             {# ── Module: My next trip ── #}
             {% if module.type == 'my_next_trip' %}
-            <p class="home-section-label">My next trip</p>
-            {% set resort = next_trip.resort %}
-            {% set mountain_name = resort.name if resort else next_trip.mountain %}
-            {% set state_abbr = resort|state_abbrev if resort else next_trip.state %}
-            {% set people = next_trip.accepted_count %}
-            <a href="{{ url_for('trip_detail', trip_id=next_trip.id) }}" class="home-hero">
-                <div class="home-row">
-                    <div class="home-row-left">
-                        <p class="home-hero-title">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-                    </div>
-                    <span class="home-hero-action">{% if next_trip.user_id == user.id %}Edit →{% else %}View trip →{% endif %}</span>
-                </div>
-                <div class="home-row" style="padding-top: 0;">
-                    <div class="home-row-left">
-                        {%- set _trip_pass_display = next_trip.pass_type | pass_display -%}
-                        <p class="home-hero-sub">{{ format_trip_dates(next_trip) }}{% if people and people > 1 %} · {{ people }} going{% endif %}{% if _trip_pass_display %} · {{ _trip_pass_display }}{% endif %}</p>
-                    </div>
-                    {% if next_trip_countdown %}<span class="home-hero-eyebrow">{{ next_trip_countdown }}</span>{% endif %}
-                </div>
-            </a>
+            {% include 'partials/home/_module_next_trip.html' %}
 
             {# ── Module: Invites (trip invites + connect invite, unified) ── #}
             {% elif module.type == 'invites' %}
-            <p class="home-section-label">Invites</p>
-            {%- set _invite_limit = 3 -%}
-            {%- set _invite_total = trip_invites | length -%}
-            {%- set _invite_overflow = _invite_total > _invite_limit -%}
-            <div class="home-activity-rows">
-                {% for inv in trip_invites %}
-                {%- set inv_resort = inv.resort -%}
-                {%- set inv_mountain = inv_resort.name if inv_resort else inv.trip.mountain -%}
-                <a href="{{ url_for('trip_detail', trip_id=inv.trip_id) }}" class="home-activity-row{% if loop.index > _invite_limit %} home-invite-overflow{% endif %}" style="text-decoration: none;{% if loop.index > _invite_limit %} display:none;{% endif %}">
-                    <div class="home-activity-content">
-                        <p class="home-activity-text">{{ inv.inviter_name }} invited you to {{ inv_mountain }}</p>
-                        <p class="home-activity-sub">{{ format_trip_dates(inv.trip) }}</p>
-                    </div>
-                    <div class="home-activity-action">
-                        <span class="home-activity-link">View →</span>
-                    </div>
-                </a>
-                {% endfor %}
-                {% if secondary_card and secondary_card.type == 'connect_invite' %}
-                <div class="home-activity-row" id="secondary-card">
-                    <div class="home-activity-content">
-                        <p class="home-activity-text">{{ secondary_card.sender_name }} wants to connect</p>
-                    </div>
-                    <div class="home-activity-action">
-                        <button class="home-activity-btn" onclick="acceptConnectInvite({{ secondary_card.invitation_id }})">Accept</button>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-            {% if _invite_overflow %}
-            <button id="show-all-invites-btn" onclick="showAllInvites()" style="background:none;border:none;padding:8px 0 0;font-size:12px;color:#8A857A;cursor:pointer;font-family:inherit;text-decoration:underline;">Show {{ _invite_total - _invite_limit }} more {{ 'invite' if (_invite_total - _invite_limit) == 1 else 'invites' }}</button>
-            {% endif %}
+            {% include 'partials/home/_module_invites.html' %}
 
             {# ── Module: Best Match (no label) ── #}
             {% elif module.type == 'best_match' %}
-            <div class="home-match-card" style="margin-top: 12px;">
-                <div class="home-row">
-                    <div class="home-row-left">
-                        {% if next_match.same_day_count == 0 %}
-                        <p class="home-match-line1">You + {{ next_match.friend_name | format_name }} are free</p>
-                        {% else %}
-                        <p class="home-match-line1">You + {{ next_match.same_day_count + 1 }} others are free</p>
-                        {% endif %}
-                    </div>
-                    <div class="home-match-actions">
-                        <a href="{{ url_for('add_trip') }}?start_date={{ next_match.match_date }}&end_date={{ next_match.match_date }}&friend_id={{ next_match.friend_id }}" class="home-match-primary">Plan</a>
-                    </div>
-                </div>
-                <div class="home-row" style="padding-top: 0;">
-                    <div class="home-row-left">
-                        <p class="home-match-date">{{ next_match.display_date }}</p>
-                    </div>
-                </div>
-            </div>
+            {% include 'partials/home/_module_best_match.html' %}
 
             {# ── Module: Empty state editorial ── #}
             {% elif module.type == 'empty_state' %}
-            <div class="home-empty-editorial">
-                <p class="type-tagline home-empty-tagline">
-                    The best days on the mountain don't just happen. They're made.
-                </p>
-                <p class="type-body home-empty-body">
-                    Your season lives here. Plan trips, see where your friends are headed, and find weekends that work.
-                </p>
-                <ol class="home-empty-list">
-                    <li class="home-empty-list-item">
-                        <span class="type-label home-empty-list-num">01</span>
-                        <span class="type-list home-empty-list-text">Your trips, past and upcoming</span>
-                    </li>
-                    <li class="home-empty-list-item">
-                        <span class="type-label home-empty-list-num">02</span>
-                        <span class="type-list home-empty-list-text">Friends' plans and availability</span>
-                    </li>
-                    <li class="home-empty-list-item">
-                        <span class="type-label home-empty-list-num">03</span>
-                        <span class="type-list home-empty-list-text">Overlapping weekends to ride together</span>
-                    </li>
-                    <li class="home-empty-list-item">
-                        <span class="type-label home-empty-list-num">04</span>
-                        <span class="type-list home-empty-list-text">Mountains you've visited or want to visit</span>
-                    </li>
-                </ol>
-                <p class="type-caption home-empty-closing">Explore the menu below</p>
-            </div>
+            {% include 'partials/home/_module_empty_editorial.html' %}
+
             {% endif %}
 
         {% endfor %}
 
         {% if trip_overlap_today_card %}
-        <div class="home-insight-card" id="trip-overlap-today-card">
-            {% if trip_overlap_today_card.friend_count == 1 %}
-            <a class="home-insight-card-link" href="{{ url_for('friend_profile', friend_id=trip_overlap_today_card.friend_id) }}">
-                <span class="home-insight-card-icon">&#9968;</span>
-                <span class="home-insight-card-text">
-                    <strong>{{ trip_overlap_today_card.friend_name }}</strong> is at {{ trip_overlap_today_card.resort_name }} today. See them.
-                </span>
-            </a>
-            {% else %}
-            <a class="home-insight-card-link" href="{{ url_for('mountain_detail', slug=trip_overlap_today_card.resort_slug) }}">
-                <span class="home-insight-card-icon">&#9968;</span>
-                <span class="home-insight-card-text">
-                    You're at <strong>{{ trip_overlap_today_card.resort_name }}</strong> today. See who else is there.
-                </span>
-            </a>
-            {% endif %}
-            <button
-                class="home-insight-card-dismiss"
-                aria-label="Dismiss"
-                onclick="dismissInsightCard('trip_overlap_today', '{{ trip_overlap_today_card.card_key }}', 'trip-overlap-today-card')">
-                &times;
-            </button>
-        </div>
+        {% include 'partials/home/_insight_card_today.html' %}
         {% endif %}
 
         {% if friend_at_mountain_card %}
-        <div class="home-insight-card" id="friend-at-mountain-card">
-            <a class="home-insight-card-link" href="{{ url_for('friend_profile', friend_id=friend_at_mountain_card.friend_id) }}">
-                <span class="home-insight-card-icon">&#9968;</span>
-                <span class="home-insight-card-text">
-                    <strong>{{ friend_at_mountain_card.friend_name }}</strong> has been to your wishlist mountain, {{ friend_at_mountain_card.resort_name }}. Ask about it.
-                </span>
-            </a>
-            <button
-                class="home-insight-card-dismiss"
-                aria-label="Dismiss"
-                onclick="dismissInsightCard('friend_at_mountain', '{{ friend_at_mountain_card.card_key }}', 'friend-at-mountain-card')">
-                &times;
-            </button>
-        </div>
+        {% include 'partials/home/_insight_card_been.html' %}
         {% endif %}
 
     </div>

@@ -1,0 +1,159 @@
+PUT THIS IN AGENT
+
+Goal: Create a complete, structured inventory of all Home screen components so we can redesign safely without drift.
+
+Do NOT redesign anything yet.
+Do NOT change UI or styling.
+This is an audit + documentation + light structuring task only.
+
+---
+
+STEP 1 — IDENTIFY HOME SCREEN FILES
+
+Find all files involved in rendering the Home screen, including:
+
+- Route file (likely routes/user.py or similar)
+- Template file (home.html or equivalent)
+- Any partials/includes used inside Home
+- Any services/helpers used to build data (e.g. ideas_engine, trip helpers, friend logic)
+
+List them clearly.
+
+---
+
+STEP 2 — BREAK HOME SCREEN INTO COMPONENTS
+
+Within the Home template, identify and label each distinct UI block as a "component".
+
+At minimum, extract:
+
+1. Header block
+   - Name
+   - Rider type / level / passes
+   - Equipment line (if present)
+
+2. Stat bar
+   - Trips
+   - Mountains visited
+   - Wishlist
+
+3. Next Trip block
+   - Mountain
+   - Dates
+   - Pass
+   - Edit CTA
+
+4. Invites block
+   - Friend name
+   - Accept button
+
+5. Insight cards
+   - "Friend is at mountain today"
+   - "Friend has been to mountain"
+   - Any other variations
+
+6. Any empty state blocks
+
+---
+
+STEP 3 — NORMALIZE INTO REUSABLE PARTIALS
+
+Refactor the template so each component becomes its own partial:
+
+Example:
+- templates/partials/home/_header.html
+- templates/partials/home/_stat_bar.html
+- templates/partials/home/_next_trip.html
+- templates/partials/home/_invites.html
+- templates/partials/home/_insight_card.html
+
+Important:
+- Do NOT change visual output
+- Only extract and organize
+
+---
+
+STEP 4 — STANDARDIZE INPUT DATA FOR EACH COMPONENT
+
+For each component, define exactly what data it expects.
+
+Example format:
+
+Component: insight_card
+
+Inputs:
+- type ("today" | "been")
+- friend_first_name
+- friend_last_name
+- mountain_name
+- trip_id (optional)
+- friend_id
+- dismissible (true/false)
+
+Do this for EVERY component.
+
+---
+
+STEP 5 — ADD CLEAR COMMENT BLOCKS
+
+At the top of each partial, add a comment like:
+
+<!--
+Component: Insight Card
+Purpose: Shows contextual friend-based mountain insights
+Used on: Home screen
+Variants: today / been
+-->
+
+---
+
+STEP 6 — CREATE A HOME SCREEN MAP (VERY IMPORTANT)
+
+At the top of the main home template, add a comment that maps the layout:
+
+Example:
+
+<!-- HOME SCREEN STRUCTURE
+
+1. Header
+2. Stat Bar
+3. Next Trip
+4. Invites
+5. Insight Cards (ordered by priority)
+
+-->
+
+---
+
+STEP 7 — DO NOT CHANGE LOGIC OR STYLING
+
+- No CSS changes
+- No copy changes
+- No layout changes
+- No logic changes
+
+This is strictly structure + clarity.
+
+---
+
+STEP 8 — OUTPUT SUMMARY
+
+At the end, print a clear summary in logs:
+
+- List of components created
+- Files where each component lives
+- Any duplicated logic found
+- Any inconsistencies in data structures
+
+---
+
+CRITICAL RULES
+
+- Do NOT redesign
+- Do NOT rename user-facing copy
+- Do NOT remove anything
+- Do NOT introduce new UI
+
+This is a foundation step for a future redesign.
+
+Use checkpoints sparingly.

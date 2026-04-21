@@ -1,0 +1,43 @@
+<!--
+Component: Insight Card — Trip Overlap Today
+Purpose: Notifies the user when they (or a friend) are at the same mountain today.
+         Single-friend variant links to the friend's profile; multi-friend variant
+         links to the mountain page.
+Used on: Home screen (rendered after all modules, when trip_overlap_today_card is set)
+Variants:
+  friend_count == 1  — "[Friend] is at [Mountain] today. See them."  → friend profile
+  friend_count  > 1  — "You're at [Mountain] today. See who else is there." → mountain page
+
+Inputs:
+  trip_overlap_today_card — dict
+    .friend_count   int    total friends at same mountain today
+    .friend_id      int    (single-friend variant only) friend's user ID
+    .friend_name    string (single-friend variant only) friend's full name
+    .resort_name    string
+    .resort_slug    string
+    .card_key       string unique dismissal key e.g. "8:2026-04-21"
+-->
+
+<div class="home-insight-card" id="trip-overlap-today-card">
+    {% if trip_overlap_today_card.friend_count == 1 %}
+    <a class="home-insight-card-link" href="{{ url_for('friend_profile', friend_id=trip_overlap_today_card.friend_id) }}">
+        <span class="home-insight-card-icon">&#9968;</span>
+        <span class="home-insight-card-text">
+            <strong>{{ trip_overlap_today_card.friend_name }}</strong> is at {{ trip_overlap_today_card.resort_name }} today. See them.
+        </span>
+    </a>
+    {% else %}
+    <a class="home-insight-card-link" href="{{ url_for('mountain_detail', slug=trip_overlap_today_card.resort_slug) }}">
+        <span class="home-insight-card-icon">&#9968;</span>
+        <span class="home-insight-card-text">
+            You're at <strong>{{ trip_overlap_today_card.resort_name }}</strong> today. See who else is there.
+        </span>
+    </a>
+    {% endif %}
+    <button
+        class="home-insight-card-dismiss"
+        aria-label="Dismiss"
+        onclick="dismissInsightCard('trip_overlap_today', '{{ trip_overlap_today_card.card_key }}', 'trip-overlap-today-card')">
+        &times;
+    </button>
+</div>
