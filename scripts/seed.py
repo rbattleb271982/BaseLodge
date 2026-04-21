@@ -72,7 +72,7 @@ def resolve_resorts():
 # ─────────────────────────────────────────────────────────────────────────────
 
 RICHARD_EMAIL = 'richardbattlebaxter@gmail.com'
-SEED_PASSWORD = 'seed_pass_1!'
+SEED_PASSWORD = '12345678'
 
 
 def teardown():
