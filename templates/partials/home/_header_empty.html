@@ -31,11 +31,18 @@ Inputs:
 
     {%- set _has_gear = home_eq and (home_eq.brand or home_eq.model) -%}
     {%- set _has_boots = home_eq and (home_eq.boot_brand or home_eq.boot_model) -%}
-    {%- set _eq_parts = [] -%}
-    {%- if _has_gear -%}{%- set _g = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_g) -%}{%- endif -%}
-    {%- if _has_boots -%}{%- set _b = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) -%}{%- set _ = _eq_parts.append(_b) -%}{%- endif -%}
-    {%- if _eq_parts %}
-    <a href="{{ url_for('settings_equipment') }}" class="hc-equipment-link">{{ _eq_parts | join(' · ') }}</a>
+    {%- set _gear_label = 'Board' if (user.display_rider_type or '') == 'Snowboarder' else ('Skis' if (user.display_rider_type or '') in ['Skier', 'Both'] else 'Equipment') -%}
+    {%- if _has_gear or _has_boots %}
+    <a href="{{ url_for('settings_equipment') }}" class="hc-equipment-link" style="white-space:normal;">
+        {%- if _has_gear -%}
+        {%- set _g = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}
+        <span style="display:block;">{{ _gear_label }}: {{ _g }}</span>
+        {%- endif -%}
+        {%- if _has_boots -%}
+        {%- set _b = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) -%}
+        <span style="display:block;">Boots: {{ _b }}</span>
+        {%- endif -%}
+    </a>
     {%- else %}
     <a href="{{ url_for('settings_equipment') }}" class="hc-profile-cta">Complete your profile →</a>
     {%- endif %}

@@ -1,0 +1,249 @@
+Complete the remaining UI polish work across Home, Profile, Friend Profile, and Ideas.
+
+This is refinement only. Do NOT redesign the system. Do NOT introduce new UI patterns. Keep everything consistent with the current design language.
+
+Use checkpoints sparingly.
+
+----------------------------------
+1. Equipment label must be dynamic
+
+Current issue:
+- Label is hardcoded to "Board"
+
+Fix:
+
+- If user.rider_type == "Skier":
+  label = "Skis"
+
+- If user.rider_type == "Snowboarder":
+  label = "Board"
+
+- If mixed or missing:
+  label = "Equipment"
+
+Apply to:
+- templates/friend_profile.html
+- templates/profile.html
+- templates/partials/home/_header.html (if applicable)
+
+Do NOT change layout — only label logic.
+
+----------------------------------
+2. Stack and left-align equipment (Home + Friend Profile)
+
+Current issue:
+- Equipment is displayed inline as a single string
+- Hard to scan
+
+Fix:
+
+Display as stacked, left-aligned rows:
+
+Example (skier):
+Skis: Atomic Bent Chetler 100
+Boots: Salomon S/Pro Alpha 120
+
+Example (snowboarder):
+Board: Burton Custom 157
+Boots: Burton Photon Boa
+
+Requirements:
+- Each item on its own line
+- Left-aligned
+- Label + value format
+- Use dynamic label logic (Skis vs Board)
+
+Rules:
+- Only render lines that have data
+- Do NOT collapse into one line
+- Do NOT center align
+
+Apply to:
+- templates/partials/home/_header.html
+- templates/profile.html
+- templates/friend_profile.html
+
+----------------------------------
+3. Move profile details to top (Friend Profile)
+
+Current issue:
+- Skis/Board + Boots are still in a lower card
+
+Fix:
+
+Move:
+- Skis / Board
+- Boots
+
+To directly under:
+Name
+Rider type · skill · pass
+
+Place ABOVE:
+- "Invite to trip"
+- stat bar
+
+Remove them from:
+- Profile Details card entirely
+
+If no data exists → do not render section
+
+----------------------------------
+4. Remove duplicate pass row (Friend Profile)
+
+Current issue:
+- Pass appears twice:
+  - in identity line
+  - as "Pass — Epic"
+
+Fix:
+- Remove "Pass" row entirely from friend profile body
+
+Keep pass ONLY in:
+- identity line
+
+----------------------------------
+5. Remove “You’ve both been to” rows
+
+Current issue:
+- Shared module still shows “You’ve both been to…”
+
+Fix:
+- Remove ALL been_to_overlap rows
+
+Keep ONLY:
+- wishlist overlaps
+- date overlaps
+- availability overlaps
+
+Do not leave empty placeholders
+
+----------------------------------
+6. Stat bar — labels
+
+Apply to:
+- Home header
+- profile.html
+- friend_profile.html
+
+Labels MUST read exactly:
+- "X trips"
+- "X mountains visited"
+- "X wishlist mountains"
+
+----------------------------------
+7. Stat bar — make tiles clearly tappable
+
+Current issue:
+- Does not visually read as 3 separate links
+
+Fix:
+- Each stat tile is its own tap target
+- Entire tile is clickable (not just text)
+- Keep vertical dividers
+- Maintain minimal/premium styling
+
+Routing:
+
+My profile:
+- Trips → /my-trips
+- Mountains → /mountains_visited
+- Wishlist → /settings_wish_list
+
+Friend profile:
+- Trips → friend trips page
+- Mountains → friend visited page
+- Wishlist → friend wishlist page
+
+If any route is missing:
+STOP and report instead of guessing
+
+----------------------------------
+8. Stat bar — fix alignment (IMPORTANT)
+
+Current issue:
+- "5 trips" is shorter than the other two labels and breaks visual balance
+
+Fix via layout (NOT wording):
+
+- Each stat tile uses consistent vertical structure:
+  Line 1: number (large)
+  Line 2+: label block with fixed height
+
+- Ensure all 3 tiles:
+  - have equal height
+  - feel vertically aligned
+  - shorter labels (like "trips") are visually centered within the label block
+
+Do NOT:
+- change wording
+- add fake words
+- remove labels
+
+----------------------------------
+9. Insight cards
+
+Ensure:
+
+- No mountain emoji anywhere
+
+Exact copy:
+
+Today:
+"[Name] is at [Mountain] today. See who's there."
+
+Been:
+"[Name] has been to [Mountain]. Ask them about it."
+
+Hierarchy:
+- Today card = full opacity
+- Been card = ~60% opacity
+
+----------------------------------
+10. Ideas page — add availability entry point
+
+Current issue:
+- Users can only set availability during onboarding
+- No way to update availability from Ideas page
+
+Fix:
+
+Add directly under the existing description:
+
+"Destinations where your friends are headed and your dates might work."
+
+Add a second line:
+
+"Add your open availability here"
+
+- This text must be a clickable hyperlink
+
+Behavior:
+- Link routes to existing availability editor (reuse onboarding flow if needed)
+- Do NOT create a new system
+
+Styling:
+- Subtle, not a button
+- On-brand
+- Slight emphasis (e.g. darker text or underline)
+- Tight spacing, mobile-first
+
+Constraints:
+- Do NOT redesign page
+- Do NOT move existing content
+
+----------------------------------
+
+After completion, return:
+
+1. List of files changed
+2. Confirmation that:
+   - Equipment labels correctly show Skis vs Board
+   - Equipment is stacked on Home + Friend Profile
+   - Profile details moved to top
+   - Pass row removed
+   - “You’ve both been to” removed
+   - Stat bars are correct, aligned, and fully tappable
+   - Ideas page link works and routes correctly
+
+Do not make any unrelated changes.

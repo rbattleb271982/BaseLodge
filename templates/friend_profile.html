@@ -102,6 +102,12 @@
             color: var(--fp-color-text-tertiary);
             text-transform: uppercase;
             letter-spacing: 0.4px;
+            text-align: center;
+            line-height: 1.3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 2.4em;
         }
         .fp-stat-divider {
             width: 1px;
@@ -325,6 +331,7 @@
         {%- set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.model or friend_primary_equipment.boot_brand or friend_primary_equipment.boot_model)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.model or friend_secondary_equipment.boot_brand or friend_secondary_equipment.boot_model)) else none) -%}
         {%- set _has_gear = eq and (eq.brand or eq.model) -%}
         {%- set _has_boots = eq and (eq.boot_brand or eq.boot_model) -%}
+        {%- set _gear_label = 'Board' if (friend.display_rider_type or '') == 'Snowboarder' else ('Skis' if (friend.display_rider_type or '') in ['Skier', 'Both'] else 'Equipment') -%}
 
         <!-- ① Profile summary card -->
         <div class="fp-summary">
@@ -336,27 +343,15 @@
             <p class="fp-identity" style="color: #C5BFBA;">No profile details yet</p>
             {% endif %}
 
-            {% if friend.pass_type or _has_gear or _has_boots %}
-            <div style="margin: 0 0 12px 0;">
-                {% if friend.pass_type %}
-                <div class="fp-detail-row">
-                    <span class="fp-detail-label">Pass</span>
-                    <span class="fp-detail-value">{{ friend.pass_type }}</span>
-                </div>
-                {% endif %}
+            {% if _has_gear or _has_boots %}
+            <div style="margin: 0 0 12px 0; font-size: 13px; color: var(--fp-color-text-secondary); line-height: 1.5;">
                 {% if _has_gear %}
                 {%- set _gear_val = ([eq.brand, eq.model] | select | join(' ')) %}
-                <div class="fp-detail-row">
-                    <span class="fp-detail-label">Board</span>
-                    <span class="fp-detail-value" style="max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ _gear_val }}</span>
-                </div>
+                <div>{{ _gear_label }}: <span style="color:var(--fp-color-text-primary);font-weight:500;">{{ _gear_val }}</span></div>
                 {% endif %}
                 {% if _has_boots %}
                 {%- set _boot_val = ([eq.boot_brand, eq.boot_model] | select | join(' ')) %}
-                <div class="fp-detail-row">
-                    <span class="fp-detail-label">Boots</span>
-                    <span class="fp-detail-value" style="max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ _boot_val }}</span>
-                </div>
+                <div>Boots: <span style="color:var(--fp-color-text-primary);font-weight:500;">{{ _boot_val }}</span></div>
                 {% endif %}
             </div>
             {% endif %}
