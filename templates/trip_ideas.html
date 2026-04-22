@@ -272,7 +272,11 @@
 
         <div class="dest-feed">
             {% for row in dest_feed %}
+            {% if row.resort.slug %}
             <a href="{{ url_for('mountain_detail', slug=row.resort.slug) }}" class="dest-row">
+            {% else %}
+            <div class="dest-row">
+            {% endif %}
                 <div class="dest-row-body">
                     <p class="dest-row-line1">
                         {% if row.date_range %}
@@ -295,8 +299,12 @@
                     </p>
                     {% endif %}
                 </div>
-                <span class="dest-row-cta">›</span>
+                <span class="dest-row-cta">{% if row.resort.slug %}›{% endif %}</span>
+            {% if row.resort.slug %}
             </a>
+            {% else %}
+            </div>
+            {% endif %}
             {% endfor %}
         </div>
 

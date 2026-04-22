@@ -303,6 +303,81 @@
             font-size: 13px;
             color: #7A1E1E;
         }
+
+        /* ── Welcome modal ── */
+        .ob-welcome-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            z-index: 1000;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        .ob-welcome-overlay.hidden { display: none; }
+        .ob-welcome-card {
+            background: #F5F1E8;
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            max-width: 420px;
+            padding: 28px 28px 36px;
+            position: relative;
+        }
+        .ob-welcome-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: rgba(0,0,0,0.07);
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            color: #6B665A;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        .ob-welcome-logo {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 22px;
+            font-weight: 500;
+            color: #7A1E1E;
+            margin-bottom: 16px;
+        }
+        .ob-welcome-title {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            font-size: 26px;
+            font-weight: 500;
+            color: #1A1A1A;
+            line-height: 1.25;
+            margin-bottom: 12px;
+        }
+        .ob-welcome-body {
+            font-size: 15px;
+            color: #6B665A;
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+        .ob-welcome-cta {
+            width: 100%;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 500;
+            font-family: inherit;
+            background: #7A1E1E;
+            color: #fff;
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            letter-spacing: 0.01em;
+            transition: opacity 0.15s;
+        }
+        .ob-welcome-cta:hover { opacity: 0.88; }
+        .ob-welcome-cta:active { opacity: 0.75; }
     </style>
 </head>
 <body>
@@ -549,6 +624,31 @@
             cta.disabled = true;
         }
     }
+
+    // ── Welcome modal: show once per session ──────────────────────────────
+    document.addEventListener('DOMContentLoaded', function() {
+        var STORAGE_KEY = 'bl_ob_welcome_shown';
+        var overlay = document.getElementById('ob-welcome-overlay');
+        if (!overlay) return;
+        if (sessionStorage.getItem(STORAGE_KEY)) return;
+        overlay.classList.remove('hidden');
+        function dismiss() {
+            overlay.classList.add('hidden');
+            sessionStorage.setItem(STORAGE_KEY, '1');
+        }
+        document.getElementById('ob-welcome-close').addEventListener('click', dismiss);
+        document.getElementById('ob-welcome-cta').addEventListener('click', dismiss);
+    });
 </script>
+
+<div id="ob-welcome-overlay" class="ob-welcome-overlay hidden">
+    <div class="ob-welcome-card">
+        <button id="ob-welcome-close" class="ob-welcome-close" aria-label="Close">&times;</button>
+        <div class="ob-welcome-logo">BaseLodge</div>
+        <h2 class="ob-welcome-title">Welcome aboard.</h2>
+        <p class="ob-welcome-body">We've got a couple of questions for you to get you started.</p>
+        <button id="ob-welcome-cta" class="ob-welcome-cta">Get started</button>
+    </div>
+</div>
 </body>
 </html>

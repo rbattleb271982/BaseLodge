@@ -4994,14 +4994,6 @@ User Details:
 def more():
     return redirect(url_for('settings'))
 
-@app.route("/more_info")
-@login_required
-def more_info():
-    mountains = current_user.mountains_visited or []
-    mountains_visited_count = len(mountains)
-    
-    return render_template("more_info.html", mountains_visited_count=mountains_visited_count)
-
 @app.route("/profile")
 @login_required
 def profile():
@@ -7862,6 +7854,7 @@ def backfill_organizers_as_participants():
 
 @app.route("/open-data-debug")
 @login_required
+@admin_required
 def open_data_debug():
     """
     Debug endpoint to verify open date matching logic.

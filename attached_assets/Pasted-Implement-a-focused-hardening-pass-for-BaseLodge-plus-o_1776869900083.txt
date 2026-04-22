@@ -1,0 +1,57 @@
+Implement a focused hardening pass for BaseLodge plus one onboarding UX improvement. Keep changes minimal and do not alter core flows.
+
+1. Fix /more_info crash
+- Either:
+  a) delete the /more_info route entirely
+  OR
+  b) point it to an existing valid template
+- Do not leave a route that renders a missing template
+
+2. Add null guard for resort.slug in trip_ideas.html
+- If row.resort.slug is missing or falsy:
+  - Do not render a link
+  - Render plain text instead
+- Prevent any BuildError or broken URL
+
+3. Fix bottom nav active state on transactional pages
+- Ensure these routes highlight the correct tab:
+  - add_trip → Trips
+  - edit_trip → Trips
+  - add_open_dates → Ideas (or Home if that’s your logic)
+- Update bottom_nav.html endpoint checks
+
+4. Protect debug endpoint
+- Add @admin_required to /open-data-debug
+- Do not expose debug data to normal users
+
+5. Add onboarding welcome popup (new feature)
+- On the FIRST onboarding screen only (after account creation redirect), show a lightweight modal/popup
+- Copy:
+  "Welcome to BaseLodge, we've got a couple of questions for you to get you started."
+
+- Include:
+  - an "X" close button (top right)
+  - a primary CTA button: "Get started"
+
+- Behavior:
+  - Both the "X" and "Get started" button should simply dismiss the popup
+  - Do NOT navigate anywhere on click
+  - Show only once per user session (not every time they revisit onboarding)
+  - Do not block interaction if dismissed
+
+- Implementation:
+  - Reuse existing modal styles/components if available
+  - If no modal system exists, create a simple overlay div with minimal CSS
+  - Use a session-based flag (sessionStorage or similar) to prevent repeat showing
+
+- Do NOT:
+  - Add new libraries
+  - Introduce complex state management
+
+After implementing:
+- confirm /more_info no longer errors
+- confirm trip ideas cannot crash from missing slug
+- confirm bottom nav active state works on transactional pages
+- confirm debug endpoint is admin-only
+- confirm onboarding popup shows once and can be dismissed via both "X" and "Get started"
+- list files changed
