@@ -287,7 +287,7 @@
                                 <option value="Cross-Country" {% if primary_equipment and primary_equipment.discipline.value == 'cross-country' %}selected{% endif %}>Cross-Country</option>
                             </select>
                         </div>
-                        <p class="eq-group-label">Board</p>
+                        <p class="eq-group-label" id="primary-gear-label">Board</p>
                         <div class="eq-row-2">
                             <div>
                                 <label class="eq-field-label">Brand</label>
@@ -369,14 +369,21 @@
     const SAVED_PRIMARY_BINDING = {{ (primary_equipment.binding_type or '') | tojson if primary_equipment else '""' }};
 
     function makeBrandOptions(discipline, savedVal) {
-        const brands = discipline === 'Skier' ? SKI_BRANDS : (discipline === 'Snowboarder' ? BOARD_BRANDS : []);
+        let brands;
+        if (discipline === 'Snowboarder') {
+            brands = BOARD_BRANDS;
+        } else if (discipline === 'Skier' || discipline === 'Telemark' || discipline === 'Adaptive' || discipline === 'Cross-Country') {
+            brands = SKI_BRANDS;
+        } else {
+            brands = SKI_BRANDS;
+        }
         let html = '<option value="">Select</option>';
         brands.forEach(b => { html += `<option value="${b}"${b === savedVal ? ' selected' : ''}>${b}</option>`; });
         return html;
     }
 
     function makeBindingOptions(discipline, savedVal) {
-        const bindings = discipline === 'Skier' ? SKI_BINDINGS : (discipline === 'Snowboarder' ? BOARD_BINDINGS : []);
+        const bindings = discipline === 'Snowboarder' ? BOARD_BINDINGS : SKI_BINDINGS;
         let html = '<option value="">Select</option>';
         bindings.forEach(b => { html += `<option value="${b}"${b === savedVal ? ' selected' : ''}>${b}</option>`; });
         return html;
@@ -386,6 +393,12 @@
         const disc = document.getElementById(slot + '-discipline').value;
         const el = document.getElementById(slot + '-brand');
         el.innerHTML = makeBrandOptions(disc, savedVal || '');
+        const labelEl = document.getElementById(slot + '-gear-label');
+        if (labelEl) {
+            labelEl.textContent = disc === 'Skier' || disc === 'Telemark' || disc === 'Cross-Country' || disc === 'Adaptive'
+                ? 'Skis'
+                : (disc === 'Snowboarder' ? 'Board' : 'Gear');
+        }
     }
 
     function updateBindings(slot, savedVal) {

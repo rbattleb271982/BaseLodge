@@ -143,6 +143,7 @@
             background: rgba(245,241,232,0.95);
             border-top: 1px solid #E5DFD0;
             z-index: 100;
+            transition: opacity 0.15s ease;
         }
         .ep-floating-save-inner {
             max-width: 500px;
@@ -525,6 +526,19 @@
 
     // Mark dirty on previous_pass change
     document.getElementById('previous_pass_select').addEventListener('change', markDirty);
+
+    // Hide floating save bar while keyboard is open so it doesn't obscure form fields
+    const epFloatingSave = document.querySelector('.ep-floating-save');
+    document.querySelector('.ep-wrap').addEventListener('focusin', function(e) {
+        if (e.target.matches('input, select, textarea')) {
+            if (epFloatingSave) epFloatingSave.style.opacity = '0';
+        }
+    });
+    document.querySelector('.ep-wrap').addEventListener('focusout', function(e) {
+        if (e.target.matches('input, select, textarea')) {
+            if (epFloatingSave) epFloatingSave.style.opacity = '1';
+        }
+    });
     </script>
 </body>
 </html>
