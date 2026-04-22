@@ -334,6 +334,7 @@
                         <button class="eq-cancel-btn" onclick="hideEdit('primary')">Cancel</button>
                         {% endif %}
                     </div>
+                    <p id="primary-error" style="display:none; color:#9B3B3B; font-size:14px; margin:10px 0 0 0;"></p>
                     {% if primary_equipment %}
                     <div class="eq-danger-zone">
                         <button class="eq-delete-btn" onclick="deleteEquipment('primary')">Delete setup</button>
@@ -416,9 +417,25 @@
         await fetch('/settings/equipment-status', { method: 'POST', body: fd });
     }
 
+    function showInlineError(slot, msg) {
+        const el = document.getElementById(slot + '-error');
+        if (!el) return;
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+
+    function clearInlineError(slot) {
+        const el = document.getElementById(slot + '-error');
+        if (el) el.style.display = 'none';
+    }
+
     async function saveEquipment(slot) {
+        clearInlineError(slot);
         const discipline = document.getElementById(slot + '-discipline').value;
-        if (!discipline) { showToast('Select a rider type first'); return; }
+        if (!discipline) {
+            showInlineError(slot, 'Please select a rider type before saving.');
+            return;
+        }
 
         const fd = new FormData();
         fd.append('slot', slot);
@@ -441,12 +458,13 @@
             const resp = await fetch('/settings/equipment/save', { method: 'POST', body: fd });
             const data = await resp.json();
             if (data.success) {
-                showToast('Setup saved');
-                setTimeout(() => window.location.reload(), 800);
+                window.location.href = '/profile';
             } else {
-                showToast(data.error || 'Could not save');
+                showInlineError(slot, data.error || 'Could not save. Please try again.');
             }
-        } catch (e) { showToast('Could not save'); }
+        } catch (e) {
+            showInlineError(slot, 'Could not save. Check your connection and try again.');
+        }
     }
 
     async function deleteEquipment(slot) {
