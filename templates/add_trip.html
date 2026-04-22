@@ -248,6 +248,25 @@
             font-weight: 600;
             color: #1A1A1A;
         }
+        .at-cal-jump {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .at-cal-jump select {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1A1A1A;
+            background: #F5F1E8;
+            border: 1px solid #E5DFD0;
+            border-radius: 6px;
+            padding: 3px 6px;
+            cursor: pointer;
+            font-family: inherit;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .at-cal-jump select:focus { outline: none; border-color: #5C1219; }
         .at-cal-weekdays {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
@@ -623,7 +642,10 @@
                 <div class="at-cal-card">
                     <div class="at-cal-header">
                         <button type="button" class="at-cal-nav" id="prev-month">&#8249;</button>
-                        <span class="at-cal-month" id="cal-month-label"></span>
+                        <div class="at-cal-jump">
+                            <select id="cal-month-select" aria-label="Month"></select>
+                            <select id="cal-year-select" aria-label="Year"></select>
+                        </div>
                         <button type="button" class="at-cal-nav" id="next-month">&#8250;</button>
                     </div>
                     <div class="at-cal-weekdays">
@@ -899,12 +921,33 @@
         // ── Calendar render (called on month change only) ─────────────
         function renderCalendar() {
             const grid  = document.getElementById('cal-grid');
-            const label = document.getElementById('cal-month-label');
             const prevBtn = document.getElementById('prev-month');
+            const monthSel = document.getElementById('cal-month-select');
+            const yearSel  = document.getElementById('cal-year-select');
 
             const yr = calMonth.getFullYear();
             const mo = calMonth.getMonth();
-            label.textContent = MONTH_NAMES[mo] + ' ' + yr;
+
+            // Sync dropdowns without re-populating if already built
+            if (monthSel.options.length === 0) {
+                MONTH_NAMES.forEach((name, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    opt.textContent = name;
+                    monthSel.appendChild(opt);
+                });
+            }
+            if (yearSel.options.length === 0) {
+                const curYr = todayDate.getFullYear();
+                for (let y = curYr; y <= curYr + 3; y++) {
+                    const opt = document.createElement('option');
+                    opt.value = y;
+                    opt.textContent = y;
+                    yearSel.appendChild(opt);
+                }
+            }
+            monthSel.value = mo;
+            yearSel.value  = yr;
 
             const thisMonthStart = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
             prevBtn.disabled = new Date(yr, mo, 1) <= thisMonthStart;
@@ -1006,6 +1049,15 @@
             renderCalendar();
         }
 
+        function jumpToMonth() {
+            const mo = parseInt(document.getElementById('cal-month-select').value, 10);
+            const yr = parseInt(document.getElementById('cal-year-select').value, 10);
+            if (!isNaN(mo) && !isNaN(yr)) {
+                calMonth = new Date(yr, mo, 1);
+                renderCalendar();
+            }
+        }
+
         function updateRangeSummary() {
             const rangeText  = document.getElementById('range-text');
             const clearBtn   = document.getElementById('clear-dates-btn');
@@ -1048,6 +1100,8 @@
             // Calendar nav
             document.getElementById('prev-month').addEventListener('click', () => navigateMonth(-1));
             document.getElementById('next-month').addEventListener('click', () => navigateMonth(1));
+            document.getElementById('cal-month-select').addEventListener('change', jumpToMonth);
+            document.getElementById('cal-year-select').addEventListener('change', jumpToMonth);
 
             // Calendar tap delegation (no DOM rebuild on tap)
             document.getElementById('cal-grid').addEventListener('click', function (e) {

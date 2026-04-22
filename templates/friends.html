@@ -201,6 +201,20 @@
             padding: 24px 0 8px;
             margin: 0;
         }
+        .fr-new-badge {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            color: #5C1219;
+            background: #F0DDD8;
+            border-radius: 4px;
+            padding: 1px 5px;
+            vertical-align: middle;
+            margin-left: 5px;
+            font-family: inherit;
+        }
 
         /* ── Mountain filter ──────────────────────────────────────────── */
         .fr-mtn-filter-btn {
@@ -394,6 +408,7 @@
                             <p class="fr-friend-name">
                                 {{- friend.first_name | format_name -}}
                                 {%- if friend.last_name %} {{ friend.last_name | format_name }}{% endif -%}
+                                {%- if friend._is_new_friend %} <span class="fr-new-badge">New</span>{% endif -%}
                             </p>
                             {%- set _meta = [] -%}
                             {%- set _rider = friend.primary_rider_type or (friend.rider_types[0] if friend.rider_types else none) or friend.rider_type -%}

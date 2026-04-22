@@ -75,13 +75,14 @@ def track(user_id, event, properties=None, set_props=None, set_once_props=None):
     if not client:
         logger.info("PostHog track skipped: client unavailable")
         return
+    distinct_id = str(user_id) if user_id is not None else "anonymous"
     props = dict(properties or {})
     if set_props:
         props["$set"] = set_props
     if set_once_props:
         props["$set_once"] = set_once_props
     try:
-        client.capture(str(user_id), event, props)
+        client.capture(distinct_id, event, props)
     except Exception as exc:
         logger.warning("PostHog track failed: %s", exc)
 
@@ -92,7 +93,10 @@ def identify(user_id, properties=None, set_once_props=None):
     if not client:
         return
     try:
-        client.identify(str(user_id), properties or {}, set_once_props or {})
+        props = dict(properties or {})
+        if set_once_props:
+            props["$set_once"] = set_once_props
+        client.identify(str(user_id), props)
     except Exception as exc:
         logger.warning("PostHog identify failed: %s", exc)
 

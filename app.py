@@ -2103,6 +2103,13 @@ def edit_profile():
         abort(403)
     
     if request.method == "POST":
+        new_first = request.form.get("first_name", "").strip()
+        new_last = request.form.get("last_name", "").strip()
+        if new_first:
+            user.first_name = new_first
+        if new_last:
+            user.last_name = new_last
+
         user.gender = request.form.get("gender") or None
         birth_year_raw = request.form.get("birth_year")
         user.birth_year = int(birth_year_raw) if birth_year_raw else None
