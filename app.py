@@ -3645,7 +3645,20 @@ def friend_profile(friend_id):
     user_wish_list_ids = set(user.wish_list_resorts or [])
     wish_list_overlap_ids = [rid for rid in friend_wish_list_ids if rid in user_wish_list_ids]
     wish_list_overlap = Resort.query.filter(Resort.id.in_(wish_list_overlap_ids)).all() if wish_list_overlap_ids else []
-    
+
+    # Calculate "been to" overlap — mountains both users have visited
+    try:
+        user_visited_resorts = user.get_visited_resorts()
+        user_visited_ids = set(r.id for r in user_visited_resorts)
+        friend_visited_ids = set(r.id for r in friend_visited_resorts)
+        been_to_overlap_ids = user_visited_ids & friend_visited_ids
+        been_to_overlap = Resort.query.filter(Resort.id.in_(been_to_overlap_ids)).all() if been_to_overlap_ids else []
+    except Exception:
+        been_to_overlap = []
+
+    # Whether the current user has upcoming trips they could invite this friend to
+    has_user_upcoming_trips = len(user_trips) > 0
+
     return render_template(
         "friend_profile.html",
         friend=friend,
@@ -3664,6 +3677,8 @@ def friend_profile(friend_id):
         can_ski_user_trips=can_ski_user_trips,
         friend_wish_list=friend_wish_list,
         wish_list_overlap=wish_list_overlap,
+        been_to_overlap=been_to_overlap,
+        has_user_upcoming_trips=has_user_upcoming_trips,
         visited_resorts=friend_visited_resorts,
         wishlist_resorts=friend_wishlist_resorts,
         overlap_context=overlap_context,
