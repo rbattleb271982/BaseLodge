@@ -192,6 +192,7 @@
             </div>
 
             <button type="submit" class="bl-btn-primary" id="saveBtn" style="width: 100%; padding: 14px;" disabled>Save availability</button>
+            <p id="save-confirm" style="display:none; text-align:center; color:#3A7D44; font-size:15px; font-weight:500; margin:12px 0 0;">Availability saved ✓</p>
         </form>
 
         <a href="{{ url_for('home') }}?tab=open" style="display: block; text-align: center; text-decoration: none; color: #6B665A; margin-top: 16px; font-size: 14px;">
@@ -473,6 +474,35 @@
         // ─── Init ─────────────────────────────────────────────────────────
         buildCalendar();
         updateSummary();
+
+        // ─── Save confirmation feedback ───────────────────────────────────
+        document.getElementById('openDatesForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn  = document.getElementById('saveBtn');
+            const conf = document.getElementById('save-confirm');
+            const form = this;
+
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
+
+            fetch(form.action || window.location.pathname, {
+                method: 'POST',
+                body: new FormData(form),
+                redirect: 'follow'
+            })
+            .then(function(res) {
+                btn.textContent = 'Saved';
+                conf.style.display = 'block';
+                setTimeout(function() {
+                    window.location.href = res.url || '{{ url_for("home") }}?tab=open';
+                }, 1200);
+            })
+            .catch(function() {
+                btn.disabled = false;
+                btn.textContent = 'Save availability';
+                conf.style.display = 'none';
+            });
+        });
     </script>
 </body>
 </html>
