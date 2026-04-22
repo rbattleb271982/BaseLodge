@@ -138,6 +138,26 @@ def _user_or_ip():
         pass
     return get_remote_address()
 
+# ── CSRF helpers ──────────────────────────────────────────────────────────────
+def generate_csrf_token():
+    """Return a per-session CSRF token, creating one if absent."""
+    if '_csrf_token' not in session:
+        session['_csrf_token'] = secrets.token_hex(32)
+    return session['_csrf_token']
+
+def validate_csrf_request():
+    """Abort 403 if the CSRF token in the request does not match the session."""
+    session_token = session.get('_csrf_token')
+    request_token = (
+        request.form.get('csrf_token')
+        or request.headers.get('X-CSRF-Token')
+        or request.headers.get('X-CSRFToken')
+    )
+    if not session_token or not secrets.compare_digest(session_token, request_token or ''):
+        abort(403)
+
+app.jinja_env.globals['csrf_token'] = generate_csrf_token
+
 @app.before_request
 def redirect_to_canonical_domain():
     parsed_url = urlparse(request.url)
@@ -3700,6 +3720,7 @@ def friend_profile(friend_id):
 @app.route("/friends/<int:friend_id>/remove", methods=["POST"])
 @login_required
 def remove_friend_web(friend_id):
+    validate_csrf_request()
     # Only allow removing an actual friend of the current user
     row_a = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
     if not row_a:
@@ -6925,6 +6946,7 @@ def change_password():
         return render_template("change_password.html", oauth_user=True)
 
     if request.method == "POST":
+        validate_csrf_request()
         current_password = request.form.get("current_password", "")
         new_password = request.form.get("new_password", "")
         confirm_password = request.form.get("confirm_password", "")
@@ -6959,6 +6981,7 @@ def change_password():
 @app.route("/delete-account", methods=["POST"])
 @login_required
 def delete_account():
+    validate_csrf_request()
     confirm_email = request.form.get("confirm_email", "").lower().strip()
     if confirm_email != current_user.email.lower():
         flash("Email address did not match. Account was not deleted.", "error")
@@ -7411,6 +7434,8 @@ def create_real_users_and_connect():
     }
 
 @app.route("/force-create-base-users")
+@login_required
+@admin_required
 def force_create_base_users():
     created = {}
 
@@ -7567,6 +7592,8 @@ def build_mountain_to_resort_mapping():
 
 
 @app.route("/admin/backfill-resort-ids", methods=["GET", "POST"])
+@login_required
+@admin_required
 def backfill_resort_ids_endpoint():
     """
     Backfill visited_resort_ids and home_resort_id from legacy string data.
@@ -7661,6 +7688,8 @@ def backfill_resort_ids_endpoint():
 
 
 @app.route("/admin/seed-test-users", methods=["GET", "POST"])
+@login_required
+@admin_required
 def seed_test_users_endpoint():
     """
     HTTP endpoint to seed test users for demo/testing.
@@ -7694,6 +7723,8 @@ def seed_test_users_endpoint():
 
 
 @app.route("/admin/seed-narrative-states", methods=["GET", "POST"])
+@login_required
+@admin_required
 def seed_narrative_states_endpoint():
     """
     HTTP endpoint to seed 4 test users for narrative state validation.
@@ -7727,6 +7758,8 @@ def seed_narrative_states_endpoint():
 
 
 @app.route("/admin/backfill-planning-timestamp", methods=["GET", "POST"])
+@login_required
+@admin_required
 def backfill_planning_timestamp_endpoint():
     """
     HTTP endpoint to backfill first_planning_timestamp for existing users.
@@ -7761,6 +7794,8 @@ def backfill_planning_timestamp_endpoint():
 
 
 @app.route("/admin/backfill-primary-rider-type", methods=["GET", "POST"])
+@login_required
+@admin_required
 def backfill_primary_rider_type_endpoint():
     """
     HTTP endpoint to backfill primary_rider_type from legacy rider_type for existing users.
@@ -7803,6 +7838,8 @@ def backfill_primary_rider_type_endpoint():
 
 
 @app.route("/admin/backfill-organizers-as-participants", methods=["GET", "POST"])
+@login_required
+@admin_required
 def backfill_organizers_as_participants():
     """
     HTTP endpoint to backfill trip organizers as participants.
