@@ -585,6 +585,15 @@ def resolve_navigation(path, user_state, pending_intent=None):
     return None
 
 
+@app.after_request
+def set_security_headers(response):
+    """Apply baseline security headers to every response."""
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer-when-downgrade"
+    return response
+
+
 @app.before_request
 def before_request_handlers():
     import sys
@@ -2187,7 +2196,7 @@ def edit_profile():
             # Emit profile_completed event
             emit_event('profile_completed', user)
             
-            return redirect(url_for("more"))
+            return redirect(url_for("profile"))
         except Exception as e:
             db.session.rollback()
             print(f"Error saving profile: {e}")
@@ -3760,7 +3769,7 @@ def friend_profile_legacy(user_id):
     """Legacy route - redirect to the main friend profile page."""
     # Check if viewing own profile
     if user_id == current_user.id:
-        return redirect(url_for("more"))
+        return redirect(url_for("profile"))
     
     # Redirect to the main friend profile route
     return redirect(url_for("friend_profile", friend_id=user_id))
@@ -5030,7 +5039,8 @@ User Details:
 @app.route("/more")
 @login_required
 def more():
-    return redirect(url_for('settings'))
+    # Legacy URL — skip the intermediate /settings hop and go straight to profile.
+    return redirect(url_for('profile'))
 
 @app.route("/profile")
 @login_required
