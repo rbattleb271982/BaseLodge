@@ -729,9 +729,9 @@
                         <p class="td-person-meta">{{ p.user|identity_line }}</p>
                     </div>
                     {% if is_owner %}
-                    <form method="POST" action="{{ url_for('cancel_trip_invite', trip_id=trip.id) }}" onsubmit="return confirm('Cancel invite?');">
+                    <form method="POST" action="{{ url_for('cancel_trip_invite', trip_id=trip.id) }}">
                         <input type="hidden" name="user_id" value="{{ p.user_id }}">
-                        <button type="submit" class="td-cancel-link">Cancel</button>
+                        <button type="button" class="td-cancel-link" onclick="showCancelInviteModal(this.closest('form'))">Cancel</button>
                     </form>
                     {% endif %}
                 </div>
@@ -817,6 +817,17 @@
         </div>
     </div>
     {% endif %}
+
+    <div class="modal-overlay" id="cancelInviteModal" style="z-index: 10001;">
+        <div style="background: var(--bl-color-surface); border-radius: var(--bl-radius-lg); padding: 24px; width: 100%; max-width: 320px; text-align: center;">
+            <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">Cancel invite?</h3>
+            <p style="font-size: 14px; color: var(--bl-color-text-muted); line-height: 1.5; margin: 0 0 20px 0;">This person will no longer be invited to the trip.</p>
+            <div style="display: flex; gap: 12px;">
+                <button type="button" onclick="hideCancelInviteModal()" style="flex: 1; padding: 12px; border-radius: var(--bl-radius-md); font-weight: 600; background: transparent; color: var(--bl-color-text); border: 1px solid var(--bl-color-border); cursor: pointer;">Never mind</button>
+                <button type="button" onclick="confirmCancelInvite()" style="flex: 1; padding: 12px; border-radius: var(--bl-radius-md); font-weight: 600; background: #5C1219; color: white; border: none; cursor: pointer;">Yes, cancel</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         function toggleTransportEditor() {
@@ -948,6 +959,11 @@
         function showConfirmModal() { document.getElementById('confirmInviteModal').classList.add('active'); }
         function hideConfirmModal() { document.getElementById('confirmInviteModal').classList.remove('active'); }
         function submitInvites() { document.getElementById('inviteForm').submit(); }
+
+        var _cancelInviteForm = null;
+        function showCancelInviteModal(form) { _cancelInviteForm = form; document.getElementById('cancelInviteModal').classList.add('active'); }
+        function hideCancelInviteModal() { document.getElementById('cancelInviteModal').classList.remove('active'); _cancelInviteForm = null; }
+        function confirmCancelInvite() { if (_cancelInviteForm) _cancelInviteForm.submit(); }
         document.getElementById('confirmInviteModal')?.addEventListener('click', function(e) { if (e.target === this) hideConfirmModal(); });
         document.getElementById('friendSearchInput')?.addEventListener('input', function(e) {
             const term = e.target.value.toLowerCase();
