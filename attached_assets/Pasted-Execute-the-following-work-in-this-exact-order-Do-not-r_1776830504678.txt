@@ -1,0 +1,320 @@
+Execute the following work in this exact order. Do not reorder it. Do not skip ahead. Use checkpoints sparingly.
+
+This is a phased UI refinement pass across settings, discovery, Home, Profile, and Friend Profile. Keep the current design system. Do NOT redesign the app or introduce new patterns. Do NOT add new pages unless an existing destination truly does not exist and is required for a stat-bar link.
+
+Implementation order:
+
+1. #55 - Settings Pages Cleanup
+2. #56 - Ideas Tab & Mountain Detail Polish
+3. #54 - Home, Profile & Friend Profile Polish
+
+Before execution, lock this labeling rule for #54:
+- In the friend profile top section, use:
+  - Pass
+  - Board
+  - Boots
+- Do NOT use:
+  - Skis
+  - Board/Skis
+  - Equipment
+
+Return progress after each numbered task is complete.
+
+--------------------------------------------------
+#55 - Settings Pages Cleanup
+
+What & Why
+Four targeted cleanups across settings: remove two personal data fields from profile editing, overhaul the equipment page to a single-setup UI with rent-vs-own states, strip state abbreviations from mountains visited and wishlist, and raise the wishlist cap from 3 to 15.
+
+Done looks like
+Profile — Your Details (edit_profile.html):
+- Birth Year and Gender fields are gone; form does not submit them
+- Remaining fields: Home location, Home mountain, Rider type, Skill level, Terrain, Pass info
+- Vertical spacing is tighter; unnecessary padding removed; layout stays mobile-first
+
+Equipment page:
+- Secondary setup section entirely removed — no UI, no hidden inputs
+- If user selects "I rent": simple inline text shown, no card UI
+- If user selects "I own equipment": one clean card shown
+- Edit state groups fields as: Rider | Board | Boots
+- Actions: primary Save, secondary Cancel, danger Delete (visually separated from the two main actions)
+
+Mountains visited:
+- State abbreviations removed; mountain name only shown
+- Grouping structure intact
+
+Wishlist:
+- Cap raised from 3 to 15 everywhere (template counter, JS logic, backend constant)
+- Counter reads "X of 15 chosen"
+- Limit message shows ONLY at 15: "You've added 15 mountains — remove one to add another"
+- Limit message hidden below 15
+- State abbreviations removed from mountain names
+- Alphabetical ordering preserved
+
+Out of scope
+- Deleting birth_year or gender data from existing user records
+- Deleting secondary equipment records from the database
+- Profile summary view (profile.html) — covered by the Home/Profile task
+- Any routing or page navigation changes
+
+Steps
+1. Edit profile: remove birth year and gender
+- Remove the Birth Year and Gender form fields from edit_profile.html
+- Stop submitting those values
+- No backend route change required unless absolutely necessary
+
+2. Edit profile: tighten spacing
+- Reduce vertical padding and margin between remaining fields so the form feels compact and mobile-first
+
+3. Equipment: single setup, rent vs own
+- Remove all secondary setup UI from settings_equipment.html
+- Remove all secondary-related rendered or posted hidden field dependencies, not just the visible section
+- Implement rent-vs-own display:
+  - rent → inline text
+  - own → single card
+- Group edit fields as Rider / Board / Boots
+- Move the Delete action to a danger zone visually separated from Save and Cancel
+
+4. Equipment: backend
+- Confirm the app.py equipment route does not pass or render secondary equipment data
+- Stop rendering it if it does
+- Do not delete secondary records
+
+5. Mountains visited: remove state abbreviations
+- Update mountains_visited.html to display mountain name only
+- Strip state name/abbreviation from each list item
+- Keep grouping
+
+6. Wishlist: raise cap and fix messaging
+- Update settings_wish_list.html counter text, JS cap constant, and limit message copy
+- Update the backend constant in app.py if it enforces the 3-mountain limit
+- Remove state abbreviations from wishlist mountain names
+- Preserve alphabetical ordering
+
+Relevant files
+- templates/edit_profile.html:179-195,334-335,526-529
+- app.py:2106-2108
+- templates/settings_equipment.html
+- app.py:5152-5185
+- templates/mountains_visited.html:178,211,223,230
+- templates/settings_wish_list.html:86-96,158,171,242,246
+
+After #55 is complete:
+- test the settings pages end to end
+- confirm no hidden secondary setup inputs still post
+- confirm wishlist limit really works at 15
+- return a summary of exact files changed before moving to #56
+
+--------------------------------------------------
+#56 - Ideas Tab & Mountain Detail Polish
+
+What & Why
+Two focused discovery-layer updates: Ideas tab feed rows replace friend names with going/considering counts and elevate dates visually; mountain detail top section is restructured to show personal signals (pass + wishlist) before social signals, removing pass pills.
+
+Done looks like
+Ideas tab:
+- Each feed row shows counts, not names:
+  - "1 friend going"
+  - "2 friends going"
+  - "3 friends considering"
+- If both non-zero: "2 going · 3 considering"
+- Zero values are hidden; line hidden if both zero
+- Correct pluralization:
+  - "1 friend" singular
+  - "2 friends" plural
+- Date range is the bold/primary text element
+- Mountain name is secondary (lighter weight or muted)
+- Counts are equal-weight, muted
+
+Mountain detail top section:
+- Structure:
+  - STATE (small, muted)
+  - Mountain name (large serif)
+  - personal signals
+  - social signals
+- Personal signals:
+  - always show "Covered by your [Pass] pass" OR "Not on your pass"
+  - append " · On your wishlist" only when true
+- Social signals:
+  - "X going · Y considering"
+  - zero values hidden
+  - line hidden when both are zero
+- Pass pills removed from top section
+- No changes below the divider
+
+Out of scope
+- Changes to the Ideas engine signal logic, scoring, or card types
+- Changes to mountain detail body (trip rows below the divider)
+- New routes or pages
+
+Steps
+1. Ideas engine: add counts
+- Update services/ideas_engine.py (the build_destination_feed function) so each row dict includes:
+  - going_count
+  - considering_count
+- Derive these from friends_in_window
+- These should supplement or replace the existing line2/supporting_line friend-name string
+
+2. Ideas tab template: render counts
+- Update trip_ideas.html to render counts with pluralization logic and the "X going · Y considering" format
+- Remove friend names from the row presentation
+
+3. Ideas tab template: date hierarchy
+- Swap visual styling so date range is bold/primary
+- Mountain name is secondary
+- Counts remain equal-weight and muted
+
+4. Mountain detail route: add personal signals
+- In the mountain_detail route in app.py, compute and pass:
+  - user_pass_covered (bool)
+  - user_pass_name (str, e.g. "Epic")
+  - is_on_wishlist (bool)
+- Compare user's pass_type against the resort's accepted passes
+
+5. Mountain detail template: restructure top section
+- Reorder hero block:
+  - state label
+  - mountain name
+  - personal signals line
+  - social signals line
+- Remove pass pills
+- Add personal signals line using the new route variables
+- Hide social signals line when both counts are zero
+
+Relevant files
+- services/ideas_engine.py
+- templates/trip_ideas.html
+- templates/mountain_detail.html
+- app.py:5242-5365
+
+After #56 is complete:
+- test Ideas rows for 1/2+/0 counts
+- test mountain detail for:
+  - covered pass
+  - not on your pass
+  - on wishlist
+  - not on wishlist
+  - zero social counts
+  - mixed going/considering counts
+- return a summary of exact files changed before moving to #54
+
+--------------------------------------------------
+#54 - Home, Profile & Friend Profile Polish
+
+What & Why
+Focused copy, icon, stat bar, and hierarchy refinements across the Home screen insight cards, every stat bar instance, and the friend profile top section and shared module.
+
+Done looks like
+Home insight cards:
+- Mountain emoji removed from both insight cards; clean text only
+- Today card reads: "[First Name Last Name] is at [Mountain Name] today. See who's there."
+- Been card reads: "[First Name Last Name] has been to [Mountain Name]. Ask them about it."
+- Been card renders at ~60% opacity; today card remains full-opacity primary
+
+Stat bars (Home header, own profile, friend profile — all three):
+- Labels read:
+  - "X trips"
+  - "X mountains visited"
+  - "X wishlist mountains"
+- Every tile looks and behaves as a tappable link
+- Own profile routes:
+  - Trips → /my-trips
+  - Mountains → /mountains_visited
+  - Wishlist → /settings_wish_list
+- Friend profile routes:
+  - Trips → friend trips page
+  - Mountains → friend visited page
+  - Wishlist → friend wishlist page
+- Do not leave any stat tile looking tappable without a destination
+
+Friend profile top section:
+- Pass, Board, Boots shown directly under the name/identity line
+- Only non-empty fields shown; empty fields silently omitted
+- These fields removed from the lower "Profile details" card
+
+Friend profile "Shared with [Name]" module:
+- "You've both been to [Mountain]" rows removed entirely
+- Wishlist overlaps, future trip date overlaps, and availability overlaps remain
+
+Out of scope
+- Any changes to the Home card layout system or module structure
+- Friend profile routing beyond wiring existing friend sub-page URLs
+- Settings, equipment, or wishlist pages (already handled in #55)
+
+Steps
+1. Insight card copy & icon removal
+- Remove mountain emoji from _insight_card_been.html
+- Update been card copy
+- Update today-overlap text in _module_next_trip.html
+- No replacement icon
+
+2. Been card opacity
+- Add ~60% opacity to the been insight card container
+
+3. Stat bar labels
+- Update all stat bar instances:
+  - templates/partials/home/_header.html
+  - templates/partials/home/_header_empty.html
+  - templates/profile.html
+  - templates/friend_profile.html
+- Show full-text labels:
+  - "X trips"
+  - "X mountains visited"
+  - "X wishlist mountains"
+
+4. Stat bar links — own profile + Home
+- Make all three tiles tappable on the Home header and own profile stat bar
+- Route to:
+  - /my-trips
+  - /mountains_visited
+  - /settings_wish_list
+
+5. Stat bar links — friend profile
+- Make all three friend profile stat tiles tappable
+- Wire:
+  - Trips → friend’s trips page
+  - Mountains → friend’s visited page
+  - Wishlist → friend’s wishlist page
+- If any destination truly does not exist, stop and report it before inventing a new one
+
+6. Friend profile top section
+- Move Pass, Board, and Boots inline directly under the identity line
+- Place them before “Invite to trip →”
+- Conditionally render only non-empty fields
+- Remove them from the lower Profile Details card
+
+7. Friend profile been-to removal
+- Remove been_to_overlap rows from the “Shared with [Name]” module
+- Keep wishlist, date, and availability overlap rows
+
+Relevant files
+- templates/partials/home/_insight_card_been.html
+- templates/partials/home/_module_next_trip.html
+- templates/partials/home/_header.html
+- templates/partials/home/_header_empty.html
+- templates/profile.html
+- templates/friend_profile.html
+
+After #54 is complete:
+- test all three Home/Profile/Friend Profile stat bars
+- test friend profile top-section rendering with missing fields
+- test shared module no longer shows been-to rows
+- return exact files changed and any missing friend-destination routes encountered
+
+--------------------------------------------------
+
+Global constraints
+- Do NOT redesign layouts
+- Do NOT introduce new UI systems
+- Do NOT add unrelated changes
+- Keep everything mobile-first
+- Maintain the current design language
+- Be conservative and precise
+
+Execution behavior
+- Complete #55 fully, summarize, and verify before starting #56
+- Complete #56 fully, summarize, and verify before starting #54
+- Complete #54 fully, summarize, and verify at the end
+- If you hit a missing existing destination for a friend stat bar, stop and report it instead of guessing
+
+Do not start coding until you have translated this into a step-by-step execution plan first.

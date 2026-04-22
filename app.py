@@ -5150,11 +5150,8 @@ def settings_profile():
 @login_required
 def settings_equipment():
     primary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=EquipmentSlot.PRIMARY).first()
-    secondary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=EquipmentSlot.SECONDARY).first()
-    
     return render_template("settings_equipment.html",
                            primary_equipment=primary_equipment,
-                           secondary_equipment=secondary_equipment,
                            user=current_user)
 
 
@@ -5351,6 +5348,18 @@ def mountain_detail(slug):
     social_going = len(_seen_going)
     social_considering = len(_seen_considering)
 
+    # Personal signals: pass coverage + wishlist membership
+    import re as _re
+    user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
+    user_pass_covered = False
+    user_pass_name = ""
+    for _up in user_passes:
+        if _up in pass_names:
+            user_pass_covered = True
+            user_pass_name = _re.sub(r'\s+[Pp]ass$', '', _up).strip()
+            break
+    is_on_wishlist = resort.id in (current_user.wish_list_resorts or [])
+
     return render_template(
         'mountain_detail.html',
         resort=resort,
@@ -5360,6 +5369,9 @@ def mountain_detail(slug):
         state_full=state_full,
         social_going=social_going,
         social_considering=social_considering,
+        user_pass_covered=user_pass_covered,
+        user_pass_name=user_pass_name,
+        is_on_wishlist=is_on_wishlist,
     )
 
 
@@ -5411,9 +5423,9 @@ def settings_wish_list_save():
     data = request.get_json()
     resort_ids = data.get("resort_ids", [])
     
-    # Enforce max of 3
-    if len(resort_ids) > 3:
-        return jsonify({"error": "Maximum 3 resorts allowed"}), 400
+    # Enforce max of 15
+    if len(resort_ids) > 15:
+        return jsonify({"error": "Maximum 15 resorts allowed"}), 400
     
     # Validate resort IDs exist
     valid_ids = []
@@ -5487,13 +5499,13 @@ def api_wishlist_add():
     if not resort:
         return jsonify({"error": "Resort not found"}), 404
     ids = list(current_user.wish_list_resorts or [])
-    if len(ids) >= 3:
-        return jsonify({"error": "Maximum 3 resorts", "at_limit": True}), 200
+    if len(ids) >= 15:
+        return jsonify({"error": "Maximum 15 resorts", "at_limit": True}), 200
     if resort_id not in ids:
         ids.append(resort_id)
         current_user.wish_list_resorts = ids
         db.session.commit()
-    return jsonify({"success": True, "count": len(ids), "at_limit": len(ids) >= 3})
+    return jsonify({"success": True, "count": len(ids), "at_limit": len(ids) >= 15})
 
 
 @app.route("/api/wishlist/remove", methods=["POST"])

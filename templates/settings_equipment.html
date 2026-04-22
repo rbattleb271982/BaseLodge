@@ -172,27 +172,30 @@
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
         }
-        /* Add secondary */
-        .eq-add-btn {
-            width: 100%;
-            padding: 14px;
-            background: transparent;
-            border: 1px dashed #E5DFD0;
-            border-radius: 10px;
-            color: #5C1219;
-            font-size: 15px;
-            cursor: pointer;
-            margin-top: 4px;
-            -webkit-tap-highlight-color: transparent;
+        /* Group labels inside edit form */
+        .eq-group-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #6B665A;
+            margin: 16px 0 8px 0;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #E5DFD0;
         }
-        /* Rentals notice */
-        .eq-rentals-note {
-            padding: 20px;
-            background: #F0DDD8;
-            border-radius: 12px;
+        .eq-group-label:first-child { margin-top: 0; }
+        /* Danger zone */
+        .eq-danger-zone {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #E5DFD0;
             text-align: center;
+        }
+        /* Rentals inline text */
+        .eq-rentals-text {
             font-size: 15px;
             color: #6B665A;
+            margin: 8px 0 0 0;
         }
         /* Toast */
         .eq-toast {
@@ -267,8 +270,9 @@
                 <div id="primary-edit">
                 {% endif %}
                     <div class="eq-form-grid">
+                        <p class="eq-group-label">Rider</p>
                         <div>
-                            <label class="eq-field-label">Rider type</label>
+                            <label class="eq-field-label">Type</label>
                             <select id="primary-discipline" onchange="updateBrands('primary'); updateBindings('primary');">
                                 <option value="">Select</option>
                                 <option value="Skier" {% if primary_equipment and primary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
@@ -278,6 +282,7 @@
                                 <option value="Cross-Country" {% if primary_equipment and primary_equipment.discipline.value == 'cross-country' %}selected{% endif %}>Cross-Country</option>
                             </select>
                         </div>
+                        <p class="eq-group-label">Board</p>
                         <div class="eq-row-2">
                             <div>
                                 <label class="eq-field-label">Brand</label>
@@ -298,9 +303,14 @@
                                 <input type="number" id="primary-width" placeholder="98" value="{{ primary_equipment.width_mm or '' if primary_equipment else '' }}">
                             </div>
                         </div>
+                        <div>
+                            <label class="eq-field-label">Year bought</label>
+                            <input type="number" id="primary-purchase-year" placeholder="2023" min="1980" max="2030" value="{{ primary_equipment.purchase_year or '' if primary_equipment else '' }}">
+                        </div>
+                        <p class="eq-group-label">Boots</p>
                         <div class="eq-row-2">
                             <div>
-                                <label class="eq-field-label">Boot brand</label>
+                                <label class="eq-field-label">Brand</label>
                                 <select id="primary-boot-brand">
                                     <option value="">Select</option>
                                     {% for b in ['Salomon', 'Tecnica', 'Lange', 'Atomic', 'Dalbello', 'Nordica', 'K2', 'Fischer', 'Burton', 'ThirtyTwo', 'Ride', 'Vans', 'DC', 'Other'] %}
@@ -309,131 +319,34 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="eq-field-label">Boot model</label>
+                                <label class="eq-field-label">Model</label>
                                 <input type="text" id="primary-boot-model" placeholder="Speedmachine" value="{{ primary_equipment.boot_model or '' if primary_equipment else '' }}">
                             </div>
                         </div>
-                        <div class="eq-row-2">
-                            <div>
-                                <label class="eq-field-label">Boot flex</label>
-                                <input type="number" id="primary-boot-flex" placeholder="120" value="{{ primary_equipment.boot_flex or '' if primary_equipment else '' }}">
-                            </div>
-                            <div>
-                                <label class="eq-field-label">Year bought</label>
-                                <input type="number" id="primary-purchase-year" placeholder="2023" min="1980" max="2030" value="{{ primary_equipment.purchase_year or '' if primary_equipment else '' }}">
-                            </div>
+                        <div>
+                            <label class="eq-field-label">Boot flex</label>
+                            <input type="number" id="primary-boot-flex" placeholder="120" value="{{ primary_equipment.boot_flex or '' if primary_equipment else '' }}">
                         </div>
                     </div>
                     <div class="eq-form-actions">
                         <button class="eq-save-btn" onclick="saveEquipment('primary')">Save setup</button>
                         {% if primary_equipment %}
                         <button class="eq-cancel-btn" onclick="hideEdit('primary')">Cancel</button>
-                        <button class="eq-delete-btn" onclick="deleteEquipment('primary')">Delete</button>
                         {% endif %}
                     </div>
+                    {% if primary_equipment %}
+                    <div class="eq-danger-zone">
+                        <button class="eq-delete-btn" onclick="deleteEquipment('primary')">Delete setup</button>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
-
-            <!-- Secondary Setup -->
-            {% if secondary_equipment %}
-            <p class="eq-section-label">Secondary Setup</p>
-            <div class="eq-card" id="secondary-card">
-                <div id="secondary-display">
-                    <p class="eq-display-line">
-                        {% if secondary_equipment.brand %}{{ secondary_equipment.brand }}{% if secondary_equipment.model %} {{ secondary_equipment.model }}{% endif %}{% else %}{{ secondary_equipment.discipline.value | capitalize }}{% endif %}
-                    </p>
-                    <p class="eq-display-detail">
-                        {{ secondary_equipment.discipline.value | capitalize }}{% if secondary_equipment.length_cm %} · {{ secondary_equipment.length_cm }}cm{% endif %}{% if secondary_equipment.width_mm %} · {{ secondary_equipment.width_mm }}mm waist{% endif %}
-                    </p>
-                    {% if secondary_equipment.binding_type %}
-                    <p class="eq-display-detail">{{ secondary_equipment.binding_type }}</p>
-                    {% endif %}
-                    {% if secondary_equipment.boot_brand %}
-                    <p class="eq-display-detail">{{ secondary_equipment.boot_brand }}{% if secondary_equipment.boot_model %} {{ secondary_equipment.boot_model }}{% endif %} boots{% if secondary_equipment.boot_flex %} · flex {{ secondary_equipment.boot_flex }}{% endif %}</p>
-                    {% endif %}
-                    <button class="eq-edit-link" onclick="showEdit('secondary')">Edit</button>
-                </div>
-                <div id="secondary-edit" style="display:none;">
-            {% else %}
-            <div id="secondary-form-wrap" style="display:none;">
-                <p class="eq-section-label">Secondary Setup</p>
-                <div class="eq-card" id="secondary-card">
-                <div id="secondary-edit">
-            {% endif %}
-                    <div class="eq-form-grid">
-                        <div>
-                            <label class="eq-field-label">Rider type</label>
-                            <select id="secondary-discipline" onchange="updateBrands('secondary'); updateBindings('secondary');">
-                                <option value="">Select</option>
-                                <option value="Skier" {% if secondary_equipment and secondary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
-                                <option value="Snowboarder" {% if secondary_equipment and secondary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
-                                <option value="Telemark" {% if secondary_equipment and secondary_equipment.discipline.value == 'telemark' %}selected{% endif %}>Telemark</option>
-                                <option value="Adaptive" {% if secondary_equipment and secondary_equipment.discipline.value == 'adaptive' %}selected{% endif %}>Adaptive</option>
-                                <option value="Cross-Country" {% if secondary_equipment and secondary_equipment.discipline.value == 'cross-country' %}selected{% endif %}>Cross-Country</option>
-                            </select>
-                        </div>
-                        <div class="eq-row-2">
-                            <div>
-                                <label class="eq-field-label">Brand</label>
-                                <select id="secondary-brand"></select>
-                            </div>
-                            <div>
-                                <label class="eq-field-label">Model</label>
-                                <input type="text" id="secondary-model" placeholder="e.g. Ripstick 96" value="{{ secondary_equipment.model or '' if secondary_equipment else '' }}">
-                            </div>
-                        </div>
-                        <div class="eq-row-2">
-                            <div>
-                                <label class="eq-field-label">Length (cm)</label>
-                                <input type="number" id="secondary-length" placeholder="170" value="{{ secondary_equipment.length_cm or '' if secondary_equipment else '' }}">
-                            </div>
-                            <div>
-                                <label class="eq-field-label">Width (mm)</label>
-                                <input type="number" id="secondary-width" placeholder="98" value="{{ secondary_equipment.width_mm or '' if secondary_equipment else '' }}">
-                            </div>
-                        </div>
-                        <div class="eq-row-2">
-                            <div>
-                                <label class="eq-field-label">Boot brand</label>
-                                <select id="secondary-boot-brand">
-                                    <option value="">Select</option>
-                                    {% for b in ['Salomon', 'Tecnica', 'Lange', 'Atomic', 'Dalbello', 'Nordica', 'K2', 'Fischer', 'Burton', 'ThirtyTwo', 'Ride', 'Vans', 'DC', 'Other'] %}
-                                    <option value="{{ b }}" {% if secondary_equipment and secondary_equipment.boot_brand == b %}selected{% endif %}>{{ b }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="eq-field-label">Boot model</label>
-                                <input type="text" id="secondary-boot-model" placeholder="Speedmachine" value="{{ secondary_equipment.boot_model or '' if secondary_equipment else '' }}">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="eq-field-label">Boot flex</label>
-                            <input type="number" id="secondary-boot-flex" placeholder="120" value="{{ secondary_equipment.boot_flex or '' if secondary_equipment else '' }}">
-                        </div>
-                    </div>
-                    <div class="eq-form-actions">
-                        <button class="eq-save-btn" onclick="saveEquipment('secondary')">Save setup</button>
-                        {% if secondary_equipment %}
-                        <button class="eq-cancel-btn" onclick="hideEdit('secondary')">Cancel</button>
-                        <button class="eq-delete-btn" onclick="deleteEquipment('secondary')">Delete</button>
-                        {% else %}
-                        <button class="eq-cancel-btn" onclick="hideAddSecondary()">Cancel</button>
-                        {% endif %}
-                    </div>
-                </div>
-            {% if secondary_equipment %}
-            </div><!-- close secondary-display wrapper -->
-            {% else %}
-                </div><!-- close secondary-card -->
-            </div><!-- close secondary-form-wrap -->
-            {% endif %}
         </div><!-- close eq-detail-section -->
 
         {% if user.equipment_status == 'needs_rentals' %}
-        <div id="eq-rentals-note" class="eq-rentals-note">Using rentals — no setup to list</div>
+        <p id="eq-rentals-note" class="eq-rentals-text">No setup to list — you rent gear on the mountain.</p>
         {% else %}
-        <div id="eq-rentals-note" class="eq-rentals-note" style="display:none;">Using rentals — no setup to list</div>
+        <p id="eq-rentals-note" class="eq-rentals-text" style="display:none;">No setup to list — you rent gear on the mountain.</p>
         {% endif %}
 
     </div><!-- close eq-wrap -->
@@ -447,9 +360,7 @@
     const BOARD_BINDINGS = ['Standard bindings','Step-On','Splitboard bindings','Other'];
 
     const SAVED_PRIMARY_BRAND = {{ (primary_equipment.brand or '') | tojson if primary_equipment else '""' }};
-    const SAVED_SECONDARY_BRAND = {{ (secondary_equipment.brand or '') | tojson if secondary_equipment else '""' }};
     const SAVED_PRIMARY_BINDING = {{ (primary_equipment.binding_type or '') | tojson if primary_equipment else '""' }};
-    const SAVED_SECONDARY_BINDING = {{ (secondary_equipment.binding_type or '') | tojson if secondary_equipment else '""' }};
 
     function makeBrandOptions(discipline, savedVal) {
         const brands = discipline === 'Skier' ? SKI_BRANDS : (discipline === 'Snowboarder' ? BOARD_BRANDS : []);
@@ -554,8 +465,6 @@
     // Init brand/binding dropdowns on page load
     updateBrands('primary', SAVED_PRIMARY_BRAND);
     updateBindings('primary', SAVED_PRIMARY_BINDING);
-    updateBrands('secondary', SAVED_SECONDARY_BRAND);
-    updateBindings('secondary', SAVED_SECONDARY_BINDING);
     </script>
 </body>
 </html>

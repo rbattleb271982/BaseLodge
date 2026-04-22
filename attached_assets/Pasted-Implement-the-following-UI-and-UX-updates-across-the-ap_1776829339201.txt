@@ -1,0 +1,220 @@
+Implement the following UI and UX updates across the app. These are refinements to existing components — do NOT redesign the system or introduce new patterns.
+
+---
+
+### 1. HOME — INSIGHT CARDS
+
+- Remove mountain emoji from insight cards
+- Replace with the same outline icon used in the bottom nav (if applicable), otherwise no icon
+
+Update copy:
+
+Today card:
+"[First Name Last Name] is at [Mountain Name] today. See who’s there."
+
+Been card:
+"[First Name Last Name] has been to [Mountain Name]. Ask them about it."
+
+Hierarchy:
+- Reduce opacity of “been” card to ~60% so “today” is visually prioritized
+
+---
+
+### 2. PROFILE + FRIEND PROFILE — STAT BAR
+
+On:
+- your profile
+- friend profiles
+- Home (if stat bar exists there)
+
+Replace stat labels with full text:
+
+- "X trips"
+- "X mountains visited"
+- "X wishlist mountains"
+
+Make each stat:
+- fully tappable
+- visually clear as a link
+
+Navigation:
+- Trips → Trips page
+- Mountains visited → visited page
+- Wishlist → wishlist page
+
+---
+
+### 3. FRIEND PROFILE — CLEANUP + HIERARCHY
+
+Remove:
+- “You’ve both been to [Mountain]” signals
+
+Keep:
+- wishlist overlap
+- future overlap
+- relevant social signals
+
+Move:
+- Pass
+- Skis
+- Boots
+
+Into the top section:
+- directly under name
+- only if data exists
+
+Do not show empty fields
+
+---
+
+### 4. PROFILE — YOUR DETAILS PAGE
+
+Remove fields:
+- Birth year
+- Gender
+
+Keep:
+- Home location
+- Home mountain
+- Rider type
+- Skill level
+- Terrain
+- Pass info
+
+Tighten layout:
+- reduce vertical spacing
+- remove unnecessary padding
+- keep it clean and mobile-friendly
+
+---
+
+### 5. EQUIPMENT
+
+- Remove “Secondary setup” entirely
+- Only support one setup
+
+Simplify structure:
+- If “I rent” → show simple text, no card UI
+- If “I own equipment” → show single clean card
+
+Edit state:
+- Group fields:
+  Rider
+  Skis/Board
+  Boots
+
+Actions:
+- Primary: Save setup
+- Secondary: Cancel
+- Danger: Delete (visually separated)
+
+---
+
+### 6. MOUNTAINS VISITED
+
+- Remove state abbreviations (e.g., CA, CO)
+- Keep only mountain names
+- Keep grouped structure
+
+---
+
+### 7. WISHLIST
+
+- Increase max from 3 → 15
+
+Update:
+- “X of 15 chosen”
+
+Only show limit message when full:
+“You’ve added 15 mountains — remove one to add another”
+
+Remove state abbreviations (same as visited)
+
+---
+
+### 8. IDEAS TAB
+
+Replace names with counts:
+
+- “X friends going”
+- “X friends considering”
+
+If both:
+“2 going · 3 considering”
+
+Plural rules:
+- 1 friend
+- X friends
+
+Visual hierarchy:
+- Bold the DATE (not the mountain)
+
+---
+
+### 9. MOUNTAIN DETAIL — TOP SECTION
+
+Redesign top section ONLY (no new components)
+
+Structure:
+
+Line 1:
+STATE (small, muted)
+
+Line 2:
+Mountain name (large serif)
+
+Line 3 (personal signals):
+Always show:
+- “Covered by your Epic pass” OR “Not on your pass”
+
+Optionally append:
+- “On your wishlist” (only if true)
+
+Format:
+“Covered by your Epic pass · On your wishlist”
+
+Line 4 (social signals):
+- “X going · Y considering”
+- Hide any value that is 0
+
+Example:
+“3 going · 1 considering”
+or
+“3 going”
+
+Order:
+- Personal signals FIRST
+- Social signals SECOND
+
+---
+
+### 10. GENERAL CONSTRAINTS
+
+- Do NOT redesign layouts
+- Do NOT introduce new UI systems
+- Do NOT add new pages
+- Do NOT change routing logic
+- Keep everything mobile-first
+- Maintain existing styling system
+
+---
+
+### TESTING
+
+Verify:
+
+- Profile stats are tappable everywhere
+- Friend profile shows correct top info
+- Equipment no longer shows secondary setup
+- Wishlist allows up to 15
+- Ideas tab shows counts (not names)
+- Mountain detail top renders correctly for:
+  - covered pass
+  - not covered
+  - wishlist
+  - no wishlist
+  - various friend counts
+
+Do not finish until all are working cleanly.
+
+Use checkpoints sparingly.

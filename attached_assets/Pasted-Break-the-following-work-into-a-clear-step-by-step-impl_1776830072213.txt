@@ -1,0 +1,255 @@
+Break the following work into a clear, step-by-step implementation plan.
+
+This is a multi-area UI refinement across the app. Do NOT implement yet.
+
+Requirements:
+- Group changes by screen and component
+- List exact files to be modified
+- Identify shared templates/partials
+- Call out dependencies (routes, services, JS)
+- Sequence work from lowest risk → highest risk
+
+Do NOT write code yet. Only produce the execution plan.
+
+---
+
+Implement the following UI and UX updates across the app. These are refinements to existing components — do NOT redesign the system or introduce new patterns.
+
+---
+
+### 1. HOME — INSIGHT CARDS
+
+- Remove mountain emoji from all insight cards
+- Do NOT replace with any icon (clean text only)
+
+Update copy:
+
+Today card:
+"[First Name Last Name] is at [Mountain Name] today. See who’s there."
+
+Been card:
+"[First Name Last Name] has been to [Mountain Name]. Ask them about it."
+
+Hierarchy:
+- “Been” card should render at ~60% opacity
+- “Today” card remains primary
+
+---
+
+### 2. PROFILE + FRIEND PROFILE — STAT BAR
+
+Apply to:
+- Home header stat bar
+- Your profile page
+- Friend profile page
+
+Update labels:
+- "X trips"
+- "X mountains visited"
+- "X wishlist mountains"
+
+Make each stat visually tappable.
+
+Routing:
+
+Your profile:
+- Trips → /my-trips
+- Mountains → /mountains_visited
+- Wishlist → /settings_wish_list
+
+Friend profile:
+- Trips → friend’s trips page
+- Mountains → friend’s visited page
+- Wishlist → friend’s wishlist page
+
+Do NOT leave any stat tile looking tappable without a destination.
+
+---
+
+### 3. FRIEND PROFILE — CLEANUP + HIERARCHY
+
+Remove:
+- “You’ve both been to [Mountain]” rows entirely
+
+Keep:
+- wishlist overlap
+- future trip overlap
+- availability overlap
+
+Top section:
+
+Move these directly under the name:
+- Pass
+- Board
+- Boots
+
+Rules:
+- Show only if data exists
+- Do NOT show empty fields
+- Do NOT show “Skis” or “Equipment”
+
+Remove them from lower “Profile details” section
+
+---
+
+### 4. PROFILE — YOUR DETAILS PAGE
+
+Remove fields:
+- Birth year
+- Gender
+
+Keep:
+- Home location
+- Home mountain
+- Rider type
+- Skill level
+- Terrain
+- Pass info
+
+Layout:
+- Reduce vertical spacing
+- Remove unnecessary padding
+- Keep clean and mobile-first
+
+---
+
+### 5. EQUIPMENT
+
+- Remove Secondary Setup entirely
+- Remove all secondary-related UI and hidden inputs
+- Only support ONE setup
+
+Behavior:
+
+If “I rent”:
+- Show simple inline text
+- No card UI
+
+If “I own equipment”:
+- Show single clean card
+
+Edit state:
+Group fields into:
+- Rider
+- Board
+- Boots
+
+Actions:
+- Primary: Save setup
+- Secondary: Cancel
+- Danger: Delete (visually separated)
+
+---
+
+### 6. MOUNTAINS VISITED
+
+- Remove state abbreviations (e.g., CA, CO)
+- Show ONLY mountain names
+- Keep grouping structure intact
+
+---
+
+### 7. WISHLIST
+
+- Increase max from 3 → 15
+
+Update:
+- “X of 15 chosen”
+
+Limit message:
+- Only show when at 15
+- “You’ve added 15 mountains — remove one to add another”
+
+Remove state abbreviations
+
+Keep alphabetical ordering
+
+---
+
+### 8. IDEAS TAB
+
+Replace names with counts:
+
+- “1 friend going”
+- “2 friends going”
+- “3 friends considering”
+
+If both:
+- “2 going · 3 considering”
+
+Rules:
+- Hide zero values
+- Proper pluralization
+
+Hierarchy:
+- Date = bold / primary
+- Mountain = secondary
+- Counts = equal weight, muted
+
+---
+
+### 9. MOUNTAIN DETAIL — TOP SECTION
+
+Restructure ONLY the top section.
+
+Final structure:
+
+Line 1:
+STATE (small, muted)
+
+Line 2:
+Mountain name (large serif)
+
+Line 3 (personal signals — ALWAYS shown):
+- “Covered by your Epic pass” OR “Not on your pass”
+- Append “ · On your wishlist” ONLY if true
+
+Examples:
+“Covered by your Epic pass · On your wishlist”
+“Not on your pass”
+
+Line 4 (social signals):
+- “X going · Y considering”
+- Hide zero values
+- Hide entire line if both are zero
+
+Order:
+- Personal signals FIRST
+- Social signals SECOND
+
+Remove:
+- Pass pills
+- Any redundant metadata
+
+---
+
+### 10. GENERAL CONSTRAINTS
+
+- Do NOT redesign layouts
+- Do NOT introduce new UI systems
+- Do NOT add new pages
+- Do NOT change routing logic beyond wiring existing destinations
+- Maintain current styling system
+- Mobile-first at all times
+
+---
+
+### TESTING REQUIREMENTS
+
+Verify:
+
+- Insight cards render correctly and hierarchy is clear
+- All stat bars are tappable and route correctly (including friend profiles)
+- Friend profile top section shows Pass / Board / Boots correctly
+- “Been” overlaps are removed everywhere
+- Equipment page has no secondary setup
+- Wishlist supports 15 items and shows correct messaging
+- Ideas tab shows counts, not names, with correct hierarchy
+- Mountain detail top renders correctly across:
+  - covered pass
+  - not covered
+  - wishlist vs no wishlist
+  - various friend counts
+
+Do not proceed to implementation until plan is complete.
+Use checkpoints sparingly.

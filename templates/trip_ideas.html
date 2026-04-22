@@ -66,7 +66,8 @@
         }
 
         .dest-row-date {
-            color: var(--bl-color-text-muted);
+            font-weight: 600;
+            color: var(--bl-color-text);
         }
 
         .dest-row-sep {
@@ -74,8 +75,8 @@
         }
 
         .dest-row-mountain {
-            font-weight: 600;
-            color: var(--bl-color-text);
+            color: var(--bl-color-text-muted);
+            font-weight: 400;
         }
 
         .dest-row-line2 {
@@ -275,7 +276,19 @@
                         {% endif %}
                         <span class="dest-row-mountain">{{ row.resort.name }}</span>
                     </p>
-                    <p class="dest-row-line2">{{ row.line2 }}</p>
+                    {%- set _gc = row.going_count | default(0) -%}
+                    {%- set _cc = row.considering_count | default(0) -%}
+                    {% if _gc or _cc %}
+                    <p class="dest-row-line2">
+                        {%- if _gc and _cc -%}
+                            {{ _gc }} going · {{ _cc }} considering
+                        {%- elif _gc -%}
+                            {{ _gc }} {{ 'friend' if _gc == 1 else 'friends' }} going
+                        {%- else -%}
+                            {{ _cc }} {{ 'friend' if _cc == 1 else 'friends' }} considering
+                        {%- endif -%}
+                    </p>
+                    {% endif %}
                 </div>
                 <span class="dest-row-cta">›</span>
             </a>

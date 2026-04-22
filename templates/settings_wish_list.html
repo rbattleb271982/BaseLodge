@@ -155,7 +155,7 @@
         <h1 class="wl-title">Mountains you want to ski</h1>
         <p class="wl-subtext" id="wl-subtext">
             {% set cnt = wish_list_ids | length %}
-            {{ cnt }} of 3 chosen
+            {{ cnt }} of 15 chosen
         </p>
         {% endif %}
 
@@ -168,7 +168,7 @@
                    oninput="wlSearch(this.value)">
         </div>
         <div class="wl-results" id="wl-results"></div>
-        <p class="wl-limit-hint" id="wl-limit-hint">You've added 3 mountains — remove one to add another</p>
+        <p class="wl-limit-hint" id="wl-limit-hint">You've added 15 mountains — remove one to add another</p>
         {% endif %}
 
         <!-- Wish list -->
@@ -181,12 +181,6 @@
                     <div class="wl-row" id="wl-row-{{ resort.id }}">
                         <div class="wl-row-left">
                             <p class="wl-row-name">{{ resort.name }}</p>
-                            {% set loc_parts = [] %}
-                            {% if resort.state_name %}{% set _ = loc_parts.append(resort.state_name) %}{% elif resort.state %}{% set _ = loc_parts.append(resort.state) %}{% endif %}
-                            {% if resort.country_code and resort.country_code != 'US' %}{% set _ = loc_parts.append(resort.display_country_name) %}{% endif %}
-                            {% if loc_parts %}
-                            <p class="wl-row-loc">{{ loc_parts | join(' · ') }}</p>
-                            {% endif %}
                             {% if read_only and user_visited_ids and resort.id in user_visited_ids %}
                             <p class="wl-row-badge">You've been here</p>
                             {% endif %}
@@ -199,7 +193,7 @@
                 </div>
                 {% endfor %}
             {% else %}
-                <p class="wl-empty" id="wl-empty-state">{% if read_only %}Nothing on their list yet{% else %}Add up to 3 mountains above{% endif %}</p>
+                <p class="wl-empty" id="wl-empty-state">{% if read_only %}Nothing on their list yet{% else %}Add up to 15 mountains above{% endif %}</p>
             {% endif %}
         </div>
     </div>
@@ -239,14 +233,14 @@
 
     function wlUpdateSubtext(count) {
         const el = document.getElementById('wl-subtext');
-        if (el) el.textContent = count + ' of 3 chosen';
+        if (el) el.textContent = count + ' of 15 chosen';
     }
 
     function wlUpdateLimitHint() {
         const hint = document.getElementById('wl-limit-hint');
         const search = document.getElementById('wl-search');
         if (!hint) return;
-        if (wlSelected.size >= 3) {
+        if (wlSelected.size >= 15) {
             hint.classList.add('show');
             if (search) search.disabled = true;
         } else {
@@ -257,7 +251,7 @@
 
     function wlSearch(val) {
         clearTimeout(wlTimeout);
-        if (wlSelected.size >= 3) return;
+        if (wlSelected.size >= 15) return;
         const q = val.trim().toLowerCase();
         const resultsEl = document.getElementById('wl-results');
         if (q.length < 2) {
@@ -287,7 +281,7 @@
     }
 
     async function wlAdd(resortId) {
-        if (wlSelected.has(resortId) || wlSelected.size >= 3) return;
+        if (wlSelected.has(resortId) || wlSelected.size >= 15) return;
         try {
             const resp = await fetch('/api/wishlist/add', {
                 method: 'POST',
@@ -381,7 +375,7 @@
             const p = document.createElement('p');
             p.className = 'wl-empty';
             p.id = 'wl-empty-state';
-            p.textContent = 'Add up to 3 mountains above';
+            p.textContent = 'Add up to 15 mountains above';
             list.appendChild(p);
         }
     }

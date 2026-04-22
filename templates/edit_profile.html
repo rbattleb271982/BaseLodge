@@ -34,12 +34,12 @@
             font-size: 28px;
             font-weight: 400;
             color: #1A1A1A;
-            margin: 0 0 28px 0;
+            margin: 0 0 20px 0;
             line-height: 1.2;
         }
         /* Section */
         .ep-section {
-            margin-bottom: 32px;
+            margin-bottom: 24px;
         }
         .ep-section-label {
             font-size: 11px;
@@ -47,13 +47,13 @@
             letter-spacing: 0.5px;
             text-transform: uppercase;
             color: #6B665A;
-            margin: 0 0 16px 0;
-            padding-bottom: 8px;
+            margin: 0 0 12px 0;
+            padding-bottom: 6px;
             border-bottom: 1px solid #E5DFD0;
         }
         /* Field label */
         .ep-field {
-            margin-bottom: 20px;
+            margin-bottom: 14px;
         }
         .ep-field-label {
             font-size: 12px;
@@ -168,35 +168,6 @@
 
         <p class="ep-eyebrow">Profile</p>
         <h1 class="ep-title">Your details</h1>
-
-        <!-- 0. About You -->
-        <div class="ep-section">
-            <p class="ep-section-label">About you <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#B5AFA5;font-size:11px;">(optional)</span></p>
-
-            <div class="ep-field" style="display:flex; gap:12px;">
-                <div style="flex:1;">
-                    <label class="ep-field-label">Birth year</label>
-                    <select name="birth_year" id="birth_year_select" class="ep-select"
-                            onchange="document.getElementById('birth_year_hidden').value = this.value; markDirty()">
-                        <option value="">Not set</option>
-                        {% for y in range(2008, 1934, -1) %}
-                        <option value="{{ y }}" {% if current_user.birth_year == y %}selected{% endif %}>{{ y }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div style="flex:1;">
-                    <label class="ep-field-label">Gender</label>
-                    <select name="gender" id="gender_select" class="ep-select"
-                            onchange="document.getElementById('gender_hidden').value = this.value; markDirty()">
-                        <option value="">Not set</option>
-                        <option value="Man" {% if current_user.gender == 'Man' %}selected{% endif %}>Man</option>
-                        <option value="Woman" {% if current_user.gender == 'Woman' %}selected{% endif %}>Woman</option>
-                        <option value="Non-binary" {% if current_user.gender == 'Non-binary' %}selected{% endif %}>Non-binary</option>
-                        <option value="Prefer not to say" {% if current_user.gender == 'Prefer not to say' %}selected{% endif %}>Prefer not to say</option>
-                    </select>
-                </div>
-            </div>
-        </div>
 
         <!-- 1. Location -->
         <div class="ep-section">
@@ -331,8 +302,6 @@
         <input type="hidden" name="gear" id="gear_hidden" value="{{ current_user.gear or '' }}">
         <input type="hidden" name="terrain_preferences" id="terrain_preferences_hidden" value="{{ (current_user.terrain_preferences or [])|join(',') }}">
         <input type="hidden" name="previous_pass" id="previous_pass_hidden" value="{{ current_user.previous_pass or '' }}">
-        <input type="hidden" name="gender" id="gender_hidden" value="{{ current_user.gender or '' }}">
-        <input type="hidden" name="birth_year" id="birth_year_hidden" value="{{ current_user.birth_year or '' }}">
     </form>
 
     <!-- Floating Save -->

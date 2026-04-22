@@ -174,12 +174,6 @@
                     <div class="mv-row" id="mv-row-{{ resort.id }}">
                         <div class="mv-row-left">
                             <p class="mv-row-name">{{ resort.name }}</p>
-                            {% set loc_parts = [] %}
-                            {% if resort.state_name %}{% set _ = loc_parts.append(resort.state_name) %}{% elif resort.state %}{% set _ = loc_parts.append(resort.state) %}{% endif %}
-                            {% if resort.country_code and resort.country_code != 'US' %}{% set _ = loc_parts.append(resort.display_country_name) %}{% endif %}
-                            {% if loc_parts %}
-                            <p class="mv-row-loc">{{ loc_parts | join(' · ') }}</p>
-                            {% endif %}
                             {% if read_only and user_wishlist_ids and resort.id in user_wishlist_ids %}
                             <p class="mv-row-badge">On your wish list</p>
                             {% endif %}
