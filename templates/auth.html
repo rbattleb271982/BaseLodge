@@ -255,7 +255,8 @@
                     placeholder="Password" autocomplete="current-password" required>
             </div>
 
-            <button type="submit" class="auth-btn">Log in</button>
+            <button type="submit" class="auth-btn" id="login-btn">Log in</button>
+            <p id="login-error" style="display:none; color:#9B3B3B; font-size:14px; margin:10px 0 0 0; text-align:center;"></p>
         </form>
 
         <div class="auth-forgot" id="forgot-wrap">
@@ -351,11 +352,39 @@
             }, { once: true });
         });
 
-        // Loading states on form submit
-        document.getElementById('form-login').addEventListener('submit', function() {
-            const btn = this.querySelector('button[type="submit"]');
+        // Login: AJAX submit — shows inline error on failure, navigates on success
+        document.getElementById('form-login').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const form = this;
+            const btn  = document.getElementById('login-btn');
+            const err  = document.getElementById('login-error');
+
             btn.disabled = true;
             btn.textContent = 'Signing in…';
+            err.style.display = 'none';
+            err.textContent = '';
+
+            fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                redirect: 'follow'
+            })
+            .then(function(res) {
+                if (res.ok && res.url && !res.url.includes('/auth')) {
+                    window.location.href = res.url;
+                } else {
+                    btn.disabled = false;
+                    btn.textContent = 'Log in';
+                    err.textContent = 'Invalid email or password.';
+                    err.style.display = 'block';
+                }
+            })
+            .catch(function() {
+                btn.disabled = false;
+                btn.textContent = 'Log in';
+                err.textContent = 'Something went wrong. Please try again.';
+                err.style.display = 'block';
+            });
         });
 
         document.getElementById('form-signup').addEventListener('submit', function(e) {
