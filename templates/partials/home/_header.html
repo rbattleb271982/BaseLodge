@@ -61,13 +61,13 @@ Inputs:
         <div class="hc-stat-tile{% if stat_mountains_url %} hc-stat-tile--link{% endif %}"
              {% if stat_mountains_url %}onclick="window.location.href='{{ stat_mountains_url }}'"{% endif %}>
             <span class="hc-stat-num">{{ stat_mountains or 0 }}</span>
-            <span class="hc-stat-lbl">{{ "Mountain" if (stat_mountains or 0) == 1 else "Mountains" }}</span>
+            <span class="hc-stat-lbl">{% if (stat_mountains or 0) == 1 %}Mountain<br>Visited{% else %}Mountains<br>Visited{% endif %}</span>
         </div>
         <div class="hc-stat-div"></div>
         <div class="hc-stat-tile{% if stat_wishlist_url %} hc-stat-tile--link{% endif %}"
              {% if stat_wishlist_url %}onclick="window.location.href='{{ stat_wishlist_url }}'"{% endif %}>
             <span class="hc-stat-num">{{ stat_wishlist or 0 }}</span>
-            <span class="hc-stat-lbl">Wishlist</span>
+            <span class="hc-stat-lbl">{% if (stat_wishlist or 0) == 1 %}Wishlist<br>Mountain{% else %}Wishlist<br>Mountains{% endif %}</span>
         </div>
     </div>
 

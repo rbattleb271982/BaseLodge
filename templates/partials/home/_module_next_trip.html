@@ -64,18 +64,18 @@ Inputs:
                 {% if trip_overlap_today_card %}
                 <div class="hc-live-block" id="trip-overlap-today-card">
                     <p class="hc-live-status">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="13" height="13" style="flex-shrink:0;margin-top:1px;">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-                        </svg>
-                        You're here today
+                        {% if trip_overlap_today_card.friend_count == 1 %}
+                            {{ trip_overlap_today_card.friend_name }} is at {{ trip_overlap_today_card.resort_name }} today.
+                        {% else %}
+                            {{ trip_overlap_today_card.friend_count }} friends are at {{ trip_overlap_today_card.resort_name }} today.
+                        {% endif %}
                         <button class="hc-dismiss-x" aria-label="Dismiss"
                             onclick="dismissInsightCard('trip_overlap_today','{{ trip_overlap_today_card.card_key }}','trip-overlap-today-card')">×</button>
                     </p>
                     {% if trip_overlap_today_card.friend_count == 1 %}
-                    <a href="{{ url_for('friend_profile', friend_id=trip_overlap_today_card.friend_id) }}" class="hc-live-cta">{{ trip_overlap_today_card.friend_name }} is here too →</a>
+                    <a href="{{ url_for('friend_profile', friend_id=trip_overlap_today_card.friend_id) }}" class="hc-live-cta">See who's there →</a>
                     {% else %}
-                    <a href="{{ url_for('mountain_detail', slug=trip_overlap_today_card.resort_slug) }}" class="hc-live-cta">See who else is here →</a>
+                    <a href="{{ url_for('mountain_detail', slug=trip_overlap_today_card.resort_slug) }}" class="hc-live-cta">See who's there →</a>
                     {% endif %}
                 </div>
                 {% endif %}

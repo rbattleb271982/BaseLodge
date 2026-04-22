@@ -322,6 +322,10 @@
             </a>
         </div>
 
+        {%- set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.model or friend_primary_equipment.boot_brand or friend_primary_equipment.boot_model)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.model or friend_secondary_equipment.boot_brand or friend_secondary_equipment.boot_model)) else none) -%}
+        {%- set _has_gear = eq and (eq.brand or eq.model) -%}
+        {%- set _has_boots = eq and (eq.boot_brand or eq.boot_model) -%}
+
         <!-- ① Profile summary card -->
         <div class="fp-summary">
             <h1 class="fp-name">{{ friend.first_name | format_name }} {{ friend.last_name | format_name }}</h1>
@@ -332,13 +336,39 @@
             <p class="fp-identity" style="color: #C5BFBA;">No profile details yet</p>
             {% endif %}
 
+            {% if friend.pass_type or _has_gear or _has_boots %}
+            <div style="margin: 0 0 12px 0;">
+                {% if friend.pass_type %}
+                <div class="fp-detail-row">
+                    <span class="fp-detail-label">Pass</span>
+                    <span class="fp-detail-value">{{ friend.pass_type }}</span>
+                </div>
+                {% endif %}
+                {% if _has_gear %}
+                {%- set _gear_val = ([eq.brand, eq.model] | select | join(' ')) %}
+                <div class="fp-detail-row">
+                    <span class="fp-detail-label">Board</span>
+                    <span class="fp-detail-value" style="max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ _gear_val }}</span>
+                </div>
+                {% endif %}
+                {% if _has_boots %}
+                {%- set _boot_val = ([eq.boot_brand, eq.boot_model] | select | join(' ')) %}
+                <div class="fp-detail-row">
+                    <span class="fp-detail-label">Boots</span>
+                    <span class="fp-detail-value" style="max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ _boot_val }}</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
             {% if is_friend and has_user_upcoming_trips %}
             <a href="{{ url_for('my_trips') }}" class="fp-cta">Invite to trip →</a>
             {% endif %}
 
-            <!-- Stat band: Trips / Mountains / Wishlist -->
+            <!-- Stat band: Trips / Mountains Visited / Wishlist Mountains -->
             <div class="fp-stat-band">
-                <div class="fp-stat-tile">
+                <div class="fp-stat-tile fp-stat-tile--link"
+                     onclick="document.getElementById('fp-trips-section').scrollIntoView({behavior:'smooth',block:'start'})">
                     <span class="fp-stat-num">{{ stat_trips_total or 0 }}</span>
                     <span class="fp-stat-label">{{ "Trip" if (stat_trips_total or 0) == 1 else "Trips" }}</span>
                 </div>
@@ -346,13 +376,13 @@
                 <div class="fp-stat-tile fp-stat-tile--link"
                      onclick="window.location.href='{{ url_for('friend_mountains_visited', user_id=friend.id) }}'">
                     <span class="fp-stat-num">{{ stat_mountains or 0 }}</span>
-                    <span class="fp-stat-label">{{ "Mountain" if (stat_mountains or 0) == 1 else "Mountains" }}</span>
+                    <span class="fp-stat-label">{% if (stat_mountains or 0) == 1 %}Mountain<br>Visited{% else %}Mountains<br>Visited{% endif %}</span>
                 </div>
                 <div class="fp-stat-divider"></div>
                 <div class="fp-stat-tile fp-stat-tile--link"
                      onclick="window.location.href='{{ url_for('friend_wishlist', user_id=friend.id) }}'">
                     <span class="fp-stat-num">{{ stat_wishlist or 0 }}</span>
-                    <span class="fp-stat-label">Wishlist</span>
+                    <span class="fp-stat-label">{% if (stat_wishlist or 0) == 1 %}Wishlist<br>Mountain{% else %}Wishlist<br>Mountains{% endif %}</span>
                 </div>
             </div>
         </div>
@@ -360,10 +390,9 @@
         <!-- ② Shared context module -->
         {% set _first = friend.first_name | format_name %}
         {% set _has_wishlist_overlap = wish_list_overlap and wish_list_overlap | length > 0 %}
-        {% set _has_been_to = been_to_overlap and been_to_overlap | length > 0 %}
         {% set _has_trip_overlaps = trip_overlaps and trip_overlaps | length > 0 %}
         {% set _has_avail_overlap = has_availability_overlap %}
-        {% if _has_wishlist_overlap or _has_been_to or _has_trip_overlaps or _has_avail_overlap %}
+        {% if _has_wishlist_overlap or _has_trip_overlaps or _has_avail_overlap %}
         <div class="fp-card">
             <div class="fp-label">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14" style="color:var(--fp-color-text-tertiary);flex-shrink:0;">
@@ -381,24 +410,6 @@
                     </svg>
                 </span>
                 <span class="fp-shared-text">You both have <strong>{{ resort.name }}</strong> on your wishlists</span>
-                <span class="fp-shared-chevron">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                    </svg>
-                </span>
-            </a>
-            {% endfor %}
-
-            <!-- Been-to overlaps -->
-            {% for resort in been_to_overlap %}
-            <a href="{{ url_for('friend_mountains_visited', user_id=friend.id) }}" class="fp-shared-row">
-                <span class="fp-shared-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="16" height="16">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                    </svg>
-                </span>
-                <span class="fp-shared-text">You've both been to <strong>{{ resort.name }}</strong></span>
                 <span class="fp-shared-chevron">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14">
                         <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
@@ -435,7 +446,7 @@
         {% endif %}
 
         <!-- ③ Upcoming trips -->
-        <div class="fp-card">
+        <div class="fp-card" id="fp-trips-section">
             <div class="fp-label">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14" style="color:var(--fp-color-text-tertiary);flex-shrink:0;">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
@@ -467,44 +478,6 @@
             <p class="fp-trips-empty">No upcoming public trips</p>
             {% endif %}
         </div>
-
-        <!-- ④ Profile details -->
-        {%- set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.model or friend_primary_equipment.boot_brand or friend_primary_equipment.boot_model)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.model or friend_secondary_equipment.boot_brand or friend_secondary_equipment.boot_model)) else none) -%}
-        {%- set _has_gear = eq and (eq.brand or eq.model) -%}
-        {%- set _has_boots = eq and (eq.boot_brand or eq.boot_model) -%}
-        {% if friend.pass_type or _has_gear or _has_boots %}
-        <div class="fp-card">
-            <div class="fp-label">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14" style="color:var(--fp-color-text-tertiary);flex-shrink:0;">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                </svg>
-                <span class="fp-label-text">Profile Details</span>
-            </div>
-
-            {% if friend.pass_type %}
-            <div class="fp-detail-row">
-                <span class="fp-detail-label">Pass</span>
-                <span class="fp-detail-value">{{ friend.pass_type }}</span>
-            </div>
-            {% endif %}
-
-            {% if _has_gear %}
-            {%- set _gear_val = ([eq.brand, eq.model] | select | join(' ')) %}
-            <div class="fp-detail-row">
-                <span class="fp-detail-label">Board</span>
-                <span class="fp-detail-value" style="max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ _gear_val }}</span>
-            </div>
-            {% endif %}
-
-            {% if _has_boots %}
-            {%- set _boot_val = ([eq.boot_brand, eq.boot_model] | select | join(' ')) %}
-            <div class="fp-detail-row">
-                <span class="fp-detail-label">Boots</span>
-                <span class="fp-detail-value" style="max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ _boot_val }}</span>
-            </div>
-            {% endif %}
-        </div>
-        {% endif %}
 
         <!-- Connect button (non-friend who shares a group trip) -->
         {% if show_connect_button %}
