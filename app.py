@@ -187,7 +187,9 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE=os.environ.get("SESSION_COOKIE_SAMESITE", "Lax"),
     PERMANENT_SESSION_LIFETIME=timedelta(days=7),
-    SESSION_REFRESH_EACH_REQUEST=True
+    SESSION_REFRESH_EACH_REQUEST=True,
+    REMEMBER_COOKIE_SECURE=is_production,
+    REMEMBER_COOKIE_HTTPONLY=True,
 )
 
 login_manager = LoginManager()
@@ -1196,9 +1198,7 @@ def internal_error(error):
     print("=" * 70)
     print("🚨 INTERNAL SERVER ERROR (500)")
     print("=" * 70)
-    print(f"Error: {error}")
-    print("Full traceback:")
-    traceback.print_exc(file=sys.stdout)
+    app.logger.exception(f"Internal server error: {error}")
     print("=" * 70)
     db.session.rollback()
     return render_template("500.html"), 500
@@ -1219,9 +1219,7 @@ def handle_exception(e):
     print("=" * 70)
     print(f"🚨 UNHANDLED EXCEPTION: {type(e).__name__}")
     print("=" * 70)
-    print(f"Error: {e}")
-    print("Full traceback:")
-    traceback.print_exc(file=sys.stdout)
+    app.logger.exception(f"Unhandled exception: {e}")
     print("=" * 70)
     db.session.rollback()
     return render_template("500.html"), 500
@@ -1728,7 +1726,7 @@ def forgot_password():
             db.session.rollback()
         
         if _google_account:
-            flash("This account uses Google sign-in. Please log in with Google instead.", "info")
+            flash("This account uses a different sign-in method. Please use the method you signed up with.", "info")
         else:
             flash("If an account exists with that email, you'll receive a password reset link.", "info")
         return render_template("forgot_password.html")
@@ -1922,6 +1920,7 @@ def auth():
 
 
 @app.route("/auth/check-email")
+@limiter.limit("5 per minute")
 def auth_check_email():
     email = request.args.get("email", "").lower().strip()
     if not email:
@@ -2199,7 +2198,7 @@ def edit_profile():
             return redirect(url_for("profile"))
         except Exception as e:
             db.session.rollback()
-            print(f"Error saving profile: {e}")
+            app.logger.error(f"Error saving profile: {e}")
             flash("Something went wrong while saving your profile. Please try again.", "error")
             return redirect(url_for("edit_profile"))
     
@@ -4087,6 +4086,7 @@ def connect_add(user_id):
     return render_template("connect_success.html", friend=inviter)
 
 @app.route("/invite/<int:user_id>")
+@login_required
 def invite_link(user_id):
     """Legacy integer-based invite URL — retired. Redirect to the invite page."""
     return redirect(url_for("invite"))
@@ -5003,7 +5003,7 @@ def feedback():
                     
                     sg = sendgrid.SendGridAPIClient(api_key=sendgrid_api_key)
                     
-                    from_email = Email("feedback@baselodge.app")
+                    from_email = Email("noreply@baselodgeapp.com")
                     to_email = To(admin_email)
                     subject = "New BaseLodge Feedback"
                     
@@ -5031,7 +5031,7 @@ User Details:
                         error = "Failed to send feedback. Please try again later."
                         
                 except Exception as e:
-                    print(f"Feedback email error: {e}")
+                    app.logger.error(f"Feedback email error: {e}")
                     error = "Failed to send feedback. Please try again later."
     
     return render_template("feedback.html", success=success, error=error)
@@ -5901,7 +5901,7 @@ def add_trip():
             return redirect(url_for("trip_detail", trip_id=trip.id))
         except Exception as e:
             db.session.rollback()
-            print(f"Error adding trip: {e}")
+            app.logger.error(f"Error adding trip: {e}")
             flash("Something went wrong while saving your trip. Please try again.", "error")
             return render_template(
                 "add_trip.html",
@@ -6068,7 +6068,7 @@ def edit_trip_form(trip_id):
             return redirect(url_for("trip_detail", trip_id=trip.id))
         except Exception as e:
             db.session.rollback()
-            print(f"Error updating trip: {e}")
+            app.logger.error(f"Error updating trip: {e}")
             flash("Something went wrong while saving your trip. Please try again.", "error")
             return render_template(
                 "edit_trip.html",
@@ -6816,7 +6816,7 @@ def mountains_visited():
             return redirect(url_for("settings"))
         except Exception as e:
             db.session.rollback()
-            print(f"Error saving mountains visited: {e}")
+            app.logger.error(f"Error saving mountains visited: {e}")
             flash("Something went wrong while saving. Please try again.", "error")
             return redirect(url_for("mountains_visited"))
     
@@ -6998,7 +6998,7 @@ def change_password():
             return redirect(url_for("change_password"))
         except Exception as e:
             db.session.rollback()
-            print(f"Error changing password: {e}")
+            app.logger.error(f"Error changing password: {e}")
             flash("Something went wrong while updating your password. Please try again.", "error")
             return redirect(url_for("change_password"))
     
@@ -7116,7 +7116,7 @@ def select_pass():
             return redirect(url_for("home"))
         except Exception as e:
             db.session.rollback()
-            print(f"Error saving pass selection: {e}")
+            app.logger.error(f"Error saving pass selection: {e}")
             flash("Something went wrong while saving your pass. Please try again.", "error")
             return redirect(url_for("select_pass"))
 
@@ -9316,7 +9316,7 @@ def admin_export_resorts_excel():
         )
     except Exception as e:
         # Log the error for admin debugging
-        print(f"Excel Export Error: {str(e)}")
+        app.logger.error(f"Excel Export Error: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'status': 'error', 'message': f'Export failed: {str(e)}'}), 500
