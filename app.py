@@ -1670,6 +1670,7 @@ MOUNTAINS_BY_STATE = {
 @limiter.limit("5 per hour")
 def forgot_password():
     if request.method == "POST":
+        _google_account = False
         try:
             email = request.form.get("email", "").lower().strip()
             user = User.query.filter(sa.func.lower(User.email) == email).first()
@@ -1683,11 +1684,21 @@ def forgot_password():
                 # Canonical base URL
                 reset_url = f"{BASE_URL}/reset-password/{token}"
                 
+                html_content = f"""
+<div style="font-family:Georgia,'Times New Roman',serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#F5F1E8;">
+  <p style="font-size:22px;font-weight:500;color:#7A1E1E;margin:0 0 24px;">BaseLodge</p>
+  <p style="font-size:16px;color:#1A1A1A;margin:0 0 12px;">Hi {user.first_name or 'there'},</p>
+  <p style="font-size:15px;color:#3A3530;line-height:1.6;margin:0 0 28px;">We received a request to reset your BaseLodge password. This link expires in 30 minutes.</p>
+  <a href="{reset_url}" style="display:inline-block;background:#7A1E1E;color:#fff;text-decoration:none;padding:14px 28px;border-radius:999px;font-family:sans-serif;font-size:15px;font-weight:500;">Reset my password</a>
+  <p style="font-size:13px;color:#9A8F82;margin:24px 0 0;line-height:1.5;">If you didn't request this, you can safely ignore this email — your password won't change.</p>
+</div>
+"""
                 message = Mail(
                     from_email='noreply@baselodgeapp.com',
                     to_emails=user.email,
                     subject='Reset your BaseLodge password',
-                    plain_text_content=f'Please use the following link to reset your password: {reset_url}\n\nThis link will expire in 30 minutes.'
+                    plain_text_content=f'Hi {user.first_name or "there"},\n\nPlease use the following link to reset your password:\n\n{reset_url}\n\nThis link expires in 30 minutes.\n\nIf you didn\'t request this, you can safely ignore this email.',
+                    html_content=html_content,
                 )
                 
                 try:
@@ -1699,12 +1710,18 @@ def forgot_password():
                     app.logger.info(f"Password reset email sent to {user.email}")
                 except Exception as e:
                     app.logger.error(f"Error sending password reset email: {e}")
+
+            elif user and user.auth_provider == 'google':
+                # Google-auth account — no local password to reset. Flag for clear message.
+                _google_account = True
         except Exception as e:
             app.logger.error(f"Error in forgot_password POST handler: {e}")
             db.session.rollback()
         
-        # Always show same message
-        flash("If an account exists with that email, you’ll receive a password reset link.", "info")
+        if _google_account:
+            flash("This account uses Google sign-in. Please log in with Google instead.", "info")
+        else:
+            flash("If an account exists with that email, you'll receive a password reset link.", "info")
         return render_template("forgot_password.html")
         
     return render_template("forgot_password.html")
