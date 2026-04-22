@@ -274,9 +274,14 @@
                         <div>
                             <label class="eq-field-label">Type</label>
                             <select id="primary-discipline" onchange="updateBrands('primary'); updateBindings('primary');">
-                                <option value="">Select</option>
-                                <option value="Skier" {% if primary_equipment and primary_equipment.discipline.value == 'skier' %}selected{% endif %}>Skier</option>
-                                <option value="Snowboarder" {% if primary_equipment and primary_equipment.discipline.value == 'snowboarder' %}selected{% endif %}>Snowboarder</option>
+                                <option value=""
+                                    {% if not primary_equipment and not (user.rider_types and ('Skier' in user.rider_types or 'Snowboarder' in user.rider_types)) %}selected{% endif %}>Select</option>
+                                <option value="Skier"
+                                    {% if primary_equipment and primary_equipment.discipline.value == 'skier' %}selected
+                                    {% elif not primary_equipment and user.rider_types and 'Skier' in user.rider_types %}selected{% endif %}>Skier</option>
+                                <option value="Snowboarder"
+                                    {% if primary_equipment and primary_equipment.discipline.value == 'snowboarder' %}selected
+                                    {% elif not primary_equipment and user.rider_types and 'Snowboarder' in user.rider_types and 'Skier' not in user.rider_types %}selected{% endif %}>Snowboarder</option>
                                 <option value="Telemark" {% if primary_equipment and primary_equipment.discipline.value == 'telemark' %}selected{% endif %}>Telemark</option>
                                 <option value="Adaptive" {% if primary_equipment and primary_equipment.discipline.value == 'adaptive' %}selected{% endif %}>Adaptive</option>
                                 <option value="Cross-Country" {% if primary_equipment and primary_equipment.discipline.value == 'cross-country' %}selected{% endif %}>Cross-Country</option>

@@ -73,7 +73,7 @@ def track(user_id, event, properties=None, set_props=None, set_once_props=None):
     """
     client = _get_client()
     if not client:
-        logger.info("PostHog track skipped: client unavailable")
+        logger.debug("PostHog track skipped: client unavailable")
         return
     distinct_id = str(user_id) if user_id is not None else "anonymous"
     props = dict(properties or {})

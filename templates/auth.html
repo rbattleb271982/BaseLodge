@@ -351,6 +351,20 @@
             }, { once: true });
         });
 
+        // Loading states on form submit
+        document.getElementById('form-login').addEventListener('submit', function() {
+            const btn = this.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'Signing in…';
+        });
+
+        document.getElementById('form-signup').addEventListener('submit', function(e) {
+            if (pwInput.value.length < 8) return; // already blocked above
+            const btn = this.querySelector('#signup-btn');
+            btn.disabled = true;
+            btn.textContent = 'Creating account…';
+        }, true); // capture phase so it runs after the pw check listener
+
         // Default to Sign Up tab for invite visitors; stay on signup after a failed signup POST
         (function() {
             const formType = '{{ request.form.get("form_type", "") }}';
