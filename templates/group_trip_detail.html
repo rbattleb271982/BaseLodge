@@ -3,143 +3,252 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trip Details - BaseLodge</title>
+    <title>BaseLodge — Group Trip</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
+    <link rel="shortcut icon" href="/static/icons/favicon.ico">
     {% include 'components/analytics_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .gtd-nav {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .gtd-back {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            color: var(--bl-color-text);
+            text-decoration: none;
+            border-radius: var(--bl-radius-sm);
+            flex-shrink: 0;
+        }
+        .gtd-back:hover { background: rgba(0,0,0,0.05); }
+        .gtd-brand {
+            flex: 1;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--bl-color-text-muted);
+            text-align: center;
+            margin: 0;
+        }
+        .gtd-spacer { width: 40px; flex-shrink: 0; }
+        .gtd-section-label {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--bl-color-text-muted);
+            margin: 20px 0 10px;
+        }
+        .gtd-field-label {
+            font-size: 12px;
+            color: var(--bl-color-text-muted);
+            margin-bottom: 4px;
+        }
+        .gtd-field-value {
+            font-size: 15px;
+            color: var(--bl-color-text);
+        }
+        .gtd-guest-row {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .gtd-guest-row:last-child { border-bottom: none; }
+        .gtd-guest-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--bl-color-text);
+        }
+        .gtd-guest-status-invited {
+            font-size: 12px;
+            font-weight: 500;
+            color: #B45309;
+            background: rgba(180,83,9,0.08);
+            padding: 2px 8px;
+            border-radius: 99px;
+        }
+        .gtd-guest-status-accepted {
+            font-size: 12px;
+            font-weight: 500;
+            color: #059669;
+            background: rgba(5,150,105,0.08);
+            padding: 2px 8px;
+            border-radius: 99px;
+        }
+        .gtd-remove-btn {
+            background: none;
+            border: none;
+            color: var(--bl-color-primary);
+            cursor: pointer;
+            font-size: 13px;
+            font-family: inherit;
+            padding: 4px 0;
+            opacity: 0.7;
+        }
+        .gtd-remove-btn:hover { opacity: 1; }
+        .gtd-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: var(--bl-radius-md);
+            font-size: 15px;
+            font-family: inherit;
+            background: var(--bl-color-surface);
+            color: var(--bl-color-text);
+            appearance: none;
+        }
+        .gtd-select:focus {
+            outline: none;
+            border-color: var(--bl-color-primary);
+        }
+        .gtd-invite-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: var(--bl-radius-md);
+            font-size: 15px;
+            font-family: inherit;
+            background: var(--bl-color-surface);
+            color: var(--bl-color-text);
+            margin-bottom: 12px;
+        }
+    </style>
 </head>
 <body>
     <div class="page-container" style="padding: 16px 16px 88px;">
-        <h1 class="page-title">{{ trip.title or 'Untitled Trip' }}</h1>
-        
-        <div class="bl-card" style="margin-bottom: 16px;">
-            <div style="font-size: 0.95rem; margin-bottom: 12px;">
-                <strong>{{ format_trip_dates(trip) }}</strong>
-            </div>
-            
+
+        <div class="gtd-nav">
+            <a href="{{ url_for('home') }}" class="gtd-back" aria-label="Back">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </a>
+            <p class="gtd-brand">BaseLodge</p>
+            <div class="gtd-spacer"></div>
+        </div>
+
+        <h1 style="font-size: 20px; font-weight: 600; margin: 0 0 4px; color: var(--bl-color-text);">{{ trip.title or 'Group Trip' }}</h1>
+        <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0 0 20px;">{{ format_trip_dates(trip) }}</p>
+
+        <div class="bl-card" style="margin-bottom: 20px;">
             {% if is_host %}
-                <div style="margin-bottom: 12px;">
-                    <label style="font-size: 0.85rem; color: var(--bl-color-text-muted); display: block; margin-bottom: 4px;">Accommodation</label>
-                    <select id="accommodation-select" class="bl-select" style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border-soft); border-radius: 8px;">
-                        <option value="">Not set</option>
-                        <option value="booked" {% if trip.accommodation_status and trip.accommodation_status.value == 'booked' %}selected{% endif %}>🏨 Booked</option>
-                        <option value="not_yet" {% if trip.accommodation_status and trip.accommodation_status.value == 'not_yet' %}selected{% endif %}>🕒 Not yet</option>
-                        <option value="staying_with_friends" {% if trip.accommodation_status and trip.accommodation_status.value == 'staying_with_friends' %}selected{% endif %}>🏠 Staying with friends</option>
-                    </select>
-                </div>
-                <div style="margin-bottom: 12px;">
-                    <label style="font-size: 0.85rem; color: var(--bl-color-text-muted); display: block; margin-bottom: 4px;">Transportation</label>
-                    <select id="transportation-select" class="bl-select" style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border-soft); border-radius: 8px;">
-                        <option value="">Not set</option>
-                        <option value="have_transport" {% if trip.transportation_status and trip.transportation_status.value == 'have_transport' %}selected{% endif %}>🚗 Have transportation</option>
-                        <option value="need_transport" {% if trip.transportation_status and trip.transportation_status.value == 'need_transport' %}selected{% endif %}>🙋 Need transportation</option>
-                        <option value="not_sure" {% if trip.transportation_status and trip.transportation_status.value == 'not_sure' %}selected{% endif %}>❓ Not sure yet</option>
-                    </select>
-                </div>
+            <div style="margin-bottom: 16px;">
+                <p class="gtd-field-label">Accommodation</p>
+                <select id="accommodation-select" class="gtd-select">
+                    <option value="">Not set</option>
+                    <option value="booked" {% if trip.accommodation_status and trip.accommodation_status.value == 'booked' %}selected{% endif %}>Booked</option>
+                    <option value="not_yet" {% if trip.accommodation_status and trip.accommodation_status.value == 'not_yet' %}selected{% endif %}>Not yet sorted</option>
+                    <option value="staying_with_friends" {% if trip.accommodation_status and trip.accommodation_status.value == 'staying_with_friends' %}selected{% endif %}>Staying with friends</option>
+                </select>
+            </div>
+            <div>
+                <p class="gtd-field-label">Transportation</p>
+                <select id="transportation-select" class="gtd-select">
+                    <option value="">Not set</option>
+                    <option value="have_transport" {% if trip.transportation_status and trip.transportation_status.value == 'have_transport' %}selected{% endif %}>Have transportation</option>
+                    <option value="need_transport" {% if trip.transportation_status and trip.transportation_status.value == 'need_transport' %}selected{% endif %}>Need transportation</option>
+                    <option value="not_sure" {% if trip.transportation_status and trip.transportation_status.value == 'not_sure' %}selected{% endif %}>Not sure yet</option>
+                </select>
+            </div>
             {% else %}
-                <div style="margin-bottom: 12px;">
-                    <div style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin-bottom: 4px;">Accommodation</div>
-                    <div style="font-size: 0.95rem;">
-                        {% if trip.accommodation_status %}
-                            {% if trip.accommodation_status.value == 'booked' %}🏨 Booked
-                            {% elif trip.accommodation_status.value == 'not_yet' %}🕒 Not yet
-                            {% elif trip.accommodation_status.value == 'staying_with_friends' %}🏠 Staying with friends
-                            {% endif %}
-                        {% else %}
-                            Not set
+            <div style="margin-bottom: 16px;">
+                <p class="gtd-field-label">Accommodation</p>
+                <p class="gtd-field-value">
+                    {% if trip.accommodation_status %}
+                        {% if trip.accommodation_status.value == 'booked' %}Booked
+                        {% elif trip.accommodation_status.value == 'not_yet' %}Not yet sorted
+                        {% elif trip.accommodation_status.value == 'staying_with_friends' %}Staying with friends
                         {% endif %}
-                    </div>
-                </div>
-                <div style="margin-bottom: 12px;">
-                    <div style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin-bottom: 4px;">Transportation</div>
-                    <div style="font-size: 0.95rem;">
-                        {% if trip.transportation_status %}
-                            {% if trip.transportation_status.value == 'have_transport' %}🚗 Have transportation
-                            {% elif trip.transportation_status.value == 'need_transport' %}🙋 Need transportation
-                            {% elif trip.transportation_status.value == 'not_sure' %}❓ Not sure yet
-                            {% endif %}
-                        {% else %}
-                            Not set
+                    {% else %}Not set{% endif %}
+                </p>
+            </div>
+            <div>
+                <p class="gtd-field-label">Transportation</p>
+                <p class="gtd-field-value">
+                    {% if trip.transportation_status %}
+                        {% if trip.transportation_status.value == 'have_transport' %}Have transportation
+                        {% elif trip.transportation_status.value == 'need_transport' %}Need transportation
+                        {% elif trip.transportation_status.value == 'not_sure' %}Not sure yet
                         {% endif %}
-                    </div>
-                </div>
+                    {% else %}Not set{% endif %}
+                </p>
+            </div>
             {% endif %}
         </div>
-        
-        <h2 style="font-size: 1.1rem; font-weight: 600; margin: 20px 0 12px; color: var(--bl-color-text);">Guests</h2>
-        <div class="bl-card">
+
+        <p class="gtd-section-label">Guests</p>
+        <div class="bl-card" style="margin-bottom: 20px;">
             {% for guest in guests %}
-            <div style="padding: 12px; border-bottom: 1px solid var(--bl-color-border-soft); display: flex; justify-content: space-between; align-items: center;">
+            <div class="gtd-guest-row">
                 <div>
-                    <div style="font-weight: 500;">{{ guest.user.first_name | format_name }} {{ guest.user.last_name | format_name }}</div>
-                    <div style="font-size: 0.85rem; color: var(--bl-color-text-muted); margin-top: 4px;">
-                        {% if guest.status.value == 'invited' %}
-                            <span style="color: #F59E0B;">Invited</span>
-                        {% else %}
-                            <span style="color: #10B981;">Accepted</span>
-                        {% endif %}
-                    </div>
+                    <div class="gtd-guest-name">{{ guest.user.first_name | format_name }} {{ guest.user.last_name | format_name }}</div>
                 </div>
-                {% if is_host and guest.user_id != trip.host_id %}
-                <form method="POST" action="{{ url_for('remove_trip_guest', trip_id=trip.id, guest_id=guest.id) }}" style="margin: 0;">
-                    <button type="submit" style="background: none; border: none; color: #EF4444; cursor: pointer; font-size: 0.85rem; text-decoration: underline;">Remove</button>
-                </form>
-                {% endif %}
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    {% if guest.status.value == 'invited' %}
+                        <span class="gtd-guest-status-invited">Invited</span>
+                    {% else %}
+                        <span class="gtd-guest-status-accepted">Going</span>
+                    {% endif %}
+                    {% if is_host and guest.user_id != trip.host_id %}
+                    <form method="POST" action="{{ url_for('remove_trip_guest', trip_id=trip.id, guest_id=guest.id) }}" style="margin: 0;">
+                        <button type="submit" class="gtd-remove-btn">Remove</button>
+                    </form>
+                    {% endif %}
+                </div>
             </div>
-            {% if loop.last %}
-            <div style="padding: 0;"></div>
-            {% endif %}
+            {% else %}
+            <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0; padding: 4px 0;">No guests yet.</p>
             {% endfor %}
         </div>
-        
+
         {% if is_host and available_friends %}
-        <h2 style="font-size: 1.1rem; font-weight: 600; margin: 20px 0 12px; color: var(--bl-color-text);">Invite Friends</h2>
+        <p class="gtd-section-label">Invite a Friend</p>
         <div class="bl-card">
             <form method="POST" action="{{ url_for('invite_to_group_trip', trip_id=trip.id) }}">
-                <div style="margin-bottom: 12px;">
-                    <select name="friend_id" required style="width: 100%; padding: 10px; border: 1px solid var(--bl-color-border-soft); border-radius: 8px; font-size: 1rem;">
-                        <option value="">Select a friend...</option>
-                        {% for friend in available_friends %}
-                        <option value="{{ friend.id }}">{{ friend.first_name | format_name }} {{ friend.last_name | format_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <button type="submit" class="bl-btn-primary" style="width: 100%; padding: 10px;">Invite</button>
+                <select name="friend_id" required class="gtd-invite-select">
+                    <option value="">Select a friend…</option>
+                    {% for friend in available_friends %}
+                    <option value="{{ friend.id }}">{{ friend.first_name | format_name }} {{ friend.last_name | format_name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="bl-btn-primary" style="width: 100%;">Send Invite</button>
             </form>
         </div>
         {% endif %}
+
     </div>
-    
+
     {% include 'components/bottom_nav.html' %}
-    
+
     {% if is_host %}
     <script>
-        const accommodationSelect = document.getElementById('accommodation-select');
-        const transportationSelect = document.getElementById('transportation-select');
-        
-        accommodationSelect.addEventListener('change', () => {
-            fetch('{{ url_for("update_group_trip_accommodation", trip_id=trip.id) }}', {
+        function saveField(url, payload) {
+            fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ accommodation_status: accommodationSelect.value })
+                body: JSON.stringify(payload)
             }).then(r => r.json()).then(data => {
-                if (!data.success) {
-                    alert('Error: ' + data.error);
-                    location.reload();
-                }
-            });
+                if (!data.success) { location.reload(); }
+            }).catch(() => { location.reload(); });
+        }
+
+        document.getElementById('accommodation-select').addEventListener('change', function() {
+            saveField('{{ url_for("update_group_trip_accommodation", trip_id=trip.id) }}',
+                { accommodation_status: this.value });
         });
-        
-        transportationSelect.addEventListener('change', () => {
-            fetch('{{ url_for("update_group_trip_transportation", trip_id=trip.id) }}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ transportation_status: transportationSelect.value })
-            }).then(r => r.json()).then(data => {
-                if (!data.success) {
-                    alert('Error: ' + data.error);
-                    location.reload();
-                }
-            });
+
+        document.getElementById('transportation-select').addEventListener('change', function() {
+            saveField('{{ url_for("update_group_trip_transportation", trip_id=trip.id) }}',
+                { transportation_status: this.value });
         });
     </script>
     {% endif %}

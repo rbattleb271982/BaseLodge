@@ -1,0 +1,69 @@
+Implement a final polish and consistency pass for BaseLodge. Keep changes minimal, safe, and consistent with the current design system. Do not alter core flows.
+
+1. Group trip detail page polish
+- Inspect templates/group_trip_detail.html and make it visually consistent with the rest of the app
+- Add:
+  - standard page header / brand treatment
+  - back button
+  - bottom nav
+  - proper spacing, typography, and card styling using existing classes/tokens
+- Remove raw prototype feeling without redesigning the feature
+- Keep all current functionality intact
+
+2. Edge-page consistency checks
+- Audit and lightly polish any edge pages that may be user-facing in the invite/connect/reset flow, especially:
+  - connect_confirm.html
+  - connect_success.html
+  - connect_self.html
+  - password reset success / invalid states if they still exist
+  - any other user-facing edge pages still rendered by active routes
+- Ensure these pages have:
+  - consistent branding
+  - clear primary CTA
+  - mobile-friendly spacing
+  - back/home path where appropriate
+- Do not create new flows; just make them feel finished
+
+3. Legacy route/template naming cleanup
+- Review remaining legacy redirects and odd route/template naming inconsistencies
+- Clean up safe, low-risk cases only
+- If a legacy route should remain, add a short code comment indicating it is intentional
+- Do not break backward compatibility
+
+4. Open Graph / title / share metadata
+- Standardize page <title> formatting across main pages to:
+  BaseLodge — [Page Name]
+- Add basic Open Graph / Twitter meta tags to key public/user-entry pages where reasonable:
+  - title
+  - description
+  - image (reuse existing logo/asset if available)
+  - url
+- Keep implementation lightweight and centralized if possible
+
+5. robots.txt and sitemap.xml
+- Add a robots.txt route or static file
+- Add a basic sitemap.xml route or static file
+- Since most of the app is authenticated, configure robots conservatively so private/user pages are not indexed
+- Include only appropriate public pages/routes if applicable
+
+6. Conservative CSP
+- Add a lightweight Content-Security-Policy only if it can be done safely without breaking:
+  - PostHog
+  - inline scripts currently in templates
+  - Google Fonts
+  - SendGrid-related flows
+- If a safe CSP cannot be added yet, do not force it; instead return a short note explaining why it was skipped and what would need to be refactored first
+
+7. Cancel-invite modal / edge modal consistency
+- Review the new cancel-invite modal and any other custom confirmation modals on edge pages
+- Ensure they match the same visual pattern and button hierarchy used elsewhere
+- Make small consistency tweaks only if needed
+
+After implementing:
+- list files changed
+- confirm group_trip_detail is now visually consistent
+- list which edge pages were polished
+- confirm title/meta tag standardization
+- confirm robots.txt and sitemap.xml behavior
+- confirm whether CSP was added or intentionally skipped
+- list any remaining low-priority items you chose not to change

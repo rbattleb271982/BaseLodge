@@ -617,6 +617,8 @@ def before_request_handlers():
             path.startswith("/reset-password/") or
             path == "/forgot-password" or
             path == "/logout" or
+            path == "/robots.txt" or
+            path == "/sitemap.xml" or
             request.endpoint in {"health_check"}):
         return None
 
@@ -10417,6 +10419,16 @@ def privacy_policy():
 @app.route("/termsandconditions")
 def terms_and_conditions():
     return render_template("terms_and_conditions.html")
+
+
+@app.route("/robots.txt")
+def robots_txt():
+    return send_file("static/robots.txt", mimetype="text/plain")
+
+
+@app.route("/sitemap.xml")
+def sitemap_xml():
+    return send_file("static/sitemap.xml", mimetype="application/xml")
 
 
 if __name__ == "__main__":
