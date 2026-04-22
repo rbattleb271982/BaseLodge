@@ -1,14 +1,14 @@
 <!--
 Component: Module — Invites
-Purpose: Lists pending trip invites (up to 3 visible, "Show more" for overflow) plus
-         an optional friend-connect invite row at the bottom.
+Purpose: Unified invite card — trip invites and friend-connect invites in one
+         consistent visual pattern with left-rule accent rows.
 Used on: Home screen (module type "invites")
-Variants: trip invites only / trip invites + connect invite / overflow > 3
+Variants: trip invites only / trip + connect invite / overflow > 3
 
 Inputs:
   trip_invites      — list of dicts
     [].trip_id      int
-    [].trip         SkiTrip object   (used by format_trip_dates filter)
+    [].trip         SkiTrip object   (used by format_trip_dates)
     [].resort       Resort | None
       .name         string
     [].inviter_name string
@@ -18,35 +18,54 @@ Inputs:
     .sender_name    string
 -->
 
-<p class="home-section-label">Invites</p>
 {%- set _invite_limit = 3 -%}
 {%- set _invite_total = trip_invites | length -%}
 {%- set _invite_overflow = _invite_total > _invite_limit -%}
-<div class="home-activity-rows">
-    {% for inv in trip_invites %}
-    {%- set inv_resort = inv.resort -%}
-    {%- set inv_mountain = inv_resort.name if inv_resort else inv.trip.mountain -%}
-    <a href="{{ url_for('trip_detail', trip_id=inv.trip_id) }}" class="home-activity-row{% if loop.index > _invite_limit %} home-invite-overflow{% endif %}" style="text-decoration: none;{% if loop.index > _invite_limit %} display:none;{% endif %}">
-        <div class="home-activity-content">
-            <p class="home-activity-text">{{ inv.inviter_name }} invited you to {{ inv_mountain }}</p>
-            <p class="home-activity-sub">{{ format_trip_dates(inv.trip) }}</p>
-        </div>
-        <div class="home-activity-action">
-            <span class="home-activity-link">View →</span>
-        </div>
-    </a>
-    {% endfor %}
-    {% if secondary_card and secondary_card.type == 'connect_invite' %}
-    <div class="home-activity-row" id="secondary-card">
-        <div class="home-activity-content">
-            <p class="home-activity-text">{{ secondary_card.sender_name }} wants to connect</p>
-        </div>
-        <div class="home-activity-action">
-            <button class="home-activity-btn" onclick="acceptConnectInvite({{ secondary_card.invitation_id }})">Accept</button>
-        </div>
+
+<div class="hc-card">
+
+    {# ── Section label ── #}
+    <div class="hc-label">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14" style="color:var(--bl-color-text-tertiary);flex-shrink:0;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+        </svg>
+        <span class="hc-label-text">Invites</span>
     </div>
+
+    {# ── Invite rows ── #}
+    <div class="hc-ruled-rows">
+
+        {# Trip invite rows #}
+        {% for inv in trip_invites %}
+        {%- set inv_resort = inv.resort -%}
+        {%- set inv_mountain = inv_resort.name if inv_resort else inv.trip.mountain -%}
+        <a href="{{ url_for('trip_detail', trip_id=inv.trip_id) }}"
+           class="hc-ruled-row{% if loop.index > _invite_limit %} hc-invite-overflow{% endif %}"
+           style="{% if loop.index > _invite_limit %}display:none;{% endif %}">
+            <div class="hc-ruled-row-body">
+                <p class="hc-serif-headline">{{ inv.inviter_name }} · {{ inv_mountain }} trip</p>
+                <p class="hc-sub">{{ format_trip_dates(inv.trip) }}</p>
+            </div>
+            <span class="hc-action-link">View →</span>
+        </a>
+        {% endfor %}
+
+        {# Connect invite row #}
+        {% if secondary_card and secondary_card.type == 'connect_invite' %}
+        <div class="hc-ruled-row" id="secondary-card">
+            <div class="hc-ruled-row-body">
+                <p class="hc-serif-headline">{{ secondary_card.sender_name }}</p>
+                <p class="hc-sub">Wants to connect</p>
+            </div>
+            <button class="hc-accept-btn" onclick="acceptConnectInvite({{ secondary_card.invitation_id }})">Accept</button>
+        </div>
+        {% endif %}
+
+    </div>
+
+    {# Overflow toggle #}
+    {% if _invite_overflow %}
+    <button id="show-all-invites-btn" onclick="showAllInvites()" style="background:none;border:none;padding:10px 0 0;font-size:12px;color:var(--bl-color-text-tertiary);cursor:pointer;font-family:inherit;text-decoration:underline;">Show {{ _invite_total - _invite_limit }} more {{ 'invite' if (_invite_total - _invite_limit) == 1 else 'invites' }}</button>
     {% endif %}
+
 </div>
-{% if _invite_overflow %}
-<button id="show-all-invites-btn" onclick="showAllInvites()" style="background:none;border:none;padding:8px 0 0;font-size:12px;color:#8A857A;cursor:pointer;font-family:inherit;text-decoration:underline;">Show {{ _invite_total - _invite_limit }} more {{ 'invite' if (_invite_total - _invite_limit) == 1 else 'invites' }}</button>
-{% endif %}

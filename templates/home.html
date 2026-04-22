@@ -517,35 +517,305 @@
                 opacity: 0.72;
             }
         }
+
+        /* ═══════════════════════════════════════════════════════
+           HOME CARD SYSTEM  (.hc-*)
+           Cards, section labels, ruled rows, stat band, idea rows
+           ═══════════════════════════════════════════════════════ */
+
+        /* ── Base card ── */
+        .hc-card {
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: 12px;
+            padding: 20px 20px 18px;
+            margin-bottom: 12px;
+        }
+
+        /* ── Section label (icon + uppercase text) ── */
+        .hc-label {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin-bottom: 14px;
+        }
+        .hc-label-text {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.9px;
+            text-transform: uppercase;
+            color: var(--bl-color-text-tertiary);
+            line-height: 1;
+        }
+
+        /* ── Profile summary ── */
+        .hc-welcome {
+            font-family: var(--bl-font-serif);
+            font-size: 34px;
+            font-weight: 400;
+            color: var(--bl-color-text);
+            line-height: 1.05;
+            letter-spacing: -0.5px;
+            margin: 0 0 6px 0;
+        }
+        .hc-identity {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            line-height: 1.4;
+            margin: 0 0 10px 0;
+        }
+        .hc-profile-cta {
+            display: inline-block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+            margin-bottom: 16px;
+        }
+        .hc-equipment-link {
+            display: block;
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            text-decoration: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 16px;
+        }
+
+        /* ── Stat band (inside profile card) ── */
+        .hc-stat-band {
+            display: flex;
+            align-items: center;
+            padding-top: 16px;
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+        .hc-stat-tile {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .hc-stat-tile--link {
+            cursor: pointer;
+            min-height: 44px;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+            transition: opacity 0.15s;
+        }
+        .hc-stat-tile--link:active { opacity: 0.55; }
+        @media (hover: hover) {
+            .hc-stat-tile--link:hover { opacity: 0.72; }
+        }
+        .hc-stat-num {
+            font-family: var(--bl-font-serif);
+            font-size: 28px;
+            font-weight: 400;
+            color: var(--bl-color-text);
+            line-height: 1;
+            letter-spacing: -0.5px;
+        }
+        .hc-stat-lbl {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.9px;
+            text-transform: uppercase;
+            color: var(--bl-color-text-tertiary);
+            text-align: center;
+        }
+        .hc-stat-div {
+            width: 1px;
+            height: 28px;
+            background: var(--bl-color-border-soft);
+            flex-shrink: 0;
+        }
+
+        /* ── Ruled rows (left-accent rows inside cards) ── */
+        .hc-ruled-rows {
+            display: flex;
+            flex-direction: column;
+        }
+        .hc-ruled-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 0 13px 16px;
+            border-top: 1px solid var(--bl-color-border-soft);
+            position: relative;
+            text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        a.hc-ruled-row:active { opacity: 0.72; }
+        .hc-ruled-row::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 10px;
+            bottom: 10px;
+            width: 2px;
+            background: var(--bl-color-primary);
+            border-radius: 1px;
+        }
+        .hc-ruled-row-body {
+            flex: 1;
+            min-width: 0;
+        }
+        .hc-serif-headline {
+            font-family: var(--bl-font-serif);
+            font-size: 17px;
+            font-weight: 400;
+            color: var(--bl-color-text);
+            margin: 0 0 3px 0;
+            line-height: 1.25;
+        }
+        .hc-sub {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+            line-height: 1.35;
+        }
+        .hc-action-link {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* ── Live today status block (inside My Next Trip) ── */
+        .hc-live-block {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+        .hc-live-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--bl-color-primary);
+            margin: 0 0 5px 0;
+        }
+        .hc-dismiss-x {
+            background: none;
+            border: none;
+            font-size: 17px;
+            line-height: 1;
+            color: var(--bl-color-text-tertiary);
+            cursor: pointer;
+            padding: 0 0 0 6px;
+            margin-left: auto;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .hc-live-cta {
+            display: inline-block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+        }
+        .hc-live-cta:active { opacity: 0.7; }
+
+        /* ── Accept button (friend connect invite) ── */
+        .hc-accept-btn {
+            background: var(--bl-color-primary);
+            color: #fff;
+            border: none;
+            border-radius: 20px;
+            padding: 9px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .hc-accept-btn:active { opacity: 0.8; }
+
+        /* ── Idea rows (inside IDEAS FOR YOU card) ── */
+        .hc-idea-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 13px;
+            padding: 13px 0;
+            border-top: 1px solid var(--bl-color-border-soft);
+        }
+        .hc-idea-row:first-child {
+            border-top: none;
+            padding-top: 0;
+        }
+        .hc-idea-icon {
+            width: 36px;
+            height: 36px;
+            background: #EDECE9;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .hc-idea-text {
+            flex: 1;
+            font-size: 14px;
+            line-height: 1.45;
+            color: var(--bl-color-text);
+            margin: 0;
+        }
+        .hc-idea-link {
+            color: var(--bl-color-primary);
+            font-weight: 500;
+            text-decoration: none;
+        }
+        .hc-idea-dismiss {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            line-height: 1;
+            color: var(--bl-color-text-tertiary);
+            padding: 0 2px;
+            flex-shrink: 0;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
     </style>
 </head>
 <body>
     <!-- HOME SCREEN STRUCTURE
     ══════════════════════════════════════════════════════════════
-    1. Header
+    1. Profile Summary Card  (.hc-card)
        a. Populated state  → partials/home/_header.html
-          - Welcome greeting
+          - Welcome, [Name]. (34px serif)
           - Identity line (rider type · skill · pass)
-          - Equipment line (gear · boots) or "Complete your profile" CTA
-          - Stat bar (Trips / Mountains / Wishlist) via components/stat_row.html
+          - "Complete your profile →" CTA or equipment display
+          - Stat band: Trips / Mountains / Wishlist (28px serif nums)
        b. Empty state      → partials/home/_header_empty.html
-          - Large serif welcome name
-          - Identity line + equipment line (same logic, different style)
-          - Inline stat tiles (no next-trip context)
+          - Same layout, no stat_row.html dependency
 
     2. Modules (≤ 2, resolved by resolve_home_modules in app.py)
+       All modules use .hc-card container with .hc-label section label
        a. My Next Trip     → partials/home/_module_next_trip.html
+          - Luggage icon + "MY NEXT TRIP" label
+          - Left-ruled row: mountain, date/pass, Edit/View action
+          - Inline live status if trip_overlap_today_card (merged from insight card)
        b. Invites          → partials/home/_module_invites.html
-          - Trip invites (up to 3, overflow hidden behind "Show more")
-          - Connect invite row (secondary_card.type == "connect_invite")
+          - People icon + "INVITES" label
+          - Unified ruled rows: trip invites (View →) + connect invite (Accept btn)
        c. Best Match       → partials/home/_module_best_match.html
        d. Empty Editorial  → partials/home/_module_empty_editorial.html
 
-    3. Insight Cards (independent of modules, shown after all modules)
-       a. Trip Overlap Today  → partials/home/_insight_card_today.html
-          Condition: trip_overlap_today_card is truthy
-       b. Friend at Mountain  → partials/home/_insight_card_been.html
-          Condition: friend_at_mountain_card is truthy
+    3. IDEAS FOR YOU Card (.hc-card, inline wrapper)
+       - Lightbulb icon + "IDEAS FOR YOU" label
+       - friend_at_mountain_card  → partials/home/_insight_card_been.html (.hc-idea-row)
+       Note: trip_overlap_today_card is now rendered inside My Next Trip module
 
     4. Bottom Nav → components/bottom_nav.html
     ══════════════════════════════════════════════════════════════ -->
@@ -592,12 +862,18 @@
 
         {% endfor %}
 
-        {% if trip_overlap_today_card %}
-        {% include 'partials/home/_insight_card_today.html' %}
-        {% endif %}
+        {# trip_overlap_today_card is now rendered inline inside _module_next_trip.html #}
 
         {% if friend_at_mountain_card %}
-        {% include 'partials/home/_insight_card_been.html' %}
+        <div class="hc-card">
+            <div class="hc-label">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14" style="color:var(--bl-color-text-tertiary);flex-shrink:0;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
+                </svg>
+                <span class="hc-label-text">Ideas for you</span>
+            </div>
+            {% include 'partials/home/_insight_card_been.html' %}
+        </div>
         {% endif %}
 
     </div>

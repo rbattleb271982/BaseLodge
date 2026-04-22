@@ -1,43 +1,87 @@
 <!--
 Component: Module — My Next Trip
-Purpose: Shows the user's nearest upcoming trip as a tappable hero card with
-         mountain name, date range, pass type, people going, and a countdown badge.
+Purpose: Card showing the user's nearest upcoming trip. When the user is at the
+         mountain today and friends are also there, the live-status block is shown
+         inline instead of as a separate insight card.
 Used on: Home screen (module type "my_next_trip")
-Variants: own trip (Edit →) / guest trip (View trip →) / countdown visible / hidden
+Variants: own trip / guest trip / with today-overlap live status / countdown visible
 
 Inputs:
-  next_trip           — SkiTrip object
-    .id               int
-    .user_id          int
-    .mountain         string (fallback when no resort relation)
-    .resort           Resort | None
-      .name           string
-    .start_date       date
-    .end_date         date
-    .pass_type        string | None   (rendered via pass_display filter)
-    .accepted_count   int | None
-  next_trip_countdown — string | None   e.g. "Tomorrow", "In 5 days"
-  user                — User object
-    .id               int
+  next_trip               — SkiTrip object
+    .id                   int
+    .user_id              int
+    .mountain             string (fallback)
+    .resort               Resort | None
+      .name               string
+    .start_date           date
+    .end_date             date
+    .pass_type            string | None
+    .accepted_count       int | None
+  next_trip_countdown     — string | None  e.g. "Tomorrow", "In 5 days"
+  user                    — User object
+    .id                   int
+  trip_overlap_today_card — dict | None
+    .friend_count         int
+    .friend_id            int (single-friend variant)
+    .friend_name          string (single-friend variant)
+    .resort_name          string
+    .resort_slug          string
+    .card_key             string
 -->
 
-<p class="home-section-label">My next trip</p>
-{% set resort = next_trip.resort %}
-{% set mountain_name = resort.name if resort else next_trip.mountain %}
-{% set state_abbr = resort|state_abbrev if resort else next_trip.state %}
-{% set people = next_trip.accepted_count %}
-<a href="{{ url_for('trip_detail', trip_id=next_trip.id) }}" class="home-hero">
-    <div class="home-row">
-        <div class="home-row-left">
-            <p class="home-hero-title">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-        </div>
-        <span class="home-hero-action">{% if next_trip.user_id == user.id %}Edit →{% else %}View trip →{% endif %}</span>
+{%- set resort = next_trip.resort -%}
+{%- set mountain_name = resort.name if resort else next_trip.mountain -%}
+{%- set state_abbr = resort|state_abbrev if resort else next_trip.state -%}
+{%- set people = next_trip.accepted_count -%}
+{%- set _trip_pass = next_trip.pass_type | pass_display -%}
+{%- set _is_own_trip = next_trip.user_id == user.id -%}
+
+<div class="hc-card">
+
+    {# ── Section label ── #}
+    <div class="hc-label">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14" style="color:var(--bl-color-text-tertiary);flex-shrink:0;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 01-2.25 2.25h-12a2.25 2.25 0 01-2.25-2.25v-4.07M15.75 6.75V6a3.75 3.75 0 00-7.5 0v.75M3.75 14.15h16.5M8.25 14.15v2.6M15.75 14.15v2.6" />
+        </svg>
+        <span class="hc-label-text">My next trip</span>
     </div>
-    <div class="home-row" style="padding-top: 0;">
-        <div class="home-row-left">
-            {%- set _trip_pass_display = next_trip.pass_type | pass_display -%}
-            <p class="home-hero-sub">{{ format_trip_dates(next_trip) }}{% if people and people > 1 %} · {{ people }} going{% endif %}{% if _trip_pass_display %} · {{ _trip_pass_display }}{% endif %}</p>
+
+    {# ── Trip row (left-ruled) ── #}
+    <div class="hc-ruled-rows">
+        <div class="hc-ruled-row" style="border-top:none;">
+            <div class="hc-ruled-row-body">
+
+                {# Mountain + Edit action #}
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+                    <p class="hc-serif-headline" style="white-space:normal;">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+                    <a href="{{ url_for('trip_detail', trip_id=next_trip.id) }}" class="hc-action-link" style="padding-top:3px;flex-shrink:0;">{% if _is_own_trip %}Edit →{% else %}View trip →{% endif %}</a>
+                </div>
+
+                {# Date · Pass line #}
+                <p class="hc-sub">{{ format_trip_dates(next_trip) }}{% if people and people > 1 %} · {{ people }} going{% endif %}{% if _trip_pass %} · {{ _trip_pass }}{% endif %}{% if next_trip_countdown %} · {{ next_trip_countdown }}{% endif %}</p>
+
+                {# ── Live today status (merged from trip_overlap_today_card) ── #}
+                {% if trip_overlap_today_card %}
+                <div class="hc-live-block" id="trip-overlap-today-card">
+                    <p class="hc-live-status">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="13" height="13" style="flex-shrink:0;margin-top:1px;">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                        </svg>
+                        You're here today
+                        <button class="hc-dismiss-x" aria-label="Dismiss"
+                            onclick="dismissInsightCard('trip_overlap_today','{{ trip_overlap_today_card.card_key }}','trip-overlap-today-card')">×</button>
+                    </p>
+                    {% if trip_overlap_today_card.friend_count == 1 %}
+                    <a href="{{ url_for('friend_profile', friend_id=trip_overlap_today_card.friend_id) }}" class="hc-live-cta">{{ trip_overlap_today_card.friend_name }} is here too →</a>
+                    {% else %}
+                    <a href="{{ url_for('mountain_detail', slug=trip_overlap_today_card.resort_slug) }}" class="hc-live-cta">See who else is here →</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+            </div>
         </div>
-        {% if next_trip_countdown %}<span class="home-hero-eyebrow">{{ next_trip_countdown }}</span>{% endif %}
     </div>
-</a>
+
+</div>
