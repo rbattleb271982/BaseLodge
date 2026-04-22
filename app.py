@@ -8964,6 +8964,72 @@ def debug_users():
     })
 
 
+@app.route("/admin/db-status", methods=["GET"])
+@login_required
+@admin_required
+def admin_db_status():
+    """
+    Read-only diagnostic: confirms which database engine is active, whether
+    SQLite fallback is in use, and reports counts for all core tables.
+    No writes. Safe to call in production at any time.
+    """
+    import re
+
+    db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "not set")
+    safe_uri = re.sub(r'(:)[^:@]+(@)', r'\1***\2', db_uri)
+
+    engine_type = (
+        "postgresql" if "postgresql" in db_uri or "postgres" in db_uri
+        else "sqlite" if "sqlite" in db_uri
+        else "unknown"
+    )
+    is_sqlite_fallback = "sqlite" in db_uri
+
+    raw_env_url = os.environ.get("SUPABASE_DATABASE_URL", "")
+    env_url_present = bool(raw_env_url)
+    env_url_scheme = raw_env_url.split("://")[0] if "://" in raw_env_url else "not set"
+    env_url_host = raw_env_url.split("@")[-1] if "@" in raw_env_url else "no @ found"
+
+    try:
+        counts = {
+            "users":                  User.query.count(),
+            "ski_trips":              SkiTrip.query.count(),
+            "ski_trip_participants":  SkiTripParticipant.query.count(),
+            "friends":                Friend.query.count(),
+            "invitations":            Invitation.query.count(),
+            "invite_tokens":          InviteToken.query.count(),
+            "group_trips":            GroupTrip.query.count(),
+            "trip_guests":            TripGuest.query.count(),
+        }
+        counts_ok = True
+        counts_error = None
+    except Exception as e:
+        counts = {}
+        counts_ok = False
+        counts_error = str(e)
+
+    return jsonify({
+        "db_engine":             engine_type,
+        "active_uri_masked":     safe_uri,
+        "is_sqlite_fallback":    is_sqlite_fallback,
+        "is_production_flag":    is_production,
+        "supabase_env_var": {
+            "present":           env_url_present,
+            "scheme":            env_url_scheme,
+            "host_masked":       env_url_host,
+        },
+        "table_counts":          counts,
+        "table_counts_ok":       counts_ok,
+        "table_counts_error":    counts_error,
+        "assessed_at":           datetime.utcnow().isoformat() + "Z",
+        "note": (
+            "SQLITE FALLBACK ACTIVE — users may be writing to a local file, not Supabase"
+            if is_sqlite_fallback else
+            "Supabase PostgreSQL active — no SQLite fallback"
+        ),
+    })
+
+
 @app.route("/admin/export-live-data", methods=["GET"])
 @login_required
 @admin_required
