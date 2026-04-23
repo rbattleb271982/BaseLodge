@@ -619,6 +619,8 @@ def before_request_handlers():
             path == "/logout" or
             path == "/robots.txt" or
             path == "/sitemap.xml" or
+            path == "/privacypolicy" or
+            path == "/termsandconditions" or
             request.endpoint in {"health_check"}):
         return None
 
