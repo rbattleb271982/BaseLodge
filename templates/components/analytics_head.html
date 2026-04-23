@@ -41,3 +41,15 @@
     });
   });
 </script>
+<script>
+  /* Keyboard-safe scroll: when an input is focused on mobile, scroll it into
+     view after a short delay so the iOS keyboard doesn't cover it. */
+  document.addEventListener('focusin', function(e) {
+    var el = e.target;
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+      setTimeout(function() {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 320);
+    }
+  });
+</script>

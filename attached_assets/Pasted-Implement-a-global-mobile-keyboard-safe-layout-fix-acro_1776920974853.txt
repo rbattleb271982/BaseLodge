@@ -1,0 +1,77 @@
+Implement a global mobile keyboard-safe layout fix across the app, based on the audit already completed.
+
+Goal:
+Fix iPhone/mobile behavior so inputs are not covered by the keyboard, pages can scroll naturally while typing, and the fixed bottom nav does not trap content. This is a layout/behavior fix only, not a redesign.
+
+Files to prioritize:
+
+1. static/styles.css
+2. templates/auth.html
+3. templates/identity_setup.html
+4. templates/location_setup.html
+5. templates/trip_invite_detail.html
+6. templates/components/bottom_nav.html
+
+Then patch any other template using full-screen wrappers only if necessary.
+
+What to change:
+
+A. In static/styles.css
+
+* Add a reusable mobile-safe page layout pattern for app pages
+* Update `.page-container` so it is keyboard-safe and bottom-nav-safe
+* Update `.auth-container` so it does not rely on hard vertical centering with 100vh
+* Prefer `min-height: 100dvh` with safe fallback behavior
+* Allow natural vertical scrolling on mobile
+* Add sufficient bottom padding for pages with the fixed bottom nav so focused fields and CTAs are not hidden behind either the nav or the keyboard
+
+B. In templates with full-screen wrappers
+
+* Replace problematic `height: 100vh` / `min-height: 100vh` usage where it affects typing behavior
+* Especially fix:
+
+  * templates/auth.html
+  * templates/identity_setup.html
+  * templates/location_setup.html
+  * templates/trip_invite_detail.html
+* Preserve current visual design as much as possible
+
+C. Bottom nav safety
+
+* Keep the bottom nav fixed
+* Ensure main content areas account for its height with padding or layout offset
+* Do not let the nav overlap form controls or action buttons on smaller screens
+
+D. Add a small global keyboard helper
+
+* On focus of any `input`, `textarea`, or `select`, scroll the focused element into view with a short delay for iPhone Safari
+* Use a lightweight implementation only
+* Do not create a complicated JS system
+
+Important constraints:
+
+* Do not redesign pages
+* Do not change branding, typography, or component styling beyond what is needed for layout behavior
+* Do not remove the fixed bottom nav
+* Do not change image/text truncation rules that use overflow hidden unless they are truly causing the issue
+* Use the smallest set of changes that creates consistent keyboard-safe behavior
+
+Acceptance criteria:
+
+* On iPhone/mobile-width screens, focusing any input keeps it visible (not covered by keyboard)
+* Pages can scroll naturally with the keyboard open
+* Auth and onboarding screens no longer feel locked in place when typing
+* Fixed bottom nav no longer causes content to be trapped behind it
+* Desktop layouts remain visually intact
+
+Test before finishing:
+
+* Log in and Create account states
+* Identity setup
+* Location setup
+* Any authenticated page with a form field near the bottom of the screen
+* A page with the fixed bottom nav present
+* Confirm no obvious regression on desktop width
+
+Use checkpoints sparingly. Do not overuse them.
+Do not finish until you have fully tested the affected flows in mobile-width view.
