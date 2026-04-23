@@ -1,0 +1,88 @@
+The previous keyboard fix improved things, but inputs are still being covered on iPhone when typing.
+
+We need a stricter fix to ensure the page actually scrolls and inputs move above the keyboard.
+
+Focus specifically on templates/auth.html and shared layout behavior.
+
+What to fix:
+
+1. Ensure the page can scroll
+
+* Confirm `html` and `body` allow scrolling:
+
+  * `height: auto`
+  * `overflow-y: auto`
+* Remove any `overflow: hidden` applied at the page level
+
+2. Remove hard viewport locking
+
+* In templates/auth.html:
+
+  * Replace ANY `height: 100vh` or `min-height: 100vh`
+  * Use:
+
+    * `min-height: 100dvh`
+    * OR no forced height at all
+* The page must be allowed to grow taller than the viewport
+
+3. Fix vertical centering behavior
+
+* If using flexbox:
+
+  * DO NOT use only `align-items: center` on a full-height container
+* Instead:
+
+  * Use `justify-content: flex-start`
+  * Add top padding to maintain visual balance
+* This allows content to shift upward when the keyboard opens
+
+4. Ensure the form is not inside a constrained container
+
+* The form wrapper must NOT:
+
+  * have fixed height
+  * have overflow hidden
+  * be inside a fixed-position container
+
+5. Strengthen scroll-into-view behavior
+
+* Update JS so that on focus:
+
+  * it scrolls the nearest scrollable container
+  * not just the input itself
+* Use:
+
+  * `block: "center"`
+  * delay of ~300ms for iOS
+
+6. Add extra bottom space
+
+* Add padding-bottom to the main container:
+
+  * enough so inputs can scroll above keyboard
+  * e.g. 120–160px
+
+Important:
+
+* Do NOT redesign the screen
+* Do NOT change typography or spacing system
+* This is strictly a layout/scroll behavior fix
+
+Acceptance criteria:
+
+* When tapping Email or Password:
+
+  * the field is NEVER covered by the keyboard
+* The page scrolls naturally while typing
+* The layout shifts upward instead of being stuck in place
+* Works on iPhone viewport simulation
+
+Test specifically:
+
+* Tap into Email field
+* Tap into Password field
+* Scroll while keyboard is open
+* Ensure no clipping or overlap
+
+Use checkpoints sparingly.
+Do not finish until the auth screen works correctly on mobile.

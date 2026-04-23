@@ -21,21 +21,25 @@
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+        /* Explicit scroll enablement — iOS Safari needs both html and body to allow scroll */
+        html {
+            height: auto;
+            overflow-y: auto;
+        }
+
         body {
             background: #F5F1E8;
             color: #1A1A1A;
             font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
-            min-height: 100vh;
             min-height: 100dvh;
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
-            padding: 24px 20px 40px;
+            /* Block flow (no flex) — document scrolls naturally when keyboard opens */
+            padding: 24px 20px 160px;
         }
 
         .auth-wrap {
             width: 100%;
             max-width: 400px;
+            margin: 0 auto; /* horizontal centering without flex */
         }
 
         .auth-brand {
