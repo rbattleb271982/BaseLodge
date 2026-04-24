@@ -23,20 +23,22 @@ def _resolve_base_url():
     """Resolve the base URL for invite links and other absolute URLs.
 
     Priority:
-    1. REPLIT_DEV_DOMAIN (only present in the Replit IDE/dev environment, never
-       in deployed apps) — ensures invite links point to the current dev server,
-       not the hardcoded production domain.
-    2. BASE_URL env var (explicit override for production deployments)
-    3. Hardcoded production fallback
+    1. BASE_URL env var — explicit override; always wins (set this in production
+       secrets to https://app.baselodgeapp.com).
+    2. REPLIT_DEV_DOMAIN — present in Replit IDE/dev environments; used only
+       when no explicit BASE_URL is configured.
+    3. Hardcoded production fallback.
     """
+    explicit = os.getenv("BASE_URL")
+    if explicit:
+        resolved = explicit.rstrip("/")
+        print(f"[BASE_URL] Using BASE_URL env var: {resolved}")
+        return resolved
     replit_domain = os.getenv("REPLIT_DEV_DOMAIN")
     if replit_domain:
         resolved = f"https://{replit_domain}"
         print(f"[BASE_URL] Dev mode — using REPLIT_DEV_DOMAIN: {resolved}")
         return resolved
-    explicit = os.getenv("BASE_URL")
-    if explicit:
-        return explicit.rstrip("/")
     return "https://app.baselodgeapp.com"
 
 BASE_URL = _resolve_base_url()
@@ -163,7 +165,7 @@ def redirect_to_canonical_domain():
     parsed_url = urlparse(request.url)
     hostname = parsed_url.hostname.lower() if parsed_url.hostname else ""
 
-    if hostname.endswith("replit.app"):
+    if hostname.endswith("replit.app") or hostname.endswith("replit.dev"):
         new_url = request.url.replace(
             f"{parsed_url.scheme}://{parsed_url.netloc}",
             "https://app.baselodgeapp.com",
