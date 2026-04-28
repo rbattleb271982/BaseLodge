@@ -1,12 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge — {{ display_dates }}</title>
-    {% include 'components/analytics_head.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — {{ display_dates }}{% endblock %}
+{% block head %}
+<style>
         .back-link {
             display: inline-block;
             margin-bottom: 16px;
@@ -72,8 +67,9 @@
             line-height: 1.5;
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
     <div class="page-container">
         <div class="bl-header"><a href="{{ url_for('home') }}">BaseLodge</a></div>
         <a href="{{ url_for('my_trips', tab='planning') }}" class="back-link">← Back</a>
@@ -101,6 +97,4 @@
         {% endif %}
     </div>
     
-    {% include 'components/bottom_nav.html' %}
-</body>
-</html>
+    {% endblock %}

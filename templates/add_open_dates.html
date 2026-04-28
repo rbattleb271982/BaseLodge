@@ -1,16 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge — Open Dates</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
-    <link rel="shortcut icon" href="/static/icons/favicon.ico">
-    {% include 'components/analytics_head.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — Open Dates{% endblock %}
+{% block head %}
+<style>
         .back-chevron {
             display: inline-flex;
             align-items: center;
@@ -179,9 +170,10 @@
             display: block;
         }
     </style>
-</head>
-<body>
-    <div class="page-container" style="padding: 24px 16px 96px;">
+{% endblock %}
+
+{% block content %}
+    <div class="page-container">
         <a href="{{ url_for('trip_ideas') }}" class="back-chevron" aria-label="Back to Trip Ideas">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="15 18 9 12 15 6"></polyline>
@@ -219,7 +211,9 @@
         </a>
     </div>
 
-    {% include 'components/bottom_nav.html' %}
+    {% endblock %}
+
+{% block scripts %}
 
     <script>
         // ─── State ───────────────────────────────────────────────────────
@@ -523,5 +517,4 @@
             });
         });
     </script>
-</body>
-</html>
+{% endblock %}

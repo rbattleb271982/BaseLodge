@@ -1,12 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge — Trip</title>
-    {% include 'components/analytics_head.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — Trip{% endblock %}
+{% block head %}
+<style>
         /* ── Nav ── */
         .trip-nav-header {
             display: flex;
@@ -392,8 +387,9 @@
             margin: 0;
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
     <div class="page-container{% if is_invited %} page-container-with-sticky{% endif %}" style="padding: 20px 16px 96px;">
 
         <!-- Nav -->
@@ -774,7 +770,9 @@
     </div>
     {% endif %}
 
-    {% include 'components/bottom_nav.html' %}
+    {% endblock %}
+
+{% block scripts %}
 
     <!-- Invite Friends Modal (owner only) -->
     {% if is_owner %}
@@ -972,5 +970,4 @@
             });
         });
     </script>
-</body>
-</html>
+{% endblock %}

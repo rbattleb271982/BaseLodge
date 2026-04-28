@@ -1,24 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge — Select Pass</title>
-    {% include 'components/analytics_head.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
-        body {
-            font-family: var(--bl-font-family);
-            background-color: var(--bl-color-bg);
-        }
-        
-        .page-container {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: var(--bl-space-6);
-        }
-        
-        .back-link {
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — Select Pass{% endblock %}
+{% block head %}
+<style>
+.back-link {
             display: inline-block;
             margin-bottom: var(--bl-space-6);
             color: var(--bl-color-text-muted);
@@ -115,9 +99,11 @@
         .save-btn:not(:disabled):hover {
             opacity: 0.9;
         }
-    </style>
-</head>
-<body>
+</style>
+{% endblock %}
+
+{% block content %}
+
     <div class="page-container">
         <a href="{{ url_for('home') }}" class="back-link">← Back</a>
         <h1>Select Your Pass</h1>
@@ -138,7 +124,10 @@
         </form>
     </div>
     
-    <script>
+    {% endblock %}
+
+{% block scripts %}
+<script>
         const items = document.querySelectorAll(".pass-item");
         const hiddenInput = document.getElementById("pass_type");
         const saveBtn = document.getElementById("saveBtn");
@@ -162,5 +151,4 @@
             });
         });
     </script>
-</body>
-</html>
+{% endblock %}

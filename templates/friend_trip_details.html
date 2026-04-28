@@ -1,12 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge — {{ friend.first_name | format_name }}'s Trip</title>
-    {% include 'components/analytics_head.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — {{ friend.first_name | format_name }}'s Trip{% endblock %}
+{% block head %}
+<style>
         /* ── Nav ── */
         .ftd-nav {
             display: flex;
@@ -128,9 +123,10 @@
         }
         .ftd-avail-cta:hover { background: #3F0C11; }
     </style>
-</head>
-<body>
-    <div class="page-container" style="padding: 20px 16px 88px;">
+{% endblock %}
+
+{% block content %}
+    <div class="page-container">
 
         <!-- Back nav -->
         <div class="ftd-nav">
@@ -244,7 +240,9 @@
 
     </div>
 
-    {% include 'components/bottom_nav.html' %}
+    {% endblock %}
+
+{% block scripts %}
 
     <script>
         const _TRIP_ID = {{ trip.id }};
@@ -312,5 +310,4 @@
         }
         {% endif %}
     </script>
-</body>
-</html>
+{% endblock %}

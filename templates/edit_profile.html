@@ -1,13 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>BaseLodge — Profile Details</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
-    {% include 'components/analytics_head.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — Profile Details{% endblock %}
+{% block head %}
+<style>
         .ep-wrap {
             max-width: 500px;
             margin: 0 auto;
@@ -162,8 +156,9 @@
         }
         .ep-save-btn:active { background: #6B000F; }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
     <div class="ep-wrap">
         <a href="{{ url_for('profile') }}" class="ep-back" id="ep-back">‹</a>
 
@@ -337,7 +332,9 @@
         </div>
     </div>
 
-    {% include 'components/bottom_nav.html' %}
+    {% endblock %}
+
+{% block scripts %}
 
     <script>
     // ── Unsaved-changes guard ──────────────────────────────────────────
@@ -540,5 +537,4 @@
         }
     });
     </script>
-</body>
-</html>
+{% endblock %}

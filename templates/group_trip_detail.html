@@ -1,16 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge — Group Trip</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
-    <link rel="shortcut icon" href="/static/icons/favicon.ico">
-    {% include 'components/analytics_head.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — Group Trip{% endblock %}
+{% block head %}
+<style>
         .gtd-nav {
             display: flex;
             align-items: center;
@@ -122,9 +113,10 @@
             margin-bottom: 12px;
         }
     </style>
-</head>
-<body>
-    <div class="page-container" style="padding: 16px 16px 88px;">
+{% endblock %}
+
+{% block content %}
+    <div class="page-container">
 
         <div class="gtd-nav">
             <a href="{{ url_for('home') }}" class="gtd-back" aria-label="Back">
@@ -227,7 +219,9 @@
 
     </div>
 
-    {% include 'components/bottom_nav.html' %}
+    {% endblock %}
+
+{% block scripts %}
 
     {% if is_host %}
     <script>
@@ -252,5 +246,4 @@
         });
     </script>
     {% endif %}
-</body>
-</html>
+{% endblock %}

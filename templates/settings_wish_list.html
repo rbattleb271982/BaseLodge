@@ -1,13 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge — {% if read_only %}{{ view_user.first_name | format_name }}'s Wish List{% else %}Wish List{% endif %}</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
-    {% include 'components/analytics_head.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — {% if read_only %}{{ view_user.first_name | format_name }}'s Wish List{% else %}Wish List{% endif %}{% endblock %}
+{% block head %}
+<style>
         .wl-wrap {
             max-width: 500px;
             margin: 0 auto;
@@ -136,8 +130,9 @@
             text-align: center;
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
     <div class="wl-wrap">
         <!-- Back -->
         {% if read_only %}
@@ -198,7 +193,9 @@
         </div>
     </div>
 
-    {% include 'components/bottom_nav.html' %}
+    {% endblock %}
+
+{% block scripts %}
 
     {% if not read_only %}
     <script>
@@ -391,5 +388,4 @@
     });
     </script>
     {% endif %}
-</body>
-</html>
+{% endblock %}

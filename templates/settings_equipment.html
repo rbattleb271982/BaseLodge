@@ -1,13 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge — Equipment</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
-    {% include 'components/analytics_head.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — Equipment{% endblock %}
+{% block head %}
+<style>
         .eq-wrap {
             max-width: 500px;
             margin: 0 auto;
@@ -219,8 +213,9 @@
             transform: translateX(-50%) translateY(0);
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
     <div class="eq-toast" id="eq-toast"></div>
     <div class="eq-wrap">
         <a href="{{ url_for('profile') }}" class="eq-back">‹</a>
@@ -357,7 +352,9 @@
 
     </div><!-- close eq-wrap -->
 
-    {% include 'components/bottom_nav.html' %}
+    {% endblock %}
+
+{% block scripts %}
 
     <script>
     const SKI_BRANDS = ['Armada','Atomic','Black Crows','Blizzard','DPS','Dynastar','Elan','Faction','Fischer','Head','Icelantic','K2','Line','Moment','Nordica','ON3P','Rossignol','Salomon','Scott','Volkl','Other'];
@@ -502,5 +499,4 @@
     updateBrands('primary', SAVED_PRIMARY_BRAND);
     updateBindings('primary', SAVED_PRIMARY_BINDING);
     </script>
-</body>
-</html>
+{% endblock %}

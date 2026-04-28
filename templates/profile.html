@@ -1,16 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge — Profile</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
-    <link rel="shortcut icon" href="/static/icons/favicon.ico">
-    {% include 'components/analytics_head.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — Profile{% endblock %}
+{% block head %}
+<style>
         /* ── Name headline ────────────────────────────── */
         .prof-name {
             font-family: Georgia, 'Times New Roman', serif;
@@ -164,9 +155,10 @@
             color: #8B1A1A;
         }
     </style>
-</head>
-<body>
-    <div class="page-container" style="padding: 20px 16px 88px;">
+{% endblock %}
+
+{% block content %}
+    <div class="page-container">
 
         {% set rider_types = current_user.rider_types or [] %}
         {% set rider_label = (rider_types[0] if rider_types else '') | replace(',', ', ') %}
@@ -328,7 +320,9 @@
         <a href="/privacypolicy" style="color:var(--bl-color-text-muted); text-decoration:none;">Privacy</a>
     </p>
 
-    {% include 'components/bottom_nav.html' %}
+    {% endblock %}
+
+{% block scripts %}
     <script>
     (function() {
         var hash = window.location.hash;
@@ -342,5 +336,4 @@
         }
     })();
     </script>
-</body>
-</html>
+{% endblock %}

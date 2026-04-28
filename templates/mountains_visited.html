@@ -1,17 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge — {% if read_only %}{{ view_user.first_name | format_name }}'s Mountains{% else %}Mountains Visited{% endif %}</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
-    {% include 'components/analytics_head.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — {% if read_only %}{{ view_user.first_name | format_name }}'s Mountains{% else %}Mountains Visited{% endif %}{% endblock %}
+{% block head %}
+<style>
         .mv-wrap {
             max-width: 500px;
             margin: 0 auto;
-            padding: 20px 16px 100px;
+            padding: 20px 16px calc(100px + env(safe-area-inset-bottom, 0px));
         }
         .mv-back {
             display: inline-block;
@@ -133,8 +127,9 @@
             text-align: center;
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
     <div class="mv-wrap">
         <!-- Back -->
         {% if read_only %}
@@ -191,7 +186,9 @@
         </div>
     </div>
 
-    {% include 'components/bottom_nav.html' %}
+    {% endblock %}
+
+{% block scripts %}
 
     {% if not read_only %}
     <script>
@@ -365,5 +362,4 @@
     });
     </script>
     {% endif %}
-</body>
-</html>
+{% endblock %}

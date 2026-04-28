@@ -1,16 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge — {{ resort.name }}</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
-    <link rel="shortcut icon" href="/static/icons/favicon.ico">
-    {% include 'components/analytics_head.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — {{ resort.name }}{% endblock %}
+{% block head %}
+<style>
         /* ── Back nav ── */
         .md-nav {
             display: flex;
@@ -151,9 +142,10 @@
             margin: 0;
         }
     </style>
-</head>
-<body>
-    <div class="page-container" style="padding: 20px 24px 88px;">
+{% endblock %}
+
+{% block content %}
+    <div class="page-container">
 
         <!-- Back nav -->
         <div class="md-nav">
@@ -246,6 +238,4 @@
 
     </div>
 
-    {% include 'components/bottom_nav.html' %}
-</body>
-</html>
+    {% endblock %}

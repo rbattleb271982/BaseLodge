@@ -1,0 +1,140 @@
+We are implementing a global logged-in app shell using Jinja template inheritance. Follow the approved migration plan exactly.
+Context:
+All logged-in pages are currently standalone HTML files with duplicated <head>, <body>, and bottom nav includes. This causes inconsistent safe-area handling and spacing issues. We are replacing this with a shared base_app.html.
+The full migration plan has already been defined. Execute it carefully without deviating.
+1. Create base_app.html
+Create templates/base_app.html with:
+<!DOCTYPE html>
+<html>, <head>, <body>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+CSS include (static/styles.css)
+favicon links
+{% include 'components/analytics_head.html' %}
+Structure:
+{% block title %}{% endblock %}
+{% block head %}{% endblock %} (for page-specific CSS/meta)
+<div class="app-shell">
+{% block content %}{% endblock %}
+{% include 'components/bottom_nav.html' %}
+{% block scripts %}{% endblock %}
+2. Update global CSS (static/styles.css)
+Add:
+.app-shell {
+padding-top: env(safe-area-inset-top, 0px);
+}
+Ensure:
+.page-container {
+padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+}
+Remove or reduce any global fallback like:
+body { padding-bottom: 80px; }
+3. Migration rules (STRICT)
+For every migrated template:
+Replace full HTML with:
+{% extends "base_app.html" %}
+Move page title into {% block title %}
+Move page-specific CSS into {% block head %}
+Move all visible UI into {% block content %}
+Move scripts into {% block scripts %}
+REMOVE:
+<!DOCTYPE html>
+<html>, <head>, <body>
+{% include 'components/bottom_nav.html' %}
+duplicate CSS includes
+4. Remove ALL inline padding overrides
+Anywhere you see:
+style="padding: ..."
+Remove it completely.
+Use only:
+<div class="page-container">
+Do NOT recreate padding inline.
+5. Handle special layout cases carefully
+DO NOT double-stack safe-area:
+These already handle bottom inset:
+trip_detail.html
+edit_profile.html
+trip_invite_detail.html
+Do NOT add extra bottom padding to parent containers.
+Custom wrappers
+Fix these explicitly:
+.mv-wrap (mountains_visited.html)
+.et-page (edit_trip.html)
+Ensure they use:
+padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+Local CSS overrides
+Remove .page-container overrides in:
+idea_detail_availability.html
+idea_detail_trip.html
+idea_detail_wishlist.html
+6. Migration order (DO THIS EXACTLY)
+Batch 1 (core tabs)
+home.html
+my_trips.html
+trip_ideas.html
+friends.html
+profile.html
+Batch 2 (core sub-pages)
+notifications.html
+friend_profile.html
+trip_detail.html
+group_trip_detail.html
+friend_trip_details.html
+Batch 3 (settings)
+edit_profile.html
+settings_equipment.html
+settings_wish_list.html
+change_password.html
+mountains_visited.html
+Batch 4 (trip flows)
+add_trip.html
+edit_trip.html
+add_open_dates.html
+trip_invite_detail.html
+Batch 5 (ideas + discovery)
+idea_detail_availability.html
+idea_detail_trip.html
+idea_detail_wishlist.html
+mountain_detail.html
+season_snapshot.html
+overlap_detail.html
+planning_window.html
+Batch 6 (connect + invite)
+invite.html
+connect_confirm.html
+connect_success.html
+connect_self.html
+already_friends.html
+invite_limit_reached.html
+select_pass.html
+7. DO NOT migrate these
+Leave unchanged:
+auth.html
+forgot_password.html
+reset_password.html
+identity_setup.html
+location_setup.html
+privacy_policy.html
+terms_and_conditions.html
+admin_resorts.html
+invite_expired.html
+invite_invalid.html
+403.html / 404.html / 500.html
+8. Special case: feedback.html
+Determine:
+If standalone → migrate to base_app
+If fragment → leave as-is and add comment explaining why
+9. Final validation (REQUIRED)
+After migration:
+Tab bar is fixed to bottom
+Content is not hidden behind tab bar
+Content is not hidden behind status bar
+No excessive empty space above tab bar
+No inline padding overrides remain
+All 5 main tabs feel consistent
+10. Guardrails
+Do NOT change routes
+Do NOT change backend logic
+Do NOT change copy
+Do NOT redesign components
+Only fix layout structure + safe-area handling
+Use checkpoints sparingly. Do not stop until all batches are complete and validated.

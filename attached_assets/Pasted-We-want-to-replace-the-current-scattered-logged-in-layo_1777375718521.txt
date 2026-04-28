@@ -1,0 +1,70 @@
+We want to replace the current scattered logged-in layout approach with a proper shared BaseLodge app shell.
+Context:
+The audit found there is no global base template. Every page is currently a standalone <!DOCTYPE html> file, and the “logged-in app shell” is only defined by whether the template includes {% include 'components/bottom_nav.html' %}. Many templates override .page-container with inline padding, which creates inconsistent safe-area and bottom tab spacing.
+Goal:
+Create a true shared logged-in app shell/base template so all logged-in mobile screens use the same safe-area handling, scroll behavior, bottom tab bar placement, scripts, styles, and layout structure.
+Do not implement yet. First produce a migration plan.
+Requirements:
+Create or propose a shared logged-in base template, likely:
+templates/base_app.html
+or another clear name if the project has a better convention
+The base app shell should own:
+<!DOCTYPE html>
+<html>, <head>, and <body>
+global CSS includes
+viewport/meta tags
+safe-area-aware layout wrapper
+main content block
+bottom navigation include
+shared scripts if needed
+The base shell should expose a content block like:
+{% block content %}{% endblock %}
+The base shell should include the bottom nav once:
+{% include 'components/bottom_nav.html' %}
+Standardize the global logged-in page wrapper:
+Use one shared .app-shell / .page-container system
+Respect:
+env(safe-area-inset-top)
+env(safe-area-inset-bottom)
+Keep the tab bar anchored to the bottom
+Do not move the tab bar upward
+Identify which templates should migrate to the new app shell first:
+Home
+My Trips
+Ideas
+Friends
+Profile
+Trip detail
+Add trip
+Edit trip
+Notifications
+Friend profile
+Invite
+Settings pages
+Mountain/wishlist pages
+Identify which templates should NOT migrate:
+Auth/login/signup
+Forgot/reset password
+Identity setup
+Location setup
+Legal pages
+Admin pages
+Error pages
+For each migrated template:
+Remove duplicate <!DOCTYPE html>, <head>, <body>
+Remove duplicate CSS includes
+Remove duplicate bottom nav includes
+Remove inline .page-container padding overrides
+Keep only page-specific content and page-specific styles/scripts
+Special care:
+Sticky action bars already using safe-area logic should not double-stack bottom spacing
+Custom wrappers like .mv-wrap and .et-page need to be reviewed during migration
+Do not change copy, routes, product logic, database logic, or visual design beyond layout structure
+Output:
+A table of templates to migrate
+Recommended migration order
+Files that will be created
+Files that will be edited
+Risks / special cases
+Testing checklist
+Use checkpoints sparingly. Do not implement until the migration plan is clear.

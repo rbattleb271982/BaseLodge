@@ -1,16 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge — Notifications</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
-    <link rel="shortcut icon" href="/static/icons/favicon.ico">
-    {% include 'components/analytics_head.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — Notifications{% endblock %}
+{% block head %}
+<style>
         .nf-back {
             display: flex;
             align-items: center;
@@ -113,9 +104,10 @@
             color: #B5AFA5;
         }
     </style>
-</head>
-<body>
-    <div class="page-container" style="padding: 20px 16px 88px;">
+{% endblock %}
+
+{% block content %}
+    <div class="page-container">
 
         <a href="{{ url_for('profile') }}" class="nf-back">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -163,7 +155,9 @@
 
     </div>
 
-    {% include 'components/bottom_nav.html' %}
+    {% endblock %}
+
+{% block scripts %}
 
     <script>
     function acceptConnect(invitationId) {
@@ -195,5 +189,4 @@
         });
     }
     </script>
-</body>
-</html>
+{% endblock %}

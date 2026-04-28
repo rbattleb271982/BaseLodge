@@ -1,16 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge — Home</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
-    <link rel="shortcut icon" href="/static/icons/favicon.ico">
-    {% include 'components/analytics_head.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — Home{% endblock %}
+{% block head %}
+<style>
         /* ── Invite banner ── */
         .home-banner {
             background: transparent;
@@ -792,8 +783,9 @@
             -webkit-tap-highlight-color: transparent;
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
     <!-- HOME SCREEN STRUCTURE
     ══════════════════════════════════════════════════════════════
     1. Profile Summary Card  (.hc-card)
@@ -825,7 +817,7 @@
     4. Bottom Nav → components/bottom_nav.html
     ══════════════════════════════════════════════════════════════ -->
 
-    <div class="page-container" style="padding: 16px 16px 96px;">
+    <div class="page-container">
 
         {% if next_trip %}
             {# ────────────────────────────────────────────────── #}
@@ -883,7 +875,9 @@
 
     </div>
 
-    {% include 'components/bottom_nav.html' %}
+    {% endblock %}
+
+{% block scripts %}
 
     <script>
     function showAllInvites() {
@@ -936,5 +930,4 @@
         });
     }
     </script>
-</body>
-</html>
+{% endblock %}

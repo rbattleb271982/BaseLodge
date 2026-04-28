@@ -1,12 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseLodge — Overlap Detail</title>
-    {% include 'components/analytics_head.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — Overlap Detail{% endblock %}
+{% block head %}
+<style>
         .page-header {
             display: flex;
             align-items: center;
@@ -68,9 +63,10 @@
             border-top: 1px solid var(--bl-color-border-soft);
         }
     </style>
-</head>
-<body>
-    <div class="page-container" style="padding: 16px 16px 88px;">
+{% endblock %}
+
+{% block content %}
+    <div class="page-container">
         <div class="page-header">
             <a href="{{ url_for('friends', tab='overlaps') }}" class="back-link">←</a>
             <h1 class="page-title">{% if overlap_type == 'trip' %}{{ mountain or 'Trip Overlap' }}{% else %}Open day{% endif %}</h1>
@@ -115,6 +111,4 @@
         </div>
     </div>
     
-    {% include 'components/bottom_nav.html' %}
-</body>
-</html>
+    {% endblock %}

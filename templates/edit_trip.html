@@ -1,19 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BaseLodge — Edit Trip</title>
-    {% include 'components/analytics_head.html' %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-  <style>
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — Edit Trip{% endblock %}
+{% block head %}
+<style>
     /* ===== BASE ===== */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #F5F1E8; color: #1A1A1A; font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; }
     button { font-family: inherit; }
 
     /* ===== PAGE ===== */
-    .et-page { max-width: 480px; margin: 0 auto; padding-bottom: 148px; }
+    .et-page { max-width: 480px; margin: 0 auto; padding-bottom: calc(148px + env(safe-area-inset-bottom, 0px)); }
 
     /* ===== HEADER ===== */
     .et-header { padding: 16px 20px 20px; }
@@ -78,7 +73,7 @@
 
     /* ===== SAVE BAR ===== */
     #et-save-bar {
-      position: fixed; bottom: 60px; left: 0; right: 0;
+      position: fixed; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); left: 0; right: 0;
       background: #F5F1E8; border-top: 0.5px solid #E5DFD0;
       padding: 12px 20px;
       z-index: 200;
@@ -298,8 +293,9 @@
     .et-modal-actions form { flex: 1; display: flex; }
     .et-modal-actions form button { width: 100%; }
   </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
 
 {% set resort_name_init = trip.resort.name if trip.resort else (trip.mountain or '') %}
 {% set resort_state_init = trip.resort.state_code if trip.resort else (trip.state or '') %}
@@ -550,7 +546,9 @@
   <input type="hidden" name="trip_equipment_status" value="{{ trip.trip_equipment_status or 'use_default' }}">
 </form>
 
-{% include 'components/bottom_nav.html' %}
+{% endblock %}
+
+{% block scripts %}
 
 <script>
   // ===== DATA FROM BACKEND =====
@@ -1016,5 +1014,4 @@
   filterResorts('');   // Pre-populate resort list
   syncMainScreen();    // Sync initial display
 </script>
-</body>
-</html>
+{% endblock %}
