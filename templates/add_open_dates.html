@@ -2,19 +2,22 @@
 {% block title %}BaseLodge — Open Dates{% endblock %}
 {% block head %}
 <style>
-        .back-chevron {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            color: var(--bl-color-text);
+        .od-back {
+            display: inline-block;
+            font-size: 22px;
+            color: #6B665A;
             text-decoration: none;
-            border-radius: var(--bl-radius-sm);
-            margin-bottom: 8px;
+            margin-bottom: 20px;
+            line-height: 1;
         }
-        .back-chevron:hover { background: rgba(0,0,0,0.05); }
-
+        .od-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #6B665A;
+            margin: 0 0 6px 0;
+        }
         .od-header {
             margin-bottom: 4px;
         }
@@ -174,12 +177,9 @@
 
 {% block content %}
     <div class="page-container">
-        <a href="{{ url_for('trip_ideas') }}" class="back-chevron" aria-label="Back to Trip Ideas">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-        </a>
+        <a href="{{ url_for('trip_ideas') }}" class="od-back">‹</a>
 
+        <p class="od-eyebrow">Availability</p>
         <div class="od-header">
             <h1 class="od-title">{{ 'Edit availability' if existing_dates else 'Add availability' }}</h1>
             <p class="od-sub">Select a range of days you're free to ski.</p>

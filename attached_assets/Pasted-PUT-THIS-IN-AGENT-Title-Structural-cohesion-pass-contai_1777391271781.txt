@@ -1,0 +1,155 @@
+PUT THIS IN AGENT
+
+Title: Structural cohesion pass — containers, back nav, and headers
+
+Make a controlled structural cohesion pass across BaseLodge. Do not redesign. Do not change business logic, routes, database logic, copy beyond what is explicitly listed, or layout structure beyond the wrapper/header/back-nav standardization below.
+
+Goal:
+Make sub-screens feel like one system by standardizing:
+1. Container wrappers
+2. Back navigation
+3. Sub-screen headers
+
+--------------------------------------------------
+1. Normalize custom containers to .page-container
+--------------------------------------------------
+
+Update these files:
+- templates/settings_wish_list.html
+- templates/mountains_visited.html
+- templates/settings_equipment.html
+- templates/edit_profile.html
+
+Replace the outermost custom wrapper classes:
+- wl-wrap
+- mv-wrap
+- eq-wrap
+- ep-wrap
+
+with:
+
+<div class="page-container">
+
+Remove CSS from those custom wrapper classes only if it duplicates:
+- padding
+- max-width
+- margin auto centering
+- safe-area spacing already handled by .page-container
+
+Do not change inner cards, forms, rows, lists, fields, or components.
+
+Goal:
+All these screens use the same horizontal spacing and safe-area baseline as the rest of the logged-in app.
+
+--------------------------------------------------
+2. Standardize back navigation
+--------------------------------------------------
+
+Use this pattern for standard sub-screen back navigation:
+
+<div class="back-link">‹</div>
+
+Update screens that currently use a different standard back pattern, especially:
+- Add/Edit Availability screen
+- Any screen using .back-chevron SVG where it belongs to the regular sub-screen family
+
+Match the position and spacing already used by:
+- Equipment
+- Wish List
+- Mountains Visited
+
+Keep tap target large enough.
+
+Do NOT change:
+- Friend Profile back link ("← Friends") — leave it as-is because it provides useful context.
+- Trip Detail / Trip Invite Detail if those use a distinct full app-header pattern and changing them would create scope creep.
+
+Goal:
+Regular sub-screens use one consistent lightweight back affordance.
+
+--------------------------------------------------
+3. Standardize sub-screen header system
+--------------------------------------------------
+
+All regular sub-screens should follow this structure:
+
+<div class="back-link">‹</div>
+
+<p class="eyebrow">SECTION NAME</p>
+<h1 class="page-title">Title</h1>
+<p class="page-subtext">Optional description</p>
+
+Target screens for this pass:
+- Add/Edit Availability
+- Invite Friends
+
+Add/Edit Availability:
+- Add eyebrow above the title:
+  <p class="eyebrow">Availability</p>
+- Keep the existing title and subtitle.
+- Do not change the calendar or save button layout.
+
+Invite Friends:
+- Remove custom header classes:
+  - invite-page-title
+  - invite-page-sub
+- Replace header with:
+  <p class="eyebrow">Invite</p>
+  <h1 class="page-title">Invite friends</h1>
+  <p class="page-subtext">Share this link or QR code to connect with friends on BaseLodge.</p>
+- Do not change:
+  - Invite via text button
+  - Copy invite link
+  - QR code layout
+
+If class names differ slightly in the codebase, reuse the existing shared classes that match Equipment, Wish List, and Mountains Visited.
+
+--------------------------------------------------
+4. Do not change anything else
+--------------------------------------------------
+
+Do NOT modify:
+- Home screen
+- Profile root screen
+- Friend Profile screen
+- Trips root tab
+- Ideas root tab, except if Add/Edit Availability is in the same file and needs the header fix
+- Friends root tab
+- Cards
+- Buttons
+- Font sizes
+- Colors
+- Backend logic
+- Routes
+- Database logic
+
+--------------------------------------------------
+5. QA
+--------------------------------------------------
+
+After implementation, verify:
+
+- settings_wish_list.html uses .page-container
+- mountains_visited.html uses .page-container
+- settings_equipment.html uses .page-container
+- edit_profile.html uses .page-container
+- Add/Edit Availability has the new Availability eyebrow
+- Invite Friends uses the shared eyebrow + page-title + page-subtext pattern
+- No broken back navigation
+- No visual spacing regressions
+- No layout shifts in inner content
+
+QA these screens visually:
+- Wish list
+- Mountains visited
+- Equipment
+- Edit profile
+- Add/Edit availability
+- Invite friends
+
+Definition of done:
+The app should feel like one consistent sub-screen system with a shared container, shared back pattern, and shared header structure.
+
+Use minimal checkpoints.
+Do not push to GitHub.
+Do not publish.
