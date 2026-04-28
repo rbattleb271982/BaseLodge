@@ -1,0 +1,203 @@
+Refactor BaseLodge typography so the app uses the iOS/system font as the default UI font, while keeping the serif font only as a controlled brand accent.
+
+This is a readability and cohesion pass. Do not change routes, backend logic, database logic, product behavior, or page structure beyond font-family/class cleanup.
+
+OBJECTIVE
+
+Use the system font stack as the default across the logged-in app and auth/onboarding screens:
+
+font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+This will render as SF Pro/San Francisco on iOS.
+
+Serif should be used only in approved accent locations.
+
+APPROVED SERIF USAGE
+
+Serif font may remain ONLY for:
+1. Top-level page titles, such as:
+   - Trips
+   - Ideas
+   - Friends
+   - Profile subpage titles like "Your details", "Your equipment setup", "Where you've ridden"
+2. Empty-state editorial headlines, such as:
+   - "Nothing lined up yet."
+
+SERIF MUST NOT BE USED FOR
+
+Remove serif font-family from:
+- Home greeting / welcome card text
+- Stats numbers
+- Stats labels
+- Buttons
+- Text links
+- Inputs
+- Placeholders
+- Form labels
+- Metadata text
+- Bottom navigation
+- Tabs
+- Toasts / flash messages
+- List rows
+- Card body text
+- Trip metadata
+- Friend metadata
+- Any small or functional UI text
+
+GLOBAL CSS CHANGES
+
+In static/styles.css:
+
+1. Set the default body/app font to the system stack.
+
+Use a token if one exists. If not, create one:
+
+:root {
+  --bl-font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --bl-font-serif: "Crimson Text", Georgia, serif;
+}
+
+body {
+  font-family: var(--bl-font-ui);
+}
+
+2. Create controlled utility classes if they do not already exist:
+
+.bl-ui-font {
+  font-family: var(--bl-font-ui);
+}
+
+.bl-serif {
+  font-family: var(--bl-font-serif);
+}
+
+3. Ensure all UI component classes explicitly or implicitly use the UI font:
+- buttons
+- inputs
+- selects
+- textareas
+- tabs
+- bottom nav
+- pills
+- list rows
+- badges
+- metadata
+- stats
+- toasts / flash messages
+
+HOME SCREEN REQUIRED FIX
+
+On the Home screen:
+
+- "Welcome, Richard." must use the system/UI font, not serif.
+- Stats numbers must use the system/UI font, not serif.
+- Stats labels must use the system/UI font.
+- "Add your gear →" must use the system/UI font.
+- Trip card body/meta text must use system/UI font.
+- If the trip destination name remains serif, that is acceptable only if it is readable and not used for small metadata.
+
+Do not change Home layout spacing unless required to fix font inheritance.
+
+AUTH SCREEN REQUIRED FIX
+
+On the login/create account page:
+
+- Reduce font variety.
+- Inputs, segmented control, buttons, forgot password, Terms, Privacy, and all functional text must use the system/UI font.
+- The tagline can remain system font.
+- Do not introduce extra fonts.
+- Do not make the login form more decorative.
+
+TEMPLATE AUDIT
+
+Search all templates and CSS for hardcoded serif font usage:
+
+- Georgia
+- Crimson
+- serif
+- font-family
+
+For each usage:
+- Keep it only if it is an approved page title or empty-state headline.
+- Otherwise replace it with var(--bl-font-ui) or remove the override so it inherits the system font.
+
+Also search for inline styles that set font-family and remove or replace them.
+
+INTERACTION CHECK
+
+While auditing, flag but do not overhaul unless simple:
+- Any visible element that looks tappable but is not inside <a>, <button>, or another interactive control.
+- Any clickable navigation row missing a clear affordance.
+- Any primary action that is styled like a text link.
+- Any selection pill being used as navigation.
+
+If you find these, list them in the final report with file names and suggested fixes. Only fix obvious safe cases that do not change backend behavior.
+
+DO NOT CHANGE
+
+Do not change:
+- Routes
+- Models
+- Forms processing
+- Database
+- JavaScript behavior unless needed for class/font cleanup
+- Admin pages unless they inherit safely from the global CSS
+- Legal pages unless they inherit safely from the global CSS
+- Product copy, except where needed to preserve existing text while changing font
+
+QA REQUIREMENTS
+
+Before finishing, run these checks:
+
+1. Search check:
+   - No unapproved font-family: Georgia remains
+   - No unapproved font-family: "Crimson Text" remains
+   - No inline font-family styles remain except approved serif title usage if unavoidable
+
+2. Visual/mobile QA:
+   Test these screens in mobile viewport:
+   - Auth/login
+   - Home
+   - Trips
+   - Ideas
+   - Friends
+   - Profile
+   - Edit profile
+   - Equipment
+   - Mountains visited
+   - Wish list
+   - Invite friends
+   - Add/Edit availability
+   - Add trip
+   - Trip detail
+
+3. Readability QA:
+   Confirm:
+   - Home greeting is easier to read
+   - Stats are readable and not thin
+   - Buttons are system font
+   - Inputs are system font
+   - Bottom nav is system font
+   - Serif appears only as accent, not core UI
+
+4. Regression QA:
+   Confirm:
+   - No 500 errors
+   - No template errors
+   - Bottom nav still works
+   - Save buttons still submit
+   - Links still navigate
+   - Inputs still accept text
+
+FINAL REPORT REQUIRED
+
+When done, provide:
+
+1. Files changed
+2. Serif usages kept, with reasons
+3. Serif usages removed
+4. Any tappable-looking elements that are not actually clickable
+5. QA results
+6. Confirmation that no route/backend/database logic changed
+
+Use checkpoints sparingly. Do not finish until the app has been tested in mobile viewport and the font audit is complete.
