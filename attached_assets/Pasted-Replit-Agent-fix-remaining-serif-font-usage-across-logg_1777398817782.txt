@@ -1,0 +1,73 @@
+Replit Agent — fix remaining serif font usage across logged-in app UI.
+
+The app is still showing serif fonts on Trips, Ideas, Home trip card titles, empty-state headings, and other logged-in screens. We intended to move to Apple-native typography using the system font stack.
+
+Goal:
+Use the Apple/system font stack across the app UI:
+- -apple-system
+- BlinkMacSystemFont
+- "SF Pro Text"
+- "SF Pro Display"
+- "Helvetica Neue"
+- Arial
+- sans-serif
+
+Do not use Georgia, Times, serif, or any display serif font for app UI text.
+
+Tasks:
+1. Search the full project for:
+   - Georgia
+   - serif
+   - font-family
+   - font_display
+   - bl-font-serif
+   - page-title
+   - screen-title
+   - h1
+   - trip-title
+   - empty-state
+   - ideas
+   - snapshot
+
+2. In static/styles.css, update the global font tokens so both body and headings use the Apple/system stack.
+   - Any variable currently pointing to Georgia/serif should be changed to the system stack.
+   - If there is a --bl-font-serif variable, either remove it or point it to the system stack.
+
+3. Remove local template/style overrides that force serif fonts on:
+   - templates/my_trips.html
+   - templates/home.html
+   - templates/trip_ideas.html
+   - templates/profile.html
+   - templates/friends.html
+   - templates/invite.html
+   - templates/season_snapshot.html or snapshot template
+   - any trip detail templates
+
+4. Specific visual checks:
+   - “Trips” page title should no longer be serif.
+   - “Ideas” page title should no longer be serif.
+   - “Nothing lined up yet.” should no longer be serif.
+   - Home “Welcome, Richard.” should no longer be serif.
+   - Home next-trip destination should no longer be serif.
+   - Trip row destination names should no longer be serif.
+   - Profile name should no longer be serif unless explicitly isolated as a future brand exception. For now, convert it too.
+
+5. Preserve:
+   - colors
+   - layout
+   - spacing
+   - button styles
+   - bottom nav
+   - route logic
+   - backend logic
+   - database logic
+
+6. QA:
+   - Run the app.
+   - Test mobile viewport.
+   - Confirm no visible serif fonts remain in logged-in app UI.
+   - Confirm no console errors.
+   - Confirm no Flask/template errors.
+
+Do not stop after changing only one file. This must be a full search-and-remove pass for remaining serif usage.
+Use checkpoints sparingly.
