@@ -17,61 +17,55 @@
             -webkit-font-smoothing: antialiased;
         }
 
+        /* ── Back navigation ── */
+        .ss-back-nav {
+            width: calc(100% - 12px);
+            max-width: 480px;
+            padding: 16px 20px 4px;
+        }
+        .ss-back-nav a {
+            font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            font-size: 15px;
+            color: #7A1820;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .ss-back-nav a:active { opacity: 0.6; }
+
         /* ── Page title ── */
         .ss-page-title {
             width: calc(100% - 12px);
             max-width: 480px;
-            padding: 20px 20px 0;
+            padding: 10px 20px 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-            font-size: 24px;
-            font-weight: 400;
+            font-size: 28px;
+            font-weight: 600;
             color: #1A1A1A;
             text-align: left;
-            letter-spacing: -0.2px;
+            letter-spacing: -0.3px;
         }
-
-        /* ── Bottom action ── */
-        .ss-bottom-action {
-            width: calc(100% - 12px);
-            max-width: 480px;
-            padding: 20px 20px 12px;
-            text-align: center;
-        }
-        .ss-bottom-action a {
-            font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-            font-size: 14px;
-            color: #7A1820;
-            text-decoration: none;
-            display: inline-block;
-            padding: 10px 24px;
-        }
-        .ss-bottom-action a:active { opacity: 0.6; }
 
         /* ── Instruction text (outside card) ── */
         .ss-instructions {
             width: calc(100% - 12px);
             max-width: 480px;
             text-align: center;
-            padding: 20px 20px 18px;
+            padding: 10px 20px 16px;
         }
         .ss-instructions-primary {
             font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
             font-size: 13px;
-            font-weight: 500;
-            color: #5A5248;
-            margin-bottom: 4px;
-        }
-        .ss-instructions-secondary {
-            font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-            font-size: 11px;
-            color: #8A8070;
-            letter-spacing: 0.1px;
+            font-weight: 400;
+            color: #7A7060;
         }
 
         /* ── Capture framing — subtle backing area ── */
         .ss-frame {
-            width: calc(100% - 12px);
-            max-width: 480px;
+            width: calc(100% - 6px);
+            max-width: 492px;
             background: rgba(210, 200, 185, 0.45);
             border-radius: 18px;
             padding: 8px;
@@ -93,7 +87,7 @@
 
         /* Headline: "Richard's Winter" */
         .ss-headline {
-            font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+            font-family: Georgia, 'Times New Roman', serif;
             font-size: 29px;
             font-weight: 400;
             color: #1A1A1A;
@@ -109,11 +103,11 @@
         /* Identity line */
         .ss-identity {
             font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 1.4px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1.2px;
             text-transform: uppercase;
-            color: #6B665A;
+            color: #5A5248;
             margin-bottom: 10px;
             line-height: 1.5;
         }
@@ -219,13 +213,17 @@
 
 {% block content %}
 
+    <!-- Back navigation — top left -->
+    <div class="ss-back-nav">
+        <a href="{{ url_for('my_trips') }}">‹ Trips</a>
+    </div>
+
     <!-- Page title -->
     <h1 class="ss-page-title">Season Snapshot</h1>
 
     <!-- Instruction text — outside the card -->
     <div class="ss-instructions">
-        <p class="ss-instructions-primary">Take a screenshot of the card below</p>
-        <p class="ss-instructions-secondary">Share your season wherever you want</p>
+        <p class="ss-instructions-primary">Share your season</p>
     </div>
 
     <!-- Capture framing — subtle backing around the card -->
@@ -259,7 +257,7 @@
                             {% set mountain_name = resort.name if resort else (trip.mountain or 'Mountain TBD') %}
                             {% set loc = namespace(suffix='') %}
                             {% if resort and resort.country and resort.country not in ('US', 'CA') %}
-                                {% set loc.suffix = resort.display_country_name %}
+                                {% set loc.suffix = resort.country %}
                             {% else %}
                                 {% set loc.suffix = (resort|state_abbrev if resort else trip.state) or '' %}
                             {% endif %}
@@ -288,11 +286,6 @@
 
         </div>
 
-    </div>
-
-    <!-- Bottom action — outside the screenshot card -->
-    <div class="ss-bottom-action">
-        <a href="{{ url_for('my_trips') }}">Back to Trips</a>
     </div>
 
     {% endblock %}

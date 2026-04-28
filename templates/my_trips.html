@@ -81,30 +81,24 @@
             margin-bottom: 16px;
             line-height: 1.5;
         }
-        /* ── Section header ── */
-        .mt-section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            margin-bottom: 2px;
+        /* ── Snapshot pill CTA ── */
+        .mt-snapshot-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 14px;
+            border: 1px solid #6B1F2B;
+            border-radius: 100px;
+            background: transparent;
+            font-size: 13px;
+            font-weight: 500;
+            color: #6B1F2B;
+            text-decoration: none;
+            white-space: nowrap;
+            flex-shrink: 0;
+            -webkit-tap-highlight-color: transparent;
+            cursor: pointer;
         }
-        .mt-section-title {
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 0.8px;
-            text-transform: uppercase;
-            color: var(--bl-color-text-tertiary);
-            padding-bottom: 8px;
-            border-bottom: 1px solid #E5DFD0;
-            margin: 0 0 0 0;
-            flex: 1;
-        }
-        .mt-section-count {
-            font-size: 12px;
-            color: var(--bl-color-text-muted);
-            margin: 0;
-            padding-bottom: 8px;
-        }
+        .mt-snapshot-pill:active { opacity: 0.65; }
 
         /* ── Trip rows (upcoming + invites) ── */
         .trip-row {
@@ -153,16 +147,6 @@
             flex-shrink: 0;
             margin-left: 12px;
         }
-        .mt-snapshot-link {
-            font-size: 14px;
-            color: var(--bl-color-primary);
-            text-decoration: none;
-            font-weight: 500;
-            flex-shrink: 0;
-            padding-bottom: 2px;
-            cursor: pointer;
-        }
-
         /* ── Friends' Trips — 3-column single-row layout ── */
         .ft-row {
             display: flex;
@@ -384,9 +368,9 @@
 {% block content %}
     <div class="page-container">
 
-        <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0;">
             <h1 class="mt-page-title bl-page-title">Trips</h1>
-            <a href="{{ url_for('season_snapshot') }}" class="mt-snapshot-link">Snapshot →</a>
+            <a href="{{ url_for('season_snapshot') }}" class="mt-snapshot-pill">Season Snapshot</a>
         </div>
 
         <!-- Tab bar — My Trips / Friends' Trips -->
@@ -401,7 +385,7 @@
             <button type="button" class="tab-btn active" data-tab="upcoming">
                 My Trips{% if ns.invite_count > 0 %}<span class="tab-badge">{{ ns.invite_count }}</span>{% endif %}
             </button>
-            <button type="button" class="tab-btn" data-tab="friends">Friend Trips</button>
+            <button type="button" class="tab-btn" data-tab="friends">Friends' Trips</button>
         </div>
 
         <!-- ── UPCOMING ── -->
@@ -409,10 +393,7 @@
             {% set all_upcoming = ((upcoming_trips or []) + (accepted_guest_trips or []))|sort(attribute='start_date') %}
 
             {% if all_upcoming|length > 0 %}
-                <div class="mt-section-header">
-                    <p class="mt-section-title">Your trips</p>
-                    <p class="mt-section-count">{{ all_upcoming|length }}</p>
-                </div>
+                <div style="padding-top: 8px;"></div>
 
                 {% for trip in all_upcoming %}
                     {% set resort = trip.resort %}
@@ -489,9 +470,9 @@
                 </div>
                 {% else %}
                 <!-- Has friends, but no upcoming friend trips -->
-                <div style="padding-top: 32px; text-align: center;">
-                    <p style="font-size: 15px; font-weight: 500; color: #1A1A1A; margin: 0 0 8px 0;">No friend trips yet</p>
-                    <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0 0 20px 0; line-height: 1.5;">None of your friends have added a trip yet. Start one and invite them along.</p>
+                <div style="padding-top: 40px; text-align: center;">
+                    <p style="font-size: 18px; font-weight: 600; color: #1A1A1A; margin: 0 0 10px 0; line-height: 1.3;">No trips yet</p>
+                    <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0 0 24px 0; line-height: 1.6;">Plan a trip. Invite your friends.</p>
                     <a href="{{ url_for('add_trip') }}" class="bl-cta-trip" style="margin-top: 4px;">Plan a trip</a>
                 </div>
                 {% endif %}
