@@ -76,9 +76,13 @@
     }
     console.log('[Push] Authenticated user id:', window.__USER__.id);
 
-    var Push = window.Capacitor.registerPlugin('PushNotifications');
+    console.log('[Push] Capacitor.Plugins keys:', window.Capacitor.Plugins ? Object.keys(window.Capacitor.Plugins).join(', ') : 'Plugins object missing');
+    var Push = window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications;
     console.log('[Push] PushNotifications plugin available:', !!Push);
-    if (!Push) return;
+    if (!Push) {
+      console.warn('[Push] PushNotifications plugin not found in Capacitor.Plugins — aborting');
+      return;
+    }
 
     Push.addListener('registration', function(token) {
       console.log('[Push] registration event fired — token received (length:', (token && token.value ? token.value.length : 'n/a'), ')');
