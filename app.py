@@ -52,7 +52,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken
 from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
@@ -3286,6 +3286,39 @@ def update_buddy_pass():
     db.session.commit()
     
     return jsonify({"success": True, "buddy_passes": buddy_passes}), 200
+
+
+@app.route("/api/push/register-token", methods=["POST"])
+@login_required
+def push_register_token():
+    """Store or refresh an iOS push notification device token for the current user."""
+    data = request.get_json() or {}
+    token = data.get("token", "").strip()
+    platform = data.get("platform", "ios").strip() or "ios"
+
+    if not token:
+        return jsonify({"success": False, "error": "token is required"}), 400
+
+    try:
+        existing = PushDeviceToken.query.filter_by(
+            user_id=current_user.id, token=token
+        ).first()
+        if existing:
+            existing.active = True
+            existing.updated_at = datetime.utcnow()
+        else:
+            db.session.add(PushDeviceToken(
+                user_id=current_user.id,
+                token=token,
+                platform=platform,
+            ))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("push_register_token failed")
+        return jsonify({"success": False, "error": "Server error"}), 500
+
+    return jsonify({"success": True}), 200
 
 
 def pass_category(pass_type):

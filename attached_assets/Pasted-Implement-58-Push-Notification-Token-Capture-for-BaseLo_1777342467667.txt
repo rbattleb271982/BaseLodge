@@ -1,0 +1,73 @@
+Implement #58 Push Notification Token Capture for BaseLodge.
+
+Goal:
+Capture iOS push notification device tokens from the Capacitor native app and store them in the Flask database. Do not send notifications yet.
+
+Scope:
+1. Install @capacitor/push-notifications.
+2. Run npx cap sync ios.
+3. Add a PushDeviceToken SQLAlchemy model.
+4. Add a Flask-Migrate migration for the push_device_token table.
+5. Add a protected POST /api/push/register-token route.
+6. Add native-only client-side JavaScript to request permission, register for push notifications, capture the token, and POST it to the backend.
+
+Requirements:
+- The push token model must include:
+  - id
+  - user_id foreign key to user.id
+  - token
+  - platform
+  - active
+  - created_at
+  - updated_at
+
+- Deduplicate by user_id + token.
+- Do not make token globally unique.
+- If the same user/token already exists, update active=True and updated_at.
+- If it does not exist, insert a new row.
+
+Backend route:
+- Add POST /api/push/register-token.
+- Protect it with @login_required.
+- Accept JSON with token and platform.
+- Validate that token exists.
+- Default platform to ios if missing.
+- Return {"success": true} on success.
+- Return a 400 error if token is missing.
+- Match the app’s existing API POST and CSRF pattern.
+
+Frontend:
+- Add the push registration JavaScript in templates/components/analytics_head.html.
+- It must only run inside the native Capacitor app.
+- Guard everything behind window.Capacitor?.isNativePlatform().
+- Do not run any push code in normal web browsers or Safari.
+- Use the Capacitor PushNotifications plugin from the native bridge/global plugin context.
+- Request notification permission.
+- Register the device.
+- Listen for the registration token.
+- POST { token, platform: "ios" } to /api/push/register-token.
+- Do not repeatedly prompt users unnecessarily.
+
+Out of scope:
+- Do not send push notifications yet.
+- Do not add Android support yet.
+- Do not change unrelated routes, templates, auth logic, or existing models.
+- Do not redesign any UI.
+
+Relevant files:
+- models.py
+- app.py
+- templates/components/analytics_head.html
+- migrations/versions/
+- package.json
+- capacitor.config.json
+- ios/
+
+Testing required:
+- Confirm the app still loads normally in regular web/browser mode.
+- Confirm /api/push/register-token rejects unauthenticated requests.
+- Confirm a logged-in POST with a fake token creates a push_device_token row.
+- Confirm duplicate POSTs for the same user/token do not create duplicate rows.
+- Confirm npx cap sync ios completes successfully.
+
+Use checkpoints sparingly. Do not finish until the above tests pass.

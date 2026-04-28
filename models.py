@@ -1201,6 +1201,28 @@ class Activity(db.Model):
         return db.session.get(User, self.actor_user_id)
 
 
+class PushDeviceToken(db.Model):
+    """iOS push notification device tokens for native Capacitor app."""
+    __tablename__ = 'push_device_token'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    token = db.Column(db.String(512), nullable=False)
+    platform = db.Column(db.String(20), nullable=False, default='ios')
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = db.relationship('User', backref='push_device_tokens')
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'token', name='uq_push_device_token_user_token'),
+    )
+
+    def __repr__(self):
+        return f'<PushDeviceToken user={self.user_id} platform={self.platform}>'
+
+
 def check_shared_upcoming_trip(user_a_id: int, user_b_id: int) -> bool:
     """
     Check if two users share at least one accepted, upcoming group trip.

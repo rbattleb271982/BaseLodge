@@ -53,3 +53,39 @@
     }
   });
 </script>
+<script>
+  /* Push notification token capture — native Capacitor app only.
+     Runs only when window.Capacitor.isNativePlatform() is true (iOS shell).
+     All push code is fully skipped in regular web browsers and Safari. */
+  (function() {
+    if (!window.Capacitor || !window.Capacitor.isNativePlatform()) return;
+    if (!window.__USER__ || !window.__USER__.id) return;
+
+    var Push = window.Capacitor.registerPlugin('PushNotifications');
+    if (!Push) return;
+
+    Push.addListener('registration', function(token) {
+      window.fetch('/api/push/register-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token.value, platform: 'ios' })
+      }).catch(function(err) {
+        console.warn('[BaseLodge] Push token POST failed:', err);
+      });
+    });
+
+    Push.addListener('registrationError', function(err) {
+      console.warn('[BaseLodge] Push registration error:', err.error);
+    });
+
+    Push.requestPermissions().then(function(result) {
+      if (result.receive === 'granted') {
+        Push.register().catch(function(err) {
+          console.warn('[BaseLodge] Push.register() failed:', err);
+        });
+      }
+    }).catch(function(err) {
+      console.warn('[BaseLodge] Push.requestPermissions() failed:', err);
+    });
+  })();
+</script>
