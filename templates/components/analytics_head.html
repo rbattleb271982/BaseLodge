@@ -57,8 +57,10 @@
   /* Push notification token capture — native Capacitor app only.
      Runs only when window.Capacitor.isNativePlatform() is true (iOS shell).
      All push code is fully skipped in regular web browsers and Safari.
-     DEBUG LOGS ACTIVE — remove after confirming end-to-end flow. */
-  (function() {
+     DEBUG LOGS ACTIVE — remove after confirming end-to-end flow.
+     Async IIFE: addListener calls are awaited before register() is called
+     so the registration event cannot fire before the handler is active. */
+  (async function() {
     console.log('[Push] Script loaded');
     console.log('[Push] window.Capacitor exists:', typeof window.Capacitor !== 'undefined');
     console.log('[Push] window.Capacitor.isNativePlatform exists:', !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function'));
@@ -84,7 +86,8 @@
       return;
     }
 
-    Push.addListener('registration', function(token) {
+    // Await listener registration so handlers are active before register() fires
+    await Push.addListener('registration', function(token) {
       console.log('[Push] registration event fired — token received (length:', (token && token.value ? token.value.length : 'n/a'), ')');
       window.fetch('/api/push/register-token', {
         method: 'POST',
@@ -96,26 +99,30 @@
         console.warn('[Push] POST /api/push/register-token fetch error:', err);
       });
     });
+    console.log('[Push] registration listener attached');
 
-    Push.addListener('registrationError', function(err) {
-      console.warn('[Push] registrationError event:', err.error);
+    await Push.addListener('registrationError', function(err) {
+      console.error('[Push] registrationError event:', err.error);
     });
+    console.log('[Push] registrationError listener attached');
 
     console.log('[Push] Calling requestPermissions()...');
-    Push.requestPermissions().then(function(result) {
+    try {
+      var result = await Push.requestPermissions();
       console.log('[Push] requestPermissions result:', JSON.stringify(result));
       if (result.receive === 'granted') {
         console.log('[Push] Permission granted — calling register()');
-        Push.register().then(function() {
+        try {
+          await Push.register();
           console.log('[Push] register() call succeeded — waiting for registration event');
-        }).catch(function(err) {
+        } catch (err) {
           console.warn('[Push] register() call failed:', err);
-        });
+        }
       } else {
         console.log('[Push] Permission not granted — receive status:', result.receive);
       }
-    }).catch(function(err) {
+    } catch (err) {
       console.warn('[Push] requestPermissions() error:', err);
-    });
+    }
   })();
 </script>
