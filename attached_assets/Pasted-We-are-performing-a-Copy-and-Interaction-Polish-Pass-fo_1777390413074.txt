@@ -1,0 +1,135 @@
+We are performing a Copy and Interaction Polish Pass for BaseLodge.
+This is a controlled system tightening, not a redesign.
+🎯 GOAL
+Improve cohesion across logged-in screens by:
+Enforcing primary button consistency (16px floor)
+Removing stale inline font-size overrides
+Standardizing button and link copy to Apple-style sentence case
+Reducing "Copy invite link" to a clearly secondary utility action
+🚨 CRITICAL RULES
+DO NOT:
+change layout structure
+change spacing, margins, or padding
+move components
+change routes, backend logic, or database behavior
+redesign components
+introduce new colors or styles
+convert Home editorial rows into buttons
+DO:
+remove inline overrides
+standardize typography via existing classes
+normalize copy
+enforce consistency only where clearly broken
+🔍 STEP 1 — AUDIT BEFORE CHANGES
+Search across templates for:
+font-size: 15px
+inline style attributes on buttons or CTAs
+title-case button labels (e.g. “Invite Friends”)
+verbose UI copy strings
+Output a short audit:
+file
+element
+issue type (inline override / copy inconsistency)
+Then proceed to implementation.
+🛠 STEP 2 — IMPLEMENTATION
+1. Remove inline font-size overrides
+templates/friend_profile.html
+Remove font-size: 15px from the "Connect" button
+templates/friend_trip_details.html
+Remove font-size: 15px from:
+"Request to Join"
+disabled state buttons
+Also update any JavaScript string that dynamically injects:
+"Request to Join"
+Ensure no inline font-size is reintroduced
+2. Demote "Copy invite link"
+templates/invite.html
+Update .invite-copy-btn:
+font-size: 14px
+font-weight: 400
+Ensure:
+It visually sits below "Invite via text"
+It does NOT visually compete with primary CTA
+3. Sentence-case button labels
+Apply:
+"Send Invite" → "Send invite"
+→ templates/group_trip_detail.html
+"Accept Invite" → "Accept invite"
+→ templates/trip_invite_detail.html
+"Request to Join" → "Request to join"
+→ templates/friend_trip_details.html
+(update BOTH HTML + JS-injected strings)
+4. Normalize CTA copy
+templates/my_trips.html
+"Invite Friends" → "Invite friends"
+5. Shorten verbose strings (Apple-style)
+templates/trip_ideas.html
+Replace ONLY the long version:
+"Add your open availability here →"
+→ "Add availability →"
+Do NOT touch existing correct instances
+templates/invite.html
+"Have your friends scan this to connect."
+→ "Scan to connect."
+templates/mountains_visited.html
+Placeholder:
+"Add a mountain you've skied"
+→ "Add a mountain"
+🎨 SYSTEM RULES TO ENFORCE
+Primary buttons
+Must render at 16px / 600
+Must use existing .bl-btn-primary or .bl-cta-trip
+No inline font overrides allowed
+Navigation links (arrow)
+16px / 500
+Burgundy color
+No underline
+Consistent arrow usage
+Inline utility
+Smaller
+visually secondary
+no competition with primary CTA
+🔒 FINAL GUARDRAILS (MANDATORY)
+After all changes:
+Confirm:
+NO primary CTA anywhere uses font-size: 15px
+NO inline font-size overrides remain on primary buttons
+Do NOT:
+introduce new inline styles
+modify layout spacing
+alter Home screen navigation rows
+Preserve:
+section labels (PROFILE, ACCOUNT, MAIN SETUP)
+metadata styles
+“Remove friend” styling (intentionally subtle)
+🧪 STEP 3 — QA
+Visually validate:
+Home
+My Trips
+Friend Trips
+Ideas
+Friends
+Invite friends
+Profile
+Wish list
+Mountains visited
+Add availability
+Equipment
+Edit profile
+Check:
+Buttons feel consistent
+Copy is concise and uniform
+No layout shifts occurred
+📋 OUTPUT
+Return:
+Files updated
+Exact changes made
+Before → After examples (copy + button fixes)
+Confirmation:
+All primary CTAs = 16px
+No inline font overrides remain
+🧠 SUCCESS CRITERIA
+App feels like one system
+Primary actions are visually consistent
+Copy feels Apple-level clean and confident
+No redesign, no drift — just polish

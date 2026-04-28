@@ -181,20 +181,20 @@
         <!-- Join / request / status buttons -->
         {% if is_accepted %}
         <div style="margin-top: 20px;">
-            <button class="bl-btn-outline" style="width: 100%; padding: 14px; font-size: 15px; opacity: 0.7;" disabled>
+            <button class="bl-btn-outline" style="width: 100%; padding: 14px; opacity: 0.7;" disabled>
                 You're Going
             </button>
         </div>
         {% elif can_request_join %}
         <div id="join-request-container" style="margin-top: 20px;">
-            <button id="request-join-btn" class="bl-btn-primary" style="width: 100%; padding: 14px; font-size: 15px;" onclick="requestToJoin({{ trip.id }})">
-                Request to Join
+            <button id="request-join-btn" class="bl-btn-primary" style="width: 100%; padding: 14px;" onclick="requestToJoin({{ trip.id }})">
+                Request to join
             </button>
             <p style="font-size: 12px; color: #8A857A; text-align: center; margin: 8px 0 0 0;">The trip organizer will review your request.</p>
         </div>
         {% elif has_pending_request %}
         <div id="pending-request-container" style="margin-top: 20px;">
-            <button class="bl-btn-outline" style="width: 100%; padding: 14px; font-size: 15px; opacity: 0.7;" disabled>
+            <button class="bl-btn-outline" style="width: 100%; padding: 14px; opacity: 0.7;" disabled>
                 Request Sent
             </button>
             <p style="font-size: 12px; color: #8A857A; text-align: center; margin: 8px 0 0 0;">You'll hear back from {{ friend.first_name | format_name }} soon.</p>
@@ -255,13 +255,13 @@
                     btn.disabled = true;
                 } else {
                     btn.disabled = false;
-                    btn.innerText = 'Request to Join';
+                    btn.innerText = 'Request to join';
                     alert(data.error || 'Something went wrong. Please try again.');
                 }
             })
             .catch(() => {
                 btn.disabled = false;
-                btn.innerText = 'Request to Join';
+                btn.innerText = 'Request to join';
                 alert('Something went wrong. Please try again.');
             });
         }
@@ -282,7 +282,7 @@
                     const container = document.getElementById('pending-request-container');
                     if (container) {
                         container.innerHTML =
-                            '<button id="request-join-btn" class="bl-btn-primary" style="width:100%;padding:14px;font-size:15px;" onclick="requestToJoin(' + _TRIP_ID + ')">Request to Join</button>' +
+                            '<button id="request-join-btn" class="bl-btn-primary" style="width:100%;padding:14px;" onclick="requestToJoin(' + _TRIP_ID + ')">Request to join</button>' +
                             '<p style="font-size:12px;color:#8A857A;text-align:center;margin:8px 0 0 0;">The trip organizer will review your request.</p>';
                     }
                 } else {
