@@ -36,9 +36,15 @@
         }
         .ideas-screen-pill:active { opacity: 0.72; }
 
+        .ideas-empty-wrap {
+            max-width: 420px;
+            margin: 22px auto 0;
+            text-align: center;
+        }
+
         .ideas-headline {
             font-family: var(--bl-font-serif);
-            font-size: 22px;
+            font-size: 21px;
             font-weight: 400;
             color: var(--bl-color-text);
             margin: 0 0 4px 0;
@@ -46,10 +52,11 @@
         }
 
         .ideas-subtext {
-            font-size: 12px;
+            font-size: 13px;
             color: var(--bl-color-text-muted);
-            margin: 0 0 14px 0;
-            line-height: 1.45;
+            margin: 0 auto 14px;
+            line-height: 1.5;
+            max-width: 34ch;
         }
 
         /* ── Primary CTA button ── */
@@ -317,14 +324,22 @@
     {# ══════════════════════════════════════════════════════════════════════ #}
     {% if show_no_avail %}
 
-        <a href="{{ url_for('add_open_dates') }}" class="ideas-btn-primary">{% if has_availability %}Edit dates{% else %}Add dates{% endif %}</a>
+        <div class="ideas-empty-wrap">
+            <h2 class="ideas-headline">Nothing lined up — yet.</h2>
+            <p class="ideas-subtext">We’re checking your dates against friends’ plans and your wishlist. The moment a trip lines up, you’ll see it here.</p>
+            <a href="{{ url_for('add_open_dates') }}" class="ideas-btn-primary">{% if has_availability %}Edit dates{% else %}Add dates{% endif %}</a>
+        </div>
 
     {# ══════════════════════════════════════════════════════════════════════ #}
     {# STATE 2: HAS AVAILABILITY, NO MATCHES                                  #}
     {# ══════════════════════════════════════════════════════════════════════ #}
     {% elif ideas_state == 'reengagement' %}
 
-        <a href="{{ url_for('add_open_dates') }}" class="ideas-btn-primary">{% if has_availability %}Edit dates{% else %}Add dates{% endif %}</a>
+        <div class="ideas-empty-wrap">
+            <h2 class="ideas-headline">Nothing lined up — yet.</h2>
+            <p class="ideas-subtext">We’re checking your dates against friends’ plans and your wishlist. The moment a trip lines up, you’ll see it here.</p>
+            <a href="{{ url_for('add_open_dates') }}" class="ideas-btn-primary">{% if has_availability %}Edit dates{% else %}Add dates{% endif %}</a>
+        </div>
 
     {# ══════════════════════════════════════════════════════════════════════ #}
     {# STATE 3: POPULATED — hero card + secondary list                        #}
