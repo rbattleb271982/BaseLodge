@@ -34,7 +34,9 @@ Inputs:
 {%- set state_abbr = resort|state_abbrev if resort else next_trip.state -%}
 {%- set people = next_trip.accepted_count -%}
 {%- set _trip_pass = next_trip.pass_type | pass_display -%}
+{%- set _trip_pass_norm = _trip_pass | lower | trim if _trip_pass else '' -%}
 {%- set _is_own_trip = next_trip.user_id == user.id -%}
+{%- set _trip_detail_url = url_for('trip_detail', trip_id=next_trip.id) -%}
 
 <div class="hc-card">
 
@@ -48,17 +50,17 @@ Inputs:
 
     {# ── Trip row (left-ruled) ── #}
     <div class="hc-ruled-rows">
-        <div class="hc-ruled-row" style="border-top:none;">
+        <a href="{{ _trip_detail_url }}" class="hc-ruled-row hc-next-trip-card" style="border-top:none;">
             <div class="hc-ruled-row-body">
 
                 {# Mountain + Edit action #}
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
                     <p class="hc-serif-headline" style="white-space:normal;">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
-                    <a href="{{ url_for('trip_detail', trip_id=next_trip.id) }}" class="hc-action-link" style="padding-top:3px;flex-shrink:0;">{% if _is_own_trip %}Edit →{% else %}View trip →{% endif %}</a>
+                    <span class="hc-action-link" style="padding-top:3px;flex-shrink:0;">{% if _is_own_trip %}Edit →{% else %}View trip →{% endif %}</span>
                 </div>
 
                 {# Date · Pass line #}
-                <p class="hc-sub">{{ format_trip_dates(next_trip) }}{% if people and people > 1 %} · {{ people }} going{% endif %}{% if _trip_pass %} · {{ _trip_pass }}{% endif %}{% if next_trip_countdown %} · {{ next_trip_countdown }}{% endif %}</p>
+                <p class="hc-sub">{{ format_trip_dates(next_trip) }}{% if people and people > 1 %} · {{ people }} going{% endif %}{% if _trip_pass and _trip_pass_norm not in ['no pass', 'none', ''] %} · {{ _trip_pass }}{% endif %}{% if next_trip_countdown %} · {{ next_trip_countdown }}{% endif %}</p>
 
                 {# ── Live today status (merged from trip_overlap_today_card) ── #}
                 {% if trip_overlap_today_card %}
@@ -81,7 +83,7 @@ Inputs:
                 {% endif %}
 
             </div>
-        </div>
+        </a>
     </div>
 
 </div>
