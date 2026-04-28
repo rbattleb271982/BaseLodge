@@ -596,7 +596,7 @@ def resolve_navigation(path, user_state, pending_intent=None):
 @app.after_request
 def set_security_headers(response):
     """Apply baseline security headers to every response."""
-    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "no-referrer-when-downgrade"
     return response
