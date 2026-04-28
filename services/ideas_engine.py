@@ -774,8 +774,10 @@ def build_destination_feed(user, all_friends):
         dw = resort_trip_data[rid]["date_windows"]
         if key not in dw:
             dw[key] = {"going": 0, "considering": 0, "friend_count": 0,
-                       "going_names": [], "considering_names": []}
+                       "going_names": [], "considering_names": [],
+                       "trip_id": trip.id, "friend_ids_in_window": []}
         dw[key]["friend_count"] += 1
+        dw[key]["friend_ids_in_window"].append(trip.user_id)
         first_name = getattr(friend_by_id.get(trip.user_id), "first_name", None) or "Friend"
         if (trip.trip_status or "planning") == "going":
             dw[key]["going"] += 1
@@ -807,8 +809,8 @@ def build_destination_feed(user, all_friends):
             "line2": " · ".join(parts) if parts else "Considering",
             "signal_type": _FRIEND_TRIP,
             "idea_type": "friend_trip",
-            "trip_id": trip.id,
-            "friend_ids": sorted(set(friend_ids)),
+            "trip_id": g["trip_id"],
+            "friend_ids": sorted(set(g["friend_ids_in_window"])),
         })
 
     # ── 2. Overlap windows with a shared wishlist resort ─────────────────────

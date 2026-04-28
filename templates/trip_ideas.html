@@ -2,24 +2,154 @@
 {% block title %}BaseLodge — Ideas{% endblock %}
 {% block head %}
 <style>
-        .page-title {
+        /* ── Page eyebrow ── */
+        .ideas-eyebrow {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.9px;
+            text-transform: uppercase;
+            color: var(--bl-color-primary);
+            margin: 0 0 10px 0;
+        }
+
+        /* ── Page headline ── */
+        .ideas-headline {
             font-family: var(--bl-font-serif);
-            font-size: 26px;
+            font-size: 28px;
             font-weight: 400;
             color: var(--bl-color-text);
             margin: 0 0 6px 0;
             line-height: 1.2;
         }
 
-        .page-subtext {
-            font-size: 16px;
-            font-weight: 400;
+        /* ── Page subtext ── */
+        .ideas-subtext {
+            font-size: 14px;
             color: var(--bl-color-text-muted);
-            margin: 0 0 24px 0;
+            margin: 0 0 28px 0;
             line-height: 1.55;
         }
 
-        /* ── Destination feed ── */
+        /* ── Primary CTA button ── */
+        .ideas-btn-primary {
+            display: block;
+            width: 100%;
+            padding: 15px 20px;
+            background: var(--bl-color-primary);
+            color: #F5F0E8;
+            text-align: center;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .ideas-btn-primary:active { opacity: 0.85; }
+
+        /* ── Secondary text CTA ── */
+        .ideas-btn-secondary {
+            display: block;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+            padding: 8px 0;
+        }
+
+        /* ── Hint card (reengagement nudge) ── */
+        .ideas-hint-card {
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: 12px;
+            padding: 18px 20px 20px;
+            margin-bottom: 24px;
+        }
+        .ideas-hint-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 10px 0;
+        }
+        .ideas-hint-body {
+            font-size: 14px;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 16px 0;
+            line-height: 1.55;
+        }
+
+        /* ── Section label ── */
+        .ideas-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: var(--bl-color-text-tertiary);
+            margin: 0 0 4px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
+
+        /* ── Hero card (top match) ── */
+        .ideas-hero-card {
+            background: var(--bl-color-primary);
+            border-radius: 16px;
+            padding: 22px 22px 20px;
+            margin-bottom: 28px;
+            text-decoration: none;
+            display: block;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .ideas-hero-card:active { opacity: 0.9; }
+
+        .ideas-hero-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: rgba(245, 240, 232, 0.65);
+            margin: 0 0 10px 0;
+        }
+
+        .ideas-hero-resort {
+            font-family: var(--bl-font-serif);
+            font-size: 28px;
+            font-weight: 400;
+            color: #F5F0E8;
+            margin: 0 0 8px 0;
+            line-height: 1.15;
+        }
+
+        .ideas-hero-dates {
+            font-size: 13px;
+            color: rgba(245, 240, 232, 0.75);
+            margin: 0 0 6px 0;
+            line-height: 1.4;
+        }
+
+        .ideas-hero-friends {
+            font-size: 13px;
+            color: rgba(245, 240, 232, 0.75);
+            margin: 0 0 20px 0;
+            line-height: 1.4;
+        }
+
+        .ideas-hero-cta {
+            display: block;
+            background: #F5F0E8;
+            color: var(--bl-color-primary);
+            text-align: center;
+            font-size: 14px;
+            font-weight: 700;
+            padding: 12px 16px;
+            border-radius: 10px;
+            text-decoration: none;
+        }
+
+        /* ── Secondary feed rows ── */
         .dest-feed {
             margin: 0;
             padding: 0;
@@ -29,152 +159,76 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 14px 0;
-            border-top: 1px solid var(--bl-color-border-soft);
+            padding: 18px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
             text-decoration: none;
             color: inherit;
-            gap: 8px;
+            gap: 12px;
             -webkit-tap-highlight-color: transparent;
         }
+        .dest-row:last-child { border-bottom: none; }
         .dest-row:active { opacity: 0.7; }
-
-        .dest-row:first-child {
-            border-top: none;
-            padding-top: 4px;
-        }
 
         .dest-row-body {
             flex: 1;
             min-width: 0;
         }
 
-        .dest-row-line1 {
+        .dest-row-resort {
             font-size: 15px;
+            font-weight: 500;
             color: var(--bl-color-text);
-            margin: 0 0 3px 0;
+            margin: 0 0 2px 0;
             line-height: 1.3;
-        }
-
-        .dest-row-date {
-            font-weight: 600;
-            color: var(--bl-color-text);
-        }
-
-        .dest-row-sep {
-            color: var(--bl-color-text-muted);
-        }
-
-        .dest-row-mountain {
-            color: var(--bl-color-text-muted);
-            font-weight: 400;
-        }
-
-        .dest-row-line2 {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-            margin: 0;
-        }
-        .dest-row-badge {
-            display: inline-block;
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--bl-color-primary);
-            margin-bottom: 4px;
-        }
-        .dest-row-actions {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 8px;
-            flex-shrink: 0;
-        }
-        .dest-row-plan {
-            font-size: 13px;
-            color: var(--bl-color-primary);
-            text-decoration: none;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .dest-row-going {
+        .dest-row-location {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 5px 0;
+        }
+
+        .dest-row-signal {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 2px 0;
+            line-height: 1.4;
+        }
+        .dest-row-signal:last-child { margin-bottom: 0; }
+
+        .dest-row-signal-highlight {
             color: var(--bl-color-primary);
+            font-weight: 500;
         }
 
         .dest-row-cta {
-            color: var(--bl-color-text-muted);
-            font-size: 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+            white-space: nowrap;
             flex-shrink: 0;
         }
 
-        /* ── Footer hint ── */
-        .ideas-footer {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-            margin: 20px 0 0 0;
-            line-height: 1.5;
-        }
-
-        .ideas-footer a {
-            color: var(--bl-color-primary);
-            text-decoration: none;
-        }
-
-        /* ── Nudge card ── */
+        /* ── Nudge line ── */
         .ideas-nudge {
-            padding: 16px 0 0;
+            padding: 20px 0 8px;
         }
-
         .ideas-nudge-text {
             font-size: 13px;
             color: var(--bl-color-text-muted);
             margin: 0;
             line-height: 1.5;
         }
-
         .ideas-nudge-text a {
             color: var(--bl-color-primary);
             text-decoration: none;
         }
 
-        /* ── Empty state ── */
-        .ideas-empty {
-            padding: 8px 0 32px;
-        }
-
-        .ideas-empty-divider {
-            border: none;
-            border-top: 1px solid var(--bl-color-border-soft);
-            margin: 0 0 24px 0;
-        }
-
-        .ideas-empty-main {
-            font-family: var(--bl-font-serif);
-            font-size: 18px;
-            font-weight: 400;
-            color: var(--bl-color-text);
-            margin: 0 0 8px 0;
-        }
-
-        .ideas-empty-sub {
-            font-size: 14px;
-            color: var(--bl-color-text-muted);
-            margin: 0 0 20px 0;
-            line-height: 1.55;
-        }
-
-        .ideas-empty-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .ideas-empty-link {
-            font-size: 16px;
-            font-weight: 500;
-            color: var(--bl-color-primary);
-            text-decoration: none;
-        }
-
-        /* ── Setup state ── */
+        /* ── Setup panel (no-friends state, not shown if has no availability) ── */
         .ideas-setup-panel {
             background: var(--bl-color-surface);
             border: 1px solid var(--bl-color-border-soft);
@@ -182,7 +236,6 @@
             padding: 20px;
             margin-bottom: 24px;
         }
-
         .ideas-setup-title {
             font-size: 11px;
             font-weight: 700;
@@ -191,7 +244,6 @@
             color: var(--bl-color-text-muted);
             margin: 0 0 16px 0;
         }
-
         .ideas-setup-row {
             display: flex;
             align-items: flex-start;
@@ -199,147 +251,223 @@
             padding: 14px 0;
             border-top: 1px solid var(--bl-color-border-soft);
         }
-
-        .ideas-setup-row:first-of-type {
-            border-top: none;
-            padding-top: 0;
-        }
-
-        .ideas-setup-text {
-            flex: 1;
-            min-width: 0;
-        }
-
+        .ideas-setup-row:first-of-type { border-top: none; padding-top: 0; }
+        .ideas-setup-text { flex: 1; min-width: 0; }
         .ideas-setup-label {
             font-size: 14px;
             font-weight: 600;
             color: var(--bl-color-text);
             margin: 0 0 3px 0;
         }
-
         .ideas-setup-sub {
             font-size: 13px;
             color: var(--bl-color-text-muted);
             margin: 0 0 10px 0;
             line-height: 1.45;
         }
-
         .ideas-setup-link {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 500;
             color: var(--bl-color-primary);
             text-decoration: none;
         }
-    </style>
+</style>
 {% endblock %}
 
 {% block content %}
-    <div class="page-container">
+<div class="page-container">
 
-        <h1 class="page-title">Ideas</h1>
-        <p class="page-subtext">Destinations where your friends are headed and your dates might work.</p>
-        {% if ideas_state != 'setup' %}
-        <p style="font-size:13px; color:var(--bl-color-text-muted); margin:-18px 0 24px; line-height:1.5;">
-            <a href="{{ url_for('add_open_dates') }}" class="bl-link-nav" style="font-size:inherit;">Add availability →</a>
+    {# ── Determine effective display state ── #}
+    {# no_avail: user hasn't set any dates yet — show hard gate #}
+    {% set show_no_avail = not has_availability and ideas_state != 'populated' %}
+
+    {# ── HEADER — eyebrow + dynamic headline + subtext ── #}
+    <p class="ideas-eyebrow">Ideas</p>
+
+    {% if ideas_state == 'populated' %}
+        {%- set _total_friends = dest_feed | sum(attribute='friend_count') -%}
+        {%- set _total_days = 0 -%}
+        {%- set _hero = dest_feed[0] -%}
+        {%- if _hero.start_date and _hero.end_date -%}
+            {%- set _total_days = (_hero.end_date - _hero.start_date).days -%}
+        {%- endif -%}
+        <h1 class="ideas-headline">
+            {%- if _total_friends == 1 -%}
+                1 friend, {{ _total_days }} day{{ 's' if _total_days != 1 else '' }}.
+            {%- else -%}
+                {{ _total_friends }} friends, {{ _total_days }} day{{ 's' if _total_days != 1 else '' }}.
+            {%- endif -%}
+        </h1>
+        <p class="ideas-subtext">This is the trip that actually works.</p>
+
+    {% elif show_no_avail %}
+        <h1 class="ideas-headline">Where to next.</h1>
+        <p class="ideas-subtext">It starts with your dates. Add them once — we'll do the rest.</p>
+
+    {% else %}
+        <h1 class="ideas-headline">Nothing lined up — yet.</h1>
+        <p class="ideas-subtext">We're watching your dates. The moment something lines up, it'll show here.</p>
+    {% endif %}
+
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    {# STATE 1: NO AVAILABILITY                                               #}
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    {% if show_no_avail %}
+
+        <a href="{{ url_for('add_open_dates') }}" class="ideas-btn-primary">Add when you're free</a>
+        <p class="ideas-subtext" style="text-align:center; margin-top:4px;">
+            Takes about thirty seconds. You can change it any time.
         </p>
-        {% endif %}
 
         {% if ideas_state == 'setup' %}
-        {# ── SETUP STATE ── #}
+        {# Also prompt friends if they have no social graph yet #}
+        <div class="ideas-hint-card" style="margin-top:8px;">
+            <p class="ideas-hint-label">Then do this</p>
+            <p class="ideas-hint-body">Invite the friends you actually ski with. Most people get their first match within a week.</p>
+            <a href="{{ url_for('invite') }}" class="ideas-btn-secondary" style="text-align:left; padding:0;">Invite friends →</a>
+        </div>
+        {% endif %}
 
-        <div class="ideas-setup-panel">
-            <p class="ideas-setup-title">Get started</p>
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    {# STATE 2: HAS AVAILABILITY, NO MATCHES                                  #}
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    {% elif ideas_state == 'reengagement' %}
 
-            <div class="ideas-setup-row">
-                <div class="ideas-setup-text">
-                    <p class="ideas-setup-label">Add your availability</p>
-                    <p class="ideas-setup-sub">Mark the days you're free to ski so friends can see when you overlap.</p>
-                    <a href="{{ url_for('add_open_dates') }}" class="ideas-setup-link">Add availability →</a>
+        <div class="ideas-hint-card">
+            <p class="ideas-hint-label">Speed it up</p>
+            <p class="ideas-hint-body">Invite the friends you actually ski with. Most people get their first match within a week.</p>
+            <a href="{{ url_for('invite') }}" class="ideas-btn-primary" style="margin-bottom:0;">Invite friends</a>
+        </div>
+
+        {% if ideas_state == 'setup' %}
+        <div style="margin-top:16px;">
+            <p class="ideas-section-label">GET STARTED</p>
+            <div class="ideas-setup-panel" style="margin-top:16px;">
+                <div class="ideas-setup-row">
+                    <div class="ideas-setup-text">
+                        <p class="ideas-setup-label">Add your availability</p>
+                        <p class="ideas-setup-sub">Mark the days you're free to ski so friends can see when you overlap.</p>
+                        <a href="{{ url_for('add_open_dates') }}" class="ideas-setup-link">Add availability →</a>
+                    </div>
                 </div>
-            </div>
-
-            <div class="ideas-setup-row">
-                <div class="ideas-setup-text">
-                    <p class="ideas-setup-label">Connect with friends</p>
-                    <p class="ideas-setup-sub">More connections means more chances to find a window that works for everyone.</p>
-                    <a href="{{ url_for('invite') }}" class="ideas-setup-link">Invite friends →</a>
+                <div class="ideas-setup-row">
+                    <div class="ideas-setup-text">
+                        <p class="ideas-setup-label">Connect with friends</p>
+                        <p class="ideas-setup-sub">More connections means more chances to find a window that works for everyone.</p>
+                        <a href="{{ url_for('invite') }}" class="ideas-setup-link">Invite friends →</a>
+                    </div>
                 </div>
             </div>
         </div>
+        {% endif %}
 
-        {% elif ideas_state == 'reengagement' %}
-        {# ── EMPTY STATE ── #}
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    {# STATE 3: POPULATED — hero card + secondary list                        #}
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    {% else %}
 
-        <div class="ideas-empty">
-            <hr class="ideas-empty-divider">
-            <p class="ideas-empty-main">{% if has_availability %}Your dates are set.{% else %}Nothing lined up yet.{% endif %}</p>
-            <p class="ideas-empty-sub">{% if has_availability %}You'll see matches when friends add trips.{% else %}Add your availability to find windows that work.{% endif %}</p>
-            <div class="ideas-empty-actions">
-                <a href="{{ url_for('invite') }}" class="ideas-empty-link">Invite friends →</a>
-                {% if not has_availability %}
-                <a href="{{ url_for('add_open_dates') }}" class="ideas-empty-link">Add availability →</a>
-                {% endif %}
-            </div>
+        {%- set hero = dest_feed[0] -%}
+
+        {# Build detail URL for hero tap #}
+        {%- if hero.idea_type == 'friend_trip' -%}
+            {%- set hero_href = url_for('idea_detail_trip', trip_id=hero.trip_id) -%}
+        {%- elif hero.idea_type == 'availability_overlap' -%}
+            {%- set hero_href = url_for('idea_detail_availability', friend_ids=hero.friend_ids | join(','), resort_id=hero.resort_id, start_date=hero.start_date, end_date=hero.end_date) -%}
+        {%- else -%}
+            {%- set hero_href = url_for('idea_detail_wishlist', friend_ids=hero.friend_ids | join(','), resort_id=hero.resort_id) -%}
+        {%- endif -%}
+
+        {# Compute night count #}
+        {%- set hero_nights = ((hero.end_date - hero.start_date).days) if (hero.start_date and hero.end_date) else 0 -%}
+
+        {# Location suffix #}
+        {%- set hero_loc = hero.resort|state_abbrev if hero.resort else '' -%}
+
+        <div class="ideas-hero-card">
+            <p class="ideas-hero-label">Top match</p>
+            <p class="ideas-hero-resort">{{ hero.resort.name }}</p>
+
+            {% if hero.date_range %}
+            <p class="ideas-hero-dates">
+                {{ hero.date_range }}{% if hero_nights > 0 %} · {{ hero_nights }} night{{ 's' if hero_nights != 1 else '' }}{% endif %}
+            </p>
+            {% endif %}
+
+            {% if hero.line2 %}
+            <p class="ideas-hero-friends">{{ hero.line2 }}</p>
+            {% endif %}
+
+            <a href="{{ url_for('add_trip', resort_id=hero.resort_id, start_date=hero.start_date, end_date=hero.end_date) }}" class="ideas-hero-cta">Plan this trip</a>
         </div>
 
-        {% else %}
-        {# ── POPULATED STATE ── #}
+        {# ── SECONDARY ROWS ── #}
+        {% if dest_feed | length > 1 %}
+        <p class="ideas-section-label">Also lining up</p>
 
         <div class="dest-feed">
-            {% for row in dest_feed %}
-            {% if row.idea_type == 'friend_trip' %}
-            {% set row_href = url_for('idea_detail_trip', trip_id=row.trip_id) %}
-            {% elif row.idea_type == 'availability_overlap' %}
-            {% set row_href = url_for('idea_detail_availability', friend_ids=row.friend_ids | join(','), resort_id=row.resort_id, start_date=row.start_date, end_date=row.end_date) %}
-            {% else %}
-            {% set row_href = url_for('idea_detail_wishlist', friend_ids=row.friend_ids | join(','), resort_id=row.resort_id) %}
-            {% endif %}
+            {% for row in dest_feed[1:] %}
+
+            {# Build detail URL per row #}
+            {%- if row.idea_type == 'friend_trip' -%}
+                {%- set row_href = url_for('idea_detail_trip', trip_id=row.trip_id) -%}
+            {%- elif row.idea_type == 'availability_overlap' -%}
+                {%- set row_href = url_for('idea_detail_availability', friend_ids=row.friend_ids | join(','), resort_id=row.resort_id, start_date=row.start_date, end_date=row.end_date) -%}
+            {%- else -%}
+                {%- set row_href = url_for('idea_detail_wishlist', friend_ids=row.friend_ids | join(','), resort_id=row.resort_id) -%}
+            {%- endif -%}
+
+            {%- set row_loc = row.resort|state_abbrev if row.resort else '' -%}
+
             <a href="{{ row_href }}" class="dest-row">
                 <div class="dest-row-body">
-                    {% if row.idea_type == 'availability_overlap' %}
-                    <div class="dest-row-badge">Dates overlap</div>
-                    {% elif row.idea_type == 'wishlist_overlap' %}
-                    <div class="dest-row-badge">Wishlist match</div>
-                    {% endif %}
-                    <p class="dest-row-line1">
-                        {% if row.date_range %}
-                        <span class="dest-row-date">{{ row.date_range }}</span>
-                        <span class="dest-row-sep"> — </span>
-                        {% endif %}
-                        <span class="dest-row-mountain">{{ row.resort.name }}</span>
+                    <p class="dest-row-resort">{{ row.resort.name }}</p>
+                    {% if row.date_range or row_loc %}
+                    <p class="dest-row-location">
+                        {%- if row_loc %}{{ row_loc }}{% endif -%}
+                        {%- if row.date_range and row_loc %} · {% endif -%}
+                        {%- if row.date_range %}{{ row.date_range }}{% endif -%}
                     </p>
+                    {% endif %}
+
+                    {# Signal lines — max 2, based on idea_type #}
                     {%- set _gc = row.going_count | default(0) -%}
                     {%- set _cc = row.considering_count | default(0) -%}
-                    {% if _gc or _cc %}
-                    <p class="dest-row-line2">
-                        {%- if _gc and _cc -%}
-                            {{ _gc }} going · {{ _cc }} considering
-                        {%- elif _gc -%}
-                            {{ _gc }} {{ 'friend' if _gc == 1 else 'friends' }} going
-                        {%- else -%}
-                            {{ _cc }} {{ 'friend' if _cc == 1 else 'friends' }} considering
-                        {%- endif -%}
-                    </p>
+
+                    {% if row.idea_type == 'friend_trip' %}
+                        {% if _gc > 0 %}
+                        <p class="dest-row-signal">
+                            <span class="dest-row-signal-highlight">{{ _gc }} {{ 'friend' if _gc == 1 else 'friends' }} going</span>
+                        </p>
+                        {% endif %}
+                        {% if _cc > 0 %}
+                        <p class="dest-row-signal">{{ _cc }} considering</p>
+                        {% endif %}
+                    {% elif row.idea_type == 'availability_overlap' %}
+                        <p class="dest-row-signal">
+                            <span class="dest-row-signal-highlight">Dates overlap</span>
+                        </p>
+                    {% else %}
+                        <p class="dest-row-signal">On your wishlist</p>
                     {% endif %}
                 </div>
-                <div class="dest-row-actions">
-                    <span class="dest-row-cta">›</span>
-                    {% if row.start_date and row.end_date %}
-                    <a class="dest-row-plan" href="{{ url_for('add_trip', resort_id=row.resort_id, start_date=row.start_date, end_date=row.end_date) }}">Plan this trip →</a>
-                    {% endif %}
-                </div>
+
+                <span class="dest-row-cta">Plan it →</span>
             </a>
             {% endfor %}
         </div>
+        {% endif %}
 
+        {# Nudge to add more data if feed is thin #}
         {% if dest_feed | length < 3 %}
         <div class="ideas-nudge">
-            <p class="ideas-nudge-text">Add <a href="{{ url_for('add_open_dates') }}">availability</a> or <a href="{{ url_for('invite') }}">invite friends</a> to surface more ideas.</p>
+            <p class="ideas-nudge-text">
+                Add <a href="{{ url_for('add_open_dates') }}">availability</a> or
+                <a href="{{ url_for('invite') }}">invite friends</a> to surface more ideas.
+            </p>
         </div>
         {% endif %}
 
-        {% endif %}
+    {% endif %}
 
-    </div>
-
-    {% endblock %}
+</div>
+{% endblock %}
