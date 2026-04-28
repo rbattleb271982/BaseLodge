@@ -2,32 +2,53 @@
 {% block title %}BaseLodge — Ideas{% endblock %}
 {% block head %}
 <style>
-        /* ── Page eyebrow ── */
-        .ideas-eyebrow {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.9px;
-            text-transform: uppercase;
-            color: var(--bl-color-primary);
-            margin: 0 0 10px 0;
+        .ideas-screen-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 0 0 12px 0;
         }
-
-        /* ── Page headline ── */
-        .ideas-headline {
+        .ideas-screen-title {
             font-family: var(--bl-font-serif);
-            font-size: 28px;
+            font-size: 22px;
             font-weight: 400;
             color: var(--bl-color-text);
-            margin: 0 0 6px 0;
+            margin: 0;
+            line-height: 1.2;
+            letter-spacing: -0.01em;
+        }
+        .ideas-screen-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 9px 14px;
+            border-radius: 999px;
+            background: rgba(92, 18, 25, 0.08);
+            color: var(--bl-color-primary);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .ideas-screen-pill:active { opacity: 0.72; }
+
+        .ideas-headline {
+            font-family: var(--bl-font-serif);
+            font-size: 24px;
+            font-weight: 400;
+            color: var(--bl-color-text);
+            margin: 0 0 4px 0;
             line-height: 1.2;
         }
 
-        /* ── Page subtext ── */
         .ideas-subtext {
-            font-size: 14px;
+            font-size: 13px;
             color: var(--bl-color-text-muted);
-            margin: 0 0 28px 0;
-            line-height: 1.55;
+            margin: 0 0 22px 0;
+            line-height: 1.45;
         }
 
         /* ── Primary CTA button ── */
@@ -281,8 +302,12 @@
     {# no_avail: user hasn't set any dates yet — show hard gate #}
     {% set show_no_avail = not has_availability and ideas_state != 'populated' %}
 
-    {# ── HEADER — eyebrow + dynamic headline + subtext ── #}
-    <p class="ideas-eyebrow">Ideas</p>
+    <div class="ideas-screen-header">
+        <h1 class="ideas-screen-title">Ideas</h1>
+        <a href="{{ url_for('add_open_dates') }}" class="ideas-screen-pill">
+            {% if has_availability %}Edit dates{% else %}Add availability{% endif %}
+        </a>
+    </div>
 
     {% if ideas_state == 'populated' %}
         {%- set _total_friends = dest_feed | sum(attribute='friend_count') -%}
@@ -291,21 +316,21 @@
         {%- if _hero.start_date and _hero.end_date -%}
             {%- set _total_days = (_hero.end_date - _hero.start_date).days -%}
         {%- endif -%}
-        <h1 class="ideas-headline">
+        <h2 class="ideas-headline">
             {%- if _total_friends == 1 -%}
                 1 friend, {{ _total_days }} day{{ 's' if _total_days != 1 else '' }}.
             {%- else -%}
                 {{ _total_friends }} friends, {{ _total_days }} day{{ 's' if _total_days != 1 else '' }}.
             {%- endif -%}
-        </h1>
+        </h2>
         <p class="ideas-subtext">This is the trip that actually works.</p>
 
     {% elif show_no_avail %}
-        <h1 class="ideas-headline">Where to next.</h1>
+        <h2 class="ideas-headline">Where to next.</h2>
         <p class="ideas-subtext">It starts with your dates. Add them once — we'll do the rest.</p>
 
     {% else %}
-        <h1 class="ideas-headline">Nothing lined up — yet.</h1>
+        <h2 class="ideas-headline">Nothing lined up — yet.</h2>
         <p class="ideas-subtext">We're watching your dates. The moment something lines up, it'll show here.</p>
     {% endif %}
 
