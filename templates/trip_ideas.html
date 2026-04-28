@@ -7,16 +7,16 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            margin: 0 0 12px 0;
+            margin: 0 0 6px 0;
         }
         .ideas-screen-title {
             font-family: var(--bl-font-serif);
-            font-size: 22px;
+            font-size: 26px;
             font-weight: 400;
-            color: var(--bl-color-text);
+            color: var(--bl-color-primary);
             margin: 0;
             line-height: 1.2;
-            letter-spacing: -0.01em;
+            letter-spacing: 0;
         }
         .ideas-screen-pill {
             display: inline-flex;
@@ -24,7 +24,8 @@
             justify-content: center;
             padding: 9px 14px;
             border-radius: 999px;
-            background: rgba(92, 18, 25, 0.08);
+            background: transparent;
+            border: 1px solid var(--bl-color-primary);
             color: var(--bl-color-primary);
             text-decoration: none;
             font-size: 13px;
@@ -37,7 +38,7 @@
 
         .ideas-headline {
             font-family: var(--bl-font-serif);
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 400;
             color: var(--bl-color-text);
             margin: 0 0 4px 0;
@@ -45,9 +46,9 @@
         }
 
         .ideas-subtext {
-            font-size: 13px;
+            font-size: 12px;
             color: var(--bl-color-text-muted);
-            margin: 0 0 22px 0;
+            margin: 0 0 14px 0;
             line-height: 1.45;
         }
 
@@ -77,29 +78,6 @@
             color: var(--bl-color-primary);
             text-decoration: none;
             padding: 8px 0;
-        }
-
-        /* ── Hint card (reengagement nudge) ── */
-        .ideas-hint-card {
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: 12px;
-            padding: 18px 20px 20px;
-            margin-bottom: 24px;
-        }
-        .ideas-hint-label {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.7px;
-            text-transform: uppercase;
-            color: var(--bl-color-text-muted);
-            margin: 0 0 10px 0;
-        }
-        .ideas-hint-body {
-            font-size: 14px;
-            color: var(--bl-color-text-muted);
-            margin: 0 0 16px 0;
-            line-height: 1.55;
         }
 
         /* ── Section label ── */
@@ -305,7 +283,7 @@
     <div class="ideas-screen-header">
         <h1 class="ideas-screen-title">Ideas</h1>
         <a href="{{ url_for('add_open_dates') }}" class="ideas-screen-pill">
-            {% if has_availability %}Edit dates{% else %}Add availability{% endif %}
+            {% if has_availability %}Edit dates{% else %}Add dates{% endif %}
         </a>
     </div>
 
@@ -323,15 +301,15 @@
                 {{ _total_friends }} friends, {{ _total_days }} day{{ 's' if _total_days != 1 else '' }}.
             {%- endif -%}
         </h2>
-        <p class="ideas-subtext">This is the trip that actually works.</p>
+        <p class="ideas-subtext">Your dates are the engine. Keep them current, and we’ll surface trips that line up.</p>
 
     {% elif show_no_avail %}
         <h2 class="ideas-headline">Where to next.</h2>
-        <p class="ideas-subtext">It starts with your dates. Add them once — we'll do the rest.</p>
+        <p class="ideas-subtext">Your dates are the engine. Keep them current, and we’ll surface trips that line up.</p>
 
     {% else %}
         <h2 class="ideas-headline">Nothing lined up — yet.</h2>
-        <p class="ideas-subtext">We're watching your dates. The moment something lines up, it'll show here.</p>
+        <p class="ideas-subtext">Your dates are the engine. Keep them current, and we’ll surface trips that line up.</p>
     {% endif %}
 
     {# ══════════════════════════════════════════════════════════════════════ #}
@@ -339,52 +317,14 @@
     {# ══════════════════════════════════════════════════════════════════════ #}
     {% if show_no_avail %}
 
-        <a href="{{ url_for('add_open_dates') }}" class="ideas-btn-primary">Add when you're free</a>
-        <p class="ideas-subtext" style="text-align:center; margin-top:4px;">
-            Takes about thirty seconds. You can change it any time.
-        </p>
-
-        {% if ideas_state == 'setup' %}
-        {# Also prompt friends if they have no social graph yet #}
-        <div class="ideas-hint-card" style="margin-top:8px;">
-            <p class="ideas-hint-label">Then do this</p>
-            <p class="ideas-hint-body">Invite the friends you actually ski with. Most people get their first match within a week.</p>
-            <a href="{{ url_for('invite') }}" class="ideas-btn-secondary" style="text-align:left; padding:0;">Invite friends →</a>
-        </div>
-        {% endif %}
+        <a href="{{ url_for('add_open_dates') }}" class="ideas-btn-primary">{% if has_availability %}Edit dates{% else %}Add dates{% endif %}</a>
 
     {# ══════════════════════════════════════════════════════════════════════ #}
     {# STATE 2: HAS AVAILABILITY, NO MATCHES                                  #}
     {# ══════════════════════════════════════════════════════════════════════ #}
     {% elif ideas_state == 'reengagement' %}
 
-        <div class="ideas-hint-card">
-            <p class="ideas-hint-label">Speed it up</p>
-            <p class="ideas-hint-body">Invite the friends you actually ski with. Most people get their first match within a week.</p>
-            <a href="{{ url_for('invite') }}" class="ideas-btn-primary" style="margin-bottom:0;">Invite friends</a>
-        </div>
-
-        {% if ideas_state == 'setup' %}
-        <div style="margin-top:16px;">
-            <p class="ideas-section-label">GET STARTED</p>
-            <div class="ideas-setup-panel" style="margin-top:16px;">
-                <div class="ideas-setup-row">
-                    <div class="ideas-setup-text">
-                        <p class="ideas-setup-label">Add your availability</p>
-                        <p class="ideas-setup-sub">Mark the days you're free to ski so friends can see when you overlap.</p>
-                        <a href="{{ url_for('add_open_dates') }}" class="ideas-setup-link">Add availability →</a>
-                    </div>
-                </div>
-                <div class="ideas-setup-row">
-                    <div class="ideas-setup-text">
-                        <p class="ideas-setup-label">Connect with friends</p>
-                        <p class="ideas-setup-sub">More connections means more chances to find a window that works for everyone.</p>
-                        <a href="{{ url_for('invite') }}" class="ideas-setup-link">Invite friends →</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
+        <a href="{{ url_for('add_open_dates') }}" class="ideas-btn-primary">{% if has_availability %}Edit dates{% else %}Add dates{% endif %}</a>
 
     {# ══════════════════════════════════════════════════════════════════════ #}
     {# STATE 3: POPULATED — hero card + secondary list                        #}
