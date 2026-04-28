@@ -49,7 +49,7 @@ BASE_URL = _resolve_base_url()
 import sqlalchemy as sa
 from sqlalchemy import func
 from urllib.parse import urlparse
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file, current_app
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps
 from flask_migrate import Migrate
