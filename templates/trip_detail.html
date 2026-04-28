@@ -99,18 +99,29 @@
         .td-btn-invite {
             display: block;
             width: 100%;
-            padding: 13px 20px;
+            min-height: 52px;
+            padding: 0 20px;
             background: transparent;
             border: 1px solid #5C1219;
-            border-radius: 24px;
+            border-radius: 12px;
             color: #5C1219;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
             text-align: center;
             font-family: inherit;
+            box-sizing: border-box;
         }
         .td-btn-invite:hover { background: #F5F1E8; }
+        .td-accordion-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--bl-color-text);
+        }
+        .td-status-going {
+            color: #5C1219;
+            font-weight: 600;
+        }
         .invite-count {
             font-size: 13px;
             color: var(--bl-color-text-muted);
@@ -456,7 +467,7 @@
             <span class="td-info-label">Status</span>
             <span class="td-info-value-group">
                 {% if ts == 'going' %}
-                <span class="td-info-value" style="color: #5C1219; font-weight: 600;">Going</span>
+                <span class="td-info-value td-status-going">Going</span>
                 {% else %}
                 <span class="td-info-value">Planning</span>
                 {% endif %}
@@ -478,7 +489,7 @@
         <div class="td-info-row">
             <span class="td-info-label">Status</span>
             {% if ts == 'going' %}
-            <span class="td-info-value" style="color: #5C1219; font-weight: 600;">Going</span>
+            <span class="td-info-value td-status-going">Going</span>
             {% else %}
             <span class="td-info-value">Planning</span>
             {% endif %}
@@ -508,7 +519,7 @@
             <div class="lesson-editor-container">
                 <div class="lesson-row-header" onclick="{% if is_owner %}toggleEquipmentOverride(){% endif %}">
                     <div style="display: flex; flex-direction: column;">
-                        <span style="font-size: 14px; color: var(--bl-color-text);">Equipment</span>
+                        <span class="td-accordion-label">Equipment</span>
                         <span style="font-size: 11px; color: var(--bl-color-text-muted); margin-top: 1px;">
                             {% if not trip.equipment_override or trip.equipment_override == 'use_default' %}From profile{% else %}For this trip only{% endif %}
                         </span>
@@ -549,7 +560,7 @@
             {# Transportation #}
             <div class="transport-editor-container">
                 <div class="transport-row-header" onclick="{% if is_owner %}toggleTransportEditor(){% endif %}">
-                    <span style="font-size: 14px; color: var(--bl-color-text);">Transportation</span>
+                    <span class="td-accordion-label">Transportation</span>
                     <span class="transport-summary" style="{% if not is_owner %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
                         <span id="trans-summary-text">
                             {% if current_user_participant.transportation_status %}
@@ -595,7 +606,7 @@
             {# Accommodations #}
             <div class="lesson-editor-container">
                 <div class="lesson-row-header" onclick="{% if is_owner %}toggleAccommodationEditor(){% endif %}">
-                    <span style="font-size: 14px; color: var(--bl-color-text);">Accommodations</span>
+                    <span class="td-accordion-label">Accommodations</span>
                     <span class="lesson-summary" style="{% if not is_owner %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
                         <span id="accommodation-summary-text">
                             {% if trip.accommodation_status == 'hotel' %}Hotel{% elif trip.accommodation_status == 'rental' %}Rental{% elif trip.accommodation_status == 'other' %}Other{% else %}Not needed{% endif %}
@@ -634,7 +645,7 @@
             {# Lessons #}
             <div class="lesson-editor-container" style="border-bottom: none;">
                 <div class="lesson-row-header" onclick="{% if is_owner %}toggleLessonEditor(){% endif %}">
-                    <span style="font-size: 14px; color: var(--bl-color-text);">Lessons</span>
+                    <span class="td-accordion-label">Lessons</span>
                     <span class="lesson-summary" style="{% if not is_owner %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
                         <span id="lesson-summary-text">
                             {% if current_user_participant.taking_lesson %}

@@ -43,14 +43,28 @@
   --bl-space-7: 20px;
   --bl-space-8: 24px;
 
-  /* Radii — editorial, not pill-heavy */
+  /* Radii */
   --bl-radius-sm: 4px;
   --bl-radius-md: 8px;
   --bl-radius-lg: 12px;
+  --bl-radius-pill: 999px;
+
+  /* Interaction heights */
+  --bl-height-btn: 52px;
+  --bl-height-row: 52px;
 
   /* Typography */
-  --bl-font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --bl-font-serif: Georgia, 'Times New Roman', serif;
+  --bl-font-sans: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --bl-font-serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+
+  /* Type scale */
+  --bl-text-micro: 11px;
+  --bl-text-caption: 13px;
+  --bl-text-body: 15px;
+  --bl-text-input: 16px;
+  --bl-text-subhead: 20px;
+  --bl-text-title: 24px;
+  --bl-text-display: 30px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -233,17 +247,59 @@ body {
   margin: var(--bl-space-6) 0;
 }
 
+/* ── Notification badge ──────────────────────────────── */
+.bl-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  background: var(--bl-color-primary);
+  color: #fff;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── Accordion row label ─────────────────────────────── */
+.bl-accordion-row-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--bl-color-text);
+}
+
+/* ── Modal sheet (bottom card overlay) ──────────────── */
+.bl-modal-sheet {
+  background: var(--bl-color-surface);
+  border-radius: var(--bl-radius-lg);
+  padding: var(--bl-space-8);
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+}
+
 /* ── Buttons ───────────────────────────────────────── */
 
 .bl-btn-primary {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
   background: var(--bl-color-primary);
   color: white;
   border: none;
   border-radius: var(--bl-radius-lg);
-  padding: 10px 14px;
-  font-size: 16px;
+  min-height: var(--bl-height-btn);
+  padding: 0 24px;
+  font-size: var(--bl-text-body);
   font-weight: 600;
+  font-family: inherit;
+  text-align: center;
+  text-decoration: none;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   transition: background-color 0.2s ease;
 }
 
@@ -856,22 +912,44 @@ input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="date"],
+input[type="number"],
 select,
 textarea {
   width: 100%;
   padding: var(--bl-space-5);
-  border: 1px solid var(--bl-color-border);
-  border-radius: var(--bl-radius-md);
+  border: 1px solid var(--bl-color-border-soft);
+  border-radius: var(--bl-radius-lg);
   font-family: inherit;
-  font-size: 15px;
+  font-size: var(--bl-text-input);
   color: var(--bl-color-text);
   background: var(--bl-color-surface);
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  outline: none;
+}
+
+input[type="text"]::placeholder,
+input[type="email"]::placeholder,
+input[type="password"]::placeholder,
+input[type="date"]::placeholder,
+input[type="number"]::placeholder,
+textarea::placeholder {
+  color: var(--bl-color-text-tertiary);
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="number"] {
+  min-height: var(--bl-height-btn);
 }
 
 input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus,
 input[type="date"]:focus,
+input[type="number"]:focus,
 select:focus,
 textarea:focus {
   outline: none;

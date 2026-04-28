@@ -2,19 +2,6 @@
 {% block title %}BaseLodge — {{ friend.first_name | format_name }} {{ friend.last_name | format_name }}{% endblock %}
 {% block head %}
 <style>
-        /* ── Variables ── */
-        :root {
-            --fp-color-bg: #F5F1E8;
-            --fp-color-surface: #FFFFFF;
-            --fp-color-border: #E8E3D8;
-            --fp-color-text-primary: #1A1A1A;
-            --fp-color-text-secondary: #6B665A;
-            --fp-color-text-tertiary: #8A857A;
-            --fp-color-accent: #5C1219;
-            --fp-color-rule: #5C1219;
-            --fp-font-serif: Georgia, 'Times New Roman', serif;
-        }
-
         /* ── Back nav ── */
         .fp-nav {
             display: flex;
@@ -24,38 +11,38 @@
         .fp-back {
             display: flex;
             align-items: center;
-            color: var(--fp-color-text-secondary);
+            color: var(--bl-color-text-muted);
             text-decoration: none;
             font-size: 14px;
             gap: 4px;
         }
-        .fp-back:hover { color: var(--fp-color-text-primary); }
+        .fp-back:hover { color: var(--bl-color-text); }
 
         /* ── Summary card (top section) ── */
         .fp-summary {
-            background: var(--fp-color-surface);
-            border: 1px solid var(--fp-color-border);
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 12px;
         }
         .fp-name {
-            font-family: var(--fp-font-serif);
+            font-family: var(--bl-font-serif);
             font-size: 32px;
             font-weight: 400;
-            color: var(--fp-color-text-primary);
+            color: var(--bl-color-text);
             margin: 0 0 4px 0;
             line-height: 1.15;
         }
         .fp-identity {
             font-size: 14px;
-            color: var(--fp-color-text-secondary);
+            color: var(--bl-color-text-muted);
             margin: 0 0 12px 0;
         }
         .fp-cta {
             display: inline-block;
             font-size: 14px;
-            color: var(--fp-color-accent);
+            color: var(--bl-color-primary);
             text-decoration: none;
             font-weight: 500;
             margin-bottom: 16px;
@@ -67,7 +54,7 @@
             display: flex;
             align-items: center;
             padding-top: 16px;
-            border-top: 1px solid var(--fp-color-border);
+            border-top: 1px solid var(--bl-color-border-soft);
         }
         .fp-stat-tile {
             flex: 1;
@@ -80,17 +67,17 @@
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
         }
-        .fp-stat-tile--link:active .fp-stat-num { color: var(--fp-color-accent); }
+        .fp-stat-tile--link:active .fp-stat-num { color: var(--bl-color-primary); }
         .fp-stat-num {
-            font-family: var(--fp-font-serif);
+            font-family: var(--bl-font-serif);
             font-size: 28px;
             font-weight: 400;
-            color: var(--fp-color-text-primary);
+            color: var(--bl-color-text);
             line-height: 1;
         }
         .fp-stat-label {
             font-size: 9px;
-            color: var(--fp-color-text-tertiary);
+            color: var(--bl-color-text-tertiary);
             text-transform: uppercase;
             letter-spacing: 0.4px;
             text-align: center;
@@ -109,8 +96,8 @@
 
         /* ── Generic hc-card style (shared with Home) ── */
         .fp-card {
-            background: var(--fp-color-surface);
-            border: 1px solid var(--fp-color-border);
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 12px;
@@ -128,7 +115,7 @@
             font-weight: 700;
             letter-spacing: 0.7px;
             text-transform: uppercase;
-            color: var(--fp-color-text-tertiary);
+            color: var(--bl-color-text-tertiary);
         }
 
         /* ── Shared-context rows ── */
@@ -137,7 +124,7 @@
             align-items: center;
             gap: 10px;
             padding: 10px 0;
-            border-top: 1px solid var(--fp-color-border);
+            border-top: 1px solid var(--bl-color-border-soft);
             text-decoration: none;
             color: inherit;
             -webkit-tap-highlight-color: transparent;
@@ -145,7 +132,7 @@
         .fp-shared-row:first-of-type { border-top: none; }
         .fp-shared-icon {
             flex-shrink: 0;
-            color: var(--fp-color-text-tertiary);
+            color: var(--bl-color-text-tertiary);
             width: 18px;
             display: flex;
             align-items: center;
@@ -154,12 +141,12 @@
         .fp-shared-text {
             flex: 1;
             font-size: 14px;
-            color: var(--fp-color-text-primary);
+            color: var(--bl-color-text);
             line-height: 1.4;
         }
         .fp-shared-chevron {
             flex-shrink: 0;
-            color: var(--fp-color-text-tertiary);
+            color: var(--bl-color-text-tertiary);
         }
 
         /* ── Trip overlap inline (inside shared module) ── */
@@ -168,11 +155,11 @@
             align-items: flex-start;
             gap: 10px;
             padding: 10px 0;
-            border-top: 1px solid var(--fp-color-border);
+            border-top: 1px solid var(--bl-color-border-soft);
         }
         .fp-overlap-text {
             font-size: 14px;
-            color: var(--fp-color-text-primary);
+            color: var(--bl-color-text);
             line-height: 1.4;
         }
 
@@ -181,7 +168,7 @@
             display: flex;
             align-items: center;
             padding: 12px 0 12px 14px;
-            border-left: 2px solid var(--fp-color-rule);
+            border-left: 2px solid var(--bl-color-primary);
             margin-bottom: 10px;
             text-decoration: none;
             color: inherit;
@@ -191,10 +178,10 @@
         .fp-ruled-trip:active { opacity: 0.7; }
         .fp-ruled-trip-body { flex: 1; min-width: 0; }
         .fp-trip-dest {
-            font-family: var(--fp-font-serif);
+            font-family: var(--bl-font-serif);
             font-size: 16px;
             font-weight: 400;
-            color: var(--fp-color-text-primary);
+            color: var(--bl-color-text);
             margin: 0 0 3px 0;
             white-space: nowrap;
             overflow: hidden;
@@ -202,39 +189,39 @@
         }
         .fp-trip-sub {
             font-size: 13px;
-            color: var(--fp-color-text-secondary);
+            color: var(--bl-color-text-muted);
             margin: 0;
         }
         .fp-trip-status-planning {
             font-size: 11px;
             font-weight: 600;
-            color: var(--fp-color-text-tertiary);
+            color: var(--bl-color-text-tertiary);
             text-transform: uppercase;
             letter-spacing: 0.4px;
         }
         .fp-trip-status-going {
             font-size: 11px;
             font-weight: 600;
-            color: var(--fp-color-accent);
+            color: var(--bl-color-primary);
             text-transform: uppercase;
             letter-spacing: 0.4px;
         }
         .fp-trip-status-both {
             font-size: 11px;
             font-weight: 600;
-            color: var(--fp-color-accent);
+            color: var(--bl-color-primary);
             text-transform: uppercase;
             letter-spacing: 0.4px;
         }
         .fp-trip-arrow {
             flex-shrink: 0;
             margin-left: 12px;
-            color: var(--fp-color-accent);
+            color: var(--bl-color-primary);
             font-size: 14px;
         }
         .fp-trips-empty {
             font-size: 14px;
-            color: var(--fp-color-text-tertiary);
+            color: var(--bl-color-text-tertiary);
             padding: 4px 0;
         }
 
@@ -244,16 +231,16 @@
             justify-content: space-between;
             align-items: baseline;
             padding: 11px 0;
-            border-top: 1px solid var(--fp-color-border);
+            border-top: 1px solid var(--bl-color-border-soft);
         }
         .fp-detail-row:first-of-type { border-top: none; padding-top: 0; }
         .fp-detail-label {
             font-size: 13px;
-            color: var(--fp-color-text-secondary);
+            color: var(--bl-color-text-muted);
         }
         .fp-detail-value {
             font-size: 13px;
-            color: var(--fp-color-text-primary);
+            color: var(--bl-color-text);
             font-weight: 500;
             text-align: right;
         }
@@ -268,7 +255,7 @@
             border: none;
             padding: 0;
             font-size: 13px;
-            color: var(--fp-color-text-tertiary);
+            color: var(--bl-color-text-tertiary);
             cursor: pointer;
             text-decoration: underline;
             text-underline-offset: 3px;
@@ -277,7 +264,7 @@
         .fp-remove-trigger:hover { color: #B04040; text-decoration-color: #B04040; }
         .fp-remove-confirm-text {
             font-size: 14px;
-            color: var(--fp-color-text-primary);
+            color: var(--bl-color-text);
             margin: 0 0 14px 0;
             line-height: 1.45;
         }
@@ -292,7 +279,7 @@
             border: none;
             padding: 0;
             font-size: 14px;
-            color: var(--fp-color-text-secondary);
+            color: var(--bl-color-text-muted);
             cursor: pointer;
         }
         .fp-remove-submit {
@@ -336,14 +323,14 @@
             {% endif %}
 
             {% if _has_gear or _has_boots %}
-            <div style="margin: 0 0 12px 0; font-size: 13px; color: var(--fp-color-text-secondary); line-height: 1.5;">
+            <div style="margin: 0 0 12px 0; font-size: 13px; color: var(--bl-color-text-muted); line-height: 1.5;">
                 {% if _has_gear %}
                 {%- set _gear_val = ([eq.brand, eq.model] | select | join(' ')) %}
-                <div>{{ _gear_label }}: <span style="color:var(--fp-color-text-primary);font-weight:500;">{{ _gear_val }}</span></div>
+                <div>{{ _gear_label }}: <span style="color:var(--bl-color-text);font-weight:500;">{{ _gear_val }}</span></div>
                 {% endif %}
                 {% if _has_boots %}
                 {%- set _boot_val = ([eq.boot_brand, eq.boot_model] | select | join(' ')) %}
-                <div>Boots: <span style="color:var(--fp-color-text-primary);font-weight:500;">{{ _boot_val }}</span></div>
+                <div>Boots: <span style="color:var(--bl-color-text);font-weight:500;">{{ _boot_val }}</span></div>
                 {% endif %}
             </div>
             {% endif %}
@@ -382,7 +369,7 @@
         {% if _has_wishlist_overlap or _has_trip_overlaps or _has_avail_overlap %}
         <div class="fp-card">
             <div class="fp-label">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14" style="color:var(--fp-color-text-tertiary);flex-shrink:0;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14" style="color:var(--bl-color-text-tertiary);flex-shrink:0;">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
                 </svg>
                 <span class="fp-label-text">Shared with {{ _first }}</span>
@@ -426,7 +413,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                     </svg>
                 </span>
-                <span class="fp-overlap-text">Both free: <strong>{{ availability_display }}</strong>{% if availability_remaining > 0 %} <span style="color:var(--fp-color-text-tertiary);">+{{ availability_remaining }} more</span>{% endif %}</span>
+                <span class="fp-overlap-text">Both free: <strong>{{ availability_display }}</strong>{% if availability_remaining > 0 %} <span style="color:var(--bl-color-text-tertiary);">+{{ availability_remaining }} more</span>{% endif %}</span>
             </div>
             {% endif %}
         </div>
@@ -435,7 +422,7 @@
         <!-- ③ Upcoming trips -->
         <div class="fp-card" id="fp-trips-section">
             <div class="fp-label">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14" style="color:var(--fp-color-text-tertiary);flex-shrink:0;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14" style="color:var(--bl-color-text-tertiary);flex-shrink:0;">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
                 </svg>
                 <span class="fp-label-text">{{ _first }}'s Upcoming Trips</span>

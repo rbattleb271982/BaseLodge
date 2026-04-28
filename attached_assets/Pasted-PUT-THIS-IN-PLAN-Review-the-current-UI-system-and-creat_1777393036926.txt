@@ -1,0 +1,97 @@
+PUT THIS IN PLAN
+
+Review the current UI system and create an implementation plan for this refactor. Do not make code changes yet.
+
+Goal:
+Enforce stricter interaction and layout rules across logged-in BaseLodge screens while preserving the current premium editorial visual direction.
+
+Please audit the logged-in templates and CSS and identify exactly:
+
+1. Which files/classes need changes
+2. Which screens are affected
+3. Which items should NOT be changed
+4. Any places where the rules below conflict with existing behavior
+5. A safe phased implementation order
+
+Rules to evaluate:
+
+GLOBAL INTERACTION SYSTEM
+
+There should be 4 main interactive element types:
+
+1. Primary Button
+
+* Full width
+* Burgundy background
+* White text
+* Height: 52px
+* Border radius: 12px
+* Used for Save, Continue, Plan actions
+* Usually one primary action per screen
+
+2. Secondary / Text Link
+
+* Burgundy text
+* No underline
+* Optional arrow →
+* Used for inline actions like Invite, Edit, Add availability
+
+3. Pills
+
+* Used only for selection inputs such as Rider Type, Terrain, Pass
+* Selected: burgundy fill, white text
+* Unselected: cream fill with 1px border
+* Never use pills for navigation or CTAs
+
+4. List Rows
+
+* Used for navigation rows such as Profile details, Equipment, Mountains visited, Friends rows
+* Entire row should be tappable
+* Chevron should only appear when tapping navigates to another screen
+
+CARDS RULE
+
+Cards should only be used for bounded objects:
+
+* Trip card
+* Calendar component
+* Toast/system message
+
+Evaluate whether these should be changed:
+
+* Equipment blush card
+* Home top wrapper card
+
+INPUT SYSTEM
+
+Standardize inputs to match Profile details:
+
+* White background
+* 1px warm gray border
+* 12px border radius
+* 52px height
+* Consistent padding
+
+TYPOGRAPHY HIERARCHY
+
+Enforce two levels:
+
+* Section headers: uppercase, small, letter-spaced
+* Field labels: sentence case, 13px, muted
+
+DIVIDERS
+
+* Use dividers only between list rows
+* Remove trailing dividers after the last item
+* Remove dividers immediately before section headers when spacing alone works better
+
+QA REQUIREMENTS
+
+* Every tappable element must look tappable
+* Every element that looks tappable must actually be tappable
+* No mixed input styles
+* No decorative cards
+* Do not change backend logic, routes, database logic, auth, onboarding, admin, or legal pages
+
+Return a clear plan only. Include file names, CSS selectors, and recommended batches.
+Only use checkpoints if I say so.
