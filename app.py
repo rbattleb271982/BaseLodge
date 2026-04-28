@@ -2590,6 +2590,7 @@ def trip_ideas():
 
     # ── Destination feed ──────────────────────────────────────────────────────
     dest_feed = build_destination_feed(user, all_friends) if has_friends else []
+    has_availability = bool(user.open_dates)
 
     # ── State determination ───────────────────────────────────────────────────
     if not has_friends:
@@ -2611,6 +2612,7 @@ def trip_ideas():
         ideas_state=ideas_state,
         dest_feed=dest_feed,
         has_friends=has_friends,
+        has_availability=has_availability,
     )
 
 

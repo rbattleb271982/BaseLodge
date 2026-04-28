@@ -807,6 +807,8 @@ def build_destination_feed(user, all_friends):
             "line2": " · ".join(parts) if parts else "Considering",
             "signal_type": _FRIEND_TRIP,
             "idea_type": "friend_trip",
+            "trip_id": trip.id,
+            "friend_ids": sorted(set(friend_ids)),
         })
 
     # ── 2. Overlap windows with a shared wishlist resort ─────────────────────
@@ -833,9 +835,6 @@ def build_destination_feed(user, all_friends):
 
                 window_friend_ids = {f["friend_id"] for f in friends_in_window}
 
-                # Only include if there is a shared wishlist resort to anchor it
-                if not user_wishlist:
-                    continue
                 shared_resort_id = None
                 shared_resort    = None
                 for fid in window_friend_ids:
@@ -852,7 +851,13 @@ def build_destination_feed(user, all_friends):
                             break
 
                 if not shared_resort_id:
-                    continue
+                    if user_wishlist:
+                        fallback_resort_id = next(iter(user_wishlist))
+                        shared_resort = db.session.get(Resort, fallback_resort_id)
+                        if shared_resort:
+                            shared_resort_id = fallback_resort_id
+                    if not shared_resort_id:
+                        continue
 
                 first_names = []
                 for fw in friends_in_window:
@@ -872,6 +877,7 @@ def build_destination_feed(user, all_friends):
                     "line2": line2,
                     "signal_type": _OVERLAP,
                     "idea_type": "availability_overlap",
+                    "friend_ids": sorted(window_friend_ids),
                 })
     except Exception:
         pass
@@ -906,6 +912,7 @@ def build_destination_feed(user, all_friends):
                 "line2": line2,
                 "signal_type": _WISHLIST,
                 "idea_type": "wishlist_overlap",
+                "friend_ids": [p["id"] for p in overlapping_people],
             })
     except Exception:
         pass

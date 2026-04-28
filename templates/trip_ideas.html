@@ -74,6 +74,26 @@
             color: var(--bl-color-text-muted);
             margin: 0;
         }
+        .dest-row-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--bl-color-primary);
+            margin-bottom: 4px;
+        }
+        .dest-row-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .dest-row-plan {
+            font-size: 13px;
+            color: var(--bl-color-primary);
+            text-decoration: none;
+            white-space: nowrap;
+        }
 
         .dest-row-going {
             color: var(--bl-color-primary);
@@ -252,11 +272,13 @@
 
         <div class="ideas-empty">
             <hr class="ideas-empty-divider">
-            <p class="ideas-empty-main">Nothing lined up yet.</p>
-            <p class="ideas-empty-sub">Your feed shows up when friends add trips. Add availability so you don't miss a window.</p>
+            <p class="ideas-empty-main">{% if has_availability %}Your dates are set.{% else %}Nothing lined up yet.{% endif %}</p>
+            <p class="ideas-empty-sub">{% if has_availability %}You'll see matches when friends add trips.{% else %}Add your availability to find windows that work.{% endif %}</p>
             <div class="ideas-empty-actions">
-                <a href="{{ url_for('add_open_dates') }}" class="ideas-empty-link">Add availability →</a>
                 <a href="{{ url_for('invite') }}" class="ideas-empty-link">Invite friends →</a>
+                {% if not has_availability %}
+                <a href="{{ url_for('add_open_dates') }}" class="ideas-empty-link">Add availability →</a>
+                {% endif %}
             </div>
         </div>
 
@@ -265,12 +287,20 @@
 
         <div class="dest-feed">
             {% for row in dest_feed %}
-            {% if row.resort.slug %}
-            <a href="{{ url_for('mountain_detail', slug=row.resort.slug) }}" class="dest-row">
+            {% if row.idea_type == 'friend_trip' %}
+            {% set row_href = url_for('idea_detail_trip', trip_id=row.trip_id) %}
+            {% elif row.idea_type == 'availability_overlap' %}
+            {% set row_href = url_for('idea_detail_availability', friend_ids=row.friend_ids | join(','), resort_id=row.resort_id, start_date=row.start_date, end_date=row.end_date) %}
             {% else %}
-            <div class="dest-row">
+            {% set row_href = url_for('idea_detail_wishlist', friend_ids=row.friend_ids | join(','), resort_id=row.resort_id) %}
             {% endif %}
+            <a href="{{ row_href }}" class="dest-row">
                 <div class="dest-row-body">
+                    {% if row.idea_type == 'availability_overlap' %}
+                    <div class="dest-row-badge">Dates overlap</div>
+                    {% elif row.idea_type == 'wishlist_overlap' %}
+                    <div class="dest-row-badge">Wishlist match</div>
+                    {% endif %}
                     <p class="dest-row-line1">
                         {% if row.date_range %}
                         <span class="dest-row-date">{{ row.date_range }}</span>
@@ -292,12 +322,13 @@
                     </p>
                     {% endif %}
                 </div>
-                <span class="dest-row-cta">{% if row.resort.slug %}›{% endif %}</span>
-            {% if row.resort.slug %}
+                <div class="dest-row-actions">
+                    <span class="dest-row-cta">›</span>
+                    {% if row.start_date and row.end_date %}
+                    <a class="dest-row-plan" href="{{ url_for('add_trip', resort_id=row.resort_id, start_date=row.start_date, end_date=row.end_date) }}">Plan this trip →</a>
+                    {% endif %}
+                </div>
             </a>
-            {% else %}
-            </div>
-            {% endif %}
             {% endfor %}
         </div>
 
