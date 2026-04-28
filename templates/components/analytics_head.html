@@ -56,36 +56,62 @@
 <script>
   /* Push notification token capture — native Capacitor app only.
      Runs only when window.Capacitor.isNativePlatform() is true (iOS shell).
-     All push code is fully skipped in regular web browsers and Safari. */
+     All push code is fully skipped in regular web browsers and Safari.
+     DEBUG LOGS ACTIVE — remove after confirming end-to-end flow. */
   (function() {
-    if (!window.Capacitor || !window.Capacitor.isNativePlatform()) return;
-    if (!window.__USER__ || !window.__USER__.id) return;
+    console.log('[Push] Script loaded');
+    console.log('[Push] window.Capacitor exists:', typeof window.Capacitor !== 'undefined');
+    console.log('[Push] window.Capacitor.isNativePlatform exists:', !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function'));
+    var isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    console.log('[Push] isNativePlatform():', isNative);
+
+    if (!isNative) {
+      console.log('[Push] Not native — push setup skipped');
+      return;
+    }
+
+    if (!window.__USER__ || !window.__USER__.id) {
+      console.log('[Push] No authenticated user — push setup skipped');
+      return;
+    }
+    console.log('[Push] Authenticated user id:', window.__USER__.id);
 
     var Push = window.Capacitor.registerPlugin('PushNotifications');
+    console.log('[Push] PushNotifications plugin available:', !!Push);
     if (!Push) return;
 
     Push.addListener('registration', function(token) {
+      console.log('[Push] registration event fired — token received (length:', (token && token.value ? token.value.length : 'n/a'), ')');
       window.fetch('/api/push/register-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: token.value, platform: 'ios' })
+      }).then(function(res) {
+        console.log('[Push] POST /api/push/register-token →', res.status, res.ok ? 'OK' : 'FAILED');
       }).catch(function(err) {
-        console.warn('[BaseLodge] Push token POST failed:', err);
+        console.warn('[Push] POST /api/push/register-token fetch error:', err);
       });
     });
 
     Push.addListener('registrationError', function(err) {
-      console.warn('[BaseLodge] Push registration error:', err.error);
+      console.warn('[Push] registrationError event:', err.error);
     });
 
+    console.log('[Push] Calling requestPermissions()...');
     Push.requestPermissions().then(function(result) {
+      console.log('[Push] requestPermissions result:', JSON.stringify(result));
       if (result.receive === 'granted') {
-        Push.register().catch(function(err) {
-          console.warn('[BaseLodge] Push.register() failed:', err);
+        console.log('[Push] Permission granted — calling register()');
+        Push.register().then(function() {
+          console.log('[Push] register() call succeeded — waiting for registration event');
+        }).catch(function(err) {
+          console.warn('[Push] register() call failed:', err);
         });
+      } else {
+        console.log('[Push] Permission not granted — receive status:', result.receive);
       }
     }).catch(function(err) {
-      console.warn('[BaseLodge] Push.requestPermissions() failed:', err);
+      console.warn('[Push] requestPermissions() error:', err);
     });
   })();
 </script>
