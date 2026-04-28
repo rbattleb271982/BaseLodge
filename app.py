@@ -169,6 +169,13 @@ def redirect_to_canonical_domain():
     parsed_url = urlparse(request.url)
     hostname = parsed_url.hostname.lower() if parsed_url.hostname else ""
 
+    # Allow the Replit dev workspace preview through — do not redirect it.
+    # REPLIT_DEV_DOMAIN is only set in the Replit dev environment (not in
+    # production or deployed Replit apps), so this exemption is dev-only.
+    replit_dev_domain = os.environ.get("REPLIT_DEV_DOMAIN", "").lower()
+    if replit_dev_domain and hostname == replit_dev_domain:
+        return None
+
     if hostname.endswith("replit.app") or hostname.endswith("replit.dev"):
         new_url = request.url.replace(
             f"{parsed_url.scheme}://{parsed_url.netloc}",
@@ -596,7 +603,13 @@ def resolve_navigation(path, user_state, pending_intent=None):
 @app.after_request
 def set_security_headers(response):
     """Apply baseline security headers to every response."""
-    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    # Allow same-origin framing only in the Replit dev preview (REPLIT_DEV_DOMAIN
+    # is set exclusively in the dev workspace, never in production deployments).
+    # Production keeps DENY to block all third-party embedding.
+    if os.environ.get("REPLIT_DEV_DOMAIN"):
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    else:
+        response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "no-referrer-when-downgrade"
     return response
