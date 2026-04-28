@@ -1,0 +1,55 @@
+Implement direct APNs push sending for BaseLodge.
+
+Current state:
+- iOS push permission works.
+- Capacitor PushNotifications returns a 64-character APNs token.
+- `/api/push/register-token` stores the token successfully.
+- PushDeviceToken row exists for user_id=2, platform=ios.
+- We are choosing direct APNs, not Firebase Messaging.
+- Do not add Firebase SDK or FCM logic.
+
+Goal:
+Add the smallest safe backend implementation needed to send one real test push to an iPhone using APNs.
+
+Tasks:
+1. Add required dependencies to `requirements.txt`:
+   - `httpx[http2]`
+   - `PyJWT`
+
+2. Add APNs environment variables expected by the app:
+   - `APNS_KEY_P8`
+   - `APNS_KEY_ID`
+   - `APNS_TEAM_ID`
+   - `APNS_BUNDLE_ID`
+   - `APNS_USE_SANDBOX`
+
+3. In the Flask backend, add a minimal APNs helper that:
+   - Loads the `.p8` private key from `APNS_KEY_P8`
+   - Creates a JWT signed with ES256
+   - Sends POST requests to APNs HTTP/2:
+     - sandbox: `https://api.sandbox.push.apple.com/3/device/{token}`
+     - production: `https://api.push.apple.com/3/device/{token}`
+   - Uses topic/bundle ID `com.baselodge.app`
+   - Sends payload:
+     `{ "aps": { "alert": { "title": "...", "body": "..." }, "sound": "default" } }`
+   - Logs APNs status code and response body
+   - If APNs returns 410, mark the token inactive if the model supports it, otherwise log it only
+
+4. Add a temporary admin-only test route:
+   - Route: `/admin/test-push`
+   - Must require login and admin access using the existing admin guard pattern
+   - It should find the current user’s latest iOS PushDeviceToken, or user_id=2 if easier for first test
+   - It should send:
+     Title: `BaseLodge test`
+     Body: `Your first push from BaseLodge worked.`
+   - Return a simple JSON response with success/failure and APNs status
+
+5. Do not change the iOS app.
+6. Do not change database schema unless absolutely necessary.
+7. Do not add Firebase Admin SDK.
+8. Do not use checkpoints unless I explicitly ask.
+
+After implementing, tell me:
+- Which files changed
+- Which environment variables I need to add in Replit Secrets
+- How to test the route

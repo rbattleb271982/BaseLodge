@@ -17,6 +17,10 @@ SYSTEM OF RECORD (as of 2026-01-15):
 
 import os
 import secrets
+import time
+import json
+import jwt
+import httpx
 from datetime import datetime, date, timedelta
 
 def _resolve_base_url():
@@ -3319,6 +3323,136 @@ def push_register_token():
         return jsonify({"success": False, "error": "Server error"}), 500
 
     return jsonify({"success": True}), 200
+
+
+# ---------------------------------------------------------------------------
+# APNs push sending
+# ---------------------------------------------------------------------------
+
+def _apns_jwt():
+    """Create a signed JWT for APNs HTTP/2 bearer auth.
+
+    Reads:
+        APNS_KEY_P8   — raw contents of the .p8 private key file
+        APNS_KEY_ID   — 10-char Key ID shown in Apple Developer portal
+        APNS_TEAM_ID  — 10-char Apple Developer Team ID
+    """
+    key_p8 = os.environ.get("APNS_KEY_P8", "")
+    key_id  = os.environ.get("APNS_KEY_ID", "")
+    team_id = os.environ.get("APNS_TEAM_ID", "")
+    if not (key_p8 and key_id and team_id):
+        raise RuntimeError("APNS_KEY_P8 / APNS_KEY_ID / APNS_TEAM_ID env vars are not set")
+    token = jwt.encode(
+        {"iss": team_id, "iat": int(time.time())},
+        key_p8,
+        algorithm="ES256",
+        headers={"kid": key_id},
+    )
+    return token
+
+
+def send_apns_push(device_token: str, title: str, body: str, extra: dict | None = None) -> dict:
+    """Send a push notification to one APNs device token.
+
+    Returns a dict with keys:
+        success (bool), status_code (int), apns_id (str|None), error (str|None)
+
+    Environment variables:
+        APNS_BUNDLE_ID   — e.g. com.baselodge.app
+        APNS_USE_SANDBOX — "true" for dev/TestFlight builds, "false" for production
+    """
+    bundle_id   = os.environ.get("APNS_BUNDLE_ID", "com.baselodge.app")
+    use_sandbox = os.environ.get("APNS_USE_SANDBOX", "true").lower() not in ("false", "0", "no")
+    host = "api.sandbox.push.apple.com" if use_sandbox else "api.push.apple.com"
+    url  = f"https://{host}/3/device/{device_token}"
+
+    payload = {
+        "aps": {
+            "alert": {"title": title, "body": body},
+            "sound": "default",
+        }
+    }
+    if extra:
+        payload.update(extra)
+
+    try:
+        bearer = _apns_jwt()
+    except RuntimeError as exc:
+        current_app.logger.error("[APNs] Config error: %s", exc)
+        return {"success": False, "status_code": None, "apns_id": None, "error": str(exc)}
+
+    headers = {
+        "authorization": f"bearer {bearer}",
+        "apns-topic": bundle_id,
+        "apns-push-type": "alert",
+        "content-type": "application/json",
+    }
+
+    try:
+        with httpx.Client(http2=True) as client:
+            resp = client.post(url, content=json.dumps(payload), headers=headers, timeout=10)
+    except Exception as exc:
+        current_app.logger.error("[APNs] HTTP error: %s", exc)
+        return {"success": False, "status_code": None, "apns_id": None, "error": str(exc)}
+
+    apns_id = resp.headers.get("apns-id")
+    current_app.logger.info("[APNs] %s → %d  apns-id=%s  body=%s",
+                            device_token[:12] + "…", resp.status_code, apns_id, resp.text[:120])
+
+    if resp.status_code == 200:
+        return {"success": True, "status_code": 200, "apns_id": apns_id, "error": None}
+
+    # 410 Gone — token is no longer valid; mark it inactive
+    if resp.status_code == 410:
+        try:
+            stale = PushDeviceToken.query.filter_by(token=device_token).first()
+            if stale:
+                stale.active = False
+                db.session.commit()
+                current_app.logger.info("[APNs] Token marked inactive (410 Gone): %s…", device_token[:12])
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception("[APNs] Failed to mark token inactive")
+
+    error_body = {}
+    try:
+        error_body = resp.json()
+    except Exception:
+        pass
+    return {
+        "success": False,
+        "status_code": resp.status_code,
+        "apns_id": apns_id,
+        "error": error_body.get("reason", resp.text),
+    }
+
+
+@app.route("/admin/test-push", methods=["GET", "POST"])
+@login_required
+@admin_required
+def admin_test_push():
+    """Temporary admin route: send one test push to user_id=2 (Richard / demo account).
+
+    Returns JSON so it can be called from a browser or curl:
+        GET /admin/test-push
+    """
+    target_user_id = 2
+    token_row = (
+        PushDeviceToken.query
+        .filter_by(user_id=target_user_id, platform="ios", active=True)
+        .order_by(PushDeviceToken.updated_at.desc())
+        .first()
+    )
+    if not token_row:
+        return jsonify({"success": False, "error": f"No active iOS token for user_id={target_user_id}"}), 404
+
+    result = send_apns_push(
+        token_row.token,
+        title="BaseLodge test",
+        body="Your first push from BaseLodge worked.",
+    )
+    status = 200 if result["success"] else 502
+    return jsonify(result), status
 
 
 def pass_category(pass_type):
