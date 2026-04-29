@@ -88,7 +88,6 @@
         }
         .mv-row-left { flex: 1; min-width: 0; }
         .mv-row-name { font-size: 15px; color: #1A1A1A; line-height: 1.3; margin: 0; }
-        .mv-row-loc { font-size: 12px; color: #6B665A; margin: 2px 0 0 0; }
         .mv-row-badge { font-size: 11px; color: #6B665A; font-style: italic; margin: 3px 0 0 0; }
         .mv-remove {
             font-size: 13px;
@@ -148,7 +147,7 @@
                 <div class="mv-group" data-group="{{ group.label }}">
                     <p class="mv-group-label">{{ group.label }}</p>
                     {% for resort in group.resorts %}
-                    <div class="mv-row" id="mv-row-{{ resort.id }}">
+                    <div class="mv-row" id="mv-row-{{ resort.id }}" data-resort-name="{{ resort.name | lower }}">
                         <div class="mv-row-left">
                             <p class="mv-row-name">{{ resort.name }}</p>
                             {% if read_only and user_wishlist_ids and resort.id in user_wishlist_ids %}
@@ -191,46 +190,30 @@
     const selectedIds = new Set({{ selected_resort_ids | tojson }});
     let searchTimeout = null;
 
-    function getResortLoc(r) {
-        const parts = [];
-        if (r.stateName) parts.push(r.stateName);
-        if (r.countryCode && r.countryCode !== 'US' && r.countryName) parts.push(r.countryName);
-        return parts.join(' · ');
-    }
-
     function getGroupLabel(r) {
         if (r.countryCode && r.countryCode !== 'US') return r.countryName || r.countryCode;
         return r.stateName || r.countryCode || 'Other';
     }
 
     function mvSearch(val) {
-        clearTimeout(searchTimeout);
         const q = val.trim().toLowerCase();
+        const rows = document.querySelectorAll('#mv-list .mv-row');
+        const groups = document.querySelectorAll('#mv-list .mv-group');
+        rows.forEach(row => {
+            const name = (row.getAttribute('data-resort-name') || '').toLowerCase();
+            row.style.display = !q || name.includes(q) ? '' : 'none';
+        });
+        groups.forEach(group => {
+            const visible = group.querySelectorAll('.mv-row:not([style*="display: none"])').length > 0;
+            group.style.display = visible ? '' : 'none';
+        });
         const resultsEl = document.getElementById('mv-results');
-        if (q.length < 2) {
-            resultsEl.innerHTML = '';
-            resultsEl.classList.remove('show');
-            return;
-        }
-        searchTimeout = setTimeout(() => {
-            const matches = ALL_RESORT_IDS
-                .filter(id => !selectedIds.has(id) && RESORT_DATA[id].nameLower.includes(q))
-                .slice(0, 10);
-
-            if (!matches.length) {
-                resultsEl.innerHTML = '<p class="mv-no-results">No results</p>';
-            } else {
-                resultsEl.innerHTML = matches.map(id => {
-                    const r = RESORT_DATA[id];
-                    const loc = getResortLoc(r);
-                    return `<div class="mv-result-row" onclick="mvAdd(${id})">
-                        <p class="mv-result-name">${r.name}</p>
-                        ${loc ? `<p class="mv-result-loc">${loc}</p>` : ''}
-                    </div>`;
-                }).join('');
+        if (resultsEl) {
+            if (q.length < 2) {
+                resultsEl.innerHTML = '';
+                resultsEl.classList.remove('show');
             }
-            resultsEl.classList.add('show');
-        }, 120);
+        }
     }
 
     async function mvAdd(resortId) {
@@ -276,7 +259,6 @@
     function renderRow(resortId) {
         const r = RESORT_DATA[resortId];
         if (!r) return;
-        const loc = getResortLoc(r);
         const groupLabel = getGroupLabel(r);
 
         const emptyEl = document.getElementById('mv-empty-state');
@@ -304,10 +286,10 @@
         const rowEl = document.createElement('div');
         rowEl.className = 'mv-row';
         rowEl.id = 'mv-row-' + resortId;
+        rowEl.setAttribute('data-resort-name', (r.name || '').toLowerCase());
         rowEl.innerHTML = `
             <div class="mv-row-left">
                 <p class="mv-row-name">${r.name}</p>
-                ${loc ? `<p class="mv-row-loc">${loc}</p>` : ''}
             </div>
             <button class="mv-remove" onclick="mvRemove(${resortId})" type="button">remove</button>
         `;
@@ -330,6 +312,9 @@
             list.appendChild(p);
         }
     }
+
+    const mvSearchInput = document.getElementById('mv-search');
+    if (mvSearchInput) mvSearchInput.addEventListener('input', function() { mvSearch(this.value); });
 
     function updateSubtext(count) {
         const el = document.getElementById('mv-subtext');
