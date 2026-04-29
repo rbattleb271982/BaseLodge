@@ -29,14 +29,26 @@ Inputs:
     <h1 class="hc-welcome">Welcome, {{ user.first_name | format_name }}.</h1>
 
     {# ── Identity line ── #}
-    {%- set _id = [] -%}
-    {%- set _rt = user.display_rider_type -%}
-    {%- if _rt %}{% set _ = _id.append(_rt) %}{% endif -%}
-    {%- if user.skill_level %}{% set _ = _id.append(user.skill_level) %}{% endif -%}
-    {%- if user.pass_type %}{% set _ = _id.append(user.pass_type | pass_display) %}{% endif -%}
-    {%- if _id %}
-    <p class="hc-identity">{{ _id | join(' · ') }}</p>
-    {%- endif %}
+    {%- set _rt_missing  = not user.display_rider_type -%}
+    {%- set _sl_missing  = not user.skill_level -%}
+    {%- set _pass_missing = not user.pass_type or user.pass_type == 'no_pass_yet' -%}
+    {%- set _id_parts = [] -%}
+    {%- if not _rt_missing -%}
+        {%- set _ = _id_parts.append(user.display_rider_type) -%}
+    {%- else -%}
+        {%- set _ = _id_parts.append('<a href="/profile#rider-type" class="hc-identity-link" aria-label="Choose rider type">Add rider type</a>') -%}
+    {%- endif -%}
+    {%- if not _sl_missing -%}
+        {%- set _ = _id_parts.append(user.skill_level) -%}
+    {%- else -%}
+        {%- set _ = _id_parts.append('<a href="/profile#skill-level" class="hc-identity-link" aria-label="Set your skill level">Add skill level</a>') -%}
+    {%- endif -%}
+    {%- if not _pass_missing -%}
+        {%- set _ = _id_parts.append(user.pass_type | pass_display) -%}
+    {%- else -%}
+        {%- set _ = _id_parts.append('<a href="/profile#pass" class="hc-identity-link" aria-label="Add your pass">Add your pass</a>') -%}
+    {%- endif -%}
+    <p class="hc-identity">{{ _id_parts | join(' · ') | safe }}</p>
 
     {# ── Equipment / CTA row ── #}
     {%- set _has_gear = home_eq and (home_eq.brand or home_eq.model) -%}
