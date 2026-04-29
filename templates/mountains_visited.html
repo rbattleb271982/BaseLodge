@@ -57,7 +57,6 @@
         .mv-result-row:last-child { border-bottom: none; }
         .mv-result-row:active { background: #F0DDD8; }
         .mv-result-name { font-size: 15px; color: #1A1A1A; line-height: 1.3; margin: 0; }
-        .mv-result-loc { font-size: 12px; color: #6B665A; margin: 2px 0 0 0; }
         .mv-no-results {
             padding: 14px;
             font-size: 14px;
@@ -147,7 +146,7 @@
                 <div class="mv-group" data-group="{{ group.label }}">
                     <p class="mv-group-label">{{ group.label }}</p>
                     {% for resort in group.resorts %}
-                    <div class="mv-row" id="mv-row-{{ resort.id }}" data-resort-name="{{ resort.name | lower }}">
+                    <div class="mv-row" id="mv-row-{{ resort.id }}">
                         <div class="mv-row-left">
                             <p class="mv-row-name">{{ resort.name }}</p>
                             {% if read_only and user_wishlist_ids and resort.id in user_wishlist_ids %}
@@ -188,7 +187,7 @@
     {% endfor %}
 
     const selectedIds = new Set({{ selected_resort_ids | tojson }});
-    let searchTimeout = null;
+    const searchableIds = ALL_RESORT_IDS.filter(id => !selectedIds.has(id));
 
     function getGroupLabel(r) {
         if (r.countryCode && r.countryCode !== 'US') return r.countryName || r.countryCode;
@@ -197,23 +196,26 @@
 
     function mvSearch(val) {
         const q = val.trim().toLowerCase();
-        const rows = document.querySelectorAll('#mv-list .mv-row');
-        const groups = document.querySelectorAll('#mv-list .mv-group');
-        rows.forEach(row => {
-            const name = (row.getAttribute('data-resort-name') || '').toLowerCase();
-            row.style.display = !q || name.includes(q) ? '' : 'none';
-        });
-        groups.forEach(group => {
-            const visible = group.querySelectorAll('.mv-row:not([style*="display: none"])').length > 0;
-            group.style.display = visible ? '' : 'none';
-        });
         const resultsEl = document.getElementById('mv-results');
-        if (resultsEl) {
-            if (q.length < 2) {
-                resultsEl.innerHTML = '';
-                resultsEl.classList.remove('show');
-            }
+        if (!resultsEl) return;
+        if (q.length < 1) {
+            resultsEl.innerHTML = '';
+            resultsEl.classList.remove('show');
+            return;
         }
+        const matches = searchableIds.filter(id => {
+            const r = RESORT_DATA[id];
+            return r && r.nameLower.includes(q);
+        }).slice(0, 10);
+        if (!matches.length) {
+            resultsEl.innerHTML = '<p class="mv-no-results">No matching mountains found</p>';
+        } else {
+            resultsEl.innerHTML = matches.map(id => {
+                const r = RESORT_DATA[id];
+                return `<div class="mv-result-row" onclick="mvAdd(${id})"><p class="mv-result-name">${r.name}</p></div>`;
+            }).join('');
+        }
+        resultsEl.classList.add('show');
     }
 
     async function mvAdd(resortId) {
@@ -228,8 +230,9 @@
             if (data.success) {
                 selectedIds.add(resortId);
                 renderRow(resortId);
+                const idx = searchableIds.indexOf(resortId);
+                if (idx !== -1) searchableIds.splice(idx, 1);
                 updateSubtext(data.count);
-                document.getElementById('mv-search').value = '';
                 const r = document.getElementById('mv-results');
                 r.classList.remove('show');
                 r.innerHTML = '';
@@ -286,7 +289,6 @@
         const rowEl = document.createElement('div');
         rowEl.className = 'mv-row';
         rowEl.id = 'mv-row-' + resortId;
-        rowEl.setAttribute('data-resort-name', (r.name || '').toLowerCase());
         rowEl.innerHTML = `
             <div class="mv-row-left">
                 <p class="mv-row-name">${r.name}</p>

@@ -57,7 +57,6 @@
         .wl-result-row:last-child { border-bottom: none; }
         .wl-result-row:active { background: #F0DDD8; }
         .wl-result-name { font-size: 15px; color: #1A1A1A; margin: 0; line-height: 1.3; }
-        .wl-result-loc { font-size: 12px; color: #6B665A; margin: 2px 0 0 0; }
         .wl-no-results { padding: 14px; font-size: 14px; color: #6B665A; text-align: center; }
         /* Limit hint */
         .wl-limit-hint {
@@ -156,7 +155,7 @@
                 <div class="wl-group" data-group="{{ group.label }}">
                     <p class="wl-group-label">{{ group.label }}</p>
                     {% for resort in group.resorts %}
-                    <div class="wl-row" id="wl-row-{{ resort.id }}" data-resort-name="{{ resort.name | lower }}">
+                    <div class="wl-row" id="wl-row-{{ resort.id }}">
                         <div class="wl-row-left">
                             <p class="wl-row-name">{{ resort.name }}</p>
                             {% if read_only and user_visited_ids and resort.id in user_visited_ids %}
@@ -197,7 +196,7 @@
     {% endfor %}
 
     const wlSelected = new Set({{ wish_list_ids | tojson }});
-    let wlTimeout = null;
+    const wlSearchableIds = WL_ALL_IDS.filter(id => !wlSelected.has(id));
 
     function wlGroupLabel(r) {
         if (r.countryCode && r.countryCode !== 'US') return r.countryName || r.countryCode;
@@ -224,23 +223,26 @@
 
     function wlSearch(val) {
         const q = val.trim().toLowerCase();
-        const rows = document.querySelectorAll('#wl-list .wl-row');
-        const groups = document.querySelectorAll('#wl-list .wl-group');
-        rows.forEach(row => {
-            const name = (row.getAttribute('data-resort-name') || '').toLowerCase();
-            row.style.display = !q || name.includes(q) ? '' : 'none';
-        });
-        groups.forEach(group => {
-            const visible = group.querySelectorAll('.wl-row:not([style*="display: none"])').length > 0;
-            group.style.display = visible ? '' : 'none';
-        });
         const resultsEl = document.getElementById('wl-results');
-        if (resultsEl) {
-            if (q.length < 2 || wlSelected.size >= 15) {
-                resultsEl.innerHTML = '';
-                resultsEl.classList.remove('show');
-            }
+        if (!resultsEl) return;
+        if (q.length < 1 || wlSelected.size >= 15) {
+            resultsEl.innerHTML = '';
+            resultsEl.classList.remove('show');
+            return;
         }
+        const matches = wlSearchableIds.filter(id => {
+            const r = WL_RESORT_DATA[id];
+            return r && r.nameLower.includes(q);
+        }).slice(0, 10);
+        if (!matches.length) {
+            resultsEl.innerHTML = '<p class="wl-no-results">No matching mountains found</p>';
+        } else {
+            resultsEl.innerHTML = matches.map(id => {
+                const r = WL_RESORT_DATA[id];
+                return `<div class="wl-result-row" onclick="wlAdd(${id})"><p class="wl-result-name">${r.name}</p></div>`;
+            }).join('');
+        }
+        resultsEl.classList.add('show');
     }
 
     async function wlAdd(resortId) {
@@ -255,9 +257,9 @@
             if (data.success) {
                 wlSelected.add(resortId);
                 wlRenderRow(resortId);
+                wlSearchableIds.splice(wlSearchableIds.indexOf(resortId), 1);
                 wlUpdateSubtext(data.count);
                 wlUpdateLimitHint();
-                document.getElementById('wl-search').value = '';
                 const r = document.getElementById('wl-results');
                 r.classList.remove('show');
                 r.innerHTML = '';
@@ -315,7 +317,6 @@
         const rowEl = document.createElement('div');
         rowEl.className = 'wl-row';
         rowEl.id = 'wl-row-' + resortId;
-        rowEl.setAttribute('data-resort-name', (r.name || '').toLowerCase());
         rowEl.innerHTML = `
             <div class="wl-row-left">
                 <p class="wl-row-name">${r.name}</p>
