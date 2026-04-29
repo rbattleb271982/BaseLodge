@@ -5372,9 +5372,23 @@ def settings_profile():
 @login_required
 def settings_equipment():
     primary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=EquipmentSlot.PRIMARY).first()
+
+    # Determine default discipline from saved equipment, then fall back to rider type
+    if primary_equipment and primary_equipment.discipline:
+        default_discipline = 'Snowboarder' if primary_equipment.discipline.value == 'snowboarder' else 'Skier'
+    else:
+        drt = current_user.display_rider_type or ''
+        default_discipline = 'Snowboarder' if ('Snowboarder' in drt and 'Skier' not in drt) else 'Skier'
+
+    # Show SKIS/BOARD toggle only if user rides both
+    drt = current_user.display_rider_type or ''
+    is_both_rider = ('Skier' in drt and 'Snowboarder' in drt)
+
     return render_template("settings_equipment.html",
                            primary_equipment=primary_equipment,
-                           user=current_user)
+                           user=current_user,
+                           default_discipline=default_discipline,
+                           is_both_rider=is_both_rider)
 
 
 @app.route("/settings/equipment/save", methods=["POST"])

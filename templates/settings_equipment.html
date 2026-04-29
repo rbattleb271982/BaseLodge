@@ -2,499 +2,487 @@
 {% block title %}BaseLodge — Equipment{% endblock %}
 {% block head %}
 <style>
-        .eq-back {
-            display: inline-block;
-            font-size: 22px;
-            color: #6B665A;
-            text-decoration: none;
-            margin-bottom: 20px;
-            line-height: 1;
-        }
-        .eq-eyebrow {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.8px;
-            text-transform: uppercase;
-            color: #6B665A;
-            margin: 0 0 6px 0;
-        }
-        .eq-title {
-            font-family: var(--bl-font-serif);
-            font-size: 28px;
-            font-weight: 400;
-            color: #1A1A1A;
-            margin: 0 0 4px 0;
-            line-height: 1.2;
-        }
-        .eq-subtitle {
-            font-size: 14px;
-            color: #6B665A;
-            margin: 0 0 28px 0;
-        }
-        /* Own / Rentals pill */
-        .eq-status-row {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 28px;
-        }
-        .eq-status-pill {
-            flex: 1;
-            padding: 10px 8px;
-            border-radius: 12px;
-            border: 1px solid #E5DFD0;
-            background: transparent;
-            font-size: 14px;
-            color: #6B665A;
-            text-align: center;
-            cursor: pointer;
-            transition: background 0.15s, color 0.15s, border-color 0.15s;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .eq-status-pill.active {
-            background: #5C1219;
-            color: #fff;
-            border-color: #5C1219;
-        }
-        /* Section label */
-        .eq-section-label {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            color: #6B665A;
-            margin: 0 0 12px 0;
-        }
-        /* Card — no decorative blush; just a bordered surface */
-        .eq-card {
-            background: var(--bl-color-surface, #FFFFFF);
-            border: 1px solid #E5DFD0;
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-        }
-        /* Display mode */
-        .eq-display-line {
-            font-size: 15px;
-            color: #1A1A1A;
-            margin: 0 0 4px 0;
-            line-height: 1.4;
-        }
-        .eq-display-detail {
-            font-size: 13px;
-            color: #6B665A;
-            margin: 0 0 2px 0;
-            line-height: 1.4;
-        }
-        .eq-edit-link {
-            font-size: 13px;
-            color: #5C1219;
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 0;
-            margin-top: 10px;
-            display: inline-block;
-            -webkit-tap-highlight-color: transparent;
-        }
-        /* Edit mode */
-        .eq-form-grid { display: grid; gap: 12px; }
-        .eq-row-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-        .eq-field-label {
-            display: block;
-            font-size: 13px;
-            font-weight: 500;
-            color: #6B665A;
-            margin-bottom: 5px;
-        }
-        .eq-form-grid select,
-        .eq-form-grid input {
-            width: 100%;
-            padding: 14px 12px;
-            font-size: 15px;
-            border: 1px solid #E5DFD0;
-            border-radius: 12px;
-            background: #FFFFFF;
-            color: #1A1A1A;
-            box-sizing: border-box;
-            outline: none;
-            -webkit-appearance: none;
-        }
-        .eq-form-grid select:focus,
-        .eq-form-grid input:focus { border-color: #5C1219; }
-        .eq-form-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 16px;
-            align-items: center;
-        }
-        .eq-save-btn {
-            flex: 1;
-            min-height: 52px;
-            padding: 0 16px;
-            background: #5C1219;
-            color: #fff;
-            border: none;
-            border-radius: 12px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            box-sizing: border-box;
-        }
-        .eq-cancel-btn {
-            min-height: 52px;
-            padding: 0 16px;
-            background: transparent;
-            color: #6B665A;
-            border: 1px solid #E5DFD0;
-            border-radius: 12px;
-            font-size: 15px;
-            cursor: pointer;
-            box-sizing: border-box;
-        }
-        .eq-delete-btn {
-            padding: 12px 16px;
-            background: transparent;
-            color: #9B3B3B;
-            border: none;
-            font-size: 13px;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-        }
-        /* Group labels inside edit form */
-        .eq-group-label {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            color: #6B665A;
-            margin: 16px 0 8px 0;
-            padding-bottom: 4px;
-            border-bottom: 1px solid #E5DFD0;
-        }
-        .eq-group-label:first-child { margin-top: 0; }
-        /* Danger zone */
-        .eq-danger-zone {
-            margin-top: 20px;
-            padding-top: 16px;
-            border-top: 1px solid #E5DFD0;
-            text-align: center;
-        }
-        /* Rentals inline text */
-        .eq-rentals-text {
-            font-size: 15px;
-            color: #6B665A;
-            margin: 8px 0 0 0;
-        }
-        /* Toast */
-        .eq-toast {
-            position: fixed;
-            bottom: 88px;
-            left: 50%;
-            transform: translateX(-50%) translateY(8px);
-            background: #1A1A1A;
-            color: #fff;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 14px;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.25s, transform 0.25s;
-            z-index: 200;
-            white-space: nowrap;
-        }
-        .eq-toast.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
-    </style>
+    .eq-back {
+        display: inline-block;
+        font-size: 22px;
+        color: #6B665A;
+        text-decoration: none;
+        margin-bottom: 20px;
+        line-height: 1;
+    }
+    .eq-eyebrow {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        color: #6B665A;
+        margin: 0 0 6px 0;
+    }
+    .eq-title {
+        font-family: var(--bl-font-serif);
+        font-size: 28px;
+        font-weight: 400;
+        color: #1A1A1A;
+        margin: 0 0 4px 0;
+        line-height: 1.2;
+    }
+    .eq-subtitle {
+        font-size: 14px;
+        color: #6B665A;
+        margin: 0 0 28px 0;
+    }
+    /* Own / Rent pills */
+    .eq-status-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 28px;
+    }
+    .eq-status-pill {
+        flex: 1;
+        padding: 10px 8px;
+        border-radius: 12px;
+        border: 1px solid #E5DFD0;
+        background: transparent;
+        font-size: 14px;
+        color: #6B665A;
+        text-align: center;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .eq-status-pill.active {
+        background: #5C1219;
+        color: #fff;
+        border-color: #5C1219;
+    }
+    /* Rent note */
+    .eq-rentals-text {
+        font-size: 15px;
+        color: #6B665A;
+        margin: 0 0 24px 0;
+    }
+    /* Flat section header with divider */
+    .eq-section-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        color: #6B665A;
+        margin: 28px 0 14px 0;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #E6DFD2;
+    }
+    .eq-section-label:first-of-type { margin-top: 0; }
+    /* Gear-type toggle for Both riders */
+    .eq-gear-type-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+    .eq-gear-type-btn {
+        padding: 8px 20px;
+        border-radius: 100px;
+        border: 1px solid #6B1F2B;
+        background: transparent;
+        font-size: 13px;
+        color: #6B1F2B;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        transition: background 0.15s, color 0.15s;
+    }
+    .eq-gear-type-btn.active {
+        background: #6B1F2B;
+        color: #fff;
+    }
+    /* Form layout */
+    .eq-form-grid { display: grid; gap: 12px; }
+    .eq-row-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    .eq-field-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        color: #6B665A;
+        margin-bottom: 5px;
+    }
+    .eq-form-grid select,
+    .eq-form-grid input[type="text"],
+    .eq-form-grid input[type="number"] {
+        width: 100%;
+        padding: 14px 12px;
+        font-size: 15px;
+        border: 1px solid #E6DFD2;
+        border-radius: 12px;
+        background: #FBFAF7;
+        color: #1A1A1A;
+        box-sizing: border-box;
+        outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+    .eq-form-grid select:focus,
+    .eq-form-grid input:focus { border-color: #5C1219; }
+    /* Save button */
+    .eq-save-btn {
+        width: 100%;
+        min-height: 52px;
+        padding: 0 16px;
+        background: #5C1219;
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 28px;
+        box-sizing: border-box;
+    }
+    /* Danger zone */
+    .eq-danger-zone {
+        margin-top: 16px;
+        text-align: center;
+    }
+    .eq-delete-btn {
+        padding: 12px 16px;
+        background: transparent;
+        color: #9B3B3B;
+        border: none;
+        font-size: 13px;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+    /* Toast */
+    .eq-toast {
+        position: fixed;
+        bottom: 88px;
+        left: 50%;
+        transform: translateX(-50%) translateY(8px);
+        background: #1A1A1A;
+        color: #fff;
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 14px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s, transform 0.25s;
+        z-index: 200;
+        white-space: nowrap;
+    }
+    .eq-toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+    /* Inline error */
+    .eq-error {
+        color: #9B3B3B;
+        font-size: 14px;
+        margin: 10px 0 0 0;
+        display: none;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-    <div class="eq-toast" id="eq-toast"></div>
-    <div class="page-container">
-        <a href="{{ url_for('profile') }}" class="eq-back">‹</a>
+<div class="eq-toast" id="eq-toast"></div>
+<div class="page-container">
 
-        <p class="eq-eyebrow">Equipment</p>
-        <h1 class="eq-title">Your equipment setup</h1>
-        <p class="eq-subtitle">Optional — helps friends know what you ride</p>
+    <a href="{{ url_for('profile') }}" class="eq-back">‹</a>
 
-        <!-- Own / Rentals pill selector -->
-        <div class="eq-status-row">
-            <button class="eq-status-pill {% if not user.equipment_status or user.equipment_status == 'have_own_equipment' %}active{% endif %}"
-                    id="pill-own" onclick="setStatus('have_own_equipment')">I have my own equipment</button>
-            <button class="eq-status-pill {% if user.equipment_status == 'needs_rentals' %}active{% endif %}"
-                    id="pill-rentals" onclick="setStatus('needs_rentals')">I rent</button>
+    <p class="eq-eyebrow">Equipment</p>
+    <h1 class="eq-title">Your equipment setup</h1>
+    <p class="eq-subtitle">Optional — add what you ride, or mark that you rent.</p>
+
+    <!-- Own / Rent pill selector -->
+    <div class="eq-status-row">
+        <button class="eq-status-pill {% if not user.equipment_status or user.equipment_status == 'have_own_equipment' %}active{% endif %}"
+                id="pill-own" onclick="setStatus('have_own_equipment')">I have my own equipment</button>
+        <button class="eq-status-pill {% if user.equipment_status == 'needs_rentals' %}active{% endif %}"
+                id="pill-rentals" onclick="setStatus('needs_rentals')">I rent</button>
+    </div>
+
+    <!-- Rent confirmation -->
+    <p id="eq-rentals-note" class="eq-rentals-text"
+       {% if user.equipment_status != 'needs_rentals' %}style="display:none;"{% endif %}>
+        Got it — we'll show that you rent your gear.
+    </p>
+
+    <!-- Equipment form (hidden when renting) -->
+    <div id="eq-detail-section"
+         {% if user.equipment_status == 'needs_rentals' %}style="display:none;"{% endif %}>
+
+        <!-- Discipline: hidden field (always submitted) -->
+        <input type="hidden" id="primary-discipline" value="{{ default_discipline }}">
+
+        <!-- Gear-type toggle — only shown for users who ride both -->
+        {% if is_both_rider %}
+        <div class="eq-gear-type-row">
+            <button class="eq-gear-type-btn {% if default_discipline == 'Skier' %}active{% endif %}"
+                    id="gear-btn-skis" onclick="setDiscipline('Skier')">Skis</button>
+            <button class="eq-gear-type-btn {% if default_discipline == 'Snowboarder' %}active{% endif %}"
+                    id="gear-btn-board" onclick="setDiscipline('Snowboarder')">Board</button>
         </div>
-
-        <!-- Equipment detail panels (hidden when rentals) -->
-        <div id="eq-detail-section" {% if user.equipment_status == 'needs_rentals' %}style="display:none;"{% endif %}>
-            <!-- Main Setup -->
-            <p class="eq-section-label">Main setup</p>
-            <div class="eq-card" id="primary-card">
-                {% if primary_equipment %}
-                <!-- Display mode -->
-                <div id="primary-display">
-                    <p class="eq-display-line">
-                        {% if primary_equipment.brand %}{{ primary_equipment.brand }}{% if primary_equipment.model %} {{ primary_equipment.model }}{% endif %}{% else %}{{ primary_equipment.discipline.value | capitalize }}{% endif %}
-                    </p>
-                    <p class="eq-display-detail">
-                        {{ primary_equipment.discipline.value | capitalize }}{% if primary_equipment.length_cm %} · {{ primary_equipment.length_cm }}cm{% endif %}{% if primary_equipment.width_mm %} · {{ primary_equipment.width_mm }}mm waist{% endif %}
-                    </p>
-                    {% if primary_equipment.binding_type %}
-                    <p class="eq-display-detail">{{ primary_equipment.binding_type }}</p>
-                    {% endif %}
-                    {% if primary_equipment.boot_brand %}
-                    <p class="eq-display-detail">{{ primary_equipment.boot_brand }}{% if primary_equipment.boot_model %} {{ primary_equipment.boot_model }}{% endif %} boots{% if primary_equipment.boot_flex %} · flex {{ primary_equipment.boot_flex }}{% endif %}</p>
-                    {% endif %}
-                    {% if primary_equipment.purchase_year %}
-                    <p class="eq-display-detail">Bought {{ primary_equipment.purchase_year }}</p>
-                    {% endif %}
-                    <button class="eq-edit-link" onclick="showEdit('primary')">Edit</button>
-                </div>
-                <!-- Edit mode (hidden) -->
-                <div id="primary-edit" style="display:none;">
-                {% else %}
-                <!-- No primary — edit mode shown by default -->
-                <div id="primary-display" style="display:none;"></div>
-                <div id="primary-edit">
-                {% endif %}
-                    <div class="eq-form-grid">
-                        <p class="eq-group-label">Rider</p>
-                        <div>
-                            <label class="eq-field-label">Type</label>
-                            <select id="primary-discipline" onchange="updateBrands('primary'); updateBindings('primary');">
-                                <option value=""
-                                    {% if not primary_equipment and not (user.rider_types and ('Skier' in user.rider_types or 'Snowboarder' in user.rider_types or 'Both' in user.rider_types)) %}selected{% endif %}>Select</option>
-                                <option value="Skier"
-                                    {% if primary_equipment and primary_equipment.discipline.value == 'skier' %}selected
-                                    {% elif not primary_equipment and user.rider_types and ('Skier' in user.rider_types or 'Both' in user.rider_types) %}selected{% endif %}>Skier</option>
-                                <option value="Snowboarder"
-                                    {% if primary_equipment and primary_equipment.discipline.value == 'snowboarder' %}selected
-                                    {% elif not primary_equipment and user.rider_types and 'Snowboarder' in user.rider_types and 'Skier' not in user.rider_types %}selected{% endif %}>Snowboarder</option>
-                                <option value="Telemark" {% if primary_equipment and primary_equipment.discipline.value == 'telemark' %}selected{% endif %}>Telemark</option>
-                                <option value="Adaptive" {% if primary_equipment and primary_equipment.discipline.value == 'adaptive' %}selected{% endif %}>Adaptive</option>
-                                <option value="Cross-Country" {% if primary_equipment and primary_equipment.discipline.value == 'cross-country' %}selected{% endif %}>Cross-Country</option>
-                            </select>
-                        </div>
-                        <p class="eq-group-label" id="primary-gear-label">Board</p>
-                        <div class="eq-row-2">
-                            <div>
-                                <label class="eq-field-label">Brand</label>
-                                <select id="primary-brand"></select>
-                            </div>
-                            <div>
-                                <label class="eq-field-label">Model</label>
-                                <input type="text" id="primary-model" placeholder="e.g. Ripstick 96" value="{{ primary_equipment.model or '' if primary_equipment else '' }}">
-                            </div>
-                        </div>
-                        <div class="eq-row-2">
-                            <div>
-                                <label class="eq-field-label">Length (cm)</label>
-                                <input type="number" id="primary-length" placeholder="170" value="{{ primary_equipment.length_cm or '' if primary_equipment else '' }}">
-                            </div>
-                            <div>
-                                <label class="eq-field-label">Width (mm)</label>
-                                <input type="number" id="primary-width" placeholder="98" value="{{ primary_equipment.width_mm or '' if primary_equipment else '' }}">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="eq-field-label">Year bought</label>
-                            <input type="number" id="primary-purchase-year" placeholder="2023" min="1980" max="2030" value="{{ primary_equipment.purchase_year or '' if primary_equipment else '' }}">
-                        </div>
-                        <p class="eq-group-label">Boots</p>
-                        <div class="eq-row-2">
-                            <div>
-                                <label class="eq-field-label">Brand</label>
-                                <select id="primary-boot-brand">
-                                    <option value="">Select</option>
-                                    {% for b in ['Salomon', 'Tecnica', 'Lange', 'Atomic', 'Dalbello', 'Nordica', 'K2', 'Fischer', 'Burton', 'ThirtyTwo', 'Ride', 'Vans', 'DC', 'Other'] %}
-                                    <option value="{{ b }}" {% if primary_equipment and primary_equipment.boot_brand == b %}selected{% endif %}>{{ b }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="eq-field-label">Model</label>
-                                <input type="text" id="primary-boot-model" placeholder="Speedmachine" value="{{ primary_equipment.boot_model or '' if primary_equipment else '' }}">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="eq-field-label">Boot flex</label>
-                            <input type="number" id="primary-boot-flex" placeholder="120" value="{{ primary_equipment.boot_flex or '' if primary_equipment else '' }}">
-                        </div>
-                    </div>
-                    <div class="eq-form-actions">
-                        <button class="eq-save-btn" onclick="saveEquipment('primary')">Save setup</button>
-                        {% if primary_equipment %}
-                        <button class="eq-cancel-btn" onclick="hideEdit('primary')">Cancel</button>
-                        {% endif %}
-                    </div>
-                    <p id="primary-error" style="display:none; color:#9B3B3B; font-size:14px; margin:10px 0 0 0;"></p>
-                    {% if primary_equipment %}
-                    <div class="eq-danger-zone">
-                        <button class="eq-delete-btn" onclick="deleteEquipment('primary')">Delete setup</button>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div><!-- close eq-detail-section -->
-
-        {% if user.equipment_status == 'needs_rentals' %}
-        <p id="eq-rentals-note" class="eq-rentals-text">No setup to list — you rent gear on the mountain.</p>
-        {% else %}
-        <p id="eq-rentals-note" class="eq-rentals-text" style="display:none;">No setup to list — you rent gear on the mountain.</p>
         {% endif %}
 
-    </div><!-- close eq-wrap -->
+        <div class="eq-form-grid">
 
-    {% endblock %}
+            <!-- ── SKIS / BOARD section ── -->
+            <p class="eq-section-label" id="primary-gear-label">
+                {{ 'Board' if default_discipline == 'Snowboarder' else 'Skis' }}
+            </p>
+
+            <div>
+                <label class="eq-field-label">Brand</label>
+                <select id="primary-brand" onchange="handleBrandOther()">
+                    <!-- populated by initBrands() -->
+                </select>
+            </div>
+
+            <div id="primary-brand-other-wrap" style="display:none;">
+                <label class="eq-field-label">Brand name</label>
+                <input type="text" id="primary-brand-other" placeholder="Enter brand">
+            </div>
+
+            <div>
+                <label class="eq-field-label">Model</label>
+                <input type="text" id="primary-model" placeholder="e.g. Ripstick 96"
+                       value="{{ primary_equipment.model or '' if primary_equipment else '' }}">
+            </div>
+
+            <div class="eq-row-2">
+                <div>
+                    <label class="eq-field-label">Length (cm)</label>
+                    <input type="number" id="primary-length" placeholder="170"
+                           value="{{ primary_equipment.length_cm or '' if primary_equipment else '' }}">
+                </div>
+                <div>
+                    <label class="eq-field-label">Width (mm)</label>
+                    <input type="number" id="primary-width" placeholder="98"
+                           value="{{ primary_equipment.width_mm or '' if primary_equipment else '' }}">
+                </div>
+            </div>
+
+            <div>
+                <label class="eq-field-label">Year bought</label>
+                <input type="number" id="primary-purchase-year" placeholder="2023"
+                       min="1980" max="2030"
+                       value="{{ primary_equipment.purchase_year or '' if primary_equipment else '' }}">
+            </div>
+
+            <!-- ── BOOTS section ── -->
+            <p class="eq-section-label">Boots</p>
+
+            <div>
+                <label class="eq-field-label">Brand</label>
+                <select id="primary-boot-brand" onchange="handleBootBrandOther()">
+                    <option value="">Select</option>
+                    {% for b in ['Atomic','Dalbello','Fischer','Head','Lange','Nordica','Rossignol','Salomon','Tecnica','Burton','ThirtyTwo','Vans','K2','Ride','Other'] %}
+                    <option value="{{ b }}"
+                        {% if primary_equipment and primary_equipment.boot_brand == b %}selected{% endif %}>{{ b }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="boot-brand-other-wrap" style="display:none;">
+                <label class="eq-field-label">Boot brand name</label>
+                <input type="text" id="primary-boot-brand-other" placeholder="Enter brand">
+            </div>
+
+            <div>
+                <label class="eq-field-label">Model</label>
+                <input type="text" id="primary-boot-model" placeholder="e.g. Speedmachine"
+                       value="{{ primary_equipment.boot_model or '' if primary_equipment else '' }}">
+            </div>
+
+            <div>
+                <label class="eq-field-label">Boot flex</label>
+                <input type="number" id="primary-boot-flex" placeholder="120"
+                       value="{{ primary_equipment.boot_flex or '' if primary_equipment else '' }}">
+            </div>
+
+        </div><!-- end eq-form-grid -->
+
+        <button class="eq-save-btn" onclick="saveEquipment('primary')">Save setup</button>
+        <p class="eq-error" id="primary-error"></p>
+
+        {% if primary_equipment %}
+        <div class="eq-danger-zone">
+            <button class="eq-delete-btn" onclick="deleteEquipment('primary')">Delete setup</button>
+        </div>
+        {% endif %}
+
+    </div><!-- end eq-detail-section -->
+
+</div><!-- end page-container -->
+{% endblock %}
 
 {% block scripts %}
+<script>
+const SKI_BRANDS   = ['Atomic','Blizzard','Dynastar','Elan','Fischer','Head','K2','Line','Nordica','Rossignol','Salomon','Stöckli','Völkl','Other'];
+const BOARD_BRANDS = ['Burton','Capita','Jones','K2','Lib Tech','Never Summer','Nitro','Ride','Rome','Salomon','GNU','Arbor','Other'];
+const BOOT_BRANDS  = ['Atomic','Dalbello','Fischer','Head','Lange','Nordica','Rossignol','Salomon','Tecnica','Burton','ThirtyTwo','Vans','K2','Ride','Other'];
 
-    <script>
-    const SKI_BRANDS = ['Armada','Atomic','Black Crows','Blizzard','DPS','Dynastar','Elan','Faction','Fischer','Head','Icelantic','K2','Line','Moment','Nordica','ON3P','Rossignol','Salomon','Scott','Volkl','Other'];
-    const BOARD_BRANDS = ['Arbor','Bataleon','Burton','Capita','DC','GNU','Jones','K2','Lib Tech','Nitro','Ride','Rome','Salomon','Yes','Other'];
-    const SKI_BINDINGS = ['Alpine','Touring (pin)','Hybrid (Shift / Duke PT)','Telemark','Other'];
-    const BOARD_BINDINGS = ['Standard bindings','Step-On','Splitboard bindings','Other'];
+const SAVED_PRIMARY_BRAND = {{ (primary_equipment.brand or '') | tojson if primary_equipment else '""' }};
+const SAVED_BOOT_BRAND    = {{ (primary_equipment.boot_brand or '') | tojson if primary_equipment else '""' }};
 
-    const SAVED_PRIMARY_BRAND = {{ (primary_equipment.brand or '') | tojson if primary_equipment else '""' }};
-    const SAVED_PRIMARY_BINDING = {{ (primary_equipment.binding_type or '') | tojson if primary_equipment else '""' }};
+// ── Brand dropdowns ──────────────────────────────────────────────────────────
 
-    function makeBrandOptions(discipline, savedVal) {
-        let brands;
-        if (discipline === 'Snowboarder') {
-            brands = BOARD_BRANDS;
-        } else if (discipline === 'Skier' || discipline === 'Telemark' || discipline === 'Adaptive' || discipline === 'Cross-Country') {
-            brands = SKI_BRANDS;
+function initBrands() {
+    const disc   = document.getElementById('primary-discipline').value;
+    const brands = disc === 'Snowboarder' ? BOARD_BRANDS : SKI_BRANDS;
+    const sel    = document.getElementById('primary-brand');
+
+    let html = '<option value="">Select</option>';
+    brands.forEach(b => {
+        html += `<option value="${b}"${b === SAVED_PRIMARY_BRAND ? ' selected' : ''}>${b}</option>`;
+    });
+    sel.innerHTML = html;
+
+    // If saved brand isn't in the current list, treat as Other
+    if (SAVED_PRIMARY_BRAND && !brands.includes(SAVED_PRIMARY_BRAND)) {
+        sel.value = 'Other';
+        document.getElementById('primary-brand-other').value = SAVED_PRIMARY_BRAND;
+    }
+    handleBrandOther();
+
+    // Boot brand — if saved brand is not in the known list, show Other + text field
+    if (SAVED_BOOT_BRAND && !BOOT_BRANDS.includes(SAVED_BOOT_BRAND)) {
+        document.getElementById('primary-boot-brand').value = 'Other';
+        document.getElementById('primary-boot-brand-other').value = SAVED_BOOT_BRAND;
+        document.getElementById('boot-brand-other-wrap').style.display = 'block';
+    }
+    handleBootBrandOther();
+}
+
+function handleBrandOther() {
+    const sel  = document.getElementById('primary-brand');
+    const wrap = document.getElementById('primary-brand-other-wrap');
+    if (!sel || !wrap) return;
+    wrap.style.display = sel.value === 'Other' ? 'block' : 'none';
+}
+
+function handleBootBrandOther() {
+    const sel  = document.getElementById('primary-boot-brand');
+    const wrap = document.getElementById('boot-brand-other-wrap');
+    if (!sel || !wrap) return;
+    wrap.style.display = sel.value === 'Other' ? 'block' : 'none';
+}
+
+// ── Discipline toggle (Both riders only) ─────────────────────────────────────
+
+function setDiscipline(disc) {
+    document.getElementById('primary-discipline').value = disc;
+
+    // Update section label
+    document.getElementById('primary-gear-label').textContent = disc === 'Snowboarder' ? 'Board' : 'Skis';
+
+    // Toggle buttons
+    const skisBtn  = document.getElementById('gear-btn-skis');
+    const boardBtn = document.getElementById('gear-btn-board');
+    if (skisBtn)  skisBtn.classList.toggle('active',  disc === 'Skier');
+    if (boardBtn) boardBtn.classList.toggle('active', disc === 'Snowboarder');
+
+    // Repopulate brands for new discipline (clear saved value since discipline changed)
+    const brands = disc === 'Snowboarder' ? BOARD_BRANDS : SKI_BRANDS;
+    const sel = document.getElementById('primary-brand');
+    let html = '<option value="">Select</option>';
+    brands.forEach(b => { html += `<option value="${b}">${b}</option>`; });
+    sel.innerHTML = html;
+    handleBrandOther();
+}
+
+// ── Rent toggle ───────────────────────────────────────────────────────────────
+
+async function setStatus(val) {
+    document.getElementById('pill-own').classList.toggle('active',    val === 'have_own_equipment');
+    document.getElementById('pill-rentals').classList.toggle('active', val === 'needs_rentals');
+    document.getElementById('eq-detail-section').style.display = val === 'needs_rentals' ? 'none' : 'block';
+    document.getElementById('eq-rentals-note').style.display   = val === 'needs_rentals' ? 'block' : 'none';
+    const fd = new FormData();
+    fd.append('equipment_status', val);
+    await fetch('/settings/equipment-status', { method: 'POST', body: fd });
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+
+async function saveEquipment(slot) {
+    const errEl = document.getElementById(slot + '-error');
+    if (errEl) errEl.style.display = 'none';
+
+    const discipline = document.getElementById(slot + '-discipline').value;
+    if (!discipline) {
+        if (errEl) { errEl.textContent = 'Please select Skis or Board first.'; errEl.style.display = 'block'; }
+        return;
+    }
+
+    // Resolve main brand
+    const brandSel = document.getElementById(slot + '-brand');
+    let brand = brandSel ? brandSel.value : '';
+    if (brand === 'Other') {
+        brand = (document.getElementById(slot + '-brand-other') || {}).value || '';
+        brand = brand.trim();
+    }
+
+    // Resolve boot brand
+    const bootBrandSel = document.getElementById(slot + '-boot-brand');
+    let bootBrand = bootBrandSel ? bootBrandSel.value : '';
+    if (bootBrand === 'Other') {
+        bootBrand = (document.getElementById('primary-boot-brand-other') || {}).value || '';
+        bootBrand = bootBrand.trim();
+    }
+
+    const fd = new FormData();
+    fd.append('slot',        slot);
+    fd.append('discipline',  discipline);
+    fd.append('brand',       brand);
+    fd.append('model',       (document.getElementById(slot + '-model')         || {}).value || '');
+    fd.append('length_cm',   (document.getElementById(slot + '-length')        || {}).value || '');
+    fd.append('width_mm',    (document.getElementById(slot + '-width')         || {}).value || '');
+    fd.append('binding_type','');
+    fd.append('boot_brand',  bootBrand);
+    fd.append('boot_model',  (document.getElementById(slot + '-boot-model')    || {}).value || '');
+    fd.append('boot_flex',   (document.getElementById(slot + '-boot-flex')     || {}).value || '');
+    const pyEl = document.getElementById('primary-purchase-year');
+    if (pyEl) fd.append('purchase_year', pyEl.value);
+
+    try {
+        const resp = await fetch('/settings/equipment/save', { method: 'POST', body: fd });
+        const data = await resp.json();
+        if (data.success) {
+            window.location.href = '/profile';
         } else {
-            brands = SKI_BRANDS;
+            if (errEl) { errEl.textContent = data.error || 'Could not save. Please try again.'; errEl.style.display = 'block'; }
         }
-        let html = '<option value="">Select</option>';
-        brands.forEach(b => { html += `<option value="${b}"${b === savedVal ? ' selected' : ''}>${b}</option>`; });
-        return html;
+    } catch (e) {
+        if (errEl) { errEl.textContent = 'Could not save. Check your connection and try again.'; errEl.style.display = 'block'; }
     }
+}
 
-    function makeBindingOptions(discipline, savedVal) {
-        const bindings = discipline === 'Snowboarder' ? BOARD_BINDINGS : SKI_BINDINGS;
-        let html = '<option value="">Select</option>';
-        bindings.forEach(b => { html += `<option value="${b}"${b === savedVal ? ' selected' : ''}>${b}</option>`; });
-        return html;
-    }
+// ── Delete ────────────────────────────────────────────────────────────────────
 
-    function updateBrands(slot, savedVal) {
-        const disc = document.getElementById(slot + '-discipline').value;
-        const el = document.getElementById(slot + '-brand');
-        el.innerHTML = makeBrandOptions(disc, savedVal || '');
-        const labelEl = document.getElementById(slot + '-gear-label');
-        if (labelEl) {
-            labelEl.textContent = disc === 'Skier' || disc === 'Telemark' || disc === 'Cross-Country' || disc === 'Adaptive'
-                ? 'Skis'
-                : (disc === 'Snowboarder' ? 'Board' : 'Gear');
+async function deleteEquipment(slot) {
+    const fd = new FormData();
+    fd.append('slot', slot);
+    try {
+        const resp = await fetch('/settings/equipment/delete', { method: 'POST', body: fd });
+        const data = await resp.json();
+        if (data.success) {
+            showToast('Setup removed');
+            setTimeout(() => window.location.reload(), 800);
         }
-    }
+    } catch (e) { showToast('Could not delete'); }
+}
 
-    function updateBindings(slot, savedVal) {
-        const el = document.getElementById(slot + '-binding');
-        if (!el) return;
-        const disc = document.getElementById(slot + '-discipline').value;
-        el.innerHTML = makeBindingOptions(disc, savedVal || '');
-    }
+function showToast(msg) {
+    const t = document.getElementById('eq-toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+}
 
-    function showEdit(slot) {
-        document.getElementById(slot + '-display').style.display = 'none';
-        document.getElementById(slot + '-edit').style.display = 'block';
-    }
-
-    function hideEdit(slot) {
-        document.getElementById(slot + '-edit').style.display = 'none';
-        document.getElementById(slot + '-display').style.display = 'block';
-    }
-
-    function showToast(msg) {
-        const t = document.getElementById('eq-toast');
-        t.textContent = msg;
-        t.classList.add('show');
-        setTimeout(() => t.classList.remove('show'), 2000);
-    }
-
-    async function setStatus(val) {
-        document.getElementById('pill-own').classList.toggle('active', val === 'have_own_equipment');
-        document.getElementById('pill-rentals').classList.toggle('active', val === 'needs_rentals');
-        document.getElementById('eq-detail-section').style.display = val === 'needs_rentals' ? 'none' : 'block';
-        document.getElementById('eq-rentals-note').style.display = val === 'needs_rentals' ? 'block' : 'none';
-        const fd = new FormData();
-        fd.append('equipment_status', val);
-        await fetch('/settings/equipment-status', { method: 'POST', body: fd });
-    }
-
-    function showInlineError(slot, msg) {
-        const el = document.getElementById(slot + '-error');
-        if (!el) return;
-        el.textContent = msg;
-        el.style.display = 'block';
-    }
-
-    function clearInlineError(slot) {
-        const el = document.getElementById(slot + '-error');
-        if (el) el.style.display = 'none';
-    }
-
-    async function saveEquipment(slot) {
-        clearInlineError(slot);
-        const discipline = document.getElementById(slot + '-discipline').value;
-        if (!discipline) {
-            showInlineError(slot, 'Please select a rider type before saving.');
-            return;
-        }
-
-        const fd = new FormData();
-        fd.append('slot', slot);
-        fd.append('discipline', discipline);
-        fd.append('brand', document.getElementById(slot + '-brand').value);
-        fd.append('model', document.getElementById(slot + '-model').value);
-        fd.append('length_cm', document.getElementById(slot + '-length').value);
-        fd.append('width_mm', document.getElementById(slot + '-width').value);
-        const bindingEl = document.getElementById(slot + '-binding');
-        fd.append('binding_type', bindingEl ? bindingEl.value : '');
-        fd.append('boot_brand', document.getElementById(slot + '-boot-brand').value);
-        fd.append('boot_model', document.getElementById(slot + '-boot-model').value);
-        fd.append('boot_flex', document.getElementById(slot + '-boot-flex').value);
-        if (slot === 'primary') {
-            const pyEl = document.getElementById('primary-purchase-year');
-            if (pyEl) fd.append('purchase_year', pyEl.value);
-        }
-
-        try {
-            const resp = await fetch('/settings/equipment/save', { method: 'POST', body: fd });
-            const data = await resp.json();
-            if (data.success) {
-                window.location.href = '/profile';
-            } else {
-                showInlineError(slot, data.error || 'Could not save. Please try again.');
-            }
-        } catch (e) {
-            showInlineError(slot, 'Could not save. Check your connection and try again.');
-        }
-    }
-
-    async function deleteEquipment(slot) {
-        const fd = new FormData();
-        fd.append('slot', slot);
-        try {
-            const resp = await fetch('/settings/equipment/delete', { method: 'POST', body: fd });
-            const data = await resp.json();
-            if (data.success) {
-                showToast('Setup removed');
-                setTimeout(() => window.location.reload(), 800);
-            }
-        } catch (e) { showToast('Could not delete'); }
-    }
-
-    // Init brand/binding dropdowns on page load
-    updateBrands('primary', SAVED_PRIMARY_BRAND);
-    updateBindings('primary', SAVED_PRIMARY_BINDING);
-    </script>
+// Init on page load
+initBrands();
+</script>
 {% endblock %}

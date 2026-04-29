@@ -1,0 +1,189 @@
+Clean up and fix the Equipment Setup page so it is consistent with the BaseLodge design system, simplifies the UX, and fixes broken logic.
+
+----------------------------------
+GOALS
+----------------------------------
+- Fix the “I rent” toggle (currently not working)
+- Fix Brand selection (currently not working)
+- Remove redundant sections
+- Make equipment conditional on rider type
+- Simplify the UI structure
+- Align visual styling with the rest of the app (editorial, minimal, premium)
+
+----------------------------------
+1. FIX RENT TOGGLE (CRITICAL)
+----------------------------------
+Current issue:
+“I rent” is not functioning properly.
+
+Required behavior:
+
+- User can select:
+  - "I have my own equipment"
+  - "I rent"
+
+- When “I rent” is selected:
+  - Persist this state to the user model
+  - Hide ALL equipment input fields below (skis/board, boots, etc.)
+  - Show a simple confirmation message:
+    "Got it — we’ll show that you rent your gear."
+
+- Save button should still work and persist this state
+
+- When returning to this page:
+  - Previously selected option should remain selected
+
+- When “I rent” is selected:
+  - Home screen should treat gear as complete (do NOT keep prompting “Add your gear”)
+
+----------------------------------
+2. MAKE EQUIPMENT CONDITIONAL BY RIDER TYPE
+----------------------------------
+Use rider_type to determine section labels:
+
+- If rider_type = "Skier":
+  - Rename “BOARD” → “SKIS”
+
+- If rider_type = "Snowboarder":
+  - Keep “BOARD”
+
+- Never show “Board” for a skier
+
+Boots section stays for both.
+
+----------------------------------
+3. REMOVE REDUNDANT RIDER SECTION
+----------------------------------
+Current:
+There is a “RIDER” section showing Type = Skier
+
+Fix:
+- Remove this entire section
+- Rider type should only be edited on Profile
+- Equipment page should ONLY be about gear
+
+----------------------------------
+4. SIMPLIFY HEADER COPY
+----------------------------------
+Change:
+"Optional — helps friends know what you ride"
+
+To:
+"Optional — add what you ride, or mark that you rent."
+
+----------------------------------
+5. REMOVE WHITE CARD CONTAINER (VISUAL CLEANUP)
+----------------------------------
+Current issue:
+Too many layers:
+- Cream background
+- White card
+- Gray inputs
+
+Fix:
+
+- Remove the white container background entirely
+- Page should sit directly on cream background (#F5F1E8)
+
+----------------------------------
+6. UPDATE INPUT FIELD STYLING
+----------------------------------
+Inputs should be the ONLY containers.
+
+Update inputs to:
+
+- background: #FBFAF7
+- border: 1px solid #E6DFD2
+- keep rounded corners
+- keep padding and sizing
+
+----------------------------------
+7. SECTION STRUCTURE (NO CARDS)
+----------------------------------
+For SKIS / BOARD / BOOTS:
+
+- No background box
+- Use:
+  - section label
+  - thin divider line
+  - spacing between sections
+
+----------------------------------
+8. FIX BRAND SELECTION (CRITICAL)
+----------------------------------
+Current issue:
+Clicking/tapping Brand does nothing.
+
+Required behavior:
+
+- Brand fields should open a selectable list (dropdown, modal, or picker)
+- Do NOT leave Brand as a dead text input
+
+Brand lists:
+
+For SKIS (Skier):
+Atomic, Blizzard, Dynastar, Elan, Fischer, Head, K2, Line, Nordica, Rossignol, Salomon, Stöckli, Völkl, Other
+
+For BOARD (Snowboarder):
+Burton, Capita, Jones, K2, Lib Tech, Never Summer, Nitro, Ride, Rome, Salomon, GNU, Arbor, Other
+
+For BOOTS:
+Atomic, Dalbello, Fischer, Head, Lange, Nordica, Rossignol, Salomon, Tecnica, Burton, ThirtyTwo, Vans, K2, Ride, Other
+
+Behavior:
+- Selecting a brand fills the field
+- If “Other” is selected:
+  - Show a text input for custom entry
+- Previously saved values should persist on reload
+- Must be mobile-friendly (tap opens picker cleanly)
+
+----------------------------------
+9. KEEP DESIGN CONSISTENT
+----------------------------------
+Do NOT change:
+- Typography
+- Font sizes
+- Button style (Save button stays maroon)
+- Bottom nav
+- Back button placement
+
+No shadows, no new UI patterns.
+
+----------------------------------
+10. SAVE BUTTON
+----------------------------------
+- Keep label: “Save setup”
+- Should work whether:
+  - user has equipment filled
+  - OR user selected “I rent”
+
+----------------------------------
+11. EDGE CASES / TESTING
+----------------------------------
+
+Test all of the following:
+
+- Skier with full equipment
+- Skier who selects “I rent”
+- Snowboarder with equipment
+- Snowboarder who selects “I rent”
+- Switching between “own equipment” and “rent” before saving
+- Returning to page after saving
+- Brand selection works on mobile
+- “Other” brand allows input
+- Home screen reflects correct state (no gear prompt if renting)
+
+----------------------------------
+12. FINAL RESULT
+----------------------------------
+
+The page should feel:
+- Clean
+- Flat (no unnecessary containers)
+- Easy to scan
+- Consistent with Home + Profile
+- Focused only on what matters
+
+----------------------------------
+
+Use checkpoints sparingly.
