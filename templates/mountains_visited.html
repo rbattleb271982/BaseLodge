@@ -148,7 +148,7 @@
                     {% for resort in group.resorts %}
                     <div class="mv-row" id="mv-row-{{ resort.id }}">
                         <div class="mv-row-left">
-                            <p class="mv-row-name">{{ resort.name }}</p>
+                            <p class="mv-row-name">{{ resort.name }}, {{ resort.state_code or resort.country_code }}</p>
                             {% if read_only and user_wishlist_ids and resort.id in user_wishlist_ids %}
                             <p class="mv-row-badge">On your wish list</p>
                             {% endif %}
@@ -179,7 +179,7 @@
     RESORT_DATA[{{ r.id }}] = {
         id: {{ r.id }},
         name: {{ r.name | tojson }},
-        stateName: {{ (r.state_name or r.state or '') | tojson }},
+        stateCode: {{ (r.state_code or r.state or '') | tojson }},
         countryCode: {{ (r.country_code or '') | tojson }},
         countryName: {{ (r.display_country_name or '') | tojson }},
         nameLower: {{ r.name.lower() | tojson }}
@@ -291,7 +291,7 @@
         rowEl.id = 'mv-row-' + resortId;
         rowEl.innerHTML = `
             <div class="mv-row-left">
-                <p class="mv-row-name">${r.name}</p>
+                <p class="mv-row-name">${r.name}, ${r.stateCode || r.countryCode}</p>
             </div>
             <button class="mv-remove" onclick="mvRemove(${resortId})" type="button">remove</button>
         `;

@@ -157,7 +157,7 @@
                     {% for resort in group.resorts %}
                     <div class="wl-row" id="wl-row-{{ resort.id }}">
                         <div class="wl-row-left">
-                            <p class="wl-row-name">{{ resort.name }}</p>
+                            <p class="wl-row-name">{{ resort.name }}, {{ resort.state_code or resort.country_code }}</p>
                             {% if read_only and user_visited_ids and resort.id in user_visited_ids %}
                             <p class="wl-row-badge">You've been here</p>
                             {% endif %}
@@ -188,7 +188,7 @@
     WL_RESORT_DATA[{{ r.id }}] = {
         id: {{ r.id }},
         name: {{ r.name | tojson }},
-        stateName: {{ (r.state_name or r.state or '') | tojson }},
+        stateCode: {{ (r.state_code or r.state or '') | tojson }},
         countryCode: {{ (r.country_code or '') | tojson }},
         countryName: {{ (r.display_country_name or '') | tojson }},
         nameLower: {{ r.name.lower() | tojson }}
@@ -319,7 +319,7 @@
         rowEl.id = 'wl-row-' + resortId;
         rowEl.innerHTML = `
             <div class="wl-row-left">
-                <p class="wl-row-name">${r.name}</p>
+                <p class="wl-row-name">${r.name}, ${r.stateCode || r.countryCode}</p>
             </div>
             <button class="wl-remove" onclick="wlRemove(${resortId})" type="button">remove</button>
         `;
