@@ -5395,6 +5395,7 @@ def settings_equipment():
 @login_required
 def settings_equipment_save():
     slot_str = request.form.get("slot", "primary")
+    equipment_status = request.form.get("equipment_status", "")
     discipline_str = request.form.get("discipline", "")
     brand = request.form.get("brand", "")
     model = request.form.get("model", "")
@@ -5406,12 +5407,21 @@ def settings_equipment_save():
     boot_flex = request.form.get("boot_flex", "")
     purchase_year = request.form.get("purchase_year", "")
     
-    if not discipline_str:
-        return jsonify({"error": "Discipline required"}), 400
+    if equipment_status not in ["have_own_equipment", "needs_rentals"]:
+        equipment_status = "have_own_equipment"
     
     slot = EquipmentSlot.PRIMARY if slot_str == "primary" else EquipmentSlot.SECONDARY
+    current_user.equipment_status = equipment_status
+
+    if equipment_status == "needs_rentals":
+        db.session.commit()
+        return jsonify({"success": True})
+
+    if not discipline_str:
+        return jsonify({"error": "Discipline required"}), 400
+
     discipline = EquipmentDiscipline.SKIER if discipline_str == "Skier" else EquipmentDiscipline.SNOWBOARDER
-    
+
     equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=slot).first()
     
     if not equipment:
