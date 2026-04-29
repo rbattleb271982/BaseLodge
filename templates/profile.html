@@ -180,7 +180,7 @@
         {% set id_parts = [] %}
         {% if current_user.rider_types %}{% set _ = id_parts.append(current_user.rider_types[0]) %}{% endif %}
         {% if current_user.skill_level and not (current_user.rider_types == ['Social']) %}{% set _ = id_parts.append(current_user.skill_level) %}{% endif %}
-        {% if current_user.pass_type and current_user.pass_type != 'None' %}{% set _ = id_parts.append(current_user.pass_type.split(',')[0]) %}{% endif %}
+        {% if current_user.pass_type %}{% set _ = id_parts.append(current_user.pass_type | pass_display) %}{% endif %}
         {% if id_parts %}
         <p style="font-size:14px; color:var(--bl-color-text-muted); margin:6px 0 0; line-height:1.4;">{{ id_parts | join(' · ') }}</p>
         {% endif %}

@@ -17,18 +17,24 @@ from flask import url_for
 from utils.formatting import format_name
 from models import Resort, SkiTrip
 
-_BAD_PASSES = {None, "", "I don't have a pass", "Other"}
+from services.pass_utils import normalize_pass as _norm_pass_val, display_pass_label, passes_match as _passes_match
+
+_BAD_PASSES = {None, "", "no_pass", "no_pass_yet", "other"}
 
 
 def _norm_pass(pt):
-    """Normalize a pass type string: 'Ikon Pass' → 'Ikon', empty/junk → ''."""
+    """
+    Return the display label for the first real pass in pt.
+    Returns '' for no-pass / empty values.
+    """
+    _NON_REAL = _BAD_PASSES
     if not pt:
         return ""
-    for part in pt.split(","):
-        part = part.strip()
-        if not part or part.lower() in ("none", "i don't have a pass", "other", "no pass"):
+    for part in str(pt).split(","):
+        norm = _norm_pass_val(part.strip())
+        if not norm or norm in _NON_REAL:
             continue
-        return re.sub(r"\s+[Pp]ass$", "", part).strip()
+        return display_pass_label(norm)
     return ""
 
 
@@ -337,7 +343,7 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
     """
     today = date.today()
     friend_by_id = {f.id: f for f in all_friends}
-    user_pass = (user.pass_type or "").strip()
+    user_pass = _norm_pass_val(user.pass_type) or ""
 
     cards = []
     for w in windows:
@@ -393,9 +399,9 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
         user_pass_name = _norm_pass(user_pass) if user_pass_clean else ""
         friend_pass_names = set()
         for _f in friends_in_window:
-            _fp = _f.get("friend_pass", "")
-            if _fp and _fp not in _BAD_PASSES:
-                _np = _norm_pass(_fp)
+            _fp_norm = _norm_pass_val(_f.get("friend_pass", "")) or ""
+            if _fp_norm and _fp_norm not in _BAD_PASSES:
+                _np = _norm_pass(_fp_norm)
                 if _np:
                     friend_pass_names.add(_np)
 

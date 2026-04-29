@@ -287,7 +287,7 @@
                         class="ep-pill {% if pass in user_passes %}selected{% endif %}"
                         data-value="{{ pass }}"
                         onclick="togglePassPill(this)">
-                    {% if pass == "I don't have a pass" %}No pass{% else %}{{ pass }}{% endif %}
+                    {{ pass | pass_display }}
                 </button>
                 {% endfor %}
             </div>
@@ -298,8 +298,8 @@
                         onchange="document.getElementById('previous_pass_hidden').value = this.value">
                     <option value="">None</option>
                     {% for pass in pass_options %}
-                    <option value="{{ pass }}" {% if current_user.previous_pass == pass %}selected{% endif %}>
-                        {% if pass == "I don't have a pass" %}No pass{% else %}{{ pass }}{% endif %}
+                    <option value="{{ pass }}" {% if (current_user.previous_pass | normalize_pass) == pass %}selected{% endif %}>
+                        {{ pass | pass_display }}
                     </option>
                     {% endfor %}
                 </select>
@@ -409,8 +409,8 @@
         markDirty();
     }
 
-    // ── Pass pills (no pass = exclusive) ─────────────────────────────
-    const NO_PASS = "I don't have a pass";
+    // ── Pass pills (exclusive: no_pass / no_pass_yet / other vs real passes) ─
+    const EXCLUSIVE_PASSES = new Set(["no_pass", "no_pass_yet", "other"]);
     let passSelected = new Set(
         (document.getElementById('pass_type_hidden').value || '').split(',').filter(Boolean)
     );
@@ -421,16 +421,18 @@
             passSelected.delete(val);
             pill.classList.remove('selected');
         } else {
-            if (val === NO_PASS) {
-                // Exclusive — clear others
+            if (EXCLUSIVE_PASSES.has(val)) {
+                // Exclusive — clear all others
                 passSelected.clear();
                 document.querySelectorAll('#pass-pills .ep-pill').forEach(p => p.classList.remove('selected'));
             } else {
-                // Remove "no pass" if selecting a real pass
-                if (passSelected.has(NO_PASS)) {
-                    passSelected.delete(NO_PASS);
-                    document.querySelector(`#pass-pills .ep-pill[data-value="${CSS.escape(NO_PASS)}"]`)?.classList.remove('selected');
-                }
+                // Selecting a real pass — remove any exclusive pills
+                EXCLUSIVE_PASSES.forEach(ep => {
+                    if (passSelected.has(ep)) {
+                        passSelected.delete(ep);
+                        document.querySelector(`#pass-pills .ep-pill[data-value="${ep}"]`)?.classList.remove('selected');
+                    }
+                });
             }
             passSelected.add(val);
             pill.classList.add('selected');

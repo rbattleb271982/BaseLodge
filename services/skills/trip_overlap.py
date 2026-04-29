@@ -7,7 +7,6 @@ user's wishlist.
 Returns up to 3 IdeaCard dicts produced by make_idea_card().
 """
 
-import re
 from datetime import date, timedelta
 
 from flask import url_for
@@ -15,18 +14,19 @@ from flask import url_for
 from models import GuestStatus, SkiTrip, SkiTripParticipant
 from services.ideas_engine import make_idea_card
 from services.open_dates import get_available_dates_for_user
+from services.pass_utils import normalize_pass as _norm_p, display_pass_label, passes_match
 
 
 def _normalize_pass_name(pt):
-    """Strip generic 'Pass'/'pass' suffix for short display. 'Ikon Pass' -> 'Ikon'."""
+    """Return display label for the first real pass in pt. 'ikon' -> 'Ikon'."""
+    _NON_REAL = frozenset({"no_pass", "no_pass_yet", "other", None, ""})
     if not pt:
         return ""
-    # Take first valid comma-separated value
-    for part in pt.split(","):
-        part = part.strip()
-        if part.lower() in ("none", "i don't have a pass", "other", "no pass", ""):
+    for part in str(pt).split(","):
+        norm = _norm_p(part.strip())
+        if not norm or norm in _NON_REAL:
             continue
-        return re.sub(r"\s+[Pp]ass$", "", part).strip()
+        return display_pass_label(norm)
     return ""
 
 
@@ -148,11 +148,7 @@ def trip_overlap_skill(user, all_friends):
 
         if has_date_overlap:
             score += 40
-        trip_pass = (trip.pass_type or "").lower()
-        pass_aligns = bool(
-            user_pass and trip_pass
-            and (user_pass in trip_pass or trip_pass in user_pass)
-        )
+        pass_aligns = passes_match(trip.pass_type, user.pass_type)
         if pass_aligns:
             score += 20
         if has_wishlist_match:

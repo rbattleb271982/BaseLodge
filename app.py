@@ -22,6 +22,11 @@ import json
 import jwt
 import httpx
 from datetime import datetime, date, timedelta
+from services.pass_utils import (
+    normalize_pass, display_pass_label, normalize_passes_string,
+    format_passes_for_display, passes_match, is_real_pass,
+    PASS_NORM_MAP, PASS_DISPLAY_MAP,
+)
 
 def _resolve_base_url():
     """Resolve the base URL for invite links and other absolute URLs.
@@ -373,25 +378,21 @@ def display_name_filter(user, current_user_id=None):
 
 def format_passes_display(pass_type):
     """
-    Helper to format passes as 'Epic · Ikon' style.
-    Filters out 'Both' and empty values.
+    Format a pass_type string for user-facing display.
+    Delegates to pass_utils.format_passes_for_display which handles
+    normalization and includes no_pass / no_pass_yet states.
     """
-    if not pass_type:
-        return ''
-    pass_str = str(pass_type).strip()
-    if ',' in pass_str:
-        passes = [p.strip() for p in pass_str.split(',') if p.strip() and p.strip().lower() not in ('both', 'none', "i don't have a pass")]
-        return ' · '.join(passes) if passes else ''
-    if pass_str.lower() in ('both', 'none', "i don't have a pass"):
-        return ''
-    return pass_str
+    return format_passes_for_display(pass_type)
 
 
 @app.template_filter('identity_line')
 def identity_line_filter(user):
     """
     Formats user identity as: Rider type · Level · Pass(es)
-    Example: Skier · Advanced · Epic · Ikon
+    Examples:
+        Skier · Advanced · Epic
+        Skier · Advanced · No pass
+        Skier · Advanced · No pass yet
     """
     try:
         if not user:
@@ -399,23 +400,18 @@ def identity_line_filter(user):
 
         parts = []
 
-        # Rider type — use display_rider_type which correctly handles
-        # legacy comma-separated entries like ["Skier,Snowboarder"] → "Skier + Snowboarder"
         display_rider = getattr(user, 'display_rider_type', None)
         if display_rider:
             parts.append(display_rider)
 
-        # Skill level
         skill_level = getattr(user, "skill_level", None)
         if skill_level:
             parts.append(str(skill_level))
 
-        # Passes (formatted properly with · separator)
         pass_type = getattr(user, "pass_type", None)
         if pass_type:
-            formatted_passes = format_passes_display(pass_type)
+            formatted_passes = format_passes_for_display(pass_type)
             if formatted_passes:
-                # Split individual passes and add each as a part
                 for p in formatted_passes.split(' · '):
                     parts.append(p)
 
@@ -424,13 +420,20 @@ def identity_line_filter(user):
     except Exception:
         return ""
 
+
 @app.template_filter('pass_display')
 def pass_display_filter(pass_type):
     """
-    Displays passes individually as 'Epic · Ikon'.
-    Use for standalone pass display in stats cards and settings.
+    Display a pass_type string for UI (e.g. stats card, header).
+    Returns 'Epic · Ikon' or 'No pass yet' etc.
     """
-    return format_passes_display(pass_type)
+    return format_passes_for_display(pass_type)
+
+
+@app.template_filter('normalize_pass')
+def normalize_pass_filter(pass_type):
+    """Jinja filter: normalize a raw pass value to snake_case."""
+    return normalize_pass(pass_type)
 
 
 @app.template_filter('country_name')
@@ -1475,31 +1478,32 @@ def normalize_rider_type(rider_type):
     return rider_type
 
 CANONICAL_PASSES = [
-    "I don't have a pass",
-    "Epic",
-    "Ikon",
-    "MountainCollective",
-    "Indy",
-    "PowderAlliance",
-    "Freedom",
-    "SkiCalifornia",
-    "Other"
+    "no_pass",
+    "no_pass_yet",
+    "epic",
+    "ikon",
+    "mountain_collective",
+    "indy",
+    "powder_alliance",
+    "freedom",
+    "ski_california",
+    "other",
 ]
 
 def get_sorted_passes():
-    """Return passes sorted in canonical display order."""
-    order = [
-        "Epic",
-        "Ikon",
-        "Mountain Collective",
-        "Indy",
-        "Freedom",
-        "SkiCalifornia",
-        "Powder Alliance",
-        "Other",
-        "I don't have a pass",
+    """Return passes sorted in canonical display order (snake_case values)."""
+    return [
+        "epic",
+        "ikon",
+        "mountain_collective",
+        "indy",
+        "freedom",
+        "ski_california",
+        "powder_alliance",
+        "other",
+        "no_pass",
+        "no_pass_yet",
     ]
-    return order
 
 PASS_OPTIONS = get_sorted_passes()
 
@@ -1982,10 +1986,10 @@ def onboarding():
             flash("Please select your home state or province.")
             return render_template("identity_setup.html", grouped_locations=get_grouped_locations())
 
-        # Save all onboarding data in one shot
+        # Save all onboarding data in one shot — normalize pass to snake_case
         current_user.rider_types = rider_types
         current_user.skill_level = skill_level
-        current_user.pass_type = pass_type
+        current_user.pass_type = normalize_passes_string(pass_type) or pass_type
         current_user.home_state = home_state
         current_user.backcountry_capable = backcountry_capable
         current_user.avi_certified = avi_certified
@@ -2188,8 +2192,7 @@ def edit_profile():
         user.rider_types = rider_types if rider_types else []
         
         passes_raw = request.form.get("pass_type", "")
-        passes = [p.strip() for p in passes_raw.split(",") if p.strip()]
-        user.pass_type = ",".join(sorted(set(passes))) if passes else "None"
+        user.pass_type = normalize_passes_string(passes_raw) or user.pass_type or "no_pass"
         user.home_state = request.form.get("home_state") or None
         # Clear skill_level only for Social-only users, otherwise use form value
         is_social_only = rider_types == ["Social"]
@@ -2407,7 +2410,7 @@ def my_trips():
             user_wishlist    = set(user.wish_list_resorts or [])
             today_str        = today.strftime('%Y-%m-%d')
             user_open_dates  = set(d for d in (user.open_dates or []) if d >= today_str)
-            user_passes      = set(p.strip() for p in (user.pass_type or '').split(',') if p.strip())
+            user_passes      = set(normalize_pass(p) for p in (user.pass_type or '').split(',') if p.strip()) - {None, ""}
 
             def _trip_relevance(trip):
                 score = 0
@@ -2618,18 +2621,18 @@ def trip_ideas():
 
 def _ideas_normalize_pass(pt):
     """
-    Short pass display for Ideas screens.
-    Strips generic suffixes ('Pass', 'pass') and filters junk values.
-    'Ikon Pass' -> 'Ikon', 'Epic Pass' -> 'Epic', 'Mountain Collective Pass' -> 'Mountain Collective'
+    Short real-pass display for Ideas screens.
+    Skips no_pass, no_pass_yet, and other non-real-pass values.
+    Returns the display label for the first real pass found.
     """
-    import re as _re
+    _NON_REAL = frozenset({"no_pass", "no_pass_yet", "other", None, ""})
     if not pt:
         return ""
-    for part in pt.split(","):
-        part = part.strip()
-        if not part or part.lower() in ("none", "i don't have a pass", "other", "no pass"):
+    for part in str(pt).split(","):
+        norm = normalize_pass(part.strip())
+        if not norm or norm in _NON_REAL:
             continue
-        return _re.sub(r"\s+[Pp]ass$", "", part).strip()
+        return display_pass_label(norm)
     return ""
 
 
@@ -2647,42 +2650,17 @@ def _ideas_rider_pass_line(user_obj):
 
 def normalize_pass_family(pass_type):
     """
-    Map a user's pass_type to its primary pass family name for clean row display.
-    Handles canonical values from CANONICAL_PASSES and legacy variants.
-
-    Examples:
-      'Ikon', 'Ikon Base', 'Ikon Pass'  -> 'Ikon'
-      'Epic', 'Epic Local', 'Epic Pass' -> 'Epic'
-      'MountainCollective'              -> 'Mountain Collective'
-      'PowderAlliance'                  -> 'Powder Alliance'
-      'SkiCalifornia'                   -> 'Ski California'
-      None / 'Other' / junk             -> 'No pass'
+    Map a user's pass_type to its primary real-pass display name for mountain rows.
+    Returns 'No pass' when no real pass is found.
     """
-    import re as _re
-    JUNK = frozenset({"none", "i don't have a pass", "other", "no pass", "not sure", "unsure", ""})
+    _NON_REAL = frozenset({"no_pass", "no_pass_yet", "other", None, ""})
     if not pass_type:
         return "No pass"
     for part in str(pass_type).split(","):
-        part = part.strip()
-        if part.lower() in JUNK:
+        norm = normalize_pass(part.strip())
+        if not norm or norm in _NON_REAL:
             continue
-        lower = part.lower()
-        if lower.startswith("ikon"):
-            return "Ikon"
-        if lower.startswith("epic"):
-            return "Epic"
-        if lower in ("mountaincollective", "mountain collective", "mountain_collective"):
-            return "Mountain Collective"
-        if lower.startswith("indy"):
-            return "Indy"
-        if lower in ("powderalliance", "powder alliance"):
-            return "Powder Alliance"
-        if lower in ("skicalifornia", "ski california"):
-            return "Ski California"
-        if lower.startswith("freedom"):
-            return "Freedom"
-        cleaned = _re.sub(r"\s+[Pp]ass\b.*$", "", part).strip()
-        return cleaned if cleaned else part
+        return display_pass_label(norm)
     return "No pass"
 
 
@@ -3472,9 +3450,10 @@ def admin_test_push():
 
 def pass_category(pass_type):
     """Categorize pass type into Epic, Ikon, or Other."""
-    if pass_type in ["Epic", "Epic Local", "Epic Pass", "Epic 4-day"]:
+    norm = normalize_pass(pass_type or "")
+    if norm == "epic":
         return "Epic"
-    if pass_type in ["Ikon", "Ikon Base", "Ikon Plus", "Ikon Session"]:
+    if norm == "ikon":
         return "Ikon"
     return "Other"
 
@@ -7297,7 +7276,7 @@ def select_pass():
 
     if request.method == "POST":
         chosen = request.form.get("pass_type")
-        current_user.pass_type = chosen
+        current_user.pass_type = normalize_passes_string(chosen) or chosen
         try:
             db.session.commit()
             session["pass_prompt_skipped"] = False

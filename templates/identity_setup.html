@@ -484,18 +484,18 @@
                             <p class="ob-subtitle">Choose what applies — or skip for now.</p>
                         </div>
                         <div class="ob-options">
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="No Pass"       data-target="h-pass">No pass</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="Not Sure"      data-target="h-pass">Not sure yet</button>
+                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass"             data-target="h-pass">No pass</button>
+                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass_yet"         data-target="h-pass">Not sure yet</button>
                             <div class="ob-divider"></div>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="Epic"          data-target="h-pass">Epic</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="Ikon"          data-target="h-pass">Ikon</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="epic"             data-target="h-pass">Epic</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="ikon"             data-target="h-pass">Ikon</button>
                             <div class="ob-divider"></div>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="Freedom"           data-target="h-pass">Freedom</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="Indy"              data-target="h-pass">Indy</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="Mountain Collective" data-target="h-pass">Mountain Collective</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="Powder Alliance"   data-target="h-pass">Powder Alliance</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="Ski California"    data-target="h-pass">Ski California</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="Other"             data-target="h-pass">Other</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="freedom"          data-target="h-pass">Freedom</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="indy"             data-target="h-pass">Indy</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="mountain_collective" data-target="h-pass">Mountain Collective</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="powder_alliance"  data-target="h-pass">Powder Alliance</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="ski_california"   data-target="h-pass">Ski California</button>
+                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="other"              data-target="h-pass">Other</button>
                         </div>
                         <div class="ob-footer">
                             <button type="button" class="ob-btn" id="cta-3" disabled onclick="goNext(3)">Continue</button>
@@ -574,14 +574,15 @@
     }
     function goBack(from) { slideTo(from - 1); }
 
-    /* rider and pass are multi-select (max 2); skill is single */
-    var MULTI_MAX = { rider: 2, pass: 2 };
+    /* rider is multi-select (max 2); pass is multi-select but exclusive pills deselect real passes */
+    var MULTI_MAX = { rider: 2, pass: 6 };
 
     document.querySelectorAll('.ob-pill').forEach(function(pill) {
         pill.addEventListener('click', function() {
             var grp = this.dataset.grp;
             var targetId = this.dataset.target;
             var isMulti = grp in MULTI_MAX;
+            var isExclusive = this.classList.contains('ob-pill--exclusive');
 
             if (!isMulti) {
                 document.querySelectorAll('.ob-pill[data-grp="' + grp + '"]').forEach(function(p) {
@@ -591,12 +592,27 @@
                 document.getElementById(targetId).value = this.dataset.val;
             } else {
                 var alreadySel = this.classList.contains('sel');
-                var selCount = document.querySelectorAll('.ob-pill[data-grp="' + grp + '"].sel').length;
 
                 if (alreadySel) {
                     this.classList.remove('sel');
-                } else if (selCount < MULTI_MAX[grp]) {
-                    this.classList.add('sel');
+                } else {
+                    if (grp === 'pass') {
+                        if (isExclusive) {
+                            // Deselect everything else, then select this
+                            document.querySelectorAll('.ob-pill[data-grp="pass"]').forEach(function(p) {
+                                p.classList.remove('sel');
+                            });
+                        } else {
+                            // Selecting a real pass: deselect any exclusive pill
+                            document.querySelectorAll('.ob-pill[data-grp="pass"].ob-pill--exclusive').forEach(function(p) {
+                                p.classList.remove('sel');
+                            });
+                        }
+                    }
+                    var selCount = document.querySelectorAll('.ob-pill[data-grp="' + grp + '"].sel').length;
+                    if (selCount < MULTI_MAX[grp]) {
+                        this.classList.add('sel');
+                    }
                 }
 
                 var selected = [];

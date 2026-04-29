@@ -15,6 +15,7 @@ This is the foundation for:
 
 from datetime import date as date_cls
 from models import db, User, Friend, UserAvailability
+from services.pass_utils import passes_match
 
 
 def get_available_dates_for_user(user):
@@ -106,7 +107,7 @@ def get_open_date_matches(current_user):
                 "friend_id": friend.id,
                 "friend_name": f"{friend.first_name or ''} {friend.last_name or ''}".strip(),
                 "friend_pass": friend.pass_type,
-                "same_pass": friend.pass_type == current_user.pass_type
+                "same_pass": passes_match(friend.pass_type, current_user.pass_type)
             })
 
     # Step 4: Sort results — date ascending, then friend name ascending

@@ -60,12 +60,12 @@
     {% endif %}
 
     {# 2b. Buddy Pass Availability (per supported pass) #}
-    {% set buddy_pass_supported = ['Epic', 'Ikon', 'Mountain Collective'] %}
-    {% set user_passes = (profile_user.pass_type or '')|replace(' Pass', '')|replace(' pass', '') %}
+    {% set buddy_pass_supported = ['epic', 'ikon', 'mountain_collective'] %}
+    {% set user_passes_norm = (profile_user.pass_type or '').split(',') | map('normalize_pass') | list %}
     {% set buddy_passes_data = profile_user.buddy_passes or {} %}
-    {% for pass_name in buddy_pass_supported %}
-        {% set pass_key = pass_name|lower|replace(' ', '_') %}
-        {% if pass_name|lower in user_passes|lower %}
+    {% for pass_key in buddy_pass_supported %}
+        {% set pass_name = pass_key | pass_display %}
+        {% if pass_key in user_passes_norm %}
         <div class="tile-buddy-pass-row">
             <span class="tile-buddy-label">{{ pass_name }} buddy passes:</span>
             {% set has_buddy = buddy_passes_data.get(pass_key, profile_user.buddy_passes_available) %}

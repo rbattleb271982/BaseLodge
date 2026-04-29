@@ -210,7 +210,7 @@
             <p class="ftd-avail-label">{{ friends_open_on_trip|length }} friend{% if friends_open_on_trip|length != 1 %}s{% endif %} available</p>
             {% for f in friends_open_on_trip[:5] %}
             <a href="{{ url_for('friend_profile', friend_id=f.id) }}" class="ftd-avail-row">
-                {{ f.name }}{% if f.pass_type %} · {{ f.pass_type }}{% endif %}
+                {{ f.name }}{% if f.pass_type %} · {{ f.pass_type | pass_display }}{% endif %}
             </a>
             {% endfor %}
             {% if friends_open_on_trip|length > 5 %}
