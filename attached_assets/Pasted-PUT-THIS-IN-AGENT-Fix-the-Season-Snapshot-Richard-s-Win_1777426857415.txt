@@ -1,0 +1,96 @@
+PUT THIS IN AGENT
+
+Fix the Season Snapshot / Richard’s Winter screen. The current version looks too cramped and the hierarchy is off.
+
+1. Keep the back button, but tighten the vertical spacing
+
+- Back button should remain top-left.
+- Reduce the excessive space between the back button and the headline.
+- The headline should sit closer to the top, but still have safe-area padding.
+- Do not make the back button area feel like a separate blank header.
+
+2. Fix the card header hierarchy
+
+Current issue:
+- “SKIER · ADVANCED”
+- “NOT SURE”
+- “— on BaseLodge —”
+
+This looks stacked and awkward.
+
+Update it to:
+
+Richard’s Winter
+SKIER · ADVANCED
+Still deciding on pass
+— on BaseLodge —
+
+Rules:
+- “SKIER · ADVANCED” should stay on one line.
+- “Still deciding on pass” should replace “NOT SURE”.
+- “Still deciding on pass” should be smaller and softer than “SKIER · ADVANCED”.
+- “— on BaseLodge —” should be larger than before, but not huge.
+- Increase vertical breathing room slightly between the identity line and pass line.
+- Do not let the header feel crowded.
+
+Suggested sizing:
+- SKIER · ADVANCED: 18px
+- Still deciding on pass: 15px
+- — on BaseLodge —: 17px
+
+3. Fix mountain row sizing inside the card
+
+The mountain list area should resize intelligently based on the number of mountains shown.
+
+For this case, where there is only one mountain:
+- “Courchevel” should use the available width of the card.
+- The mountain row should feel large, premium, and screenshot-friendly.
+- Increase the mountain name font size when there are only 1–5 mountains.
+- Only start scaling mountain rows down after there are more than 5 mountains.
+
+Behavior:
+- 1–5 mountains: large text and generous row spacing.
+- 6–10 mountains: medium text and tighter spacing.
+- 11+ mountains: smaller text and compact spacing.
+
+Suggested CSS approach:
+- Add a class to the card/list based on mountain count:
+  - mountain-count-small for 1–5
+  - mountain-count-medium for 6–10
+  - mountain-count-large for 11+
+- For mountain-count-small:
+  - mountain name font-size: 28px to 32px
+  - row min-height: 56px
+  - indicator bar height: 44px
+- For mountain-count-medium:
+  - mountain name font-size: 22px to 24px
+  - row min-height: 44px
+- For mountain-count-large:
+  - mountain name font-size: 17px to 19px
+  - row min-height: 32px
+
+4. Make the single-mountain state look intentional
+
+When there is only one mountain:
+- Keep the month label.
+- Make the mountain name significantly larger.
+- Align it cleanly with the accent bar.
+- Do not leave it looking tiny in a giant empty card.
+
+5. Do not change
+
+- Bottom nav
+- Page background
+- Card colors
+- Overall card width
+- “Richard’s Winter” staying on one line
+- Existing data logic beyond adding display classes/count-based styling
+
+6. Test on mobile width and confirm
+
+- Back button spacing looks natural
+- Header no longer feels cramped
+- “SKIER · ADVANCED” stays on one line
+- “Still deciding on pass” appears instead of “NOT SURE”
+- “Courchevel” is large and uses the card width well when it is the only mountain
+- Mountain rows only scale down after more than 5 mountains

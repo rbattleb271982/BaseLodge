@@ -17,11 +17,11 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* ── Back navigation ── */
+        /* ── Back navigation — tight, no blank header feel ── */
         .ss-back-nav {
             width: calc(100% - 12px);
             max-width: 480px;
-            padding: 16px 20px 4px;
+            padding: calc(env(safe-area-inset-top, 8px) + 8px) 12px 0;
         }
         .ss-back-nav a {
             color: #7A1820;
@@ -37,10 +37,11 @@
         }
         .ss-back-nav a:active { opacity: 0.5; }
 
+        /* ── Page hero — tight, headline close to back button ── */
         .ss-page-hero {
             width: calc(100% - 12px);
             max-width: 480px;
-            padding: 10px 20px 0;
+            padding: 2px 20px 12px;
         }
 
         .ss-page-headline {
@@ -50,7 +51,7 @@
             color: #1A1A1A;
             text-align: left;
             letter-spacing: -0.3px;
-            margin: 0 0 8px 0;
+            margin: 0 0 4px 0;
         }
         .ss-page-subhead {
             font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
@@ -93,7 +94,7 @@
             font-weight: 400;
             color: #1A1A1A;
             line-height: 1.15;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             letter-spacing: -0.3px;
             white-space: nowrap;
         }
@@ -102,35 +103,37 @@
             color: #7A1820;
         }
 
-        /* Identity line */
+        /* Identity line: SKIER · ADVANCED */
         .ss-identity {
             font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-            font-size: 15px;
+            font-size: 18px;
             font-weight: 600;
-            letter-spacing: 1.2px;
+            letter-spacing: 1.3px;
             text-transform: uppercase;
             color: #5A5248;
-            margin-bottom: 6px;
-            line-height: 1.4;
+            margin-bottom: 8px;
+            line-height: 1.3;
             white-space: nowrap;
         }
+
+        /* Pass line: "Still deciding on pass" */
         .ss-identity-pass {
-            font-size: 13px;
-            font-weight: 500;
-            letter-spacing: 0.9px;
-            text-transform: uppercase;
+            font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            font-size: 15px;
+            font-weight: 400;
+            letter-spacing: 0.1px;
             color: #7A7060;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
         /* Branding line */
         .ss-branding {
             font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-            font-size: 14px;
+            font-size: 17px;
             font-weight: 400;
             letter-spacing: 0.4px;
             color: #9A3A42;
-            margin-bottom: 16px;
+            margin-bottom: 18px;
         }
 
         /* Divider rule */
@@ -140,6 +143,7 @@
             margin: 0 26px;
         }
 
+        /* ── Trip table ── */
         .ss-trip-table {
             padding: 18px 22px 18px;
         }
@@ -169,20 +173,53 @@
             display: grid;
             grid-template-columns: 4px 1fr;
             gap: 10px;
-            align-items: start;
+            align-items: center;
         }
         .ss-month-bar {
             width: 4px;
             border-radius: 999px;
             background: #9A3A42;
             min-height: 18px;
-            margin-top: 2px;
+            align-self: stretch;
         }
         .ss-month-dest {
             font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
             font-size: clamp(13px, 3.6vw, 16px);
-            line-height: 1.25;
+            line-height: 1.2;
             color: #1A1A1A;
+        }
+
+        /* ── Mountain count tiers ── */
+
+        /* Small (1–5): large, premium, screenshot-worthy */
+        .ss-trip-grid.mountain-count-small {
+            gap: 20px 14px;
+        }
+        .ss-trip-grid.mountain-count-small .ss-month-trip {
+            min-height: 56px;
+        }
+        .ss-trip-grid.mountain-count-small .ss-month-bar {
+            min-height: 44px;
+        }
+        .ss-trip-grid.mountain-count-small .ss-month-dest {
+            font-size: clamp(24px, 6.5vw, 32px);
+            font-weight: 500;
+        }
+
+        /* Medium (6–10): comfortable, readable */
+        .ss-trip-grid.mountain-count-medium .ss-month-trip {
+            min-height: 44px;
+        }
+        .ss-trip-grid.mountain-count-medium .ss-month-dest {
+            font-size: clamp(18px, 5vw, 24px);
+        }
+
+        /* Large (11+): compact, small text */
+        .ss-trip-grid.mountain-count-large .ss-month-trip {
+            min-height: 32px;
+        }
+        .ss-trip-grid.mountain-count-large .ss-month-dest {
+            font-size: clamp(13px, 3.5vw, 19px);
         }
 
         .ss-card-foot {
@@ -215,7 +252,7 @@
 
     <!-- Back navigation -->
     <div class="ss-back-nav">
-        <a href="{{ url_for('my_trips') }}">
+        <a href="{{ url_for('my_trips') }}" aria-label="Back to trips">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="15 18 9 12 15 6"></polyline>
             </svg>
@@ -240,14 +277,22 @@
                 {% set id_line = user|identity_line %}
                 {% if id_line %}
                     {% set id_parts = id_line.split(' · ') %}
-                    {# Line 1: Rider · Skill on one nowrap line #}
+
+                    {# Line 1: RIDER · SKILL on one nowrap line #}
                     <p class="ss-identity">
                         {{- id_parts[0] -}}
                         {%- if id_parts|length > 1 %} · {{ id_parts[1] }}{% endif -%}
                     </p>
-                    {# Line 2: Pass (if present, starts at index 2) #}
+
+                    {# Line 2: Pass — humanise "not sure" / "other" values #}
                     {% if id_parts|length > 2 %}
-                        <p class="ss-identity-pass">{{ id_parts[2:] | join(' · ') }}</p>
+                        {% set raw_pass = id_parts[2:] | join(' · ') %}
+                        {% if raw_pass | lower in ['not sure', 'not_sure', 'other', 'unsure', 'undecided'] %}
+                            {% set pass_label = 'Still deciding on pass' %}
+                        {% else %}
+                            {% set pass_label = raw_pass %}
+                        {% endif %}
+                        <p class="ss-identity-pass">{{ pass_label }}</p>
                     {% endif %}
                 {% endif %}
 
@@ -259,8 +304,17 @@
             <!-- Trip table -->
             <div class="ss-trip-table">
                 {% if all_upcoming %}
+                    {% set trip_count = all_upcoming | length %}
+                    {% if trip_count <= 5 %}
+                        {% set size_class = 'mountain-count-small' %}
+                    {% elif trip_count <= 10 %}
+                        {% set size_class = 'mountain-count-medium' %}
+                    {% else %}
+                        {% set size_class = 'mountain-count-large' %}
+                    {% endif %}
+
                     {% set grouped = group_trips_by_month(all_upcoming) %}
-                    <div class="ss-trip-grid">
+                    <div class="ss-trip-grid {{ size_class }}">
                         {% for month_label, trips in grouped %}
                             <div class="ss-month-group">
                                 <p class="ss-month-label">{{ month_label }}</p>
