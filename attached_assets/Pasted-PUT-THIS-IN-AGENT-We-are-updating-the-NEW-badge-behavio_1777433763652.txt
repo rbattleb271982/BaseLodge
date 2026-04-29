@@ -1,0 +1,94 @@
+PUT THIS IN AGENT
+
+We are updating the “NEW” badge behavior on the Friends screen.
+
+Goal:
+The “NEW” badge should disappear after the current user clicks into that friend’s profile for the first time.
+
+Do not use time-based logic.
+
+--------------------------------
+1. Identify current logic
+--------------------------------
+
+Locate where the “NEW” badge is rendered in templates/friends.html (or related component).
+
+Identify:
+- What condition currently controls showing “NEW”
+- Whether it is based on created_at, invite status, or a boolean flag
+
+--------------------------------
+2. Add tracking field
+--------------------------------
+
+We need to track whether the current user has viewed a specific friend’s profile.
+
+Implement ONE of the following (choose the simplest based on current schema):
+
+Option A (preferred):
+- Add a boolean field to the Friend relationship model (or equivalent):
+  has_viewed_profile (default = False)
+
+Option B:
+- If Friend model is not appropriate, create a lightweight tracking table:
+  user_id
+  friend_id
+  has_viewed (boolean)
+
+--------------------------------
+3. Update profile route
+--------------------------------
+
+In the route that renders a friend’s profile (e.g. /friend/<id> or equivalent):
+
+- When current user views a friend’s profile:
+  set has_viewed_profile = True for that relationship
+
+Ensure:
+- Only updates for the current user
+- Does not affect the other user’s view
+
+--------------------------------
+4. Update Friends UI
+--------------------------------
+
+Update the “NEW” badge condition:
+
+Show “NEW” only if:
+- Friend relationship exists
+- AND has_viewed_profile == False
+
+Remove any existing time-based or status-based logic for “NEW”
+
+--------------------------------
+5. Backward compatibility
+--------------------------------
+
+For existing friends:
+- Default has_viewed_profile = False
+- So they will temporarily show “NEW” until clicked once
+
+--------------------------------
+6. QA checklist
+--------------------------------
+
+Verify:
+
+- New friend shows “NEW” badge
+- Clicking into their profile removes “NEW”
+- Returning to Friends screen does NOT show “NEW” again
+- Other friends are unaffected
+- No performance issues or repeated writes
+- No errors if field is null or missing
+
+--------------------------------
+7. Report back
+--------------------------------
+
+Provide:
+- Where the “NEW” logic originally lived
+- What was removed/replaced
+- What model/field was added
+- Confirmation the new behavior works
+
+Do not use checkpoints unless explicitly instructed.

@@ -3545,18 +3545,14 @@ def friends():
         friend_trips_by_id[fid].append(ft)
     
     # Calculate sorting data for each friend
-    seven_days_ago = datetime.utcnow() - timedelta(days=7)
-    
     for friend in all_friends:
         friendship = friendship_lookup.get(friend.id)
         
         # Attach friendship permission
         friend._trip_invites_allowed = friendship.trip_invites_allowed if friendship else False
         
-        # Is this a new friend (within 7 days)?
-        friend._is_new_friend = False
-        if friendship and friendship.created_at:
-            friend._is_new_friend = friendship.created_at >= seven_days_ago
+        # NEW badge: show until the current user has clicked into this friend's profile
+        friend._is_new_friend = bool(friendship and not friendship.has_viewed_profile)
         
         # Get upcoming trips count using centralized helper
         friend._upcoming_trip_count = get_upcoming_trip_count(friend)
@@ -3735,7 +3731,19 @@ def friends():
 def friend_profile(friend_id):
     friend = User.query.get_or_404(friend_id)
     user = current_user
-    
+
+    # Mark profile as viewed — clears the NEW badge on the Friends screen.
+    # Only touches the current user's side of the relationship; no-op if not found.
+    try:
+        _friendship = Friend.query.filter_by(
+            user_id=user.id, friend_id=friend.id
+        ).first()
+        if _friendship and not _friendship.has_viewed_profile:
+            _friendship.has_viewed_profile = True
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+
     # Parse overlap context from URL params (for context banner)
     overlap_context = None
     resort_id = request.args.get('resort_id', type=int)

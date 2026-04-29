@@ -847,6 +847,7 @@ class Friend(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_seeded = db.Column(db.Boolean, default=False)
     trip_invites_allowed = db.Column(db.Boolean, default=False)  # Explicit permission for trip invites
+    has_viewed_profile = db.Column(db.Boolean, default=False, nullable=False)  # True once user clicks friend's profile
     
     friend = db.relationship('User', foreign_keys=[friend_id], backref='friended_by')
     
