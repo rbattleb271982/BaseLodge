@@ -1,0 +1,67 @@
+Do not make changes yet.
+
+Troubleshoot the mountain search/add behavior on:
+- Mountains Visited / Where you've ridden page
+- Wishlist mountains page
+
+Current problems:
+1. Typing “Wi” does not show Winter Park, even though Winter Park should be available.
+2. Previously selected mountains may still appear in search/list behavior inconsistently.
+3. After selecting a mountain, the user can see the selected list, but search availability is unclear.
+
+Please inspect and report exactly how this currently works.
+
+Diagnostic report needed:
+
+1. Files involved
+- Route file(s)
+- Template file(s)
+- CSS file(s)
+- JavaScript file(s)
+- Model/database tables involved
+
+2. Data source
+- Where does the mountain list come from?
+- Is it querying Resort, UserMountain, WishlistMountain, visited_mountains, or something else?
+- Is Winter Park actually present in the database?
+- What is its exact stored name?
+- Is it active/visible/eligible for this page?
+
+3. Search/filter logic
+- Is the search filtering only the already-selected list?
+- Or is it searching the full available resort database?
+- Is the filter client-side, server-side, or both?
+- Does it match by startsWith, includes, fuzzy search, or exact match?
+- Is it case-insensitive?
+- Does it search aliases/slugs or only display names?
+
+4. Selected item behavior
+- Are already-selected mountains supposed to be hidden from search results?
+- If yes, confirm that logic.
+- If no, explain why selected mountains still appear.
+
+5. Winter Park issue
+- Check specifically why typing “Wi” does not show Winter Park.
+- Possible causes to verify:
+  - Winter Park missing from Resort table
+  - Stored under a different name
+  - filtered out by country/state/pass/visibility
+  - search only filters current selected list
+  - JS selector not targeting the correct list
+  - debounce/fetch route not firing
+  - API response does not include Winter Park
+
+6. Add flow
+- What route or JS function adds a mountain?
+- After selecting a mountain, what gets saved?
+- Does the page reload or update client-side?
+- Why does the visible list appear only after selection?
+
+7. Recommended fix plan
+Give a specific fix plan, but do not apply it yet.
+
+Important:
+Only inspect and report.
+Do not edit files.
+Do not create checkpoints.
+Use Assistant, not Agent.
