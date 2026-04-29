@@ -31,17 +31,17 @@
         color: #6B665A;
         margin: 0 0 28px 0;
     }
-    /* Own / Rent pills */
+    /* Own / Rent segmented control */
     .eq-status-row {
         display: flex;
         gap: 8px;
-        margin-bottom: 28px;
+        margin-bottom: 24px;
     }
     .eq-status-pill {
         flex: 1;
-        padding: 10px 8px;
+        padding: 11px 8px;
         border-radius: 12px;
-        border: 1px solid #E5DFD0;
+        border: 1.5px solid #E5DFD0;
         background: transparent;
         font-size: 14px;
         color: #6B665A;
@@ -49,13 +49,16 @@
         cursor: pointer;
         transition: background 0.15s, color 0.15s, border-color 0.15s;
         -webkit-tap-highlight-color: transparent;
+        -webkit-appearance: none;
+        appearance: none;
+        user-select: none;
     }
     .eq-status-pill.active {
         background: #5C1219;
         color: #fff;
         border-color: #5C1219;
     }
-    /* Rent note */
+    /* Rent confirmation */
     .eq-rentals-text {
         font-size: 15px;
         color: #6B665A;
@@ -68,7 +71,7 @@
         letter-spacing: 0.5px;
         text-transform: uppercase;
         color: #6B665A;
-        margin: 28px 0 14px 0;
+        margin: 24px 0 14px 0;
         padding-bottom: 8px;
         border-bottom: 1px solid #E6DFD2;
     }
@@ -88,6 +91,8 @@
         color: #6B1F2B;
         cursor: pointer;
         -webkit-tap-highlight-color: transparent;
+        -webkit-appearance: none;
+        appearance: none;
         transition: background 0.15s, color 0.15s;
     }
     .eq-gear-type-btn.active {
@@ -125,8 +130,9 @@
     }
     .eq-form-grid select:focus,
     .eq-form-grid input:focus { border-color: #5C1219; }
-    /* Save button */
+    /* Save button — always visible */
     .eq-save-btn {
+        display: block;
         width: 100%;
         min-height: 52px;
         padding: 0 16px;
@@ -139,6 +145,9 @@
         cursor: pointer;
         margin-top: 28px;
         box-sizing: border-box;
+        -webkit-appearance: none;
+        appearance: none;
+        -webkit-tap-highlight-color: transparent;
     }
     /* Danger zone */
     .eq-danger-zone {
@@ -195,48 +204,62 @@
     <h1 class="eq-title">Your equipment setup</h1>
     <p class="eq-subtitle">Optional — add what you ride, or mark that you rent.</p>
 
-    <!-- Own / Rent pill selector -->
-    <div class="eq-status-row">
-        <button class="eq-status-pill {% if not user.equipment_status or user.equipment_status == 'have_own_equipment' %}active{% endif %}"
-                id="pill-own" onclick="setStatus('have_own_equipment')">I have my own equipment</button>
-        <button class="eq-status-pill {% if user.equipment_status == 'needs_rentals' %}active{% endif %}"
-                id="pill-rentals" onclick="setStatus('needs_rentals')">I rent</button>
+    <!-- Hidden input tracks the current status value -->
+    <input type="hidden" id="equipment-status-input"
+           value="{{ 'needs_rentals' if user.equipment_status == 'needs_rentals' else 'have_own_equipment' }}">
+
+    <!-- Segmented control: Own / Rent -->
+    <div class="eq-status-row" role="group" aria-label="Equipment ownership">
+        <button type="button"
+                id="pill-own"
+                class="eq-status-pill {% if user.equipment_status != 'needs_rentals' %}active{% endif %}"
+                aria-pressed="{{ 'true' if user.equipment_status != 'needs_rentals' else 'false' }}">
+            I have my own equipment
+        </button>
+        <button type="button"
+                id="pill-rentals"
+                class="eq-status-pill {% if user.equipment_status == 'needs_rentals' %}active{% endif %}"
+                aria-pressed="{{ 'true' if user.equipment_status == 'needs_rentals' else 'false' }}">
+            I rent
+        </button>
     </div>
 
-    <!-- Rent confirmation -->
+    <!-- Rent confirmation message -->
     <p id="eq-rentals-note" class="eq-rentals-text"
-       {% if user.equipment_status != 'needs_rentals' %}style="display:none;"{% endif %}>
+       style="display:{{ 'block' if user.equipment_status == 'needs_rentals' else 'none' }};">
         Got it — we'll show that you rent your gear.
     </p>
 
-    <!-- Equipment form (hidden when renting) -->
+    <!-- Gear form — hidden when renting -->
     <div id="eq-detail-section"
-         {% if user.equipment_status == 'needs_rentals' %}style="display:none;"{% endif %}>
+         style="display:{{ 'none' if user.equipment_status == 'needs_rentals' else 'block' }};">
 
-        <!-- Discipline: hidden field (always submitted) -->
+        <!-- Discipline: hidden field (read by saveEquipment) -->
         <input type="hidden" id="primary-discipline" value="{{ default_discipline }}">
 
-        <!-- Gear-type toggle — only shown for users who ride both -->
+        <!-- Gear-type toggle — shown only for users who ride both -->
         {% if is_both_rider %}
         <div class="eq-gear-type-row">
-            <button class="eq-gear-type-btn {% if default_discipline == 'Skier' %}active{% endif %}"
-                    id="gear-btn-skis" onclick="setDiscipline('Skier')">Skis</button>
-            <button class="eq-gear-type-btn {% if default_discipline == 'Snowboarder' %}active{% endif %}"
-                    id="gear-btn-board" onclick="setDiscipline('Snowboarder')">Board</button>
+            <button type="button"
+                    class="eq-gear-type-btn {% if default_discipline == 'Skier' %}active{% endif %}"
+                    id="gear-btn-skis">Skis</button>
+            <button type="button"
+                    class="eq-gear-type-btn {% if default_discipline == 'Snowboarder' %}active{% endif %}"
+                    id="gear-btn-board">Board</button>
         </div>
         {% endif %}
 
         <div class="eq-form-grid">
 
-            <!-- ── SKIS / BOARD section ── -->
+            <!-- SKIS / BOARD section -->
             <p class="eq-section-label" id="primary-gear-label">
                 {{ 'Board' if default_discipline == 'Snowboarder' else 'Skis' }}
             </p>
 
             <div>
                 <label class="eq-field-label">Brand</label>
-                <select id="primary-brand" onchange="handleBrandOther()">
-                    <!-- populated by initBrands() -->
+                <select id="primary-brand">
+                    <!-- Populated by initBrands() on load -->
                 </select>
             </div>
 
@@ -271,23 +294,31 @@
                        value="{{ primary_equipment.purchase_year or '' if primary_equipment else '' }}">
             </div>
 
-            <!-- ── BOOTS section ── -->
+            <!-- BOOTS section -->
             <p class="eq-section-label">Boots</p>
 
             <div>
                 <label class="eq-field-label">Brand</label>
-                <select id="primary-boot-brand" onchange="handleBootBrandOther()">
+                <select id="primary-boot-brand">
                     <option value="">Select</option>
                     {% for b in ['Atomic','Dalbello','Fischer','Head','Lange','Nordica','Rossignol','Salomon','Tecnica','Burton','ThirtyTwo','Vans','K2','Ride','Other'] %}
                     <option value="{{ b }}"
                         {% if primary_equipment and primary_equipment.boot_brand == b %}selected{% endif %}>{{ b }}</option>
                     {% endfor %}
+                    {# If saved boot brand is not in the standard list, show it as Other #}
+                    {% if primary_equipment and primary_equipment.boot_brand
+                          and primary_equipment.boot_brand not in ['Atomic','Dalbello','Fischer','Head','Lange','Nordica','Rossignol','Salomon','Tecnica','Burton','ThirtyTwo','Vans','K2','Ride','Other'] %}
+                    <option value="Other" selected>Other</option>
+                    {% endif %}
                 </select>
             </div>
 
             <div id="boot-brand-other-wrap" style="display:none;">
                 <label class="eq-field-label">Boot brand name</label>
-                <input type="text" id="primary-boot-brand-other" placeholder="Enter brand">
+                <input type="text" id="primary-boot-brand-other" placeholder="Enter brand"
+                       value="{{ primary_equipment.boot_brand if primary_equipment and primary_equipment.boot_brand
+                                  and primary_equipment.boot_brand not in ['Atomic','Dalbello','Fischer','Head','Lange','Nordica','Rossignol','Salomon','Tecnica','Burton','ThirtyTwo','Vans','K2','Ride','Other']
+                                  else '' }}">
             </div>
 
             <div>
@@ -304,185 +335,277 @@
 
         </div><!-- end eq-form-grid -->
 
-        <button class="eq-save-btn" onclick="saveEquipment('primary')">Save setup</button>
-        <p class="eq-error" id="primary-error"></p>
-
-        {% if primary_equipment %}
-        <div class="eq-danger-zone">
-            <button class="eq-delete-btn" onclick="deleteEquipment('primary')">Delete setup</button>
-        </div>
-        {% endif %}
-
     </div><!-- end eq-detail-section -->
+
+    <!-- Save button: always visible regardless of own/rent state -->
+    <button type="button" class="eq-save-btn" id="eq-save-btn">Save setup</button>
+    <p class="eq-error" id="primary-error"></p>
+
+    {% if primary_equipment %}
+    <div class="eq-danger-zone">
+        <button type="button" class="eq-delete-btn" id="eq-delete-btn">Delete setup</button>
+    </div>
+    {% endif %}
 
 </div><!-- end page-container -->
 {% endblock %}
 
 {% block scripts %}
 <script>
-const SKI_BRANDS   = ['Atomic','Blizzard','Dynastar','Elan','Fischer','Head','K2','Line','Nordica','Rossignol','Salomon','Stöckli','Völkl','Other'];
-const BOARD_BRANDS = ['Burton','Capita','Jones','K2','Lib Tech','Never Summer','Nitro','Ride','Rome','Salomon','GNU','Arbor','Other'];
-const BOOT_BRANDS  = ['Atomic','Dalbello','Fischer','Head','Lange','Nordica','Rossignol','Salomon','Tecnica','Burton','ThirtyTwo','Vans','K2','Ride','Other'];
+// ── Brand data ────────────────────────────────────────────────────────────────
+var SKI_BRANDS   = ['Atomic','Blizzard','Dynastar','Elan','Fischer','Head','K2','Line','Nordica','Rossignol','Salomon','Stockli','Volkl','Other'];
+var BOARD_BRANDS = ['Burton','Capita','Jones','K2','Lib Tech','Never Summer','Nitro','Ride','Rome','Salomon','GNU','Arbor','Other'];
+var BOOT_BRANDS  = ['Atomic','Dalbello','Fischer','Head','Lange','Nordica','Rossignol','Salomon','Tecnica','Burton','ThirtyTwo','Vans','K2','Ride','Other'];
 
-const SAVED_PRIMARY_BRAND = {{ (primary_equipment.brand or '') | tojson if primary_equipment else '""' }};
-const SAVED_BOOT_BRAND    = {{ (primary_equipment.boot_brand or '') | tojson if primary_equipment else '""' }};
+var SAVED_PRIMARY_BRAND = {{ (primary_equipment.brand | tojson) if primary_equipment and primary_equipment.brand else '""' }};
+var SAVED_BOOT_BRAND    = {{ (primary_equipment.boot_brand | tojson) if primary_equipment and primary_equipment.boot_brand else '""' }};
 
-// ── Brand dropdowns ──────────────────────────────────────────────────────────
+// ── Status toggle (pure UI — no fetch) ───────────────────────────────────────
+
+function setStatus(val) {
+    var statusInput   = document.getElementById('equipment-status-input');
+    var ownPill       = document.getElementById('pill-own');
+    var rentPill      = document.getElementById('pill-rentals');
+    var detailSection = document.getElementById('eq-detail-section');
+    var rentNote      = document.getElementById('eq-rentals-note');
+
+    // Update hidden input
+    if (statusInput) statusInput.value = val;
+
+    // Swap active class
+    if (ownPill) {
+        ownPill.classList.toggle('active', val === 'have_own_equipment');
+        ownPill.setAttribute('aria-pressed', val === 'have_own_equipment' ? 'true' : 'false');
+    }
+    if (rentPill) {
+        rentPill.classList.toggle('active', val === 'needs_rentals');
+        rentPill.setAttribute('aria-pressed', val === 'needs_rentals' ? 'true' : 'false');
+    }
+
+    // Show / hide gear form and rent note
+    if (detailSection) detailSection.style.display = (val === 'needs_rentals') ? 'none' : 'block';
+    if (rentNote)      rentNote.style.display      = (val === 'needs_rentals') ? 'block' : 'none';
+}
+
+// ── Brand dropdowns ───────────────────────────────────────────────────────────
 
 function initBrands() {
-    const disc   = document.getElementById('primary-discipline').value;
-    const brands = disc === 'Snowboarder' ? BOARD_BRANDS : SKI_BRANDS;
-    const sel    = document.getElementById('primary-brand');
+    var discInput = document.getElementById('primary-discipline');
+    var sel       = document.getElementById('primary-brand');
+    if (!discInput || !sel) return;
 
-    let html = '<option value="">Select</option>';
-    brands.forEach(b => {
-        html += `<option value="${b}"${b === SAVED_PRIMARY_BRAND ? ' selected' : ''}>${b}</option>`;
-    });
+    var disc   = discInput.value;
+    var brands = (disc === 'Snowboarder') ? BOARD_BRANDS : SKI_BRANDS;
+    var html   = '<option value="">Select<\/option>';
+
+    for (var i = 0; i < brands.length; i++) {
+        var b = brands[i];
+        html += '<option value="' + b + '"' + (b === SAVED_PRIMARY_BRAND ? ' selected' : '') + '>' + b + '<\/option>';
+    }
     sel.innerHTML = html;
 
-    // If saved brand isn't in the current list, treat as Other
-    if (SAVED_PRIMARY_BRAND && !brands.includes(SAVED_PRIMARY_BRAND)) {
+    // If saved brand isn't in the list, select "Other" and show text field
+    var inList = false;
+    for (var j = 0; j < brands.length; j++) {
+        if (brands[j] === SAVED_PRIMARY_BRAND) { inList = true; break; }
+    }
+    if (SAVED_PRIMARY_BRAND && !inList) {
         sel.value = 'Other';
-        document.getElementById('primary-brand-other').value = SAVED_PRIMARY_BRAND;
+        var otherInput = document.getElementById('primary-brand-other');
+        if (otherInput) otherInput.value = SAVED_PRIMARY_BRAND;
     }
-    handleBrandOther();
 
-    // Boot brand — if saved brand is not in the known list, show Other + text field
-    if (SAVED_BOOT_BRAND && !BOOT_BRANDS.includes(SAVED_BOOT_BRAND)) {
-        document.getElementById('primary-boot-brand').value = 'Other';
-        document.getElementById('primary-boot-brand-other').value = SAVED_BOOT_BRAND;
-        document.getElementById('boot-brand-other-wrap').style.display = 'block';
+    updateBrandOtherVisibility();
+
+    // Boot brand: if saved value isn't in known list, show text field
+    if (SAVED_BOOT_BRAND) {
+        var inBootList = false;
+        for (var k = 0; k < BOOT_BRANDS.length; k++) {
+            if (BOOT_BRANDS[k] === SAVED_BOOT_BRAND) { inBootList = true; break; }
+        }
+        if (!inBootList) {
+            var bootSel = document.getElementById('primary-boot-brand');
+            if (bootSel) bootSel.value = 'Other';
+            var bootOtherInput = document.getElementById('primary-boot-brand-other');
+            if (bootOtherInput) bootOtherInput.value = SAVED_BOOT_BRAND;
+        }
     }
-    handleBootBrandOther();
+    updateBootBrandOtherVisibility();
 }
 
-function handleBrandOther() {
-    const sel  = document.getElementById('primary-brand');
-    const wrap = document.getElementById('primary-brand-other-wrap');
-    if (!sel || !wrap) return;
-    wrap.style.display = sel.value === 'Other' ? 'block' : 'none';
+function updateBrandOtherVisibility() {
+    var sel  = document.getElementById('primary-brand');
+    var wrap = document.getElementById('primary-brand-other-wrap');
+    if (sel && wrap) wrap.style.display = (sel.value === 'Other') ? 'block' : 'none';
 }
 
-function handleBootBrandOther() {
-    const sel  = document.getElementById('primary-boot-brand');
-    const wrap = document.getElementById('boot-brand-other-wrap');
-    if (!sel || !wrap) return;
-    wrap.style.display = sel.value === 'Other' ? 'block' : 'none';
+function updateBootBrandOtherVisibility() {
+    var sel  = document.getElementById('primary-boot-brand');
+    var wrap = document.getElementById('boot-brand-other-wrap');
+    if (sel && wrap) wrap.style.display = (sel.value === 'Other') ? 'block' : 'none';
 }
 
-// ── Discipline toggle (Both riders only) ─────────────────────────────────────
+// ── Gear-type toggle (Both riders) ───────────────────────────────────────────
 
 function setDiscipline(disc) {
-    document.getElementById('primary-discipline').value = disc;
+    var discInput = document.getElementById('primary-discipline');
+    var labelEl   = document.getElementById('primary-gear-label');
+    var skisBtn   = document.getElementById('gear-btn-skis');
+    var boardBtn  = document.getElementById('gear-btn-board');
 
-    // Update section label
-    document.getElementById('primary-gear-label').textContent = disc === 'Snowboarder' ? 'Board' : 'Skis';
+    if (discInput) discInput.value = disc;
+    if (labelEl)   labelEl.textContent = (disc === 'Snowboarder') ? 'Board' : 'Skis';
+    if (skisBtn)   skisBtn.classList.toggle('active',  disc === 'Skier');
+    if (boardBtn)  boardBtn.classList.toggle('active', disc === 'Snowboarder');
 
-    // Toggle buttons
-    const skisBtn  = document.getElementById('gear-btn-skis');
-    const boardBtn = document.getElementById('gear-btn-board');
-    if (skisBtn)  skisBtn.classList.toggle('active',  disc === 'Skier');
-    if (boardBtn) boardBtn.classList.toggle('active', disc === 'Snowboarder');
-
-    // Repopulate brands for new discipline (clear saved value since discipline changed)
-    const brands = disc === 'Snowboarder' ? BOARD_BRANDS : SKI_BRANDS;
-    const sel = document.getElementById('primary-brand');
-    let html = '<option value="">Select</option>';
-    brands.forEach(b => { html += `<option value="${b}">${b}</option>`; });
-    sel.innerHTML = html;
-    handleBrandOther();
-}
-
-// ── Rent toggle ───────────────────────────────────────────────────────────────
-
-async function setStatus(val) {
-    document.getElementById('pill-own').classList.toggle('active',    val === 'have_own_equipment');
-    document.getElementById('pill-rentals').classList.toggle('active', val === 'needs_rentals');
-    document.getElementById('eq-detail-section').style.display = val === 'needs_rentals' ? 'none' : 'block';
-    document.getElementById('eq-rentals-note').style.display   = val === 'needs_rentals' ? 'block' : 'none';
-    const fd = new FormData();
-    fd.append('equipment_status', val);
-    await fetch('/settings/equipment-status', { method: 'POST', body: fd });
+    // Repopulate brand select (clear previous selection)
+    var brands = (disc === 'Snowboarder') ? BOARD_BRANDS : SKI_BRANDS;
+    var sel = document.getElementById('primary-brand');
+    if (sel) {
+        var html = '<option value="">Select<\/option>';
+        for (var i = 0; i < brands.length; i++) {
+            html += '<option value="' + brands[i] + '">' + brands[i] + '<\/option>';
+        }
+        sel.innerHTML = html;
+    }
+    updateBrandOtherVisibility();
 }
 
 // ── Save ──────────────────────────────────────────────────────────────────────
 
-async function saveEquipment(slot) {
-    const errEl = document.getElementById(slot + '-error');
+function saveEquipment() {
+    var errEl         = document.getElementById('primary-error');
+    var statusInput   = document.getElementById('equipment-status-input');
+    var equipStatus   = statusInput ? statusInput.value : 'have_own_equipment';
+
     if (errEl) errEl.style.display = 'none';
 
-    const discipline = document.getElementById(slot + '-discipline').value;
+    // Save rent status via the status endpoint then redirect
+    if (equipStatus === 'needs_rentals') {
+        var fd = new FormData();
+        fd.append('equipment_status', 'needs_rentals');
+        fetch('/settings/equipment-status', { method: 'POST', body: fd })
+            .then(function() { window.location.href = '/profile'; })
+            .catch(function() { window.location.href = '/profile'; });
+        return;
+    }
+
+    // Own equipment: validate discipline
+    var discipline = (function() {
+        var el = document.getElementById('primary-discipline');
+        return el ? el.value : '';
+    }());
+
     if (!discipline) {
         if (errEl) { errEl.textContent = 'Please select Skis or Board first.'; errEl.style.display = 'block'; }
         return;
     }
 
-    // Resolve main brand
-    const brandSel = document.getElementById(slot + '-brand');
-    let brand = brandSel ? brandSel.value : '';
+    // Resolve main brand (handle "Other")
+    var brandSel   = document.getElementById('primary-brand');
+    var brand      = brandSel ? brandSel.value : '';
     if (brand === 'Other') {
-        brand = (document.getElementById(slot + '-brand-other') || {}).value || '';
-        brand = brand.trim();
+        var brandOther = document.getElementById('primary-brand-other');
+        brand = brandOther ? (brandOther.value || '').trim() : '';
     }
 
-    // Resolve boot brand
-    const bootBrandSel = document.getElementById(slot + '-boot-brand');
-    let bootBrand = bootBrandSel ? bootBrandSel.value : '';
+    // Resolve boot brand (handle "Other")
+    var bootBrandSel = document.getElementById('primary-boot-brand');
+    var bootBrand    = bootBrandSel ? bootBrandSel.value : '';
     if (bootBrand === 'Other') {
-        bootBrand = (document.getElementById('primary-boot-brand-other') || {}).value || '';
-        bootBrand = bootBrand.trim();
+        var bootBrandOther = document.getElementById('primary-boot-brand-other');
+        bootBrand = bootBrandOther ? (bootBrandOther.value || '').trim() : '';
     }
 
-    const fd = new FormData();
-    fd.append('slot',        slot);
-    fd.append('discipline',  discipline);
-    fd.append('brand',       brand);
-    fd.append('model',       (document.getElementById(slot + '-model')         || {}).value || '');
-    fd.append('length_cm',   (document.getElementById(slot + '-length')        || {}).value || '');
-    fd.append('width_mm',    (document.getElementById(slot + '-width')         || {}).value || '');
-    fd.append('binding_type','');
-    fd.append('boot_brand',  bootBrand);
-    fd.append('boot_model',  (document.getElementById(slot + '-boot-model')    || {}).value || '');
-    fd.append('boot_flex',   (document.getElementById(slot + '-boot-flex')     || {}).value || '');
-    const pyEl = document.getElementById('primary-purchase-year');
+    var fd = new FormData();
+    fd.append('slot',         'primary');
+    fd.append('discipline',   discipline);
+    fd.append('brand',        brand);
+    fd.append('model',        (document.getElementById('primary-model')         || {value:''}).value);
+    fd.append('length_cm',    (document.getElementById('primary-length')        || {value:''}).value);
+    fd.append('width_mm',     (document.getElementById('primary-width')         || {value:''}).value);
+    fd.append('binding_type', '');
+    fd.append('boot_brand',   bootBrand);
+    fd.append('boot_model',   (document.getElementById('primary-boot-model')    || {value:''}).value);
+    fd.append('boot_flex',    (document.getElementById('primary-boot-flex')     || {value:''}).value);
+    var pyEl = document.getElementById('primary-purchase-year');
     if (pyEl) fd.append('purchase_year', pyEl.value);
 
-    try {
-        const resp = await fetch('/settings/equipment/save', { method: 'POST', body: fd });
-        const data = await resp.json();
-        if (data.success) {
-            window.location.href = '/profile';
-        } else {
-            if (errEl) { errEl.textContent = data.error || 'Could not save. Please try again.'; errEl.style.display = 'block'; }
-        }
-    } catch (e) {
-        if (errEl) { errEl.textContent = 'Could not save. Check your connection and try again.'; errEl.style.display = 'block'; }
-    }
+    // Also save equipment_status = own
+    var statusFd = new FormData();
+    statusFd.append('equipment_status', 'have_own_equipment');
+    fetch('/settings/equipment-status', { method: 'POST', body: statusFd }).catch(function(){});
+
+    fetch('/settings/equipment/save', { method: 'POST', body: fd })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+            if (data.success) {
+                window.location.href = '/profile';
+            } else {
+                if (errEl) { errEl.textContent = data.error || 'Could not save. Please try again.'; errEl.style.display = 'block'; }
+            }
+        })
+        .catch(function() {
+            if (errEl) { errEl.textContent = 'Could not save. Check your connection and try again.'; errEl.style.display = 'block'; }
+        });
 }
 
 // ── Delete ────────────────────────────────────────────────────────────────────
 
-async function deleteEquipment(slot) {
-    const fd = new FormData();
-    fd.append('slot', slot);
-    try {
-        const resp = await fetch('/settings/equipment/delete', { method: 'POST', body: fd });
-        const data = await resp.json();
-        if (data.success) {
-            showToast('Setup removed');
-            setTimeout(() => window.location.reload(), 800);
-        }
-    } catch (e) { showToast('Could not delete'); }
+function deleteEquipment() {
+    var fd = new FormData();
+    fd.append('slot', 'primary');
+    fetch('/settings/equipment/delete', { method: 'POST', body: fd })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+            if (data.success) {
+                showToast('Setup removed');
+                setTimeout(function() { window.location.reload(); }, 800);
+            }
+        })
+        .catch(function() { showToast('Could not delete'); });
 }
 
 function showToast(msg) {
-    const t = document.getElementById('eq-toast');
+    var t = document.getElementById('eq-toast');
+    if (!t) return;
     t.textContent = msg;
     t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2000);
+    setTimeout(function() { t.classList.remove('show'); }, 2000);
 }
 
-// Init on page load
-initBrands();
+// ── Wire up all event listeners after DOM is ready ────────────────────────────
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Status pills
+    var pillOwn = document.getElementById('pill-own');
+    var pillRent = document.getElementById('pill-rentals');
+    if (pillOwn)  pillOwn.addEventListener('click',  function() { setStatus('have_own_equipment'); });
+    if (pillRent) pillRent.addEventListener('click', function() { setStatus('needs_rentals'); });
+
+    // Gear-type buttons (Both riders)
+    var gearSkis  = document.getElementById('gear-btn-skis');
+    var gearBoard = document.getElementById('gear-btn-board');
+    if (gearSkis)  gearSkis.addEventListener('click',  function() { setDiscipline('Skier'); });
+    if (gearBoard) gearBoard.addEventListener('click', function() { setDiscipline('Snowboarder'); });
+
+    // Brand selects
+    var brandSel = document.getElementById('primary-brand');
+    if (brandSel) brandSel.addEventListener('change', updateBrandOtherVisibility);
+
+    var bootBrandSel = document.getElementById('primary-boot-brand');
+    if (bootBrandSel) bootBrandSel.addEventListener('change', updateBootBrandOtherVisibility);
+
+    // Save button
+    var saveBtn = document.getElementById('eq-save-btn');
+    if (saveBtn) saveBtn.addEventListener('click', saveEquipment);
+
+    // Delete button
+    var deleteBtn = document.getElementById('eq-delete-btn');
+    if (deleteBtn) deleteBtn.addEventListener('click', deleteEquipment);
+
+    // Populate brand dropdowns
+    initBrands();
+});
 </script>
 {% endblock %}
