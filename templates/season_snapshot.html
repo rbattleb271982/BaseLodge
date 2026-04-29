@@ -24,16 +24,18 @@
             padding: 16px 20px 4px;
         }
         .ss-back-nav a {
-            font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-            font-size: 15px;
             color: #7A1820;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 4px;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
             -webkit-tap-highlight-color: transparent;
+            margin-left: -8px;
         }
-        .ss-back-nav a:active { opacity: 0.6; }
+        .ss-back-nav a:active { opacity: 0.5; }
 
         .ss-page-hero {
             width: calc(100% - 12px);
@@ -103,31 +105,30 @@
         /* Identity line */
         .ss-identity {
             font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-            font-size: 13px;
+            font-size: 15px;
             font-weight: 600;
             letter-spacing: 1.2px;
             text-transform: uppercase;
             color: #5A5248;
-            margin-bottom: 10px;
-            line-height: 1.5;
-        }
-        .ss-identity-main {
+            margin-bottom: 6px;
+            line-height: 1.4;
             white-space: nowrap;
         }
         .ss-identity-pass {
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 500;
-            letter-spacing: 0.8px;
+            letter-spacing: 0.9px;
+            text-transform: uppercase;
             color: #7A7060;
-            margin-top: 2px;
+            margin-bottom: 10px;
         }
 
         /* Branding line */
         .ss-branding {
             font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-            font-size: 10px;
+            font-size: 14px;
             font-weight: 400;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.4px;
             color: #9A3A42;
             margin-bottom: 16px;
         }
@@ -212,6 +213,15 @@
 
 {% block content %}
 
+    <!-- Back navigation -->
+    <div class="ss-back-nav">
+        <a href="{{ url_for('my_trips') }}">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </a>
+    </div>
+
     <div class="ss-page-hero">
         <h1 class="ss-page-headline">Your winter, made to be shared.</h1>
         <p class="ss-page-subhead">Season Snapshot</p>
@@ -230,9 +240,14 @@
                 {% set id_line = user|identity_line %}
                 {% if id_line %}
                     {% set id_parts = id_line.split(' · ') %}
-                    <p class="ss-identity ss-identity-main">{{ id_parts[0] }}</p>
-                    {% if id_parts|length > 1 %}
-                        <p class="ss-identity ss-identity-pass">{{ id_parts[1] }}</p>
+                    {# Line 1: Rider · Skill on one nowrap line #}
+                    <p class="ss-identity">
+                        {{- id_parts[0] -}}
+                        {%- if id_parts|length > 1 %} · {{ id_parts[1] }}{% endif -%}
+                    </p>
+                    {# Line 2: Pass (if present, starts at index 2) #}
+                    {% if id_parts|length > 2 %}
+                        <p class="ss-identity-pass">{{ id_parts[2:] | join(' · ') }}</p>
                     {% endif %}
                 {% endif %}
 
