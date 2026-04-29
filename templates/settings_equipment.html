@@ -198,6 +198,8 @@
         <button type="button" id="pill-rentals" class="eq-status-pill {% if user.equipment_status == 'needs_rentals' %}active{% endif %}" aria-pressed="{{ 'true' if user.equipment_status == 'needs_rentals' else 'false' }}">I rent</button>
     </div>
     <p id="eq-rentals-note" class="eq-rentals-text" style="display:{{ 'block' if user.equipment_status == 'needs_rentals' else 'none' }};">Got it — we'll show that you rent your gear.</p>
+    <p id="eq-debug-visible" class="eq-rentals-text" style="display:none;">Debug: equipment JS loaded</p>
+    <p id="eq-debug-selected" class="eq-rentals-text" style="display:none;"></p>
     <div id="eq-detail-section" style="display:{{ 'none' if user.equipment_status == 'needs_rentals' else 'block' }};">
         <input type="hidden" id="primary-discipline" value="{{ default_discipline }}">
         {% if is_both_rider %}
@@ -210,7 +212,39 @@
             <p class="eq-section-label" id="primary-gear-label">{{ 'Board' if default_discipline == 'Snowboarder' else 'Skis' }}</p>
             <div>
                 <label class="eq-field-label">Brand</label>
-                <select id="primary-brand"></select>
+                <select id="primary-brand">
+                    <option value="">Select</option>
+                    {% if default_discipline == 'Snowboarder' %}
+                    <option value="Burton">Burton</option>
+                    <option value="Capita">Capita</option>
+                    <option value="Jones">Jones</option>
+                    <option value="K2">K2</option>
+                    <option value="Lib Tech">Lib Tech</option>
+                    <option value="Never Summer">Never Summer</option>
+                    <option value="Nitro">Nitro</option>
+                    <option value="Ride">Ride</option>
+                    <option value="Rome">Rome</option>
+                    <option value="Salomon">Salomon</option>
+                    <option value="GNU">GNU</option>
+                    <option value="Arbor">Arbor</option>
+                    <option value="Other">Other</option>
+                    {% else %}
+                    <option value="Atomic">Atomic</option>
+                    <option value="Blizzard">Blizzard</option>
+                    <option value="Dynastar">Dynastar</option>
+                    <option value="Elan">Elan</option>
+                    <option value="Fischer">Fischer</option>
+                    <option value="Head">Head</option>
+                    <option value="K2">K2</option>
+                    <option value="Line">Line</option>
+                    <option value="Nordica">Nordica</option>
+                    <option value="Rossignol">Rossignol</option>
+                    <option value="Salomon">Salomon</option>
+                    <option value="Stöckli">Stöckli</option>
+                    <option value="Völkl">Völkl</option>
+                    <option value="Other">Other</option>
+                    {% endif %}
+                </select>
             </div>
             <div id="primary-brand-fallback" style="display:none;">
                 <label class="eq-field-label">Brand name</label>
@@ -237,7 +271,24 @@
             <p class="eq-section-label">Boots</p>
             <div>
                 <label class="eq-field-label">Brand</label>
-                <select id="primary-boot-brand"></select>
+                <select id="primary-boot-brand">
+                    <option value="">Select</option>
+                    <option value="Atomic">Atomic</option>
+                    <option value="Dalbello">Dalbello</option>
+                    <option value="Fischer">Fischer</option>
+                    <option value="Head">Head</option>
+                    <option value="Lange">Lange</option>
+                    <option value="Nordica">Nordica</option>
+                    <option value="Rossignol">Rossignol</option>
+                    <option value="Salomon">Salomon</option>
+                    <option value="Tecnica">Tecnica</option>
+                    <option value="Burton">Burton</option>
+                    <option value="ThirtyTwo">ThirtyTwo</option>
+                    <option value="Vans">Vans</option>
+                    <option value="K2">K2</option>
+                    <option value="Ride">Ride</option>
+                    <option value="Other">Other</option>
+                </select>
             </div>
             <div id="boot-brand-fallback" style="display:none;">
                 <label class="eq-field-label">Boot brand name</label>
@@ -262,12 +313,8 @@
     {% endif %}
 </div>
 <script>
-var SKI_BRANDS = ['Atomic','Blizzard','Dynastar','Elan','Fischer','Head','K2','Line','Nordica','Rossignol','Salomon','Stöckli','Völkl','Other'];
-var BOARD_BRANDS = ['Burton','Capita','Jones','K2','Lib Tech','Never Summer','Nitro','Ride','Rome','Salomon','GNU','Arbor','Other'];
-var BOOT_BRANDS = ['Atomic','Dalbello','Fischer','Head','Lange','Nordica','Rossignol','Salomon','Tecnica','Burton','ThirtyTwo','Vans','K2','Ride','Other'];
-var SAVED_PRIMARY_BRAND = {{ (primary_equipment.brand | tojson) if primary_equipment and primary_equipment.brand else '""' }};
-var SAVED_BOOT_BRAND = {{ (primary_equipment.boot_brand | tojson) if primary_equipment and primary_equipment.boot_brand else '""' }};
 function logWarn(msg) { if (window.console && console.warn) console.warn('[equipment]', msg); }
+console.log('[equipment] script starts');
 function setStatus(val) {
     var statusInput = document.getElementById('equipment-status-input');
     var ownPill = document.getElementById('pill-own');
@@ -283,33 +330,18 @@ function setStatus(val) {
     detailSection.style.display = val === 'needs_rentals' ? 'none' : 'block';
     rentNote.style.display = val === 'needs_rentals' ? 'block' : 'none';
 }
-function populateSelect(selectEl, brands, savedVal) {
-    if (!selectEl) return false;
-    var html = '<option value="">Select</option>';
-    for (var i = 0; i < brands.length; i++) {
-        html += '<option value="' + brands[i] + '"' + (brands[i] === savedVal ? ' selected' : '') + '>' + brands[i] + '</option>';
-    }
-    selectEl.innerHTML = html;
-    return selectEl.options.length > 1;
-}
 function initBrands() {
+    console.log('[equipment] initBrands() runs');
     var disc = (document.getElementById('primary-discipline') || {}).value || 'Skier';
     var brandSel = document.getElementById('primary-brand');
     var bootSel = document.getElementById('primary-boot-brand');
-    var brandOk = populateSelect(brandSel, disc === 'Snowboarder' ? BOARD_BRANDS : SKI_BRANDS, SAVED_PRIMARY_BRAND);
-    var bootOk = populateSelect(bootSel, BOOT_BRANDS, SAVED_BOOT_BRAND);
+    console.log('[equipment] primary-brand exists:', !!brandSel);
+    if (brandSel) {
+        console.log('[equipment] brand options inserted:', brandSel.options.length);
+    }
+    console.log('[equipment] boot-brand exists:', !!bootSel);
     var brandFallback = document.getElementById('primary-brand-fallback');
     var bootFallback = document.getElementById('boot-brand-fallback');
-    if (!brandOk && brandFallback) {
-        brandFallback.style.display = 'block';
-        if (brandSel) brandSel.style.display = 'none';
-        logWarn('brand select empty, using text fallback');
-    }
-    if (!bootOk && bootFallback) {
-        bootFallback.style.display = 'block';
-        if (bootSel) bootSel.style.display = 'none';
-        logWarn('boot brand select empty, using text fallback');
-    }
     if (brandSel) {
         brandSel.addEventListener('change', function() {
             if (brandFallback) brandFallback.style.display = brandSel.value === 'Other' ? 'block' : 'none';
@@ -377,11 +409,19 @@ var pillOwn = document.getElementById('pill-own');
 var pillRent = document.getElementById('pill-rentals');
 var saveBtn = document.getElementById('eq-save-btn');
 var deleteBtn = document.getElementById('eq-delete-btn');
+var statusInputEl = document.getElementById('equipment-status-input');
+console.log('[equipment] pill-own exists:', !!pillOwn);
+console.log('[equipment] pill-rentals exists:', !!pillRent);
+console.log('[equipment] equipment-status-input exists:', !!statusInputEl);
+console.log('[equipment] primary-brand exists:', !!document.getElementById('primary-brand'));
 if (pillOwn) pillOwn.addEventListener('click', function() { setStatus('have_own_equipment'); }); else logWarn('pill-own missing');
-if (pillRent) pillRent.addEventListener('click', function() { setStatus('needs_rentals'); }); else logWarn('pill-rentals missing');
+if (pillRent) pillRent.addEventListener('click', function() { console.log('[equipment] I rent clicked'); setStatus('needs_rentals'); var d=document.getElementById('eq-debug-selected'); if (d) { d.style.display='block'; d.textContent='Selected: I rent'; } }); else logWarn('pill-rentals missing');
+if (pillOwn) pillOwn.addEventListener('click', function() { console.log('[equipment] I have my own equipment clicked'); setStatus('have_own_equipment'); var d=document.getElementById('eq-debug-selected'); if (d) { d.style.display='block'; d.textContent='Selected: I have my own equipment'; } }); else logWarn('pill-own missing');
 if (saveBtn) saveBtn.addEventListener('click', saveEquipment); else logWarn('save button missing');
 if (deleteBtn) deleteBtn.addEventListener('click', deleteEquipment);
 initBrands();
 setStatus(document.getElementById('equipment-status-input') ? document.getElementById('equipment-status-input').value : 'have_own_equipment');
+var dbg = document.getElementById('eq-debug-visible');
+if (dbg) dbg.style.display = 'block';
 </script>
 {% endblock %}

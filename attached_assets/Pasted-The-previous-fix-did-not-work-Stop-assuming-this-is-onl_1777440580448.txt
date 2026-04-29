@@ -1,0 +1,59 @@
+The previous fix did not work. Stop assuming this is only a DOMContentLoaded issue.
+
+Do a focused debug pass and add visible diagnostics temporarily.
+
+Goal:
+Find exactly why the Equipment page JS is not binding or not responding.
+
+1. In templates/settings_equipment.html, temporarily add a small debug line under the toggle:
+   “Debug: equipment JS loaded”
+   This should only show if the JS successfully runs.
+
+2. Add console logs:
+   - when script starts
+   - whether pill-own exists
+   - whether pill-rentals exists
+   - whether equipment-status-input exists
+   - whether primary-brand exists
+   - when “I rent” is clicked
+   - when “I have my own equipment” is clicked
+   - when initBrands() runs
+   - number of brand options inserted
+
+3. Add a visible fallback:
+   When “I rent” is clicked, update a tiny text line under the toggle to:
+   “Selected: I rent”
+   When own equipment is clicked:
+   “Selected: I have my own equipment”
+
+4. Make the toggle work without relying on complex functions:
+   Directly assign onclick handlers:
+   pillRentals.onclick = function() { ... }
+   pillOwn.onclick = function() { ... }
+
+5. Check for blocking overlays:
+   Inspect CSS and confirm:
+   - No invisible element is sitting above the “I rent” button
+   - The button does not have pointer-events: none
+   - The parent container does not block interaction
+   - The bottom nav or browser chrome is not overlapping this area
+
+6. Brand dropdown:
+   Temporarily render hardcoded <option> tags server-side inside the select instead of relying on JS injection.
+   For skier, render ski brands directly in the HTML.
+   For snowboarder, render snowboard brands directly in the HTML.
+   This removes JS as a dependency for Brand options.
+
+7. Save flow:
+   Do not touch save flow yet.
+   First prove:
+   - JS runs
+   - buttons receive clicks
+   - Brand options exist
+
+8. After making these temporary diagnostics:
+   Tell me exactly what appears on screen and in console.
+   Do not remove the debug diagnostics until I confirm the toggle and dropdown work.
+
+Use Assistant, not Agent.
+Keep this surgical.
