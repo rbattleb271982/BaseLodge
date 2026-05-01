@@ -9122,8 +9122,22 @@ def fix_seeded_users():
 @admin_required
 def admin_version():
     """Simple version check endpoint to verify production deployment."""
+    import re
+    db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    db_source = "unknown"
+    if db_uri:
+        if "supabase" in db_uri.lower():
+            db_source = "supabase"
+        elif "sqlite" in db_uri.lower():
+            db_source = "sqlite"
+        else:
+            db_source = "external-db"
     return jsonify({
-        "version": "2025-12-25-v5",
+        "app_version": "2026-05-01-ui-sync-check",
+        "server_timestamp": datetime.utcnow().isoformat() + "Z",
+        "flask_env": os.environ.get("FLASK_ENV", "unknown"),
+        "database_url_source": db_source,
+        "note": "Used to confirm which version production/TestFlight is loading",
         "status": "ok",
         "endpoints_available": [
             "/admin/version",
