@@ -26,7 +26,6 @@
             margin: 0 0 20px 0;
             line-height: 1.2;
         }
-        /* Section */
         .ep-section {
             margin-bottom: 24px;
         }
@@ -40,7 +39,6 @@
             padding-bottom: 6px;
             border-bottom: 1px solid #E5DFD0;
         }
-        /* Field label */
         .ep-field {
             margin-bottom: 14px;
         }
@@ -56,7 +54,6 @@
             color: #8A857A;
             margin: -4px 0 8px 0;
         }
-        /* Select inputs */
         .ep-select {
             width: 100%;
             padding: 14px 12px;
@@ -75,7 +72,6 @@
             color: #8A857A;
             cursor: default;
         }
-        /* Pills */
         .ep-pills {
             display: flex;
             flex-wrap: wrap;
@@ -97,32 +93,6 @@
             color: #fff;
             border-color: #5C1219;
         }
-        /* Skill level rows */
-        .ep-skill-rows { display: flex; flex-direction: column; gap: 0; }
-        .ep-skill-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 0;
-            border-bottom: 1px solid #E5DFD0;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .ep-skill-row:first-child { border-top: 1px solid #E5DFD0; }
-        .ep-skill-name { font-size: 15px; color: #1A1A1A; }
-        .ep-skill-dot {
-            width: 20px; height: 20px;
-            border-radius: 50%;
-            border: 1.5px solid #E5DFD0;
-            flex-shrink: 0;
-            background: transparent;
-            transition: background 0.13s, border-color 0.13s;
-        }
-        .ep-skill-dot.selected {
-            background: #5C1219;
-            border-color: #5C1219;
-        }
-        /* Floating save */
         .ep-floating-save {
             position: fixed;
             bottom: 70px;
@@ -149,6 +119,7 @@
             cursor: pointer;
         }
         .ep-save-btn:active { background: #6B000F; }
+        .page-container { padding-bottom: 160px; }
     </style>
 {% endblock %}
 
@@ -187,7 +158,6 @@
         <!-- 1. Location -->
         <div class="ep-section">
             <p class="ep-section-label">Location</p>
-
             <div class="ep-field">
                 <label class="ep-field-label">Home state / province</label>
                 {% include 'components/location_selector.html' %}
@@ -209,23 +179,6 @@
                         <div class="bl-location-no-results">No matches found</div>
                     </div>
                 </div>
-            </div>
-
-            <div class="ep-field">
-                <label class="ep-field-label">Home mountain</label>
-                <select name="home_resort_id" id="home_resort_id" class="ep-select"
-                        {% if not current_user.home_state %}disabled{% endif %}>
-                    {% if not current_user.home_state %}
-                        <option value="">Select your home state first</option>
-                    {% elif current_user.home_state in resorts_by_state and resorts_by_state[current_user.home_state]|length > 0 %}
-                        <option value="">Select your home mountain</option>
-                        {% for resort in resorts_by_state[current_user.home_state] %}
-                            <option value="{{ resort.id }}" {% if current_user.home_resort_id == resort.id %}selected{% endif %}>{{ resort.name }}</option>
-                        {% endfor %}
-                    {% else %}
-                        <option value="">No mountains available</option>
-                    {% endif %}
-                </select>
             </div>
         </div>
 
@@ -251,12 +204,12 @@
 
             <div class="ep-field" id="skill-field">
                 <label class="ep-field-label">Skill level</label>
-                <div class="ep-skill-rows" id="skill-rows">
+                <div class="ep-pills" id="skill-pills">
                     {% for lvl in ["Beginner", "Intermediate", "Advanced", "Expert"] %}
-                    <div class="ep-skill-row" onclick="selectSkill('{{ lvl }}')">
-                        <span class="ep-skill-name">{{ lvl }}</span>
-                        <span class="ep-skill-dot {% if current_user.skill_level == lvl %}selected{% endif %}" id="skill-dot-{{ lvl }}"></span>
-                    </div>
+                    <button type="button"
+                            class="ep-pill {% if current_user.skill_level == lvl %}selected{% endif %}"
+                            data-value="{{ lvl }}"
+                            onclick="selectSkill(this)">{{ lvl }}</button>
                     {% endfor %}
                 </div>
             </div>
@@ -313,10 +266,11 @@
         <input type="hidden" name="pass_type" id="pass_type_hidden" value="{{ current_user.pass_type or '' }}">
         <input type="hidden" name="skill_level" id="skill_level_hidden" value="{{ current_user.skill_level or '' }}">
         <input type="hidden" name="home_state" id="home_state_hidden" value="{{ current_user.home_state or '' }}">
-        <input type="hidden" name="home_resort_id" id="home_resort_id_hidden" value="{{ current_user.home_resort_id or '' }}">
         <input type="hidden" name="gear" id="gear_hidden" value="{{ current_user.gear or '' }}">
         <input type="hidden" name="terrain_preferences" id="terrain_preferences_hidden" value="{{ (current_user.terrain_preferences or [])|join(',') }}">
         <input type="hidden" name="previous_pass" id="previous_pass_hidden" value="{{ current_user.previous_pass or '' }}">
+        <input type="hidden" name="gender" value="{{ current_user.gender or '' }}">
+        <input type="hidden" name="birth_year" value="{{ current_user.birth_year or '' }}">
     </form>
 
     <!-- Floating Save -->
@@ -340,7 +294,6 @@
             e.returnValue = '';
         }
     });
-    // Submitting the form is clean
     document.getElementById('editProfileForm').addEventListener('submit', function() {
         formDirty = false;
     });
@@ -359,7 +312,6 @@
             pill.classList.remove('selected');
         } else {
             if (riderOrder.length >= 2) {
-                // Deselect the oldest
                 const toRemove = riderOrder.shift();
                 document.querySelector(`#rider-pills .ep-pill[data-value="${CSS.escape(toRemove)}"]`)?.classList.remove('selected');
             }
@@ -377,14 +329,11 @@
     }
     updateSkillVisibility();
 
-    // ── Skill level ───────────────────────────────────────────────────
-    let currentSkill = document.getElementById('skill_level_hidden').value;
-
-    function selectSkill(lvl) {
-        currentSkill = lvl;
-        document.querySelectorAll('.ep-skill-dot').forEach(d => d.classList.remove('selected'));
-        document.getElementById('skill-dot-' + lvl)?.classList.add('selected');
-        document.getElementById('skill_level_hidden').value = lvl;
+    // ── Skill level pills (single-select) ─────────────────────────────
+    function selectSkill(pill) {
+        document.querySelectorAll('#skill-pills .ep-pill').forEach(p => p.classList.remove('selected'));
+        pill.classList.add('selected');
+        document.getElementById('skill_level_hidden').value = pill.dataset.value;
         markDirty();
     }
 
@@ -422,11 +371,9 @@
             pill.classList.remove('selected');
         } else {
             if (EXCLUSIVE_PASSES.has(val)) {
-                // Exclusive — clear all others
                 passSelected.clear();
                 document.querySelectorAll('#pass-pills .ep-pill').forEach(p => p.classList.remove('selected'));
             } else {
-                // Selecting a real pass — remove any exclusive pills
                 EXCLUSIVE_PASSES.forEach(ep => {
                     if (passSelected.has(ep)) {
                         passSelected.delete(ep);
@@ -441,57 +388,13 @@
         markDirty();
     }
 
-    // ── Home resort cascade ───────────────────────────────────────────
-    const resortsByState = {{ resorts_by_state | tojson | safe }};
-
-    function updateResortOptions(stateAbbr, currentResortId) {
-        const sel = document.getElementById('home_resort_id');
-        const resorts = resortsByState[stateAbbr] || [];
-        if (!resorts.length) {
-            sel.innerHTML = '<option value="">No mountains available</option>';
-            sel.disabled = true;
-            return;
-        }
-        let html = '<option value="">Select your home mountain</option>';
-        resorts.forEach(r => {
-            const sel2 = (currentResortId && parseInt(currentResortId) === r.id) ? ' selected' : '';
-            html += `<option value="${r.id}"${sel2}>${r.name}</option>`;
-        });
-        sel.innerHTML = html;
-        sel.disabled = false;
-    }
-
-    document.getElementById('home_resort_id').addEventListener('change', function() {
-        document.getElementById('home_resort_id_hidden').value = this.value;
-        markDirty();
-    });
-
-    // Validate on load
-    (function() {
-        const st = document.getElementById('home-state-hidden').value;
-        const rid = document.getElementById('home_resort_id_hidden').value;
-        if (st && rid) {
-            const valid = (resortsByState[st] || []).some(r => r.id === parseInt(rid));
-            if (!valid) document.getElementById('home_resort_id_hidden').value = '';
-        }
-    })();
-
-    // Location selector init
+    // ── Location selector init ────────────────────────────────────────
     (function() {
         const container = document.getElementById('home-state-selector');
         if (!container) return;
         const selector = new LocationSelector(container, {
             onChange: function(value) {
                 document.getElementById('home_state_hidden').value = value;
-                const sel = document.getElementById('home_resort_id');
-                if (value) {
-                    updateResortOptions(value, '');
-                    document.getElementById('home_resort_id_hidden').value = '';
-                } else {
-                    sel.disabled = true;
-                    sel.innerHTML = '<option value="">Select your home state first</option>';
-                    document.getElementById('home_resort_id_hidden').value = '';
-                }
                 markDirty();
             }
         });
@@ -502,25 +405,17 @@
         }
     })();
 
-    // Sync home_state from form hidden to form post (the hidden field in the editProfileForm)
-    // The location selector uses home_state_hidden — sync it before submit
+    // ── Sync hidden fields before submit ─────────────────────────────
     document.getElementById('editProfileForm').addEventListener('submit', function() {
         this.querySelector('input[name="home_state"]').value =
             document.getElementById('home_state_hidden').value;
-        this.querySelector('input[name="home_resort_id"]').value =
-            document.getElementById('home_resort_id_hidden').value;
         this.querySelector('input[name="previous_pass"]').value =
             document.getElementById('previous_pass_hidden').value;
-        this.querySelector('input[name="gender"]').value =
-            document.getElementById('gender_select').value;
-        this.querySelector('input[name="birth_year"]').value =
-            document.getElementById('birth_year_select').value;
     });
 
-    // Mark dirty on previous_pass change
     document.getElementById('previous_pass_select').addEventListener('change', markDirty);
 
-    // Hide floating save bar while keyboard is open so it doesn't obscure form fields
+    // ── Hide floating save bar while keyboard is open ─────────────────
     const epFloatingSave = document.querySelector('.ep-floating-save');
     document.querySelector('.page-container').addEventListener('focusin', function(e) {
         if (e.target.matches('input, select, textarea')) {
