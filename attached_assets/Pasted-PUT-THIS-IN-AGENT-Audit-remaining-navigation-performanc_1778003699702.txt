@@ -1,0 +1,139 @@
+PUT THIS IN AGENT
+
+Audit remaining navigation performance, real network latency, bottom nav layout, connection messaging, and Profile page visual/layout issues.
+
+Important context:
+A first responsiveness pass has already been completed:
+- Global :active tap feedback was added
+- touch-action: manipulation was added to shared buttons/nav items
+- Equipment 700ms setTimeout delays were removed
+- Equipment buttons now disable and relabel before fetch starts
+
+DO NOT repeat that work.
+DO NOT make changes.
+This is a read-only diagnostic.
+
+PART 1 — Remaining navigation performance
+
+1. Analyze current navigation behavior across:
+   - Bottom nav: Home, Trips, Ideas, Friends, Profile
+   - Inline links/buttons/cards
+
+2. Determine:
+   - Which navigations still use full page reloads
+   - Whether any prefetching exists
+   - Whether smoother navigation can be added without a full SPA rewrite
+
+3. Output:
+   - What can be improved safely now
+   - What would require larger architecture changes
+
+PART 2 — Remaining real network/backend latency
+
+1. For common actions, identify real latency sources:
+   - Connect friend
+   - Accept/decline invites
+   - Edit profile save
+   - Trip actions
+   - Home page load
+
+2. Look for:
+   - POST → 302 redirect → GET patterns
+   - duplicate DB queries
+   - expensive home-page queries
+   - unnecessary page reloads
+   - opportunities to convert specific actions to fetch-based updates
+
+3. Output:
+   - Which actions are still truly slow
+   - Files/routes involved
+   - Lowest-risk improvements
+
+PART 3 — Bottom nav icon clipping bug
+
+Issue:
+The top border line is still visually cutting into the bottom nav icons.
+
+1. Inspect:
+   - bottom_nav.html
+   - styles.css
+   - base_app.html safe-area handling
+
+2. Identify exact cause:
+   - insufficient padding-top
+   - nav height too short
+   - icon alignment issue
+   - border overlay
+   - safe-area issue
+   - CSS conflict from active transform
+
+3. Output:
+   - exact CSS selectors and files involved
+   - specific recommended fix
+   - confirm whether current :active transform contributes to clipping
+
+PART 4 — Connection messaging logic
+
+Expected behavior:
+After connecting with Jonathan:
+- Richard should see a homepage message like “You and Jonathan are now connected.”
+- Jonathan should see a homepage message like “You and Richard are now connected.”
+- This should feel like a short product moment, not a stale flash message.
+
+1. Locate:
+   - friend connection creation route
+   - related models/tables
+   - homepage route
+   - homepage template
+   - any flash/notification/event logic
+
+2. Determine:
+   - Does connection messaging already exist anywhere?
+   - Is it currently flash-only?
+   - Is it being cleared before the homepage?
+   - Is there a persistent notification/activity model that should be used instead?
+
+3. Output:
+   - why the message is not appearing
+   - safest way to implement it
+   - whether both users can see it
+   - how to avoid stale messages appearing later on unrelated screens
+
+PART 5 — Profile page visual/layout issues
+
+Issues:
+1. Section eyebrows “Activity”, “Profile”, and “Account” are too small/light.
+2. Profile row text feels too small overall.
+3. When scrolling, the user’s name gets cut off at the top of the screen.
+
+Inspect:
+- profile.html
+- styles.css
+- base_app.html
+- any profile-specific inline styles
+
+Determine:
+- Which selectors control section eyebrow styling
+- Which selectors control profile row title/subtitle sizing
+- Whether the name cutoff is caused by:
+  - unsafe top padding
+  - sticky/header overlap
+  - scroll container issue
+  - negative margin
+  - insufficient safe-area inset handling
+
+Output:
+- exact files/selectors involved
+- recommended CSS changes
+- whether this should be fixed globally or only on Profile
+
+FINAL OUTPUT FORMAT
+
+Provide:
+1. Root causes ranked by impact
+2. Files involved for each issue
+3. What is already fixed from the first latency pass
+4. What remains
+5. Recommended implementation order
+
+Do not implement anything yet.
