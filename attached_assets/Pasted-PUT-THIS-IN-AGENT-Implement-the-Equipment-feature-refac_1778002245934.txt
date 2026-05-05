@@ -1,0 +1,112 @@
+PUT THIS IN AGENT
+
+Implement the Equipment feature refactor based on the completed audit.
+
+Current state:
+- Equipment page: templates/settings_equipment.html
+- Routes: app.py around /settings/equipment and /settings/equipment/save
+- Model: EquipmentSetup in models.py
+- Profile displays currently query slot=PRIMARY
+- User.equipment_status should remain the high-level signal:
+  "have_own_equipment" or "needs_rentals"
+
+Goal:
+Support multiple equipment setups, with exactly one Primary Setup shown on the profile.
+
+Requirements:
+
+1. Database/model changes
+- Update EquipmentSetup to support more than two setups.
+- Add:
+  - is_primary Boolean, default False
+  - optional label String, nullable
+  - created_at / updated_at if not already present
+- Remove or stop depending on the unique user_id + slot constraint for new logic.
+- Do not limit users to PRIMARY and SECONDARY slots anymore.
+- Keep backward compatibility for existing PRIMARY/SECONDARY rows.
+
+2. Migration/data safety
+- Preserve existing equipment data.
+- Existing slot=PRIMARY row should become is_primary=True.
+- Existing slot=SECONDARY row should become is_primary=False.
+- Do not delete existing equipment rows.
+- If schema migration tooling does not exist, implement the safest app-compatible schema update pattern currently used in this project.
+
+3. Equipment page initial state
+- Show only:
+  - “I have my own equipment”
+  - “I rent”
+- Do not show the setup form immediately.
+
+4. Rental flow
+- If user selects “I rent”:
+  - Save current_user.equipment_status = "needs_rentals"
+  - Hide setup UI
+  - Do not delete existing setups.
+
+5. Own-equipment flow
+- If user selects “I have my own equipment”:
+  - Save current_user.equipment_status = "have_own_equipment"
+  - If no setups exist, show:
+    “No setups yet”
+    “Add your primary setup to get started”
+    Button: “Add your first setup”
+  - If setups exist, show setup cards.
+
+6. Setup form
+- “Add your first setup” opens the existing equipment form.
+- “+ Add another setup” opens the same form for a new setup.
+- The form creates or updates one setup by setup_id.
+- Do not show multiple forms at once.
+
+7. Primary setup rules
+- First saved setup automatically becomes Primary.
+- Only one setup can be Primary at a time.
+- Users can tap “Make primary” on another setup.
+- Making one setup Primary must unset is_primary on all other setups for that user.
+
+8. Setup cards
+- After saving, hide the form and show saved setups as cards.
+- Primary card label: “Primary Setup”
+- Non-primary card label: “Setup”
+- Show available summary fields:
+  model, length_cm, width_mm, boot_brand, boot_model, boot_flex.
+- Each setup card should support:
+  - Edit
+  - Delete
+  - Make primary, only if not already primary
+
+9. Delete behavior
+- If deleting a non-primary setup, just delete it.
+- If deleting the Primary Setup and other setups exist, automatically make the next saved setup Primary.
+- If deleting all setups, return to the “No setups yet” state.
+
+10. Profile display
+- Update profile.html, friend_profile.html, and edit_profile.html logic so only the setup with is_primary=True appears.
+- Do not show additional setups on the profile.
+- If no is_primary row exists but setups exist, fallback to the first saved setup and mark it primary.
+
+11. Styling
+- Keep the current BaseLodge visual system.
+- Do not redesign the page.
+- Keep it mobile-first.
+- Add only the minimum UI needed for setup cards, Add another setup, Edit, Delete, and Make primary.
+
+12. Testing
+Test all of the following:
+- Select “I rent”
+- Select “I have my own equipment”
+- Add first setup
+- Confirm first setup becomes Primary
+- Add second setup
+- Make second setup Primary
+- Confirm first setup is no longer Primary
+- Confirm only Primary Setup appears on profile
+- Delete non-primary setup
+- Delete primary setup and confirm another setup becomes Primary
+- Delete all setups and confirm empty state returns
+- Switch to “I rent” and confirm setup data is not deleted
+
+Do not use broad rewrites. Make the smallest safe changes required.
+Only use checkpoints if I explicitly ask for one.
+Do not finish until you have fully tested the flows above.
