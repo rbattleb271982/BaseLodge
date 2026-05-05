@@ -3521,6 +3521,7 @@ def friends():
     user = current_user
     today = date.today()
     today_str = today.strftime('%Y-%m-%d')
+    seven_days_ago = datetime.now() - timedelta(days=7)
     
     # Load friend relationships
     friend_links = Friend.query.filter_by(user_id=user.id).all()
@@ -6151,7 +6152,7 @@ def add_open_dates():
         emit_availability_overlap_activities_for_user(current_user)
         db.session.commit()
         
-        return redirect(url_for("home", tab="open"))
+        return redirect(url_for("trip_ideas"))
     
     # Pre-populate with existing dates
     existing_dates = current_user.open_dates or []
