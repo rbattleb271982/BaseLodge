@@ -1,0 +1,82 @@
+PUT THIS IN AGENT
+
+Make two small, low-risk improvements.
+
+1. Make connect_from_trip behave like the normal connection flow.
+2. Apply only obvious, safe Home route speed fixes.
+
+Do not refactor the full Home route.
+Do not add a new notification system.
+Do not change the visual design.
+Use checkpoints sparingly.
+
+PART 1 — Make trip-based connections consistent
+
+Current issue:
+Normal accepted connections now create the Home connection moment:
+“You and [Name] are now connected.”
+
+But connect_from_trip creates the friendship directly and does not trigger the same Home connection moment or Activity records.
+
+Goal:
+No matter how two users connect, the product moment should feel the same.
+
+When connect_from_trip creates a new friendship:
+- Set the same session-based one-time Home card for the acting user:
+  session["new_connection_name"] = other_user.first_name or other_user display name
+- Create the same Activity/notification records for both users using the existing emit_connection_accepted_activity helper
+- Keep the existing flash message on friend_profile.html
+- Do not create duplicate friendships
+- Do not create duplicate Activity records if the users are already connected
+
+Important:
+Only emit the Home card/activity when a new connection is actually created.
+If the friendship already exists, do not emit a new connection moment.
+
+Test:
+1. User A connects with User B from the trip-based flow.
+2. User A sees “You and User B are now connected.” on Home.
+3. User B sees “You and User A are now connected.” on Home within the existing 48h sender-side activity behavior.
+4. Refresh Home and confirm the message does not keep reappearing.
+5. Confirm the friend_profile.html flash still works.
+
+PART 2 — Small Home speed fixes only
+
+Look at the existing home() route in app.py and apply only obvious, low-risk improvements.
+
+Allowed fixes:
+- Replace duplicate queries with already-loaded data.
+- Batch-load users or resorts where the route currently does db.session.get(...) inside a loop.
+- Use joinedload/selectinload only where relationships already exist and the change is clearly safe.
+- Avoid repeating get_friend_ids(current_user.id) if already available.
+- Avoid work that is unnecessary when the relevant list is empty.
+
+Not allowed:
+- Do not rewrite Home.
+- Do not change the page’s visible content.
+- Do not introduce caching yet.
+- Do not change ranking logic.
+- Do not change Ideas logic.
+- Do not change database schema.
+
+Focus areas from the diagnostic:
+- Invited trips loop may do db.session.get(User) and trip.resort repeatedly.
+- Friend trips loop may do db.session.get(User) and ft.resort repeatedly.
+- build_trip_overlap_today_card and build_friend_at_mountain_card may add extra queries, but only touch them if there is a clear duplicate or safe guard.
+- Open date overlap/ranking should not run if the user has no open dates or no friends, if that guard is not already present.
+
+Testing:
+1. Home still renders successfully.
+2. Home shows the same cards/content as before.
+3. Trip count remains correct.
+4. Invites still show correctly.
+5. Friend trip signals still show correctly.
+6. Connection card still works.
+7. No errors in logs.
+
+At the end, report:
+- Files changed
+- Exact route/helper changes
+- Which queries were removed or batched
+- What was intentionally left unchanged
+- Any remaining Home speed opportunities for later

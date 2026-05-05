@@ -4861,9 +4861,15 @@ def home():
             key=lambda p: p.trip.start_date
         )
         banner_invite_count = len(active_invites)
+        # Batch-load all trip owners in one query instead of one get() per invite
+        _inviter_ids = {p.trip.user_id for p in active_invites if p.trip}
+        _inviters_map = (
+            {u.id: u for u in User.query.filter(User.id.in_(_inviter_ids)).all()}
+            if _inviter_ids else {}
+        )
         for p in active_invites:
             trip = p.trip
-            inviter = db.session.get(User, trip.user_id)
+            inviter = _inviters_map.get(trip.user_id)
             resort = trip.resort
             trip_invites.append({
                 'trip_id': trip.id,
@@ -4876,12 +4882,21 @@ def home():
     except Exception:
         db.session.rollback()
 
+    # Bulk-load all friends once — reused by availability nudge, next_match, and happening_signals
+    all_friends = []
+    if friend_ids:
+        try:
+            all_friends = User.query.filter(User.id.in_(friend_ids)).all()
+        except Exception:
+            db.session.rollback()
+            all_friends = []
+
     # --- Availability Nudge (open date overlap with friends) ---
     availability_nudge = None
     try:
         my_open_dates = {d for d in (user.open_dates or []) if d >= today.strftime('%Y-%m-%d')}
         if my_open_dates and friend_ids:
-            friends_with_open = User.query.filter(User.id.in_(friend_ids)).all()
+            friends_with_open = all_friends  # already loaded above
             best_date = None
             best_friends = []
             for date_str in sorted(my_open_dates):
@@ -4924,37 +4939,37 @@ def home():
     # --- Next Best Match (ranked — same #1 as Ideas page) ---
     next_match = None
     has_overlaps = False
-    try:
-        from services.ideas_ranking import score_overlap_windows as _rank_home
-        overlap_matches = get_open_date_matches(user)
-        if overlap_matches:
-            has_overlaps = True
-            home_windows = build_overlap_windows(overlap_matches, user.pass_type)
-            home_friend_users = (
-                User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
-            )
-            home_wishlist_set = set(user.wish_list_resorts or [])
-            home_shared_wishlist_ids = set()
-            if home_wishlist_set:
-                for _hf in home_friend_users:
-                    if home_wishlist_set & set(_hf.wish_list_resorts or []):
-                        home_shared_wishlist_ids.add(_hf.id)
-            home_windows = _rank_home(home_windows, user, home_shared_wishlist_ids)
-            if home_windows:
-                best_win = home_windows[0]
-                start_obj = date.fromisoformat(best_win["start_date"])
-                anchor_name = best_win.get("anchor_friend_name") or "a friend"
-                anchor_id = best_win.get("anchor_friend_id")
-                extra_friends = max(best_win.get("friend_count", 1) - 1, 0)
-                next_match = {
-                    "match_date": best_win["start_date"],
-                    "display_date": start_obj.strftime("%A · %b %-d"),
-                    "friend_name": anchor_name,
-                    "friend_id": anchor_id,
-                    "same_day_count": extra_friends,
-                }
-    except Exception:
-        db.session.rollback()
+    # Guard: skip expensive overlap calculation when user has no open dates or no friends
+    if user.open_dates and friend_ids:
+        try:
+            from services.ideas_ranking import score_overlap_windows as _rank_home
+            overlap_matches = get_open_date_matches(user)
+            if overlap_matches:
+                has_overlaps = True
+                home_windows = build_overlap_windows(overlap_matches, user.pass_type)
+                # Reuse all_friends loaded above — no second query needed
+                home_wishlist_set = set(user.wish_list_resorts or [])
+                home_shared_wishlist_ids = set()
+                if home_wishlist_set:
+                    for _hf in all_friends:
+                        if home_wishlist_set & set(_hf.wish_list_resorts or []):
+                            home_shared_wishlist_ids.add(_hf.id)
+                home_windows = _rank_home(home_windows, user, home_shared_wishlist_ids)
+                if home_windows:
+                    best_win = home_windows[0]
+                    start_obj = date.fromisoformat(best_win["start_date"])
+                    anchor_name = best_win.get("anchor_friend_name") or "a friend"
+                    anchor_id = best_win.get("anchor_friend_id")
+                    extra_friends = max(best_win.get("friend_count", 1) - 1, 0)
+                    next_match = {
+                        "match_date": best_win["start_date"],
+                        "display_date": start_obj.strftime("%A · %b %-d"),
+                        "friend_name": anchor_name,
+                        "friend_id": anchor_id,
+                        "same_day_count": extra_friends,
+                    }
+        except Exception:
+            db.session.rollback()
 
     # --- Happening signals (passive, text-only, max 3 public friend trips) ---
     happening_signals = []
@@ -4965,8 +4980,10 @@ def home():
                 SkiTrip.is_public == True,
                 SkiTrip.end_date >= today
             ).order_by(SkiTrip.start_date.asc()).limit(3).all()
+            # Reuse all_friends map — ft.user_id values are a subset of friend_ids
+            _ft_users_map = {u.id: u for u in all_friends}
             for ft in friend_trips:
-                ft_user = db.session.get(User, ft.user_id)
+                ft_user = _ft_users_map.get(ft.user_id)
                 ft_resort = ft.resort
                 ft_mountain = ft_resort.name if ft_resort else ft.mountain
                 full_name = (
@@ -8580,8 +8597,15 @@ def connect_from_trip(user_id):
     f2 = Friend(user_id=user_to_connect.id, friend_id=current_user.id)
     db.session.add(f1)
     db.session.add(f2)
+    # Same helper + same argument order as accept_invitation: actor=current_user, other=them
+    emit_connection_accepted_activity(current_user.id, user_to_connect.id)
     db.session.commit()
-    
+
+    # One-time Home card for the acting user — same session pattern as accept_invitation
+    session['new_connection_name'] = (
+        user_to_connect.first_name or user_to_connect.username or 'your new friend'
+    )
+
     flash(f"Connected with {user_to_connect.first_name}!", "success")
     return redirect(url_for("friend_profile", friend_id=user_id))
 

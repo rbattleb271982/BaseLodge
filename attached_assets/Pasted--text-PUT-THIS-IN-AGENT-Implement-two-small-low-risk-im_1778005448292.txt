@@ -1,0 +1,152 @@
+```text
+PUT THIS IN AGENT
+
+Implement two small, low-risk improvements.
+
+1. Make connect_from_trip behave like the normal connection flow.
+2. Apply only obvious, safe Home route speed fixes.
+
+Do not refactor the full Home route.
+Do not add a new notification system.
+Do not change the visual design.
+Use checkpoints sparingly.
+
+PART 1 — Make trip-based connections consistent
+
+Current issue:
+connect_from_trip creates the friendship directly but does not trigger:
+- the Home connection card (“You and [Name] are now connected.”)
+- Activity/notification records
+
+Goal:
+No matter how two users connect, the product moment should feel the same.
+
+IMPORTANT (read first before coding):
+- Locate the existing accept_invitation route.
+- Confirm the correct argument order for emit_connection_accepted_activity.
+- Use the exact same argument order here to avoid reversing actor/recipient notifications.
+
+Implementation:
+
+In connect_from_trip route (app.py):
+After a new friendship is successfully created and committed:
+
+1. Call:
+   emit_connection_accepted_activity(actor_id, recipient_id)
+   using the SAME argument order as accept_invitation.
+
+2. Set the one-time Home card for the acting user:
+   session["new_connection_name"] = other_user.first_name (or display name)
+
+3. Keep the existing flash message:
+   "Connected with [Name]!"
+
+4. Do NOT:
+   - emit if the friendship already exists
+   - create duplicate Activity records
+   - change the redirect behavior
+
+Test:
+- User A connects with User B from a trip
+- User A sees Home card
+- User B sees Home card via Activity system (within 48h)
+- Flash still appears on friend_profile
+- No duplicate connections or notifications
+
+PART 2 — Small Home speed fixes only
+
+Apply only obvious, safe improvements to the home() route.
+
+Do NOT:
+- rewrite Home
+- change visible content
+- add caching
+- change ranking logic
+- change schema
+
+2.1 Batch invite senders
+
+Current issue:
+Loop over active_invites calls db.session.get(User, trip.user_id) repeatedly.
+
+Fix:
+- Collect all trip.user_id values
+- Bulk load users once:
+  User.query.filter(User.id.in_(...)).all()
+- Create dict: {id: user}
+- Replace per-loop get() calls with dict lookup
+
+2.2 Batch friend trip users
+
+Current issue:
+Loop over friend_trips calls db.session.get(User, ft.user_id) repeatedly.
+
+Fix:
+- Collect all ft.user_id values
+- Bulk load once
+- Replace get() calls with dict lookup
+
+2.3 Guard open-date overlap calculation
+
+Current issue:
+get_open_date_matches() runs even when unnecessary.
+
+Fix:
+Wrap this block:
+- get_open_date_matches
+- build_overlap_windows
+- ranking logic
+
+Inside:
+if user.open_dates and friend_ids:
+
+Set defaults before block:
+- next_match = None
+- has_overlaps = False
+
+2.4 De-duplicate friends query
+
+Current issue:
+User.query.filter(User.id.in_(friend_ids)) runs twice:
+- availability nudge
+- next_match section
+
+Fix:
+- Run once:
+  friends = User.query.filter(User.id.in_(friend_ids)).all()
+- Reuse in both sections
+
+Testing:
+
+1. Home page loads without errors
+2. Same UI/cards as before
+3. Trip count still correct
+4. Invites render correctly
+5. Friend trip signals render correctly
+6. Connection cards still work
+7. No duplicate notifications
+8. No N+1 queries in modified loops
+
+Relevant files:
+
+app.py:
+- connect_from_trip route
+- home() route sections:
+  - trip invites
+  - availability nudge
+  - next_match
+  - happening_signals
+
+Helpers:
+- emit_connection_accepted_activity
+- accept_invitation (reference implementation)
+
+At the end, report:
+
+- Files changed
+- Routes touched
+- Queries removed or batched
+- Confirmation of correct argument order usage
+- What was intentionally not changed
+- Any remaining Home performance opportunities
+```
