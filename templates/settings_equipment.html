@@ -145,10 +145,12 @@
         color: #6B665A;
         cursor: pointer;
         -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
         -webkit-appearance: none;
         appearance: none;
-        transition: background 0.15s, color 0.15s, border-color 0.15s;
+        transition: background 0.15s, color 0.15s, border-color 0.15s, opacity 0.1s, transform 0.1s;
     }
+    .eq-card-btn:active { opacity: 0.65; transform: scale(0.95); }
     .eq-card-btn:hover { border-color: #5C1219; color: #5C1219; }
     .eq-card-btn.make-primary {
         border-color: #5C1219;
@@ -171,12 +173,14 @@
         color: #6B665A;
         cursor: pointer;
         -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
         -webkit-appearance: none;
         appearance: none;
         margin-bottom: 24px;
-        transition: border-color 0.15s, color 0.15s;
+        transition: border-color 0.15s, color 0.15s, opacity 0.1s;
     }
     .eq-add-btn:hover { border-color: #5C1219; color: #5C1219; }
+    .eq-add-btn:active { opacity: 0.65; }
     /* Form panel */
     .eq-form-panel {
         border: 1.5px solid #E5DFD0;
@@ -216,10 +220,12 @@
         color: #6B1F2B;
         cursor: pointer;
         -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
         -webkit-appearance: none;
         appearance: none;
-        transition: background 0.15s, color 0.15s;
+        transition: background 0.15s, color 0.15s, opacity 0.1s, transform 0.1s;
     }
+    .eq-gear-type-btn:active { opacity: 0.7; transform: scale(0.95); }
     .eq-gear-type-btn.active {
         background: #6B1F2B;
         color: #fff;
@@ -274,7 +280,11 @@
         -webkit-appearance: none;
         appearance: none;
         -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        transition: opacity 0.1s ease, transform 0.1s ease;
     }
+    .eq-save-btn:active { opacity: 0.75; transform: scale(0.97); }
+    .eq-save-btn:disabled { opacity: 0.55; cursor: not-allowed; }
     .eq-cancel-btn {
         min-height: 48px;
         padding: 0 18px;
@@ -288,7 +298,10 @@
         -webkit-appearance: none;
         appearance: none;
         -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        transition: opacity 0.1s ease;
     }
+    .eq-cancel-btn:active { opacity: 0.65; }
     .eq-error {
         color: #9B3B3B;
         font-size: 14px;
@@ -404,10 +417,10 @@
                                 onclick="openEditForm({{ setup.id }})">Edit</button>
                         {% if not setup.is_primary %}
                         <button type="button" class="eq-card-btn make-primary"
-                                onclick="makePrimary({{ setup.id }})">Make primary</button>
+                                onclick="makePrimary({{ setup.id }}, this)">Make primary</button>
                         {% endif %}
                         <button type="button" class="eq-card-btn delete-btn"
-                                onclick="deleteSetup({{ setup.id }})">Delete</button>
+                                onclick="deleteSetup({{ setup.id }}, this)">Delete</button>
                     </div>
                 </div>
                 {% endfor %}
@@ -519,7 +532,7 @@
             </div>
 
             <div class="eq-form-btns">
-                <button type="button" class="eq-save-btn" onclick="saveSetup()">Save setup</button>
+                <button type="button" class="eq-save-btn" onclick="saveSetup(this)">Save setup</button>
                 <button type="button" class="eq-cancel-btn" onclick="cancelForm()">Cancel</button>
             </div>
             <p class="eq-error" id="form-error"></p>
@@ -667,7 +680,7 @@ function cancelForm() {
     if (addBtn) addBtn.style.display = 'flex';
 }
 
-function saveSetup() {
+function saveSetup(btn) {
     var errEl = document.getElementById('form-error');
     errEl.style.display = 'none';
     var discipline = document.getElementById('form-discipline').value;
@@ -693,24 +706,29 @@ function saveSetup() {
     fd.append('boot_model', document.getElementById('form-boot-model').value.trim());
     fd.append('boot_flex', document.getElementById('form-boot-flex').value);
     fd.append('purchase_year', document.getElementById('form-purchase-year').value);
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
     fetch('/settings/equipment/save', { method: 'POST', body: fd })
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
                 showToast('Setup saved');
-                setTimeout(function() { window.location.reload(); }, 700);
+                window.location.reload();
             } else {
+                if (btn) { btn.disabled = false; btn.textContent = 'Save setup'; }
                 errEl.textContent = data.error || 'Could not save. Please try again.';
                 errEl.style.display = 'block';
             }
         })
         .catch(function() {
+            if (btn) { btn.disabled = false; btn.textContent = 'Save setup'; }
             errEl.textContent = 'Could not save. Check your connection and try again.';
             errEl.style.display = 'block';
         });
 }
 
-function makePrimary(setupId) {
+function makePrimary(setupId, btn) {
+    var origText = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
     var fd = new FormData();
     fd.append('setup_id', setupId);
     fetch('/settings/equipment/make-primary', { method: 'POST', body: fd })
@@ -718,15 +736,21 @@ function makePrimary(setupId) {
         .then(function(data) {
             if (data.success) {
                 showToast('Primary setup updated');
-                setTimeout(function() { window.location.reload(); }, 700);
+                window.location.reload();
             } else {
+                if (btn) { btn.disabled = false; btn.textContent = origText; }
                 showToast(data.error || 'Could not update');
             }
         })
-        .catch(function() { showToast('Could not update'); });
+        .catch(function() {
+            if (btn) { btn.disabled = false; btn.textContent = origText; }
+            showToast('Could not update');
+        });
 }
 
-function deleteSetup(setupId) {
+function deleteSetup(setupId, btn) {
+    var origText = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
     var fd = new FormData();
     fd.append('setup_id', setupId);
     fetch('/settings/equipment/delete', { method: 'POST', body: fd })
@@ -734,12 +758,16 @@ function deleteSetup(setupId) {
         .then(function(data) {
             if (data.success) {
                 showToast('Setup removed');
-                setTimeout(function() { window.location.reload(); }, 700);
+                window.location.reload();
             } else {
+                if (btn) { btn.disabled = false; btn.textContent = origText; }
                 showToast(data.error || 'Could not delete');
             }
         })
-        .catch(function() { showToast('Could not delete'); });
+        .catch(function() {
+            if (btn) { btn.disabled = false; btn.textContent = origText; }
+            showToast('Could not delete');
+        });
 }
 
 // Init brand options on load
