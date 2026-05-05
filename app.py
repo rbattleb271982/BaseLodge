@@ -772,13 +772,25 @@ def check_and_emit_trip_overlap_activities(trip, actor_user_id):
 
 
 def emit_connection_accepted_activity(actor_user_id, other_user_id):
-    """Create CONNECTION_ACCEPTED activity when a friend request is accepted."""
+    """Create CONNECTION_ACCEPTED activity for both users when a friend request is accepted.
+    actor_user_id = acceptor (Richard), other_user_id = original sender (Jonathan).
+    Both get a notification so both see it in their activity/notification feed.
+    """
+    # Notify the original invite sender that their request was accepted
     create_activity(
         actor_user_id=actor_user_id,
         recipient_user_id=other_user_id,
         activity_type=ActivityType.CONNECTION_ACCEPTED,
         object_type='user',
         object_id=actor_user_id
+    )
+    # Mirror: also notify the acceptor (so both sides see the connection in their feed)
+    create_activity(
+        actor_user_id=other_user_id,
+        recipient_user_id=actor_user_id,
+        activity_type=ActivityType.CONNECTION_ACCEPTED,
+        object_type='user',
+        object_id=other_user_id
     )
 
 
@@ -3260,6 +3272,11 @@ def accept_invitation(invitation_id):
     db.session.add(reverse_friend)
     emit_connection_accepted_activity(current_user.id, invitation.sender_id)
     db.session.commit()
+
+    # Store sender name for the one-time home page "connected" moment (acting user only)
+    sender = db.session.get(User, invitation.sender_id)
+    if sender:
+        session['new_connection_name'] = sender.first_name or sender.username or 'your new friend'
     
     return jsonify({"success": True, "message": "Friend added"}), 200
 
@@ -4733,6 +4750,9 @@ def home():
     user = current_user
     today = date.today()
 
+    # One-time connection success message (set by accept_invitation, consumed here)
+    new_connection_name = session.pop('new_connection_name', None)
+
     # --- Next Trip (created or accepted) ---
     try:
         my_trips = SkiTrip.query.filter(
@@ -4949,13 +4969,14 @@ def home():
         trip_overlap_today_card=trip_overlap_today_card,
         friend_at_mountain_card=friend_at_mountain_card,
         stat_mountains=user.visited_resorts_count,
-        stat_trips_total=SkiTrip.query.filter_by(user_id=user.id).count(),
+        stat_trips_total=len(my_trips),  # upcoming trips; my_trips already fetched above (end_date >= today)
         stat_wishlist=len(user.wish_list_resorts or []),
         stat_trips_url=url_for('my_trips'),
         stat_mountains_url=url_for('profile') + '#section-mountains-visited',
         stat_wishlist_url=url_for('profile') + '#section-wishlist',
         home_eq=user.get_active_equipment(),
         friend_count=len(friend_ids),
+        new_connection_name=new_connection_name,
     )
 
 

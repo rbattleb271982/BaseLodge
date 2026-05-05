@@ -104,6 +104,19 @@ body {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+/* Mask content that scrolls behind the native status bar on iOS */
+.app-shell::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--bl-color-bg);
+  z-index: 99;
+  pointer-events: none;
+}
+
 /* ── Typography scale ──────────────────────────────── */
 
 .bl-heading-xl { font-size: 24px; font-weight: 600; line-height: 1.2; }
@@ -829,7 +842,7 @@ body {
   border-top: 1px solid var(--bl-color-border-soft);
   display: flex;
   justify-content: space-around;
-  height: 64px;
+  height: calc(64px + env(safe-area-inset-bottom, 0px));
   padding: 10px 0 0;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   position: fixed;
