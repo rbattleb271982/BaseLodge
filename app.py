@@ -1144,6 +1144,49 @@ if "sqlite" in app.config.get("SQLALCHEMY_DATABASE_URI", ""):
         db.create_all()
 app.register_blueprint(debug_bp)
 
+
+def run_equipment_migration():
+    """
+    Safe one-time schema migration for the multi-setup equipment feature (May 2026).
+    Adds is_primary, label, created_at columns if they don't exist, then backfills
+    is_primary=TRUE for any row where slot='primary'.
+    Uses IF NOT EXISTS so it is a no-op on repeat runs.
+    """
+    try:
+        with app.app_context():
+            conn = db.engine.connect()
+            trans = conn.begin()
+            try:
+                conn.execute(db.text(
+                    "ALTER TABLE equipment_setup ADD COLUMN IF NOT EXISTS is_primary BOOLEAN NOT NULL DEFAULT FALSE"
+                ))
+                conn.execute(db.text(
+                    "ALTER TABLE equipment_setup ADD COLUMN IF NOT EXISTS label VARCHAR(100)"
+                ))
+                conn.execute(db.text(
+                    "ALTER TABLE equipment_setup ADD COLUMN IF NOT EXISTS created_at TIMESTAMP"
+                ))
+                # Backfill: existing slot='primary' rows become is_primary=TRUE
+                conn.execute(db.text(
+                    "UPDATE equipment_setup SET is_primary = TRUE WHERE slot = 'primary' AND is_primary = FALSE"
+                ))
+                # Backfill created_at for existing rows
+                conn.execute(db.text(
+                    "UPDATE equipment_setup SET created_at = NOW() WHERE created_at IS NULL"
+                ))
+                trans.commit()
+                print("equipment_migration: schema columns added / backfilled successfully.")
+            except Exception as inner_e:
+                trans.rollback()
+                print(f"equipment_migration inner error (rolled back): {inner_e}")
+            finally:
+                conn.close()
+    except Exception as e:
+        print(f"equipment_migration: skipped ({e})")
+
+
+run_equipment_migration()
+
 # ============================================================================
 # PRODUCTION DIAGNOSTICS - Print on startup
 # ============================================================================
@@ -2228,8 +2271,6 @@ def edit_profile():
             flash("Something went wrong while saving your profile. Please try again.", "error")
             return redirect(url_for("edit_profile"))
     
-    primary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.PRIMARY).first()
-    secondary_equipment = EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.SECONDARY).first()
     friends_count = Friend.query.filter_by(user_id=user.id).count()
     
     # Build resorts by state from database (exclude region-level entities)
@@ -2240,7 +2281,7 @@ def edit_profile():
             resorts_by_state[resort.state] = []
         resorts_by_state[resort.state].append({"id": resort.id, "name": resort.name})
     
-    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=CANONICAL_PASSES, rider_types=RIDER_TYPES, all_states=ALL_US_STATES, primary_equipment=primary_equipment, secondary_equipment=secondary_equipment, resorts_by_state=resorts_by_state, grouped_locations=get_grouped_locations())
+    return render_template("edit_profile.html", user=user, friends_count=friends_count, state_abbr=STATE_ABBR, pass_options=CANONICAL_PASSES, rider_types=RIDER_TYPES, all_states=ALL_US_STATES, resorts_by_state=resorts_by_state, grouped_locations=get_grouped_locations())
 
 def compute_trip_overlaps(user_trips, friend_trips):
     """
@@ -3775,9 +3816,15 @@ def friend_profile(friend_id):
     today = date.today()
     today_str = today.strftime('%Y-%m-%d')
     
-    # Get friend's equipment
-    friend_primary_equipment = EquipmentSetup.query.filter_by(user_id=friend.id, slot=EquipmentSlot.PRIMARY).first()
-    friend_secondary_equipment = EquipmentSetup.query.filter_by(user_id=friend.id, slot=EquipmentSlot.SECONDARY).first()
+    # Get friend's primary equipment setup only
+    friend_primary_equipment = EquipmentSetup.query.filter_by(
+        user_id=friend.id, is_primary=True
+    ).first()
+    if not friend_primary_equipment:
+        friend_primary_equipment = EquipmentSetup.query.filter_by(user_id=friend.id).order_by(
+            EquipmentSetup.created_at.asc().nullsfirst(), EquipmentSetup.id.asc()
+        ).first()
+    friend_secondary_equipment = None  # deprecated — kept for template compat
     
     # Get friend's trips
     trips = (
@@ -5222,17 +5269,27 @@ def more():
 def profile():
     mountains_visited_count = current_user.visited_resorts_count
 
-    primary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=EquipmentSlot.PRIMARY).first()
-    secondary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=EquipmentSlot.SECONDARY).first()
+    # Get primary setup: prefer is_primary=True, fallback to first saved
+    primary_equipment = EquipmentSetup.query.filter_by(
+        user_id=current_user.id, is_primary=True
+    ).first()
+    if not primary_equipment:
+        primary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id).order_by(
+            EquipmentSetup.created_at.asc().nullsfirst(), EquipmentSetup.id.asc()
+        ).first()
+        if primary_equipment:
+            primary_equipment.is_primary = True
+            db.session.commit()
 
-    has_equipment = primary_equipment is not None or secondary_equipment is not None
+    has_equipment = primary_equipment is not None
     equipment_summary = ""
     if primary_equipment:
-        equipment_summary = f"{primary_equipment.brand or 'Primary'}"
-        if secondary_equipment:
-            equipment_summary += f" + {secondary_equipment.brand or 'Secondary'}"
-    elif secondary_equipment:
-        equipment_summary = f"{secondary_equipment.brand or 'Secondary'}"
+        parts = [primary_equipment.label] if primary_equipment.label else []
+        if primary_equipment.brand:
+            parts.append(primary_equipment.brand)
+        if primary_equipment.model:
+            parts.append(primary_equipment.model)
+        equipment_summary = " · ".join(parts) if parts else "Setup saved"
 
     # Wish list data
     wish_list_ids = current_user.wish_list_resorts or []
@@ -5371,81 +5428,139 @@ def settings_profile():
 @app.route("/settings/equipment")
 @login_required
 def settings_equipment():
-    primary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=EquipmentSlot.PRIMARY).first()
+    # Fetch all setups for this user, ordered by creation time
+    all_setups = EquipmentSetup.query.filter_by(user_id=current_user.id).order_by(
+        EquipmentSetup.created_at.asc().nullsfirst(), EquipmentSetup.id.asc()
+    ).all()
 
-    # Determine default discipline from saved equipment, then fall back to rider type
-    if primary_equipment and primary_equipment.discipline:
-        default_discipline = 'Snowboarder' if primary_equipment.discipline.value == 'snowboarder' else 'Skier'
-    else:
-        drt = current_user.display_rider_type or ''
-        default_discipline = 'Snowboarder' if ('Snowboarder' in drt and 'Skier' not in drt) else 'Skier'
-
-    # Show SKIS/BOARD toggle only if user rides both
-    drt = current_user.display_rider_type or ''
-    is_both_rider = ('Skier' in drt and 'Snowboarder' in drt)
+    # Ensure at most one is_primary — repair if data is inconsistent
+    primary_setups = [s for s in all_setups if s.is_primary]
+    if len(primary_setups) > 1:
+        # Keep the first, unset the rest
+        for extra in primary_setups[1:]:
+            extra.is_primary = False
+        db.session.commit()
+        all_setups = EquipmentSetup.query.filter_by(user_id=current_user.id).order_by(
+            EquipmentSetup.created_at.asc().nullsfirst(), EquipmentSetup.id.asc()
+        ).all()
 
     return render_template("settings_equipment.html",
-                           primary_equipment=primary_equipment,
-                           user=current_user,
-                           default_discipline=default_discipline,
-                           is_both_rider=is_both_rider)
+                           all_setups=all_setups,
+                           user=current_user)
 
 
 @app.route("/settings/equipment/save", methods=["POST"])
 @login_required
 def settings_equipment_save():
-    slot_str = request.form.get("slot", "primary")
-    equipment_status = request.form.get("equipment_status", "")
+    """Create or update a single equipment setup."""
+    setup_id = request.form.get("setup_id", "")
     discipline_str = request.form.get("discipline", "")
-    brand = request.form.get("brand", "")
-    model = request.form.get("model", "")
-    length_cm = request.form.get("length_cm", "")
-    width_mm = request.form.get("width_mm", "")
-    binding_type = request.form.get("binding_type", "")
-    boot_brand = request.form.get("boot_brand", "")
-    boot_model = request.form.get("boot_model", "")
-    boot_flex = request.form.get("boot_flex", "")
-    purchase_year = request.form.get("purchase_year", "")
-    
-    if equipment_status not in ["have_own_equipment", "needs_rentals"]:
-        equipment_status = "have_own_equipment"
-    
-    slot = EquipmentSlot.PRIMARY if slot_str == "primary" else EquipmentSlot.SECONDARY
-    current_user.equipment_status = equipment_status
-
-    if equipment_status == "needs_rentals":
-        db.session.commit()
-        return jsonify({"success": True})
+    label = request.form.get("label", "").strip() or None
+    brand = request.form.get("brand", "").strip()
+    model_val = request.form.get("model", "").strip()
+    length_cm = request.form.get("length_cm", "").strip()
+    width_mm = request.form.get("width_mm", "").strip()
+    binding_type = request.form.get("binding_type", "").strip()
+    boot_brand = request.form.get("boot_brand", "").strip()
+    boot_model = request.form.get("boot_model", "").strip()
+    boot_flex = request.form.get("boot_flex", "").strip()
+    purchase_year = request.form.get("purchase_year", "").strip()
 
     if not discipline_str:
         return jsonify({"error": "Discipline required"}), 400
 
     discipline = EquipmentDiscipline.SKIER if discipline_str == "Skier" else EquipmentDiscipline.SNOWBOARDER
 
-    equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=slot).first()
-    
-    if not equipment:
-        equipment = EquipmentSetup(user_id=current_user.id, slot=slot, discipline=discipline)
-        db.session.add(equipment)
-    else:
+    existing_setups = EquipmentSetup.query.filter_by(user_id=current_user.id).order_by(
+        EquipmentSetup.created_at.asc().nullsfirst(), EquipmentSetup.id.asc()
+    ).all()
+
+    is_first = len(existing_setups) == 0
+
+    if setup_id:
+        # Update existing
+        equipment = EquipmentSetup.query.filter_by(id=int(setup_id), user_id=current_user.id).first()
+        if not equipment:
+            return jsonify({"error": "Setup not found"}), 404
         old_discipline = equipment.discipline
         equipment.discipline = discipline
         if old_discipline != discipline:
             equipment.binding_type = None
-    
+    else:
+        # Create new
+        equipment = EquipmentSetup(
+            user_id=current_user.id,
+            discipline=discipline,
+            created_at=datetime.utcnow(),
+            is_primary=False
+        )
+        db.session.add(equipment)
+        is_first = True  # newly created — will become primary if no primary exists
+
+    equipment.label = label
     equipment.brand = brand if brand else None
-    equipment.model = model if model else None
+    equipment.model = model_val if model_val else None
     equipment.length_cm = int(length_cm) if length_cm else None
     equipment.width_mm = int(width_mm) if width_mm else None
     equipment.binding_type = binding_type if binding_type else None
     equipment.boot_brand = boot_brand if boot_brand else None
     equipment.boot_model = boot_model if boot_model else None
-    equipment.boot_flex = int(boot_flex) if boot_flex and int(boot_flex) > 0 else None
-    
-    # Purchase year only for primary equipment
-    if slot == EquipmentSlot.PRIMARY:
-        equipment.purchase_year = int(purchase_year) if purchase_year and purchase_year.isdigit() else None
-    
+    equipment.boot_flex = int(boot_flex) if boot_flex and boot_flex.isdigit() and int(boot_flex) > 0 else None
+    equipment.purchase_year = int(purchase_year) if purchase_year and purchase_year.isdigit() else None
+
+    db.session.flush()  # get id if new
+
+    # If no primary exists, make this one primary
+    has_primary = any(s.is_primary for s in existing_setups if s.id != equipment.id)
+    if not has_primary:
+        equipment.is_primary = True
+
+    # Also keep User.equipment_status consistent
+    current_user.equipment_status = "have_own_equipment"
+
+    db.session.commit()
+    return jsonify({"success": True, "setup_id": equipment.id, "is_primary": equipment.is_primary})
+
+
+@app.route("/settings/equipment/get/<int:setup_id>")
+@login_required
+def settings_equipment_get(setup_id):
+    """Return JSON data for one equipment setup (used to pre-populate the edit form)."""
+    equipment = EquipmentSetup.query.filter_by(id=setup_id, user_id=current_user.id).first()
+    if not equipment:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify({
+        "id": equipment.id,
+        "label": equipment.label,
+        "discipline": equipment.discipline.value if equipment.discipline else "skier",
+        "brand": equipment.brand,
+        "model": equipment.model,
+        "length_cm": equipment.length_cm,
+        "width_mm": equipment.width_mm,
+        "binding_type": equipment.binding_type,
+        "boot_brand": equipment.boot_brand,
+        "boot_model": equipment.boot_model,
+        "boot_flex": equipment.boot_flex,
+        "purchase_year": equipment.purchase_year,
+        "is_primary": equipment.is_primary,
+    })
+
+
+@app.route("/settings/equipment/make-primary", methods=["POST"])
+@login_required
+def settings_equipment_make_primary():
+    """Set a specific setup as primary, unsetting all others for this user."""
+    setup_id = request.form.get("setup_id", "")
+    if not setup_id:
+        return jsonify({"error": "setup_id required"}), 400
+
+    equipment = EquipmentSetup.query.filter_by(id=int(setup_id), user_id=current_user.id).first()
+    if not equipment:
+        return jsonify({"error": "Setup not found"}), 404
+
+    # Unset all primaries for this user
+    EquipmentSetup.query.filter_by(user_id=current_user.id, is_primary=True).update({"is_primary": False})
+    equipment.is_primary = True
     db.session.commit()
     return jsonify({"success": True})
 
@@ -5453,28 +5568,46 @@ def settings_equipment_save():
 @app.route("/settings/equipment/delete", methods=["POST"])
 @login_required
 def settings_equipment_delete():
-    slot_str = request.form.get("slot", "primary")
-    slot = EquipmentSlot.PRIMARY if slot_str == "primary" else EquipmentSlot.SECONDARY
-    
-    equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=slot).first()
-    if equipment:
-        db.session.delete(equipment)
-        db.session.commit()
-    
+    """Delete a setup by id. If it was primary and others exist, promote the next one."""
+    setup_id = request.form.get("setup_id", "")
+
+    # Legacy fallback: accept slot= param for old callers
+    if not setup_id:
+        slot_str = request.form.get("slot", "primary")
+        slot = EquipmentSlot.PRIMARY if slot_str == "primary" else EquipmentSlot.SECONDARY
+        equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=slot).first()
+    else:
+        equipment = EquipmentSetup.query.filter_by(id=int(setup_id), user_id=current_user.id).first()
+
+    if not equipment:
+        return jsonify({"success": True})
+
+    was_primary = equipment.is_primary
+    db.session.delete(equipment)
+    db.session.flush()
+
+    if was_primary:
+        # Promote the next oldest setup
+        next_setup = EquipmentSetup.query.filter_by(user_id=current_user.id).order_by(
+            EquipmentSetup.created_at.asc().nullsfirst(), EquipmentSetup.id.asc()
+        ).first()
+        if next_setup:
+            next_setup.is_primary = True
+
+    db.session.commit()
     return jsonify({"success": True})
 
 
 @app.route("/settings/equipment-status", methods=["POST"])
 @login_required
 def settings_equipment_status():
-    """Update user's equipment_status (have_own_equipment or needs_rentals)."""
+    """Update user's high-level equipment_status (have_own_equipment or needs_rentals)."""
     status = request.form.get("equipment_status", "have_own_equipment")
     if status not in ["have_own_equipment", "needs_rentals"]:
         return jsonify({"success": False, "error": "Invalid status"}), 400
-    
+
     current_user.equipment_status = status
     db.session.commit()
-    
     return jsonify({"success": True})
 
 
@@ -8710,32 +8843,36 @@ def seed_full_demo_world():
         all_users = [richard, jonathan] + dummy_users
         equipment_count = 0
         for user in all_users:
-            if EquipmentSetup.query.filter_by(user_id=user.id, slot=EquipmentSlot.PRIMARY).first():
+            if EquipmentSetup.query.filter_by(user_id=user.id, is_primary=True).first():
                 continue
-            
+
             user_rt = user.primary_rider_type or user.rider_type or "Skier"
             discipline = EquipmentDiscipline.SKIER if user_rt == "Skier" else EquipmentDiscipline.SNOWBOARDER
             brands = SKIER_BRANDS if user_rt == "Skier" else SNOWBOARDER_BRANDS
-            
+
             primary = EquipmentSetup(
                 user_id=user.id,
                 slot=EquipmentSlot.PRIMARY,
+                is_primary=True,
                 discipline=discipline,
                 brand=random.choice(brands),
                 length_cm=random.randint(160, 190) if user_rt == "Skier" else random.randint(150, 165),
-                width_mm=random.randint(80, 105) if user_rt == "Skier" else None
+                width_mm=random.randint(80, 105) if user_rt == "Skier" else None,
+                created_at=datetime.utcnow()
             )
             db.session.add(primary)
             equipment_count += 1
-            
+
             if random.random() < 0.5:
                 secondary = EquipmentSetup(
                     user_id=user.id,
                     slot=EquipmentSlot.SECONDARY,
+                    is_primary=False,
                     discipline=discipline,
                     brand=random.choice(brands),
                     length_cm=random.randint(160, 190) if user_rt == "Skier" else random.randint(150, 165),
-                    width_mm=random.randint(80, 105) if user_rt == "Skier" else None
+                    width_mm=random.randint(80, 105) if user_rt == "Skier" else None,
+                    created_at=datetime.utcnow()
                 )
                 db.session.add(secondary)
                 equipment_count += 1

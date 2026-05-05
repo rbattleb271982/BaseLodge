@@ -1043,18 +1043,18 @@ class TripGuest(db.Model):
 
 
 class EquipmentSetup(db.Model):
-    """Profile-level gear setup (max 2 per user: primary + secondary)."""
+    """Profile-level gear setup. Supports multiple setups per user; one is_primary per user."""
     __tablename__ = 'equipment_setup'
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     slot = db.Column(
         db.Enum(EquipmentSlot, name='equipment_slot_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
-        nullable=True  # Made nullable for onboarding flow
+        nullable=True  # Legacy — kept for backward compat; new rows use is_primary
     )
     discipline = db.Column(
         db.Enum(EquipmentDiscipline, name='equipment_discipline_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
-        nullable=True  # Made nullable for onboarding flow
+        nullable=True
     )
     brand = db.Column(db.String(100), nullable=True)
     model = db.Column(db.String(100), nullable=True)
@@ -1065,21 +1065,27 @@ class EquipmentSetup(db.Model):
     boot_model = db.Column(db.String(100), nullable=True)
     boot_flex = db.Column(db.Integer, nullable=True)
     purchase_year = db.Column(db.Integer, nullable=True)
-    
+
     # Onboarding fields (Dec 2025)
-    equipment_status = db.Column(db.String(20), nullable=True)  # 'own', 'rent', 'both'
-    is_active = db.Column(db.Boolean, default=True)  # True for primary/active equipment setup
-    
+    equipment_status = db.Column(db.String(20), nullable=True)  # legacy onboarding: 'own'/'rent'/'both'
+    is_active = db.Column(db.Boolean, default=True)  # legacy onboarding flag
+
+    # Multi-setup fields (May 2026)
+    is_primary = db.Column(db.Boolean, default=False, nullable=False)
+    label = db.Column(db.String(100), nullable=True)  # user-given name e.g. "Park skis"
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=True)
+
     user = db.relationship('User', backref='equipment_setups')
-    
+
+    # Unique constraint kept for legacy slot rows; new rows have slot=NULL so not constrained
     __table_args__ = (
         db.UniqueConstraint('user_id', 'slot', name='unique_user_equipment_slot'),
     )
-    
+
     def __repr__(self):
         slot_val = self.slot.value if self.slot else 'none'
         discipline_val = self.discipline.value if self.discipline else 'none'
-        return f'<EquipmentSetup user={self.user_id} slot={slot_val} discipline={discipline_val}>'
+        return f'<EquipmentSetup user={self.user_id} slot={slot_val} primary={self.is_primary} discipline={discipline_val}>'
 
 
 class DismissedNudge(db.Model):

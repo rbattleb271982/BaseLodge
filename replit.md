@@ -42,6 +42,7 @@ To prevent regressions, profile data (equipment setup, rider preferences, pass i
 -   **Navigation:** Consistent 4-tab bottom navigation (Trips, Friends, Invite, Profile).
 -   **Location Selector:** Unified typeahead component for state/province selection.
 -   **Multi-Pass & International Resort Support:** `Resort` model includes `pass_brands`, `country`, and expanded `state` fields.
+-   **Multi-Setup Equipment:** `EquipmentSetup` supports multiple setups per user. `is_primary=True` marks the active setup shown on profiles. Users can add, edit, delete, and "Make primary" any setup. First saved setup auto-becomes primary. Deleting primary auto-promotes next oldest. `User.equipment_status` remains the high-level "have_own_equipment" / "needs_rentals" signal; switching to "I rent" does not delete setups. New columns `is_primary`, `label`, `created_at` added via safe `ALTER TABLE IF NOT EXISTS` startup migration with `slot=primary` → `is_primary=TRUE` backfill.
 -   **Group Coordination Signals:** `SkiTripParticipant` includes `transportation_status` and `equipment_status`.
 -   **Carpool Coordination:** Participants set carpool roles, generating activity notifications.
 -   **Lesson Tracking:** Participants indicate lesson intent for trips.
