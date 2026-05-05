@@ -4753,6 +4753,57 @@ def home():
     # One-time connection success message (set by accept_invitation, consumed here)
     new_connection_name = session.pop('new_connection_name', None)
 
+    # Activity-based connection card: surfaces for both the acceptor and the invite sender.
+    # Uses DismissedInsightCard so it never reappears once seen.
+    # Only shows events from the last 48h to avoid stale product moments.
+    sender_connection_card = None
+    try:
+        cutoff = datetime.utcnow() - timedelta(hours=48)
+        recent_connections = Activity.query.filter(
+            Activity.recipient_user_id == user.id,
+            Activity.type == ActivityType.CONNECTION_ACCEPTED.value,
+            Activity.created_at >= cutoff,
+        ).order_by(Activity.created_at.desc()).all()
+
+        for act in recent_connections:
+            card_key = f"connection:{act.actor_user_id}:{act.recipient_user_id}"
+            already_dismissed = DismissedInsightCard.query.filter_by(
+                user_id=user.id,
+                card_type='connection_accepted',
+                card_key=card_key,
+            ).first()
+            if not already_dismissed:
+                other_user = db.session.get(User, act.actor_user_id)
+                if other_user:
+                    sender_connection_card = {
+                        'name': other_user.first_name or other_user.username or 'your new friend',
+                        'card_key': card_key,
+                    }
+                    break
+    except Exception:
+        db.session.rollback()
+        sender_connection_card = None
+
+    # If the session-based card (acceptor path) is already showing for this same
+    # connection, pre-dismiss the Activity card so they don't see two "connected" messages.
+    if new_connection_name and sender_connection_card:
+        try:
+            existing = DismissedInsightCard.query.filter_by(
+                user_id=user.id,
+                card_type='connection_accepted',
+                card_key=sender_connection_card['card_key'],
+            ).first()
+            if not existing:
+                db.session.add(DismissedInsightCard(
+                    user_id=user.id,
+                    card_type='connection_accepted',
+                    card_key=sender_connection_card['card_key'],
+                ))
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+        sender_connection_card = None
+
     # --- Next Trip (created or accepted) ---
     try:
         my_trips = SkiTrip.query.filter(
@@ -4977,6 +5028,7 @@ def home():
         home_eq=user.get_active_equipment(),
         friend_count=len(friend_ids),
         new_connection_name=new_connection_name,
+        sender_connection_card=sender_connection_card,
     )
 
 
