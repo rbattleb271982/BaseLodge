@@ -3386,6 +3386,31 @@ def push_register_token():
     return jsonify({"success": True, "action": action, "token_preview": token_preview}), 200
 
 
+@app.route("/api/push/beacon", methods=["POST"])
+@login_required
+def push_debug_beacon():
+    """Lightweight step-beacon for push registration diagnostics.
+
+    The TestFlight WKWebView cannot surface console.log to the developer, so
+    the push JS POSTs a small beacon at each step — giving server-log visibility
+    into exactly how far the script progresses inside the native shell.
+
+    Body: { step: str, data: object }
+    Logs: [PushBeacon] user_id=X step=Y data=Z
+    """
+    body = request.get_json(silent=True) or {}
+    step = str(body.get("step", "unknown"))[:64]
+    raw_data = body.get("data", {})
+    if not isinstance(raw_data, dict):
+        raw_data = {"raw": str(raw_data)[:200]}
+    safe_data = {str(k)[:32]: str(v)[:200] for k, v in list(raw_data.items())[:20]}
+    current_app.logger.warning(
+        "[PushBeacon] user_id=%s step=%s data=%s",
+        current_user.id, step, safe_data
+    )
+    return jsonify({"ok": True}), 200
+
+
 # ---------------------------------------------------------------------------
 # APNs push sending
 # ---------------------------------------------------------------------------
@@ -3509,6 +3534,117 @@ def send_apns_push(device_token: str, title: str, body: str, extra: dict | None 
         "use_sandbox": use_sandbox,
         "bundle_id": bundle_id,
     }
+
+
+@app.route("/admin/push-diagnostics", methods=["GET"])
+@login_required
+@admin_required
+def admin_push_diagnostics():
+    """Full push pipeline diagnostic — all layers in one JSON response.
+
+    Covers: APNs env config, Capacitor/JS setup, all token rows, instructions.
+    Check server logs for [PushBeacon] entries after opening the TestFlight app
+    to see exactly which step the push script reaches.
+    """
+    target_user_id = 2
+
+    def _tok_preview(t):
+        return t[:8] + "\u2026" + t[-6:] if len(t) > 14 else t[:8] + "\u2026"
+
+    use_sandbox_raw = os.environ.get("APNS_USE_SANDBOX", "true")
+    use_sandbox = use_sandbox_raw.lower() not in ("false", "0", "no")
+    apns_host = "api.sandbox.push.apple.com" if use_sandbox else "api.push.apple.com"
+    bundle_id = os.environ.get("APNS_BUNDLE_ID", "com.baselodge.app")
+
+    all_tokens = (
+        PushDeviceToken.query
+        .filter_by(user_id=target_user_id, platform="ios")
+        .order_by(PushDeviceToken.updated_at.desc())
+        .all()
+    )
+    target_user = db.session.get(User, target_user_id)
+
+    active_tokens = [t for t in all_tokens if t.active]
+    newest_active = active_tokens[0] if active_tokens else None
+
+    return jsonify({
+        "server_time": datetime.utcnow().isoformat() + "Z",
+        "version_marker": "push-diag-v3-beacons",
+        "auth": {
+            "requesting_user_id": current_user.id,
+            "requesting_user_email": current_user.email,
+        },
+        "target_user": {
+            "id": target_user_id,
+            "email": target_user.email if target_user else None,
+            "exists": target_user is not None,
+        },
+        "apns_env": {
+            "APNS_USE_SANDBOX_raw": use_sandbox_raw,
+            "use_sandbox": use_sandbox,
+            "apns_host": apns_host,
+            "bundle_id": bundle_id,
+            "APNS_KEY_ID_set": bool(os.environ.get("APNS_KEY_ID")),
+            "APNS_TEAM_ID_set": bool(os.environ.get("APNS_TEAM_ID")),
+            "APNS_KEY_P8_set": bool(os.environ.get("APNS_KEY_P8")),
+            "correct_for_testflight": not use_sandbox,
+            "note": "TestFlight tokens need production APNs (use_sandbox=false). Mismatch → BadEnvironmentKeyInToken.",
+        },
+        "push_js": {
+            "template": "templates/components/analytics_head.html",
+            "included_in": "templates/base_app.html (all logged-in pages)",
+            "dedup_strategy": "window.__pushSetupDone only — cleared on every full page navigation. NO sessionStorage.",
+            "beacon_endpoint": "POST /api/push/beacon (@login_required)",
+            "beacons_emitted": [
+                "script_parsed (sync, before DOMContentLoaded)",
+                "dcl_native_user_confirmed",
+                "plugin_check",
+                "listeners_attached",
+                "permission_result",
+                "register_called",
+                "token_received",
+                "post_success / post_failed / post_error",
+                "registration_error / register_error / permission_error",
+            ],
+            "note": "Search server logs for [PushBeacon] after opening TestFlight app while logged in.",
+        },
+        "capacitor": {
+            "version": "8.3.1",
+            "push_plugin": "@capacitor/push-notifications ^8.0.3",
+            "server_url": "https://app.baselodgeapp.com",
+            "handle_application_notifications": False,
+            "plugin_access_path": "window.Capacitor.Plugins.PushNotifications",
+            "retry_on_missing": "yes — retries once after 500ms if plugin not found at DOMContentLoaded",
+        },
+        "tokens": {
+            "count_total": len(all_tokens),
+            "count_active": len(active_tokens),
+            "newest_active_preview": _tok_preview(newest_active.token) if newest_active else None,
+            "newest_active_updated_at": newest_active.updated_at.isoformat() if newest_active and newest_active.updated_at else None,
+            "all_rows": [
+                {
+                    "id": t.id,
+                    "token_preview": _tok_preview(t.token),
+                    "platform": t.platform,
+                    "active": t.active,
+                    "created_at": t.created_at.isoformat() if t.created_at else None,
+                    "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+                    "age_days": (datetime.utcnow() - t.updated_at).days if t.updated_at else None,
+                }
+                for t in all_tokens
+            ],
+        },
+        "instructions": {
+            "step_1": "Kill the TestFlight app completely (swipe up in app switcher)",
+            "step_2": "Reopen and log in — wait 15 seconds",
+            "step_3": "Check server logs for [PushBeacon] lines — they show exactly which gate the push script reached",
+            "step_4": "If script_parsed appears but dcl_native_user_confirmed does not: DOMContentLoaded or isNativePlatform failed",
+            "step_5": "If plugin_check shows plugin_found=False: Capacitor bridge not providing PushNotifications",
+            "step_6": "If register_called appears but token_received does not: APNs token delivery failed natively",
+            "step_7": "If token_received appears but post_success does not: server-side registration failed",
+            "step_8": "Run /admin/test-push after a token is registered to attempt APNs delivery",
+        },
+    }), 200
 
 
 @app.route("/admin/test-push", methods=["GET", "POST"])

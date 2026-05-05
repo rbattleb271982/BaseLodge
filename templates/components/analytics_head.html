@@ -54,15 +54,56 @@
   });
 </script>
 <script>
-  /* Push notification token capture — native Capacitor iOS shell only.
-     Deferred to DOMContentLoaded so Capacitor plugin bridge is fully wired.
-     Runs once per session per user via sessionStorage dedup key.
-     sessionStorage is cleared on app restart and after a fresh reinstall,
-     so each new install / app relaunch will re-register the token.
-     DEBUG LOGS ACTIVE. */
+  /* ── Push notification token capture ── native Capacitor iOS shell only ──
+     DEBUG BEACONS ACTIVE: every step POSTs to /api/push/beacon so the
+     server log shows exactly how far the script reaches inside TestFlight's
+     WKWebView (where console.log is invisible without a tethered Mac).
+
+     Dedup strategy: window.__pushSetupDone only.
+       - Cleared on every full page navigation (server-side rendered app → each
+         page is a fresh window context, so the flag resets automatically).
+       - NO sessionStorage: WKWebView can keep the OS process alive across app
+         relaunches, causing sessionStorage keys to persist and block future
+         registration attempts.
+
+     Plugin retry: if PushNotifications is absent at DOMContentLoaded, we
+     wait 500 ms and try once more (Capacitor v8 + remote server URL can be
+     slightly late populating window.Capacitor.Plugins). */
+
+  // ── Beacon helper ─────────────────────────────────────────────────────────
+  // Available immediately: the CSRF fetch-wrapper <script> runs before this one.
+  function _pushBeacon(step, data) {
+    try {
+      window.fetch('/api/push/beacon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step: step, data: data || {} })
+      });
+    } catch(e) { /* never let beacon errors disrupt the main flow */ }
+  }
+
+  // ── Synchronous pre-check at script-parse time ────────────────────────────
+  // Fires before DOMContentLoaded — confirms the script tag itself executes.
+  // Only beacons for authenticated users (window.__USER__ is set by the
+  // prior <script> block in this same <head>).
+  (function() {
+    var userId = window.__USER__ && window.__USER__.id;
+    if (!userId) return;
+    var capExists = !!(window.Capacitor);
+    var isNative = !!(capExists && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+    _pushBeacon('script_parsed', {
+      user_id: userId,
+      capacitor_exists: capExists,
+      is_native: isNative,
+      ua: navigator.userAgent.slice(0, 120)
+    });
+  })();
+
+  // ── DOMContentLoaded: full registration flow ──────────────────────────────
   document.addEventListener('DOMContentLoaded', function() {
     (async function() {
-      // ── Gate 1: native Capacitor shell only ─────────────────────────────
+
+      // Gate 1: native Capacitor shell only
       var isNative = !!(
         window.Capacitor &&
         typeof window.Capacitor.isNativePlatform === 'function' &&
@@ -74,51 +115,69 @@
         return;
       }
 
-      // ── Gate 2: authenticated user ───────────────────────────────────────
+      // Gate 2: authenticated user
       var userId = window.__USER__ && window.__USER__.id;
-      console.log('[Push] Authenticated user id:', userId || '(none)');
+      console.log('[Push] user id:', userId || '(none)');
       if (!userId) {
         console.log('[Push] No authenticated user — push setup skipped');
         return;
       }
 
-      // ── Gate 3: once per session per user (sessionStorage dedup) ─────────
-      // sessionStorage is scoped to the WKWebView session and cleared on
-      // app restart / reinstall, so this naturally re-runs after reinstall.
-      var storageKey = 'pushRegAttempted_u' + userId;
-      if (sessionStorage.getItem(storageKey)) {
-        console.log('[Push] Already attempted this session for user', userId, '— skipping');
+      // Gate 3: window-level dedup (reset every full page navigation)
+      if (window.__pushSetupDone) {
+        console.log('[Push] Already ran on this page load — skipping');
         return;
       }
-      sessionStorage.setItem(storageKey, '1');
-      console.log('[Push] Starting push registration for user', userId);
+      window.__pushSetupDone = true;
 
-      // ── Plugin check ─────────────────────────────────────────────────────
-      var pluginKeys = window.Capacitor.Plugins ? Object.keys(window.Capacitor.Plugins).join(', ') : '(Plugins missing)';
+      var capKeys = window.Capacitor ? Object.keys(window.Capacitor).join(',') : '(none)';
+      _pushBeacon('dcl_native_user_confirmed', {
+        user_id: userId,
+        capacitor_keys: capKeys
+      });
+
+      // Plugin check with one retry after 500 ms
+      async function _getPlugin() {
+        var p = window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications;
+        if (p) return p;
+        await new Promise(function(r) { setTimeout(r, 500); });
+        return window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications;
+      }
+
+      var pluginKeys = window.Capacitor.Plugins
+        ? Object.keys(window.Capacitor.Plugins).join(',')
+        : '(Plugins object missing)';
       console.log('[Push] Capacitor.Plugins keys:', pluginKeys);
-      var Push = window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications;
-      console.log('[Push] PushNotifications plugin available:', !!Push);
+
+      var Push = await _getPlugin();
+      console.log('[Push] PushNotifications plugin:', !!Push, 'type:', typeof Push);
+
+      _pushBeacon('plugin_check', {
+        user_id: userId,
+        plugin_found: !!Push,
+        plugin_type: typeof Push,
+        plugin_keys: pluginKeys,
+        cap_platform: typeof window.Capacitor.getPlatform === 'function'
+          ? window.Capacitor.getPlatform() : 'n/a'
+      });
+
       if (!Push) {
-        console.warn('[Push] PushNotifications plugin not found — aborting');
-        sessionStorage.removeItem(storageKey); // allow retry next page load
+        console.warn('[Push] PushNotifications plugin not found after retry — aborting');
         return;
       }
 
-      // ── Attach listeners BEFORE requestPermissions / register ─────────────
+      // Attach listeners BEFORE calling requestPermissions / register
       await Push.addListener('registration', function(evt) {
         var tokVal = evt && evt.value ? evt.value : '';
         var tokLen = tokVal.length;
         var tokPreview = tokLen > 14
           ? tokVal.slice(0, 8) + '\u2026' + tokVal.slice(-6)
           : tokVal.slice(0, 8) + '\u2026';
-        console.log('[Push] registration event — token length:', tokLen, 'preview:', tokPreview);
+        console.log('[Push] registration event — len:', tokLen, 'preview:', tokPreview);
+        _pushBeacon('token_received', { token_preview: tokPreview, token_length: tokLen });
 
         if (!tokVal) {
-          console.warn('[Push] registration event: token.value empty — aborting POST');
-          return;
-        }
-        if (!window.__USER__ || !window.__USER__.id) {
-          console.warn('[Push] registration event: user no longer authenticated — aborting POST');
+          console.warn('[Push] token.value empty — aborting POST');
           return;
         }
 
@@ -128,54 +187,64 @@
           body: JSON.stringify({ token: tokVal, platform: 'ios' })
         }).then(function(res) {
           if (res.ok) {
-            res.json().then(function(data) {
-              console.log('[Push] POST /api/push/register-token → ' + res.status + ' OK — action:', data.action, 'token:', data.token_preview);
+            res.json().then(function(d) {
+              console.log('[Push] register-token → OK action:', d.action);
+              _pushBeacon('post_success', { status: res.status, action: d.action, token_preview: tokPreview });
             }).catch(function() {
-              console.log('[Push] POST /api/push/register-token → ' + res.status + ' OK');
+              _pushBeacon('post_success', { status: res.status, action: 'non-json-ok' });
             });
           } else {
             res.text().then(function(body) {
-              console.warn('[Push] POST /api/push/register-token → ' + res.status + ' FAILED — body:', body.slice(0, 300));
+              console.warn('[Push] register-token → FAILED', res.status, body.slice(0, 200));
+              _pushBeacon('post_failed', { status: res.status, body: body.slice(0, 200) });
             }).catch(function() {
-              console.warn('[Push] POST /api/push/register-token → ' + res.status + ' FAILED — body unreadable');
+              _pushBeacon('post_failed', { status: res.status, body: 'unreadable' });
             });
           }
         }).catch(function(err) {
-          console.warn('[Push] POST /api/push/register-token fetch error:', err);
+          console.warn('[Push] fetch error:', err);
+          _pushBeacon('post_error', { error: String(err).slice(0, 128) });
         });
       });
-      console.log('[Push] registration listener attached');
 
       await Push.addListener('registrationError', function(err) {
-        console.error('[Push] registrationError:', err && err.error ? err.error : JSON.stringify(err));
+        var msg = err && err.error ? String(err.error) : JSON.stringify(err);
+        console.error('[Push] registrationError:', msg);
+        _pushBeacon('registration_error', { error: msg.slice(0, 128) });
       });
-      console.log('[Push] registrationError listener attached');
 
-      await Push.addListener('pushNotificationReceived', function(notification) {
-        console.log('[Push] foreground notification received:', JSON.stringify(notification));
+      await Push.addListener('pushNotificationReceived', function(n) {
+        console.log('[Push] foreground notification:', JSON.stringify(n).slice(0, 128));
       });
-      console.log('[Push] pushNotificationReceived listener attached');
 
-      // ── Request permission then register ──────────────────────────────────
-      console.log('[Push] Calling requestPermissions()...');
+      console.log('[Push] listeners attached — calling requestPermissions()');
+      _pushBeacon('listeners_attached', { user_id: userId });
+
       try {
         var permResult = await Push.requestPermissions();
-        console.log('[Push] requestPermissions result:', JSON.stringify(permResult));
+        var permStatus = permResult ? permResult.receive : 'null-result';
+        console.log('[Push] requestPermissions:', permStatus);
+        _pushBeacon('permission_result', { receive: permStatus });
+
         if (permResult && permResult.receive === 'granted') {
           console.log('[Push] Permission granted — calling register()');
           try {
             await Push.register();
-            console.log('[Push] register() called — awaiting registration event from APNs');
+            console.log('[Push] register() called — waiting for APNs token');
+            _pushBeacon('register_called', { user_id: userId });
           } catch (regErr) {
             console.warn('[Push] register() threw:', regErr);
+            _pushBeacon('register_error', { error: String(regErr).slice(0, 128) });
           }
         } else {
-          var status = permResult ? permResult.receive : 'unknown';
-          console.log('[Push] Permission NOT granted — receive status:', status);
+          console.log('[Push] Permission NOT granted:', permStatus);
+          _pushBeacon('permission_denied', { receive: permStatus });
         }
       } catch (permErr) {
         console.warn('[Push] requestPermissions() error:', permErr);
+        _pushBeacon('permission_error', { error: String(permErr).slice(0, 128) });
       }
+
     })();
   });
 </script>
