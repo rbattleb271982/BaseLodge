@@ -1,0 +1,39 @@
+PUT THIS IN AGENT
+
+Push token registration is not firing after login in the TestFlight app.
+
+Current evidence:
+- User is authenticated as user_id=2.
+- /admin/test-push still selects old token 78F3936F…E04DF0.
+- Replit logs show APNs send attempt, but no successful registration log like:
+  [PushToken] user_id=2 platform=ios token=... action=inserted
+- Therefore the frontend/native registration flow is not successfully posting a new production token after login.
+
+Fix the registration trigger timing only. Do not change APNs server credentials, AppDelegate, Capacitor config, or push sending logic.
+
+Tasks:
+1. Find the push registration JavaScript, likely in analytics_head.html.
+2. Ensure push registration runs after a logged-in page loads, not only on the auth page or initial app boot.
+3. When window.Capacitor?.isNativePlatform() is true and window.__USER__.id exists:
+   - attach registration and registrationError listeners first
+   - call requestPermissions()
+   - if permission is granted, call PushNotifications.register()
+4. Add a guard so it does not spam repeatedly on every page load:
+   - use a window-level flag like window.__pushRegistrationStarted
+   - optionally use sessionStorage to avoid repeated calls during one app session
+5. Log clear client-side messages:
+   - native platform detected
+   - authenticated user detected
+   - listener attached
+   - permission result
+   - registration() called
+   - registration event received with safe token preview
+   - POST /api/push/register-token success/failure
+6. Make sure the POST goes to the correct endpoint currently used by the backend:
+   /api/push/register-token
+7. On the backend, keep the existing [PushToken] success log.
+8. Do not require a republish unless these template changes need to be deployed to production for TestFlight to load them.
+9. After changes, publish/deploy if required so app.baselodgeapp.com serves the updated JS to the TestFlight app.
+10. Then test by opening the TestFlight app, logging in, waiting 10 seconds, confirming [PushToken] appears in logs, and finally running /admin/test-push.
+
+Do not finish until the logs confirm whether the TestFlight app posts a new token after login.
