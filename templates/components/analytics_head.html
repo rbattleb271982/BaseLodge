@@ -99,70 +99,137 @@
     });
   })();
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function _capSnapshot() {
+    /* Capture every native-detection signal in one object for beacon payloads. */
+    var cap = window.Capacitor;
+    var wk  = window.webkit;
+    return {
+      has_capacitor:      !!(cap),
+      cap_type:           typeof cap,
+      is_native_fn:       !!(cap && typeof cap.isNativePlatform === 'function'),
+      is_native:          !!(cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform()),
+      cap_platform:       (cap && typeof cap.getPlatform === 'function') ? cap.getPlatform() : 'n/a',
+      cap_keys:           cap ? Object.keys(cap).join(',').slice(0, 200) : 'none',
+      has_webkit_handler: !!(wk && wk.messageHandlers && wk.messageHandlers.capacitor),
+      has_webkit:         !!(wk),
+      ua:                 navigator.userAgent.slice(0, 180)
+    };
+  }
+
   // ── DOMContentLoaded: full registration flow ──────────────────────────────
   document.addEventListener('DOMContentLoaded', function() {
+
+    // UNCONDITIONAL environment snapshot — fires before any gate.
+    // This is the key diagnostic: the user agent and webkit handler
+    // tell us whether we're in Safari or a native WKWebView, and
+    // whether Capacitor's bridge was injected at document-start time.
+    var userId = window.__USER__ && window.__USER__.id;
+    if (userId) {
+      _pushBeacon('dcl_environment', Object.assign({ user_id: userId }, _capSnapshot()));
+    }
+
     (async function() {
 
-      // Gate 1: native Capacitor shell only
-      var isNative = !!(
-        window.Capacitor &&
-        typeof window.Capacitor.isNativePlatform === 'function' &&
-        window.Capacitor.isNativePlatform()
-      );
-      console.log('[Push] DOMContentLoaded — isNativePlatform():', isNative);
-      if (!isNative) {
-        console.log('[Push] Not native — push setup skipped');
-        return;
-      }
-
-      // Gate 2: authenticated user
-      var userId = window.__USER__ && window.__USER__.id;
-      console.log('[Push] user id:', userId || '(none)');
+      // Gate 1: must be an authenticated user
       if (!userId) {
         console.log('[Push] No authenticated user — push setup skipped');
         return;
       }
 
-      // Gate 3: window-level dedup (reset every full page navigation)
+      // Gate 2: window-level dedup (reset every full page navigation)
       if (window.__pushSetupDone) {
         console.log('[Push] Already ran on this page load — skipping');
         return;
       }
       window.__pushSetupDone = true;
 
-      var capKeys = window.Capacitor ? Object.keys(window.Capacitor).join(',') : '(none)';
-      _pushBeacon('dcl_native_user_confirmed', {
-        user_id: userId,
-        capacitor_keys: capKeys
-      });
-
-      // Plugin check with one retry after 500 ms
-      async function _getPlugin() {
-        var p = window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications;
-        if (p) return p;
-        await new Promise(function(r) { setTimeout(r, 500); });
-        return window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications;
+      // Wait for window.Capacitor to appear (up to 2 s in 100 ms steps).
+      // Capacitor v8 + remote server URL can inject the bridge slightly
+      // after DOMContentLoaded in some build configurations.
+      async function _waitForCapacitor(maxMs) {
+        var deadline = Date.now() + maxMs;
+        while (Date.now() < deadline) {
+          if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function') {
+            return window.Capacitor;
+          }
+          await new Promise(function(r) { setTimeout(r, 100); });
+        }
+        return null;
       }
 
-      var pluginKeys = window.Capacitor.Plugins
-        ? Object.keys(window.Capacitor.Plugins).join(',')
-        : '(Plugins object missing)';
-      console.log('[Push] Capacitor.Plugins keys:', pluginKeys);
+      var Cap = await _waitForCapacitor(2000);
+      var snap = _capSnapshot();
+      console.log('[Push] after wait — is_native:', snap.is_native,
+                  'has_webkit_handler:', snap.has_webkit_handler);
 
-      var Push = await _getPlugin();
-      console.log('[Push] PushNotifications plugin:', !!Push, 'type:', typeof Push);
+      _pushBeacon('cap_wait_result', Object.assign({ user_id: userId, waited_ms: 2000 }, snap));
+
+      // Not native AND no webkit bridge message handler → definitely not a
+      // native Capacitor WKWebView (could be Safari or a regular browser).
+      if (!snap.is_native && !snap.has_webkit_handler) {
+        console.log('[Push] Not native WKWebView — push setup skipped');
+        _pushBeacon('not_native', { user_id: userId, ua: snap.ua });
+        return;
+      }
+
+      // If window.Capacitor is missing but webkit handler exists, we ARE in a
+      // native WKWebView — the bridge JS injection failed or is still pending.
+      // Report it so we know exactly what happened.
+      if (!Cap) {
+        _pushBeacon('capacitor_missing_in_native', {
+          user_id: userId,
+          has_webkit_handler: snap.has_webkit_handler,
+          ua: snap.ua
+        });
+        console.warn('[Push] In native WKWebView but window.Capacitor never appeared — cannot register');
+        return;
+      }
+
+      _pushBeacon('capacitor_ready', { user_id: userId, cap_keys: snap.cap_keys });
+
+      // Plugin resolution: try window.Capacitor.Plugins first,
+      // then Capacitor v8 registerPlugin() as fallback.
+      async function _getPlugin() {
+        var p = Cap.Plugins && Cap.Plugins.PushNotifications;
+        if (p) return { push: p, via: 'Plugins' };
+
+        // Capacitor v6+ alternative: registerPlugin()
+        if (typeof Cap.registerPlugin === 'function') {
+          try {
+            var rp = Cap.registerPlugin('PushNotifications');
+            if (rp) return { push: rp, via: 'registerPlugin' };
+          } catch(e) {}
+        }
+
+        // Wait 500 ms then retry both paths
+        await new Promise(function(r) { setTimeout(r, 500); });
+        p = Cap.Plugins && Cap.Plugins.PushNotifications;
+        if (p) return { push: p, via: 'Plugins-retry' };
+        if (typeof Cap.registerPlugin === 'function') {
+          try {
+            var rp2 = Cap.registerPlugin('PushNotifications');
+            if (rp2) return { push: rp2, via: 'registerPlugin-retry' };
+          } catch(e) {}
+        }
+        return { push: null, via: 'none' };
+      }
+
+      var pluginKeys = Cap.Plugins ? Object.keys(Cap.Plugins).join(',') : '(Plugins missing)';
+      var pluginResult = await _getPlugin();
+      var Push = pluginResult.push;
+      console.log('[Push] PushNotifications:', !!Push, 'via:', pluginResult.via);
 
       _pushBeacon('plugin_check', {
         user_id: userId,
         plugin_found: !!Push,
-        plugin_type: typeof Push,
+        plugin_via: pluginResult.via,
         plugin_keys: pluginKeys,
-        cap_platform: typeof window.Capacitor.getPlatform === 'function'
-          ? window.Capacitor.getPlatform() : 'n/a'
+        cap_platform: snap.cap_platform
       });
 
       if (!Push) {
-        console.warn('[Push] PushNotifications plugin not found after retry — aborting');
+        console.warn('[Push] PushNotifications plugin not found — aborting');
         return;
       }
 
