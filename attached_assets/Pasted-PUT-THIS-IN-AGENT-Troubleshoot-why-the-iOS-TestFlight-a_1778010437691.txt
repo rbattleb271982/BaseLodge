@@ -1,0 +1,73 @@
+PUT THIS IN AGENT
+
+Troubleshoot why the iOS/TestFlight app icon still shows the default Capacitor blue icon even though the repo appears to contain the correct BaseLodge icon asset.
+
+Do not change anything yet.
+This is a read-only diagnostic.
+
+Context:
+- TestFlight build 1.0 (3) was uploaded and installed.
+- The app still shows the default Capacitor icon on the phone.
+- Prior audit said the icon PNG appears correct:
+  ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
+  1024x1024, RGB PNG, no transparency.
+- We need to confirm whether Xcode is actually using that asset set when archiving.
+
+Investigate:
+
+1. Confirm actual iOS icon asset path
+Check:
+- ios/App/App/Assets.xcassets/AppIcon.appiconset/
+- Contents.json
+- PNG filenames
+- whether there are any duplicate AppIcon.appiconset folders elsewhere
+
+2. Confirm Xcode target settings
+Inspect:
+- ios/App/App.xcodeproj/project.pbxproj
+- App target build settings
+- ASSETCATALOG_COMPILER_APPICON_NAME
+
+Confirm:
+- It points to AppIcon
+- It does not point to a different icon set
+- There are no duplicate targets or build configurations using another icon
+
+3. Confirm Capacitor icon defaults are not being regenerated
+Check:
+- capacitor.config.*
+- package.json scripts
+- any asset generation config
+- any command/script that may overwrite iOS icons during sync/build
+
+Confirm:
+- npx cap sync does not overwrite the icon after it is replaced
+- no default Capacitor icon remains in the iOS asset catalog
+
+4. Confirm the archive is built from current files
+Check:
+- whether ios/App/App/Assets.xcassets/AppIcon.appiconset/ is tracked/current
+- whether there are uncommitted icon changes
+- whether the Xcode archive could have used an older local folder
+- whether Replit repo and local Xcode repo may be out of sync
+
+5. Confirm installed icon vs build icon
+If possible, identify whether the built archive contains the correct icon:
+- inspect the latest .xcarchive contents if accessible
+- look for AppIcon assets inside Products/Applications/App.app
+- confirm whether blue Capacitor icon exists anywhere in the archive
+
+6. Confirm iOS caching possibility
+Explain whether deleting/reinstalling TestFlight app should clear cache.
+Confirm whether seeing blue icon after reinstall means the binary itself still contains blue icon.
+
+Output:
+- Whether the repo asset is correct
+- Whether Xcode target points to the correct asset set
+- Whether any duplicate/default icon asset exists
+- Whether local Xcode build may be out of sync with Replit
+- Most likely root cause
+- Exact fix needed
+- Whether a new TestFlight build is required
+
+Do not implement changes yet.
