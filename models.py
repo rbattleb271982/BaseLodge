@@ -1217,6 +1217,10 @@ class PushDeviceToken(db.Model):
     token = db.Column(db.String(512), nullable=False)
     platform = db.Column(db.String(20), nullable=False, default='ios')
     active = db.Column(db.Boolean, nullable=False, default=True)
+    # "sandbox" | "production" | "unknown"
+    # Stamped at registration time from APNS_USE_SANDBOX env var (or Capacitor.DEBUG hint).
+    # Used to avoid sending production tokens to sandbox APNs host and vice-versa.
+    apns_environment = db.Column(db.String(20), nullable=False, default='unknown')
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 

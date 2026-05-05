@@ -1199,6 +1199,44 @@ def run_equipment_migration():
 
 run_equipment_migration()
 
+
+def run_push_token_migration():
+    """Safe one-time schema migration for APNs environment-aware token tracking (May 2026).
+
+    1. Adds apns_environment column if absent (VARCHAR 20, default 'unknown').
+    2. Deactivates known sandbox tokens (ids 3, 4) and stamps them 'sandbox'.
+       These were registered against api.sandbox.push.apple.com and will always
+       return BadEnvironmentKeyInToken when APNS_USE_SANDBOX=false.
+    Uses IF NOT EXISTS / safe UPDATE so it is a no-op on repeat runs.
+    """
+    try:
+        with app.app_context():
+            conn = db.engine.connect()
+            trans = conn.begin()
+            try:
+                conn.execute(db.text(
+                    "ALTER TABLE push_device_token "
+                    "ADD COLUMN IF NOT EXISTS apns_environment VARCHAR(20) NOT NULL DEFAULT 'unknown'"
+                ))
+                # Mark the two known sandbox tokens inactive and label them correctly
+                conn.execute(db.text(
+                    "UPDATE push_device_token "
+                    "SET active = FALSE, apns_environment = 'sandbox' "
+                    "WHERE id IN (3, 4)"
+                ))
+                trans.commit()
+                print("push_token_migration: apns_environment column ready; sandbox tokens (3,4) deactivated.")
+            except Exception as inner_e:
+                trans.rollback()
+                print(f"push_token_migration inner error (rolled back): {inner_e}")
+            finally:
+                conn.close()
+    except Exception as e:
+        print(f"push_token_migration: skipped ({e})")
+
+
+run_push_token_migration()
+
 # ============================================================================
 # PRODUCTION DIAGNOSTICS - Print on startup
 # ============================================================================
@@ -3346,7 +3384,19 @@ def update_buddy_pass():
 @app.route("/api/push/register-token", methods=["POST"])
 @login_required
 def push_register_token():
-    """Store or refresh an iOS push notification device token for the current user."""
+    """Store or refresh an iOS push notification device token for the current user.
+
+    apns_environment resolution order:
+      1. Frontend hint via request body ("sandbox" | "production" | "unknown").
+         Capacitor.DEBUG=false → production; Capacitor.DEBUG=true → sandbox.
+      2. Server inference from APNS_USE_SANDBOX env var (reliable operational default):
+         APNS_USE_SANDBOX=false → "production" (TestFlight / App Store)
+         APNS_USE_SANDBOX=true  → "sandbox"    (local Xcode installs)
+      3. Fall back to "unknown" if neither is available.
+
+    This value is used to select the right token when calling APNs so we never
+    send a sandbox token to api.push.apple.com or vice-versa.
+    """
     data = request.get_json() or {}
     token = data.get("token", "").strip()
     platform = data.get("platform", "ios").strip() or "ios"
@@ -3356,12 +3406,23 @@ def push_register_token():
 
     token_preview = token[:8] + "…" + token[-6:] if len(token) > 14 else token[:8] + "…"
 
+    # Resolve apns_environment
+    client_hint = (data.get("apns_environment") or "").strip().lower()
+    if client_hint in ("sandbox", "production"):
+        apns_env = client_hint
+        env_source = "client_hint"
+    else:
+        use_sandbox = os.environ.get("APNS_USE_SANDBOX", "true").lower() not in ("false", "0", "no")
+        apns_env = "sandbox" if use_sandbox else "production"
+        env_source = "server_inferred"
+
     try:
         existing = PushDeviceToken.query.filter_by(
             user_id=current_user.id, token=token
         ).first()
         if existing:
             existing.active = True
+            existing.apns_environment = apns_env
             existing.updated_at = datetime.utcnow()
             action = "refreshed"
         else:
@@ -3369,12 +3430,13 @@ def push_register_token():
                 user_id=current_user.id,
                 token=token,
                 platform=platform,
+                apns_environment=apns_env,
             ))
             action = "inserted"
         db.session.commit()
         current_app.logger.info(
-            "[PushToken] user_id=%s platform=%s token=%s action=%s",
-            current_user.id, platform, token_preview, action
+            "[PushToken] user_id=%s platform=%s token=%s action=%s env=%s env_source=%s",
+            current_user.id, platform, token_preview, action, apns_env, env_source
         )
     except Exception:
         db.session.rollback()
@@ -3383,7 +3445,12 @@ def push_register_token():
         )
         return jsonify({"success": False, "error": "Server error"}), 500
 
-    return jsonify({"success": True, "action": action, "token_preview": token_preview}), 200
+    return jsonify({
+        "success": True,
+        "action": action,
+        "token_preview": token_preview,
+        "apns_environment": apns_env,
+    }), 200
 
 
 @app.route("/api/push/beacon", methods=["POST"])
@@ -3513,14 +3580,25 @@ def send_apns_push(device_token: str, title: str, body: str, extra: dict | None 
 
     # Mark token inactive for permanent failure reasons
     _INACTIVE_REASONS = {"BadDeviceToken", "Unregistered", "DeviceTokenNotForTopic"}
-    if resp.status_code in (400, 410) and (reason in _INACTIVE_REASONS or resp.status_code == 410):
+    environment_mismatch = (reason == "BadEnvironmentKeyInToken")
+
+    if environment_mismatch or (
+        resp.status_code in (400, 410) and (reason in _INACTIVE_REASONS or resp.status_code == 410)
+    ):
         try:
             stale = PushDeviceToken.query.filter_by(token=device_token).first()
-            if stale and stale.active:
+            if stale:
                 stale.active = False
+                if environment_mismatch:
+                    # The token belongs to the opposite environment — stamp it correctly
+                    stale.apns_environment = "sandbox" if not use_sandbox else "production"
                 db.session.commit()
-                current_app.logger.info("[APNs] Token marked inactive (%d %s): %s",
-                                        resp.status_code, reason, token_preview)
+                current_app.logger.warning(
+                    "[APNs] Token marked inactive (%d %s) id=%s env_stamped=%s token=%s",
+                    resp.status_code, reason,
+                    stale.id, stale.apns_environment if environment_mismatch else "unchanged",
+                    token_preview,
+                )
         except Exception:
             db.session.rollback()
             current_app.logger.exception("[APNs] Failed to mark token inactive")
@@ -3530,6 +3608,7 @@ def send_apns_push(device_token: str, title: str, body: str, extra: dict | None 
         "status_code": resp.status_code,
         "apns_id": apns_id,
         "error": reason,
+        "environment_mismatch": environment_mismatch,
         "apns_host": host,
         "use_sandbox": use_sandbox,
         "bundle_id": bundle_id,
@@ -3565,11 +3644,37 @@ def admin_push_diagnostics():
     target_user = db.session.get(User, target_user_id)
 
     active_tokens = [t for t in all_tokens if t.active]
-    newest_active = active_tokens[0] if active_tokens else None
+    target_env = "production" if not use_sandbox else "sandbox"
+    # Token selected for the current APNs environment (production or sandbox first,
+    # unknown as fallback, mismatched last resort)
+    env_matched   = [t for t in active_tokens if t.apns_environment == target_env]
+    env_unknown   = [t for t in active_tokens if t.apns_environment == "unknown"]
+    env_mismatched = [t for t in active_tokens if t.apns_environment not in (target_env, "unknown")]
+    preferred_active = env_matched or env_unknown or env_mismatched
+    selected_for_env = preferred_active[0] if preferred_active else None
+
+    def _tok_row(t):
+        is_selected = selected_for_env and t.id == selected_for_env.id
+        env_match = (
+            t.apns_environment == target_env or
+            t.apns_environment == "unknown"
+        ) if t.active else False
+        return {
+            "id": t.id,
+            "token_preview": _tok_preview(t.token),
+            "platform": t.platform,
+            "active": t.active,
+            "apns_environment": t.apns_environment,
+            "selected_for_current_environment": is_selected and bool(t.active),
+            "environment_ok": env_match,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+            "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+            "age_days": (datetime.utcnow() - t.updated_at).days if t.updated_at else None,
+        }
 
     return jsonify({
         "server_time": datetime.utcnow().isoformat() + "Z",
-        "version_marker": "push-diag-v3-beacons",
+        "version_marker": "push-diag-v4-env-aware",
         "auth": {
             "requesting_user_id": current_user.id,
             "requesting_user_email": current_user.email,
@@ -3583,12 +3688,13 @@ def admin_push_diagnostics():
             "APNS_USE_SANDBOX_raw": use_sandbox_raw,
             "use_sandbox": use_sandbox,
             "apns_host": apns_host,
+            "target_token_environment": target_env,
             "bundle_id": bundle_id,
             "APNS_KEY_ID_set": bool(os.environ.get("APNS_KEY_ID")),
             "APNS_TEAM_ID_set": bool(os.environ.get("APNS_TEAM_ID")),
             "APNS_KEY_P8_set": bool(os.environ.get("APNS_KEY_P8")),
             "correct_for_testflight": not use_sandbox,
-            "note": "TestFlight tokens need production APNs (use_sandbox=false). Mismatch → BadEnvironmentKeyInToken.",
+            "note": "TestFlight tokens are production tokens. APNS_USE_SANDBOX=false → api.push.apple.com. Mismatch → BadEnvironmentKeyInToken.",
         },
         "push_js": {
             "template": "templates/components/analytics_head.html",
@@ -3597,14 +3703,16 @@ def admin_push_diagnostics():
             "beacon_endpoint": "POST /api/push/beacon (@login_required)",
             "beacons_emitted": [
                 "script_parsed (sync, before DOMContentLoaded)",
-                "dcl_native_user_confirmed",
-                "plugin_check",
+                "dcl_environment (unconditional: ua, has_webkit_handler, has_capacitor)",
+                "cap_wait_result (after 2s wait loop)",
+                "capacitor_ready / capacitor_missing_in_native / not_native",
+                "plugin_check (plugin_found, plugin_via)",
                 "listeners_attached",
                 "permission_result",
                 "register_called",
                 "token_received",
                 "post_success / post_failed / post_error",
-                "registration_error / register_error / permission_error",
+                "registration_error",
             ],
             "note": "Search server logs for [PushBeacon] after opening TestFlight app while logged in.",
         },
@@ -3612,27 +3720,19 @@ def admin_push_diagnostics():
             "version": "8.3.1",
             "push_plugin": "@capacitor/push-notifications ^8.0.3",
             "server_url": "https://app.baselodgeapp.com",
-            "handle_application_notifications": False,
-            "plugin_access_path": "window.Capacitor.Plugins.PushNotifications",
-            "retry_on_missing": "yes — retries once after 500ms if plugin not found at DOMContentLoaded",
+            "plugin_access_path": "window.Capacitor.Plugins.PushNotifications (with registerPlugin() fallback)",
+            "wait_loop": "2000ms polling every 100ms for window.Capacitor to appear",
+            "apns_env_hint": "Capacitor.DEBUG=false → production, Capacitor.DEBUG=true → sandbox; stamped via server inference if DEBUG unavailable",
         },
         "tokens": {
             "count_total": len(all_tokens),
             "count_active": len(active_tokens),
-            "newest_active_preview": _tok_preview(newest_active.token) if newest_active else None,
-            "newest_active_updated_at": newest_active.updated_at.isoformat() if newest_active and newest_active.updated_at else None,
-            "all_rows": [
-                {
-                    "id": t.id,
-                    "token_preview": _tok_preview(t.token),
-                    "platform": t.platform,
-                    "active": t.active,
-                    "created_at": t.created_at.isoformat() if t.created_at else None,
-                    "updated_at": t.updated_at.isoformat() if t.updated_at else None,
-                    "age_days": (datetime.utcnow() - t.updated_at).days if t.updated_at else None,
-                }
-                for t in all_tokens
-            ],
+            "count_env_matched": len(env_matched),
+            "count_env_unknown": len(env_unknown),
+            "count_env_mismatched": len(env_mismatched),
+            "selected_token_preview": _tok_preview(selected_for_env.token) if selected_for_env else None,
+            "selected_token_env": selected_for_env.apns_environment if selected_for_env else None,
+            "all_rows": [_tok_row(t) for t in all_tokens],
         },
         "instructions": {
             "step_1": "Kill the TestFlight app completely (swipe up in app switcher)",
@@ -3677,14 +3777,30 @@ def admin_test_push():
         .order_by(PushDeviceToken.updated_at.desc())
         .all()
     )
-    # Also fetch the single most-recently-updated row (same query, just .first())
-    token_row = all_token_rows[0] if all_token_rows else None
+
+    # Environment-aware token selection:
+    # Prefer tokens whose stored apns_environment matches the current APNs host.
+    # Fall back to 'unknown' tokens (acceptable — environment unconfirmed).
+    # Never knowingly use a mismatched token (sandbox token → production APNs or vice-versa).
+    target_env  = "production" if not use_sandbox else "sandbox"
+    wrong_env   = "sandbox"    if not use_sandbox else "production"
+    env_matched   = [r for r in all_token_rows if r.apns_environment == target_env]
+    env_unknown   = [r for r in all_token_rows if r.apns_environment == "unknown"]
+    env_mismatched = [r for r in all_token_rows if r.apns_environment == wrong_env]
+
+    only_unknown   = not env_matched and bool(env_unknown)
+    only_mismatched = not env_matched and not env_unknown and bool(env_mismatched)
+
+    # Selection order: matched → unknown → mismatched (last resort, will likely fail)
+    preferred = env_matched or env_unknown or env_mismatched
+    token_row = preferred[0] if preferred else None
 
     diag = {
         "apns_env": {
             "APNS_USE_SANDBOX_raw": use_sandbox_raw,
             "use_sandbox": use_sandbox,
             "apns_host": apns_host,
+            "target_token_environment": target_env,
             "bundle_id": bundle_id,
             "APNS_KEY_ID_set": key_id_set,
             "APNS_TEAM_ID_set": team_id_set,
@@ -3701,9 +3817,10 @@ def admin_test_push():
                 "token_preview": _tok_preview(r.token),
                 "platform": r.platform,
                 "active": r.active,
+                "apns_environment": r.apns_environment,
+                "selected_for_current_environment": r is token_row,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
                 "updated_at": r.updated_at.isoformat() if r.updated_at else None,
-                "selected": False,  # will mark the chosen one below
             }
             for r in all_token_rows
         ],
@@ -3714,24 +3831,29 @@ def admin_test_push():
         diag["error"] = f"No active iOS token found for user_id={target_user_id}"
         return jsonify({"success": False, **diag}), 404
 
-    # Mark the selected token in the all_active_tokens list
-    for entry in diag["all_active_tokens"]:
-        if entry["id"] == token_row.id:
-            entry["selected"] = True
-
     token_preview = _tok_preview(token_row.token)
+    env_warning = None
+    if only_unknown:
+        env_warning = (
+            f"Only 'unknown' environment tokens exist. Sending to {apns_host} — "
+            "token environment unconfirmed. Open TestFlight app to register a new token with correct env stamp."
+        )
+    elif only_mismatched:
+        env_warning = (
+            f"WARNING: Only '{wrong_env}' tokens available but APNs host is {apns_host} ({target_env}). "
+            "This will likely return BadEnvironmentKeyInToken. Open TestFlight app to get a fresh token."
+        )
+
     diag["token"] = {
         "id": token_row.id,
         "token_preview": token_preview,
         "platform": token_row.platform,
         "active": token_row.active,
+        "apns_environment": token_row.apns_environment,
+        "selected_env_matches_apns_host": token_row.apns_environment in (target_env, "unknown"),
         "created_at": token_row.created_at.isoformat() if token_row.created_at else None,
         "updated_at": token_row.updated_at.isoformat() if token_row.updated_at else None,
-        "note": (
-            "Token created_at/updated_at indicate when it was registered. "
-            "If updated_at predates a TestFlight reinstall, the new production token "
-            "has not been received yet — open the TestFlight app while logged in."
-        ),
+        "env_warning": env_warning,
     }
 
     result = send_apns_push(

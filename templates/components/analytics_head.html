@@ -248,10 +248,20 @@
           return;
         }
 
+        // Detect APNs environment from Capacitor.DEBUG when available.
+        // DEBUG=false means release/distribution build → production APNs tokens.
+        // DEBUG=true means development/debug build → sandbox APNs tokens.
+        // If DEBUG is unavailable, send 'unknown' and the server infers from APNS_USE_SANDBOX.
+        var apnsEnvHint = 'unknown';
+        if (typeof Cap.DEBUG === 'boolean') {
+          apnsEnvHint = Cap.DEBUG ? 'sandbox' : 'production';
+        }
+        _pushBeacon('token_env_hint', { hint: apnsEnvHint, cap_debug_available: typeof Cap.DEBUG === 'boolean' });
+
         window.fetch('/api/push/register-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: tokVal, platform: 'ios' })
+          body: JSON.stringify({ token: tokVal, platform: 'ios', apns_environment: apnsEnvHint })
         }).then(function(res) {
           if (res.ok) {
             res.json().then(function(d) {

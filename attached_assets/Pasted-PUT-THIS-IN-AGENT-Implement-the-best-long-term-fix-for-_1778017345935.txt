@@ -1,0 +1,59 @@
+PUT THIS IN AGENT
+
+Implement the best long-term fix for BaseLodge push tokens: APNs environment-aware token storage and selection.
+
+Current issue:
+- Push registration now works.
+- The app receives and saves tokens.
+- But APNs can still return BadEnvironmentKeyInToken because sandbox and production tokens are mixed in the database.
+- Do not rely only on latest token selection.
+
+Tasks:
+1. Add an apns_environment field to PushDeviceToken:
+   - values: "sandbox", "production", "unknown"
+   - default: "unknown"
+
+2. When registering a token, store the environment:
+   - If the frontend can safely send environment/build source, use it.
+   - For TestFlight/App Store, store "production".
+   - For local Xcode/debug builds, store "sandbox".
+   - If not detectable, store "unknown" but include diagnostics.
+
+3. Update /admin/test-push token selection:
+   - If APNS_USE_SANDBOX=false, select only production tokens first.
+   - If APNS_USE_SANDBOX=true, select only sandbox tokens first.
+   - Never select a known sandbox token when sending to production.
+   - Never select a known production token when sending to sandbox.
+   - If only unknown tokens exist, report that clearly before sending.
+
+4. When APNs returns BadEnvironmentKeyInToken:
+   - Do not keep blindly retrying that token.
+   - Mark the token as inactive or flag it as environment_mismatch.
+   - Include token id, preview, selected environment, APNs host, and error reason in diagnostics.
+
+5. Add an admin cleanup action or one-time migration:
+   - Mark old known sandbox tokens inactive for user_id=2:
+     token ids 3 and 4.
+   - Keep the newest token active only if it matches the current APNs environment.
+
+6. Update /admin/push-diagnostics:
+   - Show all tokens with:
+     id
+     token_preview
+     active
+     platform
+     apns_environment
+     created_at
+     updated_at
+     selected_for_current_environment true/false
+   - Show current APNS_USE_SANDBOX and target APNs host.
+
+7. Do not change AppDelegate, APNs credentials, or frontend registration timing unless needed.
+8. Use checkpoints sparingly.
+
+After changes:
+- Run the cleanup.
+- Open the current TestFlight build and let it register a token.
+- Run /admin/push-diagnostics.
+- Run /admin/test-push.
+- Confirm the selected token environment matches api.push.apple.com and APNS_USE_SANDBOX=false.
