@@ -3354,6 +3354,8 @@ def push_register_token():
     if not token:
         return jsonify({"success": False, "error": "token is required"}), 400
 
+    token_preview = token[:8] + "…" + token[-6:] if len(token) > 14 else token[:8] + "…"
+
     try:
         existing = PushDeviceToken.query.filter_by(
             user_id=current_user.id, token=token
@@ -3361,19 +3363,27 @@ def push_register_token():
         if existing:
             existing.active = True
             existing.updated_at = datetime.utcnow()
+            action = "refreshed"
         else:
             db.session.add(PushDeviceToken(
                 user_id=current_user.id,
                 token=token,
                 platform=platform,
             ))
+            action = "inserted"
         db.session.commit()
+        current_app.logger.info(
+            "[PushToken] user_id=%s platform=%s token=%s action=%s",
+            current_user.id, platform, token_preview, action
+        )
     except Exception:
         db.session.rollback()
-        current_app.logger.exception("push_register_token failed")
+        current_app.logger.exception(
+            "[PushToken] failed for user_id=%s token=%s", current_user.id, token_preview
+        )
         return jsonify({"success": False, "error": "Server error"}), 500
 
-    return jsonify({"success": True}), 200
+    return jsonify({"success": True, "action": action, "token_preview": token_preview}), 200
 
 
 # ---------------------------------------------------------------------------
@@ -3521,13 +3531,18 @@ def admin_test_push():
     team_id_set = bool(os.environ.get("APNS_TEAM_ID"))
     key_p8_set = bool(os.environ.get("APNS_KEY_P8"))
 
-    # Select the most recently updated active token (never pick stale/inactive rows)
-    token_row = (
+    def _tok_preview(t):
+        return t[:8] + "…" + t[-6:] if len(t) > 14 else t[:8] + "…"
+
+    # All active iOS tokens for the user, newest first — for full diagnostic visibility
+    all_token_rows = (
         PushDeviceToken.query
         .filter_by(user_id=target_user_id, platform="ios", active=True)
         .order_by(PushDeviceToken.updated_at.desc())
-        .first()
+        .all()
     )
+    # Also fetch the single most-recently-updated row (same query, just .first())
+    token_row = all_token_rows[0] if all_token_rows else None
 
     diag = {
         "apns_env": {
@@ -3544,6 +3559,18 @@ def admin_test_push():
                 "Mismatch → BadEnvironmentKeyInToken (403)."
             ),
         },
+        "all_active_tokens": [
+            {
+                "id": r.id,
+                "token_preview": _tok_preview(r.token),
+                "platform": r.platform,
+                "active": r.active,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+                "selected": False,  # will mark the chosen one below
+            }
+            for r in all_token_rows
+        ],
     }
 
     if not token_row:
@@ -3551,17 +3578,23 @@ def admin_test_push():
         diag["error"] = f"No active iOS token found for user_id={target_user_id}"
         return jsonify({"success": False, **diag}), 404
 
-    token_preview = token_row.token[:8] + "…" + token_row.token[-6:] if len(token_row.token) > 14 else token_row.token[:8] + "…"
+    # Mark the selected token in the all_active_tokens list
+    for entry in diag["all_active_tokens"]:
+        if entry["id"] == token_row.id:
+            entry["selected"] = True
+
+    token_preview = _tok_preview(token_row.token)
     diag["token"] = {
+        "id": token_row.id,
         "token_preview": token_preview,
         "platform": token_row.platform,
         "active": token_row.active,
         "created_at": token_row.created_at.isoformat() if token_row.created_at else None,
         "updated_at": token_row.updated_at.isoformat() if token_row.updated_at else None,
-        "build_environment": (
-            "unknown — no build_environment field in push_device_token table. "
-            "Token created_at/updated_at can help estimate: tokens from TestFlight installs "
-            "are production tokens; tokens from local Xcode builds are sandbox tokens."
+        "note": (
+            "Token created_at/updated_at indicate when it was registered. "
+            "If updated_at predates a TestFlight reinstall, the new production token "
+            "has not been received yet — open the TestFlight app while logged in."
         ),
     }
 

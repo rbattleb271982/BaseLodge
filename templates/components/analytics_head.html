@@ -88,13 +88,32 @@
 
     // Await listener registration so handlers are active before register() fires
     await Push.addListener('registration', function(token) {
-      console.log('[Push] registration event fired — token received (length:', (token && token.value ? token.value.length : 'n/a'), ')');
+      var tokVal = token && token.value ? token.value : '';
+      var tokLen = tokVal.length;
+      var tokPreview = tokLen > 14 ? tokVal.slice(0, 8) + '…' + tokVal.slice(-6) : tokVal.slice(0, 8) + '…';
+      console.log('[Push] registration event fired — token length:', tokLen, 'preview:', tokPreview);
+      if (!tokVal) {
+        console.warn('[Push] registration event fired but token.value is empty — aborting POST');
+        return;
+      }
+      if (!window.__USER__ || !window.__USER__.id) {
+        console.warn('[Push] registration event fired but user is not authenticated — cannot register token');
+        return;
+      }
       window.fetch('/api/push/register-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token.value, platform: 'ios' })
+        body: JSON.stringify({ token: tokVal, platform: 'ios' })
       }).then(function(res) {
-        console.log('[Push] POST /api/push/register-token →', res.status, res.ok ? 'OK' : 'FAILED');
+        if (res.ok) {
+          console.log('[Push] POST /api/push/register-token → ' + res.status + ' OK');
+        } else {
+          res.text().then(function(body) {
+            console.warn('[Push] POST /api/push/register-token → ' + res.status + ' FAILED — body:', body.slice(0, 200));
+          }).catch(function() {
+            console.warn('[Push] POST /api/push/register-token → ' + res.status + ' FAILED — could not read body');
+          });
+        }
       }).catch(function(err) {
         console.warn('[Push] POST /api/push/register-token fetch error:', err);
       });
