@@ -1,0 +1,141 @@
+PUT THIS IN AGENT
+
+Implement the lowest-risk fixes from the diagnostic audit.
+
+Do not redo the first responsiveness pass.
+Do not introduce SPA routing, Turbo, HTMX, service workers, or major architecture changes.
+
+Scope:
+1. Fix bottom nav icon clipping
+2. Fix Profile page visual hierarchy
+3. Fix Profile name being cut off while scrolling
+4. Add safe low-risk prefetching
+5. Optimize only the clearly identified duplicate Home query
+6. Add connection success messaging if it can be done safely and non-stale
+
+IMPORTANT:
+Make small, targeted changes only.
+Use checkpoints sparingly.
+After changes, fully test the app before finishing.
+
+PART 1 — Bottom nav clipping fix
+
+Issue:
+The top border line is visually cutting into bottom nav icons.
+
+Inspect and update:
+- templates/bottom_nav.html
+- templates/base_app.html
+- static/css/styles.css
+
+Fix requirements:
+- Add enough top padding inside the bottom nav so the border does not overlap icons.
+- Ensure icon/text stack is vertically centered.
+- Do not remove the border unless absolutely necessary.
+- Confirm the existing :active transform scale(0.97) does not cause clipping.
+- If needed, increase nav height slightly instead of compressing icons.
+
+Expected result:
+Bottom nav icons should no longer appear cut off by the top border in iOS/WebView or browser.
+
+PART 2 — Profile visual/layout fixes
+
+Files:
+- templates/profile.html
+- static/css/styles.css
+- templates/base_app.html only if needed for safe-area/header spacing
+
+Fix these issues:
+1. Section eyebrows “Activity”, “Profile”, and “Account” are too small/light.
+2. Profile row title/subtitle text feels too small.
+3. User name gets cut off at the top when scrolling.
+
+Requirements:
+- Make section eyebrows larger and bolder.
+- Increase row title and subtitle font sizes modestly.
+- Preserve the existing BaseLodge premium/editorial style.
+- Fix the name cutoff by addressing spacing/safe-area/header overlap, not by hiding overflow.
+- Prefer Profile-specific selectors unless the selector is clearly shared safely across settings/profile rows.
+
+Suggested direction:
+- Section labels should feel more like real section headers.
+- Row titles should be easier to read on mobile.
+- Profile header/name should have enough top breathing room while scrolling.
+
+PART 3 — Safe prefetching only
+
+Add low-risk prefetch links for high-probability pages.
+
+Do not add JS routing.
+Do not add service workers.
+
+Add prefetch in page head blocks where appropriate:
+- Home should prefetch Trips and Friends
+- Profile should prefetch edit profile and equipment/settings page if those routes exist
+- Consider prefetching Profile from other major pages only if route names are clear
+
+Use:
+<link rel="prefetch" href="{{ url_for('...') }}">
+
+Only add prefetches where the route endpoint is verified.
+Do not guess endpoint names.
+
+PART 4 — Home query micro-optimization
+
+Diagnostic found:
+Home page currently does a duplicate trip count query even though my_trips was already fetched.
+
+In app.py home route:
+- Replace the duplicate SkiTrip.query.filter_by(user_id=user.id).count() with len(my_trips), if my_trips already represents the same owned trip set.
+- If the current count intentionally includes a broader set than my_trips, do not change it. Instead leave a short code comment explaining why.
+
+Do not refactor the full Home route in this pass.
+
+PART 5 — Connection success messaging
+
+Expected behavior:
+After Richard connects with Jonathan:
+- Richard should see: “You and Jonathan are now connected.”
+- Jonathan should see: “You and Richard are now connected.”
+
+This should feel like a short homepage product moment, not a stale global flash.
+
+Investigate and implement only if safe:
+- friend connection creation route
+- friendship/friend/invite models
+- homepage route
+- homepage template
+- flash or notification logic
+
+Requirements:
+- Message should appear on Home after successful connection.
+- It should not appear later on unrelated screens.
+- It should not become stale after being viewed.
+- Both users should be able to see their own version if the app has a safe persistent notification/activity model.
+- If only the acting user can safely see it without adding a new model, implement acting-user only and clearly document what would be needed for the other user.
+
+Preferred approach:
+- If there is an existing notification/activity model, use that.
+- If not, use a session-based one-time homepage message for the acting user only.
+- Do not create a large new notification system in this pass.
+
+FINAL TESTING REQUIRED
+
+Test these flows:
+1. Bottom nav icons are not clipped on all five nav tabs.
+2. Profile page section headers are larger/bolder.
+3. Profile row text is larger and readable.
+4. Profile name no longer gets cut off at top while scrolling.
+5. Home, Trips, Ideas, Friends, Profile still navigate normally.
+6. Prefetch links do not break templates or route rendering.
+7. Home page still loads with the correct trip count.
+8. Connect friend flow shows the success message if implemented.
+9. Success message does not reappear after refresh/navigation unless it should.
+
+At the end, report:
+- Files changed
+- Exact selectors changed
+- Routes touched
+- What was implemented
+- What was intentionally not implemented
+- Any remaining larger architecture recommendations
