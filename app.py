@@ -3406,16 +3406,23 @@ def send_apns_push(device_token: str, title: str, body: str, extra: dict | None 
     """Send a push notification to one APNs device token.
 
     Returns a dict with keys:
-        success (bool), status_code (int), apns_id (str|None), error (str|None)
+        success (bool), status_code (int), apns_id (str|None), error (str|None),
+        apns_host (str), use_sandbox (bool), bundle_id (str)
 
     Environment variables:
         APNS_BUNDLE_ID   — e.g. com.baselodge.app
-        APNS_USE_SANDBOX — "true" for dev/TestFlight builds, "false" for production
+        APNS_USE_SANDBOX — "true" for local Xcode simulator/device installs ONLY.
+                           "false" (or unset to false) for TestFlight and App Store builds.
+                           TestFlight tokens are PRODUCTION tokens — sending to sandbox
+                           returns BadEnvironmentKeyInToken (403).
     """
     bundle_id   = os.environ.get("APNS_BUNDLE_ID", "com.baselodge.app")
     use_sandbox = os.environ.get("APNS_USE_SANDBOX", "true").lower() not in ("false", "0", "no")
     host = "api.sandbox.push.apple.com" if use_sandbox else "api.push.apple.com"
     url  = f"https://{host}/3/device/{device_token}"
+
+    # Safe token preview: first 8 + last 6 chars only — never log the full token
+    token_preview = device_token[:8] + "…" + device_token[-6:] if len(device_token) > 14 else device_token[:8] + "…"
 
     payload = {
         "aps": {
@@ -3430,7 +3437,10 @@ def send_apns_push(device_token: str, title: str, body: str, extra: dict | None 
         bearer = _apns_jwt()
     except RuntimeError as exc:
         current_app.logger.error("[APNs] Config error: %s", exc)
-        return {"success": False, "status_code": None, "apns_id": None, "error": str(exc)}
+        return {
+            "success": False, "status_code": None, "apns_id": None, "error": str(exc),
+            "apns_host": host, "use_sandbox": use_sandbox, "bundle_id": bundle_id,
+        }
 
     headers = {
         "authorization": f"bearer {bearer}",
@@ -3444,37 +3454,50 @@ def send_apns_push(device_token: str, title: str, body: str, extra: dict | None 
             resp = client.post(url, content=json.dumps(payload), headers=headers, timeout=10)
     except Exception as exc:
         current_app.logger.error("[APNs] HTTP error: %s", exc)
-        return {"success": False, "status_code": None, "apns_id": None, "error": str(exc)}
+        return {
+            "success": False, "status_code": None, "apns_id": None, "error": str(exc),
+            "apns_host": host, "use_sandbox": use_sandbox, "bundle_id": bundle_id,
+        }
 
     apns_id = resp.headers.get("apns-id")
-    current_app.logger.info("[APNs] %s → %d  apns-id=%s  body=%s",
-                            device_token[:12] + "…", resp.status_code, apns_id, resp.text[:120])
+    current_app.logger.info("[APNs] token=%s host=%s → %d  apns-id=%s  body=%s",
+                            token_preview, host, resp.status_code, apns_id, resp.text[:120])
 
     if resp.status_code == 200:
-        return {"success": True, "status_code": 200, "apns_id": apns_id, "error": None}
-
-    # 410 Gone — token is no longer valid; mark it inactive
-    if resp.status_code == 410:
-        try:
-            stale = PushDeviceToken.query.filter_by(token=device_token).first()
-            if stale:
-                stale.active = False
-                db.session.commit()
-                current_app.logger.info("[APNs] Token marked inactive (410 Gone): %s…", device_token[:12])
-        except Exception:
-            db.session.rollback()
-            current_app.logger.exception("[APNs] Failed to mark token inactive")
+        return {
+            "success": True, "status_code": 200, "apns_id": apns_id, "error": None,
+            "apns_host": host, "use_sandbox": use_sandbox, "bundle_id": bundle_id,
+        }
 
     error_body = {}
     try:
         error_body = resp.json()
     except Exception:
         pass
+    reason = error_body.get("reason", resp.text)
+
+    # Mark token inactive for permanent failure reasons
+    _INACTIVE_REASONS = {"BadDeviceToken", "Unregistered", "DeviceTokenNotForTopic"}
+    if resp.status_code in (400, 410) and (reason in _INACTIVE_REASONS or resp.status_code == 410):
+        try:
+            stale = PushDeviceToken.query.filter_by(token=device_token).first()
+            if stale and stale.active:
+                stale.active = False
+                db.session.commit()
+                current_app.logger.info("[APNs] Token marked inactive (%d %s): %s",
+                                        resp.status_code, reason, token_preview)
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception("[APNs] Failed to mark token inactive")
+
     return {
         "success": False,
         "status_code": resp.status_code,
         "apns_id": apns_id,
-        "error": error_body.get("reason", resp.text),
+        "error": reason,
+        "apns_host": host,
+        "use_sandbox": use_sandbox,
+        "bundle_id": bundle_id,
     }
 
 
@@ -3482,28 +3505,96 @@ def send_apns_push(device_token: str, title: str, body: str, extra: dict | None 
 @login_required
 @admin_required
 def admin_test_push():
-    """Temporary admin route: send one test push to user_id=2 (Richard / demo account).
+    """Admin diagnostic route: send a test push to user_id=2 and return full APNs diagnostics.
 
-    Returns JSON so it can be called from a browser or curl:
+    Returns JSON including resolved APNs environment, token metadata, and error explanations.
         GET /admin/test-push
     """
     target_user_id = 2
+
+    # Read env config for diagnostics (values only — never log the private key)
+    use_sandbox_raw = os.environ.get("APNS_USE_SANDBOX", "true")
+    use_sandbox = use_sandbox_raw.lower() not in ("false", "0", "no")
+    apns_host = "api.sandbox.push.apple.com" if use_sandbox else "api.push.apple.com"
+    bundle_id = os.environ.get("APNS_BUNDLE_ID", "com.baselodge.app")
+    key_id_set = bool(os.environ.get("APNS_KEY_ID"))
+    team_id_set = bool(os.environ.get("APNS_TEAM_ID"))
+    key_p8_set = bool(os.environ.get("APNS_KEY_P8"))
+
+    # Select the most recently updated active token (never pick stale/inactive rows)
     token_row = (
         PushDeviceToken.query
         .filter_by(user_id=target_user_id, platform="ios", active=True)
         .order_by(PushDeviceToken.updated_at.desc())
         .first()
     )
+
+    diag = {
+        "apns_env": {
+            "APNS_USE_SANDBOX_raw": use_sandbox_raw,
+            "use_sandbox": use_sandbox,
+            "apns_host": apns_host,
+            "bundle_id": bundle_id,
+            "APNS_KEY_ID_set": key_id_set,
+            "APNS_TEAM_ID_set": team_id_set,
+            "APNS_KEY_P8_set": key_p8_set,
+            "note": (
+                "TestFlight/App Store tokens require production APNs (use_sandbox=false). "
+                "Local Xcode installs require sandbox (use_sandbox=true). "
+                "Mismatch → BadEnvironmentKeyInToken (403)."
+            ),
+        },
+    }
+
     if not token_row:
-        return jsonify({"success": False, "error": f"No active iOS token for user_id={target_user_id}"}), 404
+        diag["token"] = None
+        diag["error"] = f"No active iOS token found for user_id={target_user_id}"
+        return jsonify({"success": False, **diag}), 404
+
+    token_preview = token_row.token[:8] + "…" + token_row.token[-6:] if len(token_row.token) > 14 else token_row.token[:8] + "…"
+    diag["token"] = {
+        "token_preview": token_preview,
+        "platform": token_row.platform,
+        "active": token_row.active,
+        "created_at": token_row.created_at.isoformat() if token_row.created_at else None,
+        "updated_at": token_row.updated_at.isoformat() if token_row.updated_at else None,
+        "build_environment": (
+            "unknown — no build_environment field in push_device_token table. "
+            "Token created_at/updated_at can help estimate: tokens from TestFlight installs "
+            "are production tokens; tokens from local Xcode builds are sandbox tokens."
+        ),
+    }
 
     result = send_apns_push(
         token_row.token,
         title="BaseLodge test",
-        body="Your first push from BaseLodge worked.",
+        body="Your push from BaseLodge worked.",
     )
-    status = 200 if result["success"] else 502
-    return jsonify(result), status
+
+    # Attach human-readable explanation for the most common errors
+    error_reason = result.get("error", "")
+    explanation = None
+    if error_reason == "BadEnvironmentKeyInToken":
+        explanation = (
+            "BadEnvironmentKeyInToken: The APNs token belongs to the OTHER environment. "
+            f"Server is sending to {'SANDBOX' if use_sandbox else 'PRODUCTION'} "
+            f"({apns_host}), but the device token was registered against "
+            f"{'PRODUCTION' if use_sandbox else 'SANDBOX'} APNs. "
+            "Fix: set APNS_USE_SANDBOX=false for TestFlight/App Store builds, "
+            "or APNS_USE_SANDBOX=true for local Xcode installs."
+        )
+    elif error_reason == "BadDeviceToken":
+        explanation = "BadDeviceToken: The token string is malformed or does not exist in APNs. Token has been marked inactive."
+    elif error_reason == "Unregistered":
+        explanation = "Unregistered: The app was uninstalled or the token was revoked. Token has been marked inactive."
+    elif error_reason == "DeviceTokenNotForTopic":
+        explanation = f"DeviceTokenNotForTopic: Token does not belong to bundle_id={bundle_id}. Check APNS_BUNDLE_ID."
+
+    status_http = 200 if result["success"] else 502
+    return jsonify({
+        **diag,
+        "apns_result": {**result, "explanation": explanation},
+    }), status_http
 
 
 def pass_category(pass_type):
