@@ -920,7 +920,7 @@ def build_destination_feed(user, all_friends):
                 "line2": line2,
                 "signal_type": _WISHLIST,
                 "idea_type": "wishlist_overlap",
-                "friend_ids": [p["id"] for p in overlapping_people],
+                "friend_ids": [p["id"] for p in overlapping],
             })
     except Exception:
         pass

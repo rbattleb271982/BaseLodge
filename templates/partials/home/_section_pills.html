@@ -1,0 +1,33 @@
+<!--
+Component: Smart Action Pills
+Purpose: Inline focus filters below the welcome card. Pills highlight relevant
+         sections on Home without navigating away.
+Used on: Home screen (always rendered)
+
+Inputs:
+  ideas_count    int   — number of ranked coordination opportunities
+  requests_count int   — pending trip invites + connect invites
+  show_add_dates bool  — true when user has no upcoming open dates
+-->
+
+<div class="bl-pills" id="section-pills">
+
+    <button class="bl-pill" id="pill-ideas"
+            onclick="blPillActivate('ideas')" type="button">
+        Ideas{% if ideas_count > 0 %} <span class="bl-pill-count">{{ ideas_count }}</span>{% endif %}
+    </button>
+
+    {% if requests_count > 0 %}
+    <button class="bl-pill" id="pill-requests"
+            onclick="blPillActivate('requests')" type="button">
+        Requests <span class="bl-pill-count">{{ requests_count }}</span>
+    </button>
+    {% endif %}
+
+    {% if show_add_dates %}
+    <a href="{{ url_for('add_open_dates') }}" class="bl-pill">
+        Add dates
+    </a>
+    {% endif %}
+
+</div>

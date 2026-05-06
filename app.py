@@ -2701,11 +2701,6 @@ def trip_ideas():
     else:
         ideas_state = "populated"
 
-    # ── Debug logging ─────────────────────────────────────────────────────────
-    print(f"[trip_ideas] state={ideas_state} feed={len(dest_feed)} row(s)")
-    for _r in dest_feed:
-        _signal = {1: 'friend_trip', 2: 'overlap', 3: 'wishlist'}.get(_r.get('signal_type'), '?')
-        print(f"  • {_r.get('date_range','?')} — {_r['resort'].name} [{_signal}] {_r.get('line2','')}")
 
     return render_template(
         "trip_ideas.html",
@@ -5620,6 +5615,38 @@ def home():
         db.session.rollback()
         friend_at_mountain_card = None
 
+    # --- Coordination feed (Home opportunities stream) ---
+    # Note: build_destination_feed calls get_open_date_matches internally.
+    # A second call is accepted here to keep the function signature stable.
+    dest_feed = []
+    try:
+        from services.ideas_engine import build_destination_feed as _build_home_feed
+        if all_friends:
+            _raw_feed = _build_home_feed(user, all_friends)
+            _dismissed_opp_keys = set()
+            try:
+                _dismissed_cards = DismissedInsightCard.query.filter_by(
+                    user_id=user.id,
+                    card_type='opportunity',
+                ).all()
+                _dismissed_opp_keys = {d.card_key for d in _dismissed_cards}
+            except Exception:
+                db.session.rollback()
+            for _row in _raw_feed:
+                _ck = f"{_row['idea_type']}:{_row['resort_id']}"
+                if _ck not in _dismissed_opp_keys:
+                    _row['_card_key'] = _ck
+                    dest_feed.append(_row)
+            dest_feed = dest_feed[:5]
+    except Exception:
+        db.session.rollback()
+        dest_feed = []
+
+    ideas_count = len(dest_feed)
+    requests_count = banner_invite_count + (1 if secondary_card else 0)
+    _today_str = today.isoformat()
+    show_add_dates = not any(d >= _today_str for d in (user.open_dates or []))
+
     return render_template(
         'home.html',
         user=user,
@@ -5635,8 +5662,12 @@ def home():
         home_modules=home_modules,
         trip_overlap_today_card=trip_overlap_today_card,
         friend_at_mountain_card=friend_at_mountain_card,
+        dest_feed=dest_feed,
+        ideas_count=ideas_count,
+        requests_count=requests_count,
+        show_add_dates=show_add_dates,
         stat_mountains=user.visited_resorts_count,
-        stat_trips_total=len(my_trips),  # upcoming trips; my_trips already fetched above (end_date >= today)
+        stat_trips_total=len(my_trips),
         stat_wishlist=len(user.wish_list_resorts or []),
         stat_trips_url=url_for('my_trips'),
         stat_mountains_url=url_for('profile') + '#section-mountains-visited',
