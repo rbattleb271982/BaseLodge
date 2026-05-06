@@ -1,0 +1,66 @@
+Refine the Mountains discovery page row layout to use a single-line inline metadata style.
+
+Goal:
+Reduce row height and make the mountain list feel cleaner, denser, and more editorial by moving pass/location metadata inline with the mountain name instead of using a second line.
+
+Changes:
+1. Update the mountain result row layout in templates/mountains_tab.html.
+2. Remove the current two-line structure:
+   - Mountain name
+   - Metadata underneath
+3. Replace it with a single inline line:
+   Mountain Name · Metadata
+
+Examples:
+Arapahoe Basin · Ikon
+Beaver Creek · Epic
+Whistler Blackcomb · British Columbia, Canada · Epic
+Aspen Mountain · Ikon · Mountain Collective
+
+Rules:
+1. Mountain name remains visually primary.
+2. Metadata should appear inline after the name using a subtle separator dot.
+3. Metadata should be visually secondary:
+   - slightly lighter
+   - slightly smaller
+4. When State/Province filter is active:
+   - do not repeat the state/province in metadata.
+5. When no State/Province filter is active:
+   - show useful location metadata when helpful.
+6. If no metadata exists:
+   - show only the mountain name.
+7. Keep friend count on the far right side.
+8. Entire row remains tappable.
+9. Preserve clean spacing/alignment on mobile.
+
+Friend count layout:
+Example:
+Arapahoe Basin · Ikon                    3 friends
+
+Breckenridge · Epic                      1 friend
+
+Design:
+- Reduce row vertical height noticeably.
+- Keep generous horizontal breathing room.
+- Avoid cramped text wrapping.
+- Long mountain names should gracefully wrap if needed.
+- Metadata should not overpower the mountain name.
+- Keep BaseLodge typography/colors consistent.
+- Maintain editorial/premium feel.
+
+Technical:
+- Reuse existing metadata logic.
+- No route/query changes unless required for rendering.
+- Do not break filtering/search behavior.
+
+Testing:
+- Confirm rows are now visually shorter.
+- Confirm metadata displays inline correctly.
+- Confirm friend counts still align properly.
+- Confirm long names wrap cleanly.
+- Confirm filtering/search still works.
+- Confirm rows remain fully tappable.
+- Confirm Python/Jinja syntax checks pass.
+
+Do not finish until you have fully tested this.
+Only use checkpoints if I say so.

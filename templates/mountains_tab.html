@@ -151,7 +151,7 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 13px 2px;
+        padding: 10px 2px;
         border-bottom: 1px solid var(--bl-color-border-soft);
         text-decoration: none;
         color: inherit;
@@ -167,24 +167,22 @@
         flex: 1;
         min-width: 0;
     }
+    .md-row-label {
+        margin: 0;
+        line-height: 1.4;
+    }
     .md-row-name {
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 500;
         color: var(--bl-color-text);
-        margin: 0 0 2px;
-        line-height: 1.25;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    }
+    .md-row-sep {
+        font-size: 13px;
+        color: var(--bl-color-text-tertiary);
     }
     .md-row-meta {
         font-size: 13px;
         color: var(--bl-color-text-muted);
-        margin: 0;
-        line-height: 1.3;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
     .md-row-right {
         flex-shrink: 0;
@@ -370,10 +368,15 @@
                     var label = friendCount === 1 ? '1 friend' : (friendCount + ' friends');
                     friendHtml = '<div class="md-row-right"><p class="md-row-friends">' + label + '</p></div>';
                 }
+                var metaHtml = meta
+                    ? '<span class="md-row-sep"> · </span><span class="md-row-meta">' + esc(meta) + '</span>'
+                    : '';
                 return '<a href="/mountain/' + esc(r.slug) + '" class="md-row">' +
                     '<div class="md-row-body">' +
-                    '<p class="md-row-name">' + esc(r.name) + '</p>' +
-                    (meta ? '<p class="md-row-meta">' + esc(meta) + '</p>' : '') +
+                    '<p class="md-row-label">' +
+                    '<span class="md-row-name">' + esc(r.name) + '</span>' +
+                    metaHtml +
+                    '</p>' +
                     '</div>' +
                     friendHtml +
                     '<span class="md-row-chevron">&#8250;</span>' +
