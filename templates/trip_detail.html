@@ -438,22 +438,52 @@
 
         <!-- Info rows (Pass, Location, Trip Length, Visibility) -->
         {% if trip.resort and trip.resort|state_fullname %}
+        {% if is_owner %}
+        <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="td-info-row td-info-row--tappable">
+            <span class="td-info-label">Location</span>
+            <span class="td-info-value-group">
+                <span class="td-info-value">{{ trip.resort|state_fullname }}{% if trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}</span>
+                <span class="td-info-chevron">›</span>
+            </span>
+        </a>
+        {% else %}
         <div class="td-info-row">
             <span class="td-info-label">Location</span>
             <span class="td-info-value">{{ trip.resort|state_fullname }}{% if trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}</span>
         </div>
+        {% endif %}
         {% elif trip.state %}
+        {% if is_owner %}
+        <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="td-info-row td-info-row--tappable">
+            <span class="td-info-label">Location</span>
+            <span class="td-info-value-group">
+                <span class="td-info-value">{{ trip.state }}</span>
+                <span class="td-info-chevron">›</span>
+            </span>
+        </a>
+        {% else %}
         <div class="td-info-row">
             <span class="td-info-label">Location</span>
             <span class="td-info-value">{{ trip.state }}</span>
         </div>
         {% endif %}
+        {% endif %}
         {% set pass_display = trip.resort|mountain_passes %}
         {% if pass_display %}
+        {% if is_owner %}
+        <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="td-info-row td-info-row--tappable">
+            <span class="td-info-label">Pass</span>
+            <span class="td-info-value-group">
+                <span class="td-info-value">{{ pass_display }}</span>
+                <span class="td-info-chevron">›</span>
+            </span>
+        </a>
+        {% else %}
         <div class="td-info-row">
             <span class="td-info-label">Pass</span>
             <span class="td-info-value">{{ pass_display }}</span>
         </div>
+        {% endif %}
         {% endif %}
         {% if is_owner %}
         <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="td-info-row td-info-row--tappable">

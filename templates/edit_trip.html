@@ -560,7 +560,7 @@
     start_date: {{ (trip.start_date.isoformat() if trip.start_date else none)|tojson }},
     end_date: {{ (trip.end_date.isoformat() if trip.end_date else none)|tojson }},
     is_public: {{ trip.is_public|tojson }},
-    trip_status: {{ status_init|tojson }},
+    trip_status: {{ (trip_status if trip_status is defined else (trip.trip_status or 'planning'))|tojson }},
   };
 
   // ===== PENDING STATE (what will be saved) =====
