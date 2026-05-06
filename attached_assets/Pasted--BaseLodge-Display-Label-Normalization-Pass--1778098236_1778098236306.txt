@@ -1,0 +1,92 @@
+╔════════════════════════════════════════════════════╗
+║ BaseLodge Display Label Normalization Pass        ║
+╚════════════════════════════════════════════════════╝
+
+Goal:
+Normalize displayed rider-type / social labels across BaseLodge WITHOUT changing stored DB values or breaking form comparisons.
+
+This is a display-layer cleanup only.
+
+Do NOT:
+- migrate database values
+- change enums/constants used for comparisons
+- redesign templates
+- alter onboarding logic
+- alter profile-edit logic
+- touch routes unless necessary
+- use checkpoints unless necessary
+
+Problem:
+Some templates render raw stored values directly:
+- Cross-Country
+- Social (along for the ride)
+
+while onboarding/edit forms now display:
+- Cross-country
+- Social / après
+
+We need one centralized display formatting system.
+
+Tasks:
+
+1. Create a centralized rider-type display formatter
+
+Preferred approach:
+- create a Jinja filter OR helper utility function
+
+Example:
+- rider_display
+OR
+- display_rider_type
+
+The formatter should safely map raw stored values to canonical display labels.
+
+Mappings:
+- "Cross-Country" → "Cross-country"
+- "Social (along for the ride)" → "Social / après"
+
+All other values should pass through unchanged.
+
+2. Apply the formatter anywhere rider types are displayed to users
+
+Likely locations:
+- profile.html
+- friend_profile.html
+- home.html identity metadata
+- trip cards
+- friends views
+- any shared profile partials/components
+
+Important:
+- Only normalize DISPLAY output.
+- Do not alter underlying stored values.
+- Do not alter submitted form values.
+- Do not alter filtering/comparison logic.
+
+3. Check for any additional visible rider-type drift
+Examples:
+- inconsistent casing
+- duplicate formatting patterns
+- mixed display formatting
+
+Only apply safe display-level fixes.
+
+4. Keep future extensibility in mind
+The formatter should make it easy to add future mappings without touching multiple templates.
+
+5. Testing requirements
+- Start app successfully
+- Confirm Python syntax passes
+- Confirm Jinja syntax passes
+- Confirm onboarding still submits correctly
+- Confirm edit profile still saves correctly
+- Confirm filters/comparisons still work
+- Confirm profile pages display normalized labels
+- Confirm Home metadata displays normalized labels
+- Confirm no template regressions
+
+At the end, report:
+- Files changed
+- Where the formatter was added
+- Which templates now use it
+- Any remaining display drift discovered

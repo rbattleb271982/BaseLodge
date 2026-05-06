@@ -7,6 +7,19 @@ import sqlalchemy as sa
 
 db = SQLAlchemy()
 
+# Canonical display-label overrides for rider types.
+# Raw stored values (DB/form) are never changed; this only affects rendered text.
+_RIDER_DISPLAY_MAP = {
+    "Cross-Country":              "Cross-country",
+    "Social":                     "Social / après",
+    "Social (along for the ride)": "Social / après",
+}
+
+
+def _fmt_rider(raw: str) -> str:
+    """Return the canonical display label for a single stored rider-type value."""
+    return _RIDER_DISPLAY_MAP.get(raw, raw)
+
 
 class AccommodationStatus(PyEnum):
     BOOKED = "booked"
@@ -266,7 +279,8 @@ class User(UserMixin, db.Model):
     @property
     def display_rider_type(self):
         """
-        Returns combined rider types for profile display.
+        Returns combined rider types for profile display, with canonical label
+        normalization applied (e.g. "Cross-Country" → "Cross-country").
         Format: "Skier" or "Skier + Snowboarder"
         Use in: all profile views, identity formatter
         """
@@ -279,7 +293,7 @@ class User(UserMixin, db.Model):
                 for part in str(rt).split(','):
                     part = part.strip()
                     if part:
-                        types.append(part)
+                        types.append(_fmt_rider(part))
             return ' + '.join(types) if types else None
         # Legacy path: primary + secondary
         primary = self.primary_rider_type or self.rider_type
@@ -287,8 +301,8 @@ class User(UserMixin, db.Model):
             return None
         secondary = self.secondary_rider_types or []
         if secondary:
-            return f"{primary} + {' + '.join(secondary)}"
-        return primary
+            return f"{_fmt_rider(primary)} + {' + '.join(_fmt_rider(s) for s in secondary)}"
+        return _fmt_rider(primary)
     
     @property
     def compact_rider_type_display(self):

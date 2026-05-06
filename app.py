@@ -385,6 +385,27 @@ def format_passes_display(pass_type):
     return format_passes_for_display(pass_type)
 
 
+@app.template_filter('rider_display')
+def rider_display_filter(raw):
+    """
+    Normalize a raw stored rider-type value (or display_rider_type output) to its
+    canonical display label.  Safe to pipe any string through — unknown values
+    pass through unchanged.
+
+    Mappings:
+        "Cross-Country"               → "Cross-country"
+        "Social"                      → "Social / après"
+        "Social (along for the ride)" → "Social / après"
+        "Skier + Cross-Country"       → "Skier + Cross-country"  (handles joined strings)
+    """
+    from models import _fmt_rider
+    if not raw:
+        return raw or ""
+    # display_rider_type joins multi-type values with " + "; normalize each part
+    parts = str(raw).split(" + ")
+    return " + ".join(_fmt_rider(p.strip()) for p in parts)
+
+
 @app.template_filter('identity_line')
 def identity_line_filter(user):
     """
@@ -4916,8 +4937,8 @@ def planning_window(start_date, end_date):
         for friend in friends:
             # Build identity line (same format as elsewhere)
             identity_parts = []
-            if friend.primary_rider_type:
-                identity_parts.append(friend.primary_rider_type)
+            if friend.display_rider_type:
+                identity_parts.append(friend.display_rider_type)
             if friend.pass_type:
                 identity_parts.append(friend.pass_type)
             if friend.skill_level:
