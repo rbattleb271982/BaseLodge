@@ -2669,6 +2669,13 @@ def overlap_detail():
     )
 
 
+@app.route("/mountains")
+@login_required
+def mountains_tab():
+    """Mountains placeholder page — discovery feature coming soon."""
+    return render_template("mountains_tab.html")
+
+
 @app.route("/trip-ideas")
 @login_required
 def trip_ideas():

@@ -1,0 +1,135 @@
+╔══════════════════════════════════════════════════════════════╗
+║ BASELODGE — NAV RESTRUCTURE + PROFILE BUBBLE UPDATE        ║
+╚══════════════════════════════════════════════════════════════╝
+
+Goal:
+Move Profile access into the Home welcome card using a premium initials bubble, then replace the Profile bottom-nav item with a new Mountains tab.
+
+IMPORTANT:
+- Do NOT remove the existing /profile route.
+- Do NOT remove existing profile functionality.
+- Do NOT build the Mountains page yet.
+- For now, Mountains can route to a placeholder route/template if needed.
+- Mobile-first.
+- Keep implementation clean and lightweight.
+- Only use checkpoints if absolutely necessary.
+
+────────────────────────────────────
+PART 1 — PROFILE BUBBLE INSIDE CARD
+────────────────────────────────────
+
+Move the profile initials bubble INSIDE the top white welcome card on Home.
+
+The layout should become:
+
+[ Welcome, Richard.                 RB ]
+[ Skier · Advanced · No pass yet       ]
+
+The bubble should:
+- live inside the card padding
+- align naturally with the welcome headline
+- feel editorial/premium
+- not float near the safe area anymore
+
+Style:
+- 34–36px circle
+- subtle maroon border
+- cream/off-white fill
+- maroon initials
+- font-weight: 600
+- subtle shadow only
+- fully tappable
+- routes to /profile
+
+Initials logic:
+- first + last initials if available
+- fallback gracefully
+- uppercase
+
+Examples:
+Richard Battle-Baxter → RB
+Richard → R
+
+────────────────────────────────────
+PART 2 — BOTTOM NAV UPDATE
+────────────────────────────────────
+
+Remove:
+- Profile tab from bottom nav
+
+Add:
+- Mountains tab in its place
+
+New bottom nav order:
+
+1. Home
+2. Trips
+3. Ideas
+4. Friends
+5. Mountains
+
+Mountains icon:
+- use a clean/simple mountain icon
+- match current nav icon style/weight
+- no filled icon style
+- keep visual consistency with existing nav
+
+Mountains label:
+Mountains
+
+────────────────────────────────────
+PART 3 — MOUNTAINS ROUTING
+────────────────────────────────────
+
+For now:
+- create lightweight placeholder route/page if needed
+- can simply say:
+  Mountains
+  Mountain discovery coming soon.
+
+BUT:
+- it must integrate cleanly into current nav architecture
+- no broken links
+- nav active state should work correctly
+
+────────────────────────────────────
+PART 4 — HOME HEADER REFINEMENT
+────────────────────────────────────
+
+Since the bubble now lives inside the card:
+
+Refactor the top section of the card using flexbox so:
+- long names do not collide
+- spacing remains premium
+- mobile widths work cleanly
+- no clipping/truncation occurs
+
+Maintain:
+- existing typography hierarchy
+- existing editorial spacing
+- existing stat layout
+
+Do NOT make the card feel crowded.
+
+────────────────────────────────────
+QA REQUIREMENTS
+────────────────────────────────────
+
+Carefully test:
+- mobile viewport sizes
+- safe-area spacing
+- bottom nav spacing
+- active states
+- routing behavior
+- initials generation
+- no overlap on long names
+- no visual clipping
+- no broken nav states
+
+Verify:
+- Profile route still fully works
+- Mountains nav item works
+- Home card still feels balanced
+- nav feels less crowded overall
+
+Do not finish until fully tested in Replit mobile preview.

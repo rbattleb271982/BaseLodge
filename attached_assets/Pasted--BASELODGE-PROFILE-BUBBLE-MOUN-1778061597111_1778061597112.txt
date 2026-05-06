@@ -1,0 +1,182 @@
+╔══════════════════════════════════════════════════════════════╗
+║ BASELODGE — PROFILE BUBBLE + MOUNTAINS NAV IMPLEMENTATION  ║
+╚══════════════════════════════════════════════════════════════╝
+
+Implement #63.
+
+Goal:
+Move Profile access into the Home welcome card as an initials bubble, replace the Profile bottom-nav tab with Mountains, and add a lightweight Mountains placeholder page.
+
+IMPORTANT:
+- Do NOT remove the /profile route.
+- Do NOT change existing profile functionality.
+- Do NOT build the real Mountains discovery feature yet.
+- Do NOT touch iOS/native Capacitor code.
+- Keep Ideas in the bottom nav for now.
+- Mobile-first.
+- Only use checkpoints if absolutely necessary.
+
+────────────────────────────────────
+PART 1 — PROFILE INITIALS BUBBLE
+────────────────────────────────────
+
+Update both Home header partials:
+
+- templates/partials/home/_header.html
+- templates/partials/home/_header_empty.html
+
+Inside the top white welcome card, place a tappable initials bubble on the same row as the welcome headline.
+
+Target layout:
+
+[ Welcome, Richard.                 RB ]
+[ Skier · Advanced · No pass yet       ]
+
+Requirements:
+- Bubble must be inside the card, not floating near the safe area.
+- Bubble links to /profile.
+- Bubble should be 34–36px circle.
+- Cream/off-white fill: #F5F1E8.
+- Maroon border and initials: #5C1219.
+- Font weight: 600.
+- Font size around 14px.
+- Very subtle shadow.
+- No dropdown.
+- No notification badge.
+- No animation.
+
+Initials logic:
+- Use first name initial + last name initial when available.
+- If last name is missing, use first name initial only.
+- If first name is missing, fall back gracefully to a single character or ?.
+- Always uppercase.
+
+Examples:
+- Richard Battle-Baxter → RB
+- Richard → R
+
+────────────────────────────────────
+PART 2 — HOME HEADER LAYOUT CSS
+────────────────────────────────────
+
+Update the Home card/header layout so long names never collide with the bubble.
+
+Use flexbox:
+- welcome text on the left
+- initials bubble on the right
+- justify-content: space-between
+- align-items: flex-start
+- left text area should allow wrapping
+- no clipping/truncation on narrow mobile screens
+
+Prefer CSS classes in:
+- templates/home.html CSS block, or
+- the existing shared stylesheet if that is more consistent
+
+Avoid inline CSS unless absolutely necessary.
+
+Make sure:
+- .hc-welcome can participate in flex layout
+- long names can wrap naturally
+- bubble does not shrink
+- identity line and equipment row remain unchanged
+- welcome card does not feel crowded
+
+────────────────────────────────────
+PART 3 — BOTTOM NAV SWAP
+────────────────────────────────────
+
+Update:
+
+- templates/components/bottom_nav.html
+
+Remove the Profile tab from the bottom nav.
+
+Add Mountains in its place.
+
+Final bottom nav order must be:
+
+1. Home
+2. Trips
+3. Ideas
+4. Friends
+5. Mountains
+
+Mountains tab:
+- label: Mountains
+- href should point to the new Mountains route
+- active state should work only on the Mountains page
+- use a clean/simple outline mountain SVG
+- icon style should match current nav icon weight/style
+- no filled icon style
+- do not carry over the Profile notification unread dot
+
+Profile-adjacent pages such as:
+- /profile
+- edit_profile
+- settings pages
+- notifications pages
+
+may have no bottom-nav active state after this change. That is acceptable.
+
+────────────────────────────────────
+PART 4 — MOUNTAINS PLACEHOLDER ROUTE
+────────────────────────────────────
+
+Create a lightweight logged-in Mountains page.
+
+Route:
+- /mountains
+
+Endpoint:
+- mountains_tab, unless project conventions strongly suggest another name
+
+Important:
+Add the route wherever logged-in app routes currently belong.
+- If logged-in routes are mostly in a blueprint, use that blueprint.
+- Only put it in app.py if that matches the existing project structure.
+
+The page should:
+- require login
+- extend base_app.html
+- use the same logged-in app shell as other primary tabs
+- display:
+  Mountains
+  Mountain discovery coming soon.
+
+Do not build real mountain search/discovery yet.
+
+────────────────────────────────────
+PART 5 — ACTIVE STATE + LINK CHECK
+────────────────────────────────────
+
+Verify:
+- No broken url_for references
+- Mountains nav active state works
+- Profile route still works from the Home initials bubble
+- Profile tab no longer appears in bottom nav
+- Ideas remains in bottom nav
+- Trips remains in bottom nav
+- Friends remains in bottom nav
+
+────────────────────────────────────
+QA REQUIREMENTS
+────────────────────────────────────
+
+Test in Replit mobile preview.
+
+Verify:
+- Home welcome card shows welcome text left and initials bubble right
+- bubble is inside the card
+- bubble routes to /profile
+- long names do not clip or collide
+- identity line and equipment row still render correctly
+- bottom nav reads: Home · Trips · Ideas · Friends · Mountains
+- Mountains tab opens placeholder page
+- Mountains active state works
+- /profile still works
+- no safe-area clipping
+- no broken links
+- no visual crowding on iPhone-width screens
+
+Do not finish until fully tested in Replit mobile preview.
