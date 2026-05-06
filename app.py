@@ -3770,30 +3770,65 @@ def admin_test_push():
     def _tok_preview(t):
         return t[:8] + "…" + t[-6:] if len(t) > 14 else t[:8] + "…"
 
-    # All active iOS tokens for the user, newest first — for full diagnostic visibility
+    # All iOS tokens for the user, newest first — active and inactive both fetched
+    # so we can fall back to the most recent inactive token when no active ones exist.
+    # BadEnvironmentKeyInToken marks tokens inactive, but the token value is still
+    # valid to retry until a new binary with production entitlements is in place.
     all_token_rows = (
         PushDeviceToken.query
-        .filter_by(user_id=target_user_id, platform="ios", active=True)
+        .filter_by(user_id=target_user_id, platform="ios")
         .order_by(PushDeviceToken.updated_at.desc())
         .all()
     )
 
+    active_rows   = [r for r in all_token_rows if r.active]
+    inactive_rows = [r for r in all_token_rows if not r.active]
+
+    current_app.logger.warning(
+        "[TestPush] token candidates: total=%d active=%d inactive=%d user_id=%d",
+        len(all_token_rows), len(active_rows), len(inactive_rows), target_user_id,
+    )
+    for r in all_token_rows:
+        current_app.logger.warning(
+            "[TestPush] candidate id=%d active=%s env=%s updated=%s preview=%s",
+            r.id, r.active, r.apns_environment, r.updated_at, _tok_preview(r.token),
+        )
+
     # Environment-aware token selection:
-    # Prefer tokens whose stored apns_environment matches the current APNs host.
-    # Fall back to 'unknown' tokens (acceptable — environment unconfirmed).
-    # Never knowingly use a mismatched token (sandbox token → production APNs or vice-versa).
-    target_env  = "production" if not use_sandbox else "sandbox"
-    wrong_env   = "sandbox"    if not use_sandbox else "production"
-    env_matched   = [r for r in all_token_rows if r.apns_environment == target_env]
-    env_unknown   = [r for r in all_token_rows if r.apns_environment == "unknown"]
-    env_mismatched = [r for r in all_token_rows if r.apns_environment == wrong_env]
+    # 1. Prefer active tokens whose apns_environment matches the current APNs host.
+    # 2. Fall back to active tokens with unknown environment.
+    # 3. Fall back to active tokens with mismatched environment.
+    # 4. If NO active tokens, fall back to the most recently updated inactive token
+    #    (BadEnvironmentKeyInToken marks tokens inactive aggressively; the token
+    #    itself is not permanently invalid — a fresh app open re-registers it as active).
+    target_env = "production" if not use_sandbox else "sandbox"
+    wrong_env  = "sandbox"    if not use_sandbox else "production"
 
-    only_unknown   = not env_matched and bool(env_unknown)
-    only_mismatched = not env_matched and not env_unknown and bool(env_mismatched)
+    def _env_priority(rows):
+        matched    = [r for r in rows if r.apns_environment == target_env]
+        unknown    = [r for r in rows if r.apns_environment == "unknown"]
+        mismatched = [r for r in rows if r.apns_environment == wrong_env]
+        return matched or unknown or mismatched
 
-    # Selection order: matched → unknown → mismatched (last resort, will likely fail)
-    preferred = env_matched or env_unknown or env_mismatched
+    preferred = _env_priority(active_rows)
+    using_inactive_fallback = False
+    if not preferred and inactive_rows:
+        preferred = _env_priority(inactive_rows) or inactive_rows
+        using_inactive_fallback = True
+
     token_row = preferred[0] if preferred else None
+
+    only_unknown    = bool(token_row) and not using_inactive_fallback and token_row.apns_environment == "unknown"
+    only_mismatched = bool(token_row) and not using_inactive_fallback and token_row.apns_environment == wrong_env
+
+    current_app.logger.warning(
+        "[TestPush] selected id=%s active=%s env=%s inactive_fallback=%s preview=%s",
+        token_row.id if token_row else None,
+        token_row.active if token_row else None,
+        token_row.apns_environment if token_row else None,
+        using_inactive_fallback,
+        _tok_preview(token_row.token) if token_row else None,
+    )
 
     diag = {
         "apns_env": {
@@ -3811,24 +3846,30 @@ def admin_test_push():
                 "Mismatch → BadEnvironmentKeyInToken (403)."
             ),
         },
-        "all_active_tokens": [
+        "all_tokens": [
             {
                 "id": r.id,
                 "token_preview": _tok_preview(r.token),
                 "platform": r.platform,
                 "active": r.active,
                 "apns_environment": r.apns_environment,
-                "selected_for_current_environment": r is token_row,
+                "selected": r is token_row,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
                 "updated_at": r.updated_at.isoformat() if r.updated_at else None,
             }
             for r in all_token_rows
         ],
+        "token_counts": {
+            "total": len(all_token_rows),
+            "active": len(active_rows),
+            "inactive": len(inactive_rows),
+            "using_inactive_fallback": using_inactive_fallback,
+        },
     }
 
     if not token_row:
         diag["token"] = None
-        diag["error"] = f"No active iOS token found for user_id={target_user_id}"
+        diag["error"] = f"No iOS token found for user_id={target_user_id} (active or inactive)"
         return jsonify({"success": False, **diag}), 404
 
     token_preview = _tok_preview(token_row.token)
