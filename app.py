@@ -3526,6 +3526,15 @@ def send_apns_push(device_token: str, title: str, body: str, extra: dict | None 
     # Safe token preview: first 8 + last 6 chars only — never log the full token
     token_preview = device_token[:8] + "…" + device_token[-6:] if len(device_token) > 14 else device_token[:8] + "…"
 
+    # DEBUG LOGGING — temporary, remove after environment mismatch is resolved
+    stale_row = PushDeviceToken.query.filter_by(token=device_token).first()
+    print(f"[APNs DEBUG] use_sandbox={use_sandbox}")
+    print(f"[APNs DEBUG] apns_host={host}")
+    print(f"[APNs DEBUG] token_id={stale_row.id if stale_row else 'NOT_IN_DB'}")
+    print(f"[APNs DEBUG] token.apns_environment={stale_row.apns_environment if stale_row else 'N/A'}")
+    print(f"[APNs DEBUG] token.active={stale_row.active if stale_row else 'N/A'}")
+    print(f"[APNs DEBUG] token_preview={token_preview}")
+
     payload = {
         "aps": {
             "alert": {"title": title, "body": body},
