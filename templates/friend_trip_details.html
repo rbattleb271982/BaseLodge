@@ -199,7 +199,7 @@
             </button>
             <p style="font-size: 12px; color: #8A857A; text-align: center; margin: 8px 0 0 0;">You'll hear back from {{ friend.first_name | format_name }} soon.</p>
             <p style="text-align: center; margin: 10px 0 0 0;">
-                <button id="cancel-request-btn" onclick="cancelJoinRequest({{ pending_request_id }})" style="background: none; border: none; font-size: 12px; color: #B5AFA5; cursor: pointer; text-decoration: underline; padding: 0; font-family: inherit;">Cancel request</button>
+                <button id="cancel-request-btn" onclick="cancelJoinRequest({{ pending_request_id }})" style="background: none; border: none; font-size: 14px; color: var(--bl-color-text-muted); cursor: pointer; padding: 8px 16px; font-family: inherit; min-height: 36px; -webkit-tap-highlight-color: transparent;">Cancel request</button>
             </p>
         </div>
         {% endif %}
@@ -240,7 +240,7 @@
             const btn = document.getElementById('request-join-btn');
             if (!btn || btn.disabled) return;
             btn.disabled = true;
-            btn.innerText = 'Sending...';
+            btn.innerText = 'Sending…';
             fetch(`/trips/${tripId}/request-join`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
@@ -256,13 +256,13 @@
                 } else {
                     btn.disabled = false;
                     btn.innerText = 'Request to join';
-                    alert(data.error || 'Something went wrong. Please try again.');
+                    blToast(data.error || 'Something went wrong. Please try again.');
                 }
             })
             .catch(() => {
                 btn.disabled = false;
                 btn.innerText = 'Request to join';
-                alert('Something went wrong. Please try again.');
+                blToast('Something went wrong. Please try again.');
             });
         }
 
@@ -271,7 +271,7 @@
             const btn = document.getElementById('cancel-request-btn');
             if (!btn || btn.disabled) return;
             btn.disabled = true;
-            btn.innerText = 'Cancelling...';
+            btn.innerText = 'Cancelling…';
             fetch(`/trips/requests/${requestId}/cancel`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
@@ -283,18 +283,18 @@
                     if (container) {
                         container.innerHTML =
                             '<button id="request-join-btn" class="bl-btn-primary" style="width:100%;padding:14px;" onclick="requestToJoin(' + _TRIP_ID + ')">Request to join</button>' +
-                            '<p style="font-size:12px;color:#8A857A;text-align:center;margin:8px 0 0 0;">The trip organizer will review your request.</p>';
+                            '<p style="font-size:13px;color:var(--bl-color-text-muted);text-align:center;margin:8px 0 0 0;">The trip organizer will review your request.</p>';
                     }
                 } else {
                     btn.disabled = false;
                     btn.innerText = 'Cancel request';
-                    alert(data.error || 'Something went wrong. Please try again.');
+                    blToast(data.error || 'Something went wrong. Please try again.');
                 }
             })
             .catch(() => {
                 btn.disabled = false;
                 btn.innerText = 'Cancel request';
-                alert('Something went wrong. Please try again.');
+                blToast('Something went wrong. Please try again.');
             });
         }
         {% endif %}

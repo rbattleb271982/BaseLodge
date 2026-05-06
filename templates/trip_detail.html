@@ -985,12 +985,11 @@
                 if (data.success) {
                     location.reload();
                 } else {
-                    alert(data.error || 'Something went wrong');
+                    blToast(data.error || 'Something went wrong. Please try again.');
                 }
             })
-            .catch(err => {
-                console.error('Error responding to join request:', err);
-                alert('Something went wrong');
+            .catch(() => {
+                blToast('Something went wrong. Please try again.');
             });
         }
         function updateSelectionState() {
