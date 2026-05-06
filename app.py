@@ -2797,37 +2797,8 @@ def mountains_tab():
 @app.route("/trip-ideas")
 @login_required
 def trip_ideas():
-    """Trip Ideas page — 3-state system: setup / reengagement / populated."""
-    from services.ideas_engine import build_destination_feed
-    user = current_user
-
-    # ── Friends ────────────────────────────────────────────────────────────────
-    friend_links = Friend.query.filter_by(user_id=user.id).all()
-    friend_ids = [f.friend_id for f in friend_links]
-    all_friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
-    has_friends = bool(friend_ids)
-
-    # ── Destination feed ──────────────────────────────────────────────────────
-    dest_feed = build_destination_feed(user, all_friends) if has_friends else []
-    has_availability = bool(user.open_dates)
-
-    # ── State determination ───────────────────────────────────────────────────
-    if not has_friends:
-        ideas_state = "setup"
-    elif not dest_feed:
-        ideas_state = "reengagement"
-    else:
-        ideas_state = "populated"
-
-
-    return render_template(
-        "trip_ideas.html",
-        user=user,
-        ideas_state=ideas_state,
-        dest_feed=dest_feed,
-        has_friends=has_friends,
-        has_availability=has_availability,
-    )
+    """Deprecated — Ideas feed has moved to Home. Redirect for backwards compatibility."""
+    return redirect(url_for("home"))
 
 
 def _ideas_normalize_pass(pt):
@@ -4904,8 +4875,8 @@ def format_planning_dates(start_str, end_str):
 @app.route("/planning")
 @login_required
 def planning():
-    """Redirect to My Trips with Ideas tab selected (legacy Planning route)."""
-    return redirect(url_for('my_trips', tab='ideas'))
+    """Legacy Planning route — redirects to Home."""
+    return redirect(url_for('home'))
 
 
 @app.route("/planning/window/<start_date>/<end_date>")
@@ -4919,7 +4890,7 @@ def planning_window(start_date, end_date):
         end = datetime.strptime(end_date, '%Y-%m-%d').date()
     except ValueError:
         flash("Invalid date range", "error")
-        return redirect(url_for('my_trips', tab='ideas'))
+        return redirect(url_for('home'))
     
     # Get friends available in this window
     from services.open_dates import get_open_date_matches

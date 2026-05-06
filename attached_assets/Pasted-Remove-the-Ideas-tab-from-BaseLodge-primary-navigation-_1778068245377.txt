@@ -1,0 +1,103 @@
+Remove the Ideas tab from BaseLodge primary navigation using the safe deprecation plan from the audit.
+
+Goal:
+Remove Ideas as a primary bottom-nav destination because Home now owns the opportunity/ideas engine, while preserving all underlying functionality that Home still uses.
+
+Important:
+Do not delete the ideas engine, ranking logic, open dates logic, or idea detail pages. Home still uses these.
+
+Required changes:
+
+1. Update back-navigation targets
+
+In add_open_dates.html:
+- Change the back arrow/link from trip_ideas to home.
+- Change the post-save JavaScript redirect from trip_ideas to home.
+
+In idea_detail_trip.html:
+- Change the “← Ideas” back link to “← Home”.
+- Point it to home.
+
+In idea_detail_availability.html:
+- Change the “← Ideas” back link to “← Home”.
+- Point it to home.
+
+In idea_detail_wishlist.html:
+- Change the “← Ideas” back link to “← Home”.
+- Point it to home.
+
+2. Preserve /trip-ideas safely
+
+In app.py:
+- Keep the /trip-ideas route, but change it to redirect logged-in users to home.
+- Do not delete the route yet.
+- Do not delete trip_ideas.html yet.
+
+Expected behavior:
+
+@app.route("/trip-ideas")
+@login_required
+def trip_ideas():
+    return redirect(url_for("home"))
+
+Adjust only if the actual app route naming requires a different home endpoint.
+
+3. Remove Ideas from bottom navigation
+
+In bottom_nav.html:
+- Remove the Ideas tab entry entirely.
+- Final nav should be:
+  - Home
+  - Trips
+  - Friends
+  - Mountains
+
+Do not add a replacement tab.
+
+4. Update legacy planning redirects
+
+In app.py:
+- Update /planning so it redirects to home instead of my_trips?tab=ideas.
+- Update /planning/window/<...>/<...> so it redirects to home instead of my_trips?tab=ideas.
+
+5. Do not touch these
+
+Do not remove or rewrite:
+- services/ideas_engine.py
+- services/ideas_ranking.py
+- services/open_dates.py
+- /idea/availability
+- /idea/wishlist
+- /idea/trip/<id>
+- /add-open-dates
+- Home opportunities logic
+- Home pills
+- Home request/opportunity sections
+
+6. Optional cleanup only if clearly safe
+
+If there is obviously orphaned .mt-ideas-module CSS in my_trips.html, you may remove it only if it is not referenced anywhere else. If uncertain, leave it.
+
+Testing:
+- Confirm bottom nav shows exactly 4 tabs:
+  Home, Trips, Friends, Mountains.
+- Confirm /trip-ideas redirects to /home.
+- Confirm /planning redirects to /home.
+- Confirm /planning/window/<...>/<...> redirects to /home.
+- Confirm Home still loads opportunity/ideas content.
+- Confirm Home opportunity links still open:
+  /idea/availability
+  /idea/wishlist
+  /idea/trip/<id>
+- Confirm add open dates still works.
+- Confirm saving open dates redirects to Home.
+- Confirm idea detail pages have “← Home” back links and return to Home.
+- Confirm Trips still works.
+- Confirm Friends still works.
+- Confirm Mountains still works.
+- Confirm Python syntax checks pass.
+- Confirm Jinja syntax checks pass.
+- Confirm server runs without errors.
+
+Do not finish until you have fully tested this.
+Only use checkpoints if I say so.
