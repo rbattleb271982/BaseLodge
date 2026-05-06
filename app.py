@@ -2679,12 +2679,46 @@ def mountains_tab():
         Resort.country_code, Resort.state_code, Resort.name
     ).all()
 
+    # ── Friend counts per resort (one batch query — no N+1) ───────────────────
+    friend_links = Friend.query.filter_by(user_id=user.id).all()
+    friend_ids = [f.friend_id for f in friend_links]
+    friend_resort_counts = {}
+    if friend_ids:
+        from sqlalchemy import func as _func
+        _counts = db.session.query(
+            SkiTrip.resort_id,
+            _func.count(_func.distinct(SkiTrip.user_id))
+        ).filter(
+            SkiTrip.user_id.in_(friend_ids),
+            SkiTrip.resort_id.isnot(None)
+        ).group_by(SkiTrip.resort_id).all()
+        friend_resort_counts = {rid: cnt for rid, cnt in _counts}
+
+    # ── Pass extraction helper ─────────────────────────────────────────────────
+    _PASS_SKIP = frozenset({'no_pass', 'no_pass_yet', 'other'})
+
+    def _resort_passes(r):
+        raw = r.pass_brands or r.brand or ""
+        if not raw or str(raw).lower() in ('none', ''):
+            return "", []
+        brands = [b.strip() for b in str(raw).split(',') if b.strip()]
+        labels, keys = [], []
+        for b in brands:
+            norm = normalize_pass(b)
+            if norm and norm not in _PASS_SKIP:
+                label = display_pass_label(norm)
+                if label:
+                    labels.append(label)
+                    keys.append(norm)
+        return ' · '.join(labels), keys
+
     resorts_data = []
     for r in all_resorts:
         cc = r.country_code or r.country or ""
         sc = r.state_code or r.state or ""
         sn = r.state_name or r.state_full or ""
         cn = r.country_name or COUNTRY_NAMES.get(cc, cc) or ""
+        pass_labels, pass_keys = _resort_passes(r)
         resorts_data.append({
             "id": r.id,
             "name": r.name,
@@ -2693,9 +2727,12 @@ def mountains_tab():
             "country_name": cn,
             "state_code": sc,
             "state_name": sn or sc,
+            "pass_labels": pass_labels,
+            "pass_keys": pass_keys,
+            "friend_count": friend_resort_counts.get(r.id, 0),
         })
 
-    # Countries present in DB, US and CA sorted first
+    # ── Countries (US and CA sorted first) ────────────────────────────────────
     seen_countries = {}
     for rd in resorts_data:
         cc = rd["country_code"]
@@ -2708,7 +2745,7 @@ def mountains_tab():
 
     countries = sorted(seen_countries.items(), key=_country_sort)
 
-    # States/regions per country present in DB
+    # ── States/regions per country (from actual data) ─────────────────────────
     _sbcmap = {}
     for rd in resorts_data:
         cc, sc, sn = rd["country_code"], rd["state_code"], rd["state_name"]
@@ -2720,7 +2757,24 @@ def mountains_tab():
         for cc, sd in _sbcmap.items()
     }
 
-    # Default filter: user's saved home state (onboarding)
+    # ── Pass filter options (canonical order, from actual data) ───────────────
+    _PASS_ORDER = ['epic', 'ikon', 'mountain_collective', 'indy',
+                   'powder_alliance', 'freedom', 'ski_california']
+    seen_pass_keys = set()
+    for rd in resorts_data:
+        for k in rd['pass_keys']:
+            seen_pass_keys.add(k)
+
+    all_passes = []
+    seen_in_order = set()
+    for k in _PASS_ORDER:
+        if k in seen_pass_keys:
+            all_passes.append((k, display_pass_label(k)))
+            seen_in_order.add(k)
+    for k in sorted(seen_pass_keys - seen_in_order):
+        all_passes.append((k, display_pass_label(k)))
+
+    # ── Default filter from onboarding state ──────────────────────────────────
     default_state = user.home_state or ""
     default_country = ""
     if default_state:
@@ -2734,6 +2788,7 @@ def mountains_tab():
         resorts_data=resorts_data,
         countries=countries,
         states_by_country=states_by_country,
+        all_passes=all_passes,
         default_country=default_country,
         default_state=default_state,
     )

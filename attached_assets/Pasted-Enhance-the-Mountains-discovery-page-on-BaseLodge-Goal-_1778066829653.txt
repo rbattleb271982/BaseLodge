@@ -1,0 +1,153 @@
+Enhance the Mountains discovery page on BaseLodge.
+
+Goal:
+Turn /mountains from a basic searchable directory into a cleaner, more social, discovery-oriented experience by:
+- adding Pass filtering
+- improving row metadata hierarchy
+- removing redundant location repetition
+- adding lightweight friend activity counts
+
+Scope:
+1. Update the existing /mountains implementation.
+2. Do not redesign the mountain detail page.
+3. Do not break existing Country/State filtering.
+4. Do not break search.
+5. Do not add fake/inferred data.
+6. Keep the UI mobile-first and editorial.
+
+Filters:
+The filter row should now support:
+- Pass
+- Country
+- State/Province
+
+Pass filter requirements:
+- Populate Pass options dynamically from real existing mountain/resort pass data.
+- Do not hardcode pass values unless absolutely necessary.
+- Examples may include:
+  - Ikon Pass
+  - Epic Pass
+  - Indy Pass
+  - Mountain Collective
+- If mountains support multiple passes, support that correctly.
+- Selecting a pass should instantly filter the client-side results.
+- Pass filtering must work together with:
+  - Search
+  - Country
+  - State/Province
+- Keep existing onboarding-based default State/Province behavior:
+  - If the logged-in user has a saved onboarding state/province, default to that state/province on first load.
+  - Users can clear or change filters.
+  - Users without a saved state/province see all mountains.
+
+Search:
+- Existing search should remain.
+- Continue searching mountain names.
+- Keep filtering instant and client-side.
+
+Mountain row redesign:
+Each mountain row should now have:
+LEFT SIDE:
+- Mountain name
+- Secondary metadata line
+
+RIGHT SIDE:
+- Friend count (if > 0)
+
+Metadata hierarchy rules:
+1. Remove redundant location repetition.
+2. When a State/Province filter is active:
+   - Do not repeat the same state/province under every mountain.
+3. When only Country filter is active:
+   - Show useful state/province metadata.
+4. For non-US mountains:
+   - Show concise location metadata only when helpful.
+
+Pass metadata:
+- Show pass information inline beneath the mountain name.
+- Examples:
+  - Ikon Pass
+  - Epic Pass
+  - Epic Pass • Mountain Collective
+- If no pass data exists:
+  - Show no placeholder text.
+- Pass metadata should visually replace most redundant location repetition.
+
+Example rows:
+When state filter is active:
+Aspen Mountain
+Ikon Pass
+
+                                      3 friends
+
+Breckenridge
+Epic Pass
+
+                                      1 friend
+
+When no state filter is active:
+Whistler Blackcomb
+British Columbia, Canada • Epic Pass
+
+                                      2 friends
+
+Friend count requirements:
+1. Compute how many of the logged-in user’s friends have:
+   - active trips
+   - planned trips
+   - or relevant trip records
+associated with that mountain.
+2. Only show friend counts when > 0.
+3. Do not show avatars or usernames.
+4. Keep the count subtle and editorial.
+5. Examples:
+   - 1 friend
+   - 4 friends
+6. Prefer precomputing friend counts in the route payload.
+7. Avoid N+1 queries.
+8. Do not make extra API calls per row.
+
+Layout/design:
+- Mobile-first.
+- Use existing BaseLodge typography/colors.
+- Keep rows clean and lightweight.
+- Avoid enterprise/filter-panel vibes.
+- Filters should feel lightweight.
+- Keep generous spacing.
+- Entire row must remain tappable.
+- Row destination remains:
+  /mountain/<slug>
+- Optional:
+  add a subtle chevron on the far right if spacing allows.
+
+Technical requirements:
+- Reuse existing models/helpers wherever possible.
+- Do not break Plan a Trip.
+- Do not remove any existing mountain detail functionality.
+- Keep client-side filtering architecture intact if possible.
+- Preserve current country/state derivation logic.
+- Preserve current default onboarding state behavior.
+
+Testing:
+- Confirm /mountains loads correctly.
+- Confirm Pass filter options populate from real data.
+- Confirm pass filtering works.
+- Confirm Pass + Country filtering works.
+- Confirm Pass + State/Province filtering works.
+- Confirm Pass + Search works.
+- Confirm combined filtering works.
+- Confirm onboarding default state still works.
+- Confirm mountains without pass data render cleanly.
+- Confirm redundant state repetition is removed.
+- Confirm non-US metadata still makes sense.
+- Confirm friend counts appear correctly.
+- Confirm mountains with zero friend activity show no count.
+- Confirm long mountain names do not break layout.
+- Confirm rows remain fully tappable.
+- Confirm result links open /mountain/<slug>.
+- Confirm Python syntax checks pass.
+- Confirm Jinja syntax checks pass.
+- Confirm server runs without errors.
+
+Do not finish until you have fully tested this.
+Only use checkpoints if I say so.
