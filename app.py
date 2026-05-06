@@ -3422,10 +3422,21 @@ def push_register_token():
         ).first()
         if existing:
             existing.active = True
-            existing.apns_environment = apns_env
             existing.updated_at = datetime.utcnow()
+            # Preserve an environment that was confirmed by a successful APNs retry.
+            # A client hint (Capacitor.DEBUG=false → "production") or server inference
+            # (APNS_USE_SANDBOX=false → "production") is weaker than ground truth from
+            # Apple. If the stored env is already a definitive value ("sandbox" or
+            # "production") and differs from the incoming label, keep the stored value —
+            # it was corrected by a retry that actually succeeded.
+            if existing.apns_environment == "unknown" or existing.apns_environment == apns_env:
+                existing.apns_environment = apns_env
+                env_preserved = False
+            else:
+                env_preserved = True
             action = "refreshed"
         else:
+            env_preserved = False
             db.session.add(PushDeviceToken(
                 user_id=current_user.id,
                 token=token,
@@ -3435,8 +3446,8 @@ def push_register_token():
             action = "inserted"
         db.session.commit()
         current_app.logger.info(
-            "[PushToken] user_id=%s platform=%s token=%s action=%s env=%s env_source=%s",
-            current_user.id, platform, token_preview, action, apns_env, env_source
+            "[PushToken] user_id=%s platform=%s token=%s action=%s env=%s env_source=%s env_preserved=%s",
+            current_user.id, platform, token_preview, action, apns_env, env_source, env_preserved
         )
     except Exception:
         db.session.rollback()
@@ -3445,11 +3456,13 @@ def push_register_token():
         )
         return jsonify({"success": False, "error": "Server error"}), 500
 
+    stored_env = existing.apns_environment if existing else apns_env
     return jsonify({
         "success": True,
         "action": action,
         "token_preview": token_preview,
-        "apns_environment": apns_env,
+        "apns_environment": stored_env,
+        "env_preserved": env_preserved if action == "refreshed" else False,
     }), 200
 
 
@@ -3504,42 +3517,53 @@ def _apns_jwt():
     return token
 
 
-def send_apns_push(device_token: str, title: str, body: str, extra: dict | None = None) -> dict:
+def send_apns_push(
+    device_token: str,
+    title: str,
+    body: str,
+    extra: dict | None = None,
+    *,
+    prefer_sandbox: bool | None = None,
+) -> dict:
     """Send a push notification to one APNs device token.
 
-    Returns a dict with keys:
-        success (bool), status_code (int), apns_id (str|None), error (str|None),
-        apns_host (str), use_sandbox (bool), bundle_id (str)
+    On BadEnvironmentKeyInToken, retries against the opposite APNs host once.
+    If the retry succeeds, updates the PushDeviceToken row's apns_environment
+    to the environment that actually worked and keeps the token active.
+    Only marks the token inactive if BOTH environments fail.
+
+    Args:
+        device_token:   Raw APNs device token hex string.
+        title:          Notification title.
+        body:           Notification body.
+        extra:          Optional dict merged into the payload root.
+        prefer_sandbox: Override the first-attempt APNs environment.
+                        True  → try sandbox first.
+                        False → try production first.
+                        None  → derive from APNS_USE_SANDBOX env var (default).
+
+    Returns a structured dict with keys:
+        success, final_success,
+        first_attempt_environment, first_attempt_host,
+        first_attempt_status_code, first_attempt_error, first_attempt_apns_id,
+        retry_attempted, retry_environment, retry_host,
+        retry_status_code, retry_error, retry_success, retry_apns_id,
+        env_corrected, corrected_token_environment,
+        bundle_id
 
     Environment variables:
         APNS_BUNDLE_ID   — e.g. com.baselodge.app
-        APNS_USE_SANDBOX — "true" for local Xcode simulator/device installs ONLY.
-                           "false" (or unset to false) for TestFlight and App Store builds.
-                           TestFlight tokens are PRODUCTION tokens — sending to sandbox
-                           returns BadEnvironmentKeyInToken (403).
+        APNS_USE_SANDBOX — "true" for local Xcode / simulator.
+                           "false" for TestFlight / App Store.
     """
-    bundle_id   = os.environ.get("APNS_BUNDLE_ID", "com.baselodge.app")
-    use_sandbox = os.environ.get("APNS_USE_SANDBOX", "true").lower() not in ("false", "0", "no")
-    host = "api.sandbox.push.apple.com" if use_sandbox else "api.push.apple.com"
-    url  = f"https://{host}/3/device/{device_token}"
+    bundle_id = os.environ.get("APNS_BUNDLE_ID", "com.baselodge.app")
+    env_use_sandbox = os.environ.get("APNS_USE_SANDBOX", "true").lower() not in ("false", "0", "no")
+    first_sandbox = env_use_sandbox if prefer_sandbox is None else prefer_sandbox
 
-    # Safe token preview: first 8 + last 6 chars only — never log the full token
     token_preview = device_token[:8] + "…" + device_token[-6:] if len(device_token) > 14 else device_token[:8] + "…"
 
-    # DEBUG LOGGING — temporary, remove after environment mismatch is resolved
-    stale_row = PushDeviceToken.query.filter_by(token=device_token).first()
-    print(f"[APNs DEBUG] use_sandbox={use_sandbox}")
-    print(f"[APNs DEBUG] apns_host={host}")
-    print(f"[APNs DEBUG] token_id={stale_row.id if stale_row else 'NOT_IN_DB'}")
-    print(f"[APNs DEBUG] token.apns_environment={stale_row.apns_environment if stale_row else 'N/A'}")
-    print(f"[APNs DEBUG] token.active={stale_row.active if stale_row else 'N/A'}")
-    print(f"[APNs DEBUG] token_preview={token_preview}")
-
     payload = {
-        "aps": {
-            "alert": {"title": title, "body": body},
-            "sound": "default",
-        }
+        "aps": {"alert": {"title": title, "body": body}, "sound": "default"},
     }
     if extra:
         payload.update(extra)
@@ -3548,78 +3572,179 @@ def send_apns_push(device_token: str, title: str, body: str, extra: dict | None 
         bearer = _apns_jwt()
     except RuntimeError as exc:
         current_app.logger.error("[APNs] Config error: %s", exc)
+        first_env = "sandbox" if first_sandbox else "production"
+        first_host = "api.sandbox.push.apple.com" if first_sandbox else "api.push.apple.com"
         return {
-            "success": False, "status_code": None, "apns_id": None, "error": str(exc),
-            "apns_host": host, "use_sandbox": use_sandbox, "bundle_id": bundle_id,
+            "success": False, "final_success": False,
+            "first_attempt_environment": first_env, "first_attempt_host": first_host,
+            "first_attempt_status_code": None, "first_attempt_error": str(exc),
+            "first_attempt_apns_id": None,
+            "retry_attempted": False, "retry_environment": None, "retry_host": None,
+            "retry_status_code": None, "retry_error": None, "retry_success": False,
+            "retry_apns_id": None, "env_corrected": False,
+            "corrected_token_environment": None, "bundle_id": bundle_id,
         }
 
-    headers = {
-        "authorization": f"bearer {bearer}",
-        "apns-topic": bundle_id,
-        "apns-push-type": "alert",
-        "content-type": "application/json",
-    }
-
-    try:
-        with httpx.Client(http2=True) as client:
-            resp = client.post(url, content=json.dumps(payload), headers=headers, timeout=10)
-    except Exception as exc:
-        current_app.logger.error("[APNs] HTTP error: %s", exc)
-        return {
-            "success": False, "status_code": None, "apns_id": None, "error": str(exc),
-            "apns_host": host, "use_sandbox": use_sandbox, "bundle_id": bundle_id,
+    def _fire(sandbox: bool) -> tuple:
+        """Fire one APNs HTTP/2 request. Returns (status_code, apns_id, reason)."""
+        h = "api.sandbox.push.apple.com" if sandbox else "api.push.apple.com"
+        hdrs = {
+            "authorization": f"bearer {bearer}",
+            "apns-topic": bundle_id,
+            "apns-push-type": "alert",
+            "content-type": "application/json",
         }
-
-    apns_id = resp.headers.get("apns-id")
-    current_app.logger.info("[APNs] token=%s host=%s → %d  apns-id=%s  body=%s",
-                            token_preview, host, resp.status_code, apns_id, resp.text[:120])
-
-    if resp.status_code == 200:
-        return {
-            "success": True, "status_code": 200, "apns_id": apns_id, "error": None,
-            "apns_host": host, "use_sandbox": use_sandbox, "bundle_id": bundle_id,
-        }
-
-    error_body = {}
-    try:
-        error_body = resp.json()
-    except Exception:
-        pass
-    reason = error_body.get("reason", resp.text)
-
-    # Mark token inactive for permanent failure reasons
-    _INACTIVE_REASONS = {"BadDeviceToken", "Unregistered", "DeviceTokenNotForTopic"}
-    environment_mismatch = (reason == "BadEnvironmentKeyInToken")
-
-    if environment_mismatch or (
-        resp.status_code in (400, 410) and (reason in _INACTIVE_REASONS or resp.status_code == 410)
-    ):
         try:
-            stale = PushDeviceToken.query.filter_by(token=device_token).first()
-            if stale:
-                stale.active = False
-                if environment_mismatch:
-                    # The token belongs to the opposite environment — stamp it correctly
-                    stale.apns_environment = "sandbox" if not use_sandbox else "production"
+            with httpx.Client(http2=True) as client:
+                resp = client.post(
+                    f"https://{h}/3/device/{device_token}",
+                    content=json.dumps(payload),
+                    headers=hdrs,
+                    timeout=10,
+                )
+        except Exception as exc:
+            current_app.logger.error("[APNs] HTTP error (sandbox=%s): %s", sandbox, exc)
+            return None, None, str(exc)
+        aid = resp.headers.get("apns-id")
+        current_app.logger.info(
+            "[APNs] token=%s host=%s → %d  apns-id=%s  body=%s",
+            token_preview, h, resp.status_code, aid, resp.text[:120],
+        )
+        if resp.status_code == 200:
+            return 200, aid, None
+        try:
+            reason = resp.json().get("reason", resp.text)
+        except Exception:
+            reason = resp.text
+        return resp.status_code, aid, reason
+
+    # ── First attempt ──────────────────────────────────────────────────────────
+    first_env_name = "sandbox" if first_sandbox else "production"
+    first_host     = "api.sandbox.push.apple.com" if first_sandbox else "api.push.apple.com"
+    first_code, first_apns_id, first_error = _fire(first_sandbox)
+
+    current_app.logger.info(
+        "[APNs] first attempt: env=%s token=%s status=%s error=%s",
+        first_env_name, token_preview, first_code, first_error,
+    )
+
+    if first_code == 200:
+        return {
+            "success": True, "final_success": True,
+            "first_attempt_environment": first_env_name, "first_attempt_host": first_host,
+            "first_attempt_status_code": 200, "first_attempt_error": None,
+            "first_attempt_apns_id": first_apns_id,
+            "retry_attempted": False, "retry_environment": None, "retry_host": None,
+            "retry_status_code": None, "retry_error": None, "retry_success": False,
+            "retry_apns_id": None, "env_corrected": False,
+            "corrected_token_environment": None, "bundle_id": bundle_id,
+        }
+
+    # ── Permanent errors — no retry makes sense ────────────────────────────────
+    _INACTIVE_REASONS = {"BadDeviceToken", "Unregistered", "DeviceTokenNotForTopic"}
+    is_env_mismatch = (first_error == "BadEnvironmentKeyInToken")
+    is_permanent = (
+        first_code in (400, 410)
+        and (first_error in _INACTIVE_REASONS or first_code == 410)
+    )
+
+    if not is_env_mismatch and (is_permanent or first_code is None):
+        if is_permanent:
+            try:
+                stale = PushDeviceToken.query.filter_by(token=device_token).first()
+                if stale:
+                    stale.active = False
+                    db.session.commit()
+                    current_app.logger.warning(
+                        "[APNs] Token marked inactive (%s %s) id=%s token=%s",
+                        first_code, first_error, stale.id, token_preview,
+                    )
+            except Exception:
+                db.session.rollback()
+                current_app.logger.exception("[APNs] Failed to mark token inactive")
+        return {
+            "success": False, "final_success": False,
+            "first_attempt_environment": first_env_name, "first_attempt_host": first_host,
+            "first_attempt_status_code": first_code, "first_attempt_error": first_error,
+            "first_attempt_apns_id": first_apns_id,
+            "retry_attempted": False, "retry_environment": None, "retry_host": None,
+            "retry_status_code": None, "retry_error": None, "retry_success": False,
+            "retry_apns_id": None, "env_corrected": False,
+            "corrected_token_environment": None, "bundle_id": bundle_id,
+        }
+
+    # ── BadEnvironmentKeyInToken — retry against the opposite host ─────────────
+    retry_sandbox   = not first_sandbox
+    retry_env_name  = "sandbox" if retry_sandbox else "production"
+    retry_host      = "api.sandbox.push.apple.com" if retry_sandbox else "api.push.apple.com"
+
+    current_app.logger.warning(
+        "[APNs] BadEnvironmentKeyInToken on %s — retrying opposite env=%s token=%s",
+        first_host, retry_env_name, token_preview,
+    )
+
+    retry_code, retry_apns_id, retry_error = _fire(retry_sandbox)
+
+    if retry_code == 200:
+        # Retry succeeded — Apple confirmed the token belongs to retry_env_name
+        current_app.logger.warning(
+            "[APNs] retry succeeded on %s — correcting token env to '%s' token=%s",
+            retry_host, retry_env_name, token_preview,
+        )
+        try:
+            tok_row = PushDeviceToken.query.filter_by(token=device_token).first()
+            if tok_row:
+                tok_row.apns_environment = retry_env_name
+                tok_row.active = True
                 db.session.commit()
                 current_app.logger.warning(
-                    "[APNs] Token marked inactive (%d %s) id=%s env_stamped=%s token=%s",
-                    resp.status_code, reason,
-                    stale.id, stale.apns_environment if environment_mismatch else "unchanged",
-                    token_preview,
+                    "[APNs] Token id=%s apns_environment corrected to '%s', kept active",
+                    tok_row.id, retry_env_name,
                 )
         except Exception:
             db.session.rollback()
-            current_app.logger.exception("[APNs] Failed to mark token inactive")
+            current_app.logger.exception("[APNs] Failed to correct token environment after retry")
+        return {
+            "success": True, "final_success": True,
+            "first_attempt_environment": first_env_name, "first_attempt_host": first_host,
+            "first_attempt_status_code": first_code, "first_attempt_error": first_error,
+            "first_attempt_apns_id": first_apns_id,
+            "retry_attempted": True, "retry_environment": retry_env_name,
+            "retry_host": retry_host, "retry_status_code": 200, "retry_error": None,
+            "retry_success": True, "retry_apns_id": retry_apns_id,
+            "env_corrected": True, "corrected_token_environment": retry_env_name,
+            "bundle_id": bundle_id,
+        }
+
+    # Both environments failed — deactivate the token
+    current_app.logger.warning(
+        "[APNs] retry failed (%s %s) on %s — both envs exhausted, deactivating token=%s",
+        retry_code, retry_error, retry_host, token_preview,
+    )
+    try:
+        stale = PushDeviceToken.query.filter_by(token=device_token).first()
+        if stale:
+            stale.active = False
+            # Stamp with the opposite of whichever host was tried first
+            stale.apns_environment = retry_env_name
+            db.session.commit()
+            current_app.logger.warning(
+                "[APNs] Token id=%s marked inactive after both environments failed",
+                stale.id,
+            )
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("[APNs] Failed to mark token inactive after both-env failure")
 
     return {
-        "success": False,
-        "status_code": resp.status_code,
-        "apns_id": apns_id,
-        "error": reason,
-        "environment_mismatch": environment_mismatch,
-        "apns_host": host,
-        "use_sandbox": use_sandbox,
+        "success": False, "final_success": False,
+        "first_attempt_environment": first_env_name, "first_attempt_host": first_host,
+        "first_attempt_status_code": first_code, "first_attempt_error": first_error,
+        "first_attempt_apns_id": first_apns_id,
+        "retry_attempted": True, "retry_environment": retry_env_name,
+        "retry_host": retry_host, "retry_status_code": retry_code,
+        "retry_error": retry_error, "retry_success": False, "retry_apns_id": retry_apns_id,
+        "env_corrected": False, "corrected_token_environment": None,
         "bundle_id": bundle_id,
     }
 
@@ -3760,29 +3885,31 @@ def admin_push_diagnostics():
 @login_required
 @admin_required
 def admin_test_push():
-    """Admin diagnostic route: send a test push to user_id=2 and return full APNs diagnostics.
+    """Admin diagnostic: send a test push and return full structured APNs diagnostics.
 
-    Returns JSON including resolved APNs environment, token metadata, and error explanations.
-        GET /admin/test-push
+    Accepts an optional ?user_id=N query parameter (default: 2).
+    On BadEnvironmentKeyInToken the send function automatically retries against
+    the opposite APNs host — both attempt results are included in the response.
+
+    GET /admin/test-push
+    GET /admin/test-push?user_id=6
     """
-    target_user_id = 2
+    try:
+        target_user_id = int(request.args.get("user_id", 2))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "user_id must be an integer"}), 400
 
-    # Read env config for diagnostics (values only — never log the private key)
     use_sandbox_raw = os.environ.get("APNS_USE_SANDBOX", "true")
     use_sandbox = use_sandbox_raw.lower() not in ("false", "0", "no")
-    apns_host = "api.sandbox.push.apple.com" if use_sandbox else "api.push.apple.com"
+    default_host = "api.sandbox.push.apple.com" if use_sandbox else "api.push.apple.com"
     bundle_id = os.environ.get("APNS_BUNDLE_ID", "com.baselodge.app")
-    key_id_set = bool(os.environ.get("APNS_KEY_ID"))
-    team_id_set = bool(os.environ.get("APNS_TEAM_ID"))
-    key_p8_set = bool(os.environ.get("APNS_KEY_P8"))
 
     def _tok_preview(t):
         return t[:8] + "…" + t[-6:] if len(t) > 14 else t[:8] + "…"
 
-    # All iOS tokens for the user, newest first — active and inactive both fetched
-    # so we can fall back to the most recent inactive token when no active ones exist.
-    # BadEnvironmentKeyInToken marks tokens inactive, but the token value is still
-    # valid to retry until a new binary with production entitlements is in place.
+    # Fetch all iOS tokens for the target user (active + inactive) newest first.
+    # Inactive tokens are included as fallback — BadEnvironmentKeyInToken previously
+    # deactivated good tokens; the retry logic in send_apns_push now handles that.
     all_token_rows = (
         PushDeviceToken.query
         .filter_by(user_id=target_user_id, platform="ios")
@@ -3794,8 +3921,8 @@ def admin_test_push():
     inactive_rows = [r for r in all_token_rows if not r.active]
 
     current_app.logger.warning(
-        "[TestPush] token candidates: total=%d active=%d inactive=%d user_id=%d",
-        len(all_token_rows), len(active_rows), len(inactive_rows), target_user_id,
+        "[TestPush] user_id=%d candidates: total=%d active=%d inactive=%d",
+        target_user_id, len(all_token_rows), len(active_rows), len(inactive_rows),
     )
     for r in all_token_rows:
         current_app.logger.warning(
@@ -3803,13 +3930,8 @@ def admin_test_push():
             r.id, r.active, r.apns_environment, r.updated_at, _tok_preview(r.token),
         )
 
-    # Environment-aware token selection:
-    # 1. Prefer active tokens whose apns_environment matches the current APNs host.
-    # 2. Fall back to active tokens with unknown environment.
-    # 3. Fall back to active tokens with mismatched environment.
-    # 4. If NO active tokens, fall back to the most recently updated inactive token
-    #    (BadEnvironmentKeyInToken marks tokens inactive aggressively; the token
-    #    itself is not permanently invalid — a fresh app open re-registers it as active).
+    # Token selection: active tokens first (env-matched > unknown > mismatched),
+    # then inactive as last resort.
     target_env = "production" if not use_sandbox else "sandbox"
     wrong_env  = "sandbox"    if not use_sandbox else "production"
 
@@ -3827,9 +3949,6 @@ def admin_test_push():
 
     token_row = preferred[0] if preferred else None
 
-    only_unknown    = bool(token_row) and not using_inactive_fallback and token_row.apns_environment == "unknown"
-    only_mismatched = bool(token_row) and not using_inactive_fallback and token_row.apns_environment == wrong_env
-
     current_app.logger.warning(
         "[TestPush] selected id=%s active=%s env=%s inactive_fallback=%s preview=%s",
         token_row.id if token_row else None,
@@ -3840,20 +3959,16 @@ def admin_test_push():
     )
 
     diag = {
+        "target_user_id": target_user_id,
         "apns_env": {
             "APNS_USE_SANDBOX_raw": use_sandbox_raw,
             "use_sandbox": use_sandbox,
-            "apns_host": apns_host,
+            "default_host": default_host,
             "target_token_environment": target_env,
             "bundle_id": bundle_id,
-            "APNS_KEY_ID_set": key_id_set,
-            "APNS_TEAM_ID_set": team_id_set,
-            "APNS_KEY_P8_set": key_p8_set,
-            "note": (
-                "TestFlight/App Store tokens require production APNs (use_sandbox=false). "
-                "Local Xcode installs require sandbox (use_sandbox=true). "
-                "Mismatch → BadEnvironmentKeyInToken (403)."
-            ),
+            "APNS_KEY_ID_set": bool(os.environ.get("APNS_KEY_ID")),
+            "APNS_TEAM_ID_set": bool(os.environ.get("APNS_TEAM_ID")),
+            "APNS_KEY_P8_set": bool(os.environ.get("APNS_KEY_P8")),
         },
         "all_tokens": [
             {
@@ -3877,64 +3992,80 @@ def admin_test_push():
     }
 
     if not token_row:
-        diag["token"] = None
+        diag["selected_token"] = None
         diag["error"] = f"No iOS token found for user_id={target_user_id} (active or inactive)"
         return jsonify({"success": False, **diag}), 404
 
-    token_preview = _tok_preview(token_row.token)
-    env_warning = None
-    if only_unknown:
-        env_warning = (
-            f"Only 'unknown' environment tokens exist. Sending to {apns_host} — "
-            "token environment unconfirmed. Open TestFlight app to register a new token with correct env stamp."
-        )
-    elif only_mismatched:
-        env_warning = (
-            f"WARNING: Only '{wrong_env}' tokens available but APNs host is {apns_host} ({target_env}). "
-            "This will likely return BadEnvironmentKeyInToken. Open TestFlight app to get a fresh token."
-        )
-
-    diag["token"] = {
+    stored_env_before = token_row.apns_environment
+    diag["selected_token"] = {
         "id": token_row.id,
-        "token_preview": token_preview,
+        "token_preview": _tok_preview(token_row.token),
         "platform": token_row.platform,
         "active": token_row.active,
-        "apns_environment": token_row.apns_environment,
-        "selected_env_matches_apns_host": token_row.apns_environment in (target_env, "unknown"),
+        "apns_environment_before_send": stored_env_before,
+        "using_inactive_fallback": using_inactive_fallback,
         "created_at": token_row.created_at.isoformat() if token_row.created_at else None,
         "updated_at": token_row.updated_at.isoformat() if token_row.updated_at else None,
-        "env_warning": env_warning,
     }
+
+    # Derive prefer_sandbox from the token's stored environment so the first
+    # attempt uses the host that is most likely to succeed.
+    if stored_env_before == "sandbox":
+        prefer_sandbox_hint = True
+    elif stored_env_before == "production":
+        prefer_sandbox_hint = False
+    else:
+        prefer_sandbox_hint = None  # let APNS_USE_SANDBOX decide
 
     result = send_apns_push(
         token_row.token,
         title="BaseLodge test",
         body="Your push from BaseLodge worked.",
+        prefer_sandbox=prefer_sandbox_hint,
     )
 
-    # Attach human-readable explanation for the most common errors
-    error_reason = result.get("error", "")
+    # Human-readable explanation for first-attempt error (before retry)
+    first_err = result.get("first_attempt_error", "")
     explanation = None
-    if error_reason == "BadEnvironmentKeyInToken":
+    if first_err == "BadEnvironmentKeyInToken":
         explanation = (
-            "BadEnvironmentKeyInToken: The APNs token belongs to the OTHER environment. "
-            f"Server is sending to {'SANDBOX' if use_sandbox else 'PRODUCTION'} "
-            f"({apns_host}), but the device token was registered against "
-            f"{'PRODUCTION' if use_sandbox else 'SANDBOX'} APNs. "
-            "Fix: set APNS_USE_SANDBOX=false for TestFlight/App Store builds, "
-            "or APNS_USE_SANDBOX=true for local Xcode installs."
+            "BadEnvironmentKeyInToken on first attempt — Apple confirmed the token "
+            "belongs to the opposite APNs environment. Retry was attempted automatically."
         )
-    elif error_reason == "BadDeviceToken":
-        explanation = "BadDeviceToken: The token string is malformed or does not exist in APNs. Token has been marked inactive."
-    elif error_reason == "Unregistered":
-        explanation = "Unregistered: The app was uninstalled or the token was revoked. Token has been marked inactive."
-    elif error_reason == "DeviceTokenNotForTopic":
+    elif first_err == "BadDeviceToken":
+        explanation = "BadDeviceToken: Token string is malformed or does not exist in APNs. Token deactivated."
+    elif first_err == "Unregistered":
+        explanation = "Unregistered: App was uninstalled or token was revoked. Token deactivated."
+    elif first_err == "DeviceTokenNotForTopic":
         explanation = f"DeviceTokenNotForTopic: Token does not belong to bundle_id={bundle_id}. Check APNS_BUNDLE_ID."
 
-    status_http = 200 if result["success"] else 502
+    final_success = result.get("final_success", result.get("success", False))
+    status_http = 200 if final_success else 502
     return jsonify({
         **diag,
-        "apns_result": {**result, "explanation": explanation},
+        "apns_result": {
+            "final_success": final_success,
+            "env_corrected": result.get("env_corrected", False),
+            "corrected_token_environment": result.get("corrected_token_environment"),
+            "first_attempt": {
+                "environment": result.get("first_attempt_environment"),
+                "host": result.get("first_attempt_host"),
+                "status_code": result.get("first_attempt_status_code"),
+                "error": result.get("first_attempt_error"),
+                "apns_id": result.get("first_attempt_apns_id"),
+                "explanation": explanation,
+            },
+            "retry": {
+                "attempted": result.get("retry_attempted", False),
+                "environment": result.get("retry_environment"),
+                "host": result.get("retry_host"),
+                "status_code": result.get("retry_status_code"),
+                "error": result.get("retry_error"),
+                "success": result.get("retry_success", False),
+                "apns_id": result.get("retry_apns_id"),
+            },
+            "bundle_id": result.get("bundle_id"),
+        },
     }), status_http
 
 

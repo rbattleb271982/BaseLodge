@@ -1,0 +1,41 @@
+We need to diagnose and plan a fix for BaseLodge iOS APNs push notification environment handling. Do not implement yet. Create a clear plan first.
+
+Current production test result from /admin/test-push:
+- Server is using APNS_USE_SANDBOX=false
+- Server is sending to production APNs host: api.push.apple.com
+- Selected active iOS token row says apns_environment=production
+- Apple returns 403 BadEnvironmentKeyInToken
+- This means Apple considers the selected token to belong to the opposite APNs environment, likely sandbox, even though our DB labeled it production
+
+Goal:
+Create a safe implementation plan to make APNs sending robust and truthful.
+
+Please inspect the current code and identify:
+1. Where iOS push tokens are registered and stored
+2. Where apns_environment is assigned
+3. Where /admin/test-push selects a token
+4. Where APNs requests are sent
+5. Whether normal push sends and test push sends use the same APNs service
+6. Whether duplicate token rows can be created
+7. Whether old sandbox tokens are being incorrectly reactivated or relabeled as production
+
+Plan requirements:
+- Do not change Replit secrets
+- Keep APNS_USE_SANDBOX=false for production/TestFlight
+- Do not make UI changes
+- Do not touch Xcode/native iOS files unless you find clear evidence the backend is not the issue
+- Prefer a backend fix that handles BadEnvironmentKeyInToken gracefully
+- Consider retrying once against the opposite APNs host when Apple returns BadEnvironmentKeyInToken
+- If retry succeeds, update that token row’s apns_environment to the environment that actually worked
+- Improve /admin/test-push diagnostics so the response clearly shows first attempt, retry attempt, final success/failure, and whether the token environment was corrected
+- Ensure normal push sending logic benefits from the same fix, not only the debug endpoint
+- Avoid creating duplicate token rows for the same token
+- Add clear logging for environment mismatch detection and correction
+
+Output:
+Give me a file-by-file implementation plan only.
+Include the risks.
+Include exactly what you would test before marking complete.
+Do not implement until I approve the plan.
+
+Do not use checkpoints unless I explicitly ask.
