@@ -117,8 +117,13 @@
             font-size: 17px;
             font-weight: 600;
             cursor: pointer;
+            transition: opacity 0.15s ease;
         }
         .ep-save-btn:active { background: #6B000F; }
+        .ep-save-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
         .page-container { padding-bottom: 160px; }
     </style>
 {% endblock %}
@@ -296,6 +301,11 @@
     });
     document.getElementById('editProfileForm').addEventListener('submit', function() {
         formDirty = false;
+        var btn = document.getElementById('ep-save');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
+        }
     });
     document.getElementById('ep-save').addEventListener('click', function() {
         formDirty = false;
