@@ -4029,7 +4029,7 @@ def admin_test_push():
         "platform": token_row.platform,
         "active": token_row.active,
         "apns_environment_before_send": stored_env_before,
-        "using_inactive_fallback": using_inactive_fallback,
+        "using_inactive_fallback": False,
         "created_at": token_row.created_at.isoformat() if token_row.created_at else None,
         "updated_at": token_row.updated_at.isoformat() if token_row.updated_at else None,
     }
