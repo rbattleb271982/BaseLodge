@@ -1,0 +1,73 @@
+╭────────────────────────────────────────────╮
+│ Clean Up APNs Diagnostics                  │
+╰────────────────────────────────────────────╯
+
+Push notifications are now confirmed working in all three states:
+- Foreground
+- Background
+- Locked phone
+
+Clean up the temporary APNs diagnostic logging while keeping the useful admin test route.
+
+Scope:
+- Backend only
+- Replit publish/deploy required after the change
+- No GitHub/Mac/Xcode/TestFlight steps required
+- Do not touch iOS, Capacitor, Xcode, TestFlight, or push registration logic
+- Do not use checkpoints unless absolutely necessary
+
+Please do the following:
+
+1. Keep `/admin/test-push` working.
+   - It should still send a test push notification to the selected/latest active iOS token.
+   - It should still return a clear success/failure JSON response.
+
+2. Remove or reduce the noisy diagnostic logging.
+   - Remove the repeated `[APNs DIAGNOSTICS]` warning lines for:
+     - APNS_TEAM_ID
+     - APNS_KEY_ID
+     - APNS_BUNDLE_ID
+     - jwt_iss
+     - jwt_kid
+     - apns_topic
+     - selected_token_length
+     - selected_token_preview
+     - environment
+     - response_status
+     - response_body
+     - apns_id
+
+3. Keep safe, minimal logging only.
+   - For `/admin/test-push`, log one concise line like:
+     `[APNs TEST] user_id=2 status=success environment=production response_status=200`
+   - If the push fails, log:
+     `[APNs TEST] user_id=2 status=failed environment=production response_status=... reason=...`
+
+4. Do not log:
+   - Full device tokens
+   - APNs private key contents
+   - Full JWTs
+   - Full session cookies
+   - Sensitive credentials
+
+5. Leave the `send_apns_push(..., diagnostics=False)` parameter in place only if it is useful and clean.
+   - If keeping it, default must remain `False`.
+   - Normal push sends must remain unaffected.
+   - If it is no longer needed, safely remove it without changing behavior.
+
+6. Keep the new APNs secrets untouched.
+   - Do not change:
+     - `APNS_KEY_ID`
+     - `APNS_KEY_P8`
+     - `APNS_TEAM_ID`
+     - `APNS_BUNDLE_ID`
+     - `APNS_USE_SANDBOX`
+
+7. After cleanup, verify:
+   - `/admin/test-push` still sends a notification successfully.
+   - Normal app push registration still works.
+   - No full tokens or credential values appear in logs.
+   - No frontend, iOS, Capacitor, GitHub, Mac, Xcode, or TestFlight files were changed.
+
+Final note:
+The root cause was the old APNs key configuration. The app build was correct. This cleanup should only remove diagnostic noise now that push is fixed.

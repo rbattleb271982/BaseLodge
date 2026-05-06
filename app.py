@@ -3537,7 +3537,6 @@ def send_apns_push(
     extra: dict | None = None,
     *,
     prefer_sandbox: bool | None = None,
-    diagnostics: bool = False,
 ) -> dict:
     """Send a push notification to one APNs device token.
 
@@ -3582,10 +3581,6 @@ def send_apns_push(
     if extra:
         payload.update(extra)
 
-    # Mutable containers so _fire() can populate them via closure reference.
-    _fire_log: list = []  # one entry per APNs HTTP attempt (populated when diagnostics=True)
-    diag_data: dict = {}  # JWT + token metadata (populated below when diagnostics=True)
-
     try:
         bearer = _apns_jwt()
     except RuntimeError as exc:
@@ -3601,28 +3596,6 @@ def send_apns_push(
             "retry_status_code": None, "retry_error": None, "retry_success": False,
             "retry_apns_id": None, "env_corrected": False,
             "corrected_token_environment": None, "bundle_id": bundle_id,
-            "diagnostics_data": None,
-        }
-
-    if diagnostics:
-        _key_id  = os.environ.get("APNS_KEY_ID", "")
-        _team_id = os.environ.get("APNS_TEAM_ID", "")
-        try:
-            _jwt_hdr = jwt.get_unverified_header(bearer)
-            _jwt_pay = jwt.decode(bearer, options={"verify_signature": False})
-            _jwt_iss = _jwt_pay.get("iss", "—")
-            _jwt_kid = _jwt_hdr.get("kid", "—")
-        except Exception:
-            _jwt_iss = _jwt_kid = "decode_error"
-        diag_data = {
-            "APNS_TEAM_ID": _team_id,
-            "APNS_KEY_ID": _key_id,
-            "APNS_BUNDLE_ID": bundle_id,
-            "jwt_iss": _jwt_iss,
-            "jwt_kid": _jwt_kid,
-            "apns_topic": bundle_id,
-            "selected_token_length": len(device_token),
-            "selected_token_preview": token_preview,
         }
 
     def _fire(sandbox: bool) -> tuple:
@@ -3644,24 +3617,8 @@ def send_apns_push(
                 )
         except Exception as exc:
             current_app.logger.error("[APNs] HTTP error (sandbox=%s): %s", sandbox, exc)
-            if diagnostics:
-                _fire_log.append({
-                    "environment": "sandbox" if sandbox else "production",
-                    "host": h,
-                    "response_status": None,
-                    "response_body": str(exc),
-                    "apns_id": None,
-                })
             return None, None, str(exc)
         aid = resp.headers.get("apns-id")
-        if diagnostics:
-            _fire_log.append({
-                "environment": "sandbox" if sandbox else "production",
-                "host": h,
-                "response_status": resp.status_code,
-                "response_body": resp.text[:300],
-                "apns_id": aid,
-            })
         current_app.logger.info(
             "[APNs] token=%s host=%s → %d  apns-id=%s  body=%s",
             token_preview, h, resp.status_code, aid, resp.text[:120],
@@ -3694,7 +3651,6 @@ def send_apns_push(
             "retry_status_code": None, "retry_error": None, "retry_success": False,
             "retry_apns_id": None, "env_corrected": False,
             "corrected_token_environment": None, "bundle_id": bundle_id,
-            "diagnostics_data": ({**diag_data, "attempts": _fire_log} if diagnostics else None),
         }
 
     # ── Decide whether to retry the opposite host ─────────────────────────────
@@ -3735,7 +3691,6 @@ def send_apns_push(
             "retry_status_code": None, "retry_error": None, "retry_success": False,
             "retry_apns_id": None, "env_corrected": False,
             "corrected_token_environment": None, "bundle_id": bundle_id,
-            "diagnostics_data": ({**diag_data, "attempts": _fire_log} if diagnostics else None),
         }
 
     # ── Retry against the opposite host ────────────────────────────────────────
@@ -3779,7 +3734,6 @@ def send_apns_push(
             "retry_success": True, "retry_apns_id": retry_apns_id,
             "env_corrected": True, "corrected_token_environment": retry_env_name,
             "bundle_id": bundle_id,
-            "diagnostics_data": ({**diag_data, "attempts": _fire_log} if diagnostics else None),
         }
 
     # Both environments failed — deactivate the token
@@ -3812,7 +3766,6 @@ def send_apns_push(
         "retry_error": retry_error, "retry_success": False, "retry_apns_id": retry_apns_id,
         "env_corrected": False, "corrected_token_environment": None,
         "bundle_id": bundle_id,
-        "diagnostics_data": ({**diag_data, "attempts": _fire_log} if diagnostics else None),
     }
 
 
@@ -4095,27 +4048,7 @@ def admin_test_push():
         title="BaseLodge test",
         body="Your push from BaseLodge worked.",
         prefer_sandbox=prefer_sandbox_hint,
-        diagnostics=True,
     )
-
-    # ── APNs diagnostics log block (admin test push only) ─────────────────────
-    dd = result.get("diagnostics_data") or {}
-    _dlog = current_app.logger.warning
-    _dlog("[APNs DIAGNOSTICS] APNS_TEAM_ID=%s",           dd.get("APNS_TEAM_ID", "—"))
-    _dlog("[APNs DIAGNOSTICS] APNS_KEY_ID=%s",            dd.get("APNS_KEY_ID", "—"))
-    _dlog("[APNs DIAGNOSTICS] APNS_BUNDLE_ID=%s",         dd.get("APNS_BUNDLE_ID", "—"))
-    _dlog("[APNs DIAGNOSTICS] jwt_iss=%s",                dd.get("jwt_iss", "—"))
-    _dlog("[APNs DIAGNOSTICS] jwt_kid=%s",                dd.get("jwt_kid", "—"))
-    _dlog("[APNs DIAGNOSTICS] apns_topic=%s",             dd.get("apns_topic", "—"))
-    _dlog("[APNs DIAGNOSTICS] selected_token_length=%s",  dd.get("selected_token_length", "—"))
-    _dlog("[APNs DIAGNOSTICS] selected_token_preview=%s", dd.get("selected_token_preview", "—"))
-    _attempts = dd.get("attempts", [])
-    for _i, _att in enumerate(_attempts, 1):
-        _sfx = f" [attempt {_i}/{len(_attempts)}]" if len(_attempts) > 1 else ""
-        _dlog("[APNs DIAGNOSTICS] environment=%s%s",      _att.get("environment", "—"), _sfx)
-        _dlog("[APNs DIAGNOSTICS] response_status=%s%s",  _att.get("response_status", "—"), _sfx)
-        _dlog("[APNs DIAGNOSTICS] response_body=%s%s",    _att.get("response_body", "—"), _sfx)
-        _dlog("[APNs DIAGNOSTICS] apns_id=%s%s",          _att.get("apns_id", "—"), _sfx)
 
     # Human-readable explanation for first-attempt error (before retry)
     first_err = result.get("first_attempt_error", "")
@@ -4138,9 +4071,26 @@ def admin_test_push():
 
     final_success = result.get("final_success", result.get("success", False))
     status_http = 200 if final_success else 502
+
+    # Concise single-line test push summary (no tokens, no keys)
+    _log_env    = (result.get("retry_environment") if result.get("retry_attempted")
+                   else result.get("first_attempt_environment", "—"))
+    _log_status = (result.get("retry_status_code") if result.get("retry_attempted")
+                   else result.get("first_attempt_status_code", "—"))
+    _log_reason = result.get("retry_error") or result.get("first_attempt_error") or ""
+    if final_success:
+        current_app.logger.warning(
+            "[APNs TEST] user_id=%d status=success environment=%s response_status=%s",
+            target_user_id, _log_env, _log_status,
+        )
+    else:
+        current_app.logger.warning(
+            "[APNs TEST] user_id=%d status=failed environment=%s response_status=%s reason=%s",
+            target_user_id, _log_env, _log_status, _log_reason or "unknown",
+        )
+
     return jsonify({
         **diag,
-        "apns_diagnostics": dd,
         "apns_result": {
             "final_success": final_success,
             "env_corrected": result.get("env_corrected", False),
