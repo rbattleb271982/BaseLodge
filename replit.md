@@ -36,6 +36,7 @@ To prevent regressions, profile data (equipment setup, rider preferences, pass i
 -   **Trip Invites:** Owners invite friends, managing participant status. Invited users can view details before accepting.
 -   **Friends System:** Invitation-based, bidirectional system with dedicated profiles and token-based invites. Features tabs for friends, friends' trips, and overlaps.
 -   **Trip Ideas:** Suggestions based on overlapping open availability with friends and wishlist matches.
+-   **Mountains Discovery:** `/mountains` tab is a live search + filter page. All active resorts loaded as JSON into the page; country → state/province → name search filters client-side. Default country/state pre-selected from `user.home_state` (onboarding field). Each row links to `/mountain/<slug>`. No new API endpoints.
 -   **Home Coordination Layer:** Home restructured as a 4-section coordination hub — Welcome card → Smart action pills (Ideas/Requests/Add dates) → Happening (ambient friend activity) → Opportunities (ranked coordination feed, up to 5 rows, dismissible). Pills activate `blPillActivate()` to focus/dim sections. New CSS namespace `.bl-*`. Old module system (`home_modules`) preserved in backend for rollback safety but no longer rendered.
 -   **Planning Feature:** Displays availability overlap windows between users and friends, with detail views of available friends for specific windows.
 -   **Friend Profile Calendar:** Toggleable calendar view on friend profiles showing highlighted trip dates with modal details.

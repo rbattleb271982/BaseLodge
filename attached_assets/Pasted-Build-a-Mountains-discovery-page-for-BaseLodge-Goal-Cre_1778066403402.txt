@@ -1,0 +1,91 @@
+Build a Mountains discovery page for BaseLodge.
+
+Goal:
+Create a clean mobile-first Mountains page that lets users search and filter mountains using the same basic pattern we already use in Plan a Trip: country → state/province → mountain results. Each mountain result should link to the existing mountain detail route at /mountain/<slug>.
+
+Scope:
+1. Add or update a /mountains route.
+2. Add a mountains discovery template.
+3. Reuse the existing mountain/resort data and filtering logic from Plan a Trip wherever possible.
+4. Add a search input that searches mountain names.
+5. Add filters for:
+   - Country
+   - State/Province
+6. Do not add pass filtering yet.
+7. Each result row/card should link to /mountain/<slug>.
+8. Keep the UI consistent with the current BaseLodge mobile app style.
+
+Default filter behavior:
+- On initial page load, if the logged-in user has a home state/state from onboarding saved on their profile, preselect that state/province in the State/Province filter.
+- Show mountain results for that state by default.
+- The user should still be able to clear or change the state/province filter.
+- If the user does not have a saved state/province, show all mountains by default.
+- Do not hardcode Colorado or any fallback state.
+- Use the existing User profile field where onboarding stores the user’s state.
+
+Page structure:
+- Header:
+  - Title: Mountains
+  - Subtext: Find the places your winter could happen.
+- Search bar:
+  - Placeholder: Search mountains
+- Filter controls:
+  - Country selector
+  - State/Province selector
+- Results section:
+  - Show mountain cards/rows
+  - Each row should include:
+    - Mountain name
+    - State/Province and country if available
+    - Optional short metadata already available in the model
+    - Chevron or clear tap affordance
+  - Entire row/card should be tappable
+  - Link destination must be /mountain/<slug>
+
+Behavior:
+- Search should filter results by mountain name.
+- Country filter should narrow state/province options and mountain results.
+- State/province filter should narrow mountain results.
+- Clearing filters should restore broader results.
+- If no results are found, show a polished empty state:
+  “No mountains found.”
+  “Try a different search or clear your filters.”
+
+Design requirements:
+- Mobile-first.
+- Use existing BaseLodge colors and typography.
+- Avoid heavy form styling.
+- This should feel like destination discovery, not trip creation.
+- Use clean rows/cards, soft dividers, generous spacing, and sentence-case labels.
+- Do not use Tailwind.
+- Do not redesign the mountain detail page in this task.
+- Do not add pass filtering in this task.
+- Do not create fake region logic.
+
+Technical requirements:
+- Reuse existing models, helper functions, and data access patterns wherever possible.
+- Avoid duplicating Plan a Trip logic if it can be shared safely.
+- Do not break the Plan a Trip flow.
+- Do not remove existing mountain detail routes.
+- Make sure /mountains works for logged-in users.
+- If there is an existing bottom nav or app shell pattern, use it.
+- Keep changes minimal and focused.
+
+Testing:
+- Confirm /mountains loads successfully.
+- Confirm initial state/province defaults to the logged-in user’s onboarding state when available.
+- Confirm users can clear or change the default state/province filter.
+- Confirm users without a saved state/province see all mountains by default.
+- Confirm search works.
+- Confirm country filtering works.
+- Confirm state/province filtering works.
+- Confirm combined search + filters work.
+- Confirm result links open /mountain/<slug>.
+- Confirm empty state appears when there are no matches.
+- Confirm Plan a Trip still works.
+- Confirm Python syntax checks pass.
+- Confirm Jinja template syntax checks pass.
+- Confirm server runs without errors.
+
+Do not finish until you have fully tested this.
+Only use checkpoints if I say so.

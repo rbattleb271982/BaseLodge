@@ -1,45 +1,385 @@
 {% extends "base_app.html" %}
 {% block title %}Mountains — BaseLodge{% endblock %}
+
 {% block head %}
 <style>
-    .mt-page {
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 40px 24px calc(80px + env(safe-area-inset-bottom, 0px));
-        text-align: center;
+    .md-page {
+        padding-top: 28px;
     }
-    .mt-icon {
-        width: 48px;
-        height: 48px;
-        color: var(--bl-color-text-muted);
+
+    /* ── Header ── */
+    .md-header {
         margin-bottom: 20px;
-        opacity: 0.45;
     }
-    .mt-heading {
+    .md-title {
         font-family: var(--bl-font-serif, Georgia, serif);
-        font-size: 28px;
+        font-size: 32px;
         font-weight: 400;
         color: var(--bl-color-text);
-        letter-spacing: -0.3px;
-        margin: 0 0 10px;
+        letter-spacing: -0.4px;
+        margin: 0 0 6px;
+        line-height: 1.1;
     }
-    .mt-sub {
+    .md-sub {
         font-size: 15px;
         color: var(--bl-color-text-muted);
-        line-height: 1.5;
         margin: 0;
+        line-height: 1.45;
+    }
+
+    /* ── Search ── */
+    .md-search-wrap {
+        position: relative;
+        margin-bottom: 12px;
+    }
+    .md-search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--bl-color-text-tertiary);
+        pointer-events: none;
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+    }
+    .md-search {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 11px 14px 11px 36px;
+        font-size: 15px;
+        font-family: inherit;
+        color: var(--bl-color-text);
+        background: var(--bl-color-surface);
+        border: 1px solid var(--bl-color-border-soft);
+        border-radius: 10px;
+        outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+    .md-search:focus {
+        border-color: var(--bl-color-primary);
+    }
+    .md-search::placeholder {
+        color: var(--bl-color-text-tertiary);
+    }
+
+    /* ── Filters ── */
+    .md-filters {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    .md-select-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 120px;
+    }
+    .md-select-wrap::after {
+        content: '';
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 0;
+        height: 0;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 5px solid var(--bl-color-text-tertiary);
+        pointer-events: none;
+    }
+    .md-select {
+        width: 100%;
+        padding: 10px 32px 10px 12px;
+        font-size: 14px;
+        font-family: inherit;
+        color: var(--bl-color-text);
+        background: var(--bl-color-surface);
+        border: 1px solid var(--bl-color-border-soft);
+        border-radius: 8px;
+        outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+        cursor: pointer;
+    }
+    .md-select:focus {
+        border-color: var(--bl-color-primary);
+    }
+    .md-select--active {
+        border-color: var(--bl-color-primary);
+        color: var(--bl-color-primary);
+    }
+
+    /* ── Clear filters link ── */
+    .md-clear-wrap {
+        margin-bottom: 12px;
+        min-height: 20px;
+    }
+    .md-clear-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        font-size: 13px;
+        color: var(--bl-color-primary);
+        cursor: pointer;
+        font-family: inherit;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+
+    /* ── Results count ── */
+    .md-count {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--bl-color-text-tertiary);
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+    }
+
+    /* ── Result rows ── */
+    .md-results {
+        display: flex;
+        flex-direction: column;
+    }
+    .md-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 2px;
+        border-bottom: 1px solid var(--bl-color-border-soft);
+        text-decoration: none;
+        color: inherit;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .md-row:first-child {
+        border-top: 1px solid var(--bl-color-border-soft);
+    }
+    .md-row:active {
+        opacity: 0.65;
+    }
+    .md-row-body {
+        flex: 1;
+        min-width: 0;
+    }
+    .md-row-name {
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--bl-color-text);
+        margin: 0 0 2px;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .md-row-meta {
+        font-size: 13px;
+        color: var(--bl-color-text-muted);
+        margin: 0;
+        line-height: 1.3;
+    }
+    .md-row-chevron {
+        font-size: 18px;
+        color: var(--bl-color-text-tertiary);
+        flex-shrink: 0;
+        line-height: 1;
+    }
+
+    /* ── Empty state ── */
+    .md-empty {
+        padding: 40px 0 20px;
+        text-align: center;
+    }
+    .md-empty-heading {
+        font-family: var(--bl-font-serif, Georgia, serif);
+        font-size: 20px;
+        font-weight: 400;
+        color: var(--bl-color-text);
+        margin: 0 0 8px;
+    }
+    .md-empty-sub {
+        font-size: 14px;
+        color: var(--bl-color-text-muted);
+        margin: 0;
+        line-height: 1.5;
     }
 </style>
 {% endblock %}
+
 {% block content %}
-<div class="page-container mt-page">
-    <svg class="mt-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 20l5.5-9L12 16l3.5-6L22 20H3z" />
-    </svg>
-    <h1 class="mt-heading">Mountains</h1>
-    <p class="mt-sub">Mountain discovery coming soon.</p>
+<div class="page-container md-page">
+
+    <div class="md-header">
+        <h1 class="md-title">Mountains</h1>
+        <p class="md-sub">Find the places your winter could happen.</p>
+    </div>
+
+    <div class="md-search-wrap">
+        <svg class="md-search-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+        </svg>
+        <input class="md-search" type="search" id="md-search"
+               placeholder="Search mountains" autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
+
+    <div class="md-filters">
+        <div class="md-select-wrap">
+            <select class="md-select" id="md-country">
+                <option value="">All countries</option>
+                {% for code, name in countries %}
+                <option value="{{ code }}">{{ name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="md-select-wrap">
+            <select class="md-select" id="md-state">
+                <option value="">All regions</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="md-clear-wrap" id="md-clear-wrap" style="display:none;">
+        <button class="md-clear-btn" type="button" onclick="mdClearFilters()">Clear filters</button>
+    </div>
+
+    <p class="md-count" id="md-count"></p>
+
+    <div class="md-results" id="md-results"></div>
+
+    <div class="md-empty" id="md-empty" style="display:none;">
+        <p class="md-empty-heading">No mountains found.</p>
+        <p class="md-empty-sub">Try a different search or clear your filters.</p>
+    </div>
+
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var RESORTS = {{ resorts_data | tojson }};
+    var STATES_BY_COUNTRY = {{ states_by_country | tojson }};
+    var DEFAULT_COUNTRY = {{ default_country | tojson }};
+    var DEFAULT_STATE   = {{ default_state   | tojson }};
+
+    var elSearch  = document.getElementById('md-search');
+    var elCountry = document.getElementById('md-country');
+    var elState   = document.getElementById('md-state');
+    var elResults = document.getElementById('md-results');
+    var elEmpty   = document.getElementById('md-empty');
+    var elCount   = document.getElementById('md-count');
+    var elClearWrap = document.getElementById('md-clear-wrap');
+
+    function renderStateOptions(countryCode, selectedState) {
+        var states = (countryCode && STATES_BY_COUNTRY[countryCode]) ? STATES_BY_COUNTRY[countryCode] : [];
+        var html = '<option value="">All regions</option>';
+        states.forEach(function (pair) {
+            var sc = pair[0], sn = pair[1];
+            var sel = (sc === selectedState) ? ' selected' : '';
+            html += '<option value="' + escHtml(sc) + '"' + sel + '>' + escHtml(sn) + '</option>';
+        });
+        elState.innerHTML = html;
+        elState.disabled = states.length === 0;
+        updateSelectActiveClass(elState);
+    }
+
+    function filterAndRender() {
+        var query   = elSearch.value.trim().toLowerCase();
+        var country = elCountry.value;
+        var state   = elState.value;
+
+        var filtered = RESORTS.filter(function (r) {
+            if (country && r.country_code !== country) return false;
+            if (state   && r.state_code   !== state)   return false;
+            if (query   && r.name.toLowerCase().indexOf(query) === -1) return false;
+            return true;
+        });
+
+        // Results
+        if (filtered.length === 0) {
+            elResults.innerHTML = '';
+            elEmpty.style.display = '';
+        } else {
+            elEmpty.style.display = 'none';
+            elResults.innerHTML = filtered.map(function (r) {
+                var meta = buildMeta(r);
+                return '<a href="/mountain/' + escHtml(r.slug) + '" class="md-row">' +
+                    '<div class="md-row-body">' +
+                    '<p class="md-row-name">' + escHtml(r.name) + '</p>' +
+                    (meta ? '<p class="md-row-meta">' + escHtml(meta) + '</p>' : '') +
+                    '</div>' +
+                    '<span class="md-row-chevron">&#8250;</span>' +
+                    '</a>';
+            }).join('');
+        }
+
+        // Count label
+        elCount.textContent = filtered.length === 1 ? '1 mountain' : (filtered.length + ' mountains');
+
+        // Clear button
+        var hasFilter = query || country || state;
+        elClearWrap.style.display = hasFilter ? '' : 'none';
+
+        updateSelectActiveClass(elCountry);
+        updateSelectActiveClass(elState);
+    }
+
+    function buildMeta(r) {
+        var parts = [];
+        if (r.state_name && r.state_name !== r.country_name) {
+            parts.push(r.state_name);
+        } else if (r.state_code) {
+            parts.push(r.state_code);
+        }
+        if (r.country_code && r.country_code !== 'US') {
+            parts.push(r.country_name || r.country_code);
+        }
+        return parts.join(', ');
+    }
+
+    function updateSelectActiveClass(el) {
+        if (el.value) {
+            el.classList.add('md-select--active');
+        } else {
+            el.classList.remove('md-select--active');
+        }
+    }
+
+    function escHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function mdClearFilters() {
+        elSearch.value  = '';
+        elCountry.value = '';
+        renderStateOptions('', '');
+        filterAndRender();
+    }
+    window.mdClearFilters = mdClearFilters;
+
+    // ── Event listeners ──────────────────────────────────────────
+    elSearch.addEventListener('input', filterAndRender);
+
+    elCountry.addEventListener('change', function () {
+        renderStateOptions(elCountry.value, '');
+        filterAndRender();
+    });
+
+    elState.addEventListener('change', filterAndRender);
+
+    // ── Initial render with defaults ─────────────────────────────
+    if (DEFAULT_COUNTRY) {
+        elCountry.value = DEFAULT_COUNTRY;
+    }
+    renderStateOptions(DEFAULT_COUNTRY, DEFAULT_STATE);
+    filterAndRender();
+
+}());
+</script>
 {% endblock %}

@@ -2672,8 +2672,71 @@ def overlap_detail():
 @app.route("/mountains")
 @login_required
 def mountains_tab():
-    """Mountains placeholder page — discovery feature coming soon."""
-    return render_template("mountains_tab.html")
+    """Mountains discovery page — search and filter all active resorts."""
+    user = current_user
+
+    all_resorts = Resort.query.filter_by(is_active=True, is_region=False).order_by(
+        Resort.country_code, Resort.state_code, Resort.name
+    ).all()
+
+    resorts_data = []
+    for r in all_resorts:
+        cc = r.country_code or r.country or ""
+        sc = r.state_code or r.state or ""
+        sn = r.state_name or r.state_full or ""
+        cn = r.country_name or COUNTRY_NAMES.get(cc, cc) or ""
+        resorts_data.append({
+            "id": r.id,
+            "name": r.name,
+            "slug": r.slug or "",
+            "country_code": cc,
+            "country_name": cn,
+            "state_code": sc,
+            "state_name": sn or sc,
+        })
+
+    # Countries present in DB, US and CA sorted first
+    seen_countries = {}
+    for rd in resorts_data:
+        cc = rd["country_code"]
+        if cc and cc not in seen_countries:
+            seen_countries[cc] = rd["country_name"] or COUNTRY_NAMES.get(cc, cc)
+
+    def _country_sort(item):
+        c = item[0]
+        return (0, "") if c == "US" else ((1, "") if c == "CA" else (2, item[1]))
+
+    countries = sorted(seen_countries.items(), key=_country_sort)
+
+    # States/regions per country present in DB
+    _sbcmap = {}
+    for rd in resorts_data:
+        cc, sc, sn = rd["country_code"], rd["state_code"], rd["state_name"]
+        if cc and sc:
+            _sbcmap.setdefault(cc, {})[sc] = sn or sc
+
+    states_by_country = {
+        cc: sorted(sd.items(), key=lambda x: x[1])
+        for cc, sd in _sbcmap.items()
+    }
+
+    # Default filter: user's saved home state (onboarding)
+    default_state = user.home_state or ""
+    default_country = ""
+    if default_state:
+        for cc, state_list in states_by_country.items():
+            if any(sc == default_state for sc, _ in state_list):
+                default_country = cc
+                break
+
+    return render_template(
+        "mountains_tab.html",
+        resorts_data=resorts_data,
+        countries=countries,
+        states_by_country=states_by_country,
+        default_country=default_country,
+        default_state=default_state,
+    )
 
 
 @app.route("/trip-ideas")
