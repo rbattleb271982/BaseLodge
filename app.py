@@ -3421,33 +3421,46 @@ def push_register_token():
             user_id=current_user.id, token=token
         ).first()
         if existing:
-            existing.active = True
+            active_before  = existing.active
+            env_before     = existing.apns_environment
+            existing.active     = True
             existing.updated_at = datetime.utcnow()
-            # Preserve an environment that was confirmed by a successful APNs retry.
-            # A client hint (Capacitor.DEBUG=false → "production") or server inference
-            # (APNS_USE_SANDBOX=false → "production") is weaker than ground truth from
-            # Apple. If the stored env is already a definitive value ("sandbox" or
-            # "production") and differs from the incoming label, keep the stored value —
-            # it was corrected by a retry that actually succeeded.
-            if existing.apns_environment == "unknown" or existing.apns_environment == apns_env:
+            # Environment precedence: only overwrite if the stored value is NULL or
+            # "unknown". sandbox/production values are confirmed by APNs behavior
+            # (either initial registration or a successful retry correction) and must
+            # not be overwritten by a weaker client-side hint.
+            if existing.apns_environment in (None, "unknown") or existing.apns_environment == apns_env:
                 existing.apns_environment = apns_env
                 env_preserved = False
             else:
                 env_preserved = True
-            action = "refreshed"
+            env_after = existing.apns_environment
+            action    = "refreshed"
+            new_row   = None
         else:
+            active_before = None
+            env_before    = None
             env_preserved = False
-            db.session.add(PushDeviceToken(
+            env_after     = apns_env
+            new_row = PushDeviceToken(
                 user_id=current_user.id,
                 token=token,
                 platform=platform,
                 apns_environment=apns_env,
-            ))
+            )
+            db.session.add(new_row)
             action = "inserted"
+        db.session.flush()   # populate new_row.id (insert) before commit
+        tok_id = existing.id if existing else new_row.id
         db.session.commit()
         current_app.logger.info(
-            "[PushToken] user_id=%s platform=%s token=%s action=%s env=%s env_source=%s env_preserved=%s",
-            current_user.id, platform, token_preview, action, apns_env, env_source, env_preserved
+            "[PushToken] action=%s token_id=%s user_id=%s token=%s platform=%s "
+            "active_before=%s active_after=True "
+            "apns_environment_before=%s apns_environment_after=%s "
+            "env_source=%s env_preserved=%s",
+            action, tok_id, current_user.id, token_preview, platform,
+            active_before, env_before, env_after,
+            env_source, env_preserved,
         )
     except Exception:
         db.session.rollback()
@@ -3948,20 +3961,15 @@ def admin_test_push():
         mismatched = [r for r in rows if r.apns_environment == wrong_env]
         return matched or unknown or mismatched
 
-    preferred = _env_priority(active_rows)
-    using_inactive_fallback = False
-    if not preferred and inactive_rows:
-        preferred = _env_priority(inactive_rows) or inactive_rows
-        using_inactive_fallback = True
-
-    token_row = preferred[0] if preferred else None
+    # Active tokens only — ordered by env priority then newest first.
+    # Inactive tokens are shown in diagnostics but never sent to.
+    token_row = (_env_priority(active_rows) or [None])[0]
 
     current_app.logger.warning(
-        "[TestPush] selected id=%s active=%s env=%s inactive_fallback=%s preview=%s",
+        "[TestPush] selected id=%s active=%s env=%s preview=%s",
         token_row.id if token_row else None,
         token_row.active if token_row else None,
         token_row.apns_environment if token_row else None,
-        using_inactive_fallback,
         _tok_preview(token_row.token) if token_row else None,
     )
 
@@ -3994,14 +4002,25 @@ def admin_test_push():
             "total": len(all_token_rows),
             "active": len(active_rows),
             "inactive": len(inactive_rows),
-            "using_inactive_fallback": using_inactive_fallback,
+            "using_inactive_fallback": False,
         },
     }
 
-    if not token_row:
-        diag["selected_token"] = None
-        diag["error"] = f"No iOS token found for user_id={target_user_id} (active or inactive)"
-        return jsonify({"success": False, **diag}), 404
+    if not active_rows:
+        current_app.logger.warning(
+            "[TestPush] no active tokens for user_id=%d — skipping APNs send", target_user_id
+        )
+        return jsonify({
+            "success": False,
+            "final_success": False,
+            "reason": "no_active_tokens",
+            "error": "No active push tokens for this user",
+            "instruction": (
+                "Open the TestFlight app while logged in to register or refresh a "
+                "push token, then try again."
+            ),
+            **diag,
+        }), 200
 
     stored_env_before = token_row.apns_environment
     diag["selected_token"] = {
@@ -4078,6 +4097,59 @@ def admin_test_push():
             "bundle_id": result.get("bundle_id"),
         },
     }), status_http
+
+
+@app.route("/admin/list-tokens", methods=["GET"])
+@login_required
+@admin_required
+def admin_list_tokens():
+    """Admin read-only diagnostic: list all push device tokens for a user.
+
+    Never sends APNs notifications. Safe to call at any time.
+
+    GET /admin/list-tokens
+    GET /admin/list-tokens?user_id=6
+    """
+    try:
+        target_user_id = int(request.args.get("user_id", 2))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "user_id must be an integer"}), 400
+
+    def _tok_preview(t):
+        return t[:8] + "…" + t[-6:] if len(t) > 14 else t[:8] + "…"
+
+    rows = (
+        PushDeviceToken.query
+        .filter_by(user_id=target_user_id)
+        .order_by(PushDeviceToken.updated_at.desc())
+        .all()
+    )
+
+    active_count   = sum(1 for r in rows if r.active)
+    inactive_count = len(rows) - active_count
+
+    return jsonify({
+        "success": True,
+        "target_user_id": target_user_id,
+        "token_counts": {
+            "total": len(rows),
+            "active": active_count,
+            "inactive": inactive_count,
+        },
+        "tokens": [
+            {
+                "id": r.id,
+                "user_id": r.user_id,
+                "platform": r.platform,
+                "active": r.active,
+                "apns_environment": r.apns_environment,
+                "token_preview": _tok_preview(r.token),
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+            }
+            for r in rows
+        ],
+    }), 200
 
 
 def pass_category(pass_type):

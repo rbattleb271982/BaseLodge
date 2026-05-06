@@ -1,0 +1,120 @@
+PUT THIS IN AGENT
+
+Fix BaseLodge APNs backend token lifecycle and /admin/test-push behavior. This is backend-only. Do not touch Xcode, iOS native files, Capacitor config, or UI.
+
+Current confirmed issue:
+- /admin/test-push is sending to inactive fallback tokens.
+- Current response shows token_counts.active=0 and using_inactive_fallback=true.
+- That makes the test misleading because inactive tokens were already marked dead by our own backend.
+- push_register_token may not be reactivating an existing token row when the app refreshes the same user_id/token pair.
+
+Required changes in app.py only:
+
+1. Update push_register_token:
+- When an existing PushDeviceToken row is found for the same (user_id, token), always set active=True.
+- Always update updated_at.
+- Preserve the existing apns_environment protection logic.
+- Environment precedence rule:
+  - If the existing row’s apns_environment is sandbox or production (meaning it was confirmed by APNs behavior), do NOT overwrite it with the weaker client hint.
+  - Only allow the client hint to set apns_environment if the existing row value is unknown or NULL.
+  - New rows may use the client hint as the initial value.
+- Do not create duplicate rows.
+- Lookup existence using (user_id, token).
+- Do not match on token alone.
+- Add structured logging showing:
+  - action=inserted or refreshed
+  - token id
+  - user_id
+  - active_before
+  - active_after
+  - apns_environment_before
+  - apns_environment_after
+  - token_preview
+
+2. Update /admin/test-push:
+- Select active tokens only.
+- Completely remove inactive fallback sending.
+- If active token count is 0:
+  - return HTTP 200
+  - success=false
+  - reason="no_active_tokens"
+  - error="No active push tokens for this user"
+  - final_success=false
+  - target_user_id
+  - token_counts
+  - instruction="Open the TestFlight app while logged in to register or refresh a push token, then try again."
+- Do not call APNs when active=0.
+- It is okay to include inactive token diagnostics in the response, but do not send to them.
+- Keep the existing response schema as much as possible so callers still receive a superset of the current fields.
+
+3. Active token ordering:
+- When multiple active tokens exist, preserve the current priority logic:
+  - matched environment
+  - unknown environment
+  - mismatched environment
+  - then newest updated_at within each tier
+
+4. Add or update a read-only diagnostic endpoint:
+- /admin/list-tokens?user_id=N
+- Admin-only.
+- Use the exact same admin authorization mechanism already used by /admin/test-push.
+- Do not invent a new auth mechanism.
+- Validate user_id as integer.
+- Invalid user_id returns HTTP 400.
+- Missing/invalid admin auth returns HTTP 403.
+- Default to user_id=2 if omitted.
+- Endpoint must NEVER send APNs notifications.
+- Include:
+  - id
+  - user_id
+  - platform
+  - active
+  - apns_environment
+  - token_preview
+  - created_at
+  - updated_at
+- token_preview format must match the existing convention:
+  - first 8 hex chars + … + last 6 hex chars
+- Do not expose full token values.
+
+5. Keep send_apns_push retry logic unchanged:
+- BadEnvironmentKeyInToken retries opposite APNs host.
+- BadDeviceToken retries opposite APNs host.
+- Only deactivate after both APNs environments fail.
+- Unregistered, DeviceTokenNotForTopic, and 410 remain permanent failures.
+
+6. Non-goals:
+- Do not modify send_apns_push behavior beyond what already exists.
+- Do not modify the database schema.
+- Do not add dependencies.
+- Do not refactor unrelated code.
+- Do not touch Xcode/native files.
+- Do not modify unrelated routes or imports.
+
+7. Logging:
+- Use the existing logging pattern already present in app.py.
+- Do not introduce a new logging framework.
+
+8. Tests:
+- Add endpoint tests or Replit App Testing coverage for:
+  - /admin/test-push?user_id=2 when active=0 returns no_active_tokens and does not call APNs
+  - /admin/list-tokens?user_id=2 returns diagnostics without sending
+  - /api/push/register-token refresh path reactivates active=True
+  - duplicate rows are not created
+- Tests must not rely on existing production DB state.
+- Each test should create/setup its own rows and clean up afterward.
+- Tests that verify no APNs send must mock or spy on send_apns_push instead of making real APNs calls.
+
+Testing requirements before marking complete:
+1. Run the app and confirm no syntax/import errors.
+2. Confirm /admin/test-push does not send to inactive tokens.
+3. Confirm /admin/test-push returns no_active_tokens when active=0.
+4. Confirm /admin/list-tokens works and does not expose full tokens.
+5. Confirm refreshing an existing token sets active=True.
+6. Confirm no duplicate token rows are created.
+7. Show actual passing test output in the final response.
+
+If anything in this prompt is ambiguous, stop and ask before implementing. Do not guess intent.
+
+Do not use checkpoints unless I explicitly ask.
+Do not finish until endpoint behavior is tested.
