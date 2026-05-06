@@ -667,15 +667,6 @@ def before_request_handlers():
             request.endpoint in {"health_check"}):
         return None
 
-    # ── Diagnostic logging ────────────────────────────────────────────────────
-    if request.endpoint and request.endpoint not in ("static",):
-        print("=== BEFORE_REQUEST ===", file=sys.stderr)
-        print("endpoint:", request.endpoint, file=sys.stderr)
-        print("current_user.is_authenticated:", current_user.is_authenticated, file=sys.stderr)
-        print("session:", dict(session), file=sys.stderr)
-        print("cookies:", dict(request.cookies), file=sys.stderr)
-        print("=====================", file=sys.stderr)
-
     # ── Navigation gate ───────────────────────────────────────────────────────
     user_state = compute_user_state(current_user)
     redirect_to = resolve_navigation(path, user_state)
@@ -958,7 +949,6 @@ def compute_friend_trip_availability_overlaps(user):
     - list of (friend_id, trip_id, resort_id, resort_name, state, country)
     """
     if not user.open_dates:
-        print("DEBUG_COMPUTE: User has no open_dates field")
         return []
     
     user_open_dates = set()
@@ -972,21 +962,17 @@ def compute_friend_trip_availability_overlaps(user):
             continue
     
     if not user_open_dates:
-        print("DEBUG_COMPUTE: Parsed user_open_dates is empty")
         return []
-    
-    print(f"DEBUG_COMPUTE: User has {len(user_open_dates)} parsed open dates")
+
     friend_ids = get_friend_ids(user.id)
     if not friend_ids:
-        print("DEBUG_COMPUTE: User has no friends")
         return []
     
     friend_trips = SkiTrip.query.filter(
         SkiTrip.user_id.in_(friend_ids),
         SkiTrip.end_date >= date.today()
     ).all()
-    print(f"DEBUG_COMPUTE: Found {len(friend_trips)} active friend trips")
-    
+
     overlap_by_range = {}
     
     for trip in friend_trips:
@@ -999,8 +985,7 @@ def compute_friend_trip_availability_overlaps(user):
         overlapping_dates = user_open_dates & trip_dates
         if not overlapping_dates:
             continue
-        
-        print(f"DEBUG_COMPUTE: Trip {trip.id} to {trip.mountain} has {len(overlapping_dates)} overlapping days")
+
         sorted_dates = sorted(overlapping_dates)
         ranges = []
         range_start = sorted_dates[0]
@@ -1175,7 +1160,8 @@ oauth.register(
 if "sqlite" in app.config.get("SQLALCHEMY_DATABASE_URI", ""):
     with app.app_context():
         db.create_all()
-app.register_blueprint(debug_bp)
+if not is_production:
+    app.register_blueprint(debug_bp)
 
 
 def run_equipment_migration():
@@ -2456,22 +2442,16 @@ def my_trips():
             SkiTripParticipant.status == GuestStatus.INVITED
         ).all()
         invited_trip_ids = [p.trip_id for p in invited_participations]
-        print(f"--- TRIP INVITE DEBUG (User {current_user.id}) ---")
-        print(f"  Invited participations: {[(p.trip_id, p.status.value) for p in invited_participations]}")
-        print(f"  Invited trip IDs: {invited_trip_ids}")
         if invited_trip_ids:
             invited_trips = SkiTrip.query.filter(
                 SkiTrip.id.in_(invited_trip_ids),
                 SkiTrip.end_date >= today
             ).order_by(SkiTrip.start_date.asc()).all() or []
-            print(f"  Invited trips found: {[t.id for t in invited_trips]}")
             # Batch-load inviters (trip owner = inviter) — one query, no N+1
             inviter_ids = list({t.user_id for t in invited_trips})
             inviter_users = User.query.filter(User.id.in_(inviter_ids)).all() if inviter_ids else []
             _inviter_map = {u.id: u for u in inviter_users}
             invite_inviters = {t.id: _inviter_map.get(t.user_id) for t in invited_trips}
-        print(f"  Final invited_trips count: {len(invited_trips)}")
-        print(f"-------------------------------------------")
     except Exception as e:
         print(f"  ERROR fetching invited trips: {e}")
         invited_trips = []
@@ -6912,7 +6892,6 @@ def add_trip():
     states_map = STATE_ABBR_MAP
 
     user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
-    print(f"[add_trip] User passes: {user_passes}")
     
     # Get prefill parameters for "Propose a trip" flow
     def safe_int(val):
