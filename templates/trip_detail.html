@@ -198,7 +198,7 @@
             cursor: pointer;
         }
         .chevron-icon { transition: transform 0.2s ease; }
-        .chevron-icon.expanded { transform: rotate(90deg); }
+        .chevron-icon.expanded { transform: rotate(180deg); }
 
         /* ── Person rows (who's going, pending) ── */
         .td-person-row {
@@ -547,7 +547,7 @@
 
             {# Equipment #}
             <div class="lesson-editor-container">
-                <div class="lesson-row-header" onclick="{% if is_owner %}toggleEquipmentOverride(){% endif %}">
+                <div class="lesson-row-header" id="equipmentHeader" {% if is_owner %}aria-expanded="false"{% endif %} onclick="{% if is_owner %}toggleEquipmentOverride(){% endif %}">
                     <div style="display: flex; flex-direction: column;">
                         <span class="td-accordion-label">Equipment</span>
                         <span style="font-size: 11px; color: var(--bl-color-text-muted); margin-top: 1px;">
@@ -562,7 +562,7 @@
                         </span>
                         {% if is_owner %}
                         <svg class="chevron-icon" id="equipmentChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
-                            <polyline points="9 18 15 12 9 6"></polyline>
+                            <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                         {% endif %}
                     </span>
@@ -589,7 +589,7 @@
 
             {# Transportation #}
             <div class="transport-editor-container">
-                <div class="transport-row-header" onclick="{% if is_owner %}toggleTransportEditor(){% endif %}">
+                <div class="transport-row-header" id="transportHeader" {% if is_owner %}aria-expanded="false"{% endif %} onclick="{% if is_owner %}toggleTransportEditor(){% endif %}">
                     <span class="td-accordion-label">Transportation</span>
                     <span class="transport-summary" style="{% if not is_owner %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
                         <span id="trans-summary-text">
@@ -599,7 +599,7 @@
                         </span>
                         {% if is_owner %}
                         <svg class="chevron-icon" id="transportChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
-                            <polyline points="9 18 15 12 9 6"></polyline>
+                            <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                         {% endif %}
                     </span>
@@ -635,7 +635,7 @@
 
             {# Accommodations #}
             <div class="lesson-editor-container">
-                <div class="lesson-row-header" onclick="{% if is_owner %}toggleAccommodationEditor(){% endif %}">
+                <div class="lesson-row-header" id="accommodationHeader" {% if is_owner %}aria-expanded="false"{% endif %} onclick="{% if is_owner %}toggleAccommodationEditor(){% endif %}">
                     <span class="td-accordion-label">Accommodations</span>
                     <span class="lesson-summary" style="{% if not is_owner %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
                         <span id="accommodation-summary-text">
@@ -643,7 +643,7 @@
                         </span>
                         {% if is_owner %}
                         <svg class="chevron-icon" id="accommodationChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
-                            <polyline points="9 18 15 12 9 6"></polyline>
+                            <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                         {% endif %}
                     </span>
@@ -674,7 +674,7 @@
 
             {# Lessons #}
             <div class="lesson-editor-container" style="border-bottom: none;">
-                <div class="lesson-row-header" onclick="{% if is_owner %}toggleLessonEditor(){% endif %}">
+                <div class="lesson-row-header" id="lessonHeader" {% if is_owner %}aria-expanded="false"{% endif %} onclick="{% if is_owner %}toggleLessonEditor(){% endif %}">
                     <span class="td-accordion-label">Lessons</span>
                     <span class="lesson-summary" style="{% if not is_owner %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
                         <span id="lesson-summary-text">
@@ -684,7 +684,7 @@
                         </span>
                         {% if is_owner %}
                         <svg class="chevron-icon" id="lessonChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
-                            <polyline points="9 18 15 12 9 6"></polyline>
+                            <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                         {% endif %}
                     </span>
@@ -860,12 +860,44 @@
     </div>
 
     <script>
-        function toggleTransportEditor() {
-            const content = document.getElementById('transport-options-inline');
-            const chevron = document.getElementById('transportChevron');
-            content.classList.toggle('expanded');
-            chevron.classList.toggle('expanded');
+        // ── Accordion: single-open for expandable detail rows ──
+        const _TD_PANELS = [
+            { content: 'equipmentOverrideOptions',     chevron: 'equipmentChevron',     header: 'equipmentHeader'     },
+            { content: 'transport-options-inline',     chevron: 'transportChevron',     header: 'transportHeader'     },
+            { content: 'accommodation-options-inline', chevron: 'accommodationChevron', header: 'accommodationHeader' },
+            { content: 'lesson-options-inline',        chevron: 'lessonChevron',        header: 'lessonHeader'        },
+        ];
+
+        function _tdClosePanel(panel) {
+            const el = document.getElementById(panel.content);
+            const ch = document.getElementById(panel.chevron);
+            const hd = document.getElementById(panel.header);
+            if (el) el.classList.remove('expanded');
+            if (ch) ch.classList.remove('expanded');
+            if (hd) hd.setAttribute('aria-expanded', 'false');
         }
+
+        function _tdOpenPanel(panel) {
+            const el = document.getElementById(panel.content);
+            const ch = document.getElementById(panel.chevron);
+            const hd = document.getElementById(panel.header);
+            if (el) el.classList.add('expanded');
+            if (ch) ch.classList.add('expanded');
+            if (hd) hd.setAttribute('aria-expanded', 'true');
+        }
+
+        function _tdToggle(contentId) {
+            const panel = _TD_PANELS.find(p => p.content === contentId);
+            if (!panel) return;
+            const isOpen = document.getElementById(panel.content)?.classList.contains('expanded');
+            _TD_PANELS.forEach(p => _tdClosePanel(p));
+            if (!isOpen) _tdOpenPanel(panel);
+        }
+
+        function toggleTransportEditor()     { _tdToggle('transport-options-inline'); }
+        function toggleEquipmentOverride()   { _tdToggle('equipmentOverrideOptions'); }
+        function toggleAccommodationEditor() { _tdToggle('accommodation-options-inline'); }
+        function toggleLessonEditor()        { _tdToggle('lesson-options-inline'); }
 
         async function saveTransportation(value) {
             const tripId = {{ trip.id }};
@@ -881,13 +913,6 @@
                     toggleTransportEditor();
                 }
             } catch (err) { console.error(err); }
-        }
-
-        function toggleEquipmentOverride() {
-            const content = document.getElementById('equipmentOverrideOptions');
-            const chevron = document.getElementById('equipmentChevron');
-            content.classList.toggle('expanded');
-            chevron.classList.toggle('expanded');
         }
 
         async function updateEquipmentOverride(value) {
@@ -914,13 +939,6 @@
             } catch (err) { console.error(err); }
         }
 
-        function toggleAccommodationEditor() {
-            const content = document.getElementById('accommodation-options-inline');
-            const chevron = document.getElementById('accommodationChevron');
-            content.classList.toggle('expanded');
-            chevron.classList.toggle('expanded');
-        }
-
         async function updateAccommodationStatus(status) {
             const tripId = {{ trip.id }};
             try {
@@ -935,13 +953,6 @@
                     toggleAccommodationEditor();
                 }
             } catch (err) { console.error(err); }
-        }
-
-        function toggleLessonEditor() {
-            const content = document.getElementById('lesson-options-inline');
-            const chevron = document.getElementById('lessonChevron');
-            content.classList.toggle('expanded');
-            chevron.classList.toggle('expanded');
         }
 
         async function saveLesson(value) {
