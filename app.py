@@ -3640,15 +3640,22 @@ def send_apns_push(
             "corrected_token_environment": None, "bundle_id": bundle_id,
         }
 
-    # ── Permanent errors — no retry makes sense ────────────────────────────────
-    _INACTIVE_REASONS = {"BadDeviceToken", "Unregistered", "DeviceTokenNotForTopic"}
-    is_env_mismatch = (first_error == "BadEnvironmentKeyInToken")
+    # ── Decide whether to retry the opposite host ─────────────────────────────
+    # BadEnvironmentKeyInToken: Apple explicitly says wrong environment.
+    # BadDeviceToken: can mean the stored apns_environment label is wrong and the
+    #   token is valid on the other host — always probe opposite before deactivating.
+    # Truly permanent errors that no environment change can fix:
+    #   Unregistered (app uninstalled / token revoked), DeviceTokenNotForTopic
+    #   (wrong bundle), and 410 Gone.
+    _RETRY_REASONS    = {"BadEnvironmentKeyInToken", "BadDeviceToken"}
+    _PERMANENT_REASONS = {"Unregistered", "DeviceTokenNotForTopic"}
+    should_retry = first_error in _RETRY_REASONS
     is_permanent = (
-        first_code in (400, 410)
-        and (first_error in _INACTIVE_REASONS or first_code == 410)
+        first_code == 410
+        or (first_code == 400 and first_error in _PERMANENT_REASONS)
     )
 
-    if not is_env_mismatch and (is_permanent or first_code is None):
+    if not should_retry and (is_permanent or first_code is None):
         if is_permanent:
             try:
                 stale = PushDeviceToken.query.filter_by(token=device_token).first()
@@ -3673,14 +3680,14 @@ def send_apns_push(
             "corrected_token_environment": None, "bundle_id": bundle_id,
         }
 
-    # ── BadEnvironmentKeyInToken — retry against the opposite host ─────────────
+    # ── Retry against the opposite host ────────────────────────────────────────
     retry_sandbox   = not first_sandbox
     retry_env_name  = "sandbox" if retry_sandbox else "production"
     retry_host      = "api.sandbox.push.apple.com" if retry_sandbox else "api.push.apple.com"
 
     current_app.logger.warning(
-        "[APNs] BadEnvironmentKeyInToken on %s — retrying opposite env=%s token=%s",
-        first_host, retry_env_name, token_preview,
+        "[APNs] %s on %s — retrying opposite env=%s token=%s",
+        first_error, first_host, retry_env_name, token_preview,
     )
 
     retry_code, retry_apns_id, retry_error = _fire(retry_sandbox)
@@ -4033,7 +4040,11 @@ def admin_test_push():
             "belongs to the opposite APNs environment. Retry was attempted automatically."
         )
     elif first_err == "BadDeviceToken":
-        explanation = "BadDeviceToken: Token string is malformed or does not exist in APNs. Token deactivated."
+        explanation = (
+            "BadDeviceToken on first attempt — may indicate the token was registered "
+            "against the opposite APNs environment. Retry was attempted automatically "
+            "against the opposite host before deactivating."
+        )
     elif first_err == "Unregistered":
         explanation = "Unregistered: App was uninstalled or token was revoked. Token deactivated."
     elif first_err == "DeviceTokenNotForTopic":

@@ -1,0 +1,52 @@
+PUT THIS IN AGENT
+
+We need one more backend fix for BaseLodge APNs push testing. Do not touch Xcode/native iOS files.
+
+Confirmed:
+- Latest Xcode archive entitlements are correct:
+  aps-environment = production
+- APNS_USE_SANDBOX=false in production
+- New TestFlight build registered a fresh token with token_env_hint=production
+- But /admin/test-push selected the token after it had been relabeled sandbox and sent first to api.sandbox.push.apple.com
+- APNs returned BadDeviceToken
+- The backend immediately deactivated the token without trying production
+
+Problem:
+BadDeviceToken from the preferred/stored environment may still be caused by a wrong stored environment. We should not permanently deactivate a token after BadDeviceToken until we try the opposite APNs host once.
+
+Required change:
+Update send_apns_push so environment fallback applies to BOTH:
+- BadEnvironmentKeyInToken
+- BadDeviceToken
+
+Behavior:
+1. First attempt uses prefer_sandbox if provided, otherwise APNS_USE_SANDBOX.
+2. If first attempt succeeds, return success.
+3. If first attempt returns BadEnvironmentKeyInToken OR BadDeviceToken:
+   - Do not deactivate yet
+   - Retry once against the opposite APNs host
+4. If retry succeeds:
+   - Keep token active=True
+   - Correct PushDeviceToken.apns_environment to the environment that worked
+   - Return env_corrected=true and final_success=true
+5. If retry fails:
+   - Only then mark inactive
+   - Return both attempt results clearly
+6. For clearly permanent failures like Unregistered, keep existing behavior unless the first failure was BadDeviceToken and the opposite host has not yet been tried.
+
+Also update /admin/test-push diagnostics so it clearly shows:
+- why retry was triggered
+- first_attempt error
+- retry error/status
+- whether token was deactivated only after both environments failed
+
+Testing:
+1. Run app and confirm no syntax/import errors.
+2. Hit /admin/test-push after opening the current TestFlight build.
+3. Confirm that if the stored environment is sandbox and sandbox returns BadDeviceToken, the backend retries production before deactivating.
+4. If production succeeds, confirm push arrives and token is corrected to production.
+5. If production also fails, confirm the response clearly shows both failures.
+6. Confirm no duplicate token rows are created.
+
+Do not use checkpoints unless I explicitly ask.
+Do not finish until endpoint behavior is tested.
