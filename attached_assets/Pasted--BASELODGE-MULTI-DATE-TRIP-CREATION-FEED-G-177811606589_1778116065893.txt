@@ -1,0 +1,159 @@
+╔════════════════════════════════════════════════════╗
+║ BASELODGE MULTI-DATE TRIP CREATION + FEED GROUPING ║
+╚════════════════════════════════════════════════════╝
+
+Implement lightweight multi-date trip creation for BaseLodge.
+
+This is NOT recurring trips.
+Do NOT build a recurrence engine.
+Do NOT build series logic.
+Do NOT add “edit all future trips.”
+Do NOT create a grouped trip entity.
+
+Core model:
+- Trips remain atomic.
+- Each selected date range creates its own individual trip record.
+- Creation can be batched as a shortcut.
+- Feed surfaces can summarize repeated trips as a presentation-layer behavior only.
+
+────────────────────────────────────
+PART 1 — MULTI-DATE CREATION
+────────────────────────────────────
+
+On the Add Trip flow, add support for selecting multiple date ranges for the same mountain.
+
+Requirements:
+- User can add arbitrary date ranges one by one.
+- Do NOT force only Fri–Sun weekends.
+- Each selected range should be shown before saving.
+- User can remove a selected range before saving.
+- Saving creates one normal trip per selected date range.
+- After saving, each trip behaves independently.
+- Existing single-trip creation should still work.
+
+Language:
+- Use “Add dates” or “Add weekends”
+- Avoid “recurring,” “series,” “repeat,” or “schedule”
+
+Preferred UX:
+- Mountain selected once
+- User adds one or more date ranges
+- Review list shows selected ranges
+- Primary CTA says something like “Add 4 trips” or “Save dates”
+
+────────────────────────────────────
+PART 2 — DATA MODEL
+────────────────────────────────────
+
+Add a nullable `created_in_batch_id` UUID field to trips if safe.
+
+Purpose:
+- analytics
+- future undo/product learning
+- not user-facing
+- not used as a series object
+
+Rules:
+- Do not use it for display grouping.
+- Do not create parent/child trip logic.
+- Do not create recurrence fields.
+- Do not create series_id or parent_trip_id.
+
+If migration risk is high, pause and report before changing schema.
+
+────────────────────────────────────
+PART 3 — FEED GROUPING
+────────────────────────────────────
+
+Group repeated future trips only in feed contexts.
+
+Apply grouping to:
+- Home/Happening surfaces
+- Friends feed/tab surfaces where repeated friend trips appear
+
+Do NOT group on:
+- Profile pages
+- User’s own Trips tab
+- Trip detail pages
+- History/past-trip views
+
+Grouping rule:
+- same user
+- same mountain
+- same status
+- future trips only
+- 3 or more trips
+- date display should summarize as `Dec–Feb`
+
+Example grouped row:
+“8 weekends at Beaver Creek”
+“Dec–Feb · Going”
+
+If only 1–2 matching trips exist, show them individually.
+
+If statuses differ, split by status.
+
+────────────────────────────────────
+PART 4 — GROUPED ROW TAP BEHAVIOR
+────────────────────────────────────
+
+When a grouped feed row is tapped:
+- open a lightweight bottom sheet/modal
+- show each individual trip/date range inside
+- each individual date row should tap through to its normal trip detail page
+- no grouped detail page
+- no grouped settings
+- no grouped edit screen
+
+Bottom sheet copy:
+- title example: “Beaver Creek weekends”
+- subtitle example: “8 planned dates”
+- rows show individual date ranges
+
+Keep it mobile-first and calm.
+
+────────────────────────────────────
+PART 5 — DESIGN SYSTEM
+────────────────────────────────────
+
+Follow existing BaseLodge design:
+- premium
+- editorial
+- Apple-like
+- maroon/cream palette
+- minimal UI
+- no dashboard styling
+- no heavy shadows
+- no gamification
+- no badges unless already used in this surface
+
+Grouped rows should feel like they belong in the current feed/card system.
+
+Do not redesign unrelated screens.
+
+────────────────────────────────────
+PART 6 — QA
+────────────────────────────────────
+
+Verify:
+- existing single trip creation still works
+- multi-date creation creates separate trip records
+- each created trip has its own detail page
+- each created trip can be edited independently
+- profile pages show all dates individually
+- Trips tab shows all dates individually
+- Home/Friends feeds group only when threshold is 3+
+- grouped rows split by status
+- grouped rows only include future trips
+- bottom sheet opens correctly
+- bottom sheet rows route to correct trip detail pages
+- no recurrence/series language appears anywhere
+- no native/iOS files changed
+
+Deployment notes:
+- This requires Replit testing.
+- This requires Replit publish/deploy after testing.
+- This requires GitHub push after Replit is correct.
+- This does NOT require Xcode/TestFlight rebuild unless native files are changed.
+
+Use checkpoints sparingly. Only use them if absolutely necessary.
