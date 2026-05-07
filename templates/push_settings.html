@@ -1,0 +1,164 @@
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — Push notifications{% endblock %}
+{% block head %}
+<style>
+    .ps-back {
+        display: inline-block;
+        font-size: 22px;
+        color: #6B665A;
+        text-decoration: none;
+        margin-bottom: 20px;
+        line-height: 1;
+    }
+    .ps-eyebrow {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        color: #6B665A;
+        margin: 0 0 6px 0;
+    }
+    .ps-title {
+        font-family: var(--bl-font-serif);
+        font-size: 28px;
+        font-weight: 400;
+        color: #1A1A1A;
+        margin: 0 0 28px 0;
+        line-height: 1.2;
+    }
+    .ps-toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px 0;
+        border-top: 1px solid var(--bl-color-border-soft);
+        border-bottom: 1px solid var(--bl-color-border-soft);
+    }
+    .ps-toggle-label {
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--bl-color-text);
+        display: block;
+        margin-bottom: 3px;
+    }
+    .ps-toggle-hint {
+        font-size: 13px;
+        color: var(--bl-color-text-muted);
+        line-height: 1.45;
+        display: block;
+    }
+    .ps-status {
+        font-size: 13px;
+        color: #8A857A;
+        margin: 10px 0 0 0;
+        min-height: 18px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+    <a href="{{ url_for('profile') }}" class="ps-back">‹</a>
+    <p class="ps-eyebrow">Account</p>
+    <h1 class="ps-title">Push notifications</h1>
+
+    <div class="ps-toggle-row">
+        <div>
+            <span class="ps-toggle-label">Push notifications</span>
+            <span class="ps-toggle-hint">Trip invites, overlap alerts, and important updates.</span>
+        </div>
+        <button type="button"
+                id="ps-push-toggle"
+                role="switch"
+                aria-checked="{{ 'true' if current_user.push_notifications_enabled else 'false' }}"
+                style="flex-shrink:0; width:50px; height:28px; border-radius:14px; border:none; cursor:pointer;
+                       background:{{ '#5C1219' if current_user.push_notifications_enabled else '#C9C3B8' }};
+                       position:relative; transition:background 0.2s; -webkit-tap-highlight-color:transparent;"
+                onclick="blTogglePushPref(this)">
+            <span style="position:absolute; top:3px; width:22px; height:22px; border-radius:50%; background:#fff;
+                          box-shadow:0 1px 3px rgba(0,0,0,.25); transition:left 0.2s;
+                          left:{{ '25px' if current_user.push_notifications_enabled else '3px' }};"></span>
+        </button>
+    </div>
+
+    <p id="ps-push-toggle-status" class="ps-status"></p>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // ── Push notification status label helper ─────────────────────────
+    function _blPushStatusLabel(appEnabled, osStatus) {
+        if (!appEnabled) return 'Push notifications off in BaseLodge';
+        if (osStatus === 'denied') return 'Notifications blocked at device level';
+        if (osStatus === 'not_determined') return 'Permission not yet granted';
+        return 'Push notifications on';
+    }
+
+    // ── Set initial status text on page load ──────────────────────────
+    (function() {
+        var statusEl = document.getElementById('ps-push-toggle-status');
+        if (!statusEl) return;
+        var toggleBtn = document.getElementById('ps-push-toggle');
+        var appEnabled = toggleBtn && toggleBtn.getAttribute('aria-checked') === 'true';
+        statusEl.textContent = appEnabled ? 'Push notifications on' : 'Push notifications off in BaseLodge';
+        if (typeof window.blOnOSPermReady === 'function') {
+            window.blOnOSPermReady(function(osPerm) {
+                statusEl.textContent = _blPushStatusLabel(appEnabled, osPerm && osPerm.status);
+            });
+        }
+    })();
+
+    // ── Push notification toggle (saves immediately via API) ──────────
+    var _pushToggleBusy = false;
+    function blTogglePushPref(btn) {
+        if (_pushToggleBusy) return;
+        var currentlyEnabled = btn.getAttribute('aria-checked') === 'true';
+        var nextEnabled = !currentlyEnabled;
+        _pushToggleBusy = true;
+        var knob = btn.querySelector('span');
+        var statusEl = document.getElementById('ps-push-toggle-status');
+        btn.setAttribute('aria-checked', String(nextEnabled));
+        btn.style.background = nextEnabled ? '#5C1219' : '#C9C3B8';
+        if (knob) knob.style.left = nextEnabled ? '25px' : '3px';
+        if (statusEl) statusEl.textContent = 'Saving\u2026';
+        fetch('/api/push/preferences', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({push_enabled: nextEnabled})
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            _pushToggleBusy = false;
+            if (data.ok) {
+                var osStatus = typeof window.blGetOSPermStatus === 'function' ? window.blGetOSPermStatus() : null;
+                if (statusEl) statusEl.textContent = _blPushStatusLabel(nextEnabled, osStatus);
+                if (typeof window.blSetPushEnabled === 'function') {
+                    window.blSetPushEnabled(nextEnabled);
+                    if (nextEnabled) {
+                        setTimeout(function() {
+                            var freshOs = typeof window.blGetOSPermStatus === 'function' ? window.blGetOSPermStatus() : null;
+                            if (statusEl) statusEl.textContent = _blPushStatusLabel(true, freshOs);
+                        }, 2500);
+                    }
+                }
+            } else {
+                btn.setAttribute('aria-checked', String(currentlyEnabled));
+                btn.style.background = currentlyEnabled ? '#5C1219' : '#C9C3B8';
+                if (knob) knob.style.left = currentlyEnabled ? '25px' : '3px';
+                if (statusEl) statusEl.textContent = 'Could not save \u2014 try again';
+            }
+        })
+        .catch(function() {
+            _pushToggleBusy = false;
+            btn.setAttribute('aria-checked', String(currentlyEnabled));
+            btn.style.background = currentlyEnabled ? '#5C1219' : '#C9C3B8';
+            if (knob) knob.style.left = currentlyEnabled ? '25px' : '3px';
+            if (statusEl) statusEl.textContent = 'Could not save \u2014 try again';
+        });
+    }
+</script>
+{% endblock %}

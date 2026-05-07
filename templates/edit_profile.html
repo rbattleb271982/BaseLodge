@@ -266,30 +266,6 @@
         </div>
     </div>
 
-    <!-- 4. Notifications -->
-    <div class="ep-section" id="ep-notifications-section">
-        <p class="ep-section-label">Notifications</p>
-        <div class="ep-field" style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
-            <div>
-                <span class="ep-field-label" style="margin-bottom:2px; display:block;">Push notifications</span>
-                <span class="ep-field-hint" style="margin:0;">Receive alerts for trip activity and friend updates</span>
-            </div>
-            <button type="button"
-                    id="ep-push-toggle"
-                    role="switch"
-                    aria-checked="{{ 'true' if current_user.push_notifications_enabled else 'false' }}"
-                    style="flex-shrink:0; width:50px; height:28px; border-radius:14px; border:none; cursor:pointer;
-                           background:{{ '#5C1219' if current_user.push_notifications_enabled else '#C9C3B8' }};
-                           position:relative; transition:background 0.2s; -webkit-tap-highlight-color:transparent;"
-                    onclick="blTogglePushPref(this)">
-                <span style="position:absolute; top:3px; width:22px; height:22px; border-radius:50%; background:#fff;
-                              box-shadow:0 1px 3px rgba(0,0,0,.25); transition:left 0.2s;
-                              left:{{ '25px' if current_user.push_notifications_enabled else '3px' }};"></span>
-            </button>
-        </div>
-        <p id="ep-push-toggle-status" style="font-size:12px; color:#8A857A; margin:8px 0 0 0; min-height:16px;"></p>
-    </div>
-
     <!-- Hidden form (submitted on Save) -->
     <form method="POST" action="{{ url_for('edit_profile') }}" id="editProfileForm">
         <input type="hidden" name="rider_types" id="rider_types_hidden" value="{{ (current_user.rider_types or [])|join(',') }}">
@@ -482,82 +458,6 @@
     });
 
     document.getElementById('previous_pass_select').addEventListener('change', markDirty);
-
-    // ── Push notification status label helper ─────────────────────────
-    function _blPushStatusLabel(appEnabled, osStatus) {
-        if (!appEnabled) return 'Push notifications off in BaseLodge';
-        if (osStatus === 'denied') return 'Notifications blocked at device level';
-        if (osStatus === 'not_determined') return 'Permission not yet granted';
-        return 'Push notifications on';
-    }
-
-    // ── Set initial status text on page load ──────────────────────────
-    (function() {
-        var statusEl = document.getElementById('ep-push-toggle-status');
-        if (!statusEl) return;
-        var toggleBtn = document.getElementById('ep-push-toggle');
-        var appEnabled = toggleBtn && toggleBtn.getAttribute('aria-checked') === 'true';
-        // Immediate server-derived label (works in browser and native)
-        statusEl.textContent = appEnabled ? 'Push notifications on' : 'Push notifications off in BaseLodge';
-        // Refine with OS permission state once native init resolves (native only)
-        if (typeof window.blOnOSPermReady === 'function') {
-            window.blOnOSPermReady(function(osPerm) {
-                statusEl.textContent = _blPushStatusLabel(appEnabled, osPerm && osPerm.status);
-            });
-        }
-    })();
-
-    // ── Push notification toggle (saves immediately via API) ──────────
-    var _pushToggleBusy = false;
-    function blTogglePushPref(btn) {
-        if (_pushToggleBusy) return;
-        var currentlyEnabled = btn.getAttribute('aria-checked') === 'true';
-        var nextEnabled = !currentlyEnabled;
-        _pushToggleBusy = true;
-        var knob = btn.querySelector('span');
-        var statusEl = document.getElementById('ep-push-toggle-status');
-        btn.setAttribute('aria-checked', String(nextEnabled));
-        btn.style.background = nextEnabled ? '#5C1219' : '#C9C3B8';
-        if (knob) knob.style.left = nextEnabled ? '25px' : '3px';
-        if (statusEl) statusEl.textContent = 'Saving…';
-        fetch('/api/push/preferences', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({push_enabled: nextEnabled})
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            _pushToggleBusy = false;
-            if (data.ok) {
-                // Show immediate label, then sync native SDK
-                var osStatus = typeof window.blGetOSPermStatus === 'function' ? window.blGetOSPermStatus() : null;
-                if (statusEl) statusEl.textContent = _blPushStatusLabel(nextEnabled, osStatus);
-                if (typeof window.blSetPushEnabled === 'function') {
-                    window.blSetPushEnabled(nextEnabled);
-                    // If enabling: re-prompt may change OS status — refresh label after delay
-                    if (nextEnabled) {
-                        setTimeout(function() {
-                            var freshOs = typeof window.blGetOSPermStatus === 'function' ? window.blGetOSPermStatus() : null;
-                            if (statusEl) statusEl.textContent = _blPushStatusLabel(true, freshOs);
-                        }, 2500);
-                    }
-                }
-            } else {
-                // Revert on error
-                btn.setAttribute('aria-checked', String(currentlyEnabled));
-                btn.style.background = currentlyEnabled ? '#5C1219' : '#C9C3B8';
-                if (knob) knob.style.left = currentlyEnabled ? '25px' : '3px';
-                if (statusEl) statusEl.textContent = 'Could not save — try again';
-            }
-        })
-        .catch(function() {
-            _pushToggleBusy = false;
-            btn.setAttribute('aria-checked', String(currentlyEnabled));
-            btn.style.background = currentlyEnabled ? '#5C1219' : '#C9C3B8';
-            if (knob) knob.style.left = currentlyEnabled ? '25px' : '3px';
-            if (statusEl) statusEl.textContent = 'Could not save — try again';
-        });
-    }
 
     // ── Hide floating save bar while keyboard is open ─────────────────
     const epFloatingSave = document.querySelector('.ep-floating-save');

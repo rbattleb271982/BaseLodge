@@ -7318,6 +7318,12 @@ def settings_mountains():
     return redirect(url_for('mountains_visited'))
 
 
+@app.route("/push-settings")
+@login_required
+def push_settings():
+    return render_template("push_settings.html")
+
+
 @app.route("/settings/password")
 @login_required
 def settings_password():
