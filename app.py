@@ -1275,6 +1275,37 @@ def run_batch_trip_migration():
 
 run_batch_trip_migration()
 
+
+def run_push_notif_pref_migration():
+    """Add push_notifications_enabled column to user table (May 2026).
+
+    Boolean, NOT NULL, default TRUE — allows users to opt out of push
+    notifications at the app level. Uses IF NOT EXISTS so it is a no-op
+    on repeat runs.
+    """
+    try:
+        with app.app_context():
+            conn = db.engine.connect()
+            trans = conn.begin()
+            try:
+                conn.execute(db.text(
+                    "ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS "
+                    "push_notifications_enabled BOOLEAN NOT NULL DEFAULT TRUE"
+                ))
+                trans.commit()
+                print("push_notif_pref_migration: push_notifications_enabled column ready.")
+            except Exception as inner_e:
+                trans.rollback()
+                print(f"push_notif_pref_migration inner error (rolled back): {inner_e}")
+            finally:
+                conn.close()
+    except Exception as e:
+        print(f"push_notif_pref_migration: skipped ({e})")
+
+
+run_push_notif_pref_migration()
+
+
 # ============================================================================
 # PRODUCTION DIAGNOSTICS - Print on startup
 # ============================================================================
@@ -3640,6 +3671,39 @@ def push_debug_beacon():
     return jsonify({"ok": True}), 200
 
 
+@app.route("/api/push/preferences", methods=["POST"])
+@login_required
+def push_preferences():
+    """Set the current user's push notification preference.
+
+    Body: { "push_enabled": true | false }
+    Returns: { "ok": true, "push_enabled": <bool> }
+
+    Writes push_notifications_enabled on the User row. The backend
+    send_onesignal_push() helper checks this flag before sending.
+    The native client should also call window.blSetPushEnabled() after
+    a successful response to opt the OneSignal subscription in/out.
+    """
+    body = request.get_json(silent=True) or {}
+    if "push_enabled" not in body:
+        return jsonify({"error": "push_enabled field required"}), 400
+    enabled = body["push_enabled"]
+    if not isinstance(enabled, bool):
+        return jsonify({"error": "push_enabled must be a boolean"}), 400
+    current_user.push_notifications_enabled = enabled
+    try:
+        db.session.commit()
+        current_app.logger.warning(
+            "[PushPref] user_id=%s push_notifications_enabled=%s",
+            current_user.id, enabled,
+        )
+    except Exception as _e:
+        db.session.rollback()
+        current_app.logger.error("[PushPref] save failed: %s", _e)
+        return jsonify({"error": "save_failed"}), 500
+    return jsonify({"ok": True, "push_enabled": enabled}), 200
+
+
 # ---------------------------------------------------------------------------
 # Firebase Cloud Messaging (FCM) — Android push sending
 # ---------------------------------------------------------------------------
@@ -4155,7 +4219,33 @@ def send_onesignal_push(user_ids, title, body, data=None):
         )
         return {"success": False, "notification_id": None, "error": "missing_config"}
 
-    external_ids = [str(uid) for uid in user_ids]
+    all_ids = list(user_ids)
+
+    # Filter out users who have opted out of push notifications
+    try:
+        opted_out = {
+            row.id for row in
+            db.session.query(User.id).filter(
+                User.id.in_(all_ids),
+                User.push_notifications_enabled == False  # noqa: E712
+            ).all()
+        }
+        if opted_out:
+            current_app.logger.warning(
+                "[OneSignal] send_push: skipping %d opted-out user(s): %s",
+                len(opted_out), sorted(opted_out),
+            )
+        all_ids = [uid for uid in all_ids if uid not in opted_out]
+    except Exception as _filter_err:
+        current_app.logger.warning(
+            "[OneSignal] send_push: opt-out filter failed (%s) — proceeding with all ids", _filter_err
+        )
+
+    if not all_ids:
+        current_app.logger.warning("[OneSignal] send_push: no eligible recipients after opt-out filter — skipped")
+        return {"success": False, "notification_id": None, "error": "all_opted_out"}
+
+    external_ids = [str(uid) for uid in all_ids]
 
     payload = {
         "app_id":          app_id,

@@ -508,6 +508,178 @@
 
         console.log('[OneSignal] init sequence complete');
 
+        // ── Expose opt-in/out helper for the push preference toggle ──────────
+        // Called by blTogglePushPref() in edit_profile.html after the server
+        // preference is saved. No-op in browser (this code only runs natively).
+        window.blSetPushEnabled = function(enabled) {
+          try {
+            if (typeof OS.User !== 'undefined' && OS.User && OS.User.PushSubscription) {
+              // SDK 5.x
+              if (enabled) {
+                OS.User.PushSubscription.optIn().then(function() {
+                  console.log('[OneSignal] blSetPushEnabled: optIn() called (SDK 5.x)');
+                }).catch(function(e) {
+                  console.warn('[OneSignal] blSetPushEnabled: optIn() error:', e);
+                });
+              } else {
+                OS.User.PushSubscription.optOut().then(function() {
+                  console.log('[OneSignal] blSetPushEnabled: optOut() called (SDK 5.x)');
+                }).catch(function(e) {
+                  console.warn('[OneSignal] blSetPushEnabled: optOut() error:', e);
+                });
+              }
+            } else if (typeof OS.disablePush === 'function') {
+              // SDK 4.x fallback
+              OS.disablePush({ disabled: !enabled }).then(function() {
+                console.log('[OneSignal] blSetPushEnabled: disablePush(' + !enabled + ') called (SDK 4.x)');
+              }).catch(function(e) {
+                console.warn('[OneSignal] blSetPushEnabled: disablePush error:', e);
+              });
+            } else {
+              console.warn('[OneSignal] blSetPushEnabled: no supported opt-in/out method found');
+            }
+          } catch (_opte) {
+            console.warn('[OneSignal] blSetPushEnabled error:', _opte);
+          }
+        };
+        console.log('[OneSignal] blSetPushEnabled helper registered');
+
+      })();
+    });
+  })();
+</script>
+
+<script>
+  /* ── Badge clear + delivered-notification sweep ── native shell only ─────
+     Clears the iOS app badge count and removes delivered notifications from
+     the system tray whenever the app launches, resumes (foreground), or when
+     the user taps a notification to open it.
+
+     Guard pattern: identical to the OneSignal init block above — only runs
+     inside the Capacitor native shell. Browser users see no errors.
+
+     Plugins used:
+       - Capacitor App plugin  (appStateChange event for foreground)
+       - Capacitor PushNotifications plugin (removeAllDeliveredNotifications)
+       - OneSignal plugin (Notifications.clearAll / clearOneSignalNotifications)
+     All via the same Cap bridge already waited for in the OneSignal init.   */
+  (function() {
+    'use strict';
+
+    var _cap0b = window.Capacitor;
+    var _wk0b  = window.webkit;
+    var _isNativeB = !!(_cap0b && typeof _cap0b.isNativePlatform === 'function' && _cap0b.isNativePlatform());
+    var _hasWkB    = !!(_wk0b && _wk0b.messageHandlers && _wk0b.messageHandlers.capacitor);
+
+    if (!_isNativeB && !_hasWkB) {
+      return;
+    }
+
+    async function _waitCapB(maxMs) {
+      var deadline = Date.now() + maxMs;
+      while (Date.now() < deadline) {
+        if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function') {
+          return window.Capacitor;
+        }
+        await new Promise(function(r) { setTimeout(r, 100); });
+      }
+      return null;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      (async function() {
+
+        var Cap = await _waitCapB(3000);
+        if (!Cap) {
+          console.warn('[BadgeClear] Capacitor bridge not ready after 3 s — badge clear skipped');
+          return;
+        }
+        console.log('[BadgeClear] bridge ready');
+
+        // ── Locate Capacitor plugins ──────────────────────────────────────
+        var AppPlugin  = null;
+        var PushPlugin = null;
+        var OSPlugin   = null;
+
+        try {
+          if (Cap.Plugins) {
+            AppPlugin  = Cap.Plugins.App  || null;
+            PushPlugin = Cap.Plugins.PushNotifications || null;
+            OSPlugin   = Cap.Plugins.OneSignal || null;
+          }
+          if (!AppPlugin  && typeof Cap.registerPlugin === 'function') AppPlugin  = Cap.registerPlugin('App');
+          if (!PushPlugin && typeof Cap.registerPlugin === 'function') PushPlugin = Cap.registerPlugin('PushNotifications');
+          if (!OSPlugin   && typeof Cap.registerPlugin === 'function') OSPlugin   = Cap.registerPlugin('OneSignal');
+        } catch (_pe) {
+          console.warn('[BadgeClear] plugin lookup error:', _pe);
+        }
+
+        // ── Core clear function ───────────────────────────────────────────
+        async function _clearBadgeAndNotifs(reason) {
+          console.log('[BadgeClear] clearing badge, reason=' + reason);
+          try {
+            if (PushPlugin && typeof PushPlugin.removeAllDeliveredNotifications === 'function') {
+              await PushPlugin.removeAllDeliveredNotifications();
+              console.log('[BadgeClear] removeAllDeliveredNotifications done');
+            }
+          } catch (_e1) {
+            console.warn('[BadgeClear] removeAllDeliveredNotifications error:', _e1);
+          }
+          try {
+            if (OSPlugin) {
+              if (OSPlugin.Notifications && typeof OSPlugin.Notifications.clearAll === 'function') {
+                await OSPlugin.Notifications.clearAll();
+                console.log('[BadgeClear] OS.Notifications.clearAll() done (SDK 5.x)');
+              } else if (typeof OSPlugin.clearOneSignalNotifications === 'function') {
+                await OSPlugin.clearOneSignalNotifications();
+                console.log('[BadgeClear] clearOneSignalNotifications() done (SDK 4.x)');
+              }
+            }
+          } catch (_e2) {
+            console.warn('[BadgeClear] OneSignal clear error:', _e2);
+          }
+        }
+
+        // ── Run once on load (covers cold launch) ─────────────────────────
+        await _clearBadgeAndNotifs('launch');
+
+        // ── Listen for app foregrounding ──────────────────────────────────
+        if (AppPlugin && typeof AppPlugin.addListener === 'function') {
+          try {
+            await AppPlugin.addListener('appStateChange', async function(state) {
+              if (state && state.isActive) {
+                await _clearBadgeAndNotifs('foreground');
+              }
+            });
+            console.log('[BadgeClear] appStateChange listener registered');
+          } catch (_ae) {
+            console.warn('[BadgeClear] appStateChange listener error:', _ae);
+          }
+        }
+
+        // ── Listen for notification opened (tap to open) ──────────────────
+        if (OSPlugin && typeof OSPlugin.addListener === 'function') {
+          try {
+            await OSPlugin.addListener('notificationOpened', async function() {
+              await _clearBadgeAndNotifs('notification_opened');
+            });
+            console.log('[BadgeClear] OneSignal notificationOpened listener registered');
+          } catch (_oe) {
+            console.warn('[BadgeClear] notificationOpened listener error:', _oe);
+          }
+        } else if (PushPlugin && typeof PushPlugin.addListener === 'function') {
+          try {
+            await PushPlugin.addListener('pushNotificationActionPerformed', async function() {
+              await _clearBadgeAndNotifs('push_action');
+            });
+            console.log('[BadgeClear] PushNotifications pushNotificationActionPerformed listener registered');
+          } catch (_pae) {
+            console.warn('[BadgeClear] pushNotificationActionPerformed listener error:', _pae);
+          }
+        }
+
+        console.log('[BadgeClear] init complete');
+
       })();
     });
   })();

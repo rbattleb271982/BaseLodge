@@ -171,6 +171,7 @@ class User(UserMixin, db.Model):
     email_transactional = db.Column(db.Boolean, default=True)
     email_social = db.Column(db.Boolean, default=False)
     email_digest = db.Column(db.Boolean, default=False)
+    push_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False, server_default='true')
     timezone = db.Column(db.String(50), nullable=True)
     
     # Lifecycle signals (Dec 2025)
