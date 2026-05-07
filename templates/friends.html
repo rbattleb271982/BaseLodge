@@ -183,6 +183,84 @@
             color: var(--bl-color-text-tertiary);
             font-family: var(--bl-font-sans);
         }
+        .fr-trip-row-grouped {
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .fr-trip-row-grouped:active { opacity: 0.7; }
+        .fr-trip-meta-right-grouped {
+            font-size: 13px;
+            color: var(--bl-color-primary);
+            opacity: 0.8;
+            flex-shrink: 0;
+            text-align: right;
+        }
+        /* ── Grouped trip bottom sheet ── */
+        .fr-grouped-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.35);
+            z-index: 600;
+        }
+        .fr-grouped-overlay.open { display: block; }
+        .fr-grouped-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #FDFBF7;
+            border-radius: 20px 20px 0 0;
+            padding: 0 0 env(safe-area-inset-bottom, 0px);
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .fr-grouped-handle {
+            width: 36px;
+            height: 4px;
+            background: #D5CFCA;
+            border-radius: 2px;
+            margin: 12px auto 0;
+        }
+        .fr-grouped-header {
+            padding: 20px 24px 14px;
+            border-bottom: 1px solid #EDE8DE;
+        }
+        .fr-grouped-title {
+            font-family: Georgia, serif;
+            font-size: 20px;
+            color: #1A1A1A;
+            margin: 0 0 4px;
+            line-height: 1.2;
+        }
+        .fr-grouped-subtitle {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+        }
+        .fr-grouped-rows { padding: 4px 0 12px; }
+        .fr-grouped-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 24px;
+            border-bottom: 1px solid #F0EDE6;
+            text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .fr-grouped-row:last-child { border-bottom: none; }
+        .fr-grouped-row:active { background: #F5F1E8; }
+        .fr-grouped-row-date {
+            font-size: 15px;
+            color: #1A1A1A;
+            font-weight: 500;
+        }
+        .fr-grouped-row-status {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            flex-shrink: 0;
+        }
         .fr-trips-empty {
             font-size: 14px;
             color: var(--bl-color-text-muted);
@@ -453,6 +531,15 @@
                 <div class="fr-dest-block" data-mountain="{{ dest.name }}" data-month="{{ month_idx }}">
                     <p class="fr-dest-name">{{ dest.name }}</p>
                     {% for row in dest.rows %}
+                    {% if row.grouped %}
+                    <div class="fr-trip-meta-row fr-trip-row-grouped"
+                         onclick="openGroupedSheet({{ row.destination | tojson }}, {{ row.grouped_count }}, {{ row.grouped_trips | tojson }})">
+                        <span class="fr-trip-meta-left">
+                            {{- row.friend_name -}} &middot; {{ row.grouped_count }} dates
+                        </span>
+                        <span class="fr-trip-meta-right fr-trip-meta-right-grouped">{{ row.date_range_label }} &middot; {{ row.status | capitalize }}</span>
+                    </div>
+                    {% else %}
                     <div class="fr-trip-meta-row">
                         <span class="fr-trip-meta-left">
                             {{- row.friend_name -}}
@@ -461,6 +548,7 @@
                         </span>
                         <span class="fr-trip-meta-right">{{ row.formatted_date }}</span>
                     </div>
+                    {% endif %}
                     {% endfor %}
                 </div>
                 {% endfor %}
@@ -481,6 +569,18 @@
             <div class="fr-mtn-sheet" onclick="event.stopPropagation()">
                 <div class="fr-mtn-handle"></div>
                 <div id="fr-mtn-options"></div>
+            </div>
+        </div>
+
+        <!-- Grouped trips bottom sheet -->
+        <div class="fr-grouped-overlay" id="fr-grouped-overlay" onclick="closeGroupedSheet()">
+            <div class="fr-grouped-sheet" onclick="event.stopPropagation()">
+                <div class="fr-grouped-handle"></div>
+                <div class="fr-grouped-header">
+                    <p class="fr-grouped-title" id="fr-grouped-title"></p>
+                    <p class="fr-grouped-subtitle" id="fr-grouped-subtitle"></p>
+                </div>
+                <div class="fr-grouped-rows" id="fr-grouped-rows"></div>
             </div>
         </div>
 
@@ -604,6 +704,29 @@
 
     function closeMtnFilter() {
         document.getElementById('fr-mtn-overlay').classList.remove('open');
+    }
+
+    function openGroupedSheet(mountain, count, trips) {
+        document.getElementById('fr-grouped-title').textContent = mountain;
+        document.getElementById('fr-grouped-subtitle').textContent =
+            count + ' planned date' + (count === 1 ? '' : 's');
+        var rowsEl = document.getElementById('fr-grouped-rows');
+        rowsEl.innerHTML = trips.map(function (t) {
+            var statusLabel = t.status
+                ? t.status.charAt(0).toUpperCase() + t.status.slice(1)
+                : '';
+            return '<a href="/friend-trip/' + t.trip_id + '" class="fr-grouped-row">' +
+                '<span class="fr-grouped-row-date">' + (t.formatted_date || '') + '</span>' +
+                '<span class="fr-grouped-row-status">' + statusLabel + '</span>' +
+                '</a>';
+        }).join('');
+        document.getElementById('fr-grouped-overlay').classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeGroupedSheet() {
+        document.getElementById('fr-grouped-overlay').classList.remove('open');
+        document.body.style.overflow = '';
     }
 
     function selectMtn(mountain) {

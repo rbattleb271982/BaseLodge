@@ -677,7 +677,8 @@ class SkiTrip(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_group_trip = db.Column(db.Boolean, default=False)  # True if trip has participants
     created_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Organizer (null = legacy, use user_id)
-    
+    created_in_batch_id = db.Column(db.String(36), nullable=True)  # Analytics: UUID shared across batch-created trips; never used for grouping logic
+
     participants = db.relationship('SkiTripParticipant', backref='trip', lazy=True, cascade='all, delete-orphan')
     created_by = db.relationship('User', foreign_keys=[created_by_user_id], lazy=True)
 

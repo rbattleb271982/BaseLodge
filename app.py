@@ -1244,6 +1244,36 @@ def run_push_token_migration():
 
 run_push_token_migration()
 
+
+def run_batch_trip_migration():
+    """Add created_in_batch_id column to ski_trip for batch analytics (May 2026).
+
+    Nullable VARCHAR(36) — stores a shared UUID when multiple trips are created
+    together via the multi-date flow. Never used for display grouping or series
+    logic; analytics and potential undo only.
+    Uses IF NOT EXISTS so it is a no-op on repeat runs.
+    """
+    try:
+        with app.app_context():
+            conn = db.engine.connect()
+            trans = conn.begin()
+            try:
+                conn.execute(db.text(
+                    "ALTER TABLE ski_trip ADD COLUMN IF NOT EXISTS created_in_batch_id VARCHAR(36)"
+                ))
+                trans.commit()
+                print("batch_trip_migration: created_in_batch_id column ready.")
+            except Exception as inner_e:
+                trans.rollback()
+                print(f"batch_trip_migration inner error (rolled back): {inner_e}")
+            finally:
+                conn.close()
+    except Exception as e:
+        print(f"batch_trip_migration: skipped ({e})")
+
+
+run_batch_trip_migration()
+
 # ============================================================================
 # PRODUCTION DIAGNOSTICS - Print on startup
 # ============================================================================
@@ -4410,7 +4440,7 @@ def friends():
         alpha_groups[-1]['friends'].append(_f)
 
     # ── friends_trips_tab: month + destination grouped rows ───────────────────
-    from collections import OrderedDict as _ODt
+    from collections import OrderedDict as _ODt, defaultdict as _dd_ft
     friend_map = {f.id: f for f in all_friends}
     _raw_rows = []
     for _trip in friend_trips:
@@ -4436,16 +4466,62 @@ def friends():
             'formatted_date': _fmt_date,
             'month_key': _mkey,
             'month_label': _mlabel,
+            'trip_id': _trip.id,
+            'trip_start': _trip.start_date,
+            'trip_end': _trip.end_date,
         })
-    _months_dict = _ODt()
+    # Pre-compute groups for batch detection: (friend_id, destination, status) → rows
+    _tab_groups = _dd_ft(list)
     for _row in _raw_rows:
-        _mk = _row['month_key']
+        _tab_groups[(_row['friend_id'], _row['destination'], _row['status'])].append(_row)
+
+    _months_dict = _ODt()
+    _seen_group_keys = set()
+    for _row in _raw_rows:
+        _gkey = (_row['friend_id'], _row['destination'], _row['status'])
+        _group = _tab_groups[_gkey]
+        _is_grouped = len(_group) >= 3
+
+        if _is_grouped:
+            if _gkey in _seen_group_keys:
+                continue  # Already added representative row for this group
+            _seen_group_keys.add(_gkey)
+            # Build a compact date range label like "Dec–Mar"
+            _sorted_g = sorted(
+                [r for r in _group if r['trip_start']],
+                key=lambda r: r['trip_start']
+            )
+            if _sorted_g:
+                _first_mo = _sorted_g[0]['trip_start'].strftime('%b')
+                _last_end = _sorted_g[-1]['trip_end']
+                _last_mo = _last_end.strftime('%b') if _last_end else _sorted_g[-1]['trip_start'].strftime('%b')
+                _date_range_lbl = f"{_first_mo}–{_last_mo}" if _first_mo != _last_mo else _first_mo
+            else:
+                _date_range_lbl = ''
+            _display_row = dict(_row)
+            _display_row['grouped'] = True
+            _display_row['grouped_count'] = len(_group)
+            _display_row['date_range_label'] = _date_range_lbl
+            _display_row['grouped_trips'] = [
+                {
+                    'trip_id': r['trip_id'],
+                    'formatted_date': r['formatted_date'],
+                    'status': r['status'],
+                }
+                for r in sorted(_group, key=lambda r: r['trip_start'] or date.max)
+            ]
+        else:
+            _display_row = dict(_row)
+            _display_row['grouped'] = False
+
+        _mk = _display_row['month_key']
         if _mk not in _months_dict:
-            _months_dict[_mk] = {'month_label': _row['month_label'], 'destinations': _ODt()}
-        _dk = _row['destination']
+            _months_dict[_mk] = {'month_label': _display_row['month_label'], 'destinations': _ODt()}
+        _dk = _display_row['destination']
         if _dk not in _months_dict[_mk]['destinations']:
             _months_dict[_mk]['destinations'][_dk] = []
-        _months_dict[_mk]['destinations'][_dk].append(_row)
+        _months_dict[_mk]['destinations'][_dk].append(_display_row)
+
     friends_trips_tab = [
         {
             'month_label': _md['month_label'],
@@ -5659,27 +5735,51 @@ def home():
     happening_signals = []
     if friend_ids:
         try:
-            friend_trips = SkiTrip.query.filter(
+            _hap_trips = SkiTrip.query.filter(
                 SkiTrip.user_id.in_(friend_ids),
                 SkiTrip.is_public == True,
                 SkiTrip.end_date >= today
-            ).order_by(SkiTrip.start_date.asc()).limit(3).all()
-            # Reuse all_friends map — ft.user_id values are a subset of friend_ids
+            ).order_by(SkiTrip.start_date.asc()).limit(30).all()
             _ft_users_map = {u.id: u for u in all_friends}
-            for ft in friend_trips:
-                ft_user = _ft_users_map.get(ft.user_id)
+            # Group by (user_id, mountain, status) — 3+ trips → one summarised signal
+            from collections import defaultdict as _dd_hap
+            _hap_groups = _dd_hap(list)
+            for ft in _hap_trips:
                 ft_resort = ft.resort
                 ft_mountain = ft_resort.name if ft_resort else ft.mountain
+                _hap_groups[(ft.user_id, ft_mountain, ft.trip_status or 'planning')].append(ft)
+            _hap_seen = set()
+            for ft in _hap_trips:
+                ft_user = _ft_users_map.get(ft.user_id)
+                if not ft_user:
+                    continue
+                ft_resort = ft.resort
+                ft_mountain = ft_resort.name if ft_resort else ft.mountain
+                status = ft.trip_status or 'planning'
+                key = (ft.user_id, ft_mountain, status)
+                if key in _hap_seen:
+                    continue
+                _hap_seen.add(key)
+                group = _hap_groups[key]
                 full_name = (
                     f"{ft_user.first_name or ''} {ft_user.last_name or ''}".strip()
                 ) if ft_user else 'A friend'
-                status = ft.trip_status or 'planning'
-                text = (
-                    f"{full_name} is going to {ft_mountain}"
-                    if status == 'going'
-                    else f"{full_name} is planning {ft_mountain}"
-                )
+                if len(group) >= 3:
+                    n = len(group)
+                    text = (
+                        f"{full_name} is going to {ft_mountain} · {n} dates"
+                        if status == 'going'
+                        else f"{full_name} is planning {ft_mountain} · {n} dates"
+                    )
+                else:
+                    text = (
+                        f"{full_name} is going to {ft_mountain}"
+                        if status == 'going'
+                        else f"{full_name} is planning {ft_mountain}"
+                    )
                 happening_signals.append({'text': text})
+                if len(happening_signals) >= 3:
+                    break
         except Exception:
             db.session.rollback()
 
@@ -6935,6 +7035,150 @@ def add_trip():
         
         friend_id = request.form.get("friend_id", type=int)
         is_group_trip = request.form.get("is_group") == "1"
+
+        # ── Multi-date batch path ──────────────────────────────────────────
+        _date_ranges_json = request.form.get("date_ranges_json")
+        if _date_ranges_json and not is_group_trip and not friend_id:
+            import uuid as _uuid_mod
+            _resort = db.session.get(Resort, resort_id) if resort_id else None
+            if not _resort:
+                flash("Please select a valid resort.", "error")
+                return render_template(
+                    "add_trip.html", trip=None, resorts=resorts,
+                    countries_map=countries_map, states_map=states_map,
+                    user=current_user, form_action=url_for("add_trip"),
+                    user_passes=user_passes, prefill_friend=prefill_friend,
+                    prefill_start_date=prefill_start_date,
+                    prefill_end_date=prefill_end_date,
+                    prefill_resort=prefill_resort, is_group=is_group,
+                )
+            try:
+                _ranges = json.loads(_date_ranges_json)
+            except (ValueError, TypeError):
+                _ranges = []
+            if not _ranges:
+                flash("Please add at least one date range.", "error")
+                return render_template(
+                    "add_trip.html", trip=None, resorts=resorts,
+                    countries_map=countries_map, states_map=states_map,
+                    user=current_user, form_action=url_for("add_trip"),
+                    user_passes=user_passes, prefill_friend=prefill_friend,
+                    prefill_start_date=prefill_start_date,
+                    prefill_end_date=prefill_end_date,
+                    prefill_resort=prefill_resort, is_group=is_group,
+                )
+            _today = date.today()
+            _parsed = []
+            _batch_errors = []
+            for _r in _ranges:
+                try:
+                    _s = datetime.strptime(_r['start_date'], "%Y-%m-%d").date()
+                    _e = datetime.strptime(_r['end_date'], "%Y-%m-%d").date()
+                except (KeyError, ValueError, TypeError):
+                    _batch_errors.append("Invalid date range — please try again.")
+                    continue
+                if _e < _s:
+                    _batch_errors.append("End date cannot be before start date.")
+                    continue
+                if _s < _today:
+                    _batch_errors.append("A date range cannot be in the past.")
+                    continue
+                _parsed.append({'start': _s, 'end': _e})
+            # Check for mutual overlaps within the batch itself
+            for _i, _pr in enumerate(_parsed):
+                for _pr2 in _parsed[_i + 1:]:
+                    if _pr['start'] <= _pr2['end'] and _pr['end'] >= _pr2['start']:
+                        _batch_errors.append("Some of the selected date ranges overlap each other.")
+                        break
+            if _batch_errors:
+                for _err in _batch_errors:
+                    flash(_err, "error")
+                return render_template(
+                    "add_trip.html", trip=None, resorts=resorts,
+                    countries_map=countries_map, states_map=states_map,
+                    user=current_user, form_action=url_for("add_trip"),
+                    user_passes=user_passes, prefill_friend=prefill_friend,
+                    prefill_start_date=prefill_start_date,
+                    prefill_end_date=prefill_end_date,
+                    prefill_resort=prefill_resort, is_group=is_group,
+                )
+            # Check against existing trips in the database
+            _final_ranges = []
+            _skipped_count = 0
+            for _pr in _parsed:
+                _existing = SkiTrip.query.filter(
+                    SkiTrip.user_id == current_user.id,
+                    SkiTrip.end_date >= _today,
+                    SkiTrip.start_date <= _pr['end'],
+                    SkiTrip.end_date >= _pr['start'],
+                ).first()
+                if _existing:
+                    _skipped_count += 1
+                else:
+                    _final_ranges.append(_pr)
+            if not _final_ranges:
+                flash("All selected dates overlap with existing trips.", "error")
+                return render_template(
+                    "add_trip.html", trip=None, resorts=resorts,
+                    countries_map=countries_map, states_map=states_map,
+                    user=current_user, form_action=url_for("add_trip"),
+                    user_passes=user_passes, prefill_friend=prefill_friend,
+                    prefill_start_date=prefill_start_date,
+                    prefill_end_date=prefill_end_date,
+                    prefill_resort=prefill_resort, is_group=is_group,
+                )
+            # Create trips atomically
+            _batch_id = str(_uuid_mod.uuid4()) if len(_final_ranges) > 1 else None
+            _created = []
+            try:
+                for _pr in _final_ranges:
+                    _dur = SkiTrip.calculate_duration(_pr['start'], _pr['end'])
+                    _trip = SkiTrip(
+                        user_id=current_user.id,
+                        resort_id=_resort.id,
+                        state=_resort.state_code or _resort.state,
+                        mountain=_resort.name,
+                        start_date=_pr['start'],
+                        end_date=_pr['end'],
+                        is_public=is_public,
+                        trip_status=trip_status_form,
+                        trip_duration=_dur,
+                        trip_equipment_status=trip_equipment_status if trip_equipment_status != 'use_default' else None,
+                        is_group_trip=False,
+                        created_by_user_id=current_user.id,
+                        created_in_batch_id=_batch_id,
+                    )
+                    db.session.add(_trip)
+                    _created.append(_trip)
+                db.session.flush()
+                for _trip in _created:
+                    _trip.add_owner_as_participant()
+                    emit_trip_created_activities(_trip, current_user.id)
+                db.session.commit()
+                _n = len(_created)
+                if _skipped_count:
+                    flash(
+                        f"{_skipped_count} date{'s' if _skipped_count > 1 else ''} skipped — already have a trip during those dates.",
+                        "info",
+                    )
+                flash(f"{'Trip added' if _n == 1 else f'{_n} trips added'}.", "trip")
+                if _n == 1:
+                    return redirect(url_for("trip_detail", trip_id=_created[0].id))
+                return redirect(url_for("my_trips"))
+            except Exception as _exc:
+                db.session.rollback()
+                app.logger.error(f"Batch trip creation error: {_exc}")
+                flash("Something went wrong saving your trips. Please try again.", "error")
+                return render_template(
+                    "add_trip.html", trip=None, resorts=resorts,
+                    countries_map=countries_map, states_map=states_map,
+                    user=current_user, form_action=url_for("add_trip"),
+                    user_passes=user_passes, prefill_friend=prefill_friend,
+                    prefill_start_date=prefill_start_date,
+                    prefill_end_date=prefill_end_date,
+                    prefill_resort=prefill_resort, is_group=is_group,
+                )
+        # ── End multi-date batch path ──────────────────────────────────────
 
         errors = []
 

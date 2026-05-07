@@ -377,6 +377,53 @@
             text-decoration: underline;
             text-underline-offset: 2px;
         }
+        .at-add-date-btn {
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: #5C1219;
+            cursor: pointer;
+            padding: 0;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            font-family: inherit;
+            flex-shrink: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .at-staged-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .at-staged-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: rgba(92, 18, 25, 0.06);
+            border: 1px solid rgba(92, 18, 25, 0.14);
+            border-radius: 10px;
+        }
+        .at-staged-date {
+            font-size: 15px;
+            color: #1A1A1A;
+            font-weight: 500;
+        }
+        .at-staged-remove {
+            background: none;
+            border: none;
+            font-size: 19px;
+            line-height: 1;
+            color: #8A857A;
+            cursor: pointer;
+            padding: 0 2px;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+            opacity: 0.55;
+        }
+        .at-staged-remove:active { opacity: 1; }
 
         /* ── Trip Status row ── */
         .at-status-row {
@@ -581,6 +628,7 @@
             <input type="hidden" name="start_date" id="start_date_input" value="{{ prefill_start_date or '' }}">
             <input type="hidden" name="end_date" id="end_date_input" value="{{ prefill_end_date or '' }}">
             <input type="hidden" name="is_public" id="is_public_input" value="on">
+            <input type="hidden" name="date_ranges_json" id="date_ranges_json_input" value="">
             {% if prefill_friend and is_group %}
             <input type="hidden" name="friend_id" value="{{ prefill_friend.id }}">
             <input type="hidden" name="is_group" value="1">
@@ -652,8 +700,15 @@
 
                 <div class="at-range-row">
                     <span class="at-range-label" id="range-text">Select your trip dates</span>
+                    {% if prefill_friend and is_group %}
                     <button type="button" class="at-clear-btn" id="clear-dates-btn" style="display:none;" onclick="clearDates()">Clear</button>
+                    {% else %}
+                    <button type="button" class="at-add-date-btn" id="add-date-btn" style="display:none;" onclick="addCurrentRange()">Add</button>
+                    {% endif %}
                 </div>
+                {% if not (prefill_friend and is_group) %}
+                <div id="staged-list" class="at-staged-list" style="display:none;"></div>
+                {% endif %}
 
                 <!-- Trip Status -->
                 <input type="hidden" id="trip_status_input" name="trip_status" value="planning">
@@ -708,11 +763,15 @@
         const PREFILL_RESORT_NAME = {{ (prefill_resort.name if prefill_resort else none)|tojson }};
         const PREFILL_RESORT_META = {{ (((states_map or {}).get(prefill_resort.state_code or '', prefill_resort.state_code or '') + ', ' + (prefill_resort.display_country_name or prefill_resort.country_code or '')) if prefill_resort else none)|tojson }};
 
+        // ── Flow flags ────────────────────────────────────────────────
+        const IS_GROUP_FLOW = {{ 'true' if (prefill_friend and is_group) else 'false' }};
+
         // ── Mutable state ─────────────────────────────────────────────
         let currentStep = 1;
         let selResortId   = null;
         let selResortName = null;
         let selResortMeta = null;
+        let stagedRanges  = [];  // [{startStr, endStr, label}]
 
         const todayDate = new Date();
         todayDate.setHours(0, 0, 0, 0);
@@ -1054,26 +1113,86 @@
             }
         }
 
+        // ── Multi-date staged list ────────────────────────────────────
+        function addCurrentRange() {
+            if (!selStart || !selEnd) return;
+            const label = sameDay(selStart, selEnd)
+                ? fmtShort(selStart) + ' · day trip'
+                : fmtShort(selStart) + '–' + fmtShort(selEnd);
+            stagedRanges.push({ startStr: fmtISO(selStart), endStr: fmtISO(selEnd), label });
+            selStart = selEnd = null;
+            pickingEnd = false;
+            startDateInput.value = endDateInput.value = '';
+            updateCalendarClasses();
+            updateRangeSummary();
+            renderStagedList();
+            updateSubmitCTA();
+        }
+
+        function removeRange(idx) {
+            stagedRanges.splice(idx, 1);
+            renderStagedList();
+            updateSubmitCTA();
+        }
+
+        function renderStagedList() {
+            const list = document.getElementById('staged-list');
+            if (!list) return;
+            if (stagedRanges.length === 0) {
+                list.style.display = 'none';
+                list.innerHTML = '';
+                return;
+            }
+            list.style.display = 'flex';
+            list.innerHTML = stagedRanges.map((r, i) =>
+                `<div class="at-staged-item">
+                    <span class="at-staged-date">${r.label}</span>
+                    <button type="button" class="at-staged-remove" onclick="removeRange(${i})" aria-label="Remove">×</button>
+                </div>`
+            ).join('');
+        }
+
+        function updateSubmitCTA() {
+            const btn = document.getElementById('step2-submit');
+            if (!btn || IS_GROUP_FLOW) return;
+            const n = stagedRanges.length;
+            btn.disabled = (n === 0);
+            btn.textContent = n <= 1 ? 'Create trip' : `Save ${n} dates`;
+        }
+
         function updateRangeSummary() {
-            const rangeText  = document.getElementById('range-text');
-            const clearBtn   = document.getElementById('clear-dates-btn');
-            const submitBtn  = document.getElementById('step2-submit');
+            const rangeText = document.getElementById('range-text');
+            const clearBtn  = document.getElementById('clear-dates-btn');
+            const addBtn    = document.getElementById('add-date-btn');
+            const submitBtn = document.getElementById('step2-submit');
 
             if (selStart && selEnd) {
                 const label = sameDay(selStart, selEnd)
                     ? fmtShort(selStart) + ' · day trip'
                     : fmtShort(selStart) + '–' + fmtShort(selEnd);
-                rangeText.textContent   = label;
-                clearBtn.style.display  = 'inline';
-                submitBtn.disabled      = false;
+                rangeText.textContent = label;
+                if (IS_GROUP_FLOW) {
+                    if (clearBtn) clearBtn.style.display = 'inline';
+                    submitBtn.disabled = false;
+                } else {
+                    if (addBtn) addBtn.style.display = 'inline';
+                }
             } else if (selStart) {
-                rangeText.textContent  = fmtShort(selStart) + ' — pick end date';
-                clearBtn.style.display = 'inline';
-                submitBtn.disabled     = true;
+                rangeText.textContent = fmtShort(selStart) + ' — pick end date';
+                if (IS_GROUP_FLOW) {
+                    if (clearBtn) clearBtn.style.display = 'inline';
+                } else {
+                    if (addBtn) addBtn.style.display = 'none';
+                }
+                if (IS_GROUP_FLOW) submitBtn.disabled = true;
             } else {
-                rangeText.textContent  = 'Select your trip dates';
-                clearBtn.style.display = 'none';
-                submitBtn.disabled     = true;
+                rangeText.textContent = 'Select your trip dates';
+                if (IS_GROUP_FLOW) {
+                    if (clearBtn) clearBtn.style.display = 'none';
+                    submitBtn.disabled = true;
+                } else {
+                    if (addBtn) addBtn.style.display = 'none';
+                }
             }
         }
 
@@ -1120,6 +1239,21 @@
                 goToStep(2);
             } else {
                 goToStep(1);
+            }
+
+            // Non-group flow: serialize staged ranges into hidden field on submit
+            if (!IS_GROUP_FLOW) {
+                updateSubmitCTA();
+                document.getElementById('trip-form').addEventListener('submit', function (e) {
+                    if (stagedRanges.length === 0) return;
+                    e.preventDefault();
+                    document.getElementById('date_ranges_json_input').value = JSON.stringify(
+                        stagedRanges.map(function (r) {
+                            return { start_date: r.startStr, end_date: r.endStr };
+                        })
+                    );
+                    this.submit();
+                });
             }
 
         });
