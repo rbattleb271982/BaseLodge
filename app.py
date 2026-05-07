@@ -3798,10 +3798,12 @@ def send_apns_push(
     token_preview = device_token[:8] + "…" + device_token[-6:] if len(device_token) > 14 else device_token[:8] + "…"
 
     payload = {
-        "aps": {"alert": {"title": title, "body": body}, "sound": "default"},
+        "aps": {"alert": {"title": title, "body": body}, "sound": "default", "badge": 1},
     }
     if extra:
         payload.update(extra)
+
+    current_app.logger.warning("[APNs] payload aps=%s", payload.get("aps"))
 
     try:
         bearer = _apns_jwt()
