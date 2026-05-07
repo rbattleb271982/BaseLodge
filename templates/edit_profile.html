@@ -237,7 +237,8 @@
         <!-- 3. Passes -->
         <div class="ep-section">
             <p class="ep-section-label">Pass</p>
-            <p class="ep-field-hint" style="margin-bottom:12px;">Select all that apply</p>
+            <p class="ep-field-hint" style="margin-bottom:8px;">Select up to 3 passes</p>
+            <p class="ep-field-hint" id="pass-cap-hint" style="margin-bottom:12px;display:none;color:#9A8F82;">You've reached the 3-pass limit.</p>
             <div class="ep-pills" id="pass-pills">
                 {% set user_passes = current_user.pass_type.split(',') if current_user.pass_type else [] %}
                 {% for pass in pass_options %}
@@ -368,11 +369,35 @@
         markDirty();
     }
 
-    // ── Pass pills (exclusive: no_pass / no_pass_yet / other vs real passes) ─
+    // ── Pass pills (exclusive: no_pass / no_pass_yet / other vs real passes, max 3 real) ─
     const EXCLUSIVE_PASSES = new Set(["no_pass", "no_pass_yet", "other"]);
+    const PASS_REAL_MAX = 3;
     let passSelected = new Set(
         (document.getElementById('pass_type_hidden').value || '').split(',').filter(Boolean)
     );
+
+    function countRealPasses() {
+        return Array.from(passSelected).filter(v => !EXCLUSIVE_PASSES.has(v)).length;
+    }
+
+    function updatePassCap() {
+        const atCap = countRealPasses() >= PASS_REAL_MAX;
+        document.querySelectorAll('#pass-pills .ep-pill').forEach(p => {
+            const isExcl = EXCLUSIVE_PASSES.has(p.dataset.value);
+            const isSel  = passSelected.has(p.dataset.value);
+            if (!isExcl && !isSel) {
+                p.disabled = atCap;
+                p.style.opacity = atCap ? '0.38' : '';
+                p.style.cursor  = atCap ? 'not-allowed' : '';
+            } else if (!isExcl) {
+                p.disabled = false;
+                p.style.opacity = '';
+                p.style.cursor  = '';
+            }
+        });
+        const hint = document.getElementById('pass-cap-hint');
+        if (hint) hint.style.display = atCap ? '' : 'none';
+    }
 
     function togglePassPill(pill) {
         const val = pill.dataset.value;
@@ -382,8 +407,14 @@
         } else {
             if (EXCLUSIVE_PASSES.has(val)) {
                 passSelected.clear();
-                document.querySelectorAll('#pass-pills .ep-pill').forEach(p => p.classList.remove('selected'));
+                document.querySelectorAll('#pass-pills .ep-pill').forEach(p => {
+                    p.classList.remove('selected');
+                    p.disabled = false;
+                    p.style.opacity = '';
+                    p.style.cursor  = '';
+                });
             } else {
+                if (countRealPasses() >= PASS_REAL_MAX) return;
                 EXCLUSIVE_PASSES.forEach(ep => {
                     if (passSelected.has(ep)) {
                         passSelected.delete(ep);
@@ -395,8 +426,11 @@
             pill.classList.add('selected');
         }
         document.getElementById('pass_type_hidden').value = Array.from(passSelected).join(',');
+        updatePassCap();
         markDirty();
     }
+
+    updatePassCap();
 
     // ── Location selector init ────────────────────────────────────────
     (function() {

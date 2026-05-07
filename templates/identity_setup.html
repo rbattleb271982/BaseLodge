@@ -203,6 +203,21 @@
             flex-shrink: 0;
         }
 
+        /* Pass cap helper text */
+        .ob-pass-cap-hint {
+            font-size: 12.5px;
+            color: #9A8F82;
+            padding: 2px 0 6px;
+            flex-shrink: 0;
+            display: none;
+        }
+
+        /* Disabled pass pill (cap reached) */
+        .ob-pill:disabled {
+            opacity: 0.38;
+            cursor: not-allowed;
+        }
+
         /* Location select wrapper */
         .ob-sel-wrap {
             position: relative;
@@ -483,6 +498,7 @@
                             <p class="ob-subtitle">Choose what applies — or skip for now.</p>
                         </div>
                         <div class="ob-options">
+                            <p class="ob-pass-cap-hint" id="pass-cap-hint">You can select up to 3 passes.</p>
                             <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass"             data-target="h-pass">No pass</button>
                             <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass_yet"         data-target="h-pass">Not sure yet</button>
                             <div class="ob-divider"></div>
@@ -573,59 +589,96 @@
     }
     function goBack(from) { slideTo(from - 1); }
 
-    /* rider is multi-select (max 2); pass is multi-select but exclusive pills deselect real passes */
-    var MULTI_MAX = { rider: 2, pass: 6 };
+    /* rider is multi-select (max 2); pass is multi-select with 3-cap on real passes */
+    var RIDER_MAX = 2;
+    var PASS_REAL_MAX = 3;
+    var OB_PASS_EXCLUSIVE = ['no_pass', 'no_pass_yet', 'other'];
+
+    function obPassRealCount() {
+        var n = 0;
+        document.querySelectorAll('.ob-pill[data-grp="pass"].sel').forEach(function(p) {
+            if (OB_PASS_EXCLUSIVE.indexOf(p.dataset.val) === -1) n++;
+        });
+        return n;
+    }
+
+    function updateObPassCap() {
+        var atCap = obPassRealCount() >= PASS_REAL_MAX;
+        document.querySelectorAll('.ob-pill[data-grp="pass"]').forEach(function(p) {
+            var isExcl = OB_PASS_EXCLUSIVE.indexOf(p.dataset.val) !== -1;
+            var isSel  = p.classList.contains('sel');
+            if (!isExcl && !isSel) {
+                p.disabled = atCap;
+            } else if (!isExcl) {
+                p.disabled = false;
+            }
+        });
+        var hint = document.getElementById('pass-cap-hint');
+        if (hint) hint.style.display = atCap ? '' : 'none';
+    }
 
     document.querySelectorAll('.ob-pill').forEach(function(pill) {
         pill.addEventListener('click', function() {
             var grp = this.dataset.grp;
             var targetId = this.dataset.target;
-            var isMulti = grp in MULTI_MAX;
             var isExclusive = this.classList.contains('ob-pill--exclusive');
 
-            if (!isMulti) {
+            if (grp === 'rider') {
+                var alreadySel = this.classList.contains('sel');
+                if (alreadySel) {
+                    this.classList.remove('sel');
+                } else {
+                    var riderSelCount = document.querySelectorAll('.ob-pill[data-grp="rider"].sel').length;
+                    if (riderSelCount < RIDER_MAX) {
+                        this.classList.add('sel');
+                    }
+                }
+                var riderSelected = [];
+                document.querySelectorAll('.ob-pill[data-grp="rider"].sel').forEach(function(p) {
+                    riderSelected.push(p.dataset.val);
+                });
+                document.getElementById(targetId).value = riderSelected.join(',');
+                var hasRider = riderSelected.length > 0;
+                document.getElementById('cta-1').disabled = !hasRider;
+
+            } else if (grp === 'pass') {
+                var alreadySel = this.classList.contains('sel');
+                if (alreadySel) {
+                    this.classList.remove('sel');
+                } else {
+                    if (isExclusive) {
+                        document.querySelectorAll('.ob-pill[data-grp="pass"]').forEach(function(p) {
+                            p.classList.remove('sel');
+                            p.disabled = false;
+                        });
+                    } else {
+                        document.querySelectorAll('.ob-pill[data-grp="pass"].ob-pill--exclusive').forEach(function(p) {
+                            p.classList.remove('sel');
+                        });
+                        if (obPassRealCount() >= PASS_REAL_MAX) {
+                            return;
+                        }
+                    }
+                    this.classList.add('sel');
+                }
+                var passSelected = [];
+                document.querySelectorAll('.ob-pill[data-grp="pass"].sel').forEach(function(p) {
+                    passSelected.push(p.dataset.val);
+                });
+                document.getElementById(targetId).value = passSelected.join(',');
+                document.getElementById('cta-3').disabled = passSelected.length === 0;
+                updateObPassCap();
+
+            } else {
+                /* skill — single select */
                 document.querySelectorAll('.ob-pill[data-grp="' + grp + '"]').forEach(function(p) {
                     p.classList.remove('sel');
                 });
                 this.classList.add('sel');
                 document.getElementById(targetId).value = this.dataset.val;
-            } else {
-                var alreadySel = this.classList.contains('sel');
-
-                if (alreadySel) {
-                    this.classList.remove('sel');
-                } else {
-                    if (grp === 'pass') {
-                        if (isExclusive) {
-                            // Deselect everything else, then select this
-                            document.querySelectorAll('.ob-pill[data-grp="pass"]').forEach(function(p) {
-                                p.classList.remove('sel');
-                            });
-                        } else {
-                            // Selecting a real pass: deselect any exclusive pill
-                            document.querySelectorAll('.ob-pill[data-grp="pass"].ob-pill--exclusive').forEach(function(p) {
-                                p.classList.remove('sel');
-                            });
-                        }
-                    }
-                    var selCount = document.querySelectorAll('.ob-pill[data-grp="' + grp + '"].sel').length;
-                    if (selCount < MULTI_MAX[grp]) {
-                        this.classList.add('sel');
-                    }
-                }
-
-                var selected = [];
-                document.querySelectorAll('.ob-pill[data-grp="' + grp + '"].sel').forEach(function(p) {
-                    selected.push(p.dataset.val);
-                });
-                document.getElementById(targetId).value = selected.join(',');
-            }
-
-            var ctaMap = { rider: 'cta-1', skill: 'cta-2', pass: 'cta-3' };
-            var ctaId = ctaMap[grp];
-            if (ctaId) {
-                var hasSelection = document.querySelectorAll('.ob-pill[data-grp="' + grp + '"].sel').length > 0;
-                document.getElementById(ctaId).disabled = !hasSelection;
+                var ctaMap = { skill: 'cta-2' };
+                var ctaId = ctaMap[grp];
+                if (ctaId) document.getElementById(ctaId).disabled = false;
             }
         });
     });

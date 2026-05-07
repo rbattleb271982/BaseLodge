@@ -2,148 +2,249 @@
 {% block title %}BaseLodge — Select Pass{% endblock %}
 {% block head %}
 <style>
-.back-link {
-            display: inline-block;
-            margin-bottom: var(--bl-space-6);
-            color: var(--bl-color-text-muted);
-            text-decoration: none;
-            font-size: 14px;
-        }
-        
-        .back-link:hover {
-            color: var(--bl-color-text);
-        }
-        
-        h1 {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: var(--bl-space-6);
-            color: var(--bl-color-text);
-        }
-        
-        .search-bar {
-            /* → .bl-search-input canonical class; margin preserved below */
-            margin-bottom: var(--bl-space-6);
-        }
-        
-        .pass-section-title {
-            margin-top: var(--bl-space-6);
-            margin-bottom: var(--bl-space-3);
-            font-weight: 600;
-            color: var(--bl-color-text);
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .pass-item {
-            padding: var(--bl-space-4);
-            border-bottom: 1px solid var(--bl-color-border-soft);
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: background-color 0.15s;
-            background-color: white;
-        }
-        
-        .pass-item:hover {
-            background-color: var(--bl-color-surface-hover);
-        }
-        
-        .pass-item.selected {
-            background-color: #F0F5EB;
-        }
-        
-        .pass-item .check {
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--bl-color-border);
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-        }
-        
-        .pass-item.selected .check {
-            background-color: var(--bl-color-primary);
-            border-color: var(--bl-color-primary);
-            color: white;
-        }
-        
-        .save-btn {
-            margin-top: var(--bl-space-8);
-            width: 100%;
-            padding: var(--bl-space-5);
-            font-size: 16px;
-            font-weight: 600;
-            background-color: var(--bl-color-primary);
-            color: white;
-            border: none;
-            border-radius: var(--bl-radius-md);
-            cursor: pointer;
-            transition: opacity 0.15s;
-        }
-        
-        .save-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .save-btn:not(:disabled):hover {
-            opacity: 0.9;
-        }
+.sp-wrap {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 24px 20px 32px;
+}
+.sp-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--bl-color-text-muted);
+    text-decoration: none;
+    font-size: 14px;
+    margin-bottom: 24px;
+}
+.sp-back:hover { color: var(--bl-color-text); }
+.sp-title {
+    font-family: var(--bl-font-serif);
+    font-size: 26px;
+    font-weight: 500;
+    color: var(--bl-color-text);
+    margin-bottom: 6px;
+    line-height: 1.25;
+}
+.sp-subtitle {
+    font-size: 14px;
+    color: var(--bl-color-text-muted);
+    margin-bottom: 24px;
+    line-height: 1.5;
+}
+.sp-cap-hint {
+    font-size: 13px;
+    color: var(--bl-color-text-muted);
+    margin-bottom: 14px;
+    display: none;
+}
+.sp-divider {
+    height: 1px;
+    background: var(--bl-color-border-soft);
+    margin: 8px 0;
+}
+.sp-pill {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 50px;
+    padding: 13px 18px;
+    border-radius: 12px;
+    border: 1px solid var(--bl-color-border-soft);
+    background: #fff;
+    color: #5A5248;
+    font-size: 15px;
+    font-family: inherit;
+    font-weight: 400;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+    text-align: left;
+    margin-bottom: 9px;
+    position: relative;
+}
+.sp-pill:hover:not(:disabled) {
+    border-color: #D9D2BF;
+    background: #F5F1E8;
+    color: #1A1A1A;
+}
+.sp-pill.sel {
+    background: #5C1219;
+    border-color: #5C1219;
+    color: #fff;
+    font-weight: 600;
+}
+.sp-pill:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+}
+.sp-check {
+    margin-left: auto;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.4;
+    transition: opacity 0.15s;
+}
+.sp-pill.sel .sp-check {
+    opacity: 1;
+    border-color: rgba(255,255,255,0.8);
+}
+.sp-check-svg { display: none; }
+.sp-pill.sel .sp-check-svg { display: block; }
+.sp-save-wrap {
+    margin-top: 28px;
+}
+.sp-save-btn {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    background: #5C1219;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    text-align: center;
+}
+.sp-save-btn:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+}
+.sp-save-btn:not(:disabled):hover { opacity: 0.88; }
 </style>
 {% endblock %}
 
 {% block content %}
+<div class="page-container">
+<div class="sp-wrap">
+    <a href="{{ url_for('profile') }}" class="sp-back">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8L10 3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Back
+    </a>
 
-    <div class="page-container">
-        <a href="{{ url_for('home') }}" class="back-link">← Back</a>
-        <h1>Select Your Pass</h1>
-        
-        <input type="text" id="search" class="search-bar bl-search-input" placeholder="Search for your pass...">
-        
-        <form method="POST" id="passForm">
-            <input type="hidden" name="pass_type" id="pass_type">
-            
-            {% for p in get_sorted_passes() %}
-                <div class="pass-item" data-value="{{ p }}">
-                    <span>{{ p | pass_display }}</span>
-                    <span class="check"></span>
-                </div>
-            {% endfor %}
-            
-            <button type="submit" class="save-btn" id="saveBtn" disabled>Save Pass</button>
-        </form>
-    </div>
-    
-    {% endblock %}
+    <h1 class="sp-title">Your ski pass</h1>
+    <p class="sp-subtitle">Select up to 3 passes. Tap a selected pass to remove it.</p>
+    <p class="sp-cap-hint" id="sp-cap-hint">You've reached the 3-pass limit.</p>
+
+    <form method="POST" id="spForm">
+        <input type="hidden" name="pass_type" id="sp-pass-hidden" value="">
+
+        {% set current_passes = (current_user.pass_type or '').split(',') | map('trim') | list %}
+
+        {% set exclusive_passes = ['no_pass', 'no_pass_yet', 'other'] %}
+
+        <button type="button" class="sp-pill {% if 'no_pass' in current_passes %}sel{% endif %}"
+                data-val="no_pass" data-exclusive="1" onclick="spToggle(this)">
+            No pass
+            <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <button type="button" class="sp-pill {% if 'no_pass_yet' in current_passes %}sel{% endif %}"
+                data-val="no_pass_yet" data-exclusive="1" onclick="spToggle(this)">
+            Not sure yet
+            <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+
+        <div class="sp-divider"></div>
+
+        {% set real_passes = ['epic', 'ikon', 'freedom', 'indy', 'mountain_collective', 'powder_alliance', 'ski_california'] %}
+        {% set pass_labels = {
+            'epic': 'Epic',
+            'ikon': 'Ikon',
+            'freedom': 'Freedom',
+            'indy': 'Indy',
+            'mountain_collective': 'Mountain Collective',
+            'powder_alliance': 'Powder Alliance',
+            'ski_california': 'Ski California'
+        } %}
+        {% for p in real_passes %}
+        <button type="button" class="sp-pill {% if p in current_passes %}sel{% endif %}"
+                data-val="{{ p }}" onclick="spToggle(this)">
+            {{ pass_labels[p] }}
+            <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        {% endfor %}
+
+        <div class="sp-divider"></div>
+
+        <button type="button" class="sp-pill {% if 'other' in current_passes %}sel{% endif %}"
+                data-val="other" data-exclusive="1" onclick="spToggle(this)">
+            Other
+            <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+
+        <div class="sp-save-wrap">
+            <button type="submit" class="sp-save-btn" id="sp-save" disabled>Save</button>
+        </div>
+    </form>
+</div>
+</div>
+{% endblock %}
 
 {% block scripts %}
 <script>
-        const items = document.querySelectorAll(".pass-item");
-        const hiddenInput = document.getElementById("pass_type");
-        const saveBtn = document.getElementById("saveBtn");
-        const searchInput = document.getElementById("search");
-        
-        items.forEach(item => {
-            item.addEventListener("click", () => {
-                items.forEach(i => i.classList.remove("selected"));
-                item.classList.add("selected");
-                hiddenInput.value = item.dataset.value;
-                saveBtn.disabled = false;
-            });
+(function() {
+    var PASS_REAL_MAX = 3;
+    var selected = new Set(
+        ({{ (current_user.pass_type or '') | tojson }}).split(',').map(s => s.trim()).filter(Boolean)
+    );
+
+    function countReal() {
+        var n = 0;
+        selected.forEach(function(v) {
+            if (!document.querySelector('.sp-pill[data-val="' + v + '"][data-exclusive]')) n++;
         });
-        
-        // Search filter
-        searchInput.addEventListener("input", function() {
-            const text = this.value.toLowerCase();
-            items.forEach(item => {
-                const passName = item.textContent.toLowerCase();
-                item.style.display = passName.includes(text) ? "flex" : "none";
-            });
+        return n;
+    }
+
+    function syncHidden() {
+        document.getElementById('sp-pass-hidden').value = Array.from(selected).join(',');
+        document.getElementById('sp-save').disabled = selected.size === 0;
+    }
+
+    function updateCap() {
+        var atCap = countReal() >= PASS_REAL_MAX;
+        document.querySelectorAll('.sp-pill:not([data-exclusive])').forEach(function(p) {
+            var isSel = selected.has(p.dataset.val);
+            p.disabled = atCap && !isSel;
         });
-    </script>
+        document.getElementById('sp-cap-hint').style.display = atCap ? '' : 'none';
+    }
+
+    window.spToggle = function(pill) {
+        var val = pill.dataset.val;
+        var isExclusive = !!pill.dataset.exclusive;
+
+        if (selected.has(val)) {
+            selected.delete(val);
+            pill.classList.remove('sel');
+        } else {
+            if (isExclusive) {
+                selected.clear();
+                document.querySelectorAll('.sp-pill.sel').forEach(function(p) { p.classList.remove('sel'); });
+                document.querySelectorAll('.sp-pill:not([data-exclusive])').forEach(function(p) { p.disabled = false; });
+            } else {
+                if (countReal() >= PASS_REAL_MAX) return;
+                document.querySelectorAll('.sp-pill[data-exclusive].sel').forEach(function(p) {
+                    p.classList.remove('sel');
+                    selected.delete(p.dataset.val);
+                });
+            }
+            selected.add(val);
+            pill.classList.add('sel');
+        }
+        syncHidden();
+        updateCap();
+    };
+
+    syncHidden();
+    updateCap();
+})();
+</script>
 {% endblock %}

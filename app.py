@@ -2117,9 +2117,15 @@ def onboarding():
             return render_template("identity_setup.html", grouped_locations=get_grouped_locations())
 
         # Save all onboarding data in one shot — normalize pass to snake_case
+        normalized_pass = normalize_passes_string(pass_type) or pass_type
+        _NON_REAL = {'no_pass', 'no_pass_yet', 'other', ''}
+        real_pass_count = sum(1 for p in normalized_pass.split(',') if p.strip() and p.strip() not in _NON_REAL)
+        if real_pass_count > 3:
+            flash("You can select up to 3 passes.")
+            return render_template("identity_setup.html", grouped_locations=get_grouped_locations())
         current_user.rider_types = rider_types
         current_user.skill_level = skill_level
-        current_user.pass_type = normalize_passes_string(pass_type) or pass_type
+        current_user.pass_type = normalized_pass
         current_user.home_state = home_state
         current_user.backcountry_capable = backcountry_capable
         current_user.avi_certified = avi_certified
@@ -2322,7 +2328,13 @@ def edit_profile():
         user.rider_types = rider_types if rider_types else []
         
         passes_raw = request.form.get("pass_type", "")
-        user.pass_type = normalize_passes_string(passes_raw) or user.pass_type or "no_pass"
+        normalized_passes = normalize_passes_string(passes_raw) or user.pass_type or "no_pass"
+        _NON_REAL = {'no_pass', 'no_pass_yet', 'other', ''}
+        _real_count = sum(1 for p in normalized_passes.split(',') if p.strip() and p.strip() not in _NON_REAL)
+        if _real_count > 3:
+            flash("You can select up to 3 passes.", "error")
+            return redirect(url_for("edit_profile"))
+        user.pass_type = normalized_passes
         user.home_state = request.form.get("home_state") or None
         # Clear skill_level only for Social-only users, otherwise use form value
         is_social_only = rider_types == ["Social"]
@@ -5256,7 +5268,13 @@ def update_profile():
     if "primary_rider_type" in data:
         user.primary_rider_type = data.get("primary_rider_type", "").strip()
     if "pass_type" in data:
-        user.pass_type = data.get("pass_type", "").strip()
+        _raw_pt = data.get("pass_type", "").strip()
+        _norm_pt = normalize_passes_string(_raw_pt) or _raw_pt
+        _NON_REAL_API = {'no_pass', 'no_pass_yet', 'other', ''}
+        _real_ct = sum(1 for p in _norm_pt.split(',') if p.strip() and p.strip() not in _NON_REAL_API)
+        if _real_ct > 3:
+            return jsonify({"success": False, "message": "You can select up to 3 passes."}), 400
+        user.pass_type = _norm_pt
     
     db.session.commit()
     
@@ -8955,29 +8973,26 @@ def skip_pass_prompt():
 @app.route("/select-pass", methods=["GET", "POST"])
 @login_required
 def select_pass():
-    major_passes = ["Epic", "Ikon", "Indy", "Mountain Collective"]
-    regional_passes = ["Power Pass", "Boyne Pass", "A-Basin Pass", "Loveland Pass"]
-    other_passes = ["Other", "None"]
-
     if request.method == "POST":
-        chosen = request.form.get("pass_type")
-        current_user.pass_type = normalize_passes_string(chosen) or chosen
+        chosen = request.form.get("pass_type", "")
+        normalized_chosen = normalize_passes_string(chosen) or chosen
+        _NON_REAL = {'no_pass', 'no_pass_yet', 'other', ''}
+        _real_count = sum(1 for p in normalized_chosen.split(',') if p.strip() and p.strip() not in _NON_REAL)
+        if _real_count > 3:
+            flash("You can select up to 3 passes.", "error")
+            return redirect(url_for("select_pass"))
+        current_user.pass_type = normalized_chosen
         try:
             db.session.commit()
             session["pass_prompt_skipped"] = False
-            return redirect(url_for("home"))
+            return redirect(url_for("profile"))
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"Error saving pass selection: {e}")
             flash("Something went wrong while saving your pass. Please try again.", "error")
             return redirect(url_for("select_pass"))
 
-    return render_template(
-        "select_pass.html",
-        major=major_passes,
-        regional=regional_passes,
-        other=other_passes
-    )
+    return render_template("select_pass.html")
 
 @app.route("/generate-dummy-users")
 @login_required
