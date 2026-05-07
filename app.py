@@ -1781,6 +1781,7 @@ app.jinja_env.globals['get_seasonal_empty_state'] = get_seasonal_empty_state
 app.jinja_env.globals['is_internal_user'] = ph_analytics.is_internal
 app.jinja_env.globals['POSTHOG_KEY'] = ph_analytics.POSTHOG_KEY
 app.jinja_env.globals['POSTHOG_HOST'] = ph_analytics.POSTHOG_HOST
+app.jinja_env.globals['ONESIGNAL_APP_ID'] = os.environ.get("ONESIGNAL_APP_ID", "")
 
 
 def group_trips_by_month(trips):
@@ -4123,6 +4124,81 @@ def admin_push_diagnostics():
             "step_8": "Run /admin/test-push after a token is registered to attempt APNs delivery",
         },
     }), 200
+
+
+def send_onesignal_push(user_ids, title, body, data=None):
+    """Send a push notification via the OneSignal REST API.
+
+    Targets BaseLodge users by their internal integer user ID, which is
+    registered as the OneSignal external_id from the client SDK init block.
+
+    Args:
+        user_ids: iterable of integer BaseLodge user IDs.
+        title:    notification title string.
+        body:     notification body / message string.
+        data:     optional dict of extra key/value data forwarded to the device.
+
+    Returns a dict with keys:
+        success (bool), notification_id (str|None), error (str|None).
+
+    Environment variables required (never exposed client-side):
+        ONESIGNAL_APP_ID        — public app identifier (safe to log).
+        ONESIGNAL_REST_API_KEY  — secret REST key (never logged).
+    """
+    app_id   = os.environ.get("ONESIGNAL_APP_ID", "")
+    rest_key = os.environ.get("ONESIGNAL_REST_API_KEY", "")
+
+    if not app_id or not rest_key:
+        current_app.logger.warning(
+            "[OneSignal] send_onesignal_push: ONESIGNAL_APP_ID or "
+            "ONESIGNAL_REST_API_KEY not set — push skipped"
+        )
+        return {"success": False, "notification_id": None, "error": "missing_config"}
+
+    external_ids = [str(uid) for uid in user_ids]
+
+    payload = {
+        "app_id":          app_id,
+        "include_aliases": {"external_id": external_ids},
+        "target_channel":  "push",
+        "headings":        {"en": title},
+        "contents":        {"en": body},
+    }
+    if data:
+        payload["data"] = data
+
+    current_app.logger.warning(
+        "[OneSignal] send_push → external_ids=%s title=%r",
+        external_ids, title,
+    )
+
+    try:
+        resp = httpx.post(
+            "https://onesignal.com/api/v1/notifications",
+            headers={
+                "Authorization":  f"Basic {rest_key}",
+                "Content-Type":   "application/json",
+            },
+            json=payload,
+            timeout=10.0,
+        )
+        result          = resp.json()
+        notification_id = result.get("id")
+        errors          = result.get("errors")
+        current_app.logger.warning(
+            "[OneSignal] response status=%d notification_id=%s errors=%s",
+            resp.status_code, notification_id, errors,
+        )
+        if resp.status_code in (200, 202) and not errors:
+            return {"success": True, "notification_id": notification_id, "error": None}
+        return {
+            "success":         False,
+            "notification_id": notification_id,
+            "error":           str(errors or result),
+        }
+    except Exception as _exc:
+        current_app.logger.exception("[OneSignal] request failed: %s", _exc)
+        return {"success": False, "notification_id": None, "error": str(_exc)}
 
 
 @app.route("/admin/test-push", methods=["GET", "POST"])
@@ -12380,6 +12456,42 @@ def robots_txt():
 @app.route("/sitemap.xml")
 def sitemap_xml():
     return send_file("static/sitemap.xml", mimetype="application/xml")
+
+
+@app.route("/admin/test-onesignal-push", methods=["GET", "POST"])
+@login_required
+@admin_required
+def admin_test_onesignal_push():
+    """Send a test push via OneSignal REST API to the current admin user.
+
+    Targets the logged-in admin's BaseLodge user ID as the OneSignal external ID.
+    Returns JSON — HTTP 200 on success, HTTP 502 on failure.
+
+    Verifies without exposing:
+      - ONESIGNAL_APP_ID is set (logged and reflected in response)
+      - ONESIGNAL_REST_API_KEY is set (only presence reported, value never logged)
+    """
+    current_app.logger.warning(
+        "[OneSignal-Test] triggered by admin user_id=%d email=%s",
+        current_user.id, current_user.email,
+    )
+
+    result = send_onesignal_push(
+        user_ids=[current_user.id],
+        title="BaseLodge",
+        body="Test push from BaseLodge (OneSignal)",
+        data={"source": "admin_test"},
+    )
+
+    http_status = 200 if result.get("success") else 502
+    return jsonify({
+        "provider":               "onesignal",
+        "target_user_id":         current_user.id,
+        "target_external_id":     str(current_user.id),
+        "onesignal_app_id_set":   bool(os.environ.get("ONESIGNAL_APP_ID")),
+        "onesignal_rest_key_set": bool(os.environ.get("ONESIGNAL_REST_API_KEY")),
+        "result":                 result,
+    }), http_status
 
 
 if __name__ == "__main__":

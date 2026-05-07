@@ -25,6 +25,7 @@
   window.__POSTHOG_RESET__ = {{ posthog_reset | default(false) | tojson }};
   window.__POSTHOG_KEY__ = {{ POSTHOG_KEY | tojson }};
   window.__POSTHOG_HOST__ = {{ POSTHOG_HOST | tojson }};
+  window.__ONESIGNAL_APP_ID__ = {{ ONESIGNAL_APP_ID | tojson }};
 </script>
 <script src="{{ url_for('static', filename='analytics.js') }}" defer></script>
 <script>
@@ -361,4 +362,153 @@
 
     })();
   });
+</script>
+<script>
+  /* ── OneSignal Capacitor SDK init ── native shell only ─────────────────────
+     Runs ONLY inside the native Capacitor app (same guard pattern as the APNs
+     push registration block above). The App ID is server-injected via the
+     Jinja global ONESIGNAL_APP_ID — it is never hardcoded here.
+
+     Existing APNs direct push code is untouched; OneSignal runs alongside it.
+
+     Logging prefix: [OneSignal] — grep server logs for [PushBeacon] for APNs,
+     and browser/native console for [OneSignal] for this flow.
+
+     SDK version strategy: tries SDK 5.x API first (initialize / login /
+     requestPermission), falls back to SDK 4.x equivalents so the same script
+     works across minor version upgrades.                                       */
+  (function() {
+    'use strict';
+
+    var _osAppId = window.__ONESIGNAL_APP_ID__;
+    if (!_osAppId) {
+      console.log('[OneSignal] No App ID configured — init skipped');
+      return;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      (async function() {
+
+        var userId = window.__USER__ && window.__USER__.id;
+        console.log('[OneSignal] DOMContentLoaded userId=' + userId + ' appId=' + _osAppId);
+
+        // ── Gate: native platform only ────────────────────────────────────
+        var _cap0 = window.Capacitor;
+        var _wk0  = window.webkit;
+        var _isNative  = !!(_cap0 && typeof _cap0.isNativePlatform === 'function' && _cap0.isNativePlatform());
+        var _hasWk     = !!(_wk0 && _wk0.messageHandlers && _wk0.messageHandlers.capacitor);
+        console.log('[OneSignal] native_check is_native=' + _isNative + ' has_webkit=' + _hasWk);
+
+        if (!_isNative && !_hasWk) {
+          console.log('[OneSignal] Not in native shell — init skipped (no browser errors expected)');
+          return;
+        }
+
+        // ── Wait for Capacitor bridge (up to 2 s, 100 ms steps) ──────────
+        async function _waitCap(maxMs) {
+          var deadline = Date.now() + maxMs;
+          while (Date.now() < deadline) {
+            if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function') {
+              return window.Capacitor;
+            }
+            await new Promise(function(r) { setTimeout(r, 100); });
+          }
+          return null;
+        }
+
+        var Cap = await _waitCap(2000);
+        if (!Cap) {
+          console.warn('[OneSignal] Capacitor bridge not available after 2 s — init skipped');
+          return;
+        }
+        console.log('[OneSignal] Capacitor bridge ready');
+
+        // ── Locate OneSignal plugin via bridge ────────────────────────────
+        var OS = null;
+        try {
+          if (Cap.Plugins && Cap.Plugins.OneSignal) {
+            OS = Cap.Plugins.OneSignal;
+            console.log('[OneSignal] plugin found via Cap.Plugins');
+          } else if (typeof Cap.registerPlugin === 'function') {
+            OS = Cap.registerPlugin('OneSignal');
+            console.log('[OneSignal] plugin obtained via registerPlugin()');
+          }
+        } catch (_pe) {
+          console.warn('[OneSignal] plugin access error:', _pe);
+        }
+
+        if (!OS) {
+          console.warn('[OneSignal] OneSignal plugin not available — ensure onesignal-capacitor is installed and `npx cap sync` has been run');
+          return;
+        }
+
+        // ── Initialize (SDK 5.x: initialize / SDK 4.x: setAppId) ─────────
+        try {
+          if (typeof OS.initialize === 'function') {
+            console.log('[OneSignal] calling initialize() (SDK 5.x)');
+            await OS.initialize({ appId: _osAppId });
+            console.log('[OneSignal] initialize() complete');
+          } else if (typeof OS.setAppId === 'function') {
+            console.log('[OneSignal] calling setAppId() (SDK 4.x fallback)');
+            await OS.setAppId({ appId: _osAppId });
+            console.log('[OneSignal] setAppId() complete');
+          } else {
+            console.warn('[OneSignal] no initialize / setAppId method found — unknown SDK version, aborting');
+            return;
+          }
+        } catch (_initErr) {
+          console.warn('[OneSignal] initialization error:', _initErr);
+          return;
+        }
+
+        // ── Associate logged-in user via stable external ID ───────────────
+        // Uses the BaseLodge integer user ID as a string, matching what
+        // the backend send_onesignal_push() helper uses for targeting.
+        if (userId) {
+          try {
+            if (typeof OS.login === 'function') {
+              console.log('[OneSignal] calling login() externalId=' + userId + ' (SDK 5.x)');
+              await OS.login({ externalId: String(userId) });
+              console.log('[OneSignal] login() complete');
+            } else if (typeof OS.setExternalUserId === 'function') {
+              console.log('[OneSignal] calling setExternalUserId() id=' + userId + ' (SDK 4.x fallback)');
+              await OS.setExternalUserId({ externalUserId: String(userId) });
+              console.log('[OneSignal] setExternalUserId() complete');
+            } else {
+              console.log('[OneSignal] no login / setExternalUserId method — user association skipped');
+            }
+          } catch (_loginErr) {
+            console.warn('[OneSignal] user association error:', _loginErr);
+          }
+        } else {
+          console.log('[OneSignal] no authenticated user — login() skipped');
+        }
+
+        // ── Request push permission ───────────────────────────────────────
+        try {
+          var _permResult;
+          if (typeof OS.requestPermission === 'function') {
+            console.log('[OneSignal] calling requestPermission()');
+            _permResult = await OS.requestPermission({ fallbackToSettings: true });
+          } else if (typeof OS.requestPermissionAsync === 'function') {
+            console.log('[OneSignal] calling requestPermissionAsync()');
+            _permResult = await OS.requestPermissionAsync({ fallbackToSettings: true });
+          } else if (typeof OS.promptForPushNotificationsWithUserResponse === 'function') {
+            console.log('[OneSignal] calling promptForPushNotificationsWithUserResponse() (SDK 4.x)');
+            _permResult = await OS.promptForPushNotificationsWithUserResponse({ fallbackToSettings: true });
+          } else {
+            console.log('[OneSignal] no permission-request method found on plugin — skipping');
+          }
+          if (_permResult !== undefined) {
+            console.log('[OneSignal] permission result:', JSON.stringify(_permResult));
+          }
+        } catch (_permErr) {
+          console.warn('[OneSignal] permission request error:', _permErr);
+        }
+
+        console.log('[OneSignal] init sequence complete');
+
+      })();
+    });
+  })();
 </script>
