@@ -3690,8 +3690,15 @@ def send_fcm_push(token, title, body, data=None):
     try:
         import firebase_admin.messaging as _fb_msg
         notification = _fb_msg.Notification(title=title, body=body)
+        android_config = _fb_msg.AndroidConfig(
+            priority="high",
+            notification=_fb_msg.AndroidNotification(
+                channel_id="baselodge_default",
+            ),
+        )
         message = _fb_msg.Message(
             notification=notification,
+            android=android_config,
             data={str(k): str(v) for k, v in (data or {}).items()},
             token=token,
         )

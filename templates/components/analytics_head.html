@@ -238,6 +238,28 @@
       var nativePlatform = (snap.cap_platform === 'android') ? 'android' : 'ios';
       console.log('[Push] nativePlatform:', nativePlatform);
 
+      // Android only: create a high-importance notification channel so that
+      // incoming FCM notifications display as heads-up banners rather than
+      // silently landing in the shade. Must be called before register().
+      if (nativePlatform === 'android' && typeof Push.createChannel === 'function') {
+        try {
+          await Push.createChannel({
+            id:          'baselodge_default',
+            name:        'BaseLodge notifications',
+            description: 'Trip updates and BaseLodge notifications',
+            importance:  5,
+            visibility:  1,
+            sound:       'default',
+            vibration:   true,
+          });
+          console.log('[Push] Android channel created: baselodge_default');
+          _pushBeacon('android_channel_created', { channel_id: 'baselodge_default' });
+        } catch (_chanErr) {
+          console.warn('[Push] createChannel error:', _chanErr);
+          _pushBeacon('android_channel_error', { error: String(_chanErr).slice(0, 128) });
+        }
+      }
+
       // Attach listeners BEFORE calling requestPermissions / register
       await Push.addListener('registration', function(evt) {
         var tokVal = evt && evt.value ? evt.value : '';
