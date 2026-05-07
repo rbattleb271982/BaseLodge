@@ -4242,8 +4242,8 @@ def send_onesignal_push(user_ids, title, body, data=None):
         )
 
     if not all_ids:
-        current_app.logger.warning("[OneSignal] send_push: no eligible recipients after opt-out filter — skipped")
-        return {"success": False, "notification_id": None, "error": "all_opted_out"}
+        current_app.logger.warning("[OneSignal] send_push: all recipients opted out — silent skip (no delivery attempt)")
+        return {"success": True, "notification_id": None, "skipped": True, "reason": "all_opted_out"}
 
     external_ids = [str(uid) for uid in all_ids]
 
@@ -12555,7 +12555,7 @@ def admin_test_onesignal_push():
     """Send a test push via OneSignal REST API to the current admin user.
 
     Targets the logged-in admin's BaseLodge user ID as the OneSignal external ID.
-    Returns JSON — HTTP 200 on success, HTTP 502 on failure.
+    Returns JSON — HTTP 200 on success or silent opt-out skip, HTTP 502 on delivery failure.
 
     Verifies without exposing:
       - ONESIGNAL_APP_ID is set (logged and reflected in response)
