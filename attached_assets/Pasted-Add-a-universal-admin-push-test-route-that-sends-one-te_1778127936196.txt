@@ -1,0 +1,100 @@
+Add a universal admin push test route that sends one test notification to all active push tokens for the current admin user across both iOS and Android.
+
+Context:
+- iOS APNs push is working.
+- Android FCM push is working.
+- Existing route /admin/test-push sends to one selected/latest token.
+- Existing PushDeviceToken model stores platform values such as "ios" and "android".
+- Existing helper logic already sends iOS through APNs and Android through FCM.
+- Do not break the existing /admin/test-push route.
+
+Goal:
+Create one URL I can visit to test push delivery to all of my active devices at once:
+
+/admin/test-push-all
+
+Requirements:
+
+1. New admin route
+Create:
+
+GET /admin/test-push-all
+
+It must be:
+- login-required
+- admin-required
+- safe for production admin use only
+
+2. Token selection
+For the currently logged-in admin user:
+- find all active PushDeviceToken rows
+- include both platform="ios" and platform="android"
+- ignore inactive tokens
+- ignore unsupported platforms, but report them safely
+
+3. Sending behavior
+For each token:
+- if platform == "ios", send through the existing APNs helper
+- if platform == "android", send through the existing FCM helper
+- use the existing provider-specific logic
+- do not duplicate or rewrite working APNs/FCM code
+
+Use test message:
+Title: BaseLodge
+Body: Test push from BaseLodge
+
+Optional data payload:
+source: "admin_test_push_all"
+
+4. Response format
+Return a clear HTML or JSON-style response in the browser showing:
+- total active tokens found
+- iOS attempted count
+- Android attempted count
+- success count
+- failure count
+- unsupported platform count
+- per-token safe summary:
+  - token id
+  - platform
+  - token preview only
+  - success/failure
+  - provider used
+  - safe error message if failed
+
+Never show:
+- full push tokens
+- Firebase service account content
+- APNs key content
+- any secret values
+
+5. Logging
+Log safe diagnostics only:
+- route name
+- current_user.id
+- platform
+- token preview only
+- provider
+- success/failure
+
+6. Preserve existing route
+Leave /admin/test-push working exactly as-is unless a tiny shared helper cleanup is needed.
+Do not remove platform-specific testing.
+
+7. Testing
+Run:
+- Python syntax check
+- app startup/import validation
+- route registration check if possible
+- verify APNs/iOS imports still work
+- verify FCM/Android imports still work
+- verify route handles zero tokens safely
+- verify unsupported platform values do not crash
+
+At the end, report:
+- files changed
+- whether Replit deploy is required
+- whether GitHub push/pull is required
+- whether npx cap sync android is required
+- whether Android Studio rebuild is required
+- exact URL to test
