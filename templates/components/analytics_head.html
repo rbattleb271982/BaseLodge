@@ -424,6 +424,10 @@
         console.log('[OneSignal] Capacitor bridge ready');
 
         // ── Locate OneSignal plugin via bridge ────────────────────────────
+        // Priority order:
+        //   1. Cap.Plugins.OneSignal  — registered Capacitor-native plugin
+        //   2. Cap.registerPlugin()   — Capacitor v6+ lazy-registration
+        //   3. window.plugins.OneSignal — Cordova bridge (onesignal-cordova-plugin)
         var OS = null;
         try {
           if (Cap.Plugins && Cap.Plugins.OneSignal) {
@@ -432,13 +436,21 @@
           } else if (typeof Cap.registerPlugin === 'function') {
             OS = Cap.registerPlugin('OneSignal');
             console.log('[OneSignal] plugin obtained via registerPlugin()');
+          } else if (window.plugins && window.plugins.OneSignal) {
+            OS = window.plugins.OneSignal;
+            console.log('[OneSignal] plugin found via window.plugins (Cordova bridge)');
           }
         } catch (_pe) {
           console.warn('[OneSignal] plugin access error:', _pe);
         }
+        // Cordova bridge may initialise asynchronously — retry once after brief delay
+        if (!OS && window.plugins && window.plugins.OneSignal) {
+          OS = window.plugins.OneSignal;
+          console.log('[OneSignal] plugin found via window.plugins (delayed)');
+        }
 
         if (!OS) {
-          console.warn('[OneSignal] OneSignal plugin not available — ensure onesignal-capacitor is installed and `npx cap sync` has been run');
+          console.warn('[OneSignal] OneSignal plugin not available — ensure onesignal-cordova-plugin is installed and `npx cap sync` has been run');
           return;
         }
 
