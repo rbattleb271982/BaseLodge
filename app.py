@@ -25,6 +25,7 @@ from datetime import datetime, date, timedelta
 from services.pass_utils import (
     normalize_pass, display_pass_label, normalize_passes_string,
     format_passes_for_display, passes_match, is_real_pass,
+    normalize_pass_selection, count_real_passes,
     PASS_NORM_MAP, PASS_DISPLAY_MAP,
 )
 
@@ -2116,11 +2117,9 @@ def onboarding():
             flash("Please select your home state or province.")
             return render_template("identity_setup.html", grouped_locations=get_grouped_locations())
 
-        # Save all onboarding data in one shot — normalize pass to snake_case
-        normalized_pass = normalize_passes_string(pass_type) or pass_type
-        _NON_REAL = {'no_pass', 'no_pass_yet', 'other', ''}
-        real_pass_count = sum(1 for p in normalized_pass.split(',') if p.strip() and p.strip() not in _NON_REAL)
-        if real_pass_count > 3:
+        # Save all onboarding data — normalize, dedupe, and canonically order passes
+        normalized_pass = normalize_pass_selection(pass_type) or pass_type
+        if count_real_passes(normalized_pass) > 3:
             flash("You can select up to 3 passes.")
             return render_template("identity_setup.html", grouped_locations=get_grouped_locations())
         current_user.rider_types = rider_types
@@ -2328,10 +2327,8 @@ def edit_profile():
         user.rider_types = rider_types if rider_types else []
         
         passes_raw = request.form.get("pass_type", "")
-        normalized_passes = normalize_passes_string(passes_raw) or user.pass_type or "no_pass"
-        _NON_REAL = {'no_pass', 'no_pass_yet', 'other', ''}
-        _real_count = sum(1 for p in normalized_passes.split(',') if p.strip() and p.strip() not in _NON_REAL)
-        if _real_count > 3:
+        normalized_passes = normalize_pass_selection(passes_raw) or user.pass_type or "no_pass"
+        if count_real_passes(normalized_passes) > 3:
             flash("You can select up to 3 passes.", "error")
             return redirect(url_for("edit_profile"))
         user.pass_type = normalized_passes
@@ -5269,10 +5266,8 @@ def update_profile():
         user.primary_rider_type = data.get("primary_rider_type", "").strip()
     if "pass_type" in data:
         _raw_pt = data.get("pass_type", "").strip()
-        _norm_pt = normalize_passes_string(_raw_pt) or _raw_pt
-        _NON_REAL_API = {'no_pass', 'no_pass_yet', 'other', ''}
-        _real_ct = sum(1 for p in _norm_pt.split(',') if p.strip() and p.strip() not in _NON_REAL_API)
-        if _real_ct > 3:
+        _norm_pt = normalize_pass_selection(_raw_pt) or _raw_pt
+        if count_real_passes(_norm_pt) > 3:
             return jsonify({"success": False, "message": "You can select up to 3 passes."}), 400
         user.pass_type = _norm_pt
     
@@ -8975,10 +8970,8 @@ def skip_pass_prompt():
 def select_pass():
     if request.method == "POST":
         chosen = request.form.get("pass_type", "")
-        normalized_chosen = normalize_passes_string(chosen) or chosen
-        _NON_REAL = {'no_pass', 'no_pass_yet', 'other', ''}
-        _real_count = sum(1 for p in normalized_chosen.split(',') if p.strip() and p.strip() not in _NON_REAL)
-        if _real_count > 3:
+        normalized_chosen = normalize_pass_selection(chosen) or chosen
+        if count_real_passes(normalized_chosen) > 3:
             flash("You can select up to 3 passes.", "error")
             return redirect(url_for("select_pass"))
         current_user.pass_type = normalized_chosen

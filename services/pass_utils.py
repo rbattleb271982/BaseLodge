@@ -59,6 +59,23 @@ PASS_DISPLAY_MAP = {
 
 _NON_REAL_PASSES = frozenset({"no_pass", "no_pass_yet", "other", None, ""})
 
+# Canonical display order — matches onboarding step 3 and select_pass pill order.
+# Used by normalize_pass_selection() to produce a consistent stored order regardless
+# of the order the user tapped the pills.
+CANONICAL_PASS_ORDER = [
+    "epic",
+    "ikon",
+    "freedom",
+    "indy",
+    "mountain_collective",
+    "powder_alliance",
+    "ski_california",
+    "no_pass",
+    "no_pass_yet",
+    "other",
+]
+_VALID_PASS_SLUGS = frozenset(CANONICAL_PASS_ORDER)
+
 
 def normalize_pass(raw):
     """
@@ -134,6 +151,71 @@ def format_passes_for_display(pass_type_str):
             if label:
                 labels.append(label)
     return " · ".join(labels)
+
+
+def normalize_pass_selection(pass_input):
+    """
+    Normalize, dedupe, validate, and sort pass values into canonical display order.
+
+    Accepts a comma-separated string OR an iterable of raw/normalized pass values.
+    Returns a comma-separated snake_case string ready to save to user.pass_type.
+
+    Rules:
+    - Each value is run through normalize_pass(); unknown slugs are dropped.
+    - Duplicates are removed (first occurrence wins before ordering).
+    - Real passes take priority: if any real pass is present, exclusive pills
+      (no_pass / no_pass_yet / other) are discarded.
+    - If only exclusive values are present the last one is kept
+      (matches the UI rule where selecting "No pass" after "Not sure yet" wins).
+    - Real passes are sorted by CANONICAL_PASS_ORDER regardless of click order.
+    - Does NOT enforce the 3-pass cap — callers must validate count separately.
+    - Returns "" for empty/null input.
+
+    Examples:
+        "indy,epic,ikon"            -> "epic,ikon,indy"
+        "ikon,epic"                 -> "epic,ikon"
+        "no_pass,epic"              -> "epic"     (real pass wins)
+        "no_pass_yet,no_pass"       -> "no_pass"  (last exclusive wins)
+        "epic,epic,ikon"            -> "epic,ikon" (deduped)
+        ""                          -> ""
+    """
+    if not pass_input:
+        return ""
+    if isinstance(pass_input, str):
+        raw_parts = [p.strip() for p in pass_input.split(",") if p.strip()]
+    else:
+        raw_parts = [str(p).strip() for p in pass_input if str(p).strip()]
+
+    seen = set()
+    normalized = []
+    for p in raw_parts:
+        n = normalize_pass(p)
+        if n and n in _VALID_PASS_SLUGS and n not in seen:
+            seen.add(n)
+            normalized.append(n)
+
+    real = [p for p in normalized if p not in _NON_REAL_PASSES]
+    exclusive = [p for p in normalized if p in _NON_REAL_PASSES]
+
+    if real:
+        ordered = [p for p in CANONICAL_PASS_ORDER if p in set(real)]
+        return ",".join(ordered)
+    if exclusive:
+        return exclusive[-1]
+    return ""
+
+
+def count_real_passes(normalized_str):
+    """
+    Count real ski passes (excluding no_pass / no_pass_yet / other / empty)
+    in a normalized comma-separated pass_type string.
+    """
+    if not normalized_str:
+        return 0
+    return sum(
+        1 for p in normalized_str.split(",")
+        if p.strip() and p.strip() not in _NON_REAL_PASSES
+    )
 
 
 def is_real_pass(pass_value):
