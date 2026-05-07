@@ -1,0 +1,83 @@
+I need a full Android push notification readiness audit for BaseLodge.
+
+Context:
+- BaseLodge already has working iOS push notifications using direct APNs.
+- The app uses Capacitor.
+- Android support was partially started already.
+- We want to determine exactly what is already configured vs. what is still missing for Android push notifications using Firebase Cloud Messaging (FCM).
+
+Please inspect the entire project and report the current state in detail.
+
+Specifically verify ALL of the following:
+
+1. Capacitor Android setup
+- Is @capacitor/android installed?
+- Is @capacitor/push-notifications installed?
+- What versions are installed?
+- Is android/ fully initialized?
+- Is Capacitor synced correctly?
+
+2. Firebase Android setup
+- Does android/app/google-services.json exist?
+- Is it valid and in the correct location?
+- Does android/build.gradle include google() repositories?
+- Does android/app/build.gradle apply:
+  com.google.gms.google-services
+- Is the Google Services Gradle plugin dependency installed?
+- Are there any Gradle version mismatches or warnings?
+
+3. Native Android push readiness
+- Are Firebase messaging dependencies present?
+- Are there any missing AndroidManifest permissions/services?
+- Does Capacitor PushNotifications appear correctly wired for Android?
+- Are there any obvious issues that would prevent token registration?
+
+4. Frontend push registration logic
+Inspect the current JS push registration flow and answer:
+- Does Android currently attempt registration?
+- Are listeners attached before register()?
+- Is token registration platform-aware?
+- Is the backend token-save endpoint being called correctly?
+- Does the code distinguish between iOS and Android tokens?
+
+5. Backend push token handling
+Inspect:
+- PushDeviceToken model
+- token registration endpoint
+- admin test push route
+
+Report:
+- Whether Android tokens would currently save correctly
+- Whether platform="android" is already supported
+- Whether there are validation blockers
+- Whether duplicate handling exists
+- Whether inactive token handling exists
+
+6. Push sending infrastructure
+Determine:
+- Is Firebase Admin SDK already installed server-side?
+- Is there any existing FCM send logic?
+- Is there any env variable already expected for Firebase credentials?
+- Does /admin/test-push currently support Android or only APNs?
+
+7. Final gap analysis
+Create a very clear table:
+
+READY NOW
+PARTIALLY READY
+MISSING
+BROKEN
+NOT NEEDED
+
+Then list:
+- Exact files that need changes
+- Exact env vars still needed
+- Whether Replit deployment will be required
+- Whether GitHub push/pull and local Android sync will be required
+- Whether Android Studio setup is required
+- Whether a real Android device is required for testing
+
+Do not implement anything yet.
+This is an audit only.
+
+Do not use checkpoints unless I explicitly ask.
