@@ -17,31 +17,28 @@
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
-            margin-bottom: 16px;
+            margin-bottom: 8px;
         }
         .fr-invite-link {
-            display: inline-flex;
-            align-items: center;
-            padding: 6px 14px;
-            border: 1px solid #6B1F2B;
-            border-radius: 100px;
-            background: transparent;
             font-size: 13px;
             font-weight: 500;
-            color: #6B1F2B;
+            color: #5C1219;
             text-decoration: none;
             white-space: nowrap;
             flex-shrink: 0;
+            align-self: center;
             -webkit-tap-highlight-color: transparent;
             cursor: pointer;
+            padding: 0;
         }
-        .fr-invite-link:active { opacity: 0.65; }
+        .fr-invite-link:active { opacity: 0.55; }
 
         /* ── Tab row ──────────────────────────────────────────────────── */
         .fr-tab-row {
             display: flex;
+            align-items: center;
             border-bottom: 1px solid #E5DFD0;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             gap: 0;
         }
         .fr-tab {
@@ -453,17 +450,14 @@
             {%- set _i2 = (current_user.last_name[0] | upper) if current_user.last_name else '' -%}
             <a href="{{ url_for('profile') }}" class="hc-initials-bubble" aria-label="Go to profile">{{ _i1 + _i2 }}</a>
         </div>
-        <!-- Secondary: Invite action -->
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 14px;">
-            <a href="{{ url_for('invite') }}" class="fr-invite-link">Invite →</a>
-        </div>
 
-        <!-- Tab row -->
+        <!-- Tab row + Invite action on same row -->
         <div class="fr-tab-row" role="tablist">
             <button class="fr-tab active" role="tab" aria-selected="true"
                     onclick="switchTab('friends', this)">Friends</button>
             <button class="fr-tab" role="tab" aria-selected="false"
                     onclick="switchTab('trips', this)">Friends' Trips</button>
+            <a href="{{ url_for('invite') }}" class="fr-invite-link">Invite →</a>
         </div>
 
         <!-- ─────────────────────────────────────────────────────────────

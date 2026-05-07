@@ -12,8 +12,9 @@
         /* ── Tab bar ── */
         .tab-bar {
             display: flex;
+            align-items: center;
             border-bottom: 1px solid #E5DFD0;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
         .tab-btn {
             flex: 1;
@@ -83,24 +84,20 @@
             margin-bottom: 16px;
             line-height: 1.5;
         }
-        /* ── Snapshot pill CTA ── */
+        /* ── Snapshot text action ── */
         .mt-snapshot-pill {
-            display: inline-flex;
-            align-items: center;
-            padding: 6px 14px;
-            border: 1px solid #6B1F2B;
-            border-radius: 100px;
-            background: transparent;
             font-size: 13px;
             font-weight: 500;
-            color: #6B1F2B;
+            color: #5C1219;
             text-decoration: none;
             white-space: nowrap;
             flex-shrink: 0;
+            align-self: center;
             -webkit-tap-highlight-color: transparent;
             cursor: pointer;
+            padding: 0;
         }
-        .mt-snapshot-pill:active { opacity: 0.65; }
+        .mt-snapshot-pill:active { opacity: 0.55; }
 
         /* ── Trip rows (upcoming + invites) ── */
         .trip-row {
@@ -317,17 +314,14 @@
 {% block content %}
     <div class="page-container">
 
-        <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px;">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px;">
             <h1 class="mt-page-title bl-page-title">Trips</h1>
             {%- set _i1 = (current_user.first_name[0] | upper) if current_user.first_name else '?' -%}
             {%- set _i2 = (current_user.last_name[0] | upper) if current_user.last_name else '' -%}
             <a href="{{ url_for('profile') }}" class="hc-initials-bubble" aria-label="Go to profile">{{ _i1 + _i2 }}</a>
         </div>
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 14px;">
-            <a href="{{ url_for('season_snapshot') }}" class="mt-snapshot-pill">Season Snapshot</a>
-        </div>
 
-        <!-- Tab bar — My Trips / Friends' Trips -->
+        <!-- Tab bar — My Trips / Suggested / Season Snapshot -->
         {% set ns = namespace(invite_count=0) %}
         {% for trip in (invited_trips or []) %}
             {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
@@ -340,6 +334,7 @@
                 My Trips{% if ns.invite_count > 0 %}<span class="tab-badge">{{ ns.invite_count }}</span>{% endif %}
             </button>
             <button type="button" class="tab-btn" data-tab="friends">Suggested</button>
+            <a href="{{ url_for('season_snapshot') }}" class="mt-snapshot-pill">Season Snapshot →</a>
         </div>
 
         <!-- ── UPCOMING ── -->
