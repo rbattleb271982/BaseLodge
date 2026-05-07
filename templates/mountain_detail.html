@@ -21,7 +21,7 @@
 
         /* ── Hero ── */
         .md-hero {
-            padding: 0 0 20px 0;
+            padding: 0 0 14px 0;
         }
         .md-name {
             font-family: var(--bl-font-serif);
@@ -29,32 +29,19 @@
             font-weight: 400;
             color: #1A1A1A;
             line-height: 1.15;
-            margin: 0 0 6px 0;
+            margin: 0 0 8px 0;
         }
-        .md-state {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.6px;
-            text-transform: uppercase;
-            color: #8A857A;
-            margin: 0 0 4px 0;
-        }
-        .md-personal {
+        .md-meta {
             font-size: 13px;
-            color: #6B665A;
-            margin: 0 0 6px 0;
+            color: #8A857A;
             font-weight: 400;
-        }
-        .md-social {
-            font-size: 13px;
-            color: #8A857A;
             margin: 0;
-            font-weight: 400;
+            line-height: 1.5;
         }
         .md-hero-divider {
             height: 0.5px;
             background: rgba(0, 0, 0, 0.1);
-            margin: 20px 0 0 0;
+            margin: 14px 0 0 0;
         }
 
         /* ── Inline trip rows ── */
@@ -159,30 +146,20 @@
 
         <!-- Hero -->
         <div class="md-hero">
-            {% if state_full %}
-            <p class="md-state">{{ state_full }}</p>
-            {% endif %}
-            <h1 class="md-name">{{ resort.name }}</h1>
-            <p class="md-personal">
+            <h1 class="md-name">{{ resort.name }}{% if resort.state_code %}, {{ resort.state_code }}{% endif %}</h1>
+            <p class="md-meta">
                 {%- if user_pass_covered -%}
                     Covered by your {{ user_pass_name }} pass
                 {%- else -%}
                     Not on your pass
                 {%- endif -%}
-                {%- if is_on_wishlist %} · On your wishlist{% endif %}
-            </p>
-            {%- set has_social = (social_going > 0 or social_considering > 0) -%}
-            {% if has_social %}
-            <p class="md-social">
-                {%- if social_going > 0 and social_considering > 0 -%}
-                    {{ social_going }} {{ 'friend' if social_going == 1 else 'friends' }} going · {{ social_considering }} considering
-                {%- elif social_going > 0 -%}
-                    {{ social_going }} {{ 'friend' if social_going == 1 else 'friends' }} going
-                {%- else -%}
-                    {{ social_considering }} considering
+                {%- if is_on_wishlist %} · On your wishlist{% endif -%}
+                {%- if social_going > 0 and social_considering > 0 %} · {{ social_going }} {{ 'friend' if social_going == 1 else 'friends' }} going · {{ social_considering }} considering
+                {%- elif social_going > 0 %} · {{ social_going }} {{ 'friend' if social_going == 1 else 'friends' }} going
+                {%- elif social_considering > 0 %} · {{ social_considering }} considering
                 {%- endif -%}
+                {%- if flat_rows %} · {{ flat_rows | length }} {{ 'trip' if flat_rows | length == 1 else 'trips' }} planned{%- endif -%}
             </p>
-            {% endif %}
         </div>
 
         <!-- Hairline divider -->
