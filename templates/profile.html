@@ -245,6 +245,15 @@
                     <span class="profile-row-chevron">›</span>
                 </div>
             </a>
+            <a href="{{ url_for('edit_profile') }}" class="profile-row">
+                <div class="profile-row-left">
+                    <span class="profile-row-label">Push notifications</span>
+                    <span class="profile-row-sub" id="prof-push-status">{{ 'Push notifications on' if current_user.push_notifications_enabled else 'Off in BaseLodge' }}</span>
+                </div>
+                <div class="profile-row-right">
+                    <span class="profile-row-chevron">›</span>
+                </div>
+            </a>
         </div>
 
         <!-- Profile section -->
@@ -367,6 +376,29 @@
                 }, 80);
             }
         }
+    })();
+
+    // ── Refine push status with OS permission (native only) ───────────
+    // blOnOSPermReady is registered only inside the Capacitor shell by
+    // analytics_head.html's OneSignal init block. In a browser context it
+    // is never defined, so the typeof guard makes this a no-op.
+    (function() {
+        var profPushEnabled = {{ 'true' if current_user.push_notifications_enabled else 'false' }};
+        var el = document.getElementById('prof-push-status');
+        if (!el) return;
+        if (typeof window.blOnOSPermReady !== 'function') return;
+        window.blOnOSPermReady(function(osPerm) {
+            var st = osPerm && osPerm.status;
+            if (!profPushEnabled) {
+                el.textContent = 'Off in BaseLodge';
+            } else if (st === 'denied') {
+                el.textContent = 'Blocked at device level';
+            } else if (st === 'not_determined') {
+                el.textContent = 'Permission not yet granted';
+            } else {
+                el.textContent = 'Push notifications on';
+            }
+        });
     })();
     </script>
 {% endblock %}

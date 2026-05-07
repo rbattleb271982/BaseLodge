@@ -508,9 +508,83 @@
 
         console.log('[OneSignal] init sequence complete');
 
+        // ── OS permission state — check once after init ───────────────────────
+        // Resolves to 'granted', 'denied', 'not_determined', or null (unknown).
+        // Stored in closure-scoped var; blOnOSPermReady / blGetOSPermStatus exposed.
+        var _blOSPerm  = null;   // { status: 'granted'|'denied'|'not_determined'|null }
+        var _blPermCbs = [];
+
+        window.blOnOSPermReady = function(cb) {
+          if (_blOSPerm !== null) { try { cb(_blOSPerm); } catch(_) {} return; }
+          _blPermCbs.push(cb);
+        };
+        window.blGetOSPermStatus = function() {
+          return _blOSPerm ? _blOSPerm.status : null;
+        };
+
+        async function _blCheckOSPerm() {
+          try {
+            if (OS.Notifications && typeof OS.Notifications.getPermissionAsync === 'function') {
+              var _p = await OS.Notifications.getPermissionAsync();
+              if (!_p) return 'not_determined';
+              var _v = _p.value !== undefined ? _p.value : _p.permission;
+              if (_v === 'granted' || _v === true)  return 'granted';
+              if (_v === 'denied')                   return 'denied';
+              return 'not_determined';
+            }
+            if (typeof OS.getDeviceState === 'function') {
+              var _s = await OS.getDeviceState();
+              return (_s && _s.hasNotificationPermission) ? 'granted' : 'not_determined';
+            }
+          } catch (_ce) {
+            console.warn('[OneSignal] OS perm check error:', _ce);
+          }
+          return null;
+        }
+
+        _blCheckOSPerm().then(function(status) {
+          _blOSPerm = { status: status };
+          console.log('[OneSignal] OS permission status=' + status);
+          _blPermCbs.forEach(function(cb) { try { cb(_blOSPerm); } catch(_) {} });
+          _blPermCbs = [];
+        });
+
+        // ── Re-prompt OS permission (only called when user explicitly enables) ─
+        async function _blRequestPermIfNeeded() {
+          // Wait for the initial check to finish (may still be in-flight)
+          if (_blOSPerm === null) {
+            await new Promise(function(r) { _blPermCbs.push(function() { r(); }); });
+          }
+          var curStatus = _blOSPerm && _blOSPerm.status;
+          if (curStatus === 'granted') {
+            console.log('[OneSignal] OS permission already granted — no re-prompt');
+            return;
+          }
+          console.log('[OneSignal] OS permission status=' + curStatus + ' — requesting permission');
+          try {
+            var _rr;
+            if (typeof OS.requestPermission === 'function') {
+              _rr = await OS.requestPermission({ fallbackToSettings: true });
+            } else if (typeof OS.promptForPushNotificationsWithUserResponse === 'function') {
+              _rr = await OS.promptForPushNotificationsWithUserResponse({ fallbackToSettings: true });
+            } else {
+              console.warn('[OneSignal] no permission-request method available for re-prompt');
+              return;
+            }
+            if (_rr !== undefined) console.log('[OneSignal] re-prompt result:', JSON.stringify(_rr));
+            // Re-check and update cached status so blGetOSPermStatus() returns fresh value
+            var newStatus = await _blCheckOSPerm();
+            _blOSPerm = { status: newStatus };
+            console.log('[OneSignal] post-prompt OS permission status=' + newStatus);
+          } catch (_rpe) {
+            console.warn('[OneSignal] _blRequestPermIfNeeded error:', _rpe);
+          }
+        }
+
         // ── Expose opt-in/out helper for the push preference toggle ──────────
         // Called by blTogglePushPref() in edit_profile.html after the server
         // preference is saved. No-op in browser (this code only runs natively).
+        // When enabling, also re-prompts OS permission if not yet granted.
         window.blSetPushEnabled = function(enabled) {
           try {
             if (typeof OS.User !== 'undefined' && OS.User && OS.User.PushSubscription) {
@@ -518,6 +592,7 @@
               if (enabled) {
                 OS.User.PushSubscription.optIn().then(function() {
                   console.log('[OneSignal] blSetPushEnabled: optIn() called (SDK 5.x)');
+                  _blRequestPermIfNeeded();
                 }).catch(function(e) {
                   console.warn('[OneSignal] blSetPushEnabled: optIn() error:', e);
                 });
@@ -532,6 +607,7 @@
               // SDK 4.x fallback
               OS.disablePush({ disabled: !enabled }).then(function() {
                 console.log('[OneSignal] blSetPushEnabled: disablePush(' + !enabled + ') called (SDK 4.x)');
+                if (enabled) _blRequestPermIfNeeded();
               }).catch(function(e) {
                 console.warn('[OneSignal] blSetPushEnabled: disablePush error:', e);
               });
