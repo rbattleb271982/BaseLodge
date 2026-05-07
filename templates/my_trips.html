@@ -317,8 +317,13 @@
 {% block content %}
     <div class="page-container">
 
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0;">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px;">
             <h1 class="mt-page-title bl-page-title">Trips</h1>
+            {%- set _i1 = (current_user.first_name[0] | upper) if current_user.first_name else '?' -%}
+            {%- set _i2 = (current_user.last_name[0] | upper) if current_user.last_name else '' -%}
+            <a href="{{ url_for('profile') }}" class="hc-initials-bubble" aria-label="Go to profile">{{ _i1 + _i2 }}</a>
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 14px;">
             <a href="{{ url_for('season_snapshot') }}" class="mt-snapshot-pill">Season Snapshot</a>
         </div>
 

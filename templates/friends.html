@@ -15,9 +15,9 @@
         }
         .fr-header-row {
             display: flex;
-            align-items: flex-end;
+            align-items: flex-start;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
         .fr-invite-link {
             display: inline-flex;
@@ -45,8 +45,10 @@
             gap: 0;
         }
         .fr-tab {
-            padding: 8px 20px 10px 0;
-            font-size: 15px;
+            flex: 1;
+            padding: 12px 8px;
+            font-size: 14px;
+            font-weight: 500;
             color: var(--bl-color-text-tertiary);
             cursor: pointer;
             border: none;
@@ -54,13 +56,15 @@
             margin-bottom: -1px;
             background: none;
             font-family: inherit;
+            text-align: center;
+            white-space: nowrap;
             -webkit-tap-highlight-color: transparent;
             transition: color 0.15s, border-color 0.15s;
         }
         .fr-tab.active {
             color: var(--bl-color-text);
             border-bottom-color: var(--bl-color-primary);
-            font-weight: 500;
+            font-weight: 600;
         }
 
         /* ── Search ───────────────────────────────────────────────────── */
@@ -413,7 +417,12 @@
         <!-- ══════════════════════════════════════════════════════════════
              EMPTY STATE — 0 friends
         ══════════════════════════════════════════════════════════════ -->
-        <h1 class="fr-page-title">Friends</h1>
+        <div class="fr-header-row">
+            <h1 class="fr-page-title" style="margin-bottom: 0;">Friends</h1>
+            {%- set _i1 = (current_user.first_name[0] | upper) if current_user.first_name else '?' -%}
+            {%- set _i2 = (current_user.last_name[0] | upper) if current_user.last_name else '' -%}
+            <a href="{{ url_for('profile') }}" class="hc-initials-bubble" aria-label="Go to profile">{{ _i1 + _i2 }}</a>
+        </div>
 
         <div class="fr-empty-section">
             <h2 class="fr-empty-headline">Add a friend</h2>
@@ -437,9 +446,15 @@
              POPULATED STATE — 1+ friends
         ══════════════════════════════════════════════════════════════ -->
 
-        <!-- Header: title + Invite action -->
+        <!-- Header: title + profile bubble -->
         <div class="fr-header-row">
             <h1 class="fr-page-title" style="margin-bottom: 0;">Friends</h1>
+            {%- set _i1 = (current_user.first_name[0] | upper) if current_user.first_name else '?' -%}
+            {%- set _i2 = (current_user.last_name[0] | upper) if current_user.last_name else '' -%}
+            <a href="{{ url_for('profile') }}" class="hc-initials-bubble" aria-label="Go to profile">{{ _i1 + _i2 }}</a>
+        </div>
+        <!-- Secondary: Invite action -->
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 14px;">
             <a href="{{ url_for('invite') }}" class="fr-invite-link">Invite →</a>
         </div>
 

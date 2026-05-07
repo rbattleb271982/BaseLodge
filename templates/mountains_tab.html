@@ -9,7 +9,10 @@
 
     /* ── Header ── */
     .md-header {
-        margin-bottom: 20px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 6px;
     }
     .md-title {
         font-family: var(--bl-font-serif, Georgia, serif);
@@ -17,13 +20,13 @@
         font-weight: 400;
         color: var(--bl-color-text);
         letter-spacing: -0.4px;
-        margin: 0 0 6px;
+        margin: 0;
         line-height: 1.1;
     }
     .md-sub {
         font-size: 15px;
         color: var(--bl-color-text-muted);
-        margin: 0;
+        margin: 0 0 16px;
         line-height: 1.45;
     }
 
@@ -228,8 +231,11 @@
 
     <div class="md-header">
         <h1 class="md-title">Mountains</h1>
-        <p class="md-sub">Find the places your winter could happen.</p>
+        {%- set _i1 = (current_user.first_name[0] | upper) if current_user.first_name else '?' -%}
+        {%- set _i2 = (current_user.last_name[0] | upper) if current_user.last_name else '' -%}
+        <a href="{{ url_for('profile') }}" class="hc-initials-bubble" aria-label="Go to profile">{{ _i1 + _i2 }}</a>
     </div>
+    <p class="md-sub">Find the places your winter could happen.</p>
 
     <div class="md-search-wrap">
         <svg class="md-search-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
