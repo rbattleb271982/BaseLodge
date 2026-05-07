@@ -3528,15 +3528,19 @@ def push_register_token():
 
     token_preview = token[:8] + "…" + token[-6:] if len(token) > 14 else token[:8] + "…"
 
-    # Resolve apns_environment
-    client_hint = (data.get("apns_environment") or "").strip().lower()
-    if client_hint in ("sandbox", "production"):
-        apns_env = client_hint
-        env_source = "client_hint"
+    # Resolve apns_environment — only meaningful for iOS; Android uses FCM
+    if platform == "android":
+        apns_env = "n/a"
+        env_source = "android"
     else:
-        use_sandbox = os.environ.get("APNS_USE_SANDBOX", "true").lower() not in ("false", "0", "no")
-        apns_env = "sandbox" if use_sandbox else "production"
-        env_source = "server_inferred"
+        client_hint = (data.get("apns_environment") or "").strip().lower()
+        if client_hint in ("sandbox", "production"):
+            apns_env = client_hint
+            env_source = "client_hint"
+        else:
+            use_sandbox = os.environ.get("APNS_USE_SANDBOX", "true").lower() not in ("false", "0", "no")
+            apns_env = "sandbox" if use_sandbox else "production"
+            env_source = "server_inferred"
 
     try:
         existing = PushDeviceToken.query.filter_by(
@@ -3624,6 +3628,86 @@ def push_debug_beacon():
         current_user.id, step, safe_data
     )
     return jsonify({"ok": True}), 200
+
+
+# ---------------------------------------------------------------------------
+# Firebase Cloud Messaging (FCM) — Android push sending
+# ---------------------------------------------------------------------------
+
+_firebase_admin_app = None
+
+
+def _get_firebase_admin():
+    """Return an initialized Firebase Admin app, or None if unavailable.
+
+    Reads FIREBASE_SERVICE_ACCOUNT_JSON (full JSON string) from the environment.
+    Initializes once and caches. Fails gracefully if the secret is missing.
+    """
+    global _firebase_admin_app
+    if _firebase_admin_app is not None:
+        return _firebase_admin_app
+
+    sa_json = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
+    if not sa_json:
+        return None
+
+    try:
+        import json as _json
+        import firebase_admin
+        from firebase_admin import credentials as _fb_creds
+        sa_dict = _json.loads(sa_json)
+        cred = _fb_creds.Certificate(sa_dict)
+        _firebase_admin_app = firebase_admin.initialize_app(cred)
+        print("[FCM] Firebase Admin SDK initialized.")
+        return _firebase_admin_app
+    except Exception as _e:
+        print(f"[FCM] Firebase Admin init failed: {_e}")
+        return None
+
+
+def send_fcm_push(token, title, body, data=None):
+    """Send a push notification via Firebase Cloud Messaging to an Android device.
+
+    Args:
+        token  -- FCM registration token
+        title  -- notification title string
+        body   -- notification body string
+        data   -- optional dict of string key/value data payload
+
+    Returns dict with: success (bool), message_id (str|None), error (str|None).
+    Never logs the full token value.
+    """
+    token_preview = token[:8] + "\u2026" + token[-6:] if len(token) > 14 else token[:8] + "\u2026"
+
+    fa = _get_firebase_admin()
+    if fa is None:
+        current_app.logger.error(
+            "[FCM] Cannot send — FIREBASE_SERVICE_ACCOUNT_JSON not configured. "
+            "provider=fcm platform=android token=%s", token_preview
+        )
+        return {"success": False, "error": "Firebase Admin not configured", "message_id": None}
+
+    try:
+        import firebase_admin.messaging as _fb_msg
+        notification = _fb_msg.Notification(title=title, body=body)
+        message = _fb_msg.Message(
+            notification=notification,
+            data={str(k): str(v) for k, v in (data or {}).items()},
+            token=token,
+        )
+        response = _fb_msg.send(message)
+        current_app.logger.warning(
+            "[FCM] provider=fcm platform=android token=%s message_id=%s status=success",
+            token_preview, response,
+        )
+        return {"success": True, "message_id": response, "error": None}
+    except Exception as _fcm_e:
+        err_str = str(_fcm_e)[:200]
+        current_app.logger.warning(
+            "[FCM] provider=fcm platform=android token=%s status=failed error=%s",
+            token_preview, err_str,
+        )
+        return {"success": False, "error": err_str, "message_id": None}
 
 
 # ---------------------------------------------------------------------------
@@ -4027,21 +4111,80 @@ def admin_push_diagnostics():
 @login_required
 @admin_required
 def admin_test_push():
-    """Send a test push to every active iOS production token in the database.
+    """Send a test push notification using the most recently updated active token.
 
-    Queries PushDeviceToken for rows where active=True, platform='ios',
-    apns_environment='production' (skipped when APNS_USE_SANDBOX=true).
-    Sends the same payload to each token and returns per-token results.
+    Routing:
+      - If the latest active token is platform='ios'  → send via APNs (existing behavior,
+        loops over all active iOS tokens matching the current APNs environment).
+      - If the latest active token is platform='android' → send via FCM (single token).
 
-    GET /admin/test-push
+    Title: BaseLodge
+    Body:  Test push from BaseLodge
     """
+    def _tok_preview(t):
+        return t[:8] + "\u2026" + t[-6:] if len(t) > 14 else t[:8] + "\u2026"
+
+    # Determine which platform to use based on the most recently updated active token.
+    latest_token = (
+        PushDeviceToken.query
+        .filter_by(active=True)
+        .order_by(PushDeviceToken.updated_at.desc())
+        .first()
+    )
+
+    current_app.logger.warning(
+        "[TestPush] latest_active_token: id=%s platform=%s",
+        latest_token.id if latest_token else None,
+        latest_token.platform if latest_token else "none",
+    )
+
+    # ── Android path ──────────────────────────────────────────────────────────
+    if latest_token and latest_token.platform == "android":
+        preview = _tok_preview(latest_token.token)
+        current_app.logger.warning(
+            "[TestPush] provider=fcm platform=android token_id=%d user_id=%d token=%s",
+            latest_token.id, latest_token.user_id, preview,
+        )
+        result = send_fcm_push(
+            latest_token.token,
+            title="BaseLodge",
+            body="Test push from BaseLodge",
+        )
+        success = result.get("success", False)
+        http_status = 200 if success else 502
+        return jsonify({
+            "provider":              "fcm",
+            "platform":              "android",
+            "total_tokens_found":    1,
+            "total_sent_successfully": 1 if success else 0,
+            "total_failed":          0 if success else 1,
+            "fcm_secret_set":        bool(os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON")),
+            "results_by_token": [{
+                "user_id":       latest_token.user_id,
+                "token_id":      latest_token.id,
+                "token_preview": preview,
+                "platform":      "android",
+                "success":       success,
+                "message_id":    result.get("message_id"),
+                "error":         result.get("error"),
+            }],
+        }), http_status
+
+    # ── iOS path (existing APNs behavior) ─────────────────────────────────────
     use_sandbox_raw = os.environ.get("APNS_USE_SANDBOX", "true")
     use_sandbox = use_sandbox_raw.lower() not in ("false", "0", "no")
     bundle_id   = os.environ.get("APNS_BUNDLE_ID", "com.baselodge.app")
     target_env  = "sandbox" if use_sandbox else "production"
 
-    def _tok_preview(t):
-        return t[:8] + "…" + t[-6:] if len(t) > 14 else t[:8] + "…"
+    apns_env_info = {
+        "APNS_USE_SANDBOX_raw": use_sandbox_raw,
+        "use_sandbox": use_sandbox,
+        "target_token_environment": target_env,
+        "bundle_id": bundle_id,
+        "APNS_KEY_ID_set": bool(os.environ.get("APNS_KEY_ID")),
+        "APNS_TEAM_ID_set": bool(os.environ.get("APNS_TEAM_ID")),
+        "APNS_KEY_P8_set": bool(os.environ.get("APNS_KEY_P8")),
+    }
 
     # Select active iOS tokens whose stored env matches the current APNs mode.
     candidate_rows = (
@@ -4052,7 +4195,7 @@ def admin_test_push():
     )
 
     current_app.logger.warning(
-        "[TestPush] APNS_USE_SANDBOX=%s target_env=%s active_ios_%s_tokens=%d",
+        "[TestPush] provider=apns APNS_USE_SANDBOX=%s target_env=%s active_ios_%s_tokens=%d",
         use_sandbox_raw, target_env, target_env, len(candidate_rows),
     )
 
@@ -4061,30 +4204,22 @@ def admin_test_push():
             "[TestPush] no active iOS %s tokens found — nothing to send", target_env,
         )
         return jsonify({
-            "total_tokens_found": 0,
+            "provider":              "apns",
+            "platform":              "ios",
+            "total_tokens_found":    0,
             "total_sent_successfully": 0,
-            "total_failed": 0,
-            "apns_env": {
-                "APNS_USE_SANDBOX_raw": use_sandbox_raw,
-                "use_sandbox": use_sandbox,
-                "target_token_environment": target_env,
-                "bundle_id": bundle_id,
-                "APNS_KEY_ID_set": bool(os.environ.get("APNS_KEY_ID")),
-                "APNS_TEAM_ID_set": bool(os.environ.get("APNS_TEAM_ID")),
-                "APNS_KEY_P8_set": bool(os.environ.get("APNS_KEY_P8")),
-            },
-            "reason": "no_active_tokens",
-            "results_by_token": [],
+            "total_failed":          0,
+            "apns_env":              apns_env_info,
+            "reason":                "no_active_tokens",
+            "results_by_token":      [],
         }), 200
 
-    # derive prefer_sandbox from stored env (always matches target_env here,
-    # but keep explicit logic so it stays correct if query ever widens).
     def _prefer_sandbox(row):
         if row.apns_environment == "sandbox":
             return True
         if row.apns_environment == "production":
             return False
-        return None  # fall back to APNS_USE_SANDBOX
+        return None
 
     results_by_token = []
     total_ok  = 0
@@ -4093,20 +4228,19 @@ def admin_test_push():
     for row in candidate_rows:
         preview = _tok_preview(row.token)
         current_app.logger.warning(
-            "[TestPush] sending → token_id=%d user_id=%d env=%s preview=%s",
+            "[TestPush] sending → provider=apns token_id=%d user_id=%d env=%s token=%s",
             row.id, row.user_id, row.apns_environment, preview,
         )
 
         result = send_apns_push(
             row.token,
-            title="BaseLodge test",
-            body="Your push from BaseLodge worked.",
+            title="BaseLodge",
+            body="Test push from BaseLodge",
             prefer_sandbox=_prefer_sandbox(row),
         )
 
         final_success = result.get("final_success", result.get("success", False))
 
-        # Resolve the status/error from whichever attempt was authoritative.
         if result.get("retry_attempted"):
             status_code = result.get("retry_status_code")
             error       = result.get("retry_error")
@@ -4132,37 +4266,32 @@ def admin_test_push():
             )
 
         results_by_token.append({
-            "user_id":         row.user_id,
-            "token_id":        row.id,
-            "token_preview":   preview,
+            "user_id":          row.user_id,
+            "token_id":         row.id,
+            "token_preview":    preview,
+            "platform":         "ios",
             "apns_environment": row.apns_environment,
-            "success":         final_success,
-            "status_code":     status_code,
-            "error":           error,
-            "apns_id":         apns_id,
-            "env_corrected":   result.get("env_corrected", False),
+            "success":          final_success,
+            "status_code":      status_code,
+            "error":            error,
+            "apns_id":          apns_id,
+            "env_corrected":    result.get("env_corrected", False),
         })
 
     current_app.logger.warning(
-        "[TestPush] done — total=%d ok=%d failed=%d",
+        "[TestPush] done — provider=apns total=%d ok=%d failed=%d",
         len(candidate_rows), total_ok, total_bad,
     )
 
     overall_http = 200 if total_ok > 0 else 502
     return jsonify({
+        "provider":               "apns",
+        "platform":               "ios",
         "total_tokens_found":     len(candidate_rows),
         "total_sent_successfully": total_ok,
         "total_failed":           total_bad,
-        "apns_env": {
-            "APNS_USE_SANDBOX_raw": use_sandbox_raw,
-            "use_sandbox": use_sandbox,
-            "target_token_environment": target_env,
-            "bundle_id": bundle_id,
-            "APNS_KEY_ID_set": bool(os.environ.get("APNS_KEY_ID")),
-            "APNS_TEAM_ID_set": bool(os.environ.get("APNS_TEAM_ID")),
-            "APNS_KEY_P8_set": bool(os.environ.get("APNS_KEY_P8")),
-        },
-        "results_by_token": results_by_token,
+        "apns_env":               apns_env_info,
+        "results_by_token":       results_by_token,
     }), overall_http
 
 

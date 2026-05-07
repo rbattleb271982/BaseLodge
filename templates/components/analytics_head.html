@@ -54,7 +54,7 @@
   });
 </script>
 <script>
-  /* ── Push notification token capture ── native Capacitor iOS shell only ──
+  /* ── Push notification token capture ── native Capacitor shell (iOS + Android) ──
      DEBUG BEACONS ACTIVE: every step POSTs to /api/push/beacon so the
      server log shows exactly how far the script reaches inside TestFlight's
      WKWebView (where console.log is invisible without a tethered Mac).
@@ -233,6 +233,11 @@
         return;
       }
 
+      // Determine native platform so the correct token type is sent to the server.
+      // iOS tokens go to APNs; Android tokens go to FCM.
+      var nativePlatform = (snap.cap_platform === 'android') ? 'android' : 'ios';
+      console.log('[Push] nativePlatform:', nativePlatform);
+
       // Attach listeners BEFORE calling requestPermissions / register
       await Push.addListener('registration', function(evt) {
         var tokVal = evt && evt.value ? evt.value : '';
@@ -248,20 +253,30 @@
           return;
         }
 
-        // Detect APNs environment from Capacitor.DEBUG when available.
-        // DEBUG=false means release/distribution build → production APNs tokens.
-        // DEBUG=true means development/debug build → sandbox APNs tokens.
-        // If DEBUG is unavailable, send 'unknown' and the server infers from APNS_USE_SANDBOX.
-        var apnsEnvHint = 'unknown';
-        if (typeof Cap.DEBUG === 'boolean') {
-          apnsEnvHint = Cap.DEBUG ? 'sandbox' : 'production';
+        // Build platform-appropriate registration body.
+        // iOS: include APNs environment hint (sandbox vs production).
+        // Android: FCM token — no APNs fields needed.
+        var regBody;
+        if (nativePlatform === 'android') {
+          regBody = { token: tokVal, platform: 'android' };
+          _pushBeacon('token_env_hint', { hint: 'fcm', platform: 'android' });
+        } else {
+          // Detect APNs environment from Capacitor.DEBUG when available.
+          // DEBUG=false means release/distribution build → production APNs tokens.
+          // DEBUG=true means development/debug build → sandbox APNs tokens.
+          // If DEBUG is unavailable, send 'unknown' and the server infers from APNS_USE_SANDBOX.
+          var apnsEnvHint = 'unknown';
+          if (typeof Cap.DEBUG === 'boolean') {
+            apnsEnvHint = Cap.DEBUG ? 'sandbox' : 'production';
+          }
+          _pushBeacon('token_env_hint', { hint: apnsEnvHint, cap_debug_available: typeof Cap.DEBUG === 'boolean' });
+          regBody = { token: tokVal, platform: 'ios', apns_environment: apnsEnvHint };
         }
-        _pushBeacon('token_env_hint', { hint: apnsEnvHint, cap_debug_available: typeof Cap.DEBUG === 'boolean' });
 
         window.fetch('/api/push/register-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: tokVal, platform: 'ios', apns_environment: apnsEnvHint })
+          body: JSON.stringify(regBody)
         }).then(function(res) {
           if (res.ok) {
             res.json().then(function(d) {
