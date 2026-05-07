@@ -59,6 +59,19 @@
             align-items: center;
             justify-content: center;
             min-height: 2.4em;
+            text-decoration: underline;
+            text-decoration-color: rgba(92, 18, 25, 0.22);
+            text-underline-offset: 3px;
+        }
+        .prof-meta-link {
+            color: var(--bl-color-primary);
+            text-decoration: underline;
+            text-decoration-color: rgba(92, 18, 25, 0.35);
+            text-underline-offset: 2px;
+            font-weight: 500;
+        }
+        .prof-meta-link:active {
+            opacity: 0.65;
         }
         .prof-stat-divider {
             width: 0.5px;
@@ -184,7 +197,19 @@
         {% if current_user.skill_level and not (current_user.rider_types == ['Social']) %}{% set _ = id_parts.append(current_user.skill_level) %}{% endif %}
         {% if current_user.pass_type %}{% set _ = id_parts.append(current_user.pass_type | pass_display) %}{% endif %}
         {% if id_parts %}
-        <p style="font-size:16px; color:var(--bl-color-text-muted); margin:6px 0 0; line-height:1.4;">{{ id_parts | join(' · ') }}</p>
+        <p style="font-size:16px; margin:6px 0 0; line-height:1.6;">
+            {%- if current_user.rider_types -%}
+            <a href="{{ url_for('edit_profile') }}" class="prof-meta-link">{{ current_user.rider_types[0] | rider_display }}</a>
+            {%- endif -%}
+            {%- if current_user.skill_level and not (current_user.rider_types == ['Social']) -%}
+            {%- if current_user.rider_types %}<span style="color:var(--bl-color-text-muted);"> · </span>{% endif -%}
+            <a href="{{ url_for('edit_profile') }}" class="prof-meta-link">{{ current_user.skill_level }}</a>
+            {%- endif -%}
+            {%- if current_user.pass_type -%}
+            {%- if current_user.rider_types or (current_user.skill_level and not (current_user.rider_types == ['Social'])) %}<span style="color:var(--bl-color-text-muted);"> · </span>{% endif -%}
+            <a href="{{ url_for('select_pass') }}" class="prof-meta-link">{{ current_user.pass_type | pass_display }}</a>
+            {%- endif -%}
+        </p>
         {% endif %}
 
         <!-- Stat row: Trips / Mountains visited / Wishlist (all tappable) -->
