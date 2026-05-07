@@ -428,16 +428,24 @@
         //   1. Cap.Plugins.OneSignal  — registered Capacitor-native plugin
         //   2. Cap.registerPlugin()   — Capacitor v6+ lazy-registration
         //   3. window.plugins.OneSignal — Cordova bridge (onesignal-cordova-plugin)
+        //
+        // _osVia tracks the bridge type so the init block can pass the right
+        // argument shape: Cordova expects plain strings; Capacitor native
+        // expects objects ({ appId, externalId, … }).
         var OS = null;
+        var _osVia = null;
         try {
           if (Cap.Plugins && Cap.Plugins.OneSignal) {
             OS = Cap.Plugins.OneSignal;
+            _osVia = 'Cap.Plugins';
             console.log('[OneSignal] plugin found via Cap.Plugins');
           } else if (typeof Cap.registerPlugin === 'function') {
             OS = Cap.registerPlugin('OneSignal');
+            _osVia = 'registerPlugin';
             console.log('[OneSignal] plugin obtained via registerPlugin()');
           } else if (window.plugins && window.plugins.OneSignal) {
             OS = window.plugins.OneSignal;
+            _osVia = 'window.plugins';
             console.log('[OneSignal] plugin found via window.plugins (Cordova bridge)');
           }
         } catch (_pe) {
@@ -446,6 +454,7 @@
         // Cordova bridge may initialise asynchronously — retry once after brief delay
         if (!OS && window.plugins && window.plugins.OneSignal) {
           OS = window.plugins.OneSignal;
+          _osVia = 'window.plugins';
           console.log('[OneSignal] plugin found via window.plugins (delayed)');
         }
 
@@ -454,15 +463,29 @@
           return;
         }
 
-        // ── Initialize (SDK 5.x: initialize / SDK 4.x: setAppId) ─────────
+        // ── Initialize ────────────────────────────────────────────────────
+        // Argument shape differs by bridge:
+        //   Cordova (window.plugins): initialize(appId) — plain string
+        //   Capacitor native (Cap.Plugins / registerPlugin): initialize({ appId }) — object
+        var _isCordovaBridge = (_osVia === 'window.plugins');
         try {
           if (typeof OS.initialize === 'function') {
-            console.log('[OneSignal] calling initialize() (SDK 5.x)');
-            await OS.initialize({ appId: _osAppId });
+            if (_isCordovaBridge) {
+              console.log('[OneSignal] calling initialize() — Cordova string init, appId=' + _osAppId);
+              await OS.initialize(_osAppId);
+            } else {
+              console.log('[OneSignal] calling initialize() — Capacitor object init');
+              await OS.initialize({ appId: _osAppId });
+            }
             console.log('[OneSignal] initialize() complete');
           } else if (typeof OS.setAppId === 'function') {
-            console.log('[OneSignal] calling setAppId() (SDK 4.x fallback)');
-            await OS.setAppId({ appId: _osAppId });
+            if (_isCordovaBridge) {
+              console.log('[OneSignal] calling setAppId() — Cordova string init (SDK 4.x fallback)');
+              await OS.setAppId(_osAppId);
+            } else {
+              console.log('[OneSignal] calling setAppId() — Capacitor object init (SDK 4.x fallback)');
+              await OS.setAppId({ appId: _osAppId });
+            }
             console.log('[OneSignal] setAppId() complete');
           } else {
             console.warn('[OneSignal] no initialize / setAppId method found — unknown SDK version, aborting');
@@ -476,15 +499,26 @@
         // ── Associate logged-in user via stable external ID ───────────────
         // Uses the BaseLodge integer user ID as a string, matching what
         // the backend send_onesignal_push() helper uses for targeting.
+        // Same plain-string vs object split applies here.
         if (userId) {
           try {
             if (typeof OS.login === 'function') {
-              console.log('[OneSignal] calling login() externalId=' + userId + ' (SDK 5.x)');
-              await OS.login({ externalId: String(userId) });
+              if (_isCordovaBridge) {
+                console.log('[OneSignal] calling login() — Cordova string, externalId=' + userId);
+                await OS.login(String(userId));
+              } else {
+                console.log('[OneSignal] calling login() — Capacitor object, externalId=' + userId);
+                await OS.login({ externalId: String(userId) });
+              }
               console.log('[OneSignal] login() complete');
             } else if (typeof OS.setExternalUserId === 'function') {
-              console.log('[OneSignal] calling setExternalUserId() id=' + userId + ' (SDK 4.x fallback)');
-              await OS.setExternalUserId({ externalUserId: String(userId) });
+              if (_isCordovaBridge) {
+                console.log('[OneSignal] calling setExternalUserId() — Cordova string, id=' + userId);
+                await OS.setExternalUserId(String(userId));
+              } else {
+                console.log('[OneSignal] calling setExternalUserId() — Capacitor object, id=' + userId);
+                await OS.setExternalUserId({ externalUserId: String(userId) });
+              }
               console.log('[OneSignal] setExternalUserId() complete');
             } else {
               console.log('[OneSignal] no login / setExternalUserId method — user association skipped');
