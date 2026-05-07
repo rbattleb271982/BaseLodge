@@ -4467,6 +4467,172 @@ def admin_test_push_all():
     }), overall_http
 
 
+@app.route("/admin/test-push-broadcast", methods=["GET"])
+@login_required
+@admin_required
+def admin_test_push_broadcast():
+    """Send a test push to every active token in the database across all users.
+
+    Optional query params:
+      ?title=...   override notification title  (default: "BaseLodge")
+      ?body=...    override notification body   (default: "Test push from BaseLodge")
+
+    Routes each token through the correct provider:
+      platform='ios'     → APNs  (send_apns_push)
+      platform='android' → FCM   (send_fcm_push)
+      anything else      → skipped, counted as unsupported
+
+    Never logs full tokens or secrets.
+    """
+    def _tok_preview(t):
+        return t[:8] + "\u2026" + t[-6:] if len(t) > 14 else t[:8] + "\u2026"
+
+    title = (request.args.get("title") or "BaseLodge").strip()
+    body  = (request.args.get("body")  or "Test push from BaseLodge").strip()
+
+    active_tokens = (
+        PushDeviceToken.query
+        .filter_by(active=True)
+        .order_by(PushDeviceToken.updated_at.desc())
+        .all()
+    )
+
+    unique_users = len({row.user_id for row in active_tokens})
+
+    current_app.logger.warning(
+        "[TestPushBroadcast] admin_user_id=%d total_active_tokens=%d unique_users=%d "
+        "title=%r body=%r",
+        current_user.id, len(active_tokens), unique_users, title[:60], body[:120],
+    )
+
+    if not active_tokens:
+        return jsonify({
+            "route":                 "/admin/test-push-broadcast",
+            "admin_user_id":         current_user.id,
+            "title_used":            title,
+            "body_used":             body,
+            "total_active_tokens":   0,
+            "unique_users_targeted": 0,
+            "ios_attempted":         0,
+            "android_attempted":     0,
+            "total_success":         0,
+            "total_failed":          0,
+            "unsupported_platforms": 0,
+            "reason":                "no_active_tokens",
+            "results":               [],
+        }), 200
+
+    results       = []
+    ios_count     = 0
+    android_count = 0
+    success_count = 0
+    failed_count  = 0
+    unsupported   = 0
+
+    TEST_DATA = {"source": "admin_test_push_broadcast"}
+
+    for row in active_tokens:
+        preview = _tok_preview(row.token)
+
+        if row.platform == "ios":
+            ios_count += 1
+            if row.apns_environment == "sandbox":
+                prefer_sandbox = True
+            elif row.apns_environment == "production":
+                prefer_sandbox = False
+            else:
+                prefer_sandbox = None
+
+            current_app.logger.warning(
+                "[TestPushBroadcast] provider=apns platform=ios "
+                "token_id=%d user_id=%d token=%s",
+                row.id, row.user_id, preview,
+            )
+            result       = send_apns_push(row.token, title=title, body=body,
+                                          prefer_sandbox=prefer_sandbox)
+            final_success = result.get("final_success", result.get("success", False))
+            error         = (result.get("retry_error") if result.get("retry_attempted")
+                             else result.get("first_attempt_error"))
+            if final_success:
+                success_count += 1
+            else:
+                failed_count += 1
+            results.append({
+                "token_id":         row.id,
+                "user_id":          row.user_id,
+                "platform":         "ios",
+                "provider":         "apns",
+                "token_preview":    preview,
+                "apns_environment": row.apns_environment,
+                "success":          final_success,
+                "error":            error,
+            })
+
+        elif row.platform == "android":
+            android_count += 1
+            current_app.logger.warning(
+                "[TestPushBroadcast] provider=fcm platform=android "
+                "token_id=%d user_id=%d token=%s",
+                row.id, row.user_id, preview,
+            )
+            result  = send_fcm_push(row.token, title=title, body=body, data=TEST_DATA)
+            success = result.get("success", False)
+            if success:
+                success_count += 1
+            else:
+                failed_count += 1
+            results.append({
+                "token_id":      row.id,
+                "user_id":       row.user_id,
+                "platform":      "android",
+                "provider":      "fcm",
+                "token_preview": preview,
+                "success":       success,
+                "message_id":    result.get("message_id"),
+                "error":         result.get("error"),
+            })
+
+        else:
+            unsupported += 1
+            current_app.logger.warning(
+                "[TestPushBroadcast] unsupported platform=%s token_id=%d user_id=%d — skipped",
+                row.platform, row.id, row.user_id,
+            )
+            results.append({
+                "token_id":      row.id,
+                "user_id":       row.user_id,
+                "platform":      row.platform,
+                "provider":      "none",
+                "token_preview": preview,
+                "success":       False,
+                "error":         "unsupported_platform",
+            })
+
+    current_app.logger.warning(
+        "[TestPushBroadcast] done admin_user_id=%d total=%d ios=%d android=%d "
+        "success=%d failed=%d unsupported=%d",
+        current_user.id, len(active_tokens),
+        ios_count, android_count,
+        success_count, failed_count, unsupported,
+    )
+
+    overall_http = 200 if (success_count > 0 or (ios_count + android_count == 0)) else 502
+    return jsonify({
+        "route":                 "/admin/test-push-broadcast",
+        "admin_user_id":         current_user.id,
+        "title_used":            title,
+        "body_used":             body,
+        "total_active_tokens":   len(active_tokens),
+        "unique_users_targeted": unique_users,
+        "ios_attempted":         ios_count,
+        "android_attempted":     android_count,
+        "total_success":         success_count,
+        "total_failed":          failed_count,
+        "unsupported_platforms": unsupported,
+        "results":               results,
+    }), overall_http
+
+
 @app.route("/admin/list-tokens", methods=["GET"])
 @login_required
 @admin_required

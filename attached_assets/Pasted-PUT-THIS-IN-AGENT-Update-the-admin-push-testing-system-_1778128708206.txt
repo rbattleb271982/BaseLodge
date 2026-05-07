@@ -1,0 +1,81 @@
+PUT THIS IN AGENT
+
+Update the admin push testing system so I can send one test push to every active push token in the database, across all users and all platforms.
+
+Context:
+- /admin/test-push-all currently sends only to active tokens for the logged-in admin user.
+- I want one test URL that sends to everyone currently registered for push testing, including:
+  - my iPhone
+  - my Android emulator
+  - another tester’s device
+- iOS APNs works.
+- Android FCM works.
+- Do not break /admin/test-push.
+- Keep /admin/test-push-all available, but change its behavior to broadcast to all active tokens, or add a clearly named route like /admin/test-push-broadcast if that is safer.
+
+Preferred route:
+GET /admin/test-push-broadcast
+
+Requirements:
+1. Must require login and admin access.
+2. Query all active PushDeviceToken rows across all users.
+3. Send to every active token:
+   - platform="ios" via existing APNs helper
+   - platform="android" via existing FCM helper
+4. Skip unsupported platform values safely.
+5. Allow optional query params:
+   - title
+   - body
+6. Defaults:
+   - title: BaseLodge
+   - body: Test push from BaseLodge
+7. Include optional data payload:
+   - source: "admin_test_push_broadcast"
+8. Return safe JSON showing:
+   - route
+   - admin_user_id
+   - total_active_tokens
+   - unique_users_targeted
+   - ios_attempted
+   - android_attempted
+   - total_success
+   - total_failed
+   - unsupported_platforms
+   - per-token safe result:
+     - token_id
+     - user_id
+     - platform
+     - provider
+     - token_preview only
+     - success/failure
+     - safe error, if any
+9. Never expose:
+   - full tokens
+   - APNs keys
+   - Firebase secrets
+   - service account values
+10. Keep logs safe:
+   - token preview only
+   - user_id
+   - platform
+   - provider
+   - success/failure
+11. Handle:
+   - zero active tokens
+   - invalid platform
+   - per-token failures without stopping the whole broadcast
+
+Also update /admin/test-push-all only if you think it should remain “current admin user only.” If so, leave it unchanged and add /admin/test-push-broadcast as the new route.
+
+Run:
+- Python syntax check
+- app startup/import validation
+- route registration check if possible
+
+At the end, report:
+- files changed
+- exact URL to test
+- whether Replit deploy is required
+- whether GitHub push/pull is required
+- whether npx cap sync android is required
+- whether Android Studio rebuild is required
