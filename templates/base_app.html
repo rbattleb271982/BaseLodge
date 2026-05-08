@@ -54,6 +54,33 @@ function blToast(msg) {
         setTimeout(function() { if (t.parentNode) t.remove(); }, 260);
     }, 3000);
 }
+document.addEventListener('DOMContentLoaded', function() {
+    var flashWrap = document.querySelector('.app-shell > div[style*="padding:12px 20px 0;"]');
+    if (!flashWrap) return;
+    var dismissed = false;
+    var dismissFlash = function() {
+        if (dismissed || !flashWrap.parentNode) return;
+        dismissed = true;
+        flashWrap.style.transition = 'opacity 180ms ease, transform 180ms ease';
+        flashWrap.style.opacity = '0';
+        flashWrap.style.transform = 'translateY(-6px)';
+        setTimeout(function() {
+            if (flashWrap && flashWrap.parentNode) flashWrap.remove();
+        }, 200);
+        window.removeEventListener('scroll', onScroll, { passive: true });
+        document.removeEventListener('click', onClick, true);
+        document.removeEventListener('touchstart', onTouch, true);
+        document.removeEventListener('keydown', onKey, true);
+    };
+    var onScroll = function() { dismissFlash(); };
+    var onClick = function() { dismissFlash(); };
+    var onTouch = function() { dismissFlash(); };
+    var onKey = function() { dismissFlash(); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('touchstart', onTouch, true);
+    document.addEventListener('keydown', onKey, true);
+});
 </script>
 {% block scripts %}{% endblock %}
 </body>
