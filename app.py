@@ -230,6 +230,7 @@ def inject_countries():
 _NOTIF_TYPES = [
     'join_request_received', 'join_request_accepted', 'join_request_declined',
     'connection_accepted', 'trip_invite_received', 'trip_invite_accepted', 'trip_invite_declined',
+    'trip_location_changed', 'trip_pass_changed',
 ]
 
 
@@ -708,7 +709,7 @@ def get_friend_ids(user_id):
     return [f.friend_id for f in friends]
 
 
-def create_activity(actor_user_id, recipient_user_id, activity_type, object_type, object_id):
+def create_activity(actor_user_id, recipient_user_id, activity_type, object_type, object_id, extra_data=None):
     """Create an activity record."""
     if actor_user_id == recipient_user_id:
         return
@@ -718,7 +719,8 @@ def create_activity(actor_user_id, recipient_user_id, activity_type, object_type
         type=activity_type.value if hasattr(activity_type, 'value') else activity_type,
         object_type=object_type,
         object_id=object_id,
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
+        extra_data=extra_data or None,
     )
     db.session.add(activity)
 
@@ -753,6 +755,46 @@ def emit_trip_updated_activities(trip, actor_user_id, dates_changed=False):
         )
     check_and_emit_trip_overlap_activities(trip, actor_user_id)
     emit_availability_overlap_activities_for_trip(trip)
+
+
+def emit_trip_location_changed_activities(trip, actor_user_id, resort_name):
+    """Notify accepted participants when the trip resort is changed."""
+    participants = SkiTripParticipant.query.filter_by(
+        trip_id=trip.id,
+        status=GuestStatus.ACCEPTED
+    ).all()
+    for participant in participants:
+        if participant.user_id == actor_user_id:
+            continue
+        create_activity(
+            actor_user_id=actor_user_id,
+            recipient_user_id=participant.user_id,
+            activity_type=ActivityType.TRIP_LOCATION_CHANGED,
+            object_type='trip',
+            object_id=trip.id,
+            extra_data={'resort_name': resort_name},
+        )
+    check_and_emit_trip_overlap_activities(trip, actor_user_id)
+    emit_availability_overlap_activities_for_trip(trip)
+
+
+def emit_trip_pass_changed_activities(trip, actor_user_id, pass_display):
+    """Notify accepted participants when the trip pass is changed."""
+    participants = SkiTripParticipant.query.filter_by(
+        trip_id=trip.id,
+        status=GuestStatus.ACCEPTED
+    ).all()
+    for participant in participants:
+        if participant.user_id == actor_user_id:
+            continue
+        create_activity(
+            actor_user_id=actor_user_id,
+            recipient_user_id=participant.user_id,
+            activity_type=ActivityType.TRIP_PASS_CHANGED,
+            object_type='trip',
+            object_id=trip.id,
+            extra_data={'pass_display': pass_display},
+        )
 
 
 def check_and_emit_trip_overlap_activities(trip, actor_user_id):
@@ -3407,6 +3449,7 @@ def update_trip_resort(trip_id):
     resort = Resort.query.filter_by(id=resort_id, is_active=True, is_region=False).first()
     if not resort:
         return jsonify({"success": False, "error": "Invalid resort."}), 400
+    resort_actually_changed = trip.resort_id != resort.id
     trip.resort_id = resort.id
     trip.mountain = resort.name
     trip.state = resort.state_code or resort.state
@@ -3416,6 +3459,13 @@ def update_trip_resort(trip_id):
         db.session.rollback()
         app.logger.error(f"[update_trip_resort] error: {e}")
         return jsonify({"success": False, "error": "Failed to save resort."}), 500
+    if resort_actually_changed:
+        emit_trip_location_changed_activities(trip, current_user.id, resort.name)
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"[update_trip_resort] notification error: {e}")
     return jsonify({
         "success": True,
         "resort_id": resort.id,
@@ -3438,6 +3488,7 @@ def update_trip_pass(trip_id):
         return jsonify({"success": False, "error": "Invalid pass selection."}), 400
     if count_real_passes(normalized) > 3:
         return jsonify({"success": False, "error": "You can select up to 3 passes."}), 400
+    pass_actually_changed = trip.pass_type != normalized
     trip.pass_type = normalized
     try:
         db.session.commit()
@@ -3446,6 +3497,13 @@ def update_trip_pass(trip_id):
         app.logger.error(f"[update_trip_pass] error: {e}")
         return jsonify({"success": False, "error": "Failed to save pass."}), 500
     display = format_passes_for_display(normalized)
+    if pass_actually_changed:
+        emit_trip_pass_changed_activities(trip, current_user.id, display)
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"[update_trip_pass] notification error: {e}")
     return jsonify({"success": True, "pass_type": normalized, "pass_display": display})
 
 
@@ -7009,6 +7067,16 @@ def notifications():
         elif act.type == 'connection_accepted':
             text = f"{actor_first} accepted your connection request"
             action_url = url_for('friend_profile', friend_id=act.actor_user_id) if actor else None
+        elif act.type == 'trip_location_changed':
+            extra = act.extra_data or {}
+            changed_resort = extra.get('resort_name') or trip_name or 'a new location'
+            text = f"Trip location changed to {changed_resort}"
+            action_url = url_for('trip_detail', trip_id=act.object_id) if act.object_type == 'trip' else None
+        elif act.type == 'trip_pass_changed':
+            extra = act.extra_data or {}
+            changed_pass = extra.get('pass_display') or 'a new pass'
+            text = f"Trip pass updated to {changed_pass}"
+            action_url = url_for('trip_detail', trip_id=act.object_id) if act.object_type == 'trip' else None
         else:
             text = f"Update from {actor_first}"
             action_url = None

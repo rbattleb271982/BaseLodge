@@ -1192,6 +1192,8 @@ class ActivityType(PyEnum):
     JOIN_REQUEST_RECEIVED = "join_request_received"
     JOIN_REQUEST_ACCEPTED = "join_request_accepted"
     JOIN_REQUEST_DECLINED = "join_request_declined"
+    TRIP_LOCATION_CHANGED = "trip_location_changed"
+    TRIP_PASS_CHANGED = "trip_pass_changed"
 
 
 class Activity(db.Model):
