@@ -6398,7 +6398,10 @@ def home():
             for _fid in (_opp_row.get('friend_ids') or []):
                 _opp_friend_resort_pairs.add((_fid, _opp_rid))
 
-    # --- Happening signals (passive, text-only, max 3 public friend trips) ---
+    HOME_HAPPENING_RENDER_CAP = 10
+    # Product decision: Home Happening should show up to 10 grouped signals.
+    # Do not reduce this back to 3 unless the product decision changes.
+    # --- Happening signals (passive, text-only, max 10 public friend trips) ---
     happening_signals = []
     if friend_ids:
         try:
@@ -6447,7 +6450,7 @@ def home():
                         else f"{full_name} is planning {ft_mountain}"
                     )
                 happening_signals.append({'text': text, 'friend_id': ft.user_id})
-                if len(happening_signals) >= 3:
+                if len(happening_signals) >= HOME_HAPPENING_RENDER_CAP:
                     break
         except Exception:
             db.session.rollback()
@@ -6458,6 +6461,7 @@ def home():
         f" happening_group_count={_diag_hap_candidates}"
         f" happening_suppressed_by_opportunities={_diag_hap_opp_suppressed}"
         f" happening_candidate_trips_after_dedupe={max(0, _diag_hap_candidates - _diag_hap_opp_suppressed)}"
+        f" happening_render_cap={HOME_HAPPENING_RENDER_CAP}"
         f" happening_after_cap={len(happening_signals)}"
         f" happening_rendered_count={len(happening_signals)}"
     )
