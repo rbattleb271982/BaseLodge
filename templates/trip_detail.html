@@ -30,52 +30,52 @@
             color: var(--bl-color-text-muted);
             text-align: center;
         }
-        .nav-spacer { width: 40px; }
-        .header-edit-link {
-            font-size: 14px;
-            color: var(--bl-color-text-muted);
+        .trip-title-link {
+            color: inherit;
             text-decoration: none;
-            padding: 8px;
-            min-width: 40px;
-            text-align: right;
+            display: block;
         }
-        .header-edit-link:hover { color: var(--bl-color-primary); }
+        .nav-spacer { width: 40px; }
 
         /* ── Clean trip header ── */
         .td-header {
             margin-bottom: 6px;
         }
-        .td-header-eyebrow {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.8px;
-            color: #8A857A;
-            text-transform: uppercase;
-            margin-bottom: 6px;
-        }
-        .td-header-mountain {
-            font-family: var(--bl-font-serif);
-            font-size: 28px;
-            font-weight: 400;
-            color: #1A1A1A;
-            line-height: 1.15;
-            margin-bottom: 4px;
-        }
-        .td-header-mountain-edit { display: none; }
-        .td-header-location {
-            font-size: 14px;
-            color: #6B665A;
-            margin-bottom: 2px;
-        }
-        .td-header-dates {
-            font-size: 15px;
-            font-weight: 600;
-            color: #1A1A1A;
-            margin-bottom: 2px;
-        }
-        .td-header-meta {
+        .td-header-notice {
             font-size: 13px;
             color: #8A857A;
+            margin: 0 0 8px;
+        }
+        .td-header-dates {
+            font-family: var(--bl-font-serif);
+            font-size: 24px;
+            font-weight: 400;
+            color: #1A1A1A;
+            line-height: 1.2;
+            margin: 0;
+        }
+        .td-header-dates--tap {
+            background: none;
+            border: none;
+            padding: 0;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .td-header-dates--tap:active { opacity: 0.7; }
+        .td-date-text {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .td-date-chevron {
+            font-family: system-ui, sans-serif;
+            font-size: 18px;
+            color: #B5AFA5;
+            line-height: 1;
+            transform: translateY(-1px);
         }
 
         /* ── Retained: chevron used in setup rows ── */
@@ -961,12 +961,12 @@
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
             </a>
-            <h1 class="trip-title">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</h1>
-            {% if is_owner %}
-            <div class="nav-spacer"></div>
+            {% if trip.resort and trip.resort.slug %}
+            <a href="{{ url_for('mountain_detail', slug=trip.resort.slug) }}" class="trip-title trip-title-link">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</a>
             {% else %}
-            <div class="nav-spacer"></div>
+            <h1 class="trip-title">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</h1>
             {% endif %}
+            <div class="nav-spacer"></div>
         </div>
 
         <!-- Trip header -->
@@ -976,43 +976,23 @@
         {% set ts = trip.trip_status or 'planning' %}
 
         <div class="td-header">
-            {% if is_invited %}
-            <p class="td-header-eyebrow">{{ (owner.first_name if owner else 'Someone') | format_name }} invited you</p>
-            {% elif ts == 'going' %}
-            <p class="td-header-eyebrow" style="color:#5C1219;">Confirmed</p>
-            {% endif %}
             {% if is_owner %}
-            <button type="button" class="td-header-mountain td-header-mountain-tap" id="td-mountain-btn" onclick="openResortSheet()" aria-label="Edit resort">
-                <span id="td-mountain-name">{{ mountain_name }}</span>
-            </button>
-            {% elif trip.resort and trip.resort.slug %}
-            <a href="{{ url_for('mountain_detail', slug=trip.resort.slug) }}" class="td-header-mountain td-header-mountain-link">{{ mountain_name }}<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#C4BDB6;flex-shrink:0;align-self:center;margin-bottom:1px;"><polyline points="9 18 15 12 9 6"></polyline></svg></a>
-            {% else %}
-            <p class="td-header-mountain">{{ mountain_name }}</p>
-            {% endif %}
-            {% if is_owner %}
-            <button type="button" class="td-date-line td-date-line--tap" onclick="openDateSheet()" aria-label="Edit trip dates">
-                <span class="td-date-text" id="td-dates-text">{% if trip.start_date and trip.end_date %}{% set _nights = (trip.end_date - trip.start_date).days %}{{ format_trip_dates(trip) }}, {{ trip.end_date.year }}{% if _nights > 0 %} · {{ _nights }} night{{ 's' if _nights != 1 else '' }}{% else %} · Day trip{% endif %}{% else %}{{ format_trip_dates(trip) }}{% endif %}</span>
+            <button type="button" class="td-header-dates td-header-dates--tap" onclick="openDateSheet()" aria-label="Edit trip dates">
+                <span class="td-date-text" id="td-dates-text">{% if trip.start_date and trip.end_date %}{% set _nights = (trip.end_date - trip.start_date).days %}{{ format_trip_dates(trip) }}, {{ trip.end_date.year }}{% if _nights > 0 %} · {{ _nights }} night{{ 's' if _nights != 1 else '' }}{% else %} · Day trip{% endif %}{% else %}{{ format_trip_dates(trip) }}{% endif %}<span class="td-date-chevron">›</span></span>
             </button>
             {% else %}
-            <div class="td-date-line">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                {% if trip.start_date and trip.end_date %}
-                    {% set _nights = (trip.end_date - trip.start_date).days %}
-                    {{ format_trip_dates(trip) }}, {{ trip.end_date.year }}{% if _nights > 0 %} · {{ _nights }} night{{ 's' if _nights != 1 else '' }}{% else %} · Day trip{% endif %}
-                {% else %}
-                    {{ format_trip_dates(trip) }}
-                {% endif %}
+            <div>
+                <p class="td-header-dates">{% if trip.start_date and trip.end_date %}{% set _nights = (trip.end_date - trip.start_date).days %}{{ format_trip_dates(trip) }}, {{ trip.end_date.year }}{% if _nights > 0 %} · {{ _nights }} night{{ 's' if _nights != 1 else '' }}{% else %} · Day trip{% endif %}{% else %}{{ format_trip_dates(trip) }}{% endif %}</p>
             </div>
+            {% endif %}
+            {% if is_invited %}
+            <p class="td-header-notice">{{ (owner.first_name if owner else 'Someone') | format_name }} invited you</p>
             {% endif %}
             {% if friends_wishlist_count > 0 %}
             <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(92,18,25,0.07);border-radius:20px;padding:5px 12px;margin:6px 0 0;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5C1219" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 <span style="font-size:13px;color:#5C1219;font-weight:500;">On {{ friends_wishlist_count }} friend{{ 's' if friends_wishlist_count != 1 else '' }}' wishlists</span>
             </div>
-            {% endif %}
-            {% if is_invited %}
-            <p class="td-header-meta" style="margin-top: 6px;">{{ (owner.first_name if owner else 'The organizer') | format_name }} wants you to join.</p>
             {% endif %}
             <div class="td-meta-badges">
                 <div class="td-meta-badge">
