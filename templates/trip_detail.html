@@ -201,6 +201,20 @@
         .td-swg-title { font-size: 15px; font-weight: 600; color: #1A1A1A; margin: 0 0 2px; }
         .td-swg-sub { display: none; }
         .td-swg-wishlist { font-size: 12px; color: #5C1219; margin: 0; font-weight: 500; }
+        .td-cancel-trip-wrap {
+            padding: 30px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+            text-align: center;
+        }
+        .td-cancel-trip-link {
+            display: inline-block;
+            font-size: 14px;
+            color: #8B4A52;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .td-cancel-trip-link:active { opacity: 0.7; }
 
         /* ── Mountain name link ── */
         .td-header-mountain-link {
@@ -1214,6 +1228,12 @@
         </div>
         {% endif %}
 
+        {% if is_owner %}
+        <div class="td-cancel-trip-wrap">
+            <button type="button" class="td-cancel-trip-link" onclick="openCancelTripSheet()">Cancel trip</button>
+        </div>
+        {% endif %}
+
         <!-- Who's Going -->
         {% if all_participants or invited_participants %}
         <p class="td-section-label">Who's Going</p>
@@ -1434,11 +1454,34 @@
     </div>
     {% endif %}
 
+    {% if is_owner %}
+    <div class="td-date-sheet-overlay" id="td-cancel-trip-sheet" onclick="if(event.target===this)closeCancelTripSheet()">
+        <div class="td-date-sheet">
+            <div class="td-date-sheet-handle"></div>
+            <p class="td-date-sheet-title">Cancel this trip?</p>
+            <p style="font-size:14px;color:var(--bl-color-text-muted);line-height:1.5;margin:0 0 18px 0;">This will remove the trip from your profile and friends' activity.</p>
+            <form method="POST" action="{{ url_for('delete_trip_form', trip_id=trip.id) }}">
+                <button type="submit" class="td-date-sheet-save" style="background:#8B4A52;">Cancel trip</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     <script>
         function dismissSuccess() {
             var m = document.getElementById('td-success-modal');
             if (m) m.style.display = 'none';
         }
+        {% if is_owner %}
+        function openCancelTripSheet() {
+            document.getElementById('td-cancel-trip-sheet').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeCancelTripSheet() {
+            document.getElementById('td-cancel-trip-sheet').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        {% endif %}
 
         // ── Accordion: single-open for expandable detail rows ──
         const _TD_PANELS = [
