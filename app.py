@@ -2363,6 +2363,7 @@ def edit_profile():
         if count_real_passes(normalized_passes) > 3:
             flash("You can select up to 3 passes.", "error")
             return redirect(url_for("edit_profile"))
+        _old_pass_ep = user.pass_type  # capture before overwrite for change detection
         user.pass_type = normalized_passes
         user.home_state = request.form.get("home_state") or None
         # Clear skill_level only for Social-only users, otherwise use form value
@@ -2388,10 +2389,30 @@ def edit_profile():
         
         try:
             db.session.commit()
-            
+
             # Emit profile_completed event
             emit_event('profile_completed', user)
-            
+
+            # Emit friend_pass_changed event only when pass actually changed
+            if _old_pass_ep != normalized_passes:
+                _ep_friend_ids = get_friend_ids(user.id)
+                if _ep_friend_ids:
+                    _ep_display = format_passes_for_display(normalized_passes).replace(" · ", " + ")
+                    current_app.logger.warning(
+                        "[OneSignal] pass_changed (edit_profile): old=%r new=%r friend_count=%d",
+                        _old_pass_ep, normalized_passes, len(_ep_friend_ids),
+                    )
+                    send_onesignal_custom_event(
+                        _ep_friend_ids,
+                        "friend_pass_changed",
+                        properties={
+                            "actor_user_id":    user.id,
+                            "actor_first_name": user.first_name,
+                            "new_pass":         normalized_passes,
+                            "new_pass_display": _ep_display,
+                        },
+                    )
+
             return redirect(url_for("profile"))
         except Exception as e:
             db.session.rollback()
@@ -4333,6 +4354,85 @@ def send_onesignal_push(user_ids, title, body, data=None):
     except Exception as _exc:
         current_app.logger.exception("[OneSignal] request failed: %s", _exc)
         return {"success": False, "notification_id": None, "error": str(_exc)}
+
+
+def send_onesignal_custom_event(user_ids, event_name, properties=None):
+    """Send a OneSignal Custom Event for each user in user_ids.
+
+    Used to trigger OneSignal Journeys (e.g. a delayed push) rather than
+    sending an immediate notification. The Custom Events API accepts one
+    external_id per request, so this function loops and fires one POST per
+    recipient.
+
+    Args:
+        user_ids:   iterable of integer BaseLodge user IDs.
+        event_name: string event name registered in the OneSignal dashboard.
+        properties: optional dict of key/value properties attached to the event.
+
+    Returns a dict with keys:
+        success (bool), sent (int), failed (int).
+
+    Environment variables required:
+        ONESIGNAL_APP_ID       — public app identifier (safe to log).
+        ONESIGNAL_REST_API_KEY — secret REST key (never logged).
+    """
+    app_id   = os.environ.get("ONESIGNAL_APP_ID", "")
+    rest_key = os.environ.get("ONESIGNAL_REST_API_KEY", "")
+
+    if not app_id or not rest_key:
+        current_app.logger.warning(
+            "[OneSignal] send_onesignal_event: ONESIGNAL_APP_ID or "
+            "ONESIGNAL_REST_API_KEY not set — event skipped"
+        )
+        return {"success": False, "sent": 0, "failed": 0}
+
+    all_ids = list(user_ids)
+    if not all_ids:
+        return {"success": True, "sent": 0, "failed": 0}
+
+    url     = f"https://api.onesignal.com/apps/{app_id}/events"
+    headers = {
+        "Authorization": f"Basic {rest_key}",
+        "Content-Type":  "application/json",
+    }
+    props = properties or {}
+
+    current_app.logger.warning(
+        "[OneSignal] send_event → event_name=%r recipient_count=%d",
+        event_name, len(all_ids),
+    )
+
+    sent   = 0
+    failed = 0
+    for uid in all_ids:
+        ext_id  = str(uid)
+        payload = {
+            "name":       event_name,
+            "properties": props,
+            "identity":   {"external_id": ext_id},
+        }
+        try:
+            resp = httpx.post(url, headers=headers, json=payload, timeout=10.0)
+            if resp.status_code in (200, 202):
+                current_app.logger.warning(
+                    "[OneSignal] send_event: external_id=%s status=%d",
+                    ext_id, resp.status_code,
+                )
+                sent += 1
+            else:
+                current_app.logger.warning(
+                    "[OneSignal] send_event: external_id=%s status=%d error=%s",
+                    ext_id, resp.status_code, resp.text[:200],
+                )
+                failed += 1
+        except Exception as _exc:
+            current_app.logger.exception(
+                "[OneSignal] send_event: request failed for external_id=%s: %s",
+                ext_id, _exc,
+            )
+            failed += 1
+
+    return {"success": failed == 0, "sent": sent, "failed": failed}
 
 
 @app.route("/admin/test-push", methods=["GET", "POST"])
@@ -9026,10 +9126,30 @@ def select_pass():
         if count_real_passes(normalized_chosen) > 3:
             flash("You can select up to 3 passes.", "error")
             return redirect(url_for("select_pass"))
+        _old_pass_sp = current_user.pass_type  # capture before overwrite for change detection
         current_user.pass_type = normalized_chosen
         try:
             db.session.commit()
             session["pass_prompt_skipped"] = False
+            # Emit friend_pass_changed event only when pass actually changed
+            if _old_pass_sp != normalized_chosen:
+                _sp_friend_ids = get_friend_ids(current_user.id)
+                if _sp_friend_ids:
+                    _sp_display = format_passes_for_display(normalized_chosen).replace(" · ", " + ")
+                    current_app.logger.warning(
+                        "[OneSignal] pass_changed (select-pass): old=%r new=%r friend_count=%d",
+                        _old_pass_sp, normalized_chosen, len(_sp_friend_ids),
+                    )
+                    send_onesignal_custom_event(
+                        _sp_friend_ids,
+                        "friend_pass_changed",
+                        properties={
+                            "actor_user_id":    current_user.id,
+                            "actor_first_name": current_user.first_name,
+                            "new_pass":         normalized_chosen,
+                            "new_pass_display": _sp_display,
+                        },
+                    )
             return redirect(url_for("profile"))
         except Exception as e:
             db.session.rollback()

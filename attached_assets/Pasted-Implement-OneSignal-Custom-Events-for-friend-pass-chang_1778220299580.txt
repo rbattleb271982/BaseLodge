@@ -1,0 +1,69 @@
+Implement OneSignal Custom Events for friend pass changes.
+
+Context:
+We do not want BaseLodge to send an immediate push. We want BaseLodge to send a OneSignal Custom Event, then a OneSignal Journey will wait 1 day and send the push.
+
+Add a backend helper near send_onesignal_push() called something like send_onesignal_custom_event(user_ids, event_name, properties=None).
+
+Requirements:
+1. Use existing env vars:
+   - ONESIGNAL_APP_ID
+   - ONESIGNAL_REST_API_KEY
+2. POST to:
+   https://api.onesignal.com/apps/{ONESIGNAL_APP_ID}/events
+3. Use payload shape:
+   {
+     "name": event_name,
+     "properties": properties or {},
+     "identity": {
+       "external_id": str(user_id)
+     }
+   }
+4. Custom Events API accepts one external_id per request, so loop through user_ids and send one event per accepted friend.
+5. Return a structured summary like:
+   {"success": true/false, "sent": N, "failed": M}
+6. If OneSignal env vars are missing, log warning and skip without breaking the user flow.
+7. Never log API keys, tokens, emails, or full payloads.
+
+Then wire pass-change detection into:
+1. /select-pass
+2. /edit_profile
+
+Do not wire /api/profile/update yet.
+
+For both routes:
+1. Capture old pass before assignment.
+2. Save/commit exactly as existing code already does.
+3. After successful db.session.commit(), compare old vs. new pass.
+4. If changed, call get_friend_ids(current_user.id).
+5. If friend_ids is not empty, send custom event to each friend:
+   event_name = "friend_pass_changed"
+   properties:
+   {
+     "actor_user_id": current_user.id,
+     "actor_first_name": current_user.first_name,
+     "new_pass": normalized pass value,
+     "new_pass_display": display pass value like "Epic + Ikon"
+   }
+6. Do not notify the user who changed their own pass.
+7. Do not block save/redirect if OneSignal fails.
+
+Add a small safe formatter if needed so:
+"epic" -> "Epic"
+"ikon" -> "Ikon"
+"epic,ikon" -> "Epic + Ikon"
+"mountain_collective" -> "Mountain Collective"
+
+Safeguards:
+- Do not change OneSignal push notification sending.
+- Do not change OS.login or OS.logout.
+- Do not change push registration.
+- Do not change native iOS or Android files.
+- Do not create a checkpoint unless I explicitly ask.
+
+Testing:
+- Changing pass in /select-pass emits friend_pass_changed events to accepted friends.
+- Changing pass in /edit_profile emits friend_pass_changed events to accepted friends.
+- Saving same pass emits no event.
+- User with no friends emits no event.
+- OneSignal failure does not break save/redirect.
