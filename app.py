@@ -3394,6 +3394,61 @@ def update_trip_dates(trip_id):
     return jsonify({"success": True, "start_date": start_date.isoformat(), "end_date": end_date.isoformat(), "nights": nights})
 
 
+@app.route("/api/trip/<int:trip_id>/update-resort", methods=["POST"])
+@login_required
+def update_trip_resort(trip_id):
+    trip = SkiTrip.query.get_or_404(trip_id)
+    if trip.user_id != current_user.id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+    data = request.get_json(silent=True) or {}
+    resort_id = data.get("resort_id")
+    if not resort_id:
+        return jsonify({"success": False, "error": "A resort is required."}), 400
+    resort = Resort.query.filter_by(id=resort_id, is_active=True, is_region=False).first()
+    if not resort:
+        return jsonify({"success": False, "error": "Invalid resort."}), 400
+    trip.resort_id = resort.id
+    trip.mountain = resort.name
+    trip.state = resort.state_code or resort.state
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"[update_trip_resort] error: {e}")
+        return jsonify({"success": False, "error": "Failed to save resort."}), 500
+    return jsonify({
+        "success": True,
+        "resort_id": resort.id,
+        "resort_name": resort.name,
+        "resort_slug": resort.slug or "",
+        "state": trip.state or "",
+    })
+
+
+@app.route("/api/trip/<int:trip_id>/update-pass", methods=["POST"])
+@login_required
+def update_trip_pass(trip_id):
+    trip = SkiTrip.query.get_or_404(trip_id)
+    if trip.user_id != current_user.id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+    data = request.get_json(silent=True) or {}
+    raw_pass = (data.get("pass_type") or "").strip()
+    normalized = normalize_pass_selection(raw_pass)
+    if not normalized:
+        return jsonify({"success": False, "error": "Invalid pass selection."}), 400
+    if count_real_passes(normalized) > 3:
+        return jsonify({"success": False, "error": "You can select up to 3 passes."}), 400
+    trip.pass_type = normalized
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"[update_trip_pass] error: {e}")
+        return jsonify({"success": False, "error": "Failed to save pass."}), 500
+    display = format_passes_for_display(normalized)
+    return jsonify({"success": True, "pass_type": normalized, "pass_display": display})
+
+
 @app.route("/api/trip/<int:trip_id>/delete", methods=["POST"])
 @login_required
 def delete_trip(trip_id):
@@ -8310,6 +8365,8 @@ def trip_detail(trip_id):
                 if trip.resort_id in (u.wish_list_resorts or [])
             )
 
+    resorts_json = get_resorts_for_trip_form() if is_owner else []
+
     return render_template(
         "trip_detail.html",
         trip=trip,
@@ -8328,6 +8385,7 @@ def trip_detail(trip_id):
         pending_requests=pending_requests,
         friends_wishlist_count=friends_wishlist_count,
         today=date.today(),
+        resorts_json=resorts_json,
     )
 
 

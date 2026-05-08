@@ -325,6 +325,241 @@
             -webkit-tap-highlight-color: transparent;
         }
 
+        /* ── Resort edit bottom sheet ── */
+        .td-resort-sheet-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            z-index: 9100;
+            display: flex;
+            align-items: flex-end;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.22s ease;
+        }
+        .td-resort-sheet-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .td-resort-sheet {
+            background: #FFFFFF;
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            box-shadow: 0 -4px 32px rgba(0,0,0,0.12);
+            padding: 20px 0 0;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+            display: flex;
+            flex-direction: column;
+            max-height: 80vh;
+        }
+        .td-resort-sheet-overlay.active .td-resort-sheet {
+            transform: translateY(0);
+        }
+        .td-resort-sheet-handle {
+            width: 36px; height: 4px;
+            background: #E5DFD0;
+            border-radius: 2px;
+            margin: 0 auto 16px;
+            flex-shrink: 0;
+        }
+        .td-resort-sheet-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: #1A1A1A;
+            margin: 0 0 14px;
+            padding: 0 20px;
+            flex-shrink: 0;
+        }
+        .td-resort-search-wrap {
+            padding: 0 20px 12px;
+            flex-shrink: 0;
+        }
+        .td-resort-search-input {
+            width: 100%;
+            padding: 11px 14px;
+            font-size: 16px;
+            border: 1px solid #E5DFD0;
+            border-radius: 10px;
+            background: #FDFAF5;
+            color: #1A1A1A;
+            font-family: inherit;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            outline: none;
+        }
+        .td-resort-search-input:focus { border-color: #5C1219; }
+        .td-resort-list {
+            overflow-y: auto;
+            flex: 1;
+            padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+        }
+        .td-resort-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 13px 20px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            border-bottom: 1px solid #F0EBE0;
+        }
+        .td-resort-row:active { background: rgba(92,18,25,0.04); }
+        .td-resort-row.selected { background: rgba(92,18,25,0.06); }
+        .td-resort-row-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: #1A1A1A;
+        }
+        .td-resort-row-meta {
+            font-size: 12px;
+            color: #8A857A;
+            margin-top: 1px;
+        }
+        .td-resort-row-check {
+            color: #5C1219;
+            flex-shrink: 0;
+            margin-left: 10px;
+            display: none;
+        }
+        .td-resort-row.selected .td-resort-row-check { display: block; }
+        .td-resort-empty {
+            padding: 24px 20px;
+            font-size: 14px;
+            color: #8A857A;
+            text-align: center;
+        }
+
+        /* ── Pass edit bottom sheet ── */
+        .td-pass-sheet-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            z-index: 9100;
+            display: flex;
+            align-items: flex-end;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.22s ease;
+        }
+        .td-pass-sheet-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .td-pass-sheet {
+            background: #FFFFFF;
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            box-shadow: 0 -4px 32px rgba(0,0,0,0.12);
+            padding: 20px 20px calc(28px + env(safe-area-inset-bottom, 0px));
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .td-pass-sheet-overlay.active .td-pass-sheet {
+            transform: translateY(0);
+        }
+        .td-pass-sheet-handle {
+            width: 36px; height: 4px;
+            background: #E5DFD0;
+            border-radius: 2px;
+            margin: 0 auto 20px;
+        }
+        .td-pass-sheet-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: #1A1A1A;
+            margin: 0 0 6px;
+        }
+        .td-pass-sheet-subtitle {
+            font-size: 13px;
+            color: #8A857A;
+            margin: 0 0 20px;
+        }
+        .td-pass-pill {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            min-height: 48px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid #E5DFD0;
+            background: #fff;
+            color: #5A5248;
+            font-size: 15px;
+            font-family: inherit;
+            font-weight: 400;
+            cursor: pointer;
+            text-align: left;
+            margin-bottom: 8px;
+            position: relative;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .td-pass-pill:active:not(:disabled) { background: #F5F1E8; }
+        .td-pass-pill.sel {
+            background: #5C1219;
+            border-color: #5C1219;
+            color: #fff;
+            font-weight: 600;
+        }
+        .td-pass-pill:disabled { opacity: 0.38; cursor: not-allowed; }
+        .td-pass-pill-check {
+            margin-left: auto;
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            border: 1.5px solid currentColor;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.4;
+        }
+        .td-pass-pill.sel .td-pass-pill-check { opacity: 1; border-color: rgba(255,255,255,0.8); }
+        .td-pass-check-svg { display: none; }
+        .td-pass-pill.sel .td-pass-check-svg { display: block; }
+        .td-pass-divider { height: 1px; background: #E5DFD0; margin: 4px 0 12px; }
+        .td-pass-cap-hint { font-size: 13px; color: #8A857A; margin-bottom: 14px; display: none; }
+        .td-pass-sheet-save {
+            width: 100%;
+            padding: 14px;
+            background: #5C1219;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .td-pass-sheet-save:active { opacity: 0.85; }
+        .td-pass-sheet-save:disabled { opacity: 0.4; cursor: not-allowed; }
+        .td-pass-sheet-cancel {
+            display: block;
+            text-align: center;
+            margin-top: 14px;
+            font-size: 15px;
+            color: #8A857A;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ── Tappable mountain name (owner) ── */
+        .td-header-mountain-tap {
+            background: none;
+            border: none;
+            padding: 0;
+            font-family: inherit;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            display: inline-flex;
+            align-items: baseline;
+            gap: 4px;
+            text-align: left;
+        }
+        .td-header-mountain-tap:active { opacity: 0.65; }
+
         /* ── Invite CTA (outlined) ── */
         .invite-cta {
             margin: 20px 0;
@@ -735,7 +970,12 @@
             {% elif ts == 'going' %}
             <p class="td-header-eyebrow" style="color:#5C1219;">Confirmed</p>
             {% endif %}
-            {% if trip.resort and trip.resort.slug %}
+            {% if is_owner %}
+            <button type="button" class="td-header-mountain td-header-mountain-tap" id="td-mountain-btn" onclick="openResortSheet()" aria-label="Edit resort">
+                <span id="td-mountain-name">{{ mountain_name }}</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#C4BDB6;flex-shrink:0;align-self:center;margin-bottom:1px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
+            {% elif trip.resort and trip.resort.slug %}
             <a href="{{ url_for('mountain_detail', slug=trip.resort.slug) }}" class="td-header-mountain td-header-mountain-link">{{ mountain_name }}<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#C4BDB6;flex-shrink:0;align-self:center;margin-bottom:1px;"><polyline points="9 18 15 12 9 6"></polyline></svg></a>
             {% else %}
             <p class="td-header-mountain">{{ mountain_name }}</p>
@@ -781,18 +1021,18 @@
         <!-- Trip Setup -->
         <h2 class="td-setup-heading">Trip setup</h2>
         <div class="td-setup-card">
-        {% set pass_display = trip.resort|mountain_passes if trip.resort else '' %}
+        {% set pass_display = trip.pass_type|pass_display if trip.pass_type else '' %}
         {% if is_owner %}
-        <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="td-pass-row">
+        <button type="button" class="td-pass-row" onclick="openPassSheet()" aria-label="Edit pass type" style="background:none;border:none;width:100%;text-align:left;cursor:pointer;">
             <span class="td-setup-icon">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 17 12 3 21 17"></polygon><line x1="3" y1="17" x2="21" y2="17"></line></svg>
             </span>
             <span class="td-pass-label">Pass</span>
             <span class="td-pass-value">
-                {{ pass_display or 'No pass' }}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                <span id="td-pass-display-text">{{ pass_display or 'No pass' }}</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#C4BDB6;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
             </span>
-        </a>
+        </button>
         {% else %}
         <div class="td-pass-row" style="cursor: default;">
             <span class="td-setup-icon">
@@ -1156,6 +1396,57 @@
             <button type="button" class="td-date-sheet-cancel" onclick="closeDateSheet()">Cancel</button>
         </div>
     </div>
+
+    <!-- Resort edit bottom sheet (owner only) -->
+    <div class="td-resort-sheet-overlay" id="td-resort-sheet" onclick="if(event.target===this)closeResortSheet()">
+        <div class="td-resort-sheet" id="td-resort-sheet-inner">
+            <div class="td-resort-sheet-handle"></div>
+            <p class="td-resort-sheet-title">Change mountain</p>
+            <div class="td-resort-search-wrap">
+                <input type="search" id="td-resort-search" class="td-resort-search-input" placeholder="Search resorts…" autocomplete="off" oninput="filterResortList(this.value)">
+            </div>
+            <div class="td-resort-list" id="td-resort-list"></div>
+        </div>
+    </div>
+
+    <!-- Pass edit bottom sheet (owner only) -->
+    <div class="td-pass-sheet-overlay" id="td-pass-sheet" onclick="if(event.target===this)closePassSheet()">
+        <div class="td-pass-sheet">
+            <div class="td-pass-sheet-handle"></div>
+            <p class="td-pass-sheet-title">Your ski pass</p>
+            <p class="td-pass-sheet-subtitle">Select up to 3 passes.</p>
+            <p class="td-pass-cap-hint" id="td-pass-cap-hint">You've reached the 3-pass limit.</p>
+
+            <button type="button" class="td-pass-pill" data-val="no_pass" data-exclusive="1" onclick="tdPassToggle(this)">
+                No pass
+                <span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </button>
+            <button type="button" class="td-pass-pill" data-val="no_pass_yet" data-exclusive="1" onclick="tdPassToggle(this)">
+                Not sure yet
+                <span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </button>
+
+            <div class="td-pass-divider"></div>
+
+            <button type="button" class="td-pass-pill" data-val="epic" onclick="tdPassToggle(this)">Epic<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+            <button type="button" class="td-pass-pill" data-val="ikon" onclick="tdPassToggle(this)">Ikon<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+            <button type="button" class="td-pass-pill" data-val="freedom" onclick="tdPassToggle(this)">Freedom<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+            <button type="button" class="td-pass-pill" data-val="indy" onclick="tdPassToggle(this)">Indy<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+            <button type="button" class="td-pass-pill" data-val="mountain_collective" onclick="tdPassToggle(this)">Mountain Collective<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+            <button type="button" class="td-pass-pill" data-val="powder_alliance" onclick="tdPassToggle(this)">Powder Alliance<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+            <button type="button" class="td-pass-pill" data-val="ski_california" onclick="tdPassToggle(this)">Ski California<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+
+            <div class="td-pass-divider"></div>
+
+            <button type="button" class="td-pass-pill" data-val="other" data-exclusive="1" onclick="tdPassToggle(this)">
+                Other
+                <span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </button>
+
+            <button type="button" class="td-pass-sheet-save" id="td-pass-save-btn" onclick="saveTripPass()">Save</button>
+            <button type="button" class="td-pass-sheet-cancel" onclick="closePassSheet()">Cancel</button>
+        </div>
+    </div>
     {% endif %}
 
     <script>
@@ -1315,6 +1606,171 @@
                 row.style.display = row.dataset.fullName.includes(term) ? '' : 'none';
             });
         });
+
+        // ── Resort edit bottom sheet ──
+        {% if is_owner %}
+        (function() {
+            const _tdResortData = {{ resorts_json | tojson }};
+            const _tdTripId = {{ trip.id }};
+            let _tdCurrentResortId = {{ trip.resort_id or 'null' }};
+
+            window.openResortSheet = function() {
+                document.getElementById('td-resort-search').value = '';
+                renderResortList('');
+                document.getElementById('td-resort-sheet').classList.add('active');
+                document.body.style.overflow = 'hidden';
+                setTimeout(function() { document.getElementById('td-resort-search').focus(); }, 320);
+            };
+            window.closeResortSheet = function() {
+                document.getElementById('td-resort-sheet').classList.remove('active');
+                document.body.style.overflow = '';
+            };
+            window.filterResortList = function(term) {
+                renderResortList(term);
+            };
+
+            function renderResortList(term) {
+                const list = document.getElementById('td-resort-list');
+                const q = (term || '').toLowerCase().trim();
+                const filtered = q
+                    ? _tdResortData.filter(r => r.name.toLowerCase().includes(q) || (r.state_code || '').toLowerCase().includes(q))
+                    : _tdResortData;
+                if (filtered.length === 0) {
+                    list.innerHTML = '<div class="td-resort-empty">No resorts found.</div>';
+                    return;
+                }
+                const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+                list.innerHTML = filtered.slice(0, 80).map(r => {
+                    const isCurrent = r.id === _tdCurrentResortId;
+                    return `<div class="td-resort-row${isCurrent ? ' selected' : ''}" data-resort-id="${r.id}">
+                        <div>
+                            <div class="td-resort-row-name">${esc(r.name)}</div>
+                            <div class="td-resort-row-meta">${esc(r.state_code || '')}</div>
+                        </div>
+                        <svg class="td-resort-row-check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>`;
+                }).join('');
+            }
+
+            document.getElementById('td-resort-list').addEventListener('click', function(e) {
+                const row = e.target.closest('.td-resort-row[data-resort-id]');
+                if (row) selectResort(parseInt(row.dataset.resortId, 10));
+            });
+
+            window.selectResort = async function(resortId) {
+                try {
+                    const res = await fetch(`/api/trip/${_tdTripId}/update-resort`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ resort_id: resortId })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        _tdCurrentResortId = resortId;
+                        const nameEl = document.getElementById('td-mountain-name');
+                        if (nameEl) nameEl.textContent = data.resort_name;
+                        const titleEl = document.querySelector('.trip-title');
+                        if (titleEl) titleEl.textContent = data.resort_name;
+                        window.closeResortSheet();
+                    } else {
+                        blToast(data.error || 'Could not save resort.');
+                    }
+                } catch(e) {
+                    blToast('Network error. Please try again.');
+                }
+            };
+        })();
+        {% endif %}
+
+        // ── Pass edit bottom sheet ──
+        {% if is_owner %}
+        (function() {
+            const _tdPassTripId = {{ trip.id }};
+            let _tdCurrentPassStr = {{ (trip.pass_type or '') | tojson }};
+            var _tdPassSelected = new Set(
+                _tdCurrentPassStr.split(',').map(s => s.trim()).filter(Boolean)
+            );
+            var PASS_REAL_MAX = 3;
+
+            function tdPassCountReal() {
+                var n = 0;
+                _tdPassSelected.forEach(function(v) {
+                    if (!document.querySelector('.td-pass-pill[data-val="' + v + '"][data-exclusive]')) n++;
+                });
+                return n;
+            }
+
+            function tdPassSyncState() {
+                var atCap = tdPassCountReal() >= PASS_REAL_MAX;
+                document.querySelectorAll('.td-pass-pill').forEach(function(pill) {
+                    var val = pill.dataset.val;
+                    var isSel = _tdPassSelected.has(val);
+                    pill.classList.toggle('sel', isSel);
+                    if (!pill.dataset.exclusive) {
+                        pill.disabled = atCap && !isSel;
+                    }
+                });
+                document.getElementById('td-pass-cap-hint').style.display = atCap ? '' : 'none';
+                document.getElementById('td-pass-save-btn').disabled = _tdPassSelected.size === 0;
+            }
+
+            window.openPassSheet = function() {
+                _tdPassSelected = new Set(
+                    _tdCurrentPassStr.split(',').map(s => s.trim()).filter(Boolean)
+                );
+                tdPassSyncState();
+                document.getElementById('td-pass-sheet').classList.add('active');
+                document.body.style.overflow = 'hidden';
+            };
+            window.closePassSheet = function() {
+                document.getElementById('td-pass-sheet').classList.remove('active');
+                document.body.style.overflow = '';
+            };
+            window.tdPassToggle = function(pill) {
+                var val = pill.dataset.val;
+                var isExclusive = !!pill.dataset.exclusive;
+                if (_tdPassSelected.has(val)) {
+                    _tdPassSelected.delete(val);
+                } else {
+                    if (isExclusive) {
+                        _tdPassSelected.clear();
+                        document.querySelectorAll('.td-pass-pill:not([data-exclusive])').forEach(p => { p.disabled = false; });
+                    } else {
+                        if (tdPassCountReal() >= PASS_REAL_MAX) return;
+                        document.querySelectorAll('.td-pass-pill[data-exclusive]').forEach(p => { _tdPassSelected.delete(p.dataset.val); });
+                    }
+                    _tdPassSelected.add(val);
+                }
+                tdPassSyncState();
+            };
+            window.saveTripPass = async function() {
+                const saveBtn = document.getElementById('td-pass-save-btn');
+                if (saveBtn) saveBtn.disabled = true;
+                const passStr = Array.from(_tdPassSelected).join(',');
+                try {
+                    const res = await fetch(`/api/trip/${_tdPassTripId}/update-pass`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pass_type: passStr })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        _tdCurrentPassStr = data.pass_type || '';
+                        const dispEl = document.getElementById('td-pass-display-text');
+                        if (dispEl) dispEl.textContent = data.pass_display || 'No pass';
+                        window.closePassSheet();
+                    } else {
+                        blToast(data.error || 'Could not save pass.');
+                        if (saveBtn) saveBtn.disabled = false;
+                    }
+                } catch(e) {
+                    blToast('Network error. Please try again.');
+                    if (saveBtn) saveBtn.disabled = false;
+                }
+            };
+            tdPassSyncState();
+        })();
+        {% endif %}
 
         // ── Date edit bottom sheet ──
         {% if is_owner %}
