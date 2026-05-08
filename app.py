@@ -9216,11 +9216,26 @@ def delete_account():
         # 15. Push device tokens
         PushDeviceToken.query.filter_by(user_id=user_id).delete(synchronize_session=False)
 
-        # 16. Log the user out before deleting the row
+        # 16a. NULL out invited_by_user_id on any users this person invited.
+        #      This is a self-referential FK with no ON DELETE action — leaving it
+        #      set would block deletion of the user row with an FK violation.
+        User.query.filter_by(invited_by_user_id=user_id).update(
+            {User.invited_by_user_id: None}, synchronize_session=False
+        )
+
+        # 16b. NULL out created_by_user_id on trips this user organised for
+        #      someone else (trip.user_id != user_id).  Those trips survive; we
+        #      only clear the organiser reference so the FK no longer blocks deletion.
+        SkiTrip.query.filter(
+            SkiTrip.created_by_user_id == user_id,
+            SkiTrip.user_id != user_id
+        ).update({SkiTrip.created_by_user_id: None}, synchronize_session=False)
+
+        # 17. Log the user out before deleting the row
         logout_user()
         # NOTE: do NOT call session.clear() — same reason as /logout
 
-        # 17. Delete the user row and commit everything
+        # 18. Delete the user row and commit everything
         db.session.delete(user)
         db.session.commit()
 
