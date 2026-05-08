@@ -61,6 +61,12 @@
             margin: 0 0 16px;
             line-height: 1.45;
         }
+        .at-visibility-helper {
+            font-size: 12px;
+            color: #9B9488;
+            margin: 8px 0 0;
+            line-height: 1.45;
+        }
 
         /* ── Buttons ── */
         .at-btn-primary {
@@ -671,6 +677,7 @@
                         Friends can see this trip
                     </label>
                 </div>
+                <p class="at-visibility-helper" id="visibility-helper">Visible to your friends and may appear in overlap suggestions.</p>
             </div>
 
             <!-- ─────────────────────────────── -->
@@ -725,6 +732,7 @@
     const startDateInput = document.getElementById('start_date_input');
     const endDateInput   = document.getElementById('end_date_input');
     const isPublicInput  = document.getElementById('is_public_input');
+    const visibilityHelper = document.getElementById('visibility-helper');
 
     // ── Trip status ────────────────────────────────────────────
     function setTripStatus(val) {
@@ -1143,6 +1151,9 @@
     // ── Visibility toggle ──────────────────────────────────────
     document.getElementById('visibility-toggle').addEventListener('change', function () {
         isPublicInput.value = this.checked ? 'on' : 'off';
+        visibilityHelper.textContent = this.checked
+            ? 'Visible to your friends and may appear in overlap suggestions.'
+            : 'Only visible to you.';
     });
 
     // ── Init ───────────────────────────────────────────────────
