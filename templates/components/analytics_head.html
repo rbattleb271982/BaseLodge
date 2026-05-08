@@ -712,6 +712,38 @@
         };
         console.log('[OneSignal] blSetPushEnabled helper registered (bridge=' + _osVia + ')');
 
+        // ── Expose identity-logout helper for the sign-out flow ──────────
+        // Called by the logout link handler in profile.html before navigating
+        // away. Clears the OneSignal external_id so the device subscription is
+        // not left tied to the departing user's identity.
+        // SDK 5.x: OS.logout() — returns void or a Promise; handled uniformly
+        //   via Promise.resolve() to avoid TypeError on void returns.
+        // Older SDKs have no equivalent — skipped silently.
+        // No-op in the browser; this entire block only runs in the native shell.
+        window.blOSLogout = function() {
+          return new Promise(function(resolve) {
+            try {
+              if (typeof OS.logout === 'function') {
+                console.log('[OneSignal] blOSLogout: calling logout()');
+                Promise.resolve(OS.logout()).then(function() {
+                  console.log('[OneSignal] blOSLogout: logout() complete');
+                  resolve();
+                }).catch(function(_le) {
+                  console.warn('[OneSignal] blOSLogout: logout() error:', _le);
+                  resolve();
+                });
+              } else {
+                console.log('[OneSignal] blOSLogout: no logout() method — skip');
+                resolve();
+              }
+            } catch (_le2) {
+              console.warn('[OneSignal] blOSLogout error:', _le2);
+              resolve();
+            }
+          });
+        };
+        console.log('[OneSignal] blOSLogout helper registered');
+
       })();
     });
   })();
