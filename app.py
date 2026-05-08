@@ -6425,7 +6425,7 @@ def home():
                         if status == 'going'
                         else f"{full_name} is planning {ft_mountain}"
                     )
-                happening_signals.append({'text': text})
+                happening_signals.append({'text': text, 'friend_id': ft.user_id})
                 if len(happening_signals) >= 3:
                     break
         except Exception:

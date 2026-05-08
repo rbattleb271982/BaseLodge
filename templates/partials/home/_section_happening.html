@@ -6,6 +6,7 @@ Used on: Home screen (only when happening_signals is non-empty)
 Inputs:
   happening_signals  list of dicts
     [].text          string — pre-formatted signal, e.g. "Sam is planning Vail"
+    [].friend_id     int | None — user_id of the friend; when present the row links to their profile
 -->
 
 <div class="bl-section" id="section-happening">
@@ -14,9 +15,16 @@ Inputs:
     </div>
     <div class="bl-happening-rows">
         {% for signal in happening_signals %}
+        {% if signal.friend_id %}
+        <a href="/friends/{{ signal.friend_id }}" class="bl-happening-row bl-happening-row--link">
+            <p class="bl-happening-text">{{ signal.text }}</p>
+            <span class="bl-happening-chevron">›</span>
+        </a>
+        {% else %}
         <div class="bl-happening-row">
             <p class="bl-happening-text">{{ signal.text }}</p>
         </div>
+        {% endif %}
         {% endfor %}
     </div>
 </div>
