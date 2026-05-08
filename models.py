@@ -1284,3 +1284,44 @@ def check_shared_upcoming_trip(user_a_id: int, user_b_id: int) -> bool:
     return shared_trip is not None
 
 
+# ===========================================================================
+# MessageEventLog — canonical outbound messaging event ledger (v1)
+# Append-only. Events are immutable after creation.
+# Do NOT edit rows after creation — create new rows to record state changes.
+# ===========================================================================
+
+class MessageEventLog(db.Model):
+    __tablename__ = "message_event_log"
+
+    id            = db.Column(db.Integer, primary_key=True)
+    event_name    = db.Column(db.String(120), nullable=False, index=True)
+    event_version = db.Column(db.Integer, nullable=False, default=1)
+    category      = db.Column(db.String(50), nullable=False, index=True)
+
+    actor_user_id     = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    recipient_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
+
+    object_type = db.Column(db.String(80),  nullable=True)
+    object_id   = db.Column(db.Integer,     nullable=True)
+
+    channel = db.Column(db.String(40), nullable=True)
+
+    delivery_status    = db.Column(db.String(40), nullable=False, index=True, default="pending")
+    suppression_reason = db.Column(db.String(80), nullable=True)
+
+    provider            = db.Column(db.String(40),  nullable=True)
+    provider_message_id = db.Column(db.String(255), nullable=True)
+
+    payload_json  = db.Column(db.JSON, nullable=False, default=dict)
+    message_title = db.Column(db.String(255), nullable=True)
+    message_body  = db.Column(db.Text, nullable=True)
+    error_message = db.Column(db.Text, nullable=True)
+
+    retry_count = db.Column(db.Integer, nullable=False, default=0)
+
+    created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    processed_at = db.Column(db.DateTime, nullable=True)
+    sent_at      = db.Column(db.DateTime, nullable=True)
+
+    actor     = db.relationship("User", foreign_keys=[actor_user_id],     lazy="select")
+    recipient = db.relationship("User", foreign_keys=[recipient_user_id], lazy="select")

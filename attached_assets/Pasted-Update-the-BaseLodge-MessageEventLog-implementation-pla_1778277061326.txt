@@ -1,0 +1,141 @@
+Update the BaseLodge MessageEventLog implementation plan with the following architecture clarifications before any Agent work begins.
+
+IMPORTANT
+This is still planning/architecture work.
+Do NOT implement yet.
+Do NOT run migrations yet.
+Do NOT modify production code yet.
+
+Incorporate these finalized decisions into the implementation plan.
+
+--------------------------------------------------
+1. FILE ORGANIZATION
+--------------------------------------------------
+
+Use existing BaseLodge structure.
+
+Create:
+
+services/messaging_constants.py
+services/message_events.py
+
+Do NOT create a dedicated messaging/ package yet.
+
+Add:
+MessageEventLog
+
+directly into:
+models.py
+
+Reason:
+- consistent with existing project structure
+- minimizes circular import risk
+- minimizes Replit Agent complexity
+- avoids premature modularization
+
+--------------------------------------------------
+2. ADMIN DEBUG VIEW
+--------------------------------------------------
+
+Implement as:
+- rendered HTML admin page
+- NOT raw JSON
+
+Purpose:
+human debugging and operational visibility.
+
+Requirements:
+- newest-first table
+- simple admin-safe UI
+- no redesign work
+- no advanced filtering yet
+- admin-only access
+
+Display:
+- created_at
+- event_name
+- category
+- recipient
+- delivery_status
+- suppression_reason
+- provider
+- retry_count
+
+--------------------------------------------------
+3. DELIVERY STATUS BEHAVIOR
+--------------------------------------------------
+
+create_message_event() should:
+- default delivery_status to:
+  pending
+
+BUT callers may explicitly set:
+- sent
+- skipped
+- failed
+
+Reason:
+future compatibility with async workers while supporting immediate logging now.
+
+No workers should be built in this phase.
+
+--------------------------------------------------
+4. EMAILLOG COEXISTENCE
+--------------------------------------------------
+
+Leave existing EmailLog untouched.
+
+Do NOT:
+- remove EmailLog
+- refactor EmailLog
+- migrate EmailLog
+- deprecate EmailLog
+
+MessageEventLog becomes the new canonical event layer going forward, but EmailLog remains operational for compatibility.
+
+--------------------------------------------------
+5. QA / TESTING APPROACH
+--------------------------------------------------
+
+Add:
+- admin debug page
+- small admin-only internal test route
+
+Example:
+ /admin/test-message-event
+
+Purpose:
+- generate sample rows safely
+- verify helper behavior
+- verify dedupe behavior
+- verify admin visibility
+
+Requirements:
+- no real notifications sent
+- clearly labeled test data
+- admin-only protection
+
+Suggested test behavior:
+- create one sent row
+- create one skipped row
+- create one dedupe-triggered row
+
+--------------------------------------------------
+6. REMINDERS
+--------------------------------------------------
+
+Do NOT:
+- overbuild
+- add queues
+- add Celery
+- add Kafka/pubsub
+- add workers
+- wire all notification systems yet
+
+This phase remains:
+- foundational infrastructure only
+- logging architecture only
+- future-safe event taxonomy only
+
+Use checkpoints sparingly.
+Return the revised implementation plan only.

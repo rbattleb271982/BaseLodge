@@ -1,0 +1,320 @@
+Build the foundational BaseLodge messaging event infrastructure exactly as specified below. This is infrastructure/setup work only — do NOT redesign UI, do NOT refactor unrelated systems, and do NOT wire every notification flow yet.
+
+GOAL
+Create the BaseLodge MessageEventLog v1 system so future push/email/in-app notifications have a clean canonical event architecture.
+
+IMPORTANT
+This is NOT a full notification implementation phase.
+This phase is ONLY:
+- database model
+- migration
+- enums/constants
+- helper utilities
+- dedupe infrastructure
+- retry infrastructure
+- admin-safe visibility/debugging
+
+Do not over-engineer.
+Do not introduce queues/workers/Celery/Kafka/pubsub/etc.
+Keep architecture simple and production-safe for Replit.
+
+--------------------------------------------------
+PART 1 — CREATE MESSAGEEVENTLOG MODEL
+--------------------------------------------------
+
+Create a new SQLAlchemy model:
+
+MessageEventLog
+
+Fields:
+
+id → Integer primary key
+
+event_name → String(120), indexed, required
+event_version → Integer, default=1, required
+category → String(50), indexed, required
+
+actor_user_id → FK nullable
+recipient_user_id → FK nullable
+
+object_type → String(80), nullable
+object_id → Integer nullable
+
+channel → String(40), nullable
+
+delivery_status → String(40), indexed, required
+Allowed:
+- pending
+- sent
+- skipped
+- failed
+
+suppression_reason → String(80), nullable
+
+provider → String(40), nullable
+Allowed:
+- onesignal
+- sendgrid
+- apns
+- fcm
+- internal
+
+provider_message_id → String(255), nullable
+
+payload_json → JSON required
+
+message_title → String(255), nullable
+message_body → Text, nullable
+
+error_message → Text, nullable
+
+retry_count → Integer default=0 required
+
+created_at → UTC datetime default now
+processed_at → UTC datetime nullable
+sent_at → UTC datetime nullable
+
+Relationships:
+- actor_user relationship
+- recipient_user relationship
+
+Use safe lazy loading patterns consistent with the existing codebase.
+
+--------------------------------------------------
+PART 2 — CREATE ALEMBIC MIGRATION
+--------------------------------------------------
+
+Generate a clean Alembic migration for MessageEventLog.
+
+Requirements:
+- safe nullable handling
+- indexes on:
+  - event_name
+  - category
+  - delivery_status
+  - recipient_user_id
+  - created_at
+
+Do not modify unrelated tables.
+
+--------------------------------------------------
+PART 3 — CREATE CANONICAL EVENT CONSTANTS
+--------------------------------------------------
+
+Create a dedicated constants module for canonical messaging events.
+
+Include constants for:
+
+trip.invite.created
+trip.invite.accepted
+trip.invite.declined
+
+friend.request.created
+friend.request.accepted
+
+overlap.detected
+
+friend.trip.created
+friend.trip.updated
+
+wishlist.match.detected
+
+digest.weekly.generated
+
+push.test.sent
+push.broadcast.sent
+
+Also create enums/constants for:
+
+Categories:
+- trip
+- friend
+- overlap
+- wishlist
+- digest
+- system
+- marketing
+
+Delivery statuses:
+- pending
+- sent
+- skipped
+- failed
+
+Suppression reasons:
+- user_opted_out
+- channel_unavailable
+- sender_is_recipient
+- duplicate_event
+- digest_only
+- quiet_hours
+- missing_required_payload
+- recipient_ineligible
+- test_only
+- provider_error
+- not_implemented
+
+Channels:
+- push
+- email
+- in_app
+- digest
+
+Providers:
+- onesignal
+- sendgrid
+- apns
+- fcm
+- internal
+
+Use a clean centralized structure.
+
+--------------------------------------------------
+PART 4 — CREATE LOGGING HELPER
+--------------------------------------------------
+
+Create a lightweight helper utility:
+
+create_message_event(...)
+
+Responsibilities:
+- validate required fields
+- create MessageEventLog row
+- apply defaults
+- serialize payload safely
+- return created log row
+
+DO NOT send notifications yet.
+This helper only logs events.
+
+Parameters should support:
+- event_name
+- category
+- actor_user_id
+- recipient_user_id
+- object_type
+- object_id
+- channel
+- provider
+- payload_json
+- message_title
+- message_body
+- delivery_status
+- suppression_reason
+- error_message
+
+Keep helper simple and reusable.
+
+--------------------------------------------------
+PART 5 — CREATE DEDUPE INFRASTRUCTURE
+--------------------------------------------------
+
+Add a lightweight dedupe helper.
+
+Goal:
+Prevent duplicate notifications/events.
+
+Requirements:
+- dedupe based on:
+  - event_name
+  - recipient_user_id
+  - object_type
+  - object_id
+- configurable recent time window
+- admin test push events bypass dedupe
+
+Do NOT create background jobs.
+
+Do NOT overbuild.
+
+--------------------------------------------------
+PART 6 — CREATE RETRY INFRASTRUCTURE
+--------------------------------------------------
+
+Add minimal retry support fields/utilities.
+
+Rules:
+- retry only provider/network failures
+- max retries = 3
+- do not retry:
+  - duplicate_event
+  - user_opted_out
+  - channel_unavailable
+  - malformed payloads
+  - recipient_ineligible
+
+Infrastructure only.
+Do not build retry workers yet.
+
+--------------------------------------------------
+PART 7 — CREATE ADMIN DEBUG VIEW
+--------------------------------------------------
+
+Add a simple admin-safe debug route/page.
+
+Purpose:
+View recent MessageEventLog rows.
+
+Include:
+- created_at
+- event_name
+- category
+- recipient
+- status
+- suppression_reason
+- provider
+- retry_count
+
+Keep styling simple and consistent with existing admin tools.
+
+Admin-only access required.
+
+--------------------------------------------------
+PART 8 — IMPORTANT ARCHITECTURE RULES
+--------------------------------------------------
+
+Follow these rules strictly:
+
+- Events are immutable
+- Append-only logging
+- No event edits after creation
+- One universal MessageEventLog table only
+- Digest child-event tracking is deferred
+- Viewing pages/profiles/trips are NOT messaging events
+- Overlap events are digest-only
+- Friend trip created/updated are digest-only
+- Trip invite declined is silent/log-only
+- Real-time notifications are only for direct human-to-human actions
+
+--------------------------------------------------
+PART 9 — DO NOT DO THESE THINGS
+--------------------------------------------------
+
+Do NOT:
+- redesign UI
+- build queues
+- add Celery
+- add Kafka/pubsub
+- refactor unrelated notification systems
+- wire every push/email flow yet
+- implement full digest generation yet
+- implement user preferences UI yet
+- remove existing push systems yet
+
+--------------------------------------------------
+PART 10 — QA REQUIREMENTS
+--------------------------------------------------
+
+Before finishing:
+- run app
+- verify migration succeeds
+- verify helper creates rows correctly
+- verify dedupe helper works
+- verify admin page loads
+- verify no unrelated systems broke
+- verify imports are clean
+- verify no circular imports
+- verify app startup succeeds
+
+Use checkpoints sparingly.
+Do not finish until fully tested.

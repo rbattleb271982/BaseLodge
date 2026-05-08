@@ -62,10 +62,12 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog
 from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
+from services.message_events import create_message_event, is_duplicate_event, should_retry
+from services.messaging_constants import EventName, Category, DeliveryStatus, SuppressionReason, Channel, Provider
 from io import BytesIO
 import segno
 import random
@@ -1346,6 +1348,58 @@ def run_push_notif_pref_migration():
 
 
 run_push_notif_pref_migration()
+
+
+def run_message_event_log_migration():
+    """Ensure message_event_log table exists (safety net for environments where
+    flask db upgrade has not been run yet).
+
+    The Alembic migration is the authoritative path. This function only guards
+    against a missing table on first startup before the migration is applied.
+    Uses IF NOT EXISTS so it is a no-op on every subsequent run.
+    """
+    try:
+        with app.app_context():
+            conn = db.engine.connect()
+            trans = conn.begin()
+            try:
+                conn.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS message_event_log (
+                        id               SERIAL PRIMARY KEY,
+                        event_name       VARCHAR(120) NOT NULL,
+                        event_version    INTEGER NOT NULL DEFAULT 1,
+                        category         VARCHAR(50) NOT NULL,
+                        actor_user_id    INTEGER REFERENCES "user"(id),
+                        recipient_user_id INTEGER REFERENCES "user"(id),
+                        object_type      VARCHAR(80),
+                        object_id        INTEGER,
+                        channel          VARCHAR(40),
+                        delivery_status  VARCHAR(40) NOT NULL DEFAULT 'pending',
+                        suppression_reason VARCHAR(80),
+                        provider         VARCHAR(40),
+                        provider_message_id VARCHAR(255),
+                        payload_json     JSON NOT NULL DEFAULT '{}',
+                        message_title    VARCHAR(255),
+                        message_body     TEXT,
+                        error_message    TEXT,
+                        retry_count      INTEGER NOT NULL DEFAULT 0,
+                        created_at       TIMESTAMP NOT NULL DEFAULT NOW(),
+                        processed_at     TIMESTAMP,
+                        sent_at          TIMESTAMP
+                    )
+                """))
+                trans.commit()
+                print("message_event_log_migration: table ready.")
+            except Exception as inner_e:
+                trans.rollback()
+                print(f"message_event_log_migration inner error (rolled back): {inner_e}")
+            finally:
+                conn.close()
+    except Exception as e:
+        print(f"message_event_log_migration: skipped ({e})")
+
+
+run_message_event_log_migration()
 
 
 # ============================================================================
@@ -12751,6 +12805,107 @@ def admin_test_onesignal_push():
         "onesignal_rest_key_set": bool(os.environ.get("ONESIGNAL_REST_API_KEY")),
         "result":                 result,
     }), http_status
+
+
+@app.route("/admin/message-events", methods=["GET"])
+@login_required
+@admin_required
+def admin_message_events():
+    """Admin debug view — shows the last 200 MessageEventLog rows, newest first.
+
+    Human-readable table for operational visibility and debugging.
+    No writes, no notifications, no side effects.
+    """
+    rows = (
+        MessageEventLog.query
+        .options(db.joinedload(MessageEventLog.recipient))
+        .order_by(MessageEventLog.created_at.desc())
+        .limit(200)
+        .all()
+    )
+
+    status_counts = (
+        db.session.query(
+            MessageEventLog.delivery_status,
+            db.func.count(MessageEventLog.id),
+        )
+        .group_by(MessageEventLog.delivery_status)
+        .all()
+    )
+    count_map = {status: count for status, count in status_counts}
+    stats = {
+        "total":   sum(count_map.values()),
+        "sent":    count_map.get(DeliveryStatus.SENT, 0),
+        "skipped": count_map.get(DeliveryStatus.SKIPPED, 0),
+        "failed":  count_map.get(DeliveryStatus.FAILED, 0),
+        "pending": count_map.get(DeliveryStatus.PENDING, 0),
+    }
+
+    return render_template("admin_message_events.html", rows=rows, stats=stats)
+
+
+@app.route("/admin/test-message-event", methods=["GET"])
+@login_required
+@admin_required
+def admin_test_message_event():
+    """Admin-only route that creates three sample MessageEventLog rows.
+
+    Purpose: verify helper behavior, dedupe logic, and admin page visibility.
+    Sends NO real notifications. All rows are labeled source=admin_test.
+
+    Rows created:
+      1. sent      — push.test.sent (bypasses dedupe)
+      2. skipped   — overlap.detected / digest_only suppression
+      3. skipped   — overlap.detected / duplicate_event (dedupe fires on row 2)
+    """
+    current_app.logger.warning(
+        "[MessageEvent-Test] triggered by admin user_id=%d email=%s",
+        current_user.id, current_user.email,
+    )
+
+    create_message_event(
+        event_name=EventName.PUSH_TEST_SENT,
+        category=Category.SYSTEM,
+        actor_user_id=current_user.id,
+        recipient_user_id=current_user.id,
+        channel=Channel.PUSH,
+        provider=Provider.INTERNAL,
+        payload_json={"source": "admin_test", "label": "TEST_SENT"},
+        message_title="BaseLodge Test",
+        message_body="Test sent row created by admin test route.",
+        delivery_status=DeliveryStatus.SENT,
+    )
+
+    create_message_event(
+        event_name=EventName.OVERLAP_DETECTED,
+        category=Category.OVERLAP,
+        recipient_user_id=current_user.id,
+        channel=Channel.DIGEST,
+        delivery_status=DeliveryStatus.SKIPPED,
+        suppression_reason=SuppressionReason.DIGEST_ONLY,
+        payload_json={"source": "admin_test", "label": "TEST_SKIPPED"},
+    )
+
+    is_dup = is_duplicate_event(
+        EventName.OVERLAP_DETECTED,
+        current_user.id,
+    )
+    current_app.logger.info(
+        "[MessageEvent-Test] dedupe check for overlap.detected → is_duplicate=%s",
+        is_dup,
+    )
+
+    create_message_event(
+        event_name=EventName.OVERLAP_DETECTED,
+        category=Category.OVERLAP,
+        recipient_user_id=current_user.id,
+        channel=Channel.DIGEST,
+        delivery_status=DeliveryStatus.SKIPPED,
+        suppression_reason=SuppressionReason.DUPLICATE_EVENT,
+        payload_json={"source": "admin_test", "label": "TEST_DEDUPE", "dedupe_fired": is_dup},
+    )
+
+    return redirect(url_for("admin_message_events"))
 
 
 if __name__ == "__main__":

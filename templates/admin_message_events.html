@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — Message Event Log</title>
+    {% include 'components/analytics_head.html' %}
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            padding: 20px;
+        }
+
+        .admin-header {
+            background: #1a1a2e;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .admin-header h1 { font-size: 22px; margin-bottom: 6px; }
+        .admin-header p  { color: #aaa; font-size: 13px; }
+
+        .admin-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .admin-btn {
+            display: inline-block;
+            padding: 9px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .admin-btn-primary { background: #5C1219; color: white; }
+        .admin-btn-secondary { background: #2d3748; color: #e2e8f0; }
+
+        .stats-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .stat-chip {
+            background: #2d3748;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+        .stat-chip span { font-weight: 700; margin-right: 4px; }
+
+        .table-wrap {
+            overflow-x: auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        thead tr {
+            background: #1a1a2e;
+            color: #ccc;
+        }
+        thead th {
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        tbody tr { border-bottom: 1px solid #eee; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: #fafafa; }
+        td {
+            padding: 9px 12px;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+        td.wrap { white-space: normal; max-width: 200px; word-break: break-word; }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .badge-sent    { background: #c6f6d5; color: #276749; }
+        .badge-skipped { background: #fefcbf; color: #744210; }
+        .badge-failed  { background: #fed7d7; color: #9b2c2c; }
+        .badge-pending { background: #e2e8f0; color: #4a5568; }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #718096;
+            font-size: 14px;
+        }
+
+        .retry-badge {
+            display: inline-block;
+            background: #ebf4ff;
+            color: #2b6cb0;
+            border-radius: 10px;
+            padding: 2px 7px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<div class="admin-header">
+    <h1>BaseLodge — Message Event Log</h1>
+    <p>Showing last 200 rows, newest first. Infrastructure view — no real notifications sent from this page.</p>
+</div>
+
+<div class="admin-actions">
+    <a href="/admin/test-message-event" class="admin-btn admin-btn-primary">Run Test Events</a>
+    <a href="/admin/push-diagnostics" class="admin-btn admin-btn-secondary">Push Diagnostics</a>
+    <a href="/admin/resorts" class="admin-btn admin-btn-secondary">Resort Admin</a>
+</div>
+
+<div class="stats-bar">
+    <div class="stat-chip"><span>{{ stats.total }}</span> Total</div>
+    <div class="stat-chip"><span>{{ stats.sent }}</span> Sent</div>
+    <div class="stat-chip"><span>{{ stats.skipped }}</span> Skipped</div>
+    <div class="stat-chip"><span>{{ stats.failed }}</span> Failed</div>
+    <div class="stat-chip"><span>{{ stats.pending }}</span> Pending</div>
+</div>
+
+<div class="table-wrap">
+    {% if rows %}
+    <table>
+        <thead>
+            <tr>
+                <th>Created (UTC)</th>
+                <th>Event</th>
+                <th>Category</th>
+                <th>Recipient</th>
+                <th>Status</th>
+                <th>Suppression</th>
+                <th>Provider</th>
+                <th>Retries</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                <td>{{ row.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td class="wrap">{{ row.event_name }}</td>
+                <td>{{ row.category }}</td>
+                <td>
+                    {% if row.recipient %}
+                        {{ row.recipient.username or row.recipient.email }}
+                    {% elif row.recipient_user_id %}
+                        #{{ row.recipient_user_id }}
+                    {% else %}
+                        <span style="color:#aaa">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if row.delivery_status == 'sent' %}
+                        <span class="badge badge-sent">sent</span>
+                    {% elif row.delivery_status == 'skipped' %}
+                        <span class="badge badge-skipped">skipped</span>
+                    {% elif row.delivery_status == 'failed' %}
+                        <span class="badge badge-failed">failed</span>
+                    {% else %}
+                        <span class="badge badge-pending">{{ row.delivery_status }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if row.suppression_reason %}
+                        <span style="font-size:12px;color:#718096">{{ row.suppression_reason }}</span>
+                    {% else %}
+                        <span style="color:#aaa">—</span>
+                    {% endif %}
+                </td>
+                <td>{{ row.provider or '—' }}</td>
+                <td>
+                    {% if row.retry_count > 0 %}
+                        <span class="retry-badge">{{ row.retry_count }}</span>
+                    {% else %}
+                        <span style="color:#aaa">0</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        No message events logged yet.<br>
+        <a href="/admin/test-message-event" style="color:#5C1219;margin-top:8px;display:inline-block;">Run test events to create sample rows →</a>
+    </div>
+    {% endif %}
+</div>
+
+</body>
+</html>
