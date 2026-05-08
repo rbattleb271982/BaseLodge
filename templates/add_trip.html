@@ -32,14 +32,13 @@
         .at-page-sub {
             font-size: 15px;
             color: #6B665A;
-            margin: 0 0 28px;
+            margin: 0 0 18px;
             line-height: 1.45;
         }
 
         /* ── Sections ── */
         .at-section {
-            padding: 22px 0 20px;
-            border-top: 1px solid #E5DFD0;
+            padding: 18px 0 14px;
         }
         .at-section-label {
             font-size: 11px;
@@ -146,7 +145,7 @@
             background: #FFFFFF;
             border: 1.5px solid #5C1219;
             border-radius: 10px;
-            padding: 14px 16px;
+            padding: 12px 14px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -168,8 +167,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
-            min-height: 36px;
+            margin-bottom: 10px;
+            min-height: 32px;
         }
         .at-date-summary-text {
             font-size: 15px;
@@ -218,7 +217,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 12px 10px;
+            padding: 10px 12px 8px;
         }
         .at-cal-nav {
             background: none;
@@ -241,8 +240,7 @@
         .at-cal-weekdays {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            padding: 0 8px 2px;
-            border-top: 1px solid #F0EDE6;
+            padding: 0 8px 0;
         }
         .at-cal-wd {
             text-align: center;
@@ -251,12 +249,12 @@
             color: #B5AFA5;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            padding: 8px 0 4px;
+            padding: 6px 0 4px;
         }
         .at-cal-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            padding: 0 8px 10px;
+            padding: 0 8px 8px;
         }
 
         /* ── Day cells ── */
@@ -346,8 +344,8 @@
         .at-staged-list {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            margin-top: 10px;
+            gap: 6px;
+            margin-top: 8px;
         }
         .at-staged-item {
             display: flex;
@@ -382,20 +380,20 @@
             background: rgba(160, 34, 12, 0.07);
             border-radius: 8px;
             padding: 8px 12px;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         .at-date-helper {
             font-size: 13px;
             color: #8A857A;
             text-align: center;
-            padding: 8px 0 2px;
+            padding: 4px 0 0;
         }
 
         /* ── Trip status pills ── */
         .at-status-pills {
             display: flex;
             gap: 8px;
-            margin-top: 4px;
+            margin-top: 0;
         }
         .at-status-pill {
             padding: 8px 18px;
@@ -419,7 +417,7 @@
 
         /* ── Sharing row ── */
         .at-share-row {
-            margin-top: 4px;
+            margin-top: 0;
         }
         .at-vis-label {
             display: flex;
@@ -438,7 +436,7 @@
         .at-vis-hint {
             font-size: 13px;
             color: #8A857A;
-            margin: 6px 0 0 32px;
+            margin: 4px 0 0 32px;
             line-height: 1.4;
         }
 
@@ -985,6 +983,17 @@
         const el = document.getElementById('range-error');
         if (el) { el.textContent = ''; el.style.display = 'none'; }
     }
+    function preserveMountainSelection() {
+        if (!selResortId) return;
+        resortIdInput.value = selResortId;
+        searchInput.value = '';
+        searchInput.style.display = 'none';
+        selectedWrap.style.display = 'block';
+        document.getElementById('sel-name').textContent = selResortName || '';
+        document.getElementById('sel-meta').textContent = selResortMeta || '';
+        const hint = document.getElementById('mountain-search-hint');
+        if (hint) hint.style.display = 'none';
+    }
 
     function showRangeConfirm() {
         const block = document.getElementById('at-range-confirm');
@@ -1017,6 +1026,7 @@
             updateCalendarClasses();
             updateRangeSummary();
             hideRangeConfirm();
+            preserveMountainSelection();
             return;
         }
 
@@ -1033,6 +1043,7 @@
                 updateCalendarClasses();
                 updateRangeSummary();
                 hideRangeConfirm();
+                preserveMountainSelection();
                 return;
             }
         }
