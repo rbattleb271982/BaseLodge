@@ -6328,10 +6328,6 @@ def home():
                 key = (ft.user_id, ft_mountain, status)
                 if key in _hap_seen:
                     continue
-                # Suppress if this friend/resort pair is already in Opportunities
-                if ft_resort and (ft.user_id, ft_resort.id) in _opp_friend_resort_pairs:
-                    _diag_hap_opp_suppressed += 1
-                    continue
                 _hap_seen.add(key)
                 group = _hap_groups[key]
                 full_name = (
@@ -6351,7 +6347,7 @@ def home():
                         else f"{full_name} is planning {ft_mountain}"
                     )
                 happening_signals.append({'text': text, 'friend_id': ft.user_id})
-                if len(happening_signals) >= 3:
+                if len(happening_signals) >= 10:
                     break
         except Exception:
             db.session.rollback()
