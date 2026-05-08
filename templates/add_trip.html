@@ -1170,12 +1170,13 @@
         if (!IS_GROUP_FLOW) {
             updateSubmitCTA();
             document.getElementById('trip-form').addEventListener('submit', function (e) {
-                if (stagedRanges.length === 0) return;
-                e.preventDefault();
+                if (stagedRanges.length === 0) {
+                    e.preventDefault();
+                    return;
+                }
                 document.getElementById('date_ranges_json_input').value = JSON.stringify(
                     stagedRanges.map(r => ({ start_date: r.startStr, end_date: r.endStr }))
                 );
-                this.submit();
             });
         }
     });
