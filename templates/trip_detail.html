@@ -1496,7 +1496,7 @@
 
         async function saveTransportation(value) {
             const tripId = {{ trip.id }};
-            const labels = { 'driving': 'Driving', 'bus': 'Bus', 'train': 'Train', 'flying': 'Flying' };
+            const labels = { 'driving': 'Driving', 'bus': 'Bus', 'train': 'Train', 'flying': 'Flying', 'other': 'Other' };
             try {
                 const response = await fetch(`/api/trips/${tripId}/participant/signals`, {
                     method: 'POST',
@@ -1666,12 +1666,8 @@
                     });
                     const data = await res.json();
                     if (data.success) {
-                        _tdCurrentResortId = resortId;
-                        const nameEl = document.getElementById('td-mountain-name');
-                        if (nameEl) nameEl.textContent = data.resort_name;
-                        const titleEl = document.querySelector('.trip-title');
-                        if (titleEl) titleEl.textContent = data.resort_name;
                         window.closeResortSheet();
+                        window.location.reload();
                     } else {
                         blToast(data.error || 'Could not save resort.');
                     }
@@ -1801,6 +1797,12 @@
                 errEl.classList.remove('visible');
                 if (!startVal || !endVal) {
                     errEl.textContent = 'Both dates are required.';
+                    errEl.classList.add('visible');
+                    return;
+                }
+                const todayISO = new Date().toISOString().slice(0, 10);
+                if (startVal < todayISO) {
+                    errEl.textContent = 'Start date cannot be in the past.';
                     errEl.classList.add('visible');
                     return;
                 }

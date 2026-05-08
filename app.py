@@ -3414,6 +3414,8 @@ def update_trip_dates(trip_id):
         return jsonify({"success": False, "error": "Invalid date format."}), 400
     if end_date < start_date:
         return jsonify({"success": False, "error": "End date cannot be before start date."}), 400
+    if start_date < date.today():
+        return jsonify({"success": False, "error": "Start date cannot be in the past."}), 400
     overlapping = SkiTrip.query.filter(
         SkiTrip.user_id == current_user.id,
         SkiTrip.id != trip_id,
@@ -7880,10 +7882,15 @@ def add_trip():
                     continue
                 _parsed.append({'start': _s, 'end': _e})
             # Check for mutual overlaps within the batch itself
+            _batch_overlap_found = False
             for _i, _pr in enumerate(_parsed):
+                if _batch_overlap_found:
+                    break
                 for _pr2 in _parsed[_i + 1:]:
                     if _pr['start'] <= _pr2['end'] and _pr['end'] >= _pr2['start']:
-                        _batch_errors.append("Some of the selected date ranges overlap each other.")
+                        if not _batch_overlap_found:
+                            _batch_errors.append("Some of the selected date ranges overlap each other.")
+                            _batch_overlap_found = True
                         break
             if _batch_errors:
                 for _err in _batch_errors:
