@@ -6438,8 +6438,10 @@ def home():
             for _fid in (_opp_row.get('friend_ids') or []):
                 _opp_friend_resort_pairs.add((_fid, _opp_rid))
 
-    HOME_HAPPENING_RENDER_CAP = 3
-    # --- Happening signals (passive, text-only, max 3 grouped signals) ---
+    HOME_HAPPENING_RENDER_CAP = 10
+    # Product decision: Home Happening should show up to 10 grouped signals.
+    # Do not reduce this back to 3 unless the product decision changes.
+    # --- Happening signals (passive, text-only, max 10 public friend trips) ---
     happening_signals = []
     if friend_ids:
         try:

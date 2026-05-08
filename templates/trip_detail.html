@@ -1309,8 +1309,8 @@
         {% if is_owner %}
         (function() {
             const _tdTripId = {{ trip.id }};
-            const _tdStartISO = "{{ trip.start_date.isoformat() if trip.start_date else '' }}";
-            const _tdEndISO = "{{ trip.end_date.isoformat() if trip.end_date else '' }}";
+            let _tdStartISO = "{{ trip.start_date.isoformat() if trip.start_date else '' }}";
+            let _tdEndISO   = "{{ trip.end_date.isoformat() if trip.end_date else '' }}";
             const _months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
             window.openDateSheet = function() {
@@ -1344,6 +1344,8 @@
                     });
                     const data = await res.json();
                     if (data.success) {
+                        _tdStartISO = startVal;
+                        _tdEndISO   = endVal;
                         const el = document.getElementById('td-dates-text');
                         if (el) {
                             const sd = new Date(startVal + 'T12:00:00');
