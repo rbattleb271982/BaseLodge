@@ -6116,54 +6116,6 @@ def format_availability_ranges(ranges):
     remaining_count = max(0, len(ranges) - 2)
     return ' · '.join(formatted), remaining_count
 
-def resolve_home_modules(next_trip, trip_invites, secondary_card, has_overlaps, next_match):
-    """
-    Decides which modules render below the top block on Home, in priority order.
-    Returns a list of at most 2 module dicts.
-
-    Module types: 'my_next_trip', 'invites', 'best_match', 'empty_state'
-    """
-    has_trip_invite = bool(trip_invites)
-    has_connect_invite = (
-        secondary_card is not None
-        and secondary_card.get('type') == 'connect_invite'
-    )
-    has_invites = has_trip_invite or has_connect_invite
-    has_best_match = has_overlaps and next_match is not None
-
-    modules = []
-
-    # State 1: trip + invites
-    if next_trip and has_invites:
-        modules.append({'type': 'my_next_trip'})
-        modules.append({'type': 'invites'})
-        return modules
-
-    # State 2: trip, no invites
-    if next_trip and not has_invites:
-        modules.append({'type': 'my_next_trip'})
-        if has_best_match:
-            modules.append({'type': 'best_match'})
-        return modules
-
-    # State 3: no trip, has invites
-    if not next_trip and has_invites:
-        modules.append({'type': 'invites'})
-        invite_count = len(trip_invites) + (1 if has_connect_invite else 0)
-        if has_best_match and invite_count == 1:
-            modules.append({'type': 'best_match'})
-        return modules
-
-    # State 4: no trip, no invites, has overlaps
-    if not next_trip and not has_invites and has_best_match:
-        modules.append({'type': 'best_match'})
-        return modules
-
-    # State 5: nothing to show
-    modules.append({'type': 'empty_state'})
-    return modules
-
-
 def build_trip_overlap_today_card(user, today, friend_ids):
     """
     Returns a card dict if the user has an active trip today AND at least one
