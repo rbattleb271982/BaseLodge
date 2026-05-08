@@ -1,4 +1,5 @@
 {% extends "base_app.html" %}
+{% block flash %}{% endblock %}
 {% block title %}BaseLodge — Trip{% endblock %}
 {% block head %}
 <style>
@@ -388,10 +389,106 @@
             color: var(--bl-color-text-muted);
             margin: 0;
         }
+
+        /* ── Social proof line ── */
+        .td-header-social {
+            font-size: 12px;
+            color: #8A857A;
+            margin: 6px 0 0;
+            letter-spacing: 0.01em;
+        }
+
+        /* ── "See who's going" action row ── */
+        .td-next-section {
+            margin-top: 20px;
+        }
+        .td-next-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-top: 1px solid #E5DFD0;
+            border-bottom: 1px solid #E5DFD0;
+            text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .td-next-row:active { background: rgba(92,18,25,0.03); }
+        .td-next-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: #1A1A1A;
+            margin: 0 0 2px;
+        }
+        .td-next-sub {
+            font-size: 13px;
+            color: #8A857A;
+            margin: 0;
+        }
+
+        /* ── Success modal ── */
+        .td-success-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.42);
+            z-index: 1200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .td-success-card {
+            background: #FFFFFF;
+            border-radius: 16px;
+            padding: 32px 24px 28px;
+            max-width: 300px;
+            width: 100%;
+            position: relative;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+        }
+        .td-success-close {
+            position: absolute;
+            top: 12px;
+            right: 14px;
+            background: none;
+            border: none;
+            font-size: 22px;
+            color: #B5AFA5;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 4px;
+            font-family: inherit;
+        }
+        .td-success-title {
+            font-family: var(--bl-font-serif);
+            font-size: 22px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin: 0 0 10px;
+        }
+        .td-success-body {
+            font-size: 15px;
+            color: #6B665A;
+            line-height: 1.5;
+            margin: 0;
+        }
     </style>
 {% endblock %}
 
 {% block content %}
+    {% set _trip_flash = get_flashed_messages(category_filter=['trip']) %}
+    {% if _trip_flash %}
+    {% set mountain_name_for_modal = trip.resort.name if trip.resort else (trip.mountain or 'your trip') %}
+    <div class="td-success-overlay" id="td-success-modal" onclick="if(event.target===this)dismissSuccess()">
+        <div class="td-success-card">
+            <button class="td-success-close" onclick="dismissSuccess()" aria-label="Close">×</button>
+            <h2 class="td-success-title">Trip planned.</h2>
+            <p class="td-success-body">Your {{ mountain_name_for_modal }} trip is on the calendar.</p>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="page-container{% if is_invited %} page-container-with-sticky{% endif %}">
 
         <!-- Nav -->
@@ -420,14 +517,19 @@
             <p class="td-header-eyebrow">{{ (owner.first_name if owner else 'Someone') | format_name }} invited you</p>
             {% elif ts == 'going' %}
             <p class="td-header-eyebrow" style="color:#5C1219;">Confirmed</p>
-            {% else %}
-            <p class="td-header-eyebrow">Planning</p>
             {% endif %}
+            {% if trip.resort and trip.resort.slug %}
+            <a href="{{ url_for('mountain_detail', slug=trip.resort.slug) }}" class="td-header-mountain" style="display:block;text-decoration:none;color:inherit;">{{ mountain_name }}</a>
+            {% else %}
             <p class="td-header-mountain">{{ mountain_name }}</p>
+            {% endif %}
             {% if state_abbr %}
             <p class="td-header-location">{{ state_abbr }}{% if trip.resort and trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}</p>
             {% endif %}
             <p class="td-header-dates">{{ format_trip_dates(trip) }}</p>
+            {% if friends_wishlist_count > 0 %}
+            <p class="td-header-social">On {{ friends_wishlist_count }} friend{{ 's' if friends_wishlist_count != 1 else '' }}' wishlist{{ 's' if friends_wishlist_count != 1 else '' }}</p>
+            {% endif %}
             {% if people > 1 %}
             <p class="td-header-meta">{{ people }} going</p>
             {% endif %}
@@ -530,19 +632,9 @@
         </div>
         {% endif %}
 
-        <!-- Invite friends CTA (only when trip is confirmed) -->
-        {% if (is_owner or is_guest) and ts == 'going' %}
-        <div class="invite-cta">
-            <button class="td-btn-invite" onclick="handleInviteClick()">Invite friends</button>
-            {% if invite_count > 0 %}
-            <p class="invite-count">{{ invite_count }} invite{{ 's' if invite_count != 1 else '' }} sent</p>
-            {% endif %}
-        </div>
-        {% endif %}
-
-        <!-- Your Trip Details -->
-        <p class="td-section-label">Your Trip Details</p>
-        <p style="font-size: 12px; color: var(--bl-color-text-muted); margin: 2px 0 18px 0; line-height: 1.4;">Visible to friends when your trip is public.</p>
+        <!-- Your Trip Setup -->
+        <p class="td-section-label">Your Trip Setup</p>
+        <p style="font-size: 12px; color: var(--bl-color-text-muted); margin: 2px 0 18px 0; line-height: 1.4;">Let everyone know the plan.</p>
         <div class="your-trip-details-section">
 
             {# Equipment #}
@@ -711,6 +803,19 @@
 
         </div><!-- /your-trip-details-section -->
 
+        <!-- See who's going -->
+        {% if trip.resort and trip.resort.slug %}
+        <div class="td-next-section">
+            <a href="{{ url_for('mountain_detail', slug=trip.resort.slug) }}" class="td-next-row">
+                <div>
+                    <p class="td-next-title">See who's going</p>
+                    <p class="td-next-sub">See friends heading to {{ mountain_name }}.</p>
+                </div>
+                <span class="td-info-chevron">›</span>
+            </a>
+        </div>
+        {% endif %}
+
         <!-- Who's Going -->
         {% if all_participants or invited_participants %}
         <p class="td-section-label">Who's Going</p>
@@ -860,6 +965,11 @@
     </div>
 
     <script>
+        function dismissSuccess() {
+            var m = document.getElementById('td-success-modal');
+            if (m) m.style.display = 'none';
+        }
+
         // ── Accordion: single-open for expandable detail rows ──
         const _TD_PANELS = [
             { content: 'equipmentOverrideOptions',     chevron: 'equipmentChevron',     header: 'equipmentHeader'     },

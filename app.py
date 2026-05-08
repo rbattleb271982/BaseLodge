@@ -6447,7 +6447,7 @@ def home():
                         else f"{full_name} is planning {ft_mountain}"
                     )
                 happening_signals.append({'text': text, 'friend_id': ft.user_id})
-                if len(happening_signals) >= 10:
+                if len(happening_signals) >= 3:
                     break
         except Exception:
             db.session.rollback()
@@ -8255,6 +8255,17 @@ def trip_detail(trip_id):
                             'days': len(overlap_day_set)
                         })
     
+    # Count how many of the user's friends have this resort on their wishlist
+    friends_wishlist_count = 0
+    if trip.resort_id:
+        _friend_ids = [f.friend_id for f in Friend.query.filter_by(user_id=current_user.id).all()]
+        if _friend_ids:
+            _wl_friends = User.query.filter(User.id.in_(_friend_ids)).all()
+            friends_wishlist_count = sum(
+                1 for u in _wl_friends
+                if trip.resort_id in (u.wish_list_resorts or [])
+            )
+
     return render_template(
         "trip_detail.html",
         trip=trip,
@@ -8271,6 +8282,7 @@ def trip_detail(trip_id):
         current_user_participant=current_user_participant,
         participant_overlaps=participant_overlaps,
         pending_requests=pending_requests,
+        friends_wishlist_count=friends_wishlist_count,
         today=date.today(),
     )
 
