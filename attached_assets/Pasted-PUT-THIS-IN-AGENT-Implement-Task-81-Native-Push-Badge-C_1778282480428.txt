@@ -1,0 +1,47 @@
+PUT THIS IN AGENT
+
+Implement Task #81 — Native Push Badge Clear for BaseLodge.
+
+Use the existing plan exactly. Keep the implementation small and safe.
+
+Requirements:
+- Install @capacitor/app and add it to package.json.
+- Run npx cap sync so the native iOS and Android projects include the App plugin.
+- Do not rewrite the existing [BadgeClear] logic in templates/components/analytics_head.html unless absolutely necessary.
+- Confirm that the existing App/appStateChange listener can now resolve through the real Capacitor App plugin.
+- In ios/App/App/AppDelegate.swift, add a native badge reset inside applicationDidBecomeActive:
+  UIApplication.shared.applicationIconBadgeNumber = 0
+- Preserve current OneSignal push delivery.
+- Preserve APNs direct admin/test behavior.
+- Do not add @capacitor/badge.
+- Do not add schema changes.
+- Do not add notification inbox, unread counts, queues, or server-side badge tracking.
+- Do not make Android behavior more complex. Existing removeAllDeliveredNotifications() behavior is enough there.
+
+Files likely involved:
+- package.json
+- package-lock.json if updated
+- ios/App/App/AppDelegate.swift
+- ios/App/Podfile.lock or native sync-generated files if cap sync changes them
+- android native sync-generated files if cap sync changes them
+
+Validation:
+- App starts cleanly.
+- npm/package install succeeds.
+- npx cap sync succeeds.
+- No Python/Flask route changes.
+- No DB migration.
+- Existing push code still compiles.
+- Search the repo and confirm @capacitor/badge was not added.
+- Confirm AppDelegate.swift includes exactly one badge reset in applicationDidBecomeActive.
+- Confirm templates/components/analytics_head.html was not materially rewritten.
+
+After implementation, report:
+1. Files changed
+2. Exact AppDelegate function updated
+3. Whether @capacitor/app is now installed
+4. Whether npx cap sync succeeded
+5. Whether Android was changed only by sync output
+6. Any manual Xcode/TestFlight steps still required
+
+Do not finish until you have run the relevant install/sync checks and verified there are no schema, queue, inbox, or notification rewrite changes.
