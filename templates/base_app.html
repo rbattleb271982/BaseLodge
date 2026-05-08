@@ -24,9 +24,9 @@
     {% block flash %}
     {% with _flash_messages = get_flashed_messages(with_categories=true) %}
     {% if _flash_messages %}
-    <div style="padding:12px 20px 0;">
+    <div class="bl-flash-wrap">
         {% for _flash_cat, _flash_msg in _flash_messages %}
-        <div style="background:#F0DDD8;border:0.5px solid #5C1219;border-radius:8px;padding:12px 16px;margin-bottom:8px;font-size:14px;line-height:1.45;color:#1A1A1A;font-family:inherit;">
+        <div class="bl-flash-message" style="background:#F0DDD8;border:0.5px solid #5C1219;border-radius:8px;padding:12px 16px;margin-bottom:8px;font-size:14px;line-height:1.45;color:#1A1A1A;font-family:inherit;">
             {{ _flash_msg }}
         </div>
         {% endfor %}
@@ -55,7 +55,7 @@ function blToast(msg) {
     }, 3000);
 }
 document.addEventListener('DOMContentLoaded', function() {
-    var flashWrap = document.querySelector('.app-shell > div[style*="padding:12px 20px 0;"]');
+    var flashWrap = document.querySelector('.bl-flash-wrap');
     if (!flashWrap) return;
     var dismissed = false;
     var dismissFlash = function() {
