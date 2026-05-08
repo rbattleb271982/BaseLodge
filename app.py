@@ -3377,7 +3377,31 @@ def create_trip():
     user.update_lifecycle_stage()
     
     db.session.commit()
-    
+
+    # ── MessageEventLog: trip invite created via JSON API ──
+    if friend_id:
+        try:
+            create_message_event(
+                event_name=EventName.TRIP_INVITE_CREATED,
+                category=Category.TRIP,
+                actor_user_id=current_user.id,
+                recipient_user_id=int(friend_id),
+                object_type="trip",
+                object_id=trip.id,
+                channel=None,
+                payload_json={
+                    "trip_id": trip.id,
+                    "resort": mountain or "",
+                    "source_route": "create_trip",
+                },
+                message_title=f"{current_user.first_name or current_user.username} invited you to a trip",
+                message_body=f"You've been invited to {mountain or 'a trip'}.",
+                delivery_status=DeliveryStatus.SKIPPED,
+                suppression_reason=SuppressionReason.NOT_IMPLEMENTED,
+            )
+        except Exception as _mel_err:
+            current_app.logger.warning("[MessageEvent] trip_invite_created (create_trip) log failed: %s", _mel_err)
+
     # Emit trip_created event
     emit_event('trip_created', user, {
         'trip_id': trip.id,
@@ -3691,7 +3715,29 @@ def invite_friend():
         db.session.rollback()
         current_app.logger.exception("Invite failed")
         return jsonify({"success": False, "error": "Invite failed"}), 500
-    
+
+    # ── MessageEventLog: friend request created (log-only; send deferred) ──
+    try:
+        create_message_event(
+            event_name=EventName.FRIEND_REQUEST_CREATED,
+            category=Category.FRIEND,
+            actor_user_id=current_user.id,
+            recipient_user_id=friend.id,
+            object_type="user",
+            object_id=friend.id,
+            channel=None,
+            payload_json={
+                "invitation_id": invitation.id,
+                "source_route": "invite_friend",
+            },
+            message_title=f"{current_user.first_name or current_user.username} wants to connect",
+            message_body="You have a new friend request on BaseLodge.",
+            delivery_status=DeliveryStatus.SKIPPED,
+            suppression_reason=SuppressionReason.NOT_IMPLEMENTED,
+        )
+    except Exception as _mel_err:
+        current_app.logger.warning("[MessageEvent] friend_request_created log failed: %s", _mel_err)
+
     return jsonify({"success": True, "message": "Invitation sent"}), 201
 
 @app.route("/api/friends", methods=["GET"])
@@ -3752,7 +3798,29 @@ def accept_invitation(invitation_id):
     sender = db.session.get(User, invitation.sender_id)
     if sender:
         session['new_connection_name'] = sender.first_name or sender.username or 'your new friend'
-    
+
+    # ── MessageEventLog: friend request accepted (log-only; send deferred) ──
+    try:
+        create_message_event(
+            event_name=EventName.FRIEND_REQUEST_ACCEPTED,
+            category=Category.FRIEND,
+            actor_user_id=current_user.id,
+            recipient_user_id=invitation.sender_id,
+            object_type="user",
+            object_id=current_user.id,
+            channel=None,
+            payload_json={
+                "invitation_id": invitation_id,
+                "source_route": "accept_invitation",
+            },
+            message_title=f"{current_user.first_name or current_user.username} accepted your request",
+            message_body="You're now connected on BaseLodge.",
+            delivery_status=DeliveryStatus.SKIPPED,
+            suppression_reason=SuppressionReason.NOT_IMPLEMENTED,
+        )
+    except Exception as _mel_err:
+        current_app.logger.warning("[MessageEvent] friend_request_accepted log failed: %s", _mel_err)
+
     return jsonify({"success": True, "message": "Friend added"}), 200
 
 @app.route("/api/friends/<int:friend_id>", methods=["DELETE"])
@@ -4688,6 +4756,29 @@ def admin_test_push():
             body="Test push from BaseLodge",
         )
         success = result.get("success", False)
+
+        # ── MessageEventLog: FCM test push outcome (android early-return) ──
+        try:
+            create_message_event(
+                event_name=EventName.PUSH_TEST_SENT,
+                category=Category.SYSTEM,
+                actor_user_id=current_user.id,
+                recipient_user_id=latest_token.user_id,
+                channel=Channel.PUSH,
+                provider=Provider.FCM,
+                payload_json={
+                    "token_id": latest_token.id,
+                    "platform": "android",
+                    "source_route": "admin_test_push",
+                },
+                message_title="BaseLodge",
+                message_body="Test push from BaseLodge",
+                delivery_status=DeliveryStatus.SENT if success else DeliveryStatus.FAILED,
+                error_message=result.get("error") if not success else None,
+            )
+        except Exception as _mel_err:
+            current_app.logger.warning("[MessageEvent] test_push (android) log failed: %s", _mel_err)
+
         http_status = 200 if success else 502
         return jsonify({
             "provider":              "fcm",
@@ -4815,6 +4906,28 @@ def admin_test_push():
             "env_corrected":    result.get("env_corrected", False),
         })
 
+        # ── MessageEventLog: APNs test push outcome ──
+        try:
+            create_message_event(
+                event_name=EventName.PUSH_TEST_SENT,
+                category=Category.SYSTEM,
+                actor_user_id=current_user.id,
+                recipient_user_id=row.user_id,
+                channel=Channel.PUSH,
+                provider=Provider.APNS,
+                payload_json={
+                    "token_id": row.id,
+                    "platform": "ios",
+                    "source_route": "admin_test_push",
+                },
+                message_title="BaseLodge",
+                message_body="Test push from BaseLodge",
+                delivery_status=DeliveryStatus.SENT if final_success else DeliveryStatus.FAILED,
+                error_message=error if not final_success else None,
+            )
+        except Exception as _mel_err:
+            current_app.logger.warning("[MessageEvent] test_push (apns) log failed token_id=%d: %s", row.id, _mel_err)
+
     current_app.logger.warning(
         "[TestPush] done — provider=apns total=%d ok=%d failed=%d",
         len(candidate_rows), total_ok, total_bad,
@@ -4933,6 +5046,28 @@ def admin_test_push_all():
                 "error":            error,
             })
 
+            # ── MessageEventLog: APNs push-all outcome ──
+            try:
+                create_message_event(
+                    event_name=EventName.PUSH_TEST_SENT,
+                    category=Category.SYSTEM,
+                    actor_user_id=current_user.id,
+                    recipient_user_id=row.user_id,
+                    channel=Channel.PUSH,
+                    provider=Provider.APNS,
+                    payload_json={
+                        "token_id": row.id,
+                        "platform": "ios",
+                        "source_route": "admin_test_push_all",
+                    },
+                    message_title=TEST_TITLE,
+                    message_body=TEST_BODY,
+                    delivery_status=DeliveryStatus.SENT if final_success else DeliveryStatus.FAILED,
+                    error_message=error if not final_success else None,
+                )
+            except Exception as _mel_err:
+                current_app.logger.warning("[MessageEvent] test_push_all (ios) log failed token_id=%d: %s", row.id, _mel_err)
+
         elif row.platform == "android":
             android_count += 1
             current_app.logger.warning(
@@ -4960,6 +5095,28 @@ def admin_test_push_all():
                 "message_id":    result.get("message_id"),
                 "error":         result.get("error"),
             })
+
+            # ── MessageEventLog: FCM push-all outcome ──
+            try:
+                create_message_event(
+                    event_name=EventName.PUSH_TEST_SENT,
+                    category=Category.SYSTEM,
+                    actor_user_id=current_user.id,
+                    recipient_user_id=row.user_id,
+                    channel=Channel.PUSH,
+                    provider=Provider.FCM,
+                    payload_json={
+                        "token_id": row.id,
+                        "platform": "android",
+                        "source_route": "admin_test_push_all",
+                    },
+                    message_title=TEST_TITLE,
+                    message_body=TEST_BODY,
+                    delivery_status=DeliveryStatus.SENT if success else DeliveryStatus.FAILED,
+                    error_message=result.get("error") if not success else None,
+                )
+            except Exception as _mel_err:
+                current_app.logger.warning("[MessageEvent] test_push_all (android) log failed token_id=%d: %s", row.id, _mel_err)
 
         else:
             unsupported += 1
@@ -5098,6 +5255,28 @@ def admin_test_push_broadcast():
                 "error":            error,
             })
 
+            # ── MessageEventLog: APNs broadcast outcome ──
+            try:
+                create_message_event(
+                    event_name=EventName.PUSH_BROADCAST_SENT,
+                    category=Category.SYSTEM,
+                    actor_user_id=current_user.id,
+                    recipient_user_id=row.user_id,
+                    channel=Channel.PUSH,
+                    provider=Provider.APNS,
+                    payload_json={
+                        "token_id": row.id,
+                        "platform": "ios",
+                        "source_route": "admin_test_push_broadcast",
+                    },
+                    message_title=title,
+                    message_body=body,
+                    delivery_status=DeliveryStatus.SENT if final_success else DeliveryStatus.FAILED,
+                    error_message=error if not final_success else None,
+                )
+            except Exception as _mel_err:
+                current_app.logger.warning("[MessageEvent] push_broadcast (ios) log failed token_id=%d: %s", row.id, _mel_err)
+
         elif row.platform == "android":
             android_count += 1
             current_app.logger.warning(
@@ -5121,6 +5300,28 @@ def admin_test_push_broadcast():
                 "message_id":    result.get("message_id"),
                 "error":         result.get("error"),
             })
+
+            # ── MessageEventLog: FCM broadcast outcome ──
+            try:
+                create_message_event(
+                    event_name=EventName.PUSH_BROADCAST_SENT,
+                    category=Category.SYSTEM,
+                    actor_user_id=current_user.id,
+                    recipient_user_id=row.user_id,
+                    channel=Channel.PUSH,
+                    provider=Provider.FCM,
+                    payload_json={
+                        "token_id": row.id,
+                        "platform": "android",
+                        "source_route": "admin_test_push_broadcast",
+                    },
+                    message_title=title,
+                    message_body=body,
+                    delivery_status=DeliveryStatus.SENT if success else DeliveryStatus.FAILED,
+                    error_message=result.get("error") if not success else None,
+                )
+            except Exception as _mel_err:
+                current_app.logger.warning("[MessageEvent] push_broadcast (android) log failed token_id=%d: %s", row.id, _mel_err)
 
         else:
             unsupported += 1
@@ -8090,6 +8291,33 @@ def add_trip():
                 trip.add_participant(friend_id, GuestStatus.INVITED)
             emit_trip_created_activities(trip, current_user.id)
             db.session.commit()
+
+            # ── MessageEventLog: trip invite created via add_trip form ──
+            if friend_id:
+                try:
+                    create_message_event(
+                        event_name=EventName.TRIP_INVITE_CREATED,
+                        category=Category.TRIP,
+                        actor_user_id=current_user.id,
+                        recipient_user_id=int(friend_id),
+                        object_type="trip",
+                        object_id=trip.id,
+                        channel=None,
+                        payload_json={
+                            "trip_id": trip.id,
+                            "resort": resort.name if resort else "",
+                            "source_route": "add_trip_form",
+                        },
+                        message_title=f"{current_user.first_name or current_user.username} invited you to a trip",
+                        message_body=f"You've been invited to {resort.name if resort else 'a trip'}.",
+                        delivery_status=DeliveryStatus.SKIPPED,
+                        suppression_reason=SuppressionReason.NOT_IMPLEMENTED,
+                    )
+                except Exception as _mel_err:
+                    current_app.logger.warning(
+                        "[MessageEvent] trip_invite_created (add_trip_form) log failed: %s", _mel_err
+                    )
+
             flash("Trip added.", "trip")
             return redirect(url_for("trip_detail", trip_id=trip.id))
         except Exception as e:
@@ -8650,6 +8878,7 @@ def send_trip_invites(trip_id):
     friend_links = Friend.query.filter_by(user_id=current_user.id).all()
     connected_friend_ids = {f.friend_id for f in friend_links}
     
+    newly_invited_user_ids = []
     invites_sent = 0
     for friend_id_str in friend_ids:
         try:
@@ -8680,12 +8909,41 @@ def send_trip_invites(trip_id):
             # Emit activity for the invited user
             emit_trip_invite_received_activity(trip, current_user.id, friend_id)
             invites_sent += 1
+            newly_invited_user_ids.append(friend_id)
     
     if invites_sent > 0:
         # Mark trip as group trip if not already
         if not trip.is_group_trip:
             trip.is_group_trip = True
         db.session.commit()
+
+        # ── MessageEventLog: one row per newly invited friend (no re-query) ──
+        for _invited_uid in newly_invited_user_ids:
+            try:
+                create_message_event(
+                    event_name=EventName.TRIP_INVITE_CREATED,
+                    category=Category.TRIP,
+                    actor_user_id=current_user.id,
+                    recipient_user_id=_invited_uid,
+                    object_type="trip",
+                    object_id=trip_id,
+                    channel=None,
+                    payload_json={
+                        "trip_id": trip_id,
+                        "resort": trip.mountain or "",
+                        "source_route": "trip_detail",
+                    },
+                    message_title=f"{current_user.first_name or current_user.username} invited you to a trip",
+                    message_body=f"You've been invited to {trip.mountain or 'a trip'}.",
+                    delivery_status=DeliveryStatus.SKIPPED,
+                    suppression_reason=SuppressionReason.NOT_IMPLEMENTED,
+                )
+            except Exception as _mel_err:
+                current_app.logger.warning(
+                    "[MessageEvent] trip_invite_created (trip_detail) log failed user=%d: %s",
+                    _invited_uid, _mel_err,
+                )
+
         flash(f"Invite{'s' if invites_sent > 1 else ''} sent to {invites_sent} friend{'s' if invites_sent > 1 else ''}.", "success")
     else:
         flash("No new invites were sent.", "info")
@@ -8869,6 +9127,30 @@ def respond_to_trip_invite(trip_id):
         emit_trip_invite_accepted_activity(trip, current_user.id, trip.user_id)
         emit_friend_joined_trip_activities(trip, current_user.id)
         db.session.commit()
+
+        # ── MessageEventLog: trip invite accepted (log-only; send deferred) ──
+        try:
+            create_message_event(
+                event_name=EventName.TRIP_INVITE_ACCEPTED,
+                category=Category.TRIP,
+                actor_user_id=current_user.id,
+                recipient_user_id=trip.user_id,
+                object_type="trip",
+                object_id=trip_id,
+                channel=None,
+                payload_json={
+                    "trip_id": trip_id,
+                    "resort": trip.mountain or "",
+                    "source_route": "respond_to_trip_invite",
+                },
+                message_title=f"{current_user.first_name or current_user.username} accepted your invite",
+                message_body=f"They're joining you for {trip.mountain or 'your trip'}.",
+                delivery_status=DeliveryStatus.SKIPPED,
+                suppression_reason=SuppressionReason.NOT_IMPLEMENTED,
+            )
+        except Exception as _mel_err:
+            current_app.logger.warning("[MessageEvent] trip_invite_accepted log failed: %s", _mel_err)
+
         if request.is_json:
             return jsonify({"success": True, "message": "You're going"})
         flash("You're going", "success")
@@ -8877,6 +9159,28 @@ def respond_to_trip_invite(trip_id):
         participant.status = GuestStatus.DECLINED
         emit_trip_invite_declined_activity(trip, current_user.id, trip.user_id)
         db.session.commit()
+
+        # ── MessageEventLog: trip invite declined — permanently silent by design ──
+        try:
+            create_message_event(
+                event_name=EventName.TRIP_INVITE_DECLINED,
+                category=Category.TRIP,
+                actor_user_id=current_user.id,
+                recipient_user_id=trip.user_id,
+                object_type="trip",
+                object_id=trip_id,
+                channel=None,
+                payload_json={
+                    "trip_id": trip_id,
+                    "resort": trip.mountain or "",
+                    "source_route": "respond_to_trip_invite",
+                },
+                delivery_status=DeliveryStatus.SKIPPED,
+                suppression_reason=SuppressionReason.SILENT_BY_DESIGN,
+            )
+        except Exception as _mel_err:
+            current_app.logger.warning("[MessageEvent] trip_invite_declined log failed: %s", _mel_err)
+
         if request.is_json:
             return jsonify({"success": True, "message": "Invite declined"})
         flash("Invite declined.", "info")
@@ -12795,6 +13099,34 @@ def admin_test_onesignal_push():
         body="Test push from BaseLodge (OneSignal)",
         data={"source": "admin_test"},
     )
+
+    # ── MessageEventLog: OneSignal test push outcome ──
+    _os_success = result.get("success") and not result.get("skipped")
+    _os_skipped = result.get("skipped", False)
+    try:
+        create_message_event(
+            event_name=EventName.PUSH_TEST_SENT,
+            category=Category.SYSTEM,
+            actor_user_id=current_user.id,
+            recipient_user_id=current_user.id,
+            channel=Channel.PUSH,
+            provider=Provider.ONESIGNAL,
+            payload_json={
+                "notification_id": result.get("notification_id"),
+                "source_route": "admin_test_onesignal_push",
+            },
+            message_title="BaseLodge",
+            message_body="Test push from BaseLodge (OneSignal)",
+            delivery_status=(
+                DeliveryStatus.SENT    if _os_success else
+                DeliveryStatus.SKIPPED if _os_skipped else
+                DeliveryStatus.FAILED
+            ),
+            suppression_reason=SuppressionReason.USER_OPTED_OUT if _os_skipped else None,
+            error_message=result.get("error") if not _os_success and not _os_skipped else None,
+        )
+    except Exception as _mel_err:
+        current_app.logger.warning("[MessageEvent] test_onesignal log failed: %s", _mel_err)
 
     http_status = 200 if result.get("success") else 502
     return jsonify({

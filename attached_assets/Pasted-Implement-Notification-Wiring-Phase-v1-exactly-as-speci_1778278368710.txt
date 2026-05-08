@@ -1,0 +1,311 @@
+Implement Notification Wiring Phase v1 exactly as specified in the finalized plan.
+
+Important constraints:
+- Do not change schema.
+- Do not change existing push/email behavior.
+- Do not introduce a dispatcher.
+- Do not refactor unrelated code.
+- Use checkpoints sparingly.
+- All log calls must be additive only.
+- All log calls must happen strictly AFTER the main db.session.commit().
+- Every create_message_event() call must be wrapped in try/except so logging can never break the main user action.
+
+FILES TO TOUCH ONLY:
+1. services/messaging_constants.py
+2. app.py
+
+==================================================
+1. services/messaging_constants.py
+==================================================
+
+Add:
+
+SILENT_BY_DESIGN = "silent_by_design"
+
+to the SuppressionReason class.
+
+Nothing else in this file changes.
+
+==================================================
+2. app.py
+==================================================
+
+Implement the following EXACTLY.
+
+--------------------------------------------------
+A. invite_friend()
+--------------------------------------------------
+
+After the successful db.session.commit(), before the 201 return:
+
+Create one MessageEventLog row for:
+EventName.FRIEND_REQUEST_CREATED
+
+Requirements:
+- category=Category.FRIEND
+- actor_user_id=current_user.id
+- recipient_user_id=friend.id
+- object_type="user"
+- object_id=friend.id
+- channel=None
+- delivery_status=DeliveryStatus.SKIPPED
+- suppression_reason=SuppressionReason.NOT_IMPLEMENTED
+- payload_json includes:
+  - invitation_id
+  - source_route="invite_friend"
+
+Wrap in try/except warning logger.
+
+--------------------------------------------------
+B. accept_invitation()
+--------------------------------------------------
+
+After db.session.commit(), before return:
+
+Create one MessageEventLog row for:
+EventName.FRIEND_REQUEST_ACCEPTED
+
+Requirements:
+- recipient is invitation.sender_id
+- channel=None
+- delivery_status=SKIPPED
+- suppression_reason=NOT_IMPLEMENTED
+- payload_json includes:
+  - invitation_id
+  - source_route="accept_invitation"
+
+Wrap in try/except warning logger.
+
+--------------------------------------------------
+C. send_trip_invites()
+--------------------------------------------------
+
+Do NOT re-query SkiTripParticipant after commit.
+
+Before the invite loop:
+- create newly_invited_user_ids = []
+
+Inside the existing:
+if not existing:
+block:
+- append friend_id into newly_invited_user_ids
+
+After db.session.commit(), inside:
+if invites_sent > 0:
+
+Loop newly_invited_user_ids and create one MessageEventLog row per invited user.
+
+Use:
+EventName.TRIP_INVITE_CREATED
+
+Requirements:
+- category=Category.TRIP
+- object_type="trip"
+- object_id=trip_id
+- channel=None
+- delivery_status=SKIPPED
+- suppression_reason=NOT_IMPLEMENTED
+- payload_json includes:
+  - trip_id
+  - resort
+  - source_route="trip_detail"
+
+Wrap each log call in try/except warning logger.
+
+Do NOT add is_duplicate_event() here.
+The existing if not existing: logic is already the idempotency protection.
+
+--------------------------------------------------
+D. create_trip()
+--------------------------------------------------
+
+After db.session.commit(), before emit_event(...):
+
+If friend_id exists:
+create one TRIP_INVITE_CREATED MessageEventLog row.
+
+Requirements:
+- recipient_user_id=int(friend_id)
+- channel=None
+- delivery_status=SKIPPED
+- suppression_reason=NOT_IMPLEMENTED
+- payload_json includes:
+  - trip_id
+  - resort
+  - source_route="create_trip"
+
+Wrap in try/except warning logger.
+
+--------------------------------------------------
+E. add_trip() form route
+--------------------------------------------------
+
+Inside the existing outer try block:
+
+After db.session.commit(), before flash("Trip added"):
+
+If friend_id exists:
+create one TRIP_INVITE_CREATED MessageEventLog row.
+
+Requirements:
+- source_route="add_trip_form"
+- same logging structure as create_trip()
+
+Wrap in inner try/except warning logger.
+
+--------------------------------------------------
+F. respond_to_trip_invite() ACCEPT branch
+--------------------------------------------------
+
+After db.session.commit(), before response/flash return:
+
+Create one:
+EventName.TRIP_INVITE_ACCEPTED
+
+Requirements:
+- recipient_user_id=trip.user_id
+- channel=None
+- delivery_status=SKIPPED
+- suppression_reason=NOT_IMPLEMENTED
+- payload_json includes:
+  - trip_id
+  - resort
+  - source_route="respond_to_trip_invite"
+
+Wrap in try/except warning logger.
+
+--------------------------------------------------
+G. respond_to_trip_invite() DECLINE branch
+--------------------------------------------------
+
+After db.session.commit(), before response/flash return:
+
+Create one:
+EventName.TRIP_INVITE_DECLINED
+
+Requirements:
+- channel=None
+- delivery_status=SKIPPED
+- suppression_reason=SuppressionReason.SILENT_BY_DESIGN
+- NO message_title
+- NO message_body
+- payload_json includes:
+  - trip_id
+  - resort
+  - source_route="respond_to_trip_invite"
+
+Wrap in try/except warning logger.
+
+--------------------------------------------------
+H. admin_test_push()
+--------------------------------------------------
+
+Add MessageEventLog rows for actual push outcomes.
+
+Inside each token loop after results append:
+
+Create:
+EventName.PUSH_TEST_SENT
+
+Requirements:
+- category=Category.SYSTEM
+- channel=Channel.PUSH
+- provider:
+  - Provider.APNS for iOS
+  - Provider.FCM for Android
+- delivery_status:
+  - SENT on success
+  - FAILED on failure
+- include error_message on failure
+- payload_json includes:
+  - token_id
+  - platform
+  - source_route="admin_test_push"
+
+Wrap in try/except warning logger.
+
+Also handle the Android early-return path.
+
+--------------------------------------------------
+I. admin_test_push_all()
+--------------------------------------------------
+
+Inside each active token loop after results append:
+
+Create:
+EventName.PUSH_TEST_SENT
+
+Requirements:
+- provider matches platform
+- source_route="admin_test_push_all"
+
+Wrap in try/except warning logger.
+
+--------------------------------------------------
+J. admin_test_push_broadcast()
+--------------------------------------------------
+
+Inside each active token loop after results append:
+
+Create:
+EventName.PUSH_BROADCAST_SENT
+
+Requirements:
+- provider matches platform
+- source_route="admin_test_push_broadcast"
+
+Wrap in try/except warning logger.
+
+--------------------------------------------------
+K. admin_test_onesignal_push()
+--------------------------------------------------
+
+After send_onesignal_push(...), before response return:
+
+Create:
+EventName.PUSH_TEST_SENT
+
+Requirements:
+- provider=Provider.ONESIGNAL
+- channel=Channel.PUSH
+- delivery_status:
+  - SENT if success
+  - SKIPPED if skipped
+  - FAILED otherwise
+- suppression_reason=USER_OPTED_OUT if skipped
+- payload_json includes:
+  - notification_id
+  - source_route="admin_test_onesignal_push"
+
+Wrap in try/except warning logger.
+
+==================================================
+QA REQUIRED
+==================================================
+
+You are NOT finished until you verify:
+
+1. Friend request creation logs correctly.
+2. Friend request acceptance logs correctly.
+3. Trip invite creation logs correctly from:
+   - trip_detail
+   - create_trip
+   - add_trip_form
+4. Trip invite acceptance logs correctly.
+5. Trip invite decline logs correctly with:
+   - suppression_reason=silent_by_design
+   - no title/body
+6. /admin/test-push logs correctly.
+7. /admin/test-push-all logs correctly.
+8. /admin/test-push-broadcast logs correctly.
+9. /admin/test-onesignal-push logs correctly.
+10. Existing push routes still function exactly as before.
+11. Existing Activity rows still generate exactly as before.
+12. /admin/message-events renders all new rows correctly.
+13. Forced logging failure test:
+    - temporarily force a create_message_event() failure
+    - confirm the user action still succeeds
+    - confirm only warning logs appear
+    - remove the forced failure afterward
+
+Do not finish until all QA passes.

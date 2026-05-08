@@ -56,6 +56,7 @@ class SuppressionReason:
     TEST_ONLY               = "test_only"
     PROVIDER_ERROR          = "provider_error"
     NOT_IMPLEMENTED         = "not_implemented"
+    SILENT_BY_DESIGN        = "silent_by_design"
 
 
 class Channel:
