@@ -1,0 +1,192 @@
+Refactor the “Plan a Trip” flow from a 2-step wizard into a single unified screen.
+
+Goal:
+Make trip creation feel lightweight, editorial, and native — not like a multi-step form workflow.
+
+Important:
+Use the existing BaseLodge design system and existing functionality wherever possible. This is primarily a UX/layout consolidation and styling refinement task, not a backend rewrite.
+
+========================================
+1. REMOVE MULTI-STEP/WIZARD UI
+========================================
+
+Remove:
+- “STEP 1 OF 2”
+- “STEP 2 OF 2”
+- progress dots/progress line
+- Continue button
+- Cancel button
+- separate step navigation flow
+
+The experience should become a single-screen trip planner.
+
+Keep:
+- top-left back navigation
+- existing bottom nav
+
+========================================
+2. CREATE A SINGLE “PLAN A TRIP” SCREEN
+========================================
+
+New structure/order:
+
+------------------------------------------------
+
+← Back
+
+Plan a trip
+
+Tell us where and when. We’ll handle the rest.
+
+SECTION 1:
+Where are you going?
+
+Search any mountain. We’ll handle the rest.
+
+[ selected mountain/search component ]
+
+SECTION 2:
+When?
+
+Choose the days you’ll be on the mountain.
+
+[ selected date summary card ]
+
+[ lighter embedded calendar ]
+
+SECTION 3:
+Trip status
+
+[ Planning ] [ Going ]
+
+SECTION 4:
+Sharing settings
+
+Visible to friends
+
+[ Create trip ]
+
+------------------------------------------------
+
+========================================
+3. MOUNTAIN SEARCH SECTION
+========================================
+
+Reuse the existing mountain autocomplete/search logic.
+
+When selected:
+- show the selected mountain in a card-style row
+- include:
+  - mountain name
+  - state/country
+  - clear/remove “×”
+
+Do NOT redesign the search backend.
+
+========================================
+4. CALENDAR REFINEMENT
+========================================
+
+Keep:
+- visible embedded calendar
+- direct start/end date selection
+
+But refine the presentation:
+
+A.
+Replace boxed month/year controls with:
+- centered “May 2026” style heading
+
+B.
+Reduce overall calendar vertical density:
+- tighter rows
+- less whitespace
+- lighter visual weight
+
+C.
+Move selected date summary ABOVE the calendar.
+
+Example:
+May 8 → May 10
+2 nights · Planning
+
+D.
+Improve selected range styling:
+- connected soft range highlight
+- clearer range visualization
+- more premium/native feeling
+
+E.
+Calendar should feel editorial and calm, not like a booking engine.
+
+========================================
+5. BUTTON CLEANUP
+========================================
+
+Remove the bottom outlined “Back” button entirely.
+
+Keep only:
+- top-left back navigation
+- primary “Create trip” CTA
+
+The Create Trip button should remain the singular primary action.
+
+========================================
+6. SHARING SETTINGS COPY
+========================================
+
+Update:
+“Visible to friends”
+
+to:
+“Friends can see this trip”
+
+only if this is easy and localized to this screen.
+
+========================================
+7. PRESERVE EXISTING LOGIC
+========================================
+
+Do NOT break:
+- trip creation backend
+- autocomplete
+- calendar logic
+- planning/going status logic
+- sharing/privacy logic
+- validations
+- existing routes unless necessary
+
+This should remain fully functional after consolidation.
+
+========================================
+8. DESIGN DIRECTION
+========================================
+
+Target feel:
+- Apple-esque
+- editorial
+- lightweight
+- social trip planning
+- calm
+- premium
+
+Avoid:
+- enterprise form feeling
+- booking-engine density
+- giant utility widgets
+
+========================================
+9. QA
+========================================
+
+Verify:
+- user can complete trip creation on a single screen
+- mountain search still works
+- calendar still works
+- trip creation still succeeds
+- mobile spacing/layout is clean
+- no duplicate buttons/actions remain
+- no broken step routing
+- Create Trip remains the primary visual focus
+
+Use checkpoints sparingly.

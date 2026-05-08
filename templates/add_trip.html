@@ -1,5 +1,5 @@
 {% extends "base_app.html" %}
-{% block title %}BaseLodge — Add Trip{% endblock %}
+{% block title %}BaseLodge — Plan a Trip{% endblock %}
 {% block head %}
 <style>
         body { background: #F5F1E8; }
@@ -18,56 +18,48 @@
             color: #6B665A;
             text-decoration: none;
             font-size: 14px;
-            margin-bottom: 28px;
+            margin-bottom: 24px;
         }
 
-        /* ── Progress dots ── */
-        .at-progress {
-            display: flex;
-            align-items: center;
-            margin-bottom: 36px;
+        /* ── Page header ── */
+        .at-page-title {
+            font-family: var(--bl-font-serif);
+            font-size: 28px;
+            color: #1A1A1A;
+            margin: 0 0 6px;
+            line-height: 1.15;
         }
-        .at-prog-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #D9D2BF;
-            flex-shrink: 0;
-            transition: background 0.2s;
-        }
-        .at-prog-dot.active { background: #5C1219; }
-        .at-prog-dot.done { background: #5C1219; opacity: 0.35; }
-        .at-prog-line {
-            flex: 1;
-            height: 1px;
-            background: #D9D2BF;
-            margin: 0 6px;
+        .at-page-sub {
+            font-size: 15px;
+            color: #6B665A;
+            margin: 0 0 28px;
+            line-height: 1.45;
         }
 
-        /* ── Step panels ── */
-        .at-step-panel { display: none; }
-        .at-step-panel.active { display: block; }
-
-        /* ── Typography ── */
-        .at-eyebrow {
+        /* ── Sections ── */
+        .at-section {
+            padding: 22px 0 20px;
+            border-top: 1px solid #E5DFD0;
+        }
+        .at-section-label {
             font-size: 11px;
             font-weight: 700;
             letter-spacing: 0.09em;
             text-transform: uppercase;
             color: #5C1219;
-            margin: 0 0 10px;
+            margin: 0 0 4px;
         }
-        .at-title {
+        .at-section-title {
             font-family: var(--bl-font-serif);
-            font-size: 26px;
+            font-size: 20px;
             color: #1A1A1A;
-            margin: 0 0 8px;
+            margin: 0 0 4px;
             line-height: 1.2;
         }
-        .at-subhead {
-            font-size: 15px;
+        .at-section-hint {
+            font-size: 14px;
             color: #6B665A;
-            margin: 0 0 28px;
+            margin: 0 0 16px;
             line-height: 1.45;
         }
 
@@ -88,6 +80,7 @@
             text-align: center;
             text-decoration: none;
             box-sizing: border-box;
+            font-family: inherit;
         }
         .at-btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
         .at-btn-secondary {
@@ -105,23 +98,10 @@
             margin-top: 12px;
             text-align: center;
             box-sizing: border-box;
-        }
-        .at-btn-tertiary {
-            display: block;
-            width: 100%;
-            padding: 12px;
-            background: none;
-            border: none;
-            color: #8A857A;
-            font-size: 15px;
-            cursor: pointer;
-            margin-top: 8px;
-            text-align: center;
+            font-family: inherit;
         }
 
         /* ── Mountain search ── */
-        /* .at-search-input → use global .bl-search-input */
-
         .at-search-results {
             background: #FFFFFF;
             border: 1px solid #E5DFD0;
@@ -166,7 +146,7 @@
             background: #FFFFFF;
             border: 1.5px solid #5C1219;
             border-radius: 10px;
-            padding: 16px;
+            padding: 14px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -180,29 +160,51 @@
         .at-selected-meta {
             font-size: 13px;
             color: #6B665A;
-            margin-top: 3px;
+            margin-top: 2px;
         }
-        .at-checkmark {
-            width: 24px;
-            height: 24px;
-            background: #5C1219;
-            border-radius: 50%;
+
+        /* ── Date summary (above calendar) ── */
+        .at-date-summary {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            color: white;
-            font-size: 13px;
-            font-weight: 700;
+            margin-bottom: 12px;
+            min-height: 36px;
         }
-        .at-change-link {
-            display: inline-block;
-            margin-top: 10px;
+        .at-date-summary-text {
+            font-size: 15px;
+            font-weight: 500;
+            color: #1A1A1A;
+            line-height: 1.35;
+        }
+        .at-date-summary-text.placeholder {
+            color: #A09A91;
+            font-weight: 400;
+        }
+        .at-add-date-btn {
+            background: none;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            color: #5C1219;
+            cursor: pointer;
+            padding: 0;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            font-family: inherit;
+            flex-shrink: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .at-clear-btn {
+            background: none;
+            border: none;
             font-size: 13px;
             color: #5C1219;
             cursor: pointer;
+            padding: 0;
             text-decoration: underline;
             text-underline-offset: 2px;
+            font-family: inherit;
         }
 
         /* ── Calendar ── */
@@ -216,60 +218,45 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 14px 16px;
-            border-bottom: 1px solid #F0EDE6;
+            padding: 12px 12px 10px;
         }
         .at-cal-nav {
             background: none;
             border: none;
             font-size: 22px;
-            color: #1A1A1A;
+            color: #6B665A;
             cursor: pointer;
-            padding: 0 4px;
+            padding: 0 6px;
             line-height: 1;
+            -webkit-tap-highlight-color: transparent;
         }
         .at-cal-nav:disabled { opacity: 0.2; cursor: not-allowed; }
-        .at-cal-month {
+        .at-cal-month-label {
             font-size: 15px;
             font-weight: 600;
             color: #1A1A1A;
+            text-align: center;
+            flex: 1;
         }
-        .at-cal-jump {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-        }
-        .at-cal-jump select {
-            font-size: 14px;
-            font-weight: 600;
-            color: #1A1A1A;
-            background: #F5F1E8;
-            border: 1px solid #E5DFD0;
-            border-radius: 6px;
-            padding: 3px 6px;
-            cursor: pointer;
-            font-family: inherit;
-            -webkit-appearance: none;
-            appearance: none;
-        }
-        .at-cal-jump select:focus { outline: none; border-color: #5C1219; }
         .at-cal-weekdays {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            padding: 10px 8px 4px;
+            padding: 0 8px 2px;
+            border-top: 1px solid #F0EDE6;
         }
         .at-cal-wd {
             text-align: center;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
-            color: #8A857A;
+            color: #B5AFA5;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            padding: 8px 0 4px;
         }
         .at-cal-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            padding: 4px 8px 14px;
+            padding: 0 8px 10px;
         }
 
         /* ── Day cells ── */
@@ -278,7 +265,7 @@
             aspect-ratio: 1;
             border: none;
             background: none;
-            font-size: 14px;
+            font-size: 13px;
             cursor: pointer;
             color: #1A1A1A;
             display: flex;
@@ -293,51 +280,51 @@
         .at-day.other-month { visibility: hidden; pointer-events: none; }
         .at-day.past { color: #C9C3B8; cursor: not-allowed; pointer-events: none; }
 
-        /* today dot indicator */
+        /* today dot */
         .at-day.is-today:not(.sel-start):not(.sel-end) span::after {
             content: '';
             display: block;
             position: absolute;
-            bottom: -5px;
+            bottom: -4px;
             left: 50%;
             transform: translateX(-50%);
-            width: 4px;
-            height: 4px;
+            width: 3px;
+            height: 3px;
             background: #5C1219;
             border-radius: 50%;
         }
 
-        /* In-range tint spans full width */
+        /* In-range tint */
         .at-day.in-range::before {
             content: '';
             position: absolute;
-            top: 3px;
-            bottom: 3px;
+            top: 4px;
+            bottom: 4px;
             left: 0;
             right: 0;
-            background: rgba(92, 18, 25, 0.09);
+            background: rgba(92, 18, 25, 0.08);
             z-index: 0;
         }
 
-        /* Start/end: right-half tint extends range colour into the circle's column */
+        /* Start half-tint */
         .at-day.sel-start.has-range::before {
             content: '';
             position: absolute;
-            top: 3px;
-            bottom: 3px;
+            top: 4px;
+            bottom: 4px;
             left: 50%;
             right: 0;
-            background: rgba(92, 18, 25, 0.09);
+            background: rgba(92, 18, 25, 0.08);
             z-index: 0;
         }
         .at-day.sel-end.has-range::before {
             content: '';
             position: absolute;
-            top: 3px;
-            bottom: 3px;
+            top: 4px;
+            bottom: 4px;
             left: 0;
             right: 50%;
-            background: rgba(92, 18, 25, 0.09);
+            background: rgba(92, 18, 25, 0.08);
             z-index: 0;
         }
 
@@ -346,8 +333,8 @@
         .at-day.sel-end::after {
             content: '';
             position: absolute;
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             background: #5C1219;
             border-radius: 50%;
             z-index: 1;
@@ -355,107 +342,59 @@
         .at-day.sel-start span,
         .at-day.sel-end span { color: white; font-weight: 600; }
 
-        /* ── Range summary row ── */
-        .at-range-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 10px;
-            padding: 12px 16px;
-            background: #FFFFFF;
-            border: 1px solid #E5DFD0;
-            border-radius: 10px;
-        }
-        .at-range-label { font-size: 14px; color: #1A1A1A; }
-        .at-clear-btn {
-            background: none;
-            border: none;
-            font-size: 13px;
-            color: #5C1219;
-            cursor: pointer;
-            padding: 0;
-            text-decoration: underline;
-            text-underline-offset: 2px;
-        }
-        .at-add-date-btn {
-            background: none;
-            border: none;
-            font-size: 14px;
-            font-weight: 600;
-            color: #5C1219;
-            cursor: pointer;
-            padding: 0;
-            text-decoration: underline;
-            text-underline-offset: 2px;
-            font-family: inherit;
-            flex-shrink: 0;
-            -webkit-tap-highlight-color: transparent;
-        }
+        /* ── Staged list ── */
         .at-staged-list {
             display: flex;
             flex-direction: column;
             gap: 8px;
-            margin-top: 8px;
+            margin-top: 10px;
         }
         .at-staged-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 16px;
-            background: rgba(92, 18, 25, 0.06);
-            border: 1px solid rgba(92, 18, 25, 0.14);
+            padding: 11px 14px;
+            background: rgba(92, 18, 25, 0.05);
+            border: 1px solid rgba(92, 18, 25, 0.12);
             border-radius: 10px;
         }
         .at-staged-date {
-            font-size: 15px;
+            font-size: 14px;
             color: #1A1A1A;
             font-weight: 500;
         }
         .at-staged-remove {
             background: none;
             border: none;
-            font-size: 19px;
+            font-size: 18px;
             line-height: 1;
             color: #8A857A;
             cursor: pointer;
             padding: 0 2px;
             font-family: inherit;
             -webkit-tap-highlight-color: transparent;
-            opacity: 0.55;
+            opacity: 0.5;
         }
         .at-staged-remove:active { opacity: 1; }
 
-        /* ── Trip Status row ── */
-        .at-status-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: 12px;
-            padding: 12px 16px;
-            background: #FFFFFF;
-            border: 1px solid #E5DFD0;
-            border-radius: 10px;
-        }
-        .at-status-label {
-            font-size: 14px;
-            font-weight: 600;
-            color: #1A1A1A;
-        }
+        /* ── Trip status pills ── */
         .at-status-pills {
             display: flex;
-            gap: 6px;
+            gap: 8px;
+            margin-top: 4px;
         }
         .at-status-pill {
-            padding: 6px 14px;
+            padding: 8px 18px;
             border-radius: 20px;
             border: 1px solid #D9D2BF;
             background: transparent;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 500;
             color: #6B665A;
             cursor: pointer;
             font-family: inherit;
             transition: background 0.15s, border-color 0.15s, color 0.15s;
+            -webkit-tap-highlight-color: transparent;
         }
         .at-status-pill.active {
             background: #5C1219;
@@ -464,57 +403,9 @@
             font-weight: 600;
         }
 
-        /* ── Options section ── */
-        .at-options-card {
-            margin-top: 16px;
-            background: #FFFFFF;
-            border: 1px solid #E5DFD0;
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        .at-options-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 14px 16px;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            user-select: none;
-        }
-        .at-options-header-left {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        .at-options-label {
-            font-size: 14px;
-            font-weight: 600;
-            color: #1A1A1A;
-        }
-        .at-options-current {
-            font-size: 12px;
-            color: #8A857A;
-        }
-        .at-options-chevron {
-            font-size: 18px;
-            color: #B5AFA5;
-            transition: transform 0.2s;
-            display: inline-block;
-        }
-        .at-options-card.open .at-options-chevron {
-            transform: rotate(180deg);
-        }
-        .at-options-body {
-            display: none;
-            border-top: 1px solid #E5DFD0;
-            padding: 16px;
-        }
-        .at-options-card.open .at-options-body { display: block; }
-
-        /* ── Visibility toggle ── */
-        .at-visibility {
-            padding: 0;
-            margin-bottom: 0;
+        /* ── Sharing row ── */
+        .at-share-row {
+            margin-top: 4px;
         }
         .at-vis-label {
             display: flex;
@@ -532,8 +423,9 @@
         }
         .at-vis-hint {
             font-size: 13px;
-            color: #6B665A;
-            margin: 7px 0 0 32px;
+            color: #8A857A;
+            margin: 6px 0 0 32px;
+            line-height: 1.4;
         }
 
         /* ── Proposal banner ── */
@@ -548,12 +440,19 @@
             line-height: 1.5;
         }
 
+        /* ── CTA area ── */
+        .at-cta-wrap {
+            padding-top: 24px;
+            border-top: 1px solid #E5DFD0;
+            margin-top: 4px;
+        }
+
         /* ── Overlap modal ── */
         .at-overlap-modal {
             display: flex;
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0,0,0,0.5);
             z-index: 1000;
             align-items: center;
             justify-content: center;
@@ -584,7 +483,7 @@
             flex: 1;
             margin-top: 0;
         }
-    </style>
+</style>
 {% endblock %}
 
 {% block content %}
@@ -593,14 +492,11 @@
         <!-- Back -->
         <a href="{{ url_for('home') }}" class="at-back">&#8592; Back</a>
 
-        <!-- Progress indicator (2 steps) -->
-        <div class="at-progress">
-            <div class="at-prog-dot active" id="dot-1"></div>
-            <div class="at-prog-line"></div>
-            <div class="at-prog-dot" id="dot-2"></div>
-        </div>
+        <!-- Page header -->
+        <h1 class="at-page-title">Plan a trip</h1>
+        <p class="at-page-sub">Tell us where and when. We'll handle the rest.</p>
 
-        <!-- Overlap modal (shown when server detects overlapping trip) -->
+        <!-- Overlap modal -->
         {% if overlap_trip %}
         <div class="at-overlap-modal" id="overlap-modal">
             <div class="at-overlap-content">
@@ -614,7 +510,7 @@
         </div>
         {% endif %}
 
-        <!-- Proposal banner -->
+        <!-- Proposal banner (group flow) -->
         {% if prefill_friend and is_group %}
         <div class="at-proposal-banner">
             <strong>Proposing a trip with {{ prefill_friend.first_name | format_name }}</strong><br>
@@ -622,31 +518,31 @@
         </div>
         {% endif %}
 
-        <!-- Single form — hidden fields updated by JS; steps control what's visible -->
         <form method="POST" action="{{ form_action }}" id="trip-form">
-            <input type="hidden" name="resort_id" id="resort_id_input" value="">
-            <input type="hidden" name="start_date" id="start_date_input" value="{{ prefill_start_date or '' }}">
-            <input type="hidden" name="end_date" id="end_date_input" value="{{ prefill_end_date or '' }}">
-            <input type="hidden" name="is_public" id="is_public_input" value="on">
+            <input type="hidden" name="resort_id"        id="resort_id_input"        value="">
+            <input type="hidden" name="start_date"       id="start_date_input"       value="{{ prefill_start_date or '' }}">
+            <input type="hidden" name="end_date"         id="end_date_input"         value="{{ prefill_end_date or '' }}">
+            <input type="hidden" name="is_public"        id="is_public_input"        value="on">
             <input type="hidden" name="date_ranges_json" id="date_ranges_json_input" value="">
+            <input type="hidden" name="trip_status"      id="trip_status_input"      value="planning">
             {% if prefill_friend and is_group %}
             <input type="hidden" name="friend_id" value="{{ prefill_friend.id }}">
-            <input type="hidden" name="is_group" value="1">
+            <input type="hidden" name="is_group"  value="1">
             {% endif %}
 
-            <!-- ═══════════════════════════════════════════════════ -->
-            <!-- STEP 1 — WHERE                                      -->
-            <!-- ═══════════════════════════════════════════════════ -->
-            <div class="at-step-panel active" id="step-1">
-                <p class="at-eyebrow">Step 1 of 2</p>
-                <h1 class="at-title">Where are you going?</h1>
-                <p class="at-subhead">Search any mountain. We'll handle the rest.</p>
+            <!-- ─────────────────────────────── -->
+            <!-- SECTION 1 — WHERE              -->
+            <!-- ─────────────────────────────── -->
+            <div class="at-section">
+                <p class="at-section-label">Where</p>
+                <h2 class="at-section-title">Where are you going?</h2>
+                <p class="at-section-hint">Search any mountain.</p>
 
                 <input
                     type="text"
                     class="bl-search-input"
                     id="mountain-search"
-                    placeholder="Search by name or state&#8230;"
+                    placeholder="Search by name or state…"
                     autocomplete="off"
                     spellcheck="false"
                 >
@@ -656,34 +552,40 @@
                 </p>
 
                 <div id="selected-mountain-wrap" style="display:none; margin-top:10px;">
-                    <div class="at-selected-card" style="position:relative;">
+                    <div class="at-selected-card">
                         <div>
                             <div class="at-selected-name" id="sel-name"></div>
                             <div class="at-selected-meta" id="sel-meta"></div>
                         </div>
-                        <button type="button" onclick="clearMountain()" aria-label="Change mountain" style="background:none;border:none;cursor:pointer;padding:4px 6px;color:#8A857A;font-size:18px;line-height:1;flex-shrink:0;" title="Change mountain">&#10005;</button>
+                        <button type="button" onclick="clearMountain()" aria-label="Remove mountain"
+                            style="background:none;border:none;cursor:pointer;padding:4px 6px;color:#A09A91;font-size:20px;line-height:1;flex-shrink:0;">&#10005;</button>
                     </div>
                 </div>
-
-                <button type="button" class="at-btn-primary" id="step1-continue" disabled onclick="goToStep(2)">Continue</button>
-                <button type="button" class="at-btn-tertiary" onclick="window.location='{{ url_for('home') }}'">Cancel</button>
             </div>
 
-            <!-- ═══════════════════════════════════════════════════ -->
-            <!-- STEP 2 — WHEN + CREATE                              -->
-            <!-- ═══════════════════════════════════════════════════ -->
-            <div class="at-step-panel" id="step-2">
-                <p class="at-eyebrow">Step 2 of 2</p>
-                <h1 class="at-title">When?</h1>
-                <p class="at-subhead">Tap your start day, then your end day.</p>
+            <!-- ─────────────────────────────── -->
+            <!-- SECTION 2 — WHEN              -->
+            <!-- ─────────────────────────────── -->
+            <div class="at-section">
+                <p class="at-section-label">When</p>
+                <h2 class="at-section-title">When?</h2>
+                <p class="at-section-hint">Tap your start day, then your end day.</p>
 
+                <!-- Date summary above calendar -->
+                <div class="at-date-summary">
+                    <span class="at-date-summary-text placeholder" id="range-text">Select your trip dates</span>
+                    {% if prefill_friend and is_group %}
+                    <button type="button" class="at-clear-btn" id="clear-dates-btn" style="display:none;" onclick="clearDates()">Clear</button>
+                    {% else %}
+                    <button type="button" class="at-add-date-btn" id="add-date-btn" style="display:none;" onclick="addCurrentRange()">+ Add date</button>
+                    {% endif %}
+                </div>
+
+                <!-- Calendar -->
                 <div class="at-cal-card">
                     <div class="at-cal-header">
                         <button type="button" class="at-cal-nav" id="prev-month">&#8249;</button>
-                        <div class="at-cal-jump">
-                            <select id="cal-month-select" aria-label="Month"></select>
-                            <select id="cal-year-select" aria-label="Year"></select>
-                        </div>
+                        <span class="at-cal-month-label" id="cal-month-label"></span>
                         <button type="button" class="at-cal-nav" id="next-month">&#8250;</button>
                     </div>
                     <div class="at-cal-weekdays">
@@ -698,564 +600,462 @@
                     <div class="at-cal-grid" id="cal-grid"></div>
                 </div>
 
-                <div class="at-range-row">
-                    <span class="at-range-label" id="range-text">Select your trip dates</span>
-                    {% if prefill_friend and is_group %}
-                    <button type="button" class="at-clear-btn" id="clear-dates-btn" style="display:none;" onclick="clearDates()">Clear</button>
-                    {% else %}
-                    <button type="button" class="at-add-date-btn" id="add-date-btn" style="display:none;" onclick="addCurrentRange()">Add this date</button>
-                    {% endif %}
-                </div>
+                <!-- Staged ranges (non-group flow) -->
                 {% if not (prefill_friend and is_group) %}
                 <div id="staged-list" class="at-staged-list" style="display:none;"></div>
                 {% endif %}
-
-                <!-- Trip Status -->
-                <input type="hidden" id="trip_status_input" name="trip_status" value="planning">
-                <div class="at-status-row">
-                    <span class="at-status-label">Trip status</span>
-                    <div class="at-status-pills">
-                        <button type="button" class="at-status-pill active" id="status-planning" onclick="setTripStatus('planning')">Planning</button>
-                        <button type="button" class="at-status-pill" id="status-going" onclick="setTripStatus('going')">Going</button>
-                    </div>
-                </div>
-
-                <!-- Options card (collapsed) -->
-                <div class="at-options-card" id="options-card">
-                    <div class="at-options-header" onclick="toggleOptions()">
-                        <div class="at-options-header-left">
-                            <span class="at-options-label">Sharing settings</span>
-                            <span class="at-options-current" id="options-current-label">Visible to friends</span>
-                        </div>
-                        <span class="at-options-chevron">⌄</span>
-                    </div>
-                    <div class="at-options-body">
-                        <div class="at-visibility">
-                            <label class="at-vis-label">
-                                <input type="checkbox" id="visibility-toggle" checked>
-                                Make this trip visible to friends
-                            </label>
-                            <p class="at-vis-hint">Only your friends can see this trip.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <button type="submit" class="at-btn-primary" id="step2-submit" style="margin-top:20px;" disabled data-loading-text="Saving…">{% if prefill_friend and is_group %}Send invite{% else %}Create trip{% endif %}</button>
-                <button type="button" class="at-btn-secondary" onclick="goToStep(1)">Back</button>
             </div>
+
+            <!-- ─────────────────────────────── -->
+            <!-- SECTION 3 — TRIP STATUS        -->
+            <!-- ─────────────────────────────── -->
+            <div class="at-section">
+                <p class="at-section-label">Status</p>
+                <h2 class="at-section-title">Trip status</h2>
+                <div class="at-status-pills">
+                    <button type="button" class="at-status-pill active" id="status-planning" onclick="setTripStatus('planning')">Planning</button>
+                    <button type="button" class="at-status-pill"        id="status-going"    onclick="setTripStatus('going')">Going</button>
+                </div>
+            </div>
+
+            <!-- ─────────────────────────────── -->
+            <!-- SECTION 4 — SHARING            -->
+            <!-- ─────────────────────────────── -->
+            <div class="at-section">
+                <p class="at-section-label">Sharing</p>
+                <h2 class="at-section-title">Sharing settings</h2>
+                <div class="at-share-row">
+                    <label class="at-vis-label">
+                        <input type="checkbox" id="visibility-toggle" checked>
+                        Friends can see this trip
+                    </label>
+                    <p class="at-vis-hint">Only your friends can see your trip details.</p>
+                </div>
+            </div>
+
+            <!-- ─────────────────────────────── -->
+            <!-- CTA                            -->
+            <!-- ─────────────────────────────── -->
+            <div class="at-cta-wrap">
+                <button type="submit" class="at-btn-primary" id="submit-btn" {% if not (prefill_friend and is_group) %}disabled{% endif %} data-loading-text="Saving…">
+                    {% if prefill_friend and is_group %}Send invite{% else %}Create trip{% endif %}
+                </button>
+            </div>
+
         </form>
 
     </div>
-
-    {% endblock %}
+{% endblock %}
 
 {% block scripts %}
+<script>
+    // ── Backend data ───────────────────────────────────────────
+    const RESORTS      = {{ resorts|tojson }};
+    const USER_PASSES  = {{ (user_passes or [])|tojson }};
+    const STATE_NAMES  = {{ states_map|tojson if states_map else '{}' }};
+    const COUNTRY_NAMES = {{ countries_map|tojson if countries_map else '{}' }};
 
-    <script>
-        // ── Backend data ──────────────────────────────────────────────
-        const RESORTS = {{ resorts|tojson }};
-        const USER_PASSES = {{ (user_passes or [])|tojson }};
-        const STATE_NAMES = {{ states_map|tojson if states_map else '{}' }};
-        const COUNTRY_NAMES = {{ countries_map|tojson if countries_map else '{}' }};
+    const PREFILL_RESORT_ID   = {{ (prefill_resort.id if prefill_resort else none)|tojson }};
+    const PREFILL_RESORT_NAME = {{ (prefill_resort.name if prefill_resort else none)|tojson }};
+    const PREFILL_RESORT_META = {{ (((states_map or {}).get(prefill_resort.state_code or '', prefill_resort.state_code or '') + ', ' + (prefill_resort.display_country_name or prefill_resort.country_code or '')) if prefill_resort else none)|tojson }};
 
-        // Prefill values (for "Propose a trip" flow)
-        const PREFILL_RESORT_ID   = {{ (prefill_resort.id if prefill_resort else none)|tojson }};
-        const PREFILL_RESORT_NAME = {{ (prefill_resort.name if prefill_resort else none)|tojson }};
-        const PREFILL_RESORT_META = {{ (((states_map or {}).get(prefill_resort.state_code or '', prefill_resort.state_code or '') + ', ' + (prefill_resort.display_country_name or prefill_resort.country_code or '')) if prefill_resort else none)|tojson }};
+    const IS_GROUP_FLOW = {{ 'true' if (prefill_friend and is_group) else 'false' }};
 
-        // ── Flow flags ────────────────────────────────────────────────
-        const IS_GROUP_FLOW = {{ 'true' if (prefill_friend and is_group) else 'false' }};
+    // ── Mutable state ──────────────────────────────────────────
+    let selResortId   = null;
+    let selResortName = null;
+    let selResortMeta = null;
+    let stagedRanges  = [];   // [{startStr, endStr, label}]
 
-        // ── Mutable state ─────────────────────────────────────────────
-        let currentStep = 1;
-        let selResortId   = null;
-        let selResortName = null;
-        let selResortMeta = null;
-        let stagedRanges  = [];  // [{startStr, endStr, label}]
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
 
-        const todayDate = new Date();
-        todayDate.setHours(0, 0, 0, 0);
+    const MONTH_NAMES = ['January','February','March','April','May','June',
+                         'July','August','September','October','November','December'];
+    let calMonth = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
 
-        const MONTH_NAMES = ['January','February','March','April','May','June',
-                             'July','August','September','October','November','December'];
-        let calMonth = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
+    const initStartVal = document.getElementById('start_date_input').value;
+    const initEndVal   = document.getElementById('end_date_input').value;
+    let selStart  = initStartVal ? new Date(initStartVal + 'T00:00:00') : null;
+    let selEnd    = initEndVal   ? new Date(initEndVal   + 'T00:00:00') : null;
+    let pickingEnd = !!(selStart && !selEnd);
 
-        const initStartVal = document.getElementById('start_date_input').value;
-        const initEndVal   = document.getElementById('end_date_input').value;
-        let selStart  = initStartVal ? new Date(initStartVal + 'T00:00:00') : null;
-        let selEnd    = initEndVal   ? new Date(initEndVal   + 'T00:00:00') : null;
-        let pickingEnd = !!(selStart && !selEnd);
+    // ── DOM refs ───────────────────────────────────────────────
+    const resortIdInput  = document.getElementById('resort_id_input');
+    const startDateInput = document.getElementById('start_date_input');
+    const endDateInput   = document.getElementById('end_date_input');
+    const isPublicInput  = document.getElementById('is_public_input');
 
-        // ── DOM refs ──────────────────────────────────────────────────
-        const resortIdInput  = document.getElementById('resort_id_input');
-        const startDateInput = document.getElementById('start_date_input');
-        const endDateInput   = document.getElementById('end_date_input');
-        const isPublicInput  = document.getElementById('is_public_input');
+    // ── Trip status ────────────────────────────────────────────
+    function setTripStatus(val) {
+        document.getElementById('trip_status_input').value = val;
+        document.getElementById('status-planning').classList.toggle('active', val === 'planning');
+        document.getElementById('status-going').classList.toggle('active', val === 'going');
+    }
 
-        // ── Step management ───────────────────────────────────────────
-        function goToStep(n) {
-            document.querySelectorAll('.at-step-panel').forEach(p => p.classList.remove('active'));
-            document.getElementById('step-' + n).classList.add('active');
-            currentStep = n;
-            updateProgressDots();
-            if (n === 2) {
-                if (selStart) {
-                    calMonth = new Date(selStart.getFullYear(), selStart.getMonth(), 1);
-                }
-                renderCalendar();
-                updateRangeSummary();
-            }
-            window.scrollTo(0, 0);
-        }
+    // ── Pass name helpers ──────────────────────────────────────
+    const PASS_DISPLAY_NAMES = {
+        'ikon': 'Ikon', 'epic': 'Epic', 'indy': 'Indy',
+        'mountain_collective': 'Mountain Collective',
+        'mountaincollective': 'Mountain Collective',
+        'powder_alliance': 'Powder Alliance',
+        'powderalliance': 'Powder Alliance',
+        'freedom': 'Freedom', 'unlimited': 'Unlimited',
+        'super_pass': 'Super Pass', 'max': 'Max',
+    };
+    function formatPassName(p) {
+        return PASS_DISPLAY_NAMES[p.trim().toLowerCase()] || p.trim();
+    }
+    function getPassLabel(resort) {
+        if (!resort || (!resort.pass_brands && !resort.pass_brands_json)) return null;
+        const raw = Array.isArray(resort.pass_brands_json)
+            ? resort.pass_brands_json
+            : (resort.pass_brands || '').split(',');
+        const brands = raw.map(b => formatPassName(String(b).trim())).filter(Boolean);
+        return brands.length ? brands[0] : null;
+    }
+    function getResortMeta(r) {
+        const state   = STATE_NAMES[r.state_code]    || r.state_code    || '';
+        const country = COUNTRY_NAMES[r.country_code] || r.country_code || '';
+        return [state, country].filter(Boolean).join(', ');
+    }
 
-        function updateProgressDots() {
-            [1, 2].forEach(i => {
-                const dot = document.getElementById('dot-' + i);
-                dot.classList.remove('active', 'done');
-                if (i < currentStep) dot.classList.add('done');
-                if (i === currentStep) dot.classList.add('active');
-            });
-        }
+    // ── Mountain search ────────────────────────────────────────
+    const searchInput   = document.getElementById('mountain-search');
+    const searchResults = document.getElementById('search-results');
+    const selectedWrap  = document.getElementById('selected-mountain-wrap');
 
-        // ── Trip status toggle ────────────────────────────────────────
-        function setTripStatus(val) {
-            document.getElementById('trip_status_input').value = val;
-            document.getElementById('status-planning').classList.toggle('active', val === 'planning');
-            document.getElementById('status-going').classList.toggle('active', val === 'going');
-        }
+    searchInput.addEventListener('focus', function () {
+        setTimeout(() => this.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+    });
 
-        // ── Options card toggle ───────────────────────────────────────
-        function toggleOptions() {
-            const card = document.getElementById('options-card');
-            card.classList.toggle('open');
-        }
-
-        function updateOptionsLabel() {
-            const checked = document.getElementById('visibility-toggle').checked;
-            document.getElementById('options-current-label').textContent =
-                checked ? 'Visible to friends' : 'Private';
-        }
-
-        // ── Mountain search ───────────────────────────────────────────
-        const PASS_DISPLAY_NAMES = {
-            'ikon': 'Ikon', 'epic': 'Epic', 'indy': 'Indy',
-            'mountain_collective': 'Mountain Collective',
-            'mountaincollective': 'Mountain Collective',
-            'powder_alliance': 'Powder Alliance',
-            'powderalliance': 'Powder Alliance',
-            'freedom': 'Freedom', 'unlimited': 'Unlimited',
-            'super_pass': 'Super Pass', 'max': 'Max',
-        };
-
-        function formatPassName(p) {
-            const key = p.trim().toLowerCase();
-            return PASS_DISPLAY_NAMES[key] || p.trim();
-        }
-
-        function getPassLabel(resort) {
-            if (!resort || !resort.pass_brands && !resort.pass_brands_json) return null;
-            const raw = Array.isArray(resort.pass_brands_json)
-                ? resort.pass_brands_json
-                : (resort.pass_brands || '').split(',');
-            const brands = raw.map(b => formatPassName(String(b).trim())).filter(Boolean);
-            return brands.length ? brands[0] : null;
-        }
-
-        function getResortMeta(r) {
-            const state = STATE_NAMES[r.state_code] || r.state_code || '';
-            const country = COUNTRY_NAMES[r.country_code] || r.country_code || '';
-            return [state, country].filter(Boolean).join(', ');
-        }
-
-        const searchInput = document.getElementById('mountain-search');
-        const searchResults = document.getElementById('search-results');
-        const selectedWrap = document.getElementById('selected-mountain-wrap');
-
-        searchInput.addEventListener('focus', function () {
-            setTimeout(() => {
-                this.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 300);
-        });
-
-        searchInput.addEventListener('input', function () {
-            const q = this.value.trim().toLowerCase();
-            if (q.length < 2) {
-                searchResults.innerHTML = '';
-                searchResults.classList.remove('visible');
-                return;
-            }
-            const matches = RESORTS
-                .filter(r => r.name.toLowerCase().includes(q))
-                .slice(0, 10);
-
-            if (matches.length === 0) {
-                searchResults.innerHTML = '<div class="at-result-item no-match">No mountains found</div>';
-            } else {
-                searchResults.innerHTML = matches.map(r => {
-                    const meta = getResortMeta(r);
-                    const passLabel = getPassLabel(r);
-                    const passHint = passLabel ? ` <span class="at-pass-badge">${passLabel}</span>` : '';
-                    return `<div class="at-result-item" data-id="${r.id}" data-name="${encodeURIComponent(r.name)}" data-meta="${encodeURIComponent(meta)}">
-                        <span>${r.name}${passHint}</span>
-                        <span class="at-result-meta">${meta}</span>
-                    </div>`;
-                }).join('');
-            }
-            searchResults.classList.add('visible');
-        });
-
-        searchResults.addEventListener('click', function (e) {
-            const item = e.target.closest('.at-result-item[data-id]');
-            if (!item) return;
-            selectMountain(
-                item.dataset.id,
-                decodeURIComponent(item.dataset.name),
-                decodeURIComponent(item.dataset.meta)
-            );
-        });
-
-        document.addEventListener('click', function (e) {
-            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-                searchResults.classList.remove('visible');
-            }
-        });
-
-        function selectMountain(id, name, meta) {
-            selResortId   = id;
-            selResortName = name;
-            selResortMeta = meta;
-            resortIdInput.value = id;
-
-            document.getElementById('sel-name').textContent = name;
-            document.getElementById('sel-meta').textContent = meta;
-
-            searchInput.value = '';
+    searchInput.addEventListener('input', function () {
+        const q = this.value.trim().toLowerCase();
+        if (q.length < 2) {
             searchResults.innerHTML = '';
             searchResults.classList.remove('visible');
-            searchInput.style.display = 'none';
-            selectedWrap.style.display = 'block';
-            const hint = document.getElementById('mountain-search-hint');
-            if (hint) hint.style.display = 'none';
-            document.getElementById('step1-continue').disabled = false;
+            return;
         }
-
-        function clearMountain() {
-            selResortId = selResortName = selResortMeta = null;
-            resortIdInput.value = '';
-            searchInput.value = '';
-            searchInput.style.display = 'block';
-            selectedWrap.style.display = 'none';
-            const hint = document.getElementById('mountain-search-hint');
-            if (hint) hint.style.display = '';
-            document.getElementById('step1-continue').disabled = true;
-            searchInput.focus();
+        const matches = RESORTS.filter(r => r.name.toLowerCase().includes(q)).slice(0, 10);
+        if (matches.length === 0) {
+            searchResults.innerHTML = '<div class="at-result-item no-match">No mountains found</div>';
+        } else {
+            searchResults.innerHTML = matches.map(r => {
+                const meta      = getResortMeta(r);
+                const passLabel = getPassLabel(r);
+                const passHint  = passLabel ? ` <span class="at-pass-badge">${passLabel}</span>` : '';
+                return `<div class="at-result-item" data-id="${r.id}" data-name="${encodeURIComponent(r.name)}" data-meta="${encodeURIComponent(meta)}">
+                    <span>${r.name}${passHint}</span>
+                    <span class="at-result-meta">${meta}</span>
+                </div>`;
+            }).join('');
         }
+        searchResults.classList.add('visible');
+    });
 
-        // ── Calendar helpers ──────────────────────────────────────────
-        function fmtISO(d) {
-            return d.getFullYear() + '-' +
-                   String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                   String(d.getDate()).padStart(2, '0');
+    searchResults.addEventListener('click', function (e) {
+        const item = e.target.closest('.at-result-item[data-id]');
+        if (!item) return;
+        selectMountain(item.dataset.id, decodeURIComponent(item.dataset.name), decodeURIComponent(item.dataset.meta));
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.classList.remove('visible');
         }
+    });
 
-        function fmtShort(d) {
-            return MONTH_NAMES[d.getMonth()].slice(0, 3) + ' ' + d.getDate();
+    function selectMountain(id, name, meta) {
+        selResortId   = id;
+        selResortName = name;
+        selResortMeta = meta;
+        resortIdInput.value = id;
+
+        document.getElementById('sel-name').textContent = name;
+        document.getElementById('sel-meta').textContent = meta;
+
+        searchInput.value = '';
+        searchResults.innerHTML = '';
+        searchResults.classList.remove('visible');
+        searchInput.style.display   = 'none';
+        selectedWrap.style.display  = 'block';
+        const hint = document.getElementById('mountain-search-hint');
+        if (hint) hint.style.display = 'none';
+    }
+
+    function clearMountain() {
+        selResortId = selResortName = selResortMeta = null;
+        resortIdInput.value = '';
+        searchInput.value   = '';
+        searchInput.style.display  = 'block';
+        selectedWrap.style.display = 'none';
+        const hint = document.getElementById('mountain-search-hint');
+        if (hint) hint.style.display = '';
+        searchInput.focus();
+    }
+
+    // ── Calendar helpers ───────────────────────────────────────
+    function fmtISO(d) {
+        return d.getFullYear() + '-' +
+               String(d.getMonth() + 1).padStart(2, '0') + '-' +
+               String(d.getDate()).padStart(2, '0');
+    }
+    function fmtMed(d) {
+        return MONTH_NAMES[d.getMonth()].slice(0, 3) + ' ' + d.getDate();
+    }
+    function sameDay(a, b) {
+        return a && b &&
+               a.getFullYear() === b.getFullYear() &&
+               a.getMonth()    === b.getMonth()    &&
+               a.getDate()     === b.getDate();
+    }
+    function inRange(d) {
+        return selStart && selEnd && d > selStart && d < selEnd;
+    }
+    function nightCount(s, e) {
+        return Math.round((e - s) / (1000 * 60 * 60 * 24));
+    }
+
+    // ── Calendar render ────────────────────────────────────────
+    function renderCalendar() {
+        const grid    = document.getElementById('cal-grid');
+        const prevBtn = document.getElementById('prev-month');
+        const label   = document.getElementById('cal-month-label');
+
+        const yr = calMonth.getFullYear();
+        const mo = calMonth.getMonth();
+
+        label.textContent = MONTH_NAMES[mo] + ' ' + yr;
+
+        const thisMonthStart = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
+        prevBtn.disabled = new Date(yr, mo, 1) <= thisMonthStart;
+
+        const firstWd     = new Date(yr, mo, 1).getDay();
+        const daysInMonth = new Date(yr, mo + 1, 0).getDate();
+        const hasRange    = !!(selStart && selEnd && !sameDay(selStart, selEnd));
+
+        let html = '';
+        for (let i = 0; i < firstWd; i++) {
+            html += '<div class="at-day other-month"></div>';
         }
+        for (let day = 1; day <= daysInMonth; day++) {
+            const d       = new Date(yr, mo, day);
+            const dateStr = fmtISO(d);
+            const isPast  = d < todayDate;
 
-        function sameDay(a, b) {
-            return a && b &&
-                   a.getFullYear() === b.getFullYear() &&
-                   a.getMonth()    === b.getMonth()    &&
-                   a.getDate()     === b.getDate();
-        }
+            let cls = ['at-day'];
+            if (isPast) cls.push('past');
+            if (sameDay(d, todayDate) && !isPast) cls.push('is-today');
 
-        function inRange(d) {
-            return selStart && selEnd && d > selStart && d < selEnd;
-        }
+            const isStart  = sameDay(d, selStart);
+            const isEnd    = selEnd && sameDay(d, selEnd);
+            const isSingle = isStart && sameDay(selStart, selEnd);
 
-        // ── Calendar render (called on month change only) ─────────────
-        function renderCalendar() {
-            const grid  = document.getElementById('cal-grid');
-            const prevBtn = document.getElementById('prev-month');
-            const monthSel = document.getElementById('cal-month-select');
-            const yearSel  = document.getElementById('cal-year-select');
-
-            const yr = calMonth.getFullYear();
-            const mo = calMonth.getMonth();
-
-            // Sync dropdowns without re-populating if already built
-            if (monthSel.options.length === 0) {
-                MONTH_NAMES.forEach((name, i) => {
-                    const opt = document.createElement('option');
-                    opt.value = i;
-                    opt.textContent = name;
-                    monthSel.appendChild(opt);
-                });
-            }
-            if (yearSel.options.length === 0) {
-                const curYr = todayDate.getFullYear();
-                for (let y = curYr; y <= curYr + 3; y++) {
-                    const opt = document.createElement('option');
-                    opt.value = y;
-                    opt.textContent = y;
-                    yearSel.appendChild(opt);
-                }
-            }
-            monthSel.value = mo;
-            yearSel.value  = yr;
-
-            const thisMonthStart = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
-            prevBtn.disabled = new Date(yr, mo, 1) <= thisMonthStart;
-
-            const firstWd     = new Date(yr, mo, 1).getDay();
-            const daysInMonth = new Date(yr, mo + 1, 0).getDate();
-            const hasRange    = !!(selStart && selEnd && !sameDay(selStart, selEnd));
-
-            let html = '';
-            for (let i = 0; i < firstWd; i++) {
-                html += '<div class="at-day other-month"></div>';
-            }
-            for (let day = 1; day <= daysInMonth; day++) {
-                const d       = new Date(yr, mo, day);
-                const dateStr = fmtISO(d);
-                const isPast  = d < todayDate;
-
-                let cls = ['at-day'];
-                if (isPast) cls.push('past');
-                if (sameDay(d, todayDate) && !isPast) cls.push('is-today');
-
-                const isStart  = sameDay(d, selStart);
-                const isEnd    = selEnd && sameDay(d, selEnd);
-                const isSingle = isStart && sameDay(selStart, selEnd);
-
-                if (isSingle) {
-                    cls.push('sel-start', 'sel-end');
-                } else {
-                    if (isStart) { cls.push('sel-start'); if (hasRange) cls.push('has-range'); }
-                    if (isEnd)   { cls.push('sel-end');   if (hasRange) cls.push('has-range'); }
-                }
-                if (inRange(d)) cls.push('in-range');
-
-                html += `<div class="${cls.join(' ')}" data-date="${dateStr}"><span>${day}</span></div>`;
-            }
-            grid.innerHTML = html;
-        }
-
-        // ── Calendar update (called on date tap — no DOM rebuild) ──────
-        function updateCalendarClasses() {
-            const hasRange = !!(selStart && selEnd && !sameDay(selStart, selEnd));
-            document.querySelectorAll('#cal-grid .at-day').forEach(cell => {
-                const ds = cell.dataset.date;
-                if (!ds) return;
-                const d = new Date(ds + 'T00:00:00');
-
-                cell.classList.remove('sel-start', 'sel-end', 'in-range', 'has-range');
-
-                const isStart  = sameDay(d, selStart);
-                const isEnd    = selEnd && sameDay(d, selEnd);
-                const isSingle = isStart && sameDay(selStart, selEnd);
-
-                if (isSingle) {
-                    cell.classList.add('sel-start', 'sel-end');
-                } else {
-                    if (isStart) { cell.classList.add('sel-start'); if (hasRange) cell.classList.add('has-range'); }
-                    if (isEnd)   { cell.classList.add('sel-end');   if (hasRange) cell.classList.add('has-range'); }
-                }
-                if (inRange(d)) cell.classList.add('in-range');
-            });
-        }
-
-        function handleDayTap(dateStr) {
-            const d = new Date(dateStr + 'T00:00:00');
-            if (d < todayDate) return;
-
-            if (!pickingEnd) {
-                // First tap: set start, await end
-                selStart = d;
-                selEnd   = null;
-                startDateInput.value = dateStr;
-                endDateInput.value   = '';
-                pickingEnd = true;
-            } else if (sameDay(d, selStart)) {
-                // Tap same day: single-day trip
-                selEnd = d;
-                endDateInput.value = dateStr;
-                pickingEnd = false;
-            } else if (d < selStart) {
-                // Tap before start: restart
-                selStart = d;
-                selEnd   = null;
-                startDateInput.value = dateStr;
-                endDateInput.value   = '';
-                // pickingEnd stays true
+            if (isSingle) {
+                cls.push('sel-start', 'sel-end');
             } else {
-                // Tap after start: complete range
-                selEnd = d;
-                endDateInput.value = dateStr;
-                pickingEnd = false;
+                if (isStart) { cls.push('sel-start'); if (hasRange) cls.push('has-range'); }
+                if (isEnd)   { cls.push('sel-end');   if (hasRange) cls.push('has-range'); }
             }
+            if (inRange(d)) cls.push('in-range');
 
-            updateCalendarClasses();
-            updateRangeSummary();
+            html += `<div class="${cls.join(' ')}" data-date="${dateStr}"><span>${day}</span></div>`;
         }
+        grid.innerHTML = html;
+    }
 
-        function navigateMonth(delta) {
-            calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + delta, 1);
-            renderCalendar();
-        }
+    // ── Calendar update (no DOM rebuild on tap) ────────────────
+    function updateCalendarClasses() {
+        const hasRange = !!(selStart && selEnd && !sameDay(selStart, selEnd));
+        document.querySelectorAll('#cal-grid .at-day').forEach(cell => {
+            const ds = cell.dataset.date;
+            if (!ds) return;
+            const d = new Date(ds + 'T00:00:00');
 
-        function jumpToMonth() {
-            const mo = parseInt(document.getElementById('cal-month-select').value, 10);
-            const yr = parseInt(document.getElementById('cal-year-select').value, 10);
-            if (!isNaN(mo) && !isNaN(yr)) {
-                calMonth = new Date(yr, mo, 1);
-                renderCalendar();
-            }
-        }
+            cell.classList.remove('sel-start', 'sel-end', 'in-range', 'has-range');
 
-        // ── Multi-date staged list ────────────────────────────────────
-        function addCurrentRange() {
-            if (!selStart || !selEnd) return;
-            const label = sameDay(selStart, selEnd)
-                ? fmtShort(selStart) + ' · day trip'
-                : fmtShort(selStart) + '–' + fmtShort(selEnd);
-            stagedRanges.push({ startStr: fmtISO(selStart), endStr: fmtISO(selEnd), label });
-            selStart = selEnd = null;
-            pickingEnd = false;
-            startDateInput.value = endDateInput.value = '';
-            updateCalendarClasses();
-            updateRangeSummary();
-            renderStagedList();
-            updateSubmitCTA();
-        }
+            const isStart  = sameDay(d, selStart);
+            const isEnd    = selEnd && sameDay(d, selEnd);
+            const isSingle = isStart && sameDay(selStart, selEnd);
 
-        function removeRange(idx) {
-            stagedRanges.splice(idx, 1);
-            renderStagedList();
-            updateSubmitCTA();
-        }
-
-        function renderStagedList() {
-            const list = document.getElementById('staged-list');
-            if (!list) return;
-            if (stagedRanges.length === 0) {
-                list.style.display = 'none';
-                list.innerHTML = '';
-                return;
-            }
-            list.style.display = 'flex';
-            list.innerHTML = stagedRanges.map((r, i) =>
-                `<div class="at-staged-item">
-                    <span class="at-staged-date">${r.label}</span>
-                    <button type="button" class="at-staged-remove" onclick="removeRange(${i})" aria-label="Remove">×</button>
-                </div>`
-            ).join('');
-        }
-
-        function updateSubmitCTA() {
-            const btn = document.getElementById('step2-submit');
-            if (!btn || IS_GROUP_FLOW) return;
-            const n = stagedRanges.length;
-            btn.disabled = (n === 0);
-            btn.textContent = n <= 1 ? 'Create trip' : `Save ${n} dates`;
-        }
-
-        function updateRangeSummary() {
-            const rangeText = document.getElementById('range-text');
-            const clearBtn  = document.getElementById('clear-dates-btn');
-            const addBtn    = document.getElementById('add-date-btn');
-            const submitBtn = document.getElementById('step2-submit');
-
-            if (selStart && selEnd) {
-                const label = sameDay(selStart, selEnd)
-                    ? fmtShort(selStart) + ' · day trip'
-                    : fmtShort(selStart) + '–' + fmtShort(selEnd);
-                rangeText.textContent = label;
-                if (IS_GROUP_FLOW) {
-                    if (clearBtn) clearBtn.style.display = 'inline';
-                    submitBtn.disabled = false;
-                } else {
-                    if (addBtn) addBtn.style.display = 'inline';
-                }
-            } else if (selStart) {
-                rangeText.textContent = fmtShort(selStart) + ' — pick end date';
-                if (IS_GROUP_FLOW) {
-                    if (clearBtn) clearBtn.style.display = 'inline';
-                } else {
-                    if (addBtn) addBtn.style.display = 'none';
-                }
-                if (IS_GROUP_FLOW) submitBtn.disabled = true;
+            if (isSingle) {
+                cell.classList.add('sel-start', 'sel-end');
             } else {
-                rangeText.textContent = 'Select your trip dates';
-                if (IS_GROUP_FLOW) {
-                    if (clearBtn) clearBtn.style.display = 'none';
-                    submitBtn.disabled = true;
-                } else {
-                    if (addBtn) addBtn.style.display = 'none';
-                }
+                if (isStart) { cell.classList.add('sel-start'); if (hasRange) cell.classList.add('has-range'); }
+                if (isEnd)   { cell.classList.add('sel-end');   if (hasRange) cell.classList.add('has-range'); }
+            }
+            if (inRange(d)) cell.classList.add('in-range');
+        });
+    }
+
+    function handleDayTap(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00');
+        if (d < todayDate) return;
+
+        if (!pickingEnd) {
+            selStart = d;
+            selEnd   = null;
+            startDateInput.value = dateStr;
+            endDateInput.value   = '';
+            pickingEnd = true;
+        } else if (sameDay(d, selStart)) {
+            selEnd = d;
+            endDateInput.value = dateStr;
+            pickingEnd = false;
+        } else if (d < selStart) {
+            selStart = d;
+            selEnd   = null;
+            startDateInput.value = dateStr;
+            endDateInput.value   = '';
+        } else {
+            selEnd = d;
+            endDateInput.value = dateStr;
+            pickingEnd = false;
+        }
+
+        updateCalendarClasses();
+        updateRangeSummary();
+    }
+
+    function navigateMonth(delta) {
+        calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + delta, 1);
+        renderCalendar();
+    }
+
+    // ── Multi-date staged list ─────────────────────────────────
+    function addCurrentRange() {
+        if (!selStart || !selEnd) return;
+        const nights = nightCount(selStart, selEnd);
+        const label = sameDay(selStart, selEnd)
+            ? fmtMed(selStart) + ' · day trip'
+            : fmtMed(selStart) + ' → ' + fmtMed(selEnd);
+        stagedRanges.push({ startStr: fmtISO(selStart), endStr: fmtISO(selEnd), label });
+        selStart = selEnd = null;
+        pickingEnd = false;
+        startDateInput.value = endDateInput.value = '';
+        updateCalendarClasses();
+        updateRangeSummary();
+        renderStagedList();
+        updateSubmitCTA();
+    }
+
+    function removeRange(idx) {
+        stagedRanges.splice(idx, 1);
+        renderStagedList();
+        updateSubmitCTA();
+    }
+
+    function renderStagedList() {
+        const list = document.getElementById('staged-list');
+        if (!list) return;
+        if (stagedRanges.length === 0) {
+            list.style.display = 'none';
+            list.innerHTML = '';
+            return;
+        }
+        list.style.display = 'flex';
+        list.innerHTML = stagedRanges.map((r, i) =>
+            `<div class="at-staged-item">
+                <span class="at-staged-date">${r.label}</span>
+                <button type="button" class="at-staged-remove" onclick="removeRange(${i})" aria-label="Remove">×</button>
+            </div>`
+        ).join('');
+    }
+
+    function updateSubmitCTA() {
+        const btn = document.getElementById('submit-btn');
+        if (!btn || IS_GROUP_FLOW) return;
+        const n = stagedRanges.length;
+        btn.disabled = (n === 0);
+        btn.textContent = n <= 1 ? 'Create trip' : `Save ${n} dates`;
+    }
+
+    function updateRangeSummary() {
+        const rangeEl  = document.getElementById('range-text');
+        const clearBtn = document.getElementById('clear-dates-btn');
+        const addBtn   = document.getElementById('add-date-btn');
+        const submitBtn = document.getElementById('submit-btn');
+
+        if (selStart && selEnd) {
+            const nights = nightCount(selStart, selEnd);
+            const rangeLabel = sameDay(selStart, selEnd)
+                ? fmtMed(selStart) + ' · day trip'
+                : fmtMed(selStart) + ' → ' + fmtMed(selEnd) + (nights > 0 ? ' · ' + nights + (nights === 1 ? ' night' : ' nights') : '');
+            rangeEl.textContent = rangeLabel;
+            rangeEl.classList.remove('placeholder');
+            if (IS_GROUP_FLOW) {
+                if (clearBtn) clearBtn.style.display = 'inline';
+                if (submitBtn) submitBtn.disabled = false;
+            } else {
+                if (addBtn) addBtn.style.display = 'inline';
+            }
+        } else if (selStart) {
+            rangeEl.textContent = fmtMed(selStart) + ' — pick end date';
+            rangeEl.classList.remove('placeholder');
+            if (IS_GROUP_FLOW) {
+                if (clearBtn) clearBtn.style.display = 'inline';
+                if (submitBtn) submitBtn.disabled = true;
+            } else {
+                if (addBtn) addBtn.style.display = 'none';
+            }
+        } else {
+            rangeEl.textContent = 'Select your trip dates';
+            rangeEl.classList.add('placeholder');
+            if (IS_GROUP_FLOW) {
+                if (clearBtn) clearBtn.style.display = 'none';
+                if (submitBtn) submitBtn.disabled = true;
+            } else {
+                if (addBtn) addBtn.style.display = 'none';
             }
         }
+    }
 
-        function clearDates() {
-            selStart = selEnd = null;
-            pickingEnd = false;
-            startDateInput.value = endDateInput.value = '';
-            updateCalendarClasses();
-            updateRangeSummary();
-        }
+    function clearDates() {
+        selStart = selEnd = null;
+        pickingEnd = false;
+        startDateInput.value = endDateInput.value = '';
+        updateCalendarClasses();
+        updateRangeSummary();
+    }
 
-        // ── Visibility toggle ─────────────────────────────────────────
-        document.getElementById('visibility-toggle').addEventListener('change', function () {
-            isPublicInput.value = this.checked ? 'on' : 'off';
-            updateOptionsLabel();
+    // ── Visibility toggle ──────────────────────────────────────
+    document.getElementById('visibility-toggle').addEventListener('change', function () {
+        isPublicInput.value = this.checked ? 'on' : 'off';
+    });
+
+    // ── Init ───────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('prev-month').addEventListener('click', () => navigateMonth(-1));
+        document.getElementById('next-month').addEventListener('click', () => navigateMonth(1));
+
+        document.getElementById('cal-grid').addEventListener('click', function (e) {
+            const cell = e.target.closest('.at-day[data-date]');
+            if (cell && !cell.classList.contains('past') && !cell.classList.contains('other-month')) {
+                handleDayTap(cell.dataset.date);
+            }
         });
 
-        // ── Initialisation ────────────────────────────────────────────
-        document.addEventListener('DOMContentLoaded', function () {
-            // Calendar nav
-            document.getElementById('prev-month').addEventListener('click', () => navigateMonth(-1));
-            document.getElementById('next-month').addEventListener('click', () => navigateMonth(1));
-            document.getElementById('cal-month-select').addEventListener('change', jumpToMonth);
-            document.getElementById('cal-year-select').addEventListener('change', jumpToMonth);
+        if (PREFILL_RESORT_ID) {
+            selectMountain(String(PREFILL_RESORT_ID), PREFILL_RESORT_NAME || '', PREFILL_RESORT_META || '');
+        }
 
-            // Calendar tap delegation (no DOM rebuild on tap)
-            document.getElementById('cal-grid').addEventListener('click', function (e) {
-                const cell = e.target.closest('.at-day[data-date]');
-                if (cell && !cell.classList.contains('past') && !cell.classList.contains('other-month')) {
-                    handleDayTap(cell.dataset.date);
-                }
+        if (selStart) {
+            calMonth = new Date(selStart.getFullYear(), selStart.getMonth(), 1);
+        }
+        renderCalendar();
+        updateRangeSummary();
+
+        if (!IS_GROUP_FLOW) {
+            updateSubmitCTA();
+            document.getElementById('trip-form').addEventListener('submit', function (e) {
+                if (stagedRanges.length === 0) return;
+                e.preventDefault();
+                document.getElementById('date_ranges_json_input').value = JSON.stringify(
+                    stagedRanges.map(r => ({ start_date: r.startStr, end_date: r.endStr }))
+                );
+                this.submit();
             });
-
-            // Prefill: resort already selected (e.g. "Propose a trip" flow)
-            if (PREFILL_RESORT_ID) {
-                selectMountain(String(PREFILL_RESORT_ID), PREFILL_RESORT_NAME || '', PREFILL_RESORT_META || '');
-            }
-
-            // Determine the starting step
-            if (PREFILL_RESORT_ID && initStartVal && initEndVal) {
-                updateRangeSummary();
-                goToStep(2);
-            } else if (PREFILL_RESORT_ID) {
-                goToStep(2);
-            } else {
-                goToStep(1);
-            }
-
-            // Non-group flow: serialize staged ranges into hidden field on submit
-            if (!IS_GROUP_FLOW) {
-                updateSubmitCTA();
-                document.getElementById('trip-form').addEventListener('submit', function (e) {
-                    if (stagedRanges.length === 0) return;
-                    e.preventDefault();
-                    document.getElementById('date_ranges_json_input').value = JSON.stringify(
-                        stagedRanges.map(function (r) {
-                            return { start_date: r.startStr, end_date: r.endStr };
-                        })
-                    );
-                    this.submit();
-                });
-            }
-
-        });
-    </script>
+        }
+    });
+</script>
 {% endblock %}
