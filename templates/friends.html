@@ -191,6 +191,7 @@
             {%- set _i2 = (current_user.last_name[0] | upper) if current_user.last_name else '' -%}
             <a href="{{ url_for('profile') }}" class="hc-initials-bubble" aria-label="Go to profile">{{ _i1 + _i2 }}</a>
         </div>
+        <p style="font-size:15px; color:var(--bl-color-text-muted); margin:0 0 14px; line-height:1.45;">The people who make the season better.</p>
 
         <div class="fr-empty-section">
             <h2 class="fr-empty-headline">Add a friend</h2>
@@ -214,15 +215,17 @@
              POPULATED STATE — 1+ friends
         ══════════════════════════════════════════════════════════════ -->
 
-        <!-- Header: title + profile bubble -->
+        <!-- Header: title + invite + profile bubble -->
         <div class="fr-header-row">
             <h1 class="fr-page-title" style="margin-bottom: 0;">Friends</h1>
-            {%- set _i1 = (current_user.first_name[0] | upper) if current_user.first_name else '?' -%}
-            {%- set _i2 = (current_user.last_name[0] | upper) if current_user.last_name else '' -%}
-            <a href="{{ url_for('profile') }}" class="hc-initials-bubble" aria-label="Go to profile">{{ _i1 + _i2 }}</a>
+            <div style="display:flex; align-items:center; gap:14px; flex-shrink:0;">
+                <a href="{{ url_for('invite') }}" class="fr-invite-link">Invite →</a>
+                {%- set _i1 = (current_user.first_name[0] | upper) if current_user.first_name else '?' -%}
+                {%- set _i2 = (current_user.last_name[0] | upper) if current_user.last_name else '' -%}
+                <a href="{{ url_for('profile') }}" class="hc-initials-bubble" aria-label="Go to profile">{{ _i1 + _i2 }}</a>
+            </div>
         </div>
-
-        <a href="{{ url_for('invite') }}" class="fr-invite-link" style="display: block; margin-bottom: 16px; border-bottom: 1px solid #E5DFD0; padding-bottom: 14px;">Invite →</a>
+        <p style="font-size:15px; color:var(--bl-color-text-muted); margin:0 0 14px; line-height:1.45;">The people who make the season better.</p>
 
         <div class="fr-search-wrap">
             <input type="search" class="bl-search-input" id="fr-search"

@@ -426,8 +426,8 @@
     function mdClearFilters() {
         elSearch.value = '';
         if (elPass) elPass.value = '';
-        elCountry.value = '';
-        renderStateOptions('', '');
+        elCountry.value = 'US';
+        renderStateOptions('US', '');
         filterAndRender();
     }
     window.mdClearFilters = mdClearFilters;
@@ -441,9 +441,9 @@
     });
     elState.addEventListener('change', filterAndRender);
 
-    /* ── Initial render with onboarding defaults ───────────────── */
-    if (DEFAULT_COUNTRY) elCountry.value = DEFAULT_COUNTRY;
-    renderStateOptions(DEFAULT_COUNTRY, DEFAULT_STATE);
+    /* ── Initial render: United States, all states ─────────────── */
+    elCountry.value = 'US';
+    renderStateOptions('US', '');
     filterAndRender();
 
 }());
