@@ -120,12 +120,7 @@
             font-size: 18px;
             font-weight: 700;
             color: #1A1A1A;
-            margin: 20px 0 2px;
-        }
-        .td-setup-sub {
-            font-size: 14px;
-            color: #8A857A;
-            margin: 0 0 14px;
+            margin: 20px 0 12px;
         }
         .td-setup-card {
             background: #FFFFFF;
@@ -176,12 +171,7 @@
             font-size: 18px;
             font-weight: 700;
             color: #1A1A1A;
-            margin: 28px 0 2px;
-        }
-        .td-whatsnext-sub {
-            font-size: 14px;
-            color: #8A857A;
-            margin: 0 0 14px;
+            margin: 28px 0 12px;
         }
         .td-swg-card {
             background: #FFFFFF;
@@ -212,7 +202,117 @@
         }
         .td-swg-text { flex: 1; }
         .td-swg-title { font-size: 15px; font-weight: 600; color: #1A1A1A; margin: 0 0 2px; }
-        .td-swg-sub { font-size: 13px; color: #8A857A; margin: 0; }
+        .td-swg-sub { font-size: 13px; color: #8A857A; margin: 0 0 2px; }
+        .td-swg-wishlist { font-size: 12px; color: #5C1219; margin: 0; font-weight: 500; }
+
+        /* ── Mountain name link ── */
+        .td-header-mountain-link {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 4px;
+            text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .td-header-mountain-link:active { opacity: 0.65; }
+
+        /* ── Tappable date row ── */
+        .td-date-line--tap {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 15px;
+            font-family: inherit;
+            color: #4E473F;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            width: 100%;
+            text-align: left;
+        }
+        .td-date-line--tap:active .td-date-text { opacity: 0.6; }
+
+        /* ── Date edit bottom sheet ── */
+        .td-date-sheet-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            z-index: 9100;
+            display: none;
+            align-items: flex-end;
+        }
+        .td-date-sheet-overlay.active { display: flex; }
+        .td-date-sheet {
+            background: #FFFFFF;
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            box-shadow: 0 -4px 32px rgba(0,0,0,0.12);
+            padding: 20px 20px calc(28px + env(safe-area-inset-bottom, 0px));
+        }
+        .td-date-sheet-handle {
+            width: 36px; height: 4px;
+            background: #E5DFD0;
+            border-radius: 2px;
+            margin: 0 auto 20px;
+        }
+        .td-date-sheet-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: #1A1A1A;
+            margin: 0 0 20px;
+        }
+        .td-date-sheet-field { margin-bottom: 16px; }
+        .td-date-sheet-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #8A857A;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 6px;
+        }
+        .td-date-sheet-input {
+            width: 100%;
+            padding: 12px 14px;
+            font-size: 16px;
+            border: 1px solid #E5DFD0;
+            border-radius: 10px;
+            background: #FDFAF5;
+            color: #1A1A1A;
+            font-family: inherit;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+        }
+        .td-date-sheet-error {
+            font-size: 13px;
+            color: #C0392B;
+            margin: 0 0 8px;
+            display: none;
+        }
+        .td-date-sheet-error.visible { display: block; }
+        .td-date-sheet-save {
+            width: 100%;
+            padding: 14px;
+            background: #5C1219;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 4px;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .td-date-sheet-save:active { opacity: 0.85; }
+        .td-date-sheet-cancel {
+            display: block;
+            text-align: center;
+            margin-top: 16px;
+            font-size: 15px;
+            color: #8A857A;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
 
         /* ── Invite CTA (outlined) ── */
         .invite-cta {
@@ -625,10 +725,17 @@
             <p class="td-header-eyebrow" style="color:#5C1219;">Confirmed</p>
             {% endif %}
             {% if trip.resort and trip.resort.slug %}
-            <a href="{{ url_for('mountain_detail', slug=trip.resort.slug) }}" class="td-header-mountain" style="display:block;text-decoration:none;color:inherit;">{{ mountain_name }}</a>
+            <a href="{{ url_for('mountain_detail', slug=trip.resort.slug) }}" class="td-header-mountain td-header-mountain-link">{{ mountain_name }}<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#C4BDB6;flex-shrink:0;align-self:center;margin-bottom:1px;"><polyline points="9 18 15 12 9 6"></polyline></svg></a>
             {% else %}
             <p class="td-header-mountain">{{ mountain_name }}</p>
             {% endif %}
+            {% if is_owner %}
+            <button type="button" class="td-date-line td-date-line--tap" onclick="openDateSheet()" aria-label="Edit trip dates">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:#8A857A;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                <span class="td-date-text" id="td-dates-text">{% if trip.start_date and trip.end_date %}{% set _nights = (trip.end_date - trip.start_date).days %}{{ format_trip_dates(trip) }}, {{ trip.end_date.year }}{% if _nights > 0 %} · {{ _nights }} night{{ 's' if _nights != 1 else '' }}{% else %} · Day trip{% endif %}{% else %}{{ format_trip_dates(trip) }}{% endif %}</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;color:#C4BDB6;flex-shrink:0;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
+            {% else %}
             <div class="td-date-line">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                 {% if trip.start_date and trip.end_date %}
@@ -638,6 +745,7 @@
                     {{ format_trip_dates(trip) }}
                 {% endif %}
             </div>
+            {% endif %}
             {% if friends_wishlist_count > 0 %}
             <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(92,18,25,0.07);border-radius:20px;padding:5px 12px;margin:6px 0 0;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5C1219" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
@@ -661,7 +769,6 @@
 
         <!-- Trip Setup -->
         <h2 class="td-setup-heading">Trip setup</h2>
-        <p class="td-setup-sub">Let everyone know the plan.</p>
         <div class="td-setup-card">
         {% set pass_display = trip.resort|mountain_passes if trip.resort else '' %}
         {% if is_owner %}
@@ -856,7 +963,6 @@
         <!-- What's next -->
         {% if trip.resort and trip.resort.slug %}
         <h2 class="td-whatsnext-heading">What's next?</h2>
-        <p class="td-whatsnext-sub">Keep the stoke going.</p>
         <div class="td-swg-card">
             <a href="{{ url_for('mountain_detail', slug=trip.resort.slug) }}" class="td-swg-row">
                 <span class="td-swg-icon">
@@ -865,6 +971,7 @@
                 <div class="td-swg-text">
                     <p class="td-swg-title">See who's going</p>
                     <p class="td-swg-sub">See friends heading to {{ mountain_name }}.</p>
+                    {% if friends_wishlist_count > 0 %}<p class="td-swg-wishlist">{{ friends_wishlist_count }} on wishlist</p>{% endif %}
                 </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </a>
@@ -1018,6 +1125,27 @@
             </div>
         </div>
     </div>
+
+    <!-- Date edit bottom sheet (owner only) -->
+    {% if is_owner %}
+    <div class="td-date-sheet-overlay" id="td-date-sheet" onclick="if(event.target===this)closeDateSheet()">
+        <div class="td-date-sheet">
+            <div class="td-date-sheet-handle"></div>
+            <p class="td-date-sheet-title">Edit dates</p>
+            <div class="td-date-sheet-field">
+                <label class="td-date-sheet-label" for="td-start-date">Start date</label>
+                <input type="date" id="td-start-date" class="td-date-sheet-input">
+            </div>
+            <div class="td-date-sheet-field">
+                <label class="td-date-sheet-label" for="td-end-date">End date</label>
+                <input type="date" id="td-end-date" class="td-date-sheet-input">
+            </div>
+            <p class="td-date-sheet-error" id="td-date-error"></p>
+            <button type="button" class="td-date-sheet-save" onclick="saveTripDates()">Save</button>
+            <span class="td-date-sheet-cancel" onclick="closeDateSheet()">Cancel</span>
+        </div>
+    </div>
+    {% endif %}
 
     <script>
         function dismissSuccess() {
@@ -1176,5 +1304,73 @@
                 row.style.display = row.dataset.fullName.includes(term) ? '' : 'none';
             });
         });
+
+        // ── Date edit bottom sheet ──
+        {% if is_owner %}
+        (function() {
+            const _tdTripId = {{ trip.id }};
+            const _tdStartISO = "{{ trip.start_date.isoformat() if trip.start_date else '' }}";
+            const _tdEndISO = "{{ trip.end_date.isoformat() if trip.end_date else '' }}";
+            const _months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+            window.openDateSheet = function() {
+                document.getElementById('td-start-date').value = _tdStartISO;
+                document.getElementById('td-end-date').value = _tdEndISO;
+                const errEl = document.getElementById('td-date-error');
+                errEl.textContent = '';
+                errEl.classList.remove('visible');
+                document.getElementById('td-date-sheet').classList.add('active');
+            };
+            window.closeDateSheet = function() {
+                document.getElementById('td-date-sheet').classList.remove('active');
+            };
+            window.saveTripDates = async function() {
+                const startVal = document.getElementById('td-start-date').value;
+                const endVal   = document.getElementById('td-end-date').value;
+                const errEl    = document.getElementById('td-date-error');
+                const saveBtn  = document.querySelector('.td-date-sheet-save');
+                errEl.classList.remove('visible');
+                if (!startVal || !endVal) {
+                    errEl.textContent = 'Both dates are required.';
+                    errEl.classList.add('visible');
+                    return;
+                }
+                if (saveBtn) saveBtn.disabled = true;
+                try {
+                    const res  = await fetch(`/api/trip/${_tdTripId}/update-dates`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ start_date: startVal, end_date: endVal })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        const el = document.getElementById('td-dates-text');
+                        if (el) {
+                            const sd = new Date(startVal + 'T12:00:00');
+                            const ed = new Date(endVal   + 'T12:00:00');
+                            const nights = data.nights;
+                            let dateStr;
+                            if (sd.getMonth() === ed.getMonth() && sd.getFullYear() === ed.getFullYear()) {
+                                dateStr = _months[sd.getMonth()] + ' ' + sd.getDate() + '–' + ed.getDate();
+                            } else {
+                                dateStr = _months[sd.getMonth()] + ' ' + sd.getDate() + '–' + _months[ed.getMonth()] + ' ' + ed.getDate();
+                            }
+                            const nightStr = nights > 0 ? ' · ' + nights + (nights === 1 ? ' night' : ' nights') : ' · Day trip';
+                            el.textContent = dateStr + ', ' + ed.getFullYear() + nightStr;
+                        }
+                        window.closeDateSheet();
+                    } else {
+                        errEl.textContent = data.error || 'Something went wrong.';
+                        errEl.classList.add('visible');
+                    }
+                } catch(e) {
+                    errEl.textContent = 'Network error. Please try again.';
+                    errEl.classList.add('visible');
+                } finally {
+                    if (saveBtn) saveBtn.disabled = false;
+                }
+            };
+        })();
+        {% endif %}
     </script>
 {% endblock %}

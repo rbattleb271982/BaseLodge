@@ -3354,6 +3354,46 @@ def edit_trip(trip_id):
         }
     })
 
+@app.route("/api/trip/<int:trip_id>/update-dates", methods=["POST"])
+@login_required
+def update_trip_dates(trip_id):
+    trip = SkiTrip.query.get_or_404(trip_id)
+    if trip.user_id != current_user.id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+    data = request.get_json(silent=True) or {}
+    start_date_str = data.get("start_date")
+    end_date_str = data.get("end_date")
+    if not start_date_str or not end_date_str:
+        return jsonify({"success": False, "error": "Both start and end dates are required."}), 400
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"success": False, "error": "Invalid date format."}), 400
+    if end_date < start_date:
+        return jsonify({"success": False, "error": "End date cannot be before start date."}), 400
+    overlapping = SkiTrip.query.filter(
+        SkiTrip.user_id == current_user.id,
+        SkiTrip.id != trip_id,
+        SkiTrip.start_date <= end_date,
+        SkiTrip.end_date >= start_date
+    ).first()
+    if overlapping:
+        return jsonify({"success": False, "error": "You already have a trip during these dates."}), 409
+    trip.start_date = start_date
+    trip.end_date = end_date
+    trip.trip_duration = SkiTrip.calculate_duration(start_date, end_date)
+    try:
+        emit_trip_updated_activities(trip, current_user.id, dates_changed=True)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"[update_trip_dates] error: {e}")
+        return jsonify({"success": False, "error": "Failed to save dates."}), 500
+    nights = (end_date - start_date).days
+    return jsonify({"success": True, "start_date": start_date.isoformat(), "end_date": end_date.isoformat(), "nights": nights})
+
+
 @app.route("/api/trip/<int:trip_id>/delete", methods=["POST"])
 @login_required
 def delete_trip(trip_id):
@@ -6398,10 +6438,8 @@ def home():
             for _fid in (_opp_row.get('friend_ids') or []):
                 _opp_friend_resort_pairs.add((_fid, _opp_rid))
 
-    HOME_HAPPENING_RENDER_CAP = 10
-    # Product decision: Home Happening should show up to 10 grouped signals.
-    # Do not reduce this back to 3 unless the product decision changes.
-    # --- Happening signals (passive, text-only, max 10 public friend trips) ---
+    HOME_HAPPENING_RENDER_CAP = 3
+    # --- Happening signals (passive, text-only, max 3 grouped signals) ---
     happening_signals = []
     if friend_ids:
         try:
