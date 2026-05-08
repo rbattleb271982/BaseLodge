@@ -628,43 +628,61 @@
         }
 
         // ── Expose opt-in/out helper for the push preference toggle ──────────
-        // Called by blTogglePushPref() in edit_profile.html after the server
+        // Called by blTogglePushPref() in push_settings.html after the server
         // preference is saved. No-op in browser (this code only runs natively).
         // When enabling, also re-prompts OS permission if not yet granted.
+        //
+        // KEY: onesignal-cordova-plugin optIn()/optOut() return void (not a
+        // Promise). Chaining .then() directly on void throws a TypeError that
+        // the outer try/catch swallows — making it look like nothing happened.
+        // We use Promise.resolve(result) so void returns resolve immediately
+        // while a real Promise (Capacitor native) also works correctly.
         window.blSetPushEnabled = function(enabled) {
           try {
             if (typeof OS.User !== 'undefined' && OS.User && OS.User.PushSubscription) {
-              // SDK 5.x
+              // SDK 5.x — Cordova returns void; Capacitor may return a Promise.
+              // Promise.resolve() handles both without TypeError.
+              var _subResult;
               if (enabled) {
-                OS.User.PushSubscription.optIn().then(function() {
-                  console.log('[OneSignal] blSetPushEnabled: optIn() called (SDK 5.x)');
+                console.log('[OneSignal] blSetPushEnabled: calling optIn() — bridge=' + _osVia);
+                _subResult = OS.User.PushSubscription.optIn();
+                Promise.resolve(_subResult).then(function() {
+                  console.log('[OneSignal] blSetPushEnabled: optIn() complete');
                   _blRequestPermIfNeeded();
                 }).catch(function(e) {
                   console.warn('[OneSignal] blSetPushEnabled: optIn() error:', e);
                 });
               } else {
-                OS.User.PushSubscription.optOut().then(function() {
-                  console.log('[OneSignal] blSetPushEnabled: optOut() called (SDK 5.x)');
+                console.log('[OneSignal] blSetPushEnabled: calling optOut() — bridge=' + _osVia);
+                _subResult = OS.User.PushSubscription.optOut();
+                Promise.resolve(_subResult).then(function() {
+                  console.log('[OneSignal] blSetPushEnabled: optOut() complete');
                 }).catch(function(e) {
                   console.warn('[OneSignal] blSetPushEnabled: optOut() error:', e);
                 });
               }
             } else if (typeof OS.disablePush === 'function') {
-              // SDK 4.x fallback
-              OS.disablePush({ disabled: !enabled }).then(function() {
-                console.log('[OneSignal] blSetPushEnabled: disablePush(' + !enabled + ') called (SDK 4.x)');
+              // SDK 4.x fallback.
+              // Cordova: disablePush(bool) — plain boolean argument.
+              // Capacitor: disablePush({ disabled: bool }) — object argument.
+              var _dpArg   = _isCordovaBridge ? !enabled : { disabled: !enabled };
+              var _dpLabel = _isCordovaBridge ? 'Cordova bool' : 'Capacitor object';
+              console.log('[OneSignal] blSetPushEnabled: calling disablePush(' + !enabled + ') SDK 4.x ' + _dpLabel);
+              var _dpResult = OS.disablePush(_dpArg);
+              Promise.resolve(_dpResult).then(function() {
+                console.log('[OneSignal] blSetPushEnabled: disablePush(' + !enabled + ') complete');
                 if (enabled) _blRequestPermIfNeeded();
               }).catch(function(e) {
                 console.warn('[OneSignal] blSetPushEnabled: disablePush error:', e);
               });
             } else {
-              console.warn('[OneSignal] blSetPushEnabled: no supported opt-in/out method found');
+              console.warn('[OneSignal] blSetPushEnabled: no supported opt-in/out method found on bridge=' + _osVia);
             }
           } catch (_opte) {
             console.warn('[OneSignal] blSetPushEnabled error:', _opte);
           }
         };
-        console.log('[OneSignal] blSetPushEnabled helper registered');
+        console.log('[OneSignal] blSetPushEnabled helper registered (bridge=' + _osVia + ')');
 
       })();
     });
