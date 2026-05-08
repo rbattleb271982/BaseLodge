@@ -8980,6 +8980,10 @@ def auth_google_callback():
         if "invite_token" in session:
             session["post_onboarding_redirect"] = url_for("friends")
             _connect_pending_inviter(user)
+            # New Google users must complete onboarding before landing on /friends.
+            # Existing users (profile complete) go straight to /friends.
+            if not user.is_core_profile_complete:
+                return redirect(url_for("onboarding"))
             return redirect(url_for("friends"))
 
         if not user.is_core_profile_complete:

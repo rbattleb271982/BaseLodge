@@ -441,11 +441,15 @@
             btn.textContent = 'Creating account…';
         }, true); // capture phase so it runs after the pw check listener
 
-        // Default to Sign Up tab for invite visitors; stay on signup after a failed signup POST
+        // Tab default logic:
+        //   - Invite visitors → Login (they may already have an account)
+        //   - Explicit /signup route (default_tab="signup") → Sign Up
+        //   - Failed signup POST (formType="signup") → stay on Sign Up
+        //   - Everything else → Login (HTML default)
         (function() {
             const formType = '{{ request.form.get("form_type", "") }}';
-            const fromInvite = {{ 'true' if from_invite else 'false' }};
-            if (formType === 'signup' || (formType === '' && fromInvite)) {
+            const defaultTab = '{{ default_tab | default("login") }}';
+            if (formType === 'signup' || (formType === '' && defaultTab === 'signup')) {
                 switchTab('signup');
             }
         })();
