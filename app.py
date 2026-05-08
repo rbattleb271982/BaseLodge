@@ -2566,42 +2566,86 @@ def my_trips():
     except Exception:
         friend_trips = []
 
-    # Curated friend trips for "Trips You Can Join" — ranked by relevance, capped at 6
-    curated_friend_trips = []
+    # Build friends_trips_tab: month + destination grouped rows
+    seven_days_ago_mt = datetime.now() - timedelta(days=7)
+    friends_trips_tab = []
     try:
-        if friend_trips:
-            user_wishlist    = set(user.wish_list_resorts or [])
-            today_str        = today.strftime('%Y-%m-%d')
-            user_open_dates  = set(d for d in (user.open_dates or []) if d >= today_str)
-            user_passes      = set(normalize_pass(p) for p in (user.pass_type or '').split(',') if p.strip()) - {None, ""}
-
-            def _trip_relevance(trip):
-                score = 0
-                # Wishlist match: the destination is on the user's wishlist
-                if trip.resort_id and trip.resort_id in user_wishlist:
-                    score += 3
-                # Date overlap: any of the trip's days fall in user's open dates
-                if trip.start_date and trip.end_date and user_open_dates:
-                    d = trip.start_date
-                    while d <= trip.end_date:
-                        if d.strftime('%Y-%m-%d') in user_open_dates:
-                            score += 2
-                            break
-                        d += timedelta(days=1)
-                # Pass alignment: user's pass is accepted at the resort
-                if trip.resort and user_passes:
-                    resort_pass_str = trip.resort.pass_brands or trip.resort.brand or ''
-                    resort_passes = set(p.strip() for p in resort_pass_str.split(',') if p.strip())
-                    if user_passes & resort_passes:
-                        score += 1
-                return score
-
-            curated_friend_trips = sorted(
-                friend_trips,
-                key=lambda t: (-_trip_relevance(t), (t.start_date or date.max).toordinal())
-            )[:6]
+        from collections import OrderedDict as _ODt_mt, defaultdict as _dd_mt
+        _friend_map_mt = {f.id: f for f in friends}
+        _raw_rows_mt = []
+        for _trip in friend_trips:
+            _owner = _friend_map_mt.get(_trip.user_id)
+            if not _owner:
+                continue
+            _dest = _trip.resort.name if _trip.resort else (_trip.mountain or 'TBD')
+            _status = _trip.trip_status or 'planning'
+            _is_new = bool(_trip.created_at and _trip.created_at >= seven_days_ago_mt)
+            _fmt_date = format_trip_dates(_trip)
+            if _trip.start_date:
+                _mkey = _trip.start_date.strftime('%Y-%m')
+                _mlabel = _trip.start_date.strftime('%B %Y')
+            else:
+                _mkey = '9999-99'
+                _mlabel = 'Dates TBD'
+            _raw_rows_mt.append({
+                'destination': _dest,
+                'friend_name': _owner.first_name or '',
+                'friend_id': _owner.id,
+                'status': _status,
+                'is_new': _is_new,
+                'formatted_date': _fmt_date,
+                'month_key': _mkey,
+                'month_label': _mlabel,
+                'trip_id': _trip.id,
+                'trip_start': _trip.start_date,
+                'trip_end': _trip.end_date,
+            })
+        _tab_groups_mt = _dd_mt(list)
+        for _row in _raw_rows_mt:
+            _tab_groups_mt[(_row['friend_id'], _row['destination'], _row['status'])].append(_row)
+        _months_dict_mt = _ODt_mt()
+        _seen_gkeys_mt = set()
+        for _row in _raw_rows_mt:
+            _gkey = (_row['friend_id'], _row['destination'], _row['status'])
+            _group = _tab_groups_mt[_gkey]
+            _is_grouped = len(_group) >= 3
+            if _is_grouped:
+                if _gkey in _seen_gkeys_mt:
+                    continue
+                _seen_gkeys_mt.add(_gkey)
+                _sorted_g = sorted([r for r in _group if r['trip_start']], key=lambda r: r['trip_start'])
+                if _sorted_g:
+                    _first_mo = _sorted_g[0]['trip_start'].strftime('%b')
+                    _last_end = _sorted_g[-1]['trip_end']
+                    _last_mo = _last_end.strftime('%b') if _last_end else _sorted_g[-1]['trip_start'].strftime('%b')
+                    _date_range_lbl = f"{_first_mo}–{_last_mo}" if _first_mo != _last_mo else _first_mo
+                else:
+                    _date_range_lbl = ''
+                _display_row = dict(_row)
+                _display_row['grouped'] = True
+                _display_row['grouped_count'] = len(_group)
+                _display_row['date_range_label'] = _date_range_lbl
+                _display_row['grouped_trips'] = [
+                    {'trip_id': r['trip_id'], 'formatted_date': r['formatted_date'], 'status': r['status']}
+                    for r in sorted(_group, key=lambda r: r['trip_start'] or date.max)
+                ]
+            else:
+                _display_row = dict(_row)
+                _display_row['grouped'] = False
+            _mk = _display_row['month_key']
+            if _mk not in _months_dict_mt:
+                _months_dict_mt[_mk] = {'month_label': _display_row['month_label'], 'destinations': _ODt_mt()}
+            _dk = _display_row['destination']
+            if _dk not in _months_dict_mt[_mk]['destinations']:
+                _months_dict_mt[_mk]['destinations'][_dk] = []
+            _months_dict_mt[_mk]['destinations'][_dk].append(_display_row)
+        friends_trips_tab = [
+            {'month_label': _md['month_label'],
+             'destinations': [{'name': _dn, 'rows': _dr} for _dn, _dr in _md['destinations'].items()]}
+            for _md in _months_dict_mt.values()
+        ]
     except Exception:
-        curated_friend_trips = friend_trips[:6] if friend_trips else []
+        friends_trips_tab = []
 
     # Build overlaps list — include both owned trips and accepted guest trips
     # so a user who is a guest on a friend's trip at Vail also triggers an overlap
@@ -2622,7 +2666,7 @@ def my_trips():
         active_tab=active_tab,
         friends=friends or [],
         friend_trips=friend_trips or [],
-        curated_friend_trips=curated_friend_trips or [],
+        friends_trips_tab=friends_trips_tab,
         overlaps=overlaps or [],
         today=today
     )
@@ -4878,8 +4922,6 @@ def friends():
     user = current_user
     today = date.today()
     today_str = today.strftime('%Y-%m-%d')
-    seven_days_ago = datetime.now() - timedelta(days=7)
-    
     # Load friend relationships
     friend_links = Friend.query.filter_by(user_id=user.id).all()
     friend_ids = [f.friend_id for f in friend_links]
@@ -5083,109 +5125,13 @@ def friends():
             alpha_groups.append({'letter': _letter, 'friends': []})
         alpha_groups[-1]['friends'].append(_f)
 
-    # ── friends_trips_tab: month + destination grouped rows ───────────────────
-    from collections import OrderedDict as _ODt, defaultdict as _dd_ft
-    friend_map = {f.id: f for f in all_friends}
-    _raw_rows = []
-    for _trip in friend_trips:
-        _owner = friend_map.get(_trip.user_id)
-        if not _owner:
-            continue
-        _dest = _trip.resort.name if _trip.resort else (_trip.mountain or 'TBD')
-        _status = _trip.trip_status or 'planning'
-        _is_new = bool(_trip.created_at and _trip.created_at >= seven_days_ago)
-        _fmt_date = format_trip_dates(_trip)
-        if _trip.start_date:
-            _mkey = _trip.start_date.strftime('%Y-%m')
-            _mlabel = _trip.start_date.strftime('%B %Y')
-        else:
-            _mkey = '9999-99'
-            _mlabel = 'Dates TBD'
-        _raw_rows.append({
-            'destination': _dest,
-            'friend_name': _owner.first_name or '',
-            'friend_id': _owner.id,
-            'status': _status,
-            'is_new': _is_new,
-            'formatted_date': _fmt_date,
-            'month_key': _mkey,
-            'month_label': _mlabel,
-            'trip_id': _trip.id,
-            'trip_start': _trip.start_date,
-            'trip_end': _trip.end_date,
-        })
-    # Pre-compute groups for batch detection: (friend_id, destination, status) → rows
-    _tab_groups = _dd_ft(list)
-    for _row in _raw_rows:
-        _tab_groups[(_row['friend_id'], _row['destination'], _row['status'])].append(_row)
-
-    _months_dict = _ODt()
-    _seen_group_keys = set()
-    for _row in _raw_rows:
-        _gkey = (_row['friend_id'], _row['destination'], _row['status'])
-        _group = _tab_groups[_gkey]
-        _is_grouped = len(_group) >= 3
-
-        if _is_grouped:
-            if _gkey in _seen_group_keys:
-                continue  # Already added representative row for this group
-            _seen_group_keys.add(_gkey)
-            # Build a compact date range label like "Dec–Mar"
-            _sorted_g = sorted(
-                [r for r in _group if r['trip_start']],
-                key=lambda r: r['trip_start']
-            )
-            if _sorted_g:
-                _first_mo = _sorted_g[0]['trip_start'].strftime('%b')
-                _last_end = _sorted_g[-1]['trip_end']
-                _last_mo = _last_end.strftime('%b') if _last_end else _sorted_g[-1]['trip_start'].strftime('%b')
-                _date_range_lbl = f"{_first_mo}–{_last_mo}" if _first_mo != _last_mo else _first_mo
-            else:
-                _date_range_lbl = ''
-            _display_row = dict(_row)
-            _display_row['grouped'] = True
-            _display_row['grouped_count'] = len(_group)
-            _display_row['date_range_label'] = _date_range_lbl
-            _display_row['grouped_trips'] = [
-                {
-                    'trip_id': r['trip_id'],
-                    'formatted_date': r['formatted_date'],
-                    'status': r['status'],
-                }
-                for r in sorted(_group, key=lambda r: r['trip_start'] or date.max)
-            ]
-        else:
-            _display_row = dict(_row)
-            _display_row['grouped'] = False
-
-        _mk = _display_row['month_key']
-        if _mk not in _months_dict:
-            _months_dict[_mk] = {'month_label': _display_row['month_label'], 'destinations': _ODt()}
-        _dk = _display_row['destination']
-        if _dk not in _months_dict[_mk]['destinations']:
-            _months_dict[_mk]['destinations'][_dk] = []
-        _months_dict[_mk]['destinations'][_dk].append(_display_row)
-
-    friends_trips_tab = [
-        {
-            'month_label': _md['month_label'],
-            'destinations': [
-                {'name': _dn, 'rows': _dr}
-                for _dn, _dr in _md['destinations'].items()
-            ],
-        }
-        for _md in _months_dict.values()
-    ]
-
     return render_template(
         "friends.html",
         user=user,
         friends=all_friends_sorted,
         invite_url=invite_url,
-        format_trip_dates=format_trip_dates,
         friend_count=friend_count,
         alpha_groups=alpha_groups,
-        friends_trips_tab=friends_trips_tab,
     )
 
 @app.route("/friends/<int:friend_id>")

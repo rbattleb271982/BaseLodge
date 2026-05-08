@@ -146,28 +146,15 @@
             flex-shrink: 0;
             margin-left: 12px;
         }
-        /* ── Friends' Trips — 3-column single-row layout ── */
-        .ft-row {
-            display: flex;
-            align-items: center;
-            padding: 13px 0;
-            border-bottom: 1px solid #E5DFD0;
-            text-decoration: none;
-            color: inherit;
-            -webkit-tap-highlight-color: transparent;
-            gap: 8px;
-        }
-        .ft-row:first-child { border-top: 1px solid #E5DFD0; }
-        .ft-row:active { opacity: 0.7; }
 
-        /* ── Mountain filter ── */
+        /* ── Mountain filter button ── */
         .ft-mtn-filter-btn {
             display: inline-flex;
             align-items: center;
             gap: 4px;
             background: none;
             border: none;
-            padding: 10px 0 12px 0;
+            padding: 6px 0 14px 0;
             margin: 0;
             font-size: 14px;
             color: #5C1219;
@@ -218,43 +205,7 @@
         .ft-mtn-option:last-child { border-bottom: none; }
         .ft-mtn-option.selected { color: #5C1219; font-weight: 600; }
         .ft-mtn-option:active { background: rgba(0,0,0,0.04); }
-        .ft-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 38%) 1fr auto;
-            column-gap: 10px;
-            flex: 1;
-            min-width: 0;
-            align-items: center;
-        }
-        .ft-name {
-            font-size: 14px;
-            font-weight: 500;
-            color: #1A1A1A;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .ft-dest {
-            font-size: 14px;
-            font-weight: 400;
-            color: #4A4540;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .ft-date {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-            white-space: nowrap;
-            text-align: right;
-        }
-        .ft-cta {
-            font-size: 16px;
-            font-weight: 500;
-            color: var(--bl-color-primary);
-            flex-shrink: 0;
-            white-space: nowrap;
-        }
+
         .secondary-action-inline {
             font-size: 16px;
             font-weight: 500;
@@ -308,6 +259,142 @@
             opacity: 0.6;
             margin: 0;
         }
+
+        /* ── Friends' Trips — month/destination grouped view ── */
+        .fr-month-header {
+            font-family: var(--bl-font-sans);
+            font-size: 13px;
+            color: var(--bl-color-text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            padding: 20px 0 8px;
+            border-bottom: 1px solid #E5DFD0;
+            margin: 0;
+        }
+        .fr-month-header:first-child {
+            padding-top: 4px;
+        }
+        .fr-dest-block {
+            border-bottom: 1px solid #E5DFD0;
+            padding: 12px 0 10px;
+        }
+        .fr-dest-name {
+            font-family: var(--bl-font-sans);
+            font-size: 17px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin: 0 0 6px 0;
+            line-height: 1.25;
+        }
+        .fr-trip-meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 8px;
+            margin-top: 3px;
+        }
+        .fr-trip-meta-row-link {
+            text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
+            cursor: pointer;
+        }
+        .fr-trip-meta-row-link:active { opacity: 0.7; }
+        .fr-trip-meta-left {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            line-height: 1.4;
+        }
+        .fr-trip-meta-right {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            flex-shrink: 0;
+            text-align: right;
+        }
+        .fr-trip-new {
+            font-style: italic;
+            color: var(--bl-color-text-tertiary);
+            font-family: var(--bl-font-sans);
+        }
+        .fr-trip-row-grouped {
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .fr-trip-row-grouped:active { opacity: 0.7; }
+        .fr-trip-meta-right-grouped {
+            font-size: 13px;
+            color: var(--bl-color-primary);
+            opacity: 0.8;
+            flex-shrink: 0;
+            text-align: right;
+        }
+
+        /* ── Grouped trip bottom sheet ── */
+        .ft-grouped-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.35);
+            z-index: 600;
+        }
+        .ft-grouped-overlay.open { display: block; }
+        .ft-grouped-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #FDFBF7;
+            border-radius: 20px 20px 0 0;
+            padding: 0 0 env(safe-area-inset-bottom, 0px);
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .ft-grouped-handle {
+            width: 36px;
+            height: 4px;
+            background: #D5CFCA;
+            border-radius: 2px;
+            margin: 12px auto 0;
+        }
+        .ft-grouped-header {
+            padding: 20px 24px 14px;
+            border-bottom: 1px solid #EDE8DE;
+        }
+        .ft-grouped-title {
+            font-family: Georgia, serif;
+            font-size: 20px;
+            color: #1A1A1A;
+            margin: 0 0 4px;
+            line-height: 1.2;
+        }
+        .ft-grouped-subtitle {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+        }
+        .ft-grouped-rows { padding: 4px 0 12px; }
+        .ft-grouped-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 24px;
+            border-bottom: 1px solid #F0EDE6;
+            text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .ft-grouped-row:last-child { border-bottom: none; }
+        .ft-grouped-row:active { background: #F5F1E8; }
+        .ft-grouped-row-date {
+            font-size: 15px;
+            color: #1A1A1A;
+            font-weight: 500;
+        }
+        .ft-grouped-row-status {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            flex-shrink: 0;
+        }
     </style>
 {% endblock %}
 
@@ -321,7 +408,7 @@
             <a href="{{ url_for('profile') }}" class="hc-initials-bubble" aria-label="Go to profile">{{ _i1 + _i2 }}</a>
         </div>
 
-        <!-- Tab bar — My Trips / Suggested / Season Snapshot -->
+        <!-- Tab bar — My Trips / Friends' Trips / Season Snapshot -->
         {% set ns = namespace(invite_count=0) %}
         {% for trip in (invited_trips or []) %}
             {% if trip and trip.id and (not trip.start_date or trip.start_date >= today) %}
@@ -333,7 +420,7 @@
             <button type="button" class="tab-btn active" data-tab="upcoming">
                 My Trips{% if ns.invite_count > 0 %}<span class="tab-badge">{{ ns.invite_count }}</span>{% endif %}
             </button>
-            <button type="button" class="tab-btn" data-tab="friends">Suggested</button>
+            <button type="button" class="tab-btn" data-tab="friends">Friends' Trips</button>
             <a href="{{ url_for('season_snapshot') }}" class="mt-snapshot-pill">Season Snapshot →</a>
         </div>
 
@@ -404,18 +491,48 @@
 
         </div>
 
-        <!-- ── FRIEND TRIPS ── -->
+        <!-- ── FRIENDS' TRIPS ── -->
         <div id="segment-friends" class="segment-content">
-            {% if not curated_friend_trips %}
-                {% if not friends %}
-                <!-- No friends yet -->
-                <div class="mt-hero">
-                    <p class="mt-hero-eyebrow">No connections yet</p>
-                    <p class="mt-hero-title">Invite your friends</p>
-                    <p class="mt-hero-sub">Connect with friends to see where they're headed and plan trips together.</p>
-                    <a href="{{ url_for('invite') }}" class="bl-cta-trip">Invite friends</a>
+            {% if friends_trips_tab %}
+                <p style="font-size: 13px; color: var(--bl-color-text-muted); margin: 0 0 14px 0; line-height: 1.5;">Where your friends are headed this season.</p>
+                <!-- Mountain filter -->
+                <button class="ft-mtn-filter-btn" id="ft-mtn-filter-btn" onclick="ftOpenMtnFilter()">
+                    <span id="ft-mtn-filter-label">Filter for a mountain</span>
+                    <span class="ft-mtn-filter-chevron">⌄</span>
+                </button>
+                <!-- Trip list -->
+                <div id="ft-trips-list">
+                {% for month in friends_trips_tab %}
+                {% set month_idx = loop.index %}
+                <p class="fr-month-header" data-month="{{ month_idx }}">{{ month.month_label }}</p>
+                {% for dest in month.destinations %}
+                <div class="fr-dest-block" data-mountain="{{ dest.name }}" data-month="{{ month_idx }}">
+                    <p class="fr-dest-name">{{ dest.name }}</p>
+                    {% for row in dest.rows %}
+                    {% if row.grouped %}
+                    <div class="fr-trip-meta-row fr-trip-row-grouped"
+                         onclick="ftOpenGroupedSheet({{ row.destination | tojson }}, {{ row.grouped_count }}, {{ row.grouped_trips | tojson }})">
+                        <span class="fr-trip-meta-left">
+                            {{- row.friend_name -}} &middot; {{ row.grouped_count }} dates
+                        </span>
+                        <span class="fr-trip-meta-right fr-trip-meta-right-grouped">{{ row.date_range_label }} &middot; {{ row.status | capitalize }}</span>
+                    </div>
+                    {% else %}
+                    <a href="/friend-trip/{{ row.trip_id }}" class="fr-trip-meta-row fr-trip-meta-row-link">
+                        <span class="fr-trip-meta-left">
+                            {{- row.friend_name -}}
+                            {%- if row.status %} &middot; {{ row.status }}{% endif -%}
+                            {%- if row.is_new %} &middot; <em class="fr-trip-new">new</em>{% endif -%}
+                        </span>
+                        <span class="fr-trip-meta-right">{{ row.formatted_date }}</span>
+                    </a>
+                    {% endif %}
+                    {% endfor %}
                 </div>
-                {% else %}
+                {% endfor %}
+                {% endfor %}
+                </div>
+            {% elif friends %}
                 <!-- Has friends, but no upcoming friend trips -->
                 <div class="bl-es">
                     <p class="bl-es-headline">No trips planned yet.</p>
@@ -423,33 +540,14 @@
                     <a href="{{ url_for('add_trip') }}" class="bl-cta-trip">Plan a trip</a>
                     <a href="{{ url_for('invite') }}" class="bl-es-link">Invite friends →</a>
                 </div>
-                {% endif %}
             {% else %}
-                <div class="mt-section-header">
-                    <p class="mt-section-title">Your Friends' Trips</p>
-                    <p class="mt-section-count">{{ curated_friend_trips|length }}</p>
+                <!-- No friends yet -->
+                <div class="mt-hero">
+                    <p class="mt-hero-eyebrow">No connections yet</p>
+                    <p class="mt-hero-title">Invite your friends</p>
+                    <p class="mt-hero-sub">Connect with friends to see where they're headed and plan trips together.</p>
+                    <a href="{{ url_for('invite') }}" class="bl-cta-trip">Invite friends</a>
                 </div>
-                <p style="font-size: 13px; color: var(--bl-color-text-muted); margin: 0 0 16px 0; line-height: 1.5;">Based on your wishlist, dates, and pass.</p>
-                <!-- Mountain filter -->
-                <button class="ft-mtn-filter-btn" id="ft-mtn-filter-btn" onclick="ftOpenMtnFilter()">
-                    <span id="ft-mtn-filter-label">Filter for a mountain</span>
-                    <span class="ft-mtn-filter-chevron">⌄</span>
-                </button>
-                {% for trip in curated_friend_trips %}
-                    {% if trip and trip.id %}
-                    {% set resort = trip.resort %}
-                    {% set mountain_name = resort.name if resort else (trip.mountain or 'Mountain TBD') %}
-                    {% set state_abbr = resort|state_abbrev if resort else trip.state %}
-                    <a href="{{ url_for('friend_trip_details', trip_id=trip.id) }}" class="ft-row" data-mountain="{{ mountain_name }}">
-                        <div class="ft-grid">
-                            <span class="ft-name">{% if trip.user %}{{ trip.user.first_name | format_name }} {{ trip.user.last_name | format_name }}{% endif %}</span>
-                            <span class="ft-dest">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</span>
-                            <span class="ft-date">{% if trip.start_date and trip.end_date %}{{ format_trip_dates(trip) }}{% else %}Dates TBD{% endif %}</span>
-                        </div>
-                        <span class="ft-cta">View Trip</span>
-                    </a>
-                    {% endif %}
-                {% endfor %}
             {% endif %}
         </div>
 
@@ -460,6 +558,18 @@
         <div class="ft-mtn-sheet" onclick="event.stopPropagation()">
             <div class="ft-mtn-handle"></div>
             <div id="ft-mtn-options"></div>
+        </div>
+    </div>
+
+    <!-- Grouped trips bottom sheet -->
+    <div class="ft-grouped-overlay" id="ft-grouped-overlay" onclick="ftCloseGroupedSheet()">
+        <div class="ft-grouped-sheet" onclick="event.stopPropagation()">
+            <div class="ft-grouped-handle"></div>
+            <div class="ft-grouped-header">
+                <p class="ft-grouped-title" id="ft-grouped-title"></p>
+                <p class="ft-grouped-subtitle" id="ft-grouped-subtitle"></p>
+            </div>
+            <div class="ft-grouped-rows" id="ft-grouped-rows"></div>
         </div>
     </div>
 
@@ -508,17 +618,18 @@
     function ftOpenMtnFilter() {
         var optionsEl = document.getElementById('ft-mtn-options');
         if (!optionsEl) return;
-        var rows = document.querySelectorAll('.ft-row[data-mountain]');
+        // Collect unique mountain names from dest blocks
+        var blocks = document.querySelectorAll('.fr-dest-block');
         var seen = Object.create(null);
         var mountains = [];
-        rows.forEach(function(r) {
-            var m = r.getAttribute('data-mountain');
+        blocks.forEach(function(b) {
+            var m = b.getAttribute('data-mountain');
             if (m && !seen[m]) { seen[m] = true; mountains.push(m); }
         });
         mountains.sort();
         var html = '';
         var allSel = !_ftActiveMtn ? ' selected' : '';
-        html += '<button class="ft-mtn-option' + allSel + '" onclick="ftSelectMtn(null)">All mountains</button>';  // option label stays "All mountains"
+        html += '<button class="ft-mtn-option' + allSel + '" onclick="ftSelectMtn(null)">All mountains</button>';
         mountains.forEach(function(m) {
             var sel = (_ftActiveMtn === m) ? ' selected' : '';
             html += '<button class="ft-mtn-option' + sel + '" onclick="ftSelectMtn(' + JSON.stringify(m) + ')">' + m + '</button>';
@@ -536,11 +647,44 @@
         _ftActiveMtn = mountain;
         var label = document.getElementById('ft-mtn-filter-label');
         if (label) label.textContent = mountain || 'Filter for a mountain';
-        document.querySelectorAll('.ft-row[data-mountain]').forEach(function(r) {
-            var m = r.getAttribute('data-mountain');
-            r.style.display = (!mountain || m === mountain) ? '' : 'none';
+        // Filter destination blocks
+        document.querySelectorAll('.fr-dest-block').forEach(function(b) {
+            var m = b.getAttribute('data-mountain');
+            b.style.display = (!mountain || m === mountain) ? '' : 'none';
+        });
+        // Hide month headers that have no visible destination blocks
+        document.querySelectorAll('.fr-month-header').forEach(function(h) {
+            var monthIdx = h.getAttribute('data-month');
+            var visibleInMonth = document.querySelectorAll(
+                '.fr-dest-block[data-month="' + monthIdx + '"]:not([style*="display: none"])'
+            ).length;
+            h.style.display = visibleInMonth > 0 ? '' : 'none';
         });
         ftCloseMtnFilter();
+    }
+
+    // ── Grouped trips bottom sheet ─────────────────────────────────────────
+    function ftOpenGroupedSheet(mountain, count, trips) {
+        document.getElementById('ft-grouped-title').textContent = mountain;
+        document.getElementById('ft-grouped-subtitle').textContent =
+            count + ' planned date' + (count === 1 ? '' : 's');
+        var rowsEl = document.getElementById('ft-grouped-rows');
+        rowsEl.innerHTML = trips.map(function(t) {
+            var statusLabel = t.status
+                ? t.status.charAt(0).toUpperCase() + t.status.slice(1)
+                : '';
+            return '<a href="/friend-trip/' + t.trip_id + '" class="ft-grouped-row">' +
+                '<span class="ft-grouped-row-date">' + (t.formatted_date || '') + '</span>' +
+                '<span class="ft-grouped-row-status">' + statusLabel + '</span>' +
+                '</a>';
+        }).join('');
+        document.getElementById('ft-grouped-overlay').classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function ftCloseGroupedSheet() {
+        document.getElementById('ft-grouped-overlay').classList.remove('open');
+        document.body.style.overflow = '';
     }
     </script>
 {% endblock %}
