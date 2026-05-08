@@ -1,0 +1,89 @@
+Audit BaseLodge’s full outbound messaging/notification system. Do not make any code changes.
+
+Goal:
+Create a complete inventory of every email, push notification, SMS, invite, admin alert, password/reset message, feedback message, scheduled message, or lifecycle notification currently configured or partially configured in the app.
+
+Rules:
+- Do not edit files.
+- Do not delete files.
+- Do not refactor anything.
+- Do not create migrations.
+- Do not change environment variables.
+- Do not “fix” anything during this audit.
+- Use checkpoints sparingly.
+
+Audit the codebase for:
+1. SendGrid usage
+   - Search for: sendgrid, SendGridAPIClient, Mail, sg.send, SENDGRID, send_email, email_service.
+2. OneSignal usage
+   - Search for: OneSignal, ONESIGNAL, push, notification, subscription, journey, player_id, external_id.
+3. APNs / FCM direct push usage
+   - Search for: APNS, apns, FCM, firebase, device token, PushDeviceToken.
+4. Auth messaging
+   - Forgot password
+   - Password reset
+   - Reset confirmation
+   - Signup/welcome
+   - Login-related messages
+5. Invite / friend messaging
+   - Friend invites
+   - Trip invites
+   - Invite links
+   - Acceptance notifications
+6. Admin messaging
+   - Test push routes
+   - Broadcast push routes
+   - Feedback/contact form emails
+   - Internal admin alerts
+7. Scheduled/lifecycle messaging
+   - Weekly reminders
+   - Trip reminders
+   - Digest emails/pushes
+   - Any cron, scheduler, or background job references.
+8. Templates and content
+   - Any email subject/body templates
+   - Any HTML/text email templates
+   - Any push notification copy
+   - Any hardcoded notification text.
+
+Deliverable:
+Return a written audit report only. Include:
+
+1. Executive summary
+   - What providers are currently used
+   - What appears active vs unused/dead/partial
+   - Main risks before migrating anything to OneSignal
+
+2. Inventory table with columns:
+   - Flow / Message
+   - Channel
+   - Provider
+   - Trigger
+   - File(s)
+   - Function/route/model involved
+   - Environment variables required
+   - Current status: active / partial / dead / unclear
+   - Notes
+
+3. Provider map
+   - What SendGrid currently does
+   - What OneSignal currently does
+   - What APNs/FCM direct push currently does, if anything
+
+4. Migration readiness notes
+   - Which flows could move to OneSignal easily
+   - Which flows should probably stay transactional or be treated carefully
+   - Which flows need more product decisions before migration
+
+5. Specific recommendations
+   - No implementation yet
+   - Just recommended next steps for a clean migration plan
+
+Testing / verification:
+- Run only safe read-only commands.
+- You may use grep/ripgrep/find to inspect files.
+- Do not run destructive commands.
+- Do not start a migration.
+- Do not modify the database.
+
+Do not finish until you have searched the whole codebase for messaging, notification, email, SendGrid, OneSignal, APNs, FCM, invite, reset, password, feedback, and scheduled lifecycle references.
