@@ -6253,12 +6253,21 @@ def home():
     except Exception:
         db.session.rollback()
 
+    # Diagnostics sentinels — populated inside each try block below
+    _diag_opp_engine_count = 0
+    _diag_dismissed_count = 0
+    _diag_opp_after_dismissal = 0
+    _diag_hap_raw_trips = 0
+    _diag_hap_candidates = 0
+    _diag_hap_opp_suppressed = 0
+
     # --- Coordination feed (Home opportunities stream) ---
     dest_feed = []
     try:
         from services.ideas_engine import build_destination_feed as _build_home_feed
         if all_friends:
             _raw_feed = _build_home_feed(user, all_friends)
+            _diag_opp_engine_count = len(_raw_feed)
             _dismissed_opp_keys = set()
             try:
                 _dismissed_cards = DismissedInsightCard.query.filter_by(
@@ -6268,11 +6277,13 @@ def home():
                 _dismissed_opp_keys = {d.card_key for d in _dismissed_cards}
             except Exception:
                 db.session.rollback()
+            _diag_dismissed_count = len(_dismissed_opp_keys)
             for _row in _raw_feed:
                 _ck = f"{_row['idea_type']}:{_row['resort_id']}"
                 if _ck not in _dismissed_opp_keys:
                     _row['_card_key'] = _ck
                     dest_feed.append(_row)
+            _diag_opp_after_dismissal = len(dest_feed)
             dest_feed = dest_feed[:5]
     except Exception:
         db.session.rollback()
@@ -6304,6 +6315,8 @@ def home():
                 ft_resort = ft.resort
                 ft_mountain = ft_resort.name if ft_resort else ft.mountain
                 _hap_groups[(ft.user_id, ft_mountain, ft.trip_status or 'planning')].append(ft)
+            _diag_hap_raw_trips = len(_hap_trips)
+            _diag_hap_candidates = len(_hap_groups)
             _hap_seen = set()
             for ft in _hap_trips:
                 ft_user = _ft_users_map.get(ft.user_id)
@@ -6317,6 +6330,7 @@ def home():
                     continue
                 # Suppress if this friend/resort pair is already in Opportunities
                 if ft_resort and (ft.user_id, ft_resort.id) in _opp_friend_resort_pairs:
+                    _diag_hap_opp_suppressed += 1
                     continue
                 _hap_seen.add(key)
                 group = _hap_groups[key]

@@ -753,6 +753,14 @@ def build_destination_feed(user, all_friends):
     except Exception:
         pass
 
+    _diag = {
+        'raw_friend_trip': 0,
+        'raw_overlap': 0,
+        'raw_wishlist': 0,
+        'total_attempted': 0,
+        'booked_suppressed': 0,
+    }
+
     by_resort = {}  # resort_id -> best candidate dict
 
     def _prefer(new, old):
@@ -770,8 +778,10 @@ def build_destination_feed(user, all_friends):
         return new["signal_type"] < old["signal_type"]
 
     def _try_add(candidate):
+        _diag['total_attempted'] += 1
         rid = candidate["resort_id"]
         if rid in _booked_resort_ids:
+            _diag['booked_suppressed'] += 1
             return
         if rid not in by_resort or _prefer(candidate, by_resort[rid]):
             by_resort[rid] = candidate
@@ -822,6 +832,7 @@ def build_destination_feed(user, all_friends):
             parts.append(_fmt_social_names(g["going_names"], "going"))
         if g["considering"] > 0:
             parts.append(_fmt_social_names(g["considering_names"], "considering"))
+        _diag['raw_friend_trip'] += 1
         _try_add({
             "resort": rdata["resort"],
             "resort_id": rid,
@@ -892,6 +903,7 @@ def build_destination_feed(user, all_friends):
                     first_names.append(raw.split()[0] if raw.strip() else "Friend")
                 line2 = _fmt_wishlist_names(first_names, "— free this window")
 
+                _diag['raw_overlap'] += 1
                 _try_add({
                     "resort": shared_resort,
                     "resort_id": shared_resort_id,
@@ -927,6 +939,7 @@ def build_destination_feed(user, all_friends):
             ]
             suffix = "— both on your wishlists" if n == 1 else "— all on your wishlists"
             line2 = _fmt_wishlist_names(friend_first_names, suffix)
+            _diag['raw_wishlist'] += 1
             _try_add({
                 "resort": resort_obj,
                 "resort_id": rid,
@@ -950,6 +963,31 @@ def build_destination_feed(user, all_friends):
         -r["friend_count"],
         (r["start_date"] or date.max).toordinal(),
     ))
+
+    # ── Diagnostics ──────────────────────────────────────────────────────────
+    _diag_after_booked = _diag['total_attempted'] - _diag['booked_suppressed']
+    _diag_resort_dedupe_lost = _diag_after_booked - len(rows)
+    _stype_map = {1: 'friend_trip', 2: 'availability_overlap', 3: 'wishlist_overlap'}
+    print(
+        f"[HOME_DIAGNOSTICS] opp_candidates_raw={_diag['total_attempted']}"
+        f" friend_trip={_diag['raw_friend_trip']}"
+        f" overlap={_diag['raw_overlap']}"
+        f" wishlist={_diag['raw_wishlist']}"
+    )
+    print(
+        f"[HOME_DIAGNOSTICS] opp_booked_suppressed={_diag['booked_suppressed']}"
+        f" opp_after_booked={_diag_after_booked}"
+        f" opp_resort_dedupe_lost={_diag_resort_dedupe_lost}"
+        f" opp_after_resort_dedupe={len(rows)}"
+    )
+    for _r in rows:
+        _rname = getattr(_r.get('resort'), 'name', None) or str(_r.get('resort_id', '?'))
+        print(
+            f"[HOME_DIAGNOSTICS]   resort={_rname!r}"
+            f" signal={_stype_map.get(_r.get('signal_type'), '?')}"
+            f" friends={_r.get('friend_count', 0)}"
+            f" start={_r.get('start_date') or 'none'}"
+        )
 
     return rows
 

@@ -1,0 +1,80 @@
+We need visibility into the actual Home intelligence/feed composition before changing any caps or ranking behavior.
+
+Goal:
+Measure the real distribution of Home signals and Opportunities signals so we can make informed product decisions instead of arbitrary caps.
+
+DO NOT redesign UI.
+DO NOT change ranking logic yet.
+DO NOT change caps yet.
+DO NOT touch Trips tab grouping, Friends tab, native/mobile files, or push systems.
+
+TASKS
+
+1. Add structured Home diagnostics logging
+
+Inside home() and build_destination_feed(), add lightweight diagnostics logging that prints counts and composition of feed signals.
+
+We want to know:
+
+HOME
+- total friend count
+- total upcoming friend trips
+- total happening candidate rows BEFORE dedupe
+- total happening rows AFTER dedupe
+- total happening rows AFTER cap
+- total pending requests
+- total Opportunities rows BEFORE one-per-resort dedupe
+- total Opportunities rows AFTER dedupe
+- total Opportunities rows AFTER booked-resort exclusion
+- total Opportunities rows AFTER dismissal filtering
+- total Opportunities rows AFTER final cap
+
+OPPORTUNITIES SIGNAL BREAKDOWN
+Count how many candidate rows come from:
+- friend_trip
+- availability_overlap
+- wishlist_overlap
+
+Also log:
+- how many were suppressed due to:
+  - booked resort exclusion
+  - one-per-resort dedupe
+  - dismissed cards
+  - happening dedupe
+
+2. Add ranking visibility
+
+For each final Opportunity row selected, log:
+- resort name
+- signal type
+- friend_count
+- start date (if any)
+
+3. Keep logs readable
+
+Prefix all logs with:
+[HOME_DIAGNOSTICS]
+
+Use concise structured formatting.
+
+Example:
+
+[HOME_DIAGNOSTICS] opportunities_raw=18
+[HOME_DIAGNOSTICS] opportunities_after_resort_dedupe=7
+[HOME_DIAGNOSTICS] opportunities_after_cap=5
+[HOME_DIAGNOSTICS] signal_breakdown friend_trip=9 overlap=6 wishlist=3
+
+4. Important constraints
+
+- Logging only
+- No behavior changes
+- No ranking changes
+- No new queries unless extremely lightweight
+- Do not spam logs excessively
+- Use existing data already in memory whenever possible
+
+5. Return:
+- exact metrics added
+- exact files changed
+- example log output
+- whether diagnostics are safe for production temporarily
