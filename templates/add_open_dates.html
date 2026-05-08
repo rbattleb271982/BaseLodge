@@ -295,7 +295,6 @@
             cursor: not-allowed;
             pointer-events: none;
         }
-        /* Range tint: spans full width via pseudo-element behind the day number */
         .cal-day.is-in-range {
             background: #F0DDD8;
             border-radius: 0;
@@ -308,15 +307,12 @@
             color: #fff !important;
             border-radius: 50% !important;
         }
-        /* Start of range: right side tinted */
         .cal-day.is-start.has-end {
             border-radius: 50% 0 0 50% !important;
         }
-        /* End of range: left side tinted */
         .cal-day.is-end.has-start {
             border-radius: 0 50% 50% 0 !important;
         }
-        /* Tint strip for first column of in-range rows */
         .cal-day.is-in-range.range-row-start {
             border-radius: 0;
         }
@@ -361,7 +357,6 @@
 {% endblock %}
 
 {% block content %}
-    <!-- How it works backdrop + sheet -->
     <div class="hiw-backdrop" id="hiwBackdrop" onclick="closeHiw()"></div>
     <div class="hiw-sheet" id="hiwSheet" role="dialog" aria-modal="true" aria-label="How it works">
         <div class="hiw-sheet-header">
@@ -430,8 +425,8 @@
         </div>
 
         <div class="od-hero">
-            <h1 class="od-heading">Choose the days you're free to ski</h1>
-            <p class="od-body">Select any start date and end date.<br>You can choose multiple ranges.</p>
+            <h1 class="od-heading">Choose the days you're free</h1>
+            <p class="od-body">Add one or more date ranges to unlock better suggestions and friend overlaps.</p>
             <p class="od-body-dim">Adding your availability helps us suggest trips and mountains that fit your schedule and makes it easier to plan with friends.</p>
         </div>
 
@@ -466,45 +461,39 @@
 {% block scripts %}
 
     <script>
-        // ─── State ───────────────────────────────────────────────────────
         const existingDates = {{ existing_dates | tojson }};
 
-        // Determine initial range from existing dates (if any)
-        let startDate = null;  // string 'YYYY-MM-DD'
-        let endDate   = null;
-        // 0 = no sel, 1 = start only, 2 = range complete
-        let selState  = 0;
+        let startDate = null;
+        let endDate = null;
+        let selState = 0;
 
         if (existingDates && existingDates.length > 0) {
             const sorted = [...existingDates].sort();
             startDate = sorted[0];
-            endDate   = sorted[sorted.length - 1];
-            selState  = startDate === endDate ? 2 : 2;
+            endDate = sorted[sorted.length - 1];
+            selState = startDate === endDate ? 2 : 2;
         }
 
-        const today   = new Date();
+        const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         const maxDate = new Date(2027, 4, 31);
 
         let currentMonth = today.getMonth();
-        let currentYear  = today.getFullYear();
+        let currentYear = today.getFullYear();
 
-        // If existing start date is in a future month, jump there
         if (startDate) {
             const d = parseDate(startDate);
             if (d > today) {
                 currentMonth = d.getMonth();
-                currentYear  = d.getFullYear();
+                currentYear = d.getFullYear();
             }
         }
 
-        const DOW_LABELS  = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-        const MONTH_NAMES = ['January','February','March','April','May','June',
-                             'July','August','September','October','November','December'];
+        const DOW_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+        const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
         const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-        // ─── Date helpers ─────────────────────────────────────────────────
         function isoDate(d) {
             const y = d.getFullYear();
             const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -522,15 +511,13 @@
             return `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}`;
         }
 
-        // ─── Calendar render (full rebuild only on month change) ──────────
         function buildCalendar() {
-            const grid  = document.getElementById('calGrid');
+            const grid = document.getElementById('calGrid');
             const label = document.getElementById('monthLabel');
             label.textContent = `${MONTH_NAMES[currentMonth]} ${currentYear}`;
 
             grid.innerHTML = '';
 
-            // Day-of-week headers
             DOW_LABELS.forEach(dow => {
                 const h = document.createElement('div');
                 h.className = 'cal-dow';
@@ -539,16 +526,14 @@
             });
 
             const firstDay = new Date(currentYear, currentMonth, 1);
-            const lastDay  = new Date(currentYear, currentMonth + 1, 0);
+            const lastDay = new Date(currentYear, currentMonth + 1, 0);
 
-            // Empty cells
             for (let i = 0; i < firstDay.getDay(); i++) {
                 const e = document.createElement('div');
                 e.className = 'cal-day cal-empty';
                 grid.appendChild(e);
             }
 
-            // Day cells
             for (let d = 1; d <= lastDay.getDate(); d++) {
                 const dateObj = new Date(currentYear, currentMonth, d);
                 const dateStr = isoDate(dateObj);
@@ -566,12 +551,10 @@
                 grid.appendChild(cell);
             }
 
-            // Apply current selection state visually
             applySelectionClasses();
             updateNavButtons();
         }
 
-        // ─── Apply CSS classes based on current selection state ───────────
         function applySelectionClasses() {
             const cells = document.querySelectorAll('#calGrid .cal-day:not(.cal-empty):not(.cal-past):not(.cal-disabled)');
             cells.forEach(cell => {
@@ -580,20 +563,17 @@
 
             if (selState === 0) return;
 
-            const effectiveEnd = (selState === 2 && endDate) ? endDate : null;
-
             cells.forEach(cell => {
                 const d = cell.dataset.date;
                 if (!d) return;
 
                 if (selState === 1) {
-                    // Only start selected
                     if (d === startDate) {
                         cell.classList.add('is-single');
                     }
                 } else if (selState === 2) {
                     const lo = startDate <= endDate ? startDate : endDate;
-                    const hi = startDate <= endDate ? endDate   : startDate;
+                    const hi = startDate <= endDate ? endDate : startDate;
 
                     if (d === lo && d === hi) {
                         cell.classList.add('is-single');
@@ -608,42 +588,36 @@
             });
         }
 
-        // ─── Tap handler ─────────────────────────────────────────────────
         function handleTap(dateStr) {
             if (selState === 0) {
-                // No selection — set start
                 startDate = dateStr;
-                endDate   = null;
-                selState  = 1;
+                endDate = null;
+                selState = 1;
             } else if (selState === 1) {
                 if (dateStr === startDate) {
-                    // Tap same date → single-day
-                    endDate  = startDate;
+                    endDate = startDate;
                     selState = 2;
                 } else {
-                    // Set end; reorder if needed
-                    endDate  = dateStr;
+                    endDate = dateStr;
                     selState = 2;
                     if (endDate < startDate) {
                         [startDate, endDate] = [endDate, startDate];
                     }
                 }
             } else {
-                // Full range — start new range
                 startDate = dateStr;
-                endDate   = null;
-                selState  = 1;
+                endDate = null;
+                selState = 1;
             }
 
             applySelectionClasses();
             updateSummary();
         }
 
-        // ─── Summary row ─────────────────────────────────────────────────
         function updateSummary() {
             const summaryEl = document.getElementById('summaryText');
-            const clearBtn  = document.getElementById('clearBtn');
-            const saveBtn   = document.getElementById('saveBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const saveBtn = document.getElementById('saveBtn');
 
             if (selState === 0) {
                 summaryEl.textContent = 'Select your dates';
@@ -661,12 +635,11 @@
                 summaryEl.textContent = `${fmtShort(startDate)} — pick end date`;
                 saveBtn.disabled = true;
             } else {
-                // State 2: full range or single day
                 if (startDate === endDate) {
                     summaryEl.textContent = `${fmtShort(startDate)} · day trip`;
                 } else {
                     const lo = startDate < endDate ? startDate : endDate;
-                    const hi = startDate < endDate ? endDate   : startDate;
+                    const hi = startDate < endDate ? endDate : startDate;
                     const loD = parseDate(lo);
                     const hiD = parseDate(hi);
                     if (loD.getMonth() === hiD.getMonth() && loD.getFullYear() === hiD.getFullYear()) {
@@ -680,13 +653,12 @@
 
         function clearSelection() {
             startDate = null;
-            endDate   = null;
-            selState  = 0;
+            endDate = null;
+            selState = 0;
             applySelectionClasses();
             updateSummary();
         }
 
-        // ─── Month navigation ─────────────────────────────────────────────
         function canGoPrev() {
             return !(currentYear === today.getFullYear() && currentMonth === today.getMonth());
         }
@@ -715,14 +687,13 @@
             buildCalendar();
         }
 
-        // ─── Form submit: expand range to individual dates ────────────────
         document.getElementById('openDatesForm').addEventListener('submit', function(e) {
             if (selState !== 2 || !startDate || !endDate) {
                 e.preventDefault();
                 return;
             }
             const lo = startDate < endDate ? startDate : endDate;
-            const hi = startDate < endDate ? endDate   : startDate;
+            const hi = startDate < endDate ? endDate : startDate;
 
             const dates = [];
             const cur = parseDate(lo);
@@ -734,11 +705,9 @@
             document.getElementById('selectedDatesInput').value = dates.join(',');
         });
 
-        // ─── Init ─────────────────────────────────────────────────────────
         buildCalendar();
         updateSummary();
 
-        // ─── How it works sheet ───────────────────────────────────────────
         function openHiw() {
             document.getElementById('hiwBackdrop').classList.add('open');
             document.getElementById('hiwSheet').classList.add('open');
@@ -753,10 +722,9 @@
             if (e.key === 'Escape') closeHiw();
         });
 
-        // ─── Save confirmation feedback ───────────────────────────────────
         document.getElementById('openDatesForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            const btn  = document.getElementById('saveBtn');
+            const btn = document.getElementById('saveBtn');
             const conf = document.getElementById('save-confirm');
             const form = this;
 
