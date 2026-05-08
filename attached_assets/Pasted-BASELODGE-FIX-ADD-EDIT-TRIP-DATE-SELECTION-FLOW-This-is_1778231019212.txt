@@ -1,0 +1,175 @@
+BASELODGE — FIX ADD/EDIT TRIP DATE SELECTION FLOW
+
+This is a UX/logic fix, not a redesign.
+
+The current date-selection flow is backwards:
+A user selects start/end dates in the calendar, then has to look back up and tap “+ Add date.”
+
+That does not make sense.
+
+Fix the order of operations so the flow is:
+
+1. User selects start date
+2. User selects end date
+3. Selected range appears clearly
+4. The range is staged automatically
+5. User can immediately select another range if desired
+6. User saves from the main bottom CTA
+
+Do NOT require the user to scroll/look upward after selecting dates.
+
+━━━━━━━━━━━━━━━━━━━━
+GOAL
+━━━━━━━━━━━━━━━━━━━━
+
+The calendar flow should feel like:
+
+Select dates → selected range is captured → optionally select another range → Save trip
+
+Not:
+
+Select dates → go back up → tap + Add date → then save
+
+━━━━━━━━━━━━━━━━━━━━
+1. REMOVE “+ ADD DATE” AS A REQUIRED ACTION
+━━━━━━━━━━━━━━━━━━━━
+
+Do NOT require a separate “+ Add date” action after selecting a valid range.
+
+After a valid start/end range is selected:
+- automatically stage the range
+- show it immediately in the Selected dates list
+- reset the calendar selection state
+- allow the user to immediately tap another start date if they want another range
+
+Use lightweight helper text near the staged list/calendar like:
+
+“Tap another start date to add more dates.”
+
+The calendar itself should become the “add another date” mechanism.
+
+The primary bottom CTA should remain the only required action.
+
+━━━━━━━━━━━━━━━━━━━━
+2. STAGED DATE LIST
+━━━━━━━━━━━━━━━━━━━━
+
+When a date range is selected/staged, show a clean staged list:
+
+Example:
+May 19 → May 21 · 2 nights
+
+Each staged range should support:
+- remove/delete
+- no overlap with another staged range
+- no duplicate ranges
+- no end date before start date
+
+If only one range exists:
+- still show it clearly as the selected trip dates
+
+If multiple ranges exist:
+- show each range clearly
+- preserve the existing batch/multi-date trip logic
+
+━━━━━━━━━━━━━━━━━━━━
+3. PRIMARY CTA SHOULD REFLECT STATE
+━━━━━━━━━━━━━━━━━━━━
+
+The bottom/main CTA should update based on staged dates:
+
+Examples:
+- “Save trip”
+- “Save 2 dates”
+- “Save 3 dates”
+
+The bottom CTA should remain the primary action at all times.
+
+Do NOT introduce another competing CTA above the calendar.
+
+━━━━━━━━━━━━━━━━━━━━
+4. RECURRING / MULTI-DATE LOGIC
+━━━━━━━━━━━━━━━━━━━━
+
+Preserve and verify the existing recurring/multi-date behavior.
+
+This flow must support:
+- one trip date range
+- multiple separate date ranges for the same mountain
+- grouped/batch trip creation if already implemented
+- removing staged ranges
+- no overlapping date ranges
+- no duplicate ranges
+- correct save payload for one vs multiple ranges
+- correct redirect behavior after save
+
+Do NOT break:
+- created_in_batch_id logic
+- grouped trip behavior
+- Friends’ Trips grouped rows
+- Home Happening grouped signals
+- existing validation against overlapping trips
+
+━━━━━━━━━━━━━━━━━━━━
+5. EDIT TRIP VS ADD TRIP
+━━━━━━━━━━━━━━━━━━━━
+
+Check whether this calendar/date-selection component is shared between:
+- add trip
+- edit trip
+- trip detail date bottom sheet
+
+Apply the fix carefully.
+
+Do NOT accidentally change trip detail’s lightweight date edit bottom sheet unless it uses this same component and needs the same fix.
+
+For edit trip:
+- if editing a single trip, preserve single-range behavior
+- do not accidentally convert it into a batch edit
+- do not accidentally edit all grouped trips unless that is already existing behavior
+
+━━━━━━━━━━━━━━━━━━━━
+6. MOBILE-FIRST REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━━
+
+This must work cleanly on mobile.
+
+Verify:
+- iPhone Safari
+- Capacitor iOS app
+- Android webview/app
+- mobile browser width
+
+Ensure:
+- user does not have to scroll upward after selecting dates
+- CTA remains reachable
+- bottom nav does not cover the CTA
+- calendar remains usable on small screens
+- staged list does not create awkward vertical jumps
+
+━━━━━━━━━━━━━━━━━━━━
+7. GUARDRAILS
+━━━━━━━━━━━━━━━━━━━━
+
+Do NOT:
+- redesign the page
+- change global typography
+- change colors
+- change bottom nav
+- introduce Tailwind
+- remove batch trip logic
+- do dead CSS cleanup yet
+
+This is a focused UX/order-of-operations fix.
+
+Use checkpoints sparingly.
+
+Do not finish until you have tested:
+- selecting one date range
+- selecting multiple date ranges
+- removing a staged range
+- invalid end-before-start
+- overlapping staged ranges
+- saving one range
+- saving multiple ranges
+- confirming existing grouped/batch behavior still works

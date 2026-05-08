@@ -376,6 +376,20 @@
             opacity: 0.5;
         }
         .at-staged-remove:active { opacity: 1; }
+        .at-range-error {
+            font-size: 13px;
+            color: #A0220C;
+            background: rgba(160, 34, 12, 0.07);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+        }
+        .at-date-helper {
+            font-size: 13px;
+            color: #8A857A;
+            text-align: center;
+            padding: 8px 0 2px;
+        }
 
         /* ── Trip status pills ── */
         .at-status-pills {
@@ -576,10 +590,9 @@
                     <span class="at-date-summary-text placeholder" id="range-text">Select your trip dates</span>
                     {% if prefill_friend and is_group %}
                     <button type="button" class="at-clear-btn" id="clear-dates-btn" style="display:none;" onclick="clearDates()">Clear</button>
-                    {% else %}
-                    <button type="button" class="at-add-date-btn" id="add-date-btn" style="display:none;" onclick="addCurrentRange()">+ Add date</button>
                     {% endif %}
                 </div>
+                <div class="at-range-error" id="range-error" style="display:none;"></div>
 
                 <!-- Calendar -->
                 <div class="at-cal-card">
@@ -892,29 +905,34 @@
         const d = new Date(dateStr + 'T00:00:00');
         if (d < todayDate) return;
 
+        clearRangeError();
+
         if (!pickingEnd) {
+            // First tap — set start, begin picking end
             selStart = d;
             selEnd   = null;
             startDateInput.value = dateStr;
             endDateInput.value   = '';
             pickingEnd = true;
-        } else if (sameDay(d, selStart)) {
-            selEnd = d;
-            endDateInput.value = dateStr;
-            pickingEnd = false;
+            updateCalendarClasses();
+            updateRangeSummary();
         } else if (d < selStart) {
+            // Tapped before current start — reset to new start
             selStart = d;
             selEnd   = null;
             startDateInput.value = dateStr;
             endDateInput.value   = '';
+            // stay in pickingEnd = true
+            updateCalendarClasses();
+            updateRangeSummary();
         } else {
+            // Same day (day trip) or after start — complete the range and auto-stage
             selEnd = d;
             endDateInput.value = dateStr;
             pickingEnd = false;
+            updateCalendarClasses();
+            addCurrentRange();   // auto-stages, resets selStart/selEnd, calls renderStagedList + updateSubmitCTA + updateRangeSummary
         }
-
-        updateCalendarClasses();
-        updateRangeSummary();
     }
 
     function navigateMonth(delta) {
@@ -923,13 +941,56 @@
     }
 
     // ── Multi-date staged list ─────────────────────────────────
+    function showRangeError(msg) {
+        const el = document.getElementById('range-error');
+        if (!el) return;
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+    function clearRangeError() {
+        const el = document.getElementById('range-error');
+        if (el) { el.textContent = ''; el.style.display = 'none'; }
+    }
+
     function addCurrentRange() {
         if (!selStart || !selEnd) return;
+
+        const newStart = fmtISO(selStart);
+        const newEnd   = fmtISO(selEnd);
+
+        // Duplicate check
+        if (stagedRanges.some(r => r.startStr === newStart && r.endStr === newEnd)) {
+            showRangeError('This date range is already added.');
+            selStart = selEnd = null;
+            pickingEnd = false;
+            startDateInput.value = endDateInput.value = '';
+            updateCalendarClasses();
+            updateRangeSummary();
+            return;
+        }
+
+        // Overlap check
+        const ns = selStart, ne = selEnd;
+        for (const r of stagedRanges) {
+            const rs = new Date(r.startStr + 'T00:00:00');
+            const re = new Date(r.endStr   + 'T00:00:00');
+            if (ns <= re && ne >= rs) {
+                showRangeError('This range overlaps with an already-staged date. Pick different dates.');
+                selStart = selEnd = null;
+                pickingEnd = false;
+                startDateInput.value = endDateInput.value = '';
+                updateCalendarClasses();
+                updateRangeSummary();
+                return;
+            }
+        }
+
         const nights = nightCount(selStart, selEnd);
         const label = sameDay(selStart, selEnd)
             ? fmtMed(selStart) + ' · day trip'
-            : fmtMed(selStart) + ' → ' + fmtMed(selEnd);
-        stagedRanges.push({ startStr: fmtISO(selStart), endStr: fmtISO(selEnd), label });
+            : fmtMed(selStart) + ' → ' + fmtMed(selEnd) + (nights > 0 ? ' · ' + nights + (nights === 1 ? ' night' : ' nights') : '');
+        stagedRanges.push({ startStr: newStart, endStr: newEnd, label });
+
         selStart = selEnd = null;
         pickingEnd = false;
         startDateInput.value = endDateInput.value = '';
@@ -943,6 +1004,7 @@
         stagedRanges.splice(idx, 1);
         renderStagedList();
         updateSubmitCTA();
+        updateRangeSummary();
     }
 
     function renderStagedList() {
@@ -954,11 +1016,12 @@
             return;
         }
         list.style.display = 'flex';
-        list.innerHTML = stagedRanges.map((r) =>
+        list.innerHTML = stagedRanges.map((r, i) =>
             `<div class="at-staged-item">
                 <span class="at-staged-date">${r.label}</span>
+                <button type="button" class="at-staged-remove" onclick="removeRange(${i})" aria-label="Remove this date range">&#10005;</button>
             </div>`
-        ).join('');
+        ).join('') + '<p class="at-date-helper">Tap a start date to add another range.</p>';
     }
 
     function updateSubmitCTA() {
@@ -966,16 +1029,16 @@
         if (!btn || IS_GROUP_FLOW) return;
         const n = stagedRanges.length;
         btn.disabled = (n === 0);
-        btn.textContent = n <= 1 ? 'Create trip' : `Save ${n} dates`;
+        btn.textContent = n > 1 ? `Save ${n} dates` : 'Save trip';
     }
 
     function updateRangeSummary() {
         const rangeEl  = document.getElementById('range-text');
         const clearBtn = document.getElementById('clear-dates-btn');
-        const addBtn   = document.getElementById('add-date-btn');
         const submitBtn = document.getElementById('submit-btn');
 
         if (selStart && selEnd) {
+            // Transient state — briefly visible before auto-stage fires
             const nights = nightCount(selStart, selEnd);
             const rangeLabel = sameDay(selStart, selEnd)
                 ? fmtMed(selStart) + ' · day trip'
@@ -985,26 +1048,22 @@
             if (IS_GROUP_FLOW) {
                 if (clearBtn) clearBtn.style.display = 'inline';
                 if (submitBtn) submitBtn.disabled = false;
-            } else {
-                if (addBtn) addBtn.style.display = 'inline';
             }
         } else if (selStart) {
-            rangeEl.textContent = fmtMed(selStart) + ' — pick end date';
+            rangeEl.textContent = fmtMed(selStart) + ' — select end date';
             rangeEl.classList.remove('placeholder');
             if (IS_GROUP_FLOW) {
                 if (clearBtn) clearBtn.style.display = 'inline';
                 if (submitBtn) submitBtn.disabled = true;
-            } else {
-                if (addBtn) addBtn.style.display = 'none';
             }
         } else {
-            rangeEl.textContent = 'Select your trip dates';
-            rangeEl.classList.add('placeholder');
+            rangeEl.textContent = stagedRanges.length > 0
+                ? 'Tap a start date to add another range.'
+                : 'Select your trip dates';
+            rangeEl.classList.toggle('placeholder', stagedRanges.length === 0);
             if (IS_GROUP_FLOW) {
                 if (clearBtn) clearBtn.style.display = 'none';
                 if (submitBtn) submitBtn.disabled = true;
-            } else {
-                if (addBtn) addBtn.style.display = 'none';
             }
         }
     }
