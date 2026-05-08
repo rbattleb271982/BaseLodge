@@ -361,6 +361,26 @@
         }
     })();
 
+    // ── OneSignal identity logout (native shell only) ─────────────────
+    // Intercepts the Log out link. If blOSLogout is available (registered
+    // only inside the Capacitor native shell by analytics_head.html), calls
+    // OS.logout() to clear the external_id before navigating. Falls back to
+    // plain navigation if the helper is absent or throws.
+    (function() {
+        var _link = document.getElementById('bl-logout-link');
+        if (!_link) return;
+        _link.addEventListener('click', function(e) {
+            if (typeof window.blOSLogout !== 'function') return;
+            e.preventDefault();
+            var _href = _link.href;
+            window.blOSLogout().then(function() {
+                window.location.href = _href;
+            }).catch(function() {
+                window.location.href = _href;
+            });
+        });
+    })();
+
     // ── Refine push status with OS permission (native only) ───────────
     // blOnOSPermReady is defined only in the Capacitor native shell.
     // The typeof guard makes this a strict no-op in the browser.
