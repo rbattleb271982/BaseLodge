@@ -1,0 +1,39 @@
+The OneSignal opt-out fix is still not working on iOS.
+
+Xcode console shows:
+
+[OneSignal] blSetPushEnabled: no supported opt-in/out method found on bridge=window.plugins
+
+That means the app detects the Cordova OneSignal bridge, but the current JS method detection does not find the correct opt-in/out method.
+
+Please inspect the actual OneSignal object available at runtime for window.plugins.OneSignal and fix blSetPushEnabled() to call the correct method for the installed Capacitor/Cordova OneSignal plugin version.
+
+Requirements:
+1. Add temporary safe introspection logs for the OneSignal bridge object:
+   - bridge source being used
+   - top-level function names available on window.plugins.OneSignal
+   - whether User, User.PushSubscription, Notifications, optIn, optOut, disablePush, setSubscription, or setNotificationPermission exist
+   - do not log tokens, IDs, secrets, or user data
+
+2. Based on the actual available methods, update blSetPushEnabled(enabled) so:
+   - OFF truly opts the current device out of OneSignal push delivery
+   - ON opts the current device back in
+   - it works for the current iOS runtime shown as bridge=window.plugins
+
+3. Keep the backend preference save as a second layer, but do not rely on it as the only protection.
+
+4. Preserve APNs direct token registration and badge clearing behavior. Do not change unrelated push setup.
+
+5. After the change, the expected Xcode logs must show a real method being called, not “no supported opt-in/out method found.”
+
+Testing:
+- Run on a physical iPhone through Xcode.
+- Toggle push OFF in BaseLodge.
+- Confirm Xcode shows the actual OneSignal opt-out method being called successfully.
+- Confirm OneSignal dashboard changes to unsubscribed/opted out after refresh.
+- Send a OneSignal test/broadcast push and confirm the phone does not receive it.
+- Toggle push ON.
+- Confirm OneSignal shows subscribed again.
+- Confirm a test/broadcast push is received.
+
+Use checkpoints sparingly. Do not finish until the Xcode logs prove the correct OneSignal method is being called.

@@ -463,6 +463,31 @@
           return;
         }
 
+        // ── Bridge introspection (safe: no tokens/IDs logged) ────────────
+        // Logs which properties exist on the located plugin object so we can
+        // confirm the correct opt-in/out method path at runtime.
+        try {
+          var _osMethods = [];
+          ['initialize','login','logout','setConsentRequired','setConsentGiven',
+           'disablePush','setSubscription','setNotificationPermission',
+           'requestPermission','setAppId'].forEach(function(k) {
+            if (typeof OS[k] === 'function') _osMethods.push(k);
+          });
+          console.log('[OneSignal] bridge=' + _osVia + ' top-level fns:', _osMethods.join(', ') || '(none)');
+          console.log('[OneSignal] has User=' + !!(OS.User)
+            + ' User.pushSubscription=' + !!(OS.User && OS.User.pushSubscription)
+            + ' User.PushSubscription=' + !!(OS.User && OS.User.PushSubscription)
+            + ' Notifications=' + !!(OS.Notifications));
+          if (OS.User && OS.User.pushSubscription) {
+            var _sub = OS.User.pushSubscription;
+            console.log('[OneSignal] pushSubscription fns: optIn=' + (typeof _sub.optIn)
+              + ' optOut=' + (typeof _sub.optOut)
+              + ' getOptedInAsync=' + (typeof _sub.getOptedInAsync));
+          }
+        } catch (_ie) {
+          console.warn('[OneSignal] introspection error:', _ie);
+        }
+
         // ── Initialize ────────────────────────────────────────────────────
         // Argument shape differs by bridge:
         //   Cordova (window.plugins): initialize(appId) — plain string
@@ -639,13 +664,16 @@
         // while a real Promise (Capacitor native) also works correctly.
         window.blSetPushEnabled = function(enabled) {
           try {
-            if (typeof OS.User !== 'undefined' && OS.User && OS.User.PushSubscription) {
+            // Cordova plugin exposes pushSubscription (lowercase p).
+            // Capacitor SDK may use PushSubscription (uppercase P) — check both.
+            var _pushSub = (OS.User && (OS.User.pushSubscription || OS.User.PushSubscription)) || null;
+            if (_pushSub && typeof _pushSub.optIn === 'function') {
               // SDK 5.x — Cordova returns void; Capacitor may return a Promise.
               // Promise.resolve() handles both without TypeError.
               var _subResult;
               if (enabled) {
                 console.log('[OneSignal] blSetPushEnabled: calling optIn() — bridge=' + _osVia);
-                _subResult = OS.User.PushSubscription.optIn();
+                _subResult = _pushSub.optIn();
                 Promise.resolve(_subResult).then(function() {
                   console.log('[OneSignal] blSetPushEnabled: optIn() complete');
                   _blRequestPermIfNeeded();
@@ -654,7 +682,7 @@
                 });
               } else {
                 console.log('[OneSignal] blSetPushEnabled: calling optOut() — bridge=' + _osVia);
-                _subResult = OS.User.PushSubscription.optOut();
+                _subResult = _pushSub.optOut();
                 Promise.resolve(_subResult).then(function() {
                   console.log('[OneSignal] blSetPushEnabled: optOut() complete');
                 }).catch(function(e) {
