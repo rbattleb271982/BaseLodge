@@ -62,7 +62,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability
 from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
@@ -9093,11 +9093,20 @@ def delete_account():
             ).delete(synchronize_session=False)
         GroupTrip.query.filter_by(host_id=user_id).delete(synchronize_session=False)
 
-        # 13. Log the user out before deleting the row
+        # 13. Open availability dates
+        UserAvailability.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+
+        # 14. Dismissed insight cards
+        DismissedInsightCard.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+
+        # 15. Push device tokens
+        PushDeviceToken.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+
+        # 16. Log the user out before deleting the row
         logout_user()
         # NOTE: do NOT call session.clear() — same reason as /logout
 
-        # 14. Delete the user row and commit everything
+        # 17. Delete the user row and commit everything
         db.session.delete(user)
         db.session.commit()
 
