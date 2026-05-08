@@ -1,0 +1,88 @@
+We are now doing Phase 1 Home cleanup and intelligence tightening.
+
+This is NOT a redesign pass.
+Do NOT introduce new UI systems.
+Do NOT touch Trips tab grouping logic, multi-date trip creation, Friends tab, native/mobile files, or push systems.
+
+GOALS
+- Remove dead compute from Home
+- Tighten recommendation quality
+- Reduce duplicate social signals
+- Preserve current visual structure
+
+TASKS
+
+1. Remove dead compute from home()
+
+Completely remove the following from the home() route IF they are not rendered anywhere:
+
+- availability_nudge
+- next_match
+- has_overlaps
+- resolve_home_modules()
+- home_modules
+- next_trip_countdown
+- trip_overlap_today_card
+- friend_at_mountain_card
+
+Also remove any associated imports that become unused.
+
+Important:
+- Verify no template references remain before deleting
+- Do not remove any logic still powering visible UI
+- Keep existing Home rendering behavior visually identical
+
+2. Add booked-resort exclusion to Opportunities
+
+Inside build_destination_feed():
+
+Exclude resorts the user already has upcoming trips for.
+
+Goal:
+Do not recommend destinations the user already has planned.
+
+Implementation guidance:
+- Build a set of upcoming resort/mountain IDs from the user's future trips
+- Skip those resorts during Opportunities assembly
+- Preserve all existing ranking and dedupe logic
+
+3. Add Happening dedupe against Opportunities
+
+Current problem:
+The same friend/mountain signal can appear in BOTH:
+- Happening
+- Opportunities
+
+Add a dedupe layer so that:
+- if a friend/resort pair already appears in Opportunities,
+- suppress that same signal from Happening
+
+Important:
+- Do NOT fully remove Happening
+- Happening should remain a lightweight ambient/social layer
+- Only suppress overlapping signals
+- Preserve existing grouping/capping behavior
+
+4. Performance + safety checks
+
+Verify:
+- Home loads without errors
+- No missing template variables
+- No broken pills/counts
+- Opportunities still capped correctly
+- Happening still capped correctly
+- No regressions to Friends’ Trips grouping
+- No regressions to multi-date trip creation
+- No unused imports left behind
+
+5. Return:
+- exact compute removed
+- any query count reductions
+- final dedupe behavior
+- confirmation of no visual regressions
+- confirmation of no unrelated changes
+
+Use checkpoints sparingly.
+No UI redesigns yet.
+No CSS rewrites.
+No unrelated refactors.

@@ -6185,15 +6185,6 @@ def home():
 
     all_upcoming = sorted(my_trips + accepted_guest_trips, key=lambda t: t.start_date)
     next_trip = all_upcoming[0] if all_upcoming else None
-    next_trip_countdown = None
-    if next_trip:
-        days_until = (next_trip.start_date - today).days
-        if days_until == 1:
-            next_trip_countdown = "Tomorrow"
-        elif days_until > 1:
-            next_trip_countdown = f"In {days_until} days"
-        # days_until == 0 ("Starts today") intentionally suppressed
-
     # --- Friend IDs ---
     try:
         friend_ids = get_friend_ids(user.id)
@@ -6236,7 +6227,7 @@ def home():
     except Exception:
         db.session.rollback()
 
-    # Bulk-load all friends once — reused by availability nudge, next_match, and happening_signals
+    # Bulk-load all friends once — reused by dest_feed and happening_signals
     all_friends = []
     if friend_ids:
         try:
@@ -6244,34 +6235,6 @@ def home():
         except Exception:
             db.session.rollback()
             all_friends = []
-
-    # --- Availability Nudge (open date overlap with friends) ---
-    availability_nudge = None
-    try:
-        my_open_dates = {d for d in (user.open_dates or []) if d >= today.strftime('%Y-%m-%d')}
-        if my_open_dates and friend_ids:
-            friends_with_open = all_friends  # already loaded above
-            best_date = None
-            best_friends = []
-            for date_str in sorted(my_open_dates):
-                matching = [f for f in friends_with_open if date_str in set(f.open_dates or [])]
-                if len(matching) > len(best_friends):
-                    best_date = date_str
-                    best_friends = matching
-            if best_date and best_friends:
-                date_obj = datetime.strptime(best_date, '%Y-%m-%d').date()
-                display = date_obj.strftime('%b %-d')
-                if len(best_friends) == 1:
-                    nudge_text = f"You and {best_friends[0].first_name} are free {display}"
-                else:
-                    nudge_text = f"You and {len(best_friends)} friends are free {display}"
-                availability_nudge = {
-                    'text': nudge_text,
-                    'href': url_for('friends', tab='overlaps')
-                }
-    except Exception:
-        db.session.rollback()
-        availability_nudge = None
 
     # --- Secondary Card (priority: connect_invite > overlap > friend_trip) ---
     secondary_card = None
@@ -6290,40 +6253,39 @@ def home():
     except Exception:
         db.session.rollback()
 
-    # --- Next Best Match (ranked — same #1 as Ideas page) ---
-    next_match = None
-    has_overlaps = False
-    # Guard: skip expensive overlap calculation when user has no open dates or no friends
-    if user.open_dates and friend_ids:
-        try:
-            from services.ideas_ranking import score_overlap_windows as _rank_home
-            overlap_matches = get_open_date_matches(user)
-            if overlap_matches:
-                has_overlaps = True
-                home_windows = build_overlap_windows(overlap_matches, user.pass_type)
-                # Reuse all_friends loaded above — no second query needed
-                home_wishlist_set = set(user.wish_list_resorts or [])
-                home_shared_wishlist_ids = set()
-                if home_wishlist_set:
-                    for _hf in all_friends:
-                        if home_wishlist_set & set(_hf.wish_list_resorts or []):
-                            home_shared_wishlist_ids.add(_hf.id)
-                home_windows = _rank_home(home_windows, user, home_shared_wishlist_ids)
-                if home_windows:
-                    best_win = home_windows[0]
-                    start_obj = date.fromisoformat(best_win["start_date"])
-                    anchor_name = best_win.get("anchor_friend_name") or "a friend"
-                    anchor_id = best_win.get("anchor_friend_id")
-                    extra_friends = max(best_win.get("friend_count", 1) - 1, 0)
-                    next_match = {
-                        "match_date": best_win["start_date"],
-                        "display_date": start_obj.strftime("%A · %b %-d"),
-                        "friend_name": anchor_name,
-                        "friend_id": anchor_id,
-                        "same_day_count": extra_friends,
-                    }
-        except Exception:
-            db.session.rollback()
+    # --- Coordination feed (Home opportunities stream) ---
+    dest_feed = []
+    try:
+        from services.ideas_engine import build_destination_feed as _build_home_feed
+        if all_friends:
+            _raw_feed = _build_home_feed(user, all_friends)
+            _dismissed_opp_keys = set()
+            try:
+                _dismissed_cards = DismissedInsightCard.query.filter_by(
+                    user_id=user.id,
+                    card_type='opportunity',
+                ).all()
+                _dismissed_opp_keys = {d.card_key for d in _dismissed_cards}
+            except Exception:
+                db.session.rollback()
+            for _row in _raw_feed:
+                _ck = f"{_row['idea_type']}:{_row['resort_id']}"
+                if _ck not in _dismissed_opp_keys:
+                    _row['_card_key'] = _ck
+                    dest_feed.append(_row)
+            dest_feed = dest_feed[:5]
+    except Exception:
+        db.session.rollback()
+        dest_feed = []
+
+    # Pairs (friend_id, resort_id) already surfaced in Opportunities — used to
+    # suppress duplicate signals in Happening.
+    _opp_friend_resort_pairs = set()
+    for _opp_row in dest_feed:
+        _opp_rid = _opp_row.get('resort_id')
+        if _opp_rid:
+            for _fid in (_opp_row.get('friend_ids') or []):
+                _opp_friend_resort_pairs.add((_fid, _opp_rid))
 
     # --- Happening signals (passive, text-only, max 3 public friend trips) ---
     happening_signals = []
@@ -6353,6 +6315,9 @@ def home():
                 key = (ft.user_id, ft_mountain, status)
                 if key in _hap_seen:
                     continue
+                # Suppress if this friend/resort pair is already in Opportunities
+                if ft_resort and (ft.user_id, ft_resort.id) in _opp_friend_resort_pairs:
+                    continue
                 _hap_seen.add(key)
                 group = _hap_groups[key]
                 full_name = (
@@ -6377,55 +6342,6 @@ def home():
         except Exception:
             db.session.rollback()
 
-    home_modules = resolve_home_modules(
-        next_trip=next_trip,
-        trip_invites=trip_invites,
-        secondary_card=secondary_card,
-        has_overlaps=has_overlaps,
-        next_match=next_match,
-    )
-
-    # Real-time trip overlap insight card (user + friend at same mountain today)
-    try:
-        trip_overlap_today_card = build_trip_overlap_today_card(user, today, friend_ids)
-    except Exception:
-        db.session.rollback()
-        trip_overlap_today_card = None
-
-    # Friend-at-mountain insight card
-    try:
-        friend_at_mountain_card = build_friend_at_mountain_card(user, today, friend_ids)
-    except Exception:
-        db.session.rollback()
-        friend_at_mountain_card = None
-
-    # --- Coordination feed (Home opportunities stream) ---
-    # Note: build_destination_feed calls get_open_date_matches internally.
-    # A second call is accepted here to keep the function signature stable.
-    dest_feed = []
-    try:
-        from services.ideas_engine import build_destination_feed as _build_home_feed
-        if all_friends:
-            _raw_feed = _build_home_feed(user, all_friends)
-            _dismissed_opp_keys = set()
-            try:
-                _dismissed_cards = DismissedInsightCard.query.filter_by(
-                    user_id=user.id,
-                    card_type='opportunity',
-                ).all()
-                _dismissed_opp_keys = {d.card_key for d in _dismissed_cards}
-            except Exception:
-                db.session.rollback()
-            for _row in _raw_feed:
-                _ck = f"{_row['idea_type']}:{_row['resort_id']}"
-                if _ck not in _dismissed_opp_keys:
-                    _row['_card_key'] = _ck
-                    dest_feed.append(_row)
-            dest_feed = dest_feed[:5]
-    except Exception:
-        db.session.rollback()
-        dest_feed = []
-
     ideas_count = len(dest_feed)
     requests_count = banner_invite_count + (1 if secondary_card else 0)
     _today_str = today.isoformat()
@@ -6435,17 +6351,9 @@ def home():
         'home.html',
         user=user,
         next_trip=next_trip,
-        next_trip_countdown=next_trip_countdown,
-        banner_invite=banner_invite,
-        banner_invite_count=banner_invite_count,
         trip_invites=trip_invites,
         secondary_card=secondary_card,
         happening_signals=happening_signals,
-        next_match=next_match,
-        has_overlaps=has_overlaps,
-        home_modules=home_modules,
-        trip_overlap_today_card=trip_overlap_today_card,
-        friend_at_mountain_card=friend_at_mountain_card,
         dest_feed=dest_feed,
         ideas_count=ideas_count,
         requests_count=requests_count,

@@ -736,6 +736,23 @@ def build_destination_feed(user, all_friends):
     _OVERLAP     = 2
     _WISHLIST    = 3
 
+    # Resorts the user already has upcoming trips booked — exclude from feed
+    _booked_resort_ids = set()
+    try:
+        _user_booked = (
+            SkiTrip.query
+            .filter(
+                SkiTrip.user_id == user.id,
+                SkiTrip.resort_id.isnot(None),
+                SkiTrip.end_date >= today,
+            )
+            .with_entities(SkiTrip.resort_id)
+            .all()
+        )
+        _booked_resort_ids = {r.resort_id for r in _user_booked}
+    except Exception:
+        pass
+
     by_resort = {}  # resort_id -> best candidate dict
 
     def _prefer(new, old):
@@ -754,6 +771,8 @@ def build_destination_feed(user, all_friends):
 
     def _try_add(candidate):
         rid = candidate["resort_id"]
+        if rid in _booked_resort_ids:
+            return
         if rid not in by_resort or _prefer(candidate, by_resort[rid]):
             by_resort[rid] = candidate
 
