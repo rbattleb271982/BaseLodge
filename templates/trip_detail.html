@@ -237,16 +237,27 @@
             inset: 0;
             background: rgba(0,0,0,0.35);
             z-index: 9100;
-            display: none;
+            display: flex;
             align-items: flex-end;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.22s ease;
         }
-        .td-date-sheet-overlay.active { display: flex; }
+        .td-date-sheet-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
         .td-date-sheet {
             background: #FFFFFF;
             border-radius: 20px 20px 0 0;
             width: 100%;
             box-shadow: 0 -4px 32px rgba(0,0,0,0.12);
             padding: 20px 20px calc(28px + env(safe-area-inset-bottom, 0px));
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .td-date-sheet-overlay.active .td-date-sheet {
+            transform: translateY(0);
         }
         .td-date-sheet-handle {
             width: 36px; height: 4px;
@@ -1142,7 +1153,7 @@
             </div>
             <p class="td-date-sheet-error" id="td-date-error"></p>
             <button type="button" class="td-date-sheet-save" onclick="saveTripDates()">Save</button>
-            <span class="td-date-sheet-cancel" onclick="closeDateSheet()">Cancel</span>
+            <button type="button" class="td-date-sheet-cancel" onclick="closeDateSheet()">Cancel</button>
         </div>
     </div>
     {% endif %}
@@ -1320,9 +1331,11 @@
                 errEl.textContent = '';
                 errEl.classList.remove('visible');
                 document.getElementById('td-date-sheet').classList.add('active');
+                document.body.style.overflow = 'hidden';
             };
             window.closeDateSheet = function() {
                 document.getElementById('td-date-sheet').classList.remove('active');
+                document.body.style.overflow = '';
             };
             window.saveTripDates = async function() {
                 const startVal = document.getElementById('td-start-date').value;
