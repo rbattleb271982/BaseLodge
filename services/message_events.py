@@ -9,6 +9,7 @@ should_retry          — retry eligibility check for a failed log row
 from datetime import datetime, timedelta
 
 from flask import current_app
+from sqlalchemy import or_
 
 from models import db, MessageEventLog
 from services.messaging_constants import (
@@ -108,6 +109,10 @@ def is_duplicate_event(
         MessageEventLog.recipient_user_id == recipient_user_id,
         MessageEventLog.created_at >= cutoff,
         MessageEventLog.delivery_status != DeliveryStatus.FAILED,
+        or_(
+            MessageEventLog.suppression_reason.is_(None),
+            MessageEventLog.suppression_reason != SuppressionReason.NOT_IMPLEMENTED,
+        ),
     )
 
     if object_type is None:

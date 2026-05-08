@@ -1,0 +1,113 @@
+Implement Notification Delivery Phase v2 exactly as specified below.
+
+Read the existing implementation first before changing anything.
+
+Scope:
+Only implement real OneSignal push delivery for:
+1. trip.invite.created
+2. friend.request.accepted
+
+Do NOT implement any other notification delivery.
+
+Critical requirements:
+- Use MessageEventLog as the canonical audit ledger
+- Preserve all existing Activity behavior
+- Keep APNs/FCM direct sends admin/test-only
+- No Celery
+- No queues
+- No dispatcher architecture
+- No schema changes unless absolutely unavoidable
+- Use checkpoints sparingly
+
+Before writing code:
+1. Inspect send_onesignal_push() carefully
+2. Confirm its exact return payload shape
+3. Confirm how opt-out and skipped behavior currently works
+4. Confirm whether push_notifications_enabled gating already exists there
+5. Confirm whether NOT_IMPLEMENTED rows currently affect is_duplicate_event()
+
+Required architectural adjustment:
+DO NOT rely on manually deleting NOT_IMPLEMENTED rows.
+
+Instead:
+Update dedupe behavior so SKIPPED + NOT_IMPLEMENTED rows do NOT block future real sends.
+
+A NOT_IMPLEMENTED audit row from v1 must never suppress a real v2 push.
+
+Implementation rules:
+- Keep implementation entirely inside app.py unless absolutely necessary
+- Add exactly one helper function:
+    _notify_push()
+- Place it directly below send_onesignal_push()
+- _notify_push() must:
+    - dedupe
+    - send OneSignal push
+    - map outcomes
+    - create MessageEventLog rows
+    - never raise exceptions
+- Push failures must never break the route flow
+- All existing db.session.commit() positions remain unchanged
+
+Events that remain log-only:
+- friend.request.created
+- trip.invite.accepted
+- trip.invite.declined
+- overlap.detected
+- wishlist.match.detected
+- friend.trip.created
+- friend.trip.updated
+- digest.weekly.generated
+- broadcast events
+
+Required payload structure:
+For trip invites:
+
+data={
+    "event": "trip.invite.created",
+    "trip_id": trip.id,
+    "deep_link": f"/trips/{trip.id}",
+    "screen": "trip_detail",
+}
+
+For friend accepted:
+
+data={
+    "event": "friend.request.accepted",
+    "user_id": current_user.id,
+    "deep_link": f"/friends/{current_user.id}",
+    "screen": "friend_profile",
+}
+
+Required outcome mapping:
+- success -> SENT
+- opt-out/user-disabled -> SKIPPED + USER_OPTED_OUT
+- duplicate -> SKIPPED + DUPLICATE_EVENT
+- failure -> FAILED
+
+Required call site replacements:
+Replace the existing v1 log-only blocks in:
+- accept_invitation()
+- send_trip_invites()
+- create_trip()
+- add_trip()
+
+Do not add parallel logging.
+Replace the existing blocks in-place.
+
+After implementation:
+1. Verify app imports successfully
+2. Verify no circular imports
+3. Verify no duplicate MessageEventLog writes
+4. Verify admin test push routes still work
+5. Verify Activity feed behavior unchanged
+6. Verify all routes still return success responses when push fails
+7. Verify no syntax errors
+8. Verify no schema migrations created
+
+At the end provide:
+- Exact files changed
+- Exact functions changed
+- Any assumptions made
+- Any follow-up recommendations
+
+Use checkpoints sparingly.

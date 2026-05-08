@@ -3381,26 +3381,24 @@ def create_trip():
     # ── MessageEventLog: trip invite created via JSON API ──
     if friend_id:
         try:
-            create_message_event(
+            _notify_push(
                 event_name=EventName.TRIP_INVITE_CREATED,
                 category=Category.TRIP,
                 actor_user_id=current_user.id,
                 recipient_user_id=int(friend_id),
                 object_type="trip",
                 object_id=trip.id,
-                channel=None,
-                payload_json={
+                title=f"{current_user.first_name or current_user.username} invited you to a trip",
+                body=f"You've been invited to {mountain or 'a trip'}.",
+                data={
+                    "event": "trip.invite.created",
                     "trip_id": trip.id,
-                    "resort": mountain or "",
-                    "source_route": "create_trip",
+                    "deep_link": f"/trips/{trip.id}",
+                    "screen": "trip_detail",
                 },
-                message_title=f"{current_user.first_name or current_user.username} invited you to a trip",
-                message_body=f"You've been invited to {mountain or 'a trip'}.",
-                delivery_status=DeliveryStatus.SKIPPED,
-                suppression_reason=SuppressionReason.NOT_IMPLEMENTED,
             )
-        except Exception as _mel_err:
-            current_app.logger.warning("[MessageEvent] trip_invite_created (create_trip) log failed: %s", _mel_err)
+        except Exception as _notif_err:
+            current_app.logger.warning("[notify] trip_invite_created (create_trip) failed: %s", _notif_err)
 
     # Emit trip_created event
     emit_event('trip_created', user, {
@@ -3799,27 +3797,26 @@ def accept_invitation(invitation_id):
     if sender:
         session['new_connection_name'] = sender.first_name or sender.username or 'your new friend'
 
-    # ── MessageEventLog: friend request accepted (log-only; send deferred) ──
+    # ── v2: push + audit log — friend request accepted ──
     try:
-        create_message_event(
+        _notify_push(
             event_name=EventName.FRIEND_REQUEST_ACCEPTED,
             category=Category.FRIEND,
             actor_user_id=current_user.id,
             recipient_user_id=invitation.sender_id,
             object_type="user",
             object_id=current_user.id,
-            channel=None,
-            payload_json={
-                "invitation_id": invitation_id,
-                "source_route": "accept_invitation",
+            title=f"{current_user.first_name or current_user.username} accepted your request",
+            body="You're now connected on BaseLodge.",
+            data={
+                "event": "friend.request.accepted",
+                "user_id": current_user.id,
+                "deep_link": f"/friends/{current_user.id}",
+                "screen": "friend_profile",
             },
-            message_title=f"{current_user.first_name or current_user.username} accepted your request",
-            message_body="You're now connected on BaseLodge.",
-            delivery_status=DeliveryStatus.SKIPPED,
-            suppression_reason=SuppressionReason.NOT_IMPLEMENTED,
         )
-    except Exception as _mel_err:
-        current_app.logger.warning("[MessageEvent] friend_request_accepted log failed: %s", _mel_err)
+    except Exception as _notif_err:
+        current_app.logger.warning("[notify] friend_request_accepted failed: %s", _notif_err)
 
     return jsonify({"success": True, "message": "Friend added"}), 200
 
@@ -4631,6 +4628,97 @@ def send_onesignal_push(user_ids, title, body, data=None):
     except Exception as _exc:
         current_app.logger.exception("[OneSignal] request failed: %s", _exc)
         return {"success": False, "notification_id": None, "error": str(_exc)}
+
+
+def _notify_push(
+    event_name,
+    category,
+    actor_user_id,
+    recipient_user_id,
+    object_type,
+    object_id,
+    title,
+    body,
+    data=None,
+):
+    """Send a push notification via OneSignal and write a canonical audit row.
+
+    Flow: dedupe check → OneSignal send → map outcome → create_message_event.
+
+    Never raises. All exceptions are caught internally so that push failures
+    can never interrupt the caller's HTTP response or transaction.
+
+    Opt-out gating is delegated to send_onesignal_push() — no second DB query.
+    v1 NOT_IMPLEMENTED rows are excluded from dedupe by is_duplicate_event(),
+    so existing v1 log rows never suppress a real v2 send.
+    """
+    # 1. Dedupe guard — returns False for any NOT_IMPLEMENTED row (v1 log-only)
+    if is_duplicate_event(event_name, recipient_user_id, object_type, object_id):
+        try:
+            create_message_event(
+                event_name=event_name,
+                category=category,
+                actor_user_id=actor_user_id,
+                recipient_user_id=recipient_user_id,
+                object_type=object_type,
+                object_id=object_id,
+                channel=Channel.PUSH,
+                provider=Provider.ONESIGNAL,
+                payload_json=data or {},
+                message_title=title,
+                message_body=body,
+                delivery_status=DeliveryStatus.SKIPPED,
+                suppression_reason=SuppressionReason.DUPLICATE_EVENT,
+            )
+        except Exception as _e:
+            current_app.logger.warning("[_notify_push] dedupe log failed: %s", _e)
+        return
+
+    # 2. Send — opt-out filter (push_notifications_enabled) lives inside
+    result = send_onesignal_push(
+        user_ids=[recipient_user_id],
+        title=title,
+        body=body,
+        data=data,
+    )
+
+    # 3. Map result → delivery outcome
+    _skipped = result.get("skipped", False)
+    _success = bool(result.get("success")) and not _skipped
+
+    if _success:
+        _status      = DeliveryStatus.SENT
+        _suppression = None
+        _error       = None
+    elif _skipped:
+        _status      = DeliveryStatus.SKIPPED
+        _suppression = SuppressionReason.USER_OPTED_OUT
+        _error       = None
+    else:
+        _status      = DeliveryStatus.FAILED
+        _suppression = None
+        _error       = result.get("error") or "unknown_onesignal_error"
+
+    # 4. Audit log — canonical record of actual delivery outcome
+    try:
+        create_message_event(
+            event_name=event_name,
+            category=category,
+            actor_user_id=actor_user_id,
+            recipient_user_id=recipient_user_id,
+            object_type=object_type,
+            object_id=object_id,
+            channel=Channel.PUSH,
+            provider=Provider.ONESIGNAL,
+            payload_json=data or {},
+            message_title=title,
+            message_body=body,
+            delivery_status=_status,
+            suppression_reason=_suppression,
+            error_message=_error,
+        )
+    except Exception as _e:
+        current_app.logger.warning("[_notify_push] audit log failed: %s", _e)
 
 
 def send_onesignal_custom_event(user_ids, event_name, properties=None):
@@ -8292,30 +8380,28 @@ def add_trip():
             emit_trip_created_activities(trip, current_user.id)
             db.session.commit()
 
-            # ── MessageEventLog: trip invite created via add_trip form ──
+            # ── v2: push + audit log — trip invite (add_trip form) ──
             if friend_id:
                 try:
-                    create_message_event(
+                    _notify_push(
                         event_name=EventName.TRIP_INVITE_CREATED,
                         category=Category.TRIP,
                         actor_user_id=current_user.id,
                         recipient_user_id=int(friend_id),
                         object_type="trip",
                         object_id=trip.id,
-                        channel=None,
-                        payload_json={
+                        title=f"{current_user.first_name or current_user.username} invited you to a trip",
+                        body=f"You've been invited to {resort.name if resort else 'a trip'}.",
+                        data={
+                            "event": "trip.invite.created",
                             "trip_id": trip.id,
-                            "resort": resort.name if resort else "",
-                            "source_route": "add_trip_form",
+                            "deep_link": f"/trips/{trip.id}",
+                            "screen": "trip_detail",
                         },
-                        message_title=f"{current_user.first_name or current_user.username} invited you to a trip",
-                        message_body=f"You've been invited to {resort.name if resort else 'a trip'}.",
-                        delivery_status=DeliveryStatus.SKIPPED,
-                        suppression_reason=SuppressionReason.NOT_IMPLEMENTED,
                     )
-                except Exception as _mel_err:
+                except Exception as _notif_err:
                     current_app.logger.warning(
-                        "[MessageEvent] trip_invite_created (add_trip_form) log failed: %s", _mel_err
+                        "[notify] trip_invite_created (add_trip_form) failed: %s", _notif_err
                     )
 
             flash("Trip added.", "trip")
@@ -8917,31 +9003,29 @@ def send_trip_invites(trip_id):
             trip.is_group_trip = True
         db.session.commit()
 
-        # ── MessageEventLog: one row per newly invited friend (no re-query) ──
+        # ── v2: push + audit log — one per newly invited friend (no re-query) ──
         for _invited_uid in newly_invited_user_ids:
             try:
-                create_message_event(
+                _notify_push(
                     event_name=EventName.TRIP_INVITE_CREATED,
                     category=Category.TRIP,
                     actor_user_id=current_user.id,
                     recipient_user_id=_invited_uid,
                     object_type="trip",
                     object_id=trip_id,
-                    channel=None,
-                    payload_json={
+                    title=f"{current_user.first_name or current_user.username} invited you to a trip",
+                    body=f"You've been invited to {trip.mountain or 'a trip'}.",
+                    data={
+                        "event": "trip.invite.created",
                         "trip_id": trip_id,
-                        "resort": trip.mountain or "",
-                        "source_route": "trip_detail",
+                        "deep_link": f"/trips/{trip_id}",
+                        "screen": "trip_detail",
                     },
-                    message_title=f"{current_user.first_name or current_user.username} invited you to a trip",
-                    message_body=f"You've been invited to {trip.mountain or 'a trip'}.",
-                    delivery_status=DeliveryStatus.SKIPPED,
-                    suppression_reason=SuppressionReason.NOT_IMPLEMENTED,
                 )
-            except Exception as _mel_err:
+            except Exception as _notif_err:
                 current_app.logger.warning(
-                    "[MessageEvent] trip_invite_created (trip_detail) log failed user=%d: %s",
-                    _invited_uid, _mel_err,
+                    "[notify] trip_invite_created (trip_detail) failed user=%d: %s",
+                    _invited_uid, _notif_err,
                 )
 
         flash(f"Invite{'s' if invites_sent > 1 else ''} sent to {invites_sent} friend{'s' if invites_sent > 1 else ''}.", "success")
