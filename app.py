@@ -4674,13 +4674,19 @@ def _notify_push(
             current_app.logger.warning("[_notify_push] dedupe log failed: %s", _e)
         return
 
-    # 2. Send — opt-out filter (push_notifications_enabled) lives inside
-    result = send_onesignal_push(
-        user_ids=[recipient_user_id],
-        title=title,
-        body=body,
-        data=data,
-    )
+    # 2. Send — opt-out filter (push_notifications_enabled) lives inside.
+    #    send_onesignal_push has its own except-all, but wrap defensively so
+    #    _notify_push never raises under any circumstances.
+    try:
+        result = send_onesignal_push(
+            user_ids=[recipient_user_id],
+            title=title,
+            body=body,
+            data=data,
+        )
+    except Exception as _send_err:
+        current_app.logger.warning("[_notify_push] send_onesignal_push raised: %s", _send_err)
+        result = {"success": False, "notification_id": None, "error": f"send_raised: {_send_err}"}
 
     # 3. Map result → delivery outcome
     _skipped = result.get("skipped", False)
