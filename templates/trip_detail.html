@@ -61,6 +61,7 @@
             line-height: 1.15;
             margin-bottom: 4px;
         }
+        .td-header-mountain-edit { display: none; }
         .td-header-location {
             font-size: 14px;
             color: #6B665A;
@@ -97,20 +98,20 @@
             align-items: center;
             gap: 0;
             margin-top: 14px;
-            border-top: 1px solid #E5DFD0;
-            border-bottom: 1px solid #E5DFD0;
+            border-top: 1px solid rgba(229,223,208,0.7);
+            border-bottom: 1px solid rgba(229,223,208,0.7);
         }
         .td-meta-badge {
             display: flex;
             align-items: center;
             gap: 7px;
-            padding: 12px 0;
+            padding: 10px 0;
             font-size: 13px;
             color: #4E473F;
             flex: 1;
         }
         .td-meta-badge + .td-meta-badge {
-            border-left: 1px solid #E5DFD0;
+            border-left: 1px solid rgba(229,223,208,0.7);
             padding-left: 16px;
         }
         .td-meta-badge svg { flex-shrink: 0; color: #5C1219; }
@@ -120,7 +121,7 @@
             font-size: 18px;
             font-weight: 700;
             color: #1A1A1A;
-            margin: 20px 0 12px;
+            margin: 16px 0 10px;
         }
         .td-setup-card {
             background: #FFFFFF;
@@ -132,7 +133,7 @@
             display: flex;
             align-items: center;
             gap: 14px;
-            padding: 14px 16px;
+            padding: 12px 16px;
             border-bottom: 1px solid #E5DFD0;
             text-decoration: none;
             color: inherit;
@@ -142,12 +143,13 @@
         .td-pass-label { font-size: 14px; font-weight: 500; color: #1A1A1A; flex: 1; }
         .td-pass-value {
             font-size: 13px;
-            color: #5C1219;
+            color: #7A5C60;
             font-weight: 500;
             display: flex;
             align-items: center;
             gap: 4px;
         }
+        .td-pass-value--soft { color: #8A857A; }
         .td-setup-icon {
             width: 32px;
             height: 32px;
@@ -167,12 +169,6 @@
         }
 
         /* ── What's next section ── */
-        .td-whatsnext-heading {
-            font-size: 18px;
-            font-weight: 700;
-            color: #1A1A1A;
-            margin: 28px 0 12px;
-        }
         .td-swg-card {
             background: #FFFFFF;
             border: 1px solid #E5DFD0;
@@ -183,7 +179,7 @@
             display: flex;
             align-items: center;
             gap: 14px;
-            padding: 16px;
+            padding: 14px 16px;
             text-decoration: none;
             color: inherit;
             -webkit-tap-highlight-color: transparent;
@@ -952,7 +948,7 @@
             </a>
             <h1 class="trip-title">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</h1>
             {% if is_owner %}
-            <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="header-edit-link">Edit</a>
+            <div class="nav-spacer"></div>
             {% else %}
             <div class="nav-spacer"></div>
             {% endif %}
@@ -973,7 +969,6 @@
             {% if is_owner %}
             <button type="button" class="td-header-mountain td-header-mountain-tap" id="td-mountain-btn" onclick="openResortSheet()" aria-label="Edit resort">
                 <span id="td-mountain-name">{{ mountain_name }}</span>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#C4BDB6;flex-shrink:0;align-self:center;margin-bottom:1px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
             </button>
             {% elif trip.resort and trip.resort.slug %}
             <a href="{{ url_for('mountain_detail', slug=trip.resort.slug) }}" class="td-header-mountain td-header-mountain-link">{{ mountain_name }}<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#C4BDB6;flex-shrink:0;align-self:center;margin-bottom:1px;"><polyline points="9 18 15 12 9 6"></polyline></svg></a>
@@ -982,9 +977,7 @@
             {% endif %}
             {% if is_owner %}
             <button type="button" class="td-date-line td-date-line--tap" onclick="openDateSheet()" aria-label="Edit trip dates">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:#8A857A;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                 <span class="td-date-text" id="td-dates-text">{% if trip.start_date and trip.end_date %}{% set _nights = (trip.end_date - trip.start_date).days %}{{ format_trip_dates(trip) }}, {{ trip.end_date.year }}{% if _nights > 0 %} · {{ _nights }} night{{ 's' if _nights != 1 else '' }}{% else %} · Day trip{% endif %}{% else %}{{ format_trip_dates(trip) }}{% endif %}</span>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;color:#C4BDB6;flex-shrink:0;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
             </button>
             {% else %}
             <div class="td-date-line">
@@ -1024,13 +1017,12 @@
         {% set pass_display = trip.pass_type|pass_display if trip.pass_type else '' %}
         {% if is_owner %}
         <button type="button" class="td-pass-row" onclick="openPassSheet()" aria-label="Edit pass type" style="background:none;border:none;width:100%;text-align:left;cursor:pointer;">
-            <span class="td-setup-icon">
+            <span class="td-setup-icon" aria-hidden="true">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 17 12 3 21 17"></polygon><line x1="3" y1="17" x2="21" y2="17"></line></svg>
             </span>
             <span class="td-pass-label">Pass</span>
-            <span class="td-pass-value">
+            <span class="td-pass-value {% if not pass_display %}td-pass-value--soft{% endif %}">
                 <span id="td-pass-display-text">{{ pass_display or 'No pass' }}</span>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#C4BDB6;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
             </span>
         </button>
         {% else %}
@@ -1213,15 +1205,14 @@
 
         <!-- What's next -->
         {% if trip.resort and trip.resort.slug %}
-        <h2 class="td-whatsnext-heading">What's next?</h2>
         <div class="td-swg-card">
             <a href="{{ url_for('mountain_detail', slug=trip.resort.slug) }}" class="td-swg-row">
                 <span class="td-swg-icon">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 </span>
                 <div class="td-swg-text">
-                    <p class="td-swg-title">See who's going</p>
-                    <p class="td-swg-sub">See friends heading to {{ mountain_name }}.</p>
+                    <p class="td-swg-title">Friends heading to {{ mountain_name }}</p>
+                    <p class="td-swg-sub">See who's going.</p>
                     {% if friends_wishlist_count > 0 %}<p class="td-swg-wishlist">{{ friends_wishlist_count }} on wishlist</p>{% endif %}
                 </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
