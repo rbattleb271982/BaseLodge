@@ -6356,6 +6356,16 @@ def home():
         except Exception:
             db.session.rollback()
 
+    print(
+        f"[HOME_DIAGNOSTICS] happening_friend_ids_count={len(friend_ids)}"
+        f" happening_candidate_trips_before_dedupe={_diag_hap_raw_trips}"
+        f" happening_group_count={_diag_hap_candidates}"
+        f" happening_suppressed_by_opportunities={_diag_hap_opp_suppressed}"
+        f" happening_candidate_trips_after_dedupe={max(0, _diag_hap_candidates - _diag_hap_opp_suppressed)}"
+        f" happening_after_cap={len(happening_signals)}"
+        f" happening_rendered_count={len(happening_signals)}"
+    )
+
     ideas_count = len(dest_feed)
     requests_count = banner_invite_count + (1 if secondary_card else 0)
     _today_str = today.isoformat()
