@@ -4592,6 +4592,8 @@ def send_onesignal_push(user_ids, title, body, data=None):
         "target_channel":  "push",
         "headings":        {"en": title},
         "contents":        {"en": body},
+        "ios_badgeType":   "SetTo",
+        "ios_badgeCount":  1,
     }
     if data:
         payload["data"] = data
