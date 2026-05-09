@@ -3391,27 +3391,26 @@ def create_trip():
     
     db.session.commit()
 
-    # ── MessageEventLog: trip invite created via JSON API ──
+    # ── B5: trip.invite.created (create_trip JSON API) — centralized dispatch ──
     if friend_id:
-        try:
-            _notify_push(
-                event_name=EventName.TRIP_INVITE_CREATED,
-                category=Category.TRIP,
-                actor_user_id=current_user.id,
-                recipient_user_id=int(friend_id),
-                object_type="trip",
-                object_id=trip.id,
-                title=f"{current_user.first_name or current_user.username} invited you to a trip",
-                body=f"You've been invited to {mountain or 'a trip'}.",
-                data={
-                    "event": "trip.invite.created",
-                    "trip_id": trip.id,
+        emit_messaging_event(
+            event_name=EventName.TRIP_INVITE_CREATED,
+            actor_user_id=current_user.id,
+            recipient_user_id=int(friend_id),
+            entity_type="trip",
+            entity_id=trip.id,
+            metadata={
+                "title":     f"{current_user.first_name or current_user.username} invited you to a trip",
+                "body":      f"You've been invited to {mountain or 'a trip'}.",
+                "push_data": {
+                    "event":     "trip.invite.created",
+                    "trip_id":   trip.id,
                     "deep_link": f"/trips/{trip.id}",
-                    "screen": "trip_detail",
+                    "screen":    "trip_detail",
                 },
-            )
-        except Exception as _notif_err:
-            current_app.logger.warning("[notify] trip_invite_created (create_trip) failed: %s", _notif_err)
+            },
+            source_route="create_trip",
+        )
 
     # Emit trip_created event
     emit_event('trip_created', user, {
@@ -8413,29 +8412,26 @@ def add_trip():
             emit_trip_created_activities(trip, current_user.id)
             db.session.commit()
 
-            # ── v2: push + audit log — trip invite (add_trip form) ──
+            # ── B5: trip.invite.created (add_trip form) — centralized dispatch ──
             if friend_id:
-                try:
-                    _notify_push(
-                        event_name=EventName.TRIP_INVITE_CREATED,
-                        category=Category.TRIP,
-                        actor_user_id=current_user.id,
-                        recipient_user_id=int(friend_id),
-                        object_type="trip",
-                        object_id=trip.id,
-                        title=f"{current_user.first_name or current_user.username} invited you to a trip",
-                        body=f"You've been invited to {resort.name if resort else 'a trip'}.",
-                        data={
-                            "event": "trip.invite.created",
-                            "trip_id": trip.id,
+                emit_messaging_event(
+                    event_name=EventName.TRIP_INVITE_CREATED,
+                    actor_user_id=current_user.id,
+                    recipient_user_id=int(friend_id),
+                    entity_type="trip",
+                    entity_id=trip.id,
+                    metadata={
+                        "title":     f"{current_user.first_name or current_user.username} invited you to a trip",
+                        "body":      f"You've been invited to {resort.name if resort else 'a trip'}.",
+                        "push_data": {
+                            "event":     "trip.invite.created",
+                            "trip_id":   trip.id,
                             "deep_link": f"/trips/{trip.id}",
-                            "screen": "trip_detail",
+                            "screen":    "trip_detail",
                         },
-                    )
-                except Exception as _notif_err:
-                    current_app.logger.warning(
-                        "[notify] trip_invite_created (add_trip_form) failed: %s", _notif_err
-                    )
+                    },
+                    source_route="add_trip",
+                )
 
             flash("Trip added.", "trip")
             return redirect(url_for("trip_detail", trip_id=trip.id))
@@ -9040,30 +9036,26 @@ def send_trip_invites(trip_id):
             trip.is_group_trip = True
         db.session.commit()
 
-        # ── v2: push + audit log — one per newly invited friend (no re-query) ──
+        # ── B5: trip.invite.created (trip_detail invite loop) — one emit per recipient ──
         for _invited_uid in newly_invited_user_ids:
-            try:
-                _notify_push(
-                    event_name=EventName.TRIP_INVITE_CREATED,
-                    category=Category.TRIP,
-                    actor_user_id=current_user.id,
-                    recipient_user_id=_invited_uid,
-                    object_type="trip",
-                    object_id=trip_id,
-                    title=f"{current_user.first_name or current_user.username} invited you to a trip",
-                    body=f"You've been invited to {trip.mountain or 'a trip'}.",
-                    data={
-                        "event": "trip.invite.created",
-                        "trip_id": trip_id,
+            emit_messaging_event(
+                event_name=EventName.TRIP_INVITE_CREATED,
+                actor_user_id=current_user.id,
+                recipient_user_id=_invited_uid,
+                entity_type="trip",
+                entity_id=trip_id,
+                metadata={
+                    "title":     f"{current_user.first_name or current_user.username} invited you to a trip",
+                    "body":      f"You've been invited to {trip.mountain or 'a trip'}.",
+                    "push_data": {
+                        "event":     "trip.invite.created",
+                        "trip_id":   trip_id,
                         "deep_link": f"/trips/{trip_id}",
-                        "screen": "trip_detail",
+                        "screen":    "trip_detail",
                     },
-                )
-            except Exception as _notif_err:
-                current_app.logger.warning(
-                    "[notify] trip_invite_created (trip_detail) failed user=%d: %s",
-                    _invited_uid, _notif_err,
-                )
+                },
+                source_route="trip_detail_invite",
+            )
 
         flash(f"Invite{'s' if invites_sent > 1 else ''} sent to {invites_sent} friend{'s' if invites_sent > 1 else ''}.", "success")
     else:

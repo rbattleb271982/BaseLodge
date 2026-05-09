@@ -1,0 +1,162 @@
+Phase B5 — Migrate ALL remaining trip.invite.created paths
+
+Use checkpoints sparingly.
+
+IMPORTANT:
+This phase removes the FINAL remaining product-route _notify_push() usages.
+
+There are THREE separate call sites.
+All must migrate in this phase.
+
+DO NOT change MessageEventLog schema.
+DO NOT change provider behavior.
+DO NOT change push payloads.
+DO NOT change dedupe behavior.
+DO NOT change admin diagnostic routes.
+
+────────────────────────────────────────
+STEP 1 — FIND ALL REMAINING _notify_push() SITES
+────────────────────────────────────────
+
+Expected remaining locations:
+
+1.
+create_trip — JSON API flow
+
+2.
+add_trip — form flow
+
+3.
+trip_detail invite loop
+
+All three are:
+EventName.TRIP_INVITE_CREATED
+
+────────────────────────────────────────
+STEP 2 — MIGRATE ALL THREE
+────────────────────────────────────────
+
+Replace EACH _notify_push() path with:
+emit_messaging_event()
+
+IMPORTANT:
+Remove the old _notify_push() calls completely in the SAME edits.
+
+Never allow:
+- old path
+AND
+- new path
+to coexist simultaneously.
+
+For ALL THREE use:
+
+- event_name=EventName.TRIP_INVITE_CREATED
+- actor_user_id=current_user.id
+- recipient_user_id=<existing recipient>
+- entity_type="trip"
+- entity_id=trip.id (or equivalent existing trip identifier)
+- metadata preserving the EXISTING:
+  - title
+  - body
+  - push_data
+- source_route matching the route context
+
+Examples:
+- source_route="create_trip"
+- source_route="add_trip"
+- source_route="trip_detail_invite"
+
+Preserve:
+- exact push copy
+- exact payload keys
+- exact deep links
+- exact invitation semantics
+- exact loop behavior for multi-invite flows
+
+DO NOT introduce templates yet.
+
+────────────────────────────────────────
+STEP 3 — VALIDATION
+────────────────────────────────────────
+
+Validate ALL of the following:
+
+1.
+Flask starts cleanly
+
+2.
+No circular import issues
+
+3.
+All three invite flows still function correctly
+
+4.
+All three flows still send push notifications correctly
+
+5.
+Exactly ONE MEL row created per emitted invite event
+
+6.
+No duplicate MEL rows
+
+7.
+Dedupe still works correctly
+
+8.
+Multi-invite loop behavior still works correctly
+
+9.
+Structured Phase B logging still appears
+
+10.
+B1/B2/B3/B4 still function correctly
+
+11.
+Admin diagnostic routes still untouched
+
+12.
+grep for "_notify_push(" in product routes returns ZERO remaining product call sites
+
+IMPORTANT:
+Admin diagnostic/testing utilities may still legitimately reference lower-level notification paths.
+Only product-route usage should be eliminated.
+
+────────────────────────────────────────
+STEP 4 — FINAL PHASE B AUDIT
+────────────────────────────────────────
+
+After validation, provide:
+
+- total remaining _notify_push() call sites
+- whether any remaining sites are intentional admin/debug-only paths
+- whether all product communication events now flow through emit_messaging_event()
+
+────────────────────────────────────────
+IMPORTANT
+────────────────────────────────────────
+
+This phase should complete:
+- all friend event migrations
+- all trip invite migrations
+- all product-route notification orchestration migration
+
+After B5:
+emit_messaging_event() should be the sole orchestration entry point for product communication events.
+
+STOP after validation.
+
+DO NOT begin Phase C.
+
+────────────────────────────────────────
+AFTER COMPLETION
+────────────────────────────────────────
+
+Return:
+
+1. Exact files changed
+2. Exact routes migrated
+3. Validation results
+4. Whether exactly one MEL row is produced everywhere
+5. Whether all product routes now use emit_messaging_event()
+6. Remaining _notify_push() locations, if any
+7. Any issues encountered
