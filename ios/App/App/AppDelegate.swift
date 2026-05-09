@@ -17,7 +17,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                                 willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         print("🔥 willPresent called")
-        completionHandler([.banner, .sound, .badge])
+        completionHandler([.banner, .sound])
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
