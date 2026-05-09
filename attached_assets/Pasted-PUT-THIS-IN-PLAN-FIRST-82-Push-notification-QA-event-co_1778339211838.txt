@@ -1,0 +1,226 @@
+PUT THIS IN PLAN FIRST
+
+#82 — Push notification QA + event completion pass
+
+What & Why
+
+The push infrastructure (OneSignal, opt-out, badge clear) is verified production-ready. This pass audits and stabilizes all four product-triggered push events end-to-end.
+
+Two of the four events are currently stub-only (log NOT_IMPLEMENTED, send no push):
+
+- friend.request.created — stub only, no push fires
+- trip.invite.accepted — stub only, no push fires
+
+The other two (friend.request.accepted, trip.invite.created) are wired but need copy, dedupe, and opt-out validation.
+
+Goal:
+Make all four events fully production-ready.
+
+This is an audit + stabilization pass only.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DONE LOOKS LIKE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- All four events fire a real OneSignal push to the correct recipient
+- friend.request.created push is wired and fires when a friend invite is sent
+- trip.invite.accepted push is wired and fires when a participant accepts a trip invite
+- All four events log correctly to MessageEventLog with accurate status/suppression fields
+- Opted-out users are suppressed and logged correctly for all four events
+- No duplicate sends for any event within the dedupe window
+- Push copy is sentence-case, concise, no debug language, no truncation
+- iOS and Android send paths are both confirmed correct
+- All regression areas remain unaffected
+- Startup is clean
+- message_event_log_migration still reports “table ready”
+- Final report delivered:
+  - event-flow map
+  - bugs found
+  - fixes applied
+  - remaining risks
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUT OF SCOPE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- inbox / notification center / unread counts
+- preference categories or per-event opt-out settings
+- background retry / queue / worker systems
+- schema redesign
+- new providers
+- redesigning notification architecture
+
+Do NOT refactor:
+- _notify_push()
+- send_onesignal_push()
+- MessageEventLog schema
+- notification provider abstraction
+- APNs token registration
+- Capacitor push registration flow
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. TRACE ALL FOUR EVENT FLOWS
+
+Document the full call chain for each event:
+
+originating route
+→ helper chain
+→ _notify_push() or stub
+→ send_onesignal_push()
+→ MessageEventLog
+
+Confirm:
+- recipient IDs
+- external_id targeting
+- dedupe behavior
+- suppression behavior
+- provider behavior
+
+Events:
+- friend.request.created
+- friend.request.accepted
+- trip.invite.created
+- trip.invite.accepted
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. WIRE friend.request.created
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Replace the NOT_IMPLEMENTED stub in invite_friend() with a real _notify_push() call targeting the invited user.
+
+Requirements:
+- follow existing event copy patterns
+- lightweight payload
+- OneSignal path only
+- correct MessageEventLog provider/status values
+- respect push opt-out behavior
+- respect dedupe protection
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. WIRE trip.invite.accepted
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Replace the NOT_IMPLEMENTED stub in respond_to_trip_invite() with a real _notify_push() call notifying the trip owner that a participant accepted.
+
+Requirements:
+- lightweight payload
+- concise copy
+- correct provider/status logging
+- opt-out respected
+- dedupe respected
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. COPY + PAYLOAD AUDIT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Audit all user-facing push titles/bodies for all four events.
+
+Enforce:
+- sentence case
+- concise titles (target ≤ 40 chars)
+- no duplicate wording
+- no debug/dev language
+- no awkward truncation
+- lightweight payloads
+
+Allowed:
+- small copy-only polish
+
+Do NOT redesign notification strategy.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. OPT-OUT + DEDUPE VALIDATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For all four events:
+
+Confirm:
+- opted-out users are suppressed
+- suppression_reason=USER_OPTED_OUT logs correctly
+- dedupe window works correctly
+- rapid re-triggers do not duplicate-send
+- opted-in users still receive pushes normally
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. REGRESSION AUDIT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Confirm no regressions to:
+
+- send_apns_push() direct path
+- send_fcm_push() Android path
+- badge clearing behavior
+- analytics_head startup logic
+- auth/session flows
+- email systems
+- email opt-in fields
+- MessageEventLog integrity
+
+Verify startup remains clean.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. TEST ALL FOUR FLOWS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Trigger all four events against the running app/database.
+
+Validate:
+- friend request send
+- friend request accept
+- trip invite send
+- trip invite accept
+
+Inspect:
+- MessageEventLog rows
+- provider values
+- delivery_status values
+- suppression_reason values
+- OneSignal API responses where logged
+- duplicate protections
+
+Validate:
+- iOS delivery path
+- Android delivery path
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+8. FINAL REPORT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Provide:
+1. Exact files touched
+2. Full event-flow map
+3. Bugs found
+4. Fixes applied
+5. Remaining risks
+6. Which notifications are now fully production-ready
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RELEVANT FILES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+app.py:3720 — invite_friend() — friend.request.created stub
+app.py:3802 — accept_invitation() — friend.request.accepted
+app.py:3385 — create_trip() — trip.invite.created
+app.py:8395 — add_trip() — trip.invite.created
+app.py:9018 — send_trip_invites() — trip.invite.created
+app.py:9226 — respond_to_trip_invite() — trip.invite.accepted stub
+app.py:4635 — _notify_push()
+app.py:4532 — send_onesignal_push()
+
+services/message_events.py
+services/messaging_constants.py
+models.py
+
+Use checkpoints sparingly.
+Do not create large refactors for small issues.
+Prefer surgical fixes over cleanup passes.
+
+Do not finish until:
+- all four flows are fully tested
+- regressions are checked
+- startup is clean
+- all allowed fixes are applied
+- no unrelated systems were modified

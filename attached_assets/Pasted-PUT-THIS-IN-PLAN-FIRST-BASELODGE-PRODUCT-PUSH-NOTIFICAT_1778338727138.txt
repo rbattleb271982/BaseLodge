@@ -1,0 +1,175 @@
+PUT THIS IN PLAN FIRST
+
+BASELODGE — PRODUCT PUSH NOTIFICATION QA + EVENT COMPLETION PASS
+
+Goal:
+Now that push infrastructure and opt-out behavior are verified production-ready, perform a focused audit + completion pass on all existing product-triggered push notification events.
+
+This is an audit + stabilization pass.
+Do NOT redesign the notification architecture.
+
+Do NOT add:
+- inbox systems
+- notification centers
+- unread counts
+- queues/workers
+- preference categories
+- schema redesigns
+- background retry systems
+
+Use checkpoints sparingly.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OBJECTIVE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Audit and verify the complete product push lifecycle for:
+
+1. friend.request.created
+2. friend.request.accepted
+3. trip.invite.created
+4. trip.invite.accepted
+
+Confirm each event:
+- triggers correctly
+- logs correctly
+- respects push opt-out preferences
+- sends through the intended provider
+- avoids duplicate sends
+- behaves correctly on iOS + Android paths
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. EVENT FLOW TRACE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For each event above, document:
+
+- originating route/function
+- helper chain
+- final send function
+- provider used
+- MessageEventLog behavior
+- dedupe behavior
+- suppression behavior
+
+Map the full flow end-to-end.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. DELIVERY VALIDATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Confirm:
+- events reach OneSignal correctly
+- headings/body content are populated
+- external_id targeting is correct
+- recipient IDs are correct
+- duplicate sends are prevented
+- failures are logged clearly
+- skipped events are logged clearly
+
+Validate both:
+- iOS native push path
+- Android FCM path
+
+Do NOT redesign provider logic.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. OPT-OUT VALIDATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Confirm:
+- opted-out users do NOT receive product pushes
+- suppression is correctly logged
+- opted-in users still receive pushes normally
+- admin diagnostic routes remain isolated and unaffected
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. COPY + PAYLOAD AUDIT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Audit all user-facing push copy.
+
+Ensure:
+- sentence case
+- consistent BaseLodge tone
+- concise titles
+- no awkward truncation
+- no duplicate wording
+- no debug/dev language
+- payloads remain lightweight
+
+Allowed:
+- small copy polish only
+
+Do NOT redesign notification strategy.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. REGRESSION AUDIT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Confirm no regression to:
+- APNs direct testing
+- Android FCM delivery
+- badge clearing behavior
+- analytics_head startup logic
+- auth/session flows
+- email systems
+- MessageEventLog integrity
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. SMALL FIXES ALLOWED ONLY IF NEEDED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Allowed:
+- tiny logging improvements
+- defensive null guards
+- tiny copy polish
+- obvious event wiring fixes
+- small duplicate-send protections
+
+NOT allowed:
+- architecture rewrites
+- new providers
+- new notification systems
+- queues/workers
+- inboxes
+- unread tracking
+- schema redesign
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TESTING REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Test against real flows where possible.
+
+Validate:
+- friend request send
+- friend request accept
+- trip invite send
+- trip invite accept
+
+Verify:
+- MessageEventLog rows
+- suppression behavior
+- OneSignal/API responses
+- duplicate protection
+- push receipt on device where possible
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AFTER QA, PROVIDE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Exact files touched
+2. Full event-flow map
+3. Bugs found
+4. Fixes applied
+5. Remaining risks
+6. Which product notifications are now fully production-ready
+
+Do not finish until:
+- all four event flows are fully traced
+- all regressions are checked
+- all allowed fixes are applied
+- all tests are completed
+- startup is clean
+- no unrelated systems were modified

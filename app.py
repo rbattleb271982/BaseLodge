@@ -3714,27 +3714,27 @@ def invite_friend():
         current_app.logger.exception("Invite failed")
         return jsonify({"success": False, "error": "Invite failed"}), 500
 
-    # ── MessageEventLog: friend request created (log-only; send deferred) ──
+    # ── v2: push + audit log — friend request created ──
     try:
-        create_message_event(
+        _notify_push(
             event_name=EventName.FRIEND_REQUEST_CREATED,
             category=Category.FRIEND,
             actor_user_id=current_user.id,
             recipient_user_id=friend.id,
             object_type="user",
             object_id=friend.id,
-            channel=None,
-            payload_json={
+            title=f"{current_user.first_name or current_user.username} wants to connect",
+            body="You have a new friend request on BaseLodge.",
+            data={
+                "event": "friend.request.created",
+                "user_id": current_user.id,
                 "invitation_id": invitation.id,
-                "source_route": "invite_friend",
+                "deep_link": "/friends",
+                "screen": "friends",
             },
-            message_title=f"{current_user.first_name or current_user.username} wants to connect",
-            message_body="You have a new friend request on BaseLodge.",
-            delivery_status=DeliveryStatus.SKIPPED,
-            suppression_reason=SuppressionReason.NOT_IMPLEMENTED,
         )
-    except Exception as _mel_err:
-        current_app.logger.warning("[MessageEvent] friend_request_created log failed: %s", _mel_err)
+    except Exception as _notif_err:
+        current_app.logger.warning("[notify] friend_request_created failed: %s", _notif_err)
 
     return jsonify({"success": True, "message": "Invitation sent"}), 201
 
@@ -9220,28 +9220,26 @@ def respond_to_trip_invite(trip_id):
         emit_friend_joined_trip_activities(trip, current_user.id)
         db.session.commit()
 
-        # ── MessageEventLog: trip invite accepted (log-only; send deferred) ──
+        # ── v2: push + audit log — trip invite accepted ──
         try:
-            create_message_event(
+            _notify_push(
                 event_name=EventName.TRIP_INVITE_ACCEPTED,
                 category=Category.TRIP,
                 actor_user_id=current_user.id,
                 recipient_user_id=trip.user_id,
                 object_type="trip",
                 object_id=trip_id,
-                channel=None,
-                payload_json={
+                title=f"{current_user.first_name or current_user.username} accepted your invite",
+                body=f"They're joining you for {trip.mountain or 'your trip'}.",
+                data={
+                    "event": "trip.invite.accepted",
                     "trip_id": trip_id,
-                    "resort": trip.mountain or "",
-                    "source_route": "respond_to_trip_invite",
+                    "deep_link": f"/trips/{trip_id}",
+                    "screen": "trip_detail",
                 },
-                message_title=f"{current_user.first_name or current_user.username} accepted your invite",
-                message_body=f"They're joining you for {trip.mountain or 'your trip'}.",
-                delivery_status=DeliveryStatus.SKIPPED,
-                suppression_reason=SuppressionReason.NOT_IMPLEMENTED,
             )
-        except Exception as _mel_err:
-            current_app.logger.warning("[MessageEvent] trip_invite_accepted log failed: %s", _mel_err)
+        except Exception as _notif_err:
+            current_app.logger.warning("[notify] trip_invite_accepted failed: %s", _notif_err)
 
         if request.is_json:
             return jsonify({"success": True, "message": "You're going"})
