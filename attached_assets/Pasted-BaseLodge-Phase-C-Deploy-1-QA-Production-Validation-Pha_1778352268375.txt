@@ -1,0 +1,154 @@
+BaseLodge — Phase C Deploy 1 QA + Production Validation
+
+Phase C Deploy 1 is now implemented.
+
+DO NOT begin Deploy 2 cleanup yet.
+
+Your job is to perform a full QA and validation pass against the new Phase C architecture.
+
+Use checkpoints sparingly.
+
+DO NOT:
+- remove fallback logic
+- delete _notify_push()
+- refactor further
+- optimize code
+- modify registry structure
+- change templates
+- change MEL schema
+- change event behavior
+
+────────────────────────────────────────
+GOAL
+────────────────────────────────────────
+
+Validate that:
+
+- registry rendering ownership works
+- orchestration internalization works
+- payload compatibility is preserved
+- OneSignal sends still work
+- MEL integrity remains intact
+- dedupe still works
+- deep links remain correct
+- no silent rendering drift exists
+
+WITHOUT changing production behavior.
+
+────────────────────────────────────────
+QA SCOPE
+────────────────────────────────────────
+
+Validate ALL 4 IMMEDIATE_PUSH event types:
+
+- friend.request.created
+- friend.request.accepted
+- trip.invite.created
+- trip.invite.accepted
+
+Validate ALL migrated routes.
+
+────────────────────────────────────────
+REQUIRED VALIDATION
+────────────────────────────────────────
+
+1.
+Trigger real events for all 4 event types.
+
+2.
+Inspect resulting MEL rows.
+
+Confirm:
+- rendered title correct
+- rendered body correct
+- payload_json correct
+- screen correct
+- deep_link correct
+- actor_user_id present
+- entity_id present
+- source_route present
+
+3.
+Confirm rendered payloads come from registry templates,
+NOT route-owned metadata.
+
+4.
+Confirm no runtime fallback path is actually being used.
+
+5.
+Confirm _SafeFormatMap never logs missing-key warnings during normal flows.
+
+6.
+Validate dedupe behavior still works:
+- trigger same event twice
+- confirm second MEL row becomes:
+  SKIPPED / DUPLICATE_EVENT
+
+7.
+Validate push opt-out behavior still works.
+
+8.
+Validate send_onesignal_push still succeeds end-to-end.
+
+9.
+Validate no circular import or lazy import behavior remains.
+
+10.
+Validate admin routes still function:
+- /admin/message-events
+- /admin/test-push
+- /admin/test-push-all
+
+11.
+Confirm no remaining IMMEDIATE_PUSH route passes:
+- title
+- body
+- push_data
+
+12.
+Confirm all registry templates render correctly even when:
+- resort missing
+- actor_name present
+- entity_id present
+
+13.
+Confirm no malformed deep links:
+- /trips/None
+- /friends/None
+
+────────────────────────────────────────
+IMPORTANT
+────────────────────────────────────────
+
+DO NOT FIX ANYTHING YET.
+
+This is QA ONLY.
+
+If issues are found:
+- document them precisely
+- identify severity
+- identify safest fix approach
+- DO NOT IMPLEMENT FIXES
+
+────────────────────────────────────────
+RETURN
+────────────────────────────────────────
+
+Return:
+
+1. QA summary
+2. Event-by-event validation table
+3. Any payload drift discovered
+4. Any fallback-path usage discovered
+5. Any malformed payloads discovered
+6. Dedupe validation result
+7. Push delivery validation result
+8. Opt-out validation result
+9. Deep-link validation result
+10. Any remaining risks before Deploy 2
+11. Recommendation:
+   - safe for Deploy 2
+   - or hold Deploy 2
+
+DO NOT START DEPLOY 2.
+DO NOT CLEAN UP DEAD CODE.
