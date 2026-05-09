@@ -1,0 +1,158 @@
+BaseLodge — Phase C Deploy 2 (Final Cleanup)
+
+Phase C Deploy 1 QA passed completely.
+
+Proceed with Deploy 2 cleanup ONLY.
+
+Use checkpoints sparingly.
+
+DO NOT:
+- change payload behavior
+- change EventSpec structure
+- change template rendering
+- modify MessageEventLog schema
+- modify admin routes
+- modify dedupe behavior
+- modify retry behavior
+- modify push provider logic
+- modify send_onesignal_push()
+- modify client payload shape
+
+This deploy must be behaviorally NO-OP.
+
+────────────────────────────────────────
+GOAL
+────────────────────────────────────────
+
+Finalize the Phase C architecture by removing dead compatibility code.
+
+Deploy 2 should:
+- remove temporary fallback logic
+- delete dead _notify_push()
+- downgrade temporary Phase B logging
+
+WITHOUT changing runtime behavior.
+
+────────────────────────────────────────
+FILES ALLOWED
+────────────────────────────────────────
+
+ONLY MODIFY:
+- services/message_dispatch.py
+- app.py
+
+────────────────────────────────────────
+STEP 1 — REMOVE TEMP FALLBACK
+────────────────────────────────────────
+
+In:
+services/message_dispatch.py
+
+Inside:
+_render_immediate_push()
+
+Remove the temporary Deploy 1 compatibility fallback logic:
+
+REMOVE:
+- metadata.get("title", "")
+- metadata.get("body", "")
+- metadata.get("push_data", {})
+
+Registry templates are now the sole source of truth.
+
+DO NOT change rendering output.
+
+────────────────────────────────────────
+STEP 2 — DELETE _notify_push
+────────────────────────────────────────
+
+In:
+app.py
+
+Delete the entire _notify_push() function.
+
+It is now unreachable dead code.
+
+Also remove:
+- unused imports related exclusively to _notify_push()
+
+ONLY if truly unused.
+
+DO NOT accidentally remove imports still used elsewhere.
+
+────────────────────────────────────────
+STEP 3 — LOGGING CLEANUP
+────────────────────────────────────────
+
+Downgrade temporary Phase B / Phase C debug logging from:
+- .info()
+
+to:
+- .debug()
+
+ONLY for temporary migration diagnostics.
+
+DO NOT remove meaningful operational logging.
+
+────────────────────────────────────────
+VALIDATION REQUIREMENTS
+────────────────────────────────────────
+
+Before finishing:
+
+1.
+Flask boots cleanly.
+
+2.
+grep "_notify_push" app.py
+returns zero results.
+
+3.
+grep "metadata.get(\"title\"" services/message_dispatch.py
+returns zero results.
+
+4.
+grep "metadata.get(\"body\"" services/message_dispatch.py
+returns zero results.
+
+5.
+grep "metadata.get(\"push_data\"" services/message_dispatch.py
+returns zero results.
+
+6.
+All 4 IMMEDIATE_PUSH events still render correctly.
+
+7.
+No payload drift introduced.
+
+8.
+No admin routes broken.
+
+9.
+No circular imports introduced.
+
+10.
+No behavioral changes introduced.
+
+11.
+No dead imports remain.
+
+────────────────────────────────────────
+RETURN
+────────────────────────────────────────
+
+Return:
+
+1. Files changed
+2. Exact cleanup performed
+3. Validation results
+4. Any imports removed
+5. Any risks discovered
+6. Confirmation that:
+   - registry templates are now sole rendering source
+   - _notify_push is fully removed
+   - Phase C architecture is finalized
+
+DO NOT BEGIN NEW FEATURES.
+DO NOT REFACTOR FURTHER.
+DO NOT START PHASE D.

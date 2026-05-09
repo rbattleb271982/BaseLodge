@@ -260,15 +260,12 @@ def _render_immediate_push(spec, metadata, actor_user_id, entity_id):
 
     Returns a dict with keys: title, body, push_data.
 
-    Registry templates (spec.title_template etc.) take priority.
-    If a template field is None, falls back to metadata["title"] / ["body"] /
-    ["push_data"] — Deploy 1 backward-compatibility safety net.
-    Remove fallbacks in Deploy 2 once all routes are confirmed on context-only
-    metadata and no "title"/"body"/"push_data" keys remain in any route call.
+    Registry templates are the sole rendering source (Phase C final).
+    Routes pass context-only metadata; no title/body/push_data keys expected.
 
     Args:
         spec:          EventSpec for the event being dispatched.
-        metadata:      dict passed by the route (context keys in Phase C).
+        metadata:      dict passed by the route (context keys only).
         actor_user_id: int — available as {actor_user_id} in templates.
         entity_id:     int | None — available as {entity_id} in templates.
     """
@@ -286,33 +283,23 @@ def _render_immediate_push(spec, metadata, actor_user_id, entity_id):
     )
 
     # ── Title ──
-    if spec.title_template is not None:
-        title = spec.title_template.format_map(context)
-    else:
-        title = meta.get("title", "")   # Deploy 1 fallback — remove in Deploy 2
+    title = spec.title_template.format_map(context) if spec.title_template is not None else ""
 
     # ── Body ──
-    if spec.body_template is not None:
-        body = spec.body_template.format_map(context)
-    else:
-        body = meta.get("body", "")     # Deploy 1 fallback — remove in Deploy 2
+    body = spec.body_template.format_map(context) if spec.body_template is not None else ""
 
-    # ── push_data ──
-    if spec.deep_link_template is not None or spec.screen is not None:
-        # Registry owns the full push_data structure.
-        push_data = {"event": spec.event_name}
-        # Forward data_keys from metadata (entity ID fields, invitation_id, etc.).
-        for key in (spec.data_keys or []):
-            if key in meta:
-                push_data[key] = meta[key]
-        # Render deep_link from template.
-        if spec.deep_link_template is not None:
-            push_data["deep_link"] = spec.deep_link_template.format_map(context)
-        # Screen is a constant per event.
-        if spec.screen is not None:
-            push_data["screen"] = spec.screen
-    else:
-        push_data = dict(meta.get("push_data") or {})   # Deploy 1 fallback
+    # ── push_data — registry owns the full structure ──
+    push_data = {"event": spec.event_name}
+    # Forward data_keys from metadata (entity ID fields, invitation_id, etc.).
+    for key in (spec.data_keys or []):
+        if key in meta:
+            push_data[key] = meta[key]
+    # Render deep_link from template.
+    if spec.deep_link_template is not None:
+        push_data["deep_link"] = spec.deep_link_template.format_map(context)
+    # Screen is a constant per event.
+    if spec.screen is not None:
+        push_data["screen"] = spec.screen
 
     return {"title": title, "body": body, "push_data": push_data}
 
@@ -674,9 +661,7 @@ def emit_messaging_event(
             )
             return
 
-        # TEMP PHASE B DEBUG LOGGING
-        # Remove or downgrade to .debug() after Phase B stabilizes.
-        current_app.logger.info(
+        current_app.logger.debug(
             "[MESSAGE_DISPATCH] event=%s strategy=%s actor=%s recipient=%s",
             event_name, spec.delivery_strategy, actor_user_id, recipient_user_id,
         )
