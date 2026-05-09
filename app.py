@@ -711,9 +711,14 @@ def emit_event(event_name, user, payload=None):
 
 
 def get_friend_ids(user_id):
-    """Get all direct friend IDs for a user."""
-    friends = Friend.query.filter_by(user_id=user_id).all()
-    return [f.friend_id for f in friends]
+    """Get all direct friend IDs for a user — only returns IDs where the User row still exists."""
+    rows = (
+        db.session.query(Friend.friend_id)
+        .join(User, User.id == Friend.friend_id)
+        .filter(Friend.user_id == user_id)
+        .all()
+    )
+    return [r[0] for r in rows]
 
 
 def create_activity(actor_user_id, recipient_user_id, activity_type, object_type, object_id, extra_data=None):
@@ -1498,6 +1503,49 @@ def run_deploy_b_schema_migration():
 
 
 run_deploy_b_schema_migration()
+
+
+def run_ghost_user_cleanup_migration():
+    """
+    Startup migration: remove Friend and Invitation rows that reference
+    a user_id or friend_id that no longer exists in the User table.
+
+    These orphans accumulate when a user row is deleted outside the normal
+    delete_account route (e.g. legacy admin tooling, direct DB ops, or a
+    partially-failed deletion).  Safe to re-run on every startup — deletes
+    nothing if the DB is already clean.
+    """
+    try:
+        with app.app_context():
+            # Friend rows where the subject (user_id side) is gone
+            d1 = Friend.query.filter(
+                ~Friend.user_id.in_(db.session.query(User.id))
+            ).delete(synchronize_session=False)
+
+            # Friend rows where the target (friend_id side) is gone
+            d2 = Friend.query.filter(
+                ~Friend.friend_id.in_(db.session.query(User.id))
+            ).delete(synchronize_session=False)
+
+            # Invitation rows where the sender is gone
+            d3 = Invitation.query.filter(
+                ~Invitation.sender_id.in_(db.session.query(User.id))
+            ).delete(synchronize_session=False)
+
+            # Invitation rows where the receiver is gone
+            d4 = Invitation.query.filter(
+                ~Invitation.receiver_id.in_(db.session.query(User.id))
+            ).delete(synchronize_session=False)
+
+            db.session.commit()
+            total = d1 + d2 + d3 + d4
+            print(f"ghost_user_cleanup_migration: removed {total} orphaned rows "
+                  f"(Friend: {d1+d2}, Invitation: {d3+d4}).")
+    except Exception as e:
+        print(f"ghost_user_cleanup_migration: ERROR — {e}")
+
+
+run_ghost_user_cleanup_migration()
 
 
 # ============================================================================
@@ -3838,14 +3886,16 @@ def invite_friend():
 @login_required
 def get_friends():
     friends = Friend.query.filter_by(user_id=current_user.id).all()
-    
-    friends_list = [{
-        "id": f.friend.id,
-        "name": f"{f.friend.first_name} {f.friend.last_name}",
-        "email": f.friend.email,
-        "pass_type": f.friend.pass_type or "No Pass"
-    } for f in friends]
-    
+    friends_list = []
+    for f in friends:
+        if not f.friend:
+            continue
+        friends_list.append({
+            "id": f.friend.id,
+            "name": f"{f.friend.first_name} {f.friend.last_name}",
+            "email": f.friend.email,
+            "pass_type": f.friend.pass_type or "No Pass"
+        })
     return jsonify({"success": True, "friends": friends_list}), 200
 
 @app.route("/api/friends/<int:friend_id>", methods=["GET"])
