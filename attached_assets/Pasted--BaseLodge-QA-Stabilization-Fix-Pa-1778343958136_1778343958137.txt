@@ -1,0 +1,110 @@
+╔════════════════════════════════════════════════════════════╗
+║ BaseLodge — QA Stabilization Fix Pass A                   ║
+╚════════════════════════════════════════════════════════════╝
+
+Implement the first batch of QA stabilization fixes that do NOT require an Xcode/TestFlight rebuild.
+
+Use checkpoints sparingly.
+
+Do NOT redesign layouts.
+Do NOT refactor architecture.
+Do NOT begin dead CSS cleanup yet.
+Do NOT modify push infrastructure.
+Do NOT modify native iOS files in this pass.
+
+────────────────────────────────────────
+FIXES TO IMPLEMENT
+────────────────────────────────────────
+
+1. Edit profile save bar safe-area fix (HIGH)
+- The floating save button currently uses hardcoded bottom spacing.
+- On iPhones with a home indicator, the button overlaps the bottom nav and safe area.
+
+Fix:
+- use env(safe-area-inset-bottom)
+- ensure button remains fully tappable
+- preserve current visual design
+
+────────────────────────────────────────
+
+2. Hide “Add your availability” pill when dates already exist (MEDIUM)
+- The pill currently renders even when the user already has availability set.
+
+Fix:
+- properly respect show_add_dates logic
+- ensure users with availability no longer see the CTA
+- preserve behavior for users without dates
+
+────────────────────────────────────────
+
+3. iOS date sheet keyboard overlap fix (MEDIUM)
+- Trip detail date editor uses position: fixed
+- iOS virtual keyboard overlaps content
+
+Fix:
+- make the sheet behave correctly with iOS keyboard
+- preserve current interaction model
+- avoid scroll locking regressions
+- avoid Android regressions
+
+────────────────────────────────────────
+
+4. Mountain search dropdown height fix (MEDIUM)
+- Current max-height is too small on SE-class devices with keyboard open
+
+Fix:
+- improve visible result count on smaller screens
+- preserve current dropdown interaction
+- preserve mobile feel
+
+────────────────────────────────────────
+
+5. Serif font variable fix (MEDIUM)
+- --bl-font-serif currently resolves incorrectly to system-ui
+
+Fix:
+- restore intended serif rendering globally
+- preserve existing typography hierarchy
+- avoid layout regressions
+
+────────────────────────────────────────
+FILES EXPECTED
+────────────────────────────────────────
+
+Likely:
+- templates/profile.html
+- templates/components/*
+- templates/trip_detail.html
+- static/css/styles.css
+- static/css/*
+- base templates
+
+Avoid unrelated changes.
+
+────────────────────────────────────────
+TESTING
+────────────────────────────────────────
+
+Verify:
+- iOS safe-area behavior
+- Android unaffected
+- mobile web unaffected
+- keyboard behavior stable
+- dropdown usability improved
+- serif headlines visibly restored
+- no new overflow/layout regressions
+
+────────────────────────────────────────
+FINAL RESPONSE FORMAT
+────────────────────────────────────────
+
+Return:
+1. Exact files changed
+2. Exact fixes applied
+3. Before/after behavior
+4. Verification results
+5. Any remaining risks
+6. Whether publish/deploy is required
+7. Whether Xcode/TestFlight rebuild is required
+
+Do not stop before verification.

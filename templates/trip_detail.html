@@ -363,6 +363,7 @@
             display: flex;
             flex-direction: column;
             max-height: 80vh;
+            max-height: 80dvh;
         }
         .td-resort-sheet-overlay.active .td-resort-sheet {
             transform: translateY(0);
@@ -1683,6 +1684,21 @@
                     blToast('Network error. Please try again.');
                 }
             };
+
+            // Keyboard-aware height for iOS — when the software keyboard opens the
+            // visual viewport shrinks but vh stays anchored to the layout viewport,
+            // causing the sheet to extend behind the keyboard. visualViewport.resize
+            // fires reliably on iOS 13+ and Chrome Android whenever the keyboard
+            // appears or disappears, letting us clamp max-height to what is actually
+            // visible. Android and mobile web benefit as well.
+            if (window.visualViewport) {
+                var _tdResortSheet = document.getElementById('td-resort-sheet')
+                    && document.getElementById('td-resort-sheet').querySelector('.td-resort-sheet');
+                window.visualViewport.addEventListener('resize', function() {
+                    if (!_tdResortSheet) return;
+                    _tdResortSheet.style.maxHeight = Math.round(window.visualViewport.height * 0.9) + 'px';
+                });
+            }
         })();
         {% endif %}
 
