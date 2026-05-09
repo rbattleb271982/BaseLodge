@@ -1,0 +1,163 @@
+Phase B4 — Migrate trip.invite.accepted and trip.invite.declined
+
+Use checkpoints sparingly.
+
+DO NOT migrate trip.invite.created yet.
+DO NOT change MessageEventLog schema.
+DO NOT change provider behavior.
+DO NOT change push payloads.
+DO NOT change dedupe behavior.
+DO NOT change admin diagnostic routes.
+
+IMPORTANT:
+This phase includes BOTH:
+- one IMMEDIATE_PUSH migration
+- one SILENT migration
+
+Validate both carefully.
+
+────────────────────────────────────────
+STEP 1 — MIGRATE trip.invite.accepted
+────────────────────────────────────────
+
+Find the accept branch inside:
+
+POST /trips/<id>/respond
+
+Current behavior:
+- direct _notify_push() call
+
+Replace ONLY the trip.invite.accepted notification path with:
+emit_messaging_event()
+
+IMPORTANT:
+Remove the old _notify_push() call completely in the SAME edit.
+
+Use:
+
+- event_name=EventName.TRIP_INVITE_ACCEPTED
+- actor_user_id=current_user.id
+- recipient_user_id=trip.user_id
+- entity_type="trip"
+- entity_id=trip.id
+- metadata preserving the EXISTING:
+  - title
+  - body
+  - push_data
+- source_route="respond_to_trip_invite_accept"
+
+Preserve:
+- exact push copy
+- exact deep link behavior
+- exact payload structure
+
+DO NOT introduce templates yet.
+
+────────────────────────────────────────
+STEP 2 — MIGRATE trip.invite.declined
+────────────────────────────────────────
+
+Still inside:
+
+POST /trips/<id>/respond
+
+Find the decline branch.
+
+Current behavior:
+- direct create_message_event() call
+- silent audit-only path
+
+Replace ONLY this direct MEL write with:
+emit_messaging_event()
+
+Use:
+
+- event_name=EventName.TRIP_INVITE_DECLINED
+- actor_user_id=current_user.id
+- recipient_user_id=trip.user_id
+- entity_type="trip"
+- entity_id=trip.id
+- metadata preserving any existing context fields
+- source_route="respond_to_trip_invite_decline"
+
+IMPORTANT:
+The SILENT strategy must:
+- create exactly one MEL row
+- produce NO push
+- produce NO Journey signal
+
+────────────────────────────────────────
+STEP 3 — VALIDATION
+────────────────────────────────────────
+
+Validate ALL of the following:
+
+1.
+Flask starts cleanly
+
+2.
+No circular import issues
+
+3.
+Accept branch still sends push successfully
+
+4.
+Accept branch creates exactly ONE MEL row
+
+5.
+Accept branch dedupe still works
+
+6.
+Decline branch creates exactly ONE MEL row
+
+7.
+Decline branch produces:
+- delivery_status=skipped
+- suppression_reason=silent_by_design
+
+8.
+Decline branch produces:
+- NO push
+- NO Journey event
+- NO provider call
+
+9.
+No duplicate MEL rows anywhere
+
+10.
+Structured Phase B logging still works
+
+11.
+B1/B2/B3 still function correctly
+
+12.
+Admin diagnostic routes still untouched
+
+────────────────────────────────────────
+IMPORTANT
+────────────────────────────────────────
+
+This phase completes:
+- all friend events
+- trip.invite.accepted
+- trip.invite.declined
+
+Only trip.invite.created remains afterward.
+
+STOP after validation.
+
+DO NOT continue into trip.invite.created.
+
+────────────────────────────────────────
+AFTER COMPLETION
+────────────────────────────────────────
+
+Return:
+
+1. Exact files changed
+2. Exact branches migrated
+3. Validation results
+4. Whether silent path works correctly
+5. Whether exactly one MEL row is produced in both branches
+6. Whether any provider calls accidentally occur during decline
+7. Any issues encountered

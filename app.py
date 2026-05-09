@@ -9249,26 +9249,25 @@ def respond_to_trip_invite(trip_id):
         emit_friend_joined_trip_activities(trip, current_user.id)
         db.session.commit()
 
-        # ── v2: push + audit log — trip invite accepted ──
-        try:
-            _notify_push(
-                event_name=EventName.TRIP_INVITE_ACCEPTED,
-                category=Category.TRIP,
-                actor_user_id=current_user.id,
-                recipient_user_id=trip.user_id,
-                object_type="trip",
-                object_id=trip_id,
-                title=f"{current_user.first_name or current_user.username} accepted your invite",
-                body=f"They're joining you for {trip.mountain or 'your trip'}.",
-                data={
-                    "event": "trip.invite.accepted",
-                    "trip_id": trip_id,
+        # ── B4: trip.invite.accepted — routed through centralized dispatch ──
+        emit_messaging_event(
+            event_name=EventName.TRIP_INVITE_ACCEPTED,
+            actor_user_id=current_user.id,
+            recipient_user_id=trip.user_id,
+            entity_type="trip",
+            entity_id=trip.id,
+            metadata={
+                "title":     f"{current_user.first_name or current_user.username} accepted your invite",
+                "body":      f"They're joining you for {trip.mountain or 'your trip'}.",
+                "push_data": {
+                    "event":     "trip.invite.accepted",
+                    "trip_id":   trip_id,
                     "deep_link": f"/trips/{trip_id}",
-                    "screen": "trip_detail",
+                    "screen":    "trip_detail",
                 },
-            )
-        except Exception as _notif_err:
-            current_app.logger.warning("[notify] trip_invite_accepted failed: %s", _notif_err)
+            },
+            source_route="respond_to_trip_invite_accept",
+        )
 
         if request.is_json:
             return jsonify({"success": True, "message": "You're going"})
@@ -9279,26 +9278,19 @@ def respond_to_trip_invite(trip_id):
         emit_trip_invite_declined_activity(trip, current_user.id, trip.user_id)
         db.session.commit()
 
-        # ── MessageEventLog: trip invite declined — permanently silent by design ──
-        try:
-            create_message_event(
-                event_name=EventName.TRIP_INVITE_DECLINED,
-                category=Category.TRIP,
-                actor_user_id=current_user.id,
-                recipient_user_id=trip.user_id,
-                object_type="trip",
-                object_id=trip_id,
-                channel=None,
-                payload_json={
-                    "trip_id": trip_id,
-                    "resort": trip.mountain or "",
-                    "source_route": "respond_to_trip_invite",
-                },
-                delivery_status=DeliveryStatus.SKIPPED,
-                suppression_reason=SuppressionReason.SILENT_BY_DESIGN,
-            )
-        except Exception as _mel_err:
-            current_app.logger.warning("[MessageEvent] trip_invite_declined log failed: %s", _mel_err)
+        # ── B4: trip.invite.declined — SILENT path, audit row only, no provider call ──
+        emit_messaging_event(
+            event_name=EventName.TRIP_INVITE_DECLINED,
+            actor_user_id=current_user.id,
+            recipient_user_id=trip.user_id,
+            entity_type="trip",
+            entity_id=trip.id,
+            metadata={
+                "trip_id": trip_id,
+                "resort":  trip.mountain or "",
+            },
+            source_route="respond_to_trip_invite_decline",
+        )
 
         if request.is_json:
             return jsonify({"success": True, "message": "Invite declined"})
