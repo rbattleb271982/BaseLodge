@@ -9,14 +9,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         UNUserNotificationCenter.current().delegate = self
-        print("[AppDelegate] didFinishLaunching — delegate set to: \(String(describing: UNUserNotificationCenter.current().delegate))")
         return true
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        print("🔥 willPresent called")
         completionHandler([.banner, .sound])
     }
 
@@ -37,9 +35,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func applicationDidBecomeActive(_ application: UIApplication) {
         // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
         UNUserNotificationCenter.current().delegate = self
-        print("[AppDelegate] active delegate set to: \(String(describing: UNUserNotificationCenter.current().delegate))")
         UIApplication.shared.applicationIconBadgeNumber = 0
-        print("[AppDelegate] badge count reset to 0")
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

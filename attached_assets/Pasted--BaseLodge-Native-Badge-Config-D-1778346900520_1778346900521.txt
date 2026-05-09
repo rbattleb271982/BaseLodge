@@ -1,0 +1,75 @@
+╔════════════════════════════════════════════════════════════╗
+║ BaseLodge — Native Badge Config + Debug Cleanup           ║
+╚════════════════════════════════════════════════════════════╝
+
+Implement the remaining native QA cleanup items.
+
+Use checkpoints sparingly.
+
+Do NOT refactor notification architecture.
+Do NOT modify push registration.
+Do NOT modify OneSignal setup.
+Do NOT modify MessageEventLog.
+Do NOT modify product push wiring.
+Do NOT touch unrelated web templates or CSS.
+
+────────────────────────────────────────
+FIXES TO IMPLEMENT
+────────────────────────────────────────
+
+1. Remove badge from Capacitor presentationOptions
+
+File:
+- capacitor.config.json
+
+Current issue:
+- PushNotifications presentationOptions still includes "badge"
+- This may allow badge increments even after AppDelegate removed .badge from willPresent
+
+Fix:
+- remove "badge" from presentationOptions
+- preserve "alert" and "sound"
+
+Expected:
+- foreground push still shows alert/banner
+- foreground push still plays sound
+- foreground push does not increment badge
+
+────────────────────────────────────────
+
+2. Clean AppDelegate debug prints
+
+File:
+- ios/App/App/AppDelegate.swift
+
+Fix:
+- remove noisy temporary debug print statements from prior push/badge testing
+- preserve all functional notification handling
+- preserve applicationDidBecomeActive badge clearing
+- preserve foreground banner/sound behavior
+- preserve notification delegate assignment
+
+────────────────────────────────────────
+TESTING
+────────────────────────────────────────
+
+Verify:
+- capacitor.config.json remains valid JSON
+- AppDelegate.swift compiles
+- foreground push behavior still uses banner + sound only
+- applicationDidBecomeActive still clears badge
+- no unrelated files changed
+
+────────────────────────────────────────
+FINAL RESPONSE FORMAT
+────────────────────────────────────────
+
+Return:
+1. Exact files changed
+2. Exact before/after config for presentationOptions
+3. AppDelegate cleanup summary
+4. Verification results
+5. Confirm Xcode/TestFlight rebuild is required
+6. Confirm Replit publish/deploy is not required unless other web/server files changed
+
+Do not stop before verification.
