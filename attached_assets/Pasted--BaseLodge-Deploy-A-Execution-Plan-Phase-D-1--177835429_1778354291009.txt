@@ -1,0 +1,89 @@
+║ BaseLodge — Deploy A Execution Plan (Phase D-1) ║
+╚══════════════════════════════════════════════════════════════╝
+Use checkpoints sparingly.
+DO NOT IMPLEMENT YET.
+DO NOT MODIFY FILES.
+DO NOT CREATE MIGRATIONS YET.
+DO NOT WRITE CODE.
+This Plan is ONLY for Deploy A execution planning.
+Deploy A scope is intentionally tiny and isolated.
+────────────────────────────────────────
+DEPLOY A GOAL
+────────────────────────────────────────
+Add the composite dedupe DB index ONLY.
+NO application-layer changes.
+NO retry logic.
+NO MEL schema evolution.
+NO dispatch changes.
+NO rendering changes.
+NO provider changes.
+NO retry runner.
+NO timestamp work.
+NO provider_message_id work.
+Deploy A exists solely to:
+improve dedupe-query performance
+isolate migration risk
+validate rollback simplicity
+reduce future Deploy B risk
+────────────────────────────────────────
+CURRENT KNOWN CONTEXT
+────────────────────────────────────────
+Current dedupe logic relies on:
+event_name
+recipient_user_id
+object_type
+object_id
+created_at window
+Current MEL indexes are only:
+single-column indexes
+Current planned composite index:
+(event_name,
+recipient_user_id,
+object_type,
+object_id,
+created_at)
+Current preferred migration strategy:
+CREATE INDEX CONCURRENTLY
+IF NOT EXISTS
+Deploy A must remain:
+fully isolated
+trivially rollbackable
+operationally boring
+────────────────────────────────────────
+REQUIRED ANALYSIS
+────────────────────────────────────────
+Return:
+Exact recommended index definition.
+Whether created_at should remain last in the index order.
+Whether DESC ordering on created_at is beneficial.
+Whether the dedupe query shape fully matches the proposed index.
+Whether additional columns should NOT be included.
+Whether partial indexes are appropriate or unnecessary.
+Whether the index should include delivery_status.
+Whether concurrent index creation is fully safe for this table.
+Expected migration risk level.
+Expected lock behavior.
+Expected runtime behavior during index build.
+Whether index build could affect live push sends.
+Whether VACUUM/ANALYZE considerations matter here.
+Whether REINDEX concerns exist.
+Safest rollback strategy.
+Exact validation queries after deploy.
+Exact EXPLAIN ANALYZE expectations.
+What would indicate the index is NOT being used.
+Any hidden PostgreSQL risks.
+Final go/no-go recommendation for Deploy A.
+────────────────────────────────────────
+RETURN
+────────────────────────────────────────
+Return:
+Final Deploy A migration recommendation
+Final index definition
+Final PostgreSQL safety recommendation
+Final validation plan
+Final rollback plan
+Final operational risk assessment
+Final go/no-go recommendation
+DO NOT IMPLEMENT.
+DO NOT CREATE MIGRATIONS.
+DO NOT WRITE CODE.

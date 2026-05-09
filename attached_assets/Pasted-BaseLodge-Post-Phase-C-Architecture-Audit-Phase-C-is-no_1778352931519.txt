@@ -1,0 +1,167 @@
+BaseLodge — Post-Phase C Architecture Audit
+
+Phase C is now complete.
+
+Before starting any new messaging features or Phase D work, perform a full architectural audit of the finalized messaging system.
+
+DO NOT implement anything yet.
+
+Use checkpoints sparingly.
+
+DO NOT:
+- modify runtime behavior
+- add features
+- refactor code
+- change schemas
+- change event payloads
+- change templates
+- change providers
+- change OneSignal behavior
+- change MEL structure
+
+This is an audit and future-planning pass only.
+
+────────────────────────────────────────
+GOAL
+────────────────────────────────────────
+
+Now that Phase C is finalized, identify:
+
+- remaining architectural weaknesses
+- scaling risks
+- operational blind spots
+- retry weaknesses
+- queueing limitations
+- provider abstraction gaps
+- observability gaps
+- future feature blockers
+- analytics limitations
+- multi-channel expansion readiness
+
+The system should now be evaluated as a production-grade messaging platform.
+
+────────────────────────────────────────
+AUDIT AREAS
+────────────────────────────────────────
+
+Analyze and report on:
+
+1.
+Current finalized architecture flow:
+route → emit_messaging_event → dispatcher → renderer → provider → MEL
+
+2.
+Strengths of the current architecture.
+
+3.
+Remaining technical debt.
+
+4.
+Operational risks under scale.
+
+5.
+Retry-system maturity.
+
+6.
+Whether IMMEDIATE_PUSH should eventually move to:
+- queue-backed async delivery
+- worker-based delivery
+- or remain synchronous.
+
+7.
+Provider abstraction quality:
+- OneSignal
+- APNs
+- future email
+- future SMS
+- future WhatsApp
+
+8.
+Whether EventSpec is now sufficient long-term,
+or whether future phases need:
+- channel-specific templates
+- locale support
+- versioned templates
+- experimentation support
+- per-channel rendering
+- provider failover
+
+9.
+Audit integrity review:
+- MEL strengths
+- MEL weaknesses
+- missing observability
+- missing correlation IDs
+- missing latency tracking
+- missing retry lineage
+- missing provider response normalization
+
+10.
+Whether dedupe logic is production-grade.
+
+11.
+Whether retry logic is production-grade.
+
+12.
+Whether the current architecture is ready for:
+- automated journeys
+- scheduled sends
+- digest generation
+- multi-step campaigns
+- recommendation notifications
+- marketing sends
+- transactional email
+- lifecycle orchestration
+
+13.
+What Phase D should logically become now that Phase C is complete.
+
+14.
+Whether any parts of the architecture should be hardened BEFORE new features are added.
+
+15.
+Which future risks are most dangerous:
+- silent suppression
+- provider outages
+- queue buildup
+- duplicate sends
+- malformed payloads
+- analytics drift
+- race conditions
+- rendering failures
+
+16.
+Whether the current system can support:
+- analytics attribution
+- experimentation
+- ML ranking
+- send-time optimization
+- notification fatigue controls
+- preference centers
+- per-user channel policies
+
+────────────────────────────────────────
+RETURN
+────────────────────────────────────────
+
+Return:
+
+1. Current architecture assessment
+2. Production readiness assessment
+3. Remaining weaknesses
+4. Scalability assessment
+5. Retry/dedupe assessment
+6. Auditability assessment
+7. Observability assessment
+8. Provider abstraction assessment
+9. Future-channel readiness assessment
+10. Recommended Phase D direction
+11. Recommended hardening BEFORE Phase D
+12. Highest-risk future failure modes
+13. Recommended long-term architecture evolution
+14. Explicit "do not build yet" warnings
+15. Recommended sequencing for future messaging work
+
+DO NOT IMPLEMENT.
+DO NOT MODIFY FILES.
+DO NOT CREATE MIGRATIONS.

@@ -1,0 +1,157 @@
+║ BaseLodge — Accelerated Phase D-1 Hardening Strategy v2 ║
+╚════════════════════════════════════════════════════════════╝
+Use checkpoints sparingly.
+DO NOT IMPLEMENT.
+DO NOT MODIFY FILES.
+DO NOT CREATE MIGRATIONS.
+DO NOT WRITE CODE.
+DO NOT WRITE PATCHES.
+DO NOT WRITE DIFFS.
+Produce planning recommendations only.
+Phase C is complete and stable.
+We are accelerating Phase D-1.
+This is an operational hardening phase ONLY.
+DO NOT:
+add email
+add SMS
+add WhatsApp
+add queues/workers
+add Celery/Redis
+add campaigns/journeys
+add experimentation
+redesign architecture
+modify rendering behavior
+modify event contracts
+modify payload structure
+modify delivery semantics
+introduce provider abstractions
+introduce locale/i18n
+introduce correlation IDs
+redesign suppression architecture
+────────────────────────────────────────
+CURRENT ALIGNMENT
+────────────────────────────────────────
+The current preferred direction is:
+Deploy A:
+isolated composite dedupe DB index only
+Deploy B:
+all application-layer hardening together
+INCLUDING:
+provider_message_id write-back
+sent_at ownership
+processed_at ownership
+provider response normalization
+retry_count ownership
+retry lineage
+retry suppression rules
+retry-aware dedupe behavior
+admin retry runner
+MEL write improvements
+Current preferred retry model:
+admin-only initially
+synchronous initially
+no queues
+no workers
+no schedulers
+retry path separate from standard dispatch path
+retries MUST NOT call emit_messaging_event()
+retries SHOULD call lower-level dispatch directly
+retries SHOULD NOT re-render payloads
+retries SHOULD NOT re-run strategy/render selection
+Current preferred MEL philosophy:
+append-only
+original rows remain historically accurate
+retry attempts create child rows
+retry_count increments on original row
+successful retry does NOT mutate original FAILED row
+Current preferred timestamp ownership:
+sent_at = dispatcher-owned
+processed_at = MEL persistence-owned
+created_at = DB default-owned
+────────────────────────────────────────
+ADDITIONAL REQUIRED ANALYSIS
+────────────────────────────────────────
+Analyze the following additional concerns carefully.
+Retry transaction boundary safety.
+Specifically analyze:
+increment-before-send vs increment-after-send
+transaction atomicity
+partial-failure scenarios
+"retry_count burned but retry row missing"
+"retry send succeeded but retry lineage failed"
+safest transaction boundary recommendation
+Return exact recommended ordering of:
+retry_count increment
+provider dispatch
+retry MEL creation
+commit timing
+Concurrent retry execution risk.
+Analyze risks if:
+two admins trigger retry runner simultaneously
+two browser tabs execute retry POST simultaneously
+retry route is refreshed during execution
+Recommend:
+whether retry execution must serialize
+whether row-level claiming is required
+whether optimistic locking is sufficient
+whether admin-only operational discipline is enough for D-1
+safest minimal protection mechanism
+DO NOT introduce queues/workers.
+Retry eligibility query design.
+Analyze whether retry suppression should occur:
+entirely in SQL eligibility query
+partially in SQL + partially in Python
+entirely in application layer
+Specifically analyze:
+excluding rows with successful retry children
+excluding exhausted retry_count rows
+excluding permanently suppressed rows
+excluding duplicate retry execution
+Return the safest and simplest D-1 recommendation.
+processed_at semantic definition.
+Explicitly define:
+What processed_at means.
+Clarify whether it represents:
+MEL persistence completion
+provider response completion
+dispatch completion
+retry completion
+request completion
+Return one exact canonical semantic definition.
+Highest-risk operational failure mode.
+Re-rank the REAL highest-risk operational areas.
+Specifically analyze:
+retry_count corruption
+duplicate retries
+transaction ordering
+retry lineage drift
+provider_message_id drift
+timestamp drift
+dedupe bypass mistakes
+Return:
+true highest-risk area
+why
+safest mitigation
+────────────────────────────────────────
+RETURN
+────────────────────────────────────────
+Return:
+Updated accelerated Phase D-1 strategy
+Updated deploy sequencing
+Updated retry architecture recommendation
+Exact retry transaction ordering recommendation
+Retry concurrency recommendation
+Retry eligibility query recommendation
+Updated retry lineage recommendation
+Updated dedupe recommendation
+processed_at canonical definition
+Highest-risk operational area
+Safest mitigation strategy
+Updated rollback boundaries
+Updated validation requirements
+Explicit DO NOT BATCH items
+Final recommended order of operations
+DO NOT IMPLEMENT.
+DO NOT MODIFY FILES.
+DO NOT CREATE MIGRATIONS.
+DO NOT WRITE CODE.

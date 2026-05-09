@@ -1,0 +1,163 @@
+║ BaseLodge — Phase D-1 Hardening Strategy v3 ║
+╚══════════════════════════════════════════════════════════════╝
+Use checkpoints sparingly.
+DO NOT IMPLEMENT.
+DO NOT MODIFY FILES.
+DO NOT CREATE MIGRATIONS.
+DO NOT WRITE CODE.
+DO NOT WRITE PATCHES.
+DO NOT WRITE DIFFS.
+Produce planning recommendations only.
+Phase C is complete and stable.
+This phase is operational hardening ONLY.
+DO NOT:
+add email
+add SMS
+add WhatsApp
+add queues/workers
+add Celery/Redis
+add schedulers
+add campaigns/journeys
+add experimentation
+redesign architecture
+modify rendering behavior
+modify event contracts
+modify payload structure
+modify delivery semantics
+introduce provider abstractions
+introduce locale/i18n
+introduce correlation IDs
+redesign suppression architecture
+────────────────────────────────────────
+CURRENT PREFERRED DIRECTION
+────────────────────────────────────────
+Deploy A:
+isolated composite dedupe index only
+Deploy B:
+all application-layer hardening together
+INCLUDING:
+provider_message_id write-back
+sent_at ownership
+processed_at ownership
+provider response normalization
+retry_count ownership
+retry lineage
+retry suppression rules
+retry-aware dedupe behavior
+admin retry runner
+MEL write improvements
+retry_locked concurrency protection
+Current retry philosophy:
+admin-only initially
+synchronous initially
+no queues
+no workers
+no schedulers
+retry path separate from standard dispatch path
+retries MUST NOT call emit_messaging_event()
+retries SHOULD call lower-level dispatch directly
+retries SHOULD NOT re-render payloads
+retries SHOULD NOT re-run strategy/render selection
+Current MEL philosophy:
+append-only
+original rows remain historically accurate
+retry attempts create child rows
+retry_count increments on original row
+successful retry does NOT mutate original FAILED row
+retry children MUST always reference the ORIGINAL failed row
+retries MUST NOT chain child-to-child lineage
+────────────────────────────────────────
+ADDITIONAL REQUIRED ANALYSIS
+────────────────────────────────────────
+Analyze and refine the following remaining D-1 concerns.
+retry_locked strategy refinement.
+Analyze whether D-1 should use:
+retry_locked BOOLEAN
+OR
+retry_locked_at TIMESTAMP
+OR
+both
+Analyze:
+stale lock detection
+operational unlock safety
+retry starvation risk
+unlock visibility
+future migration avoidance
+Return the safest MINIMAL D-1 recommendation.
+Stuck-lock operational policy.
+Define:
+exact definition of a stuck retry lock
+recommended timeout window
+whether unlock should be:
+automatic
+admin-only
+startup cleanup
+scheduled cleanup
+safest D-1 unlock procedure
+DO NOT introduce schedulers/workers.
+Retry lineage anchoring.
+Explicitly define whether:
+retries always attach to original FAILED row
+OR
+retries can attach to retry child rows
+Return one canonical lineage rule.
+Analyze:
+lineage query simplicity
+audit readability
+retry explosion prevention
+operational debugging clarity
+Retry batch-size safety.
+Analyze whether retry execution should include:
+hard row execution limit per run
+configurable limit
+no limit
+Analyze:
+operational blast radius
+accidental mass retries
+OneSignal burst risk
+admin misuse risk
+Return safest D-1 recommendation.
+Orphaned-send residual risk.
+Analyze the remaining edge case:
+send succeeds
+retry child MEL insert fails
+unlock succeeds
+eligibility query retries again later
+Return:
+whether this risk is acceptable for D-1
+safest minimal mitigation
+whether additional original-row metadata is justified NOW
+whether the system should intentionally tolerate tiny orphan risk until later phases
+DO NOT redesign architecture.
+Final D-1 operational philosophy.
+Return the FINAL recommended D-1 philosophy regarding:
+what failures are acceptable
+what failures are unacceptable
+what should bias toward safety
+what should bias toward auditability
+what should bias toward user experience
+────────────────────────────────────────
+RETURN
+────────────────────────────────────────
+Return:
+Finalized D-1 strategy
+Finalized deploy sequencing
+Finalized retry concurrency recommendation
+Finalized retry lock recommendation
+Finalized stuck-lock policy
+Finalized retry lineage rule
+Finalized retry batch-size recommendation
+Finalized orphan-risk recommendation
+Finalized retry transaction ordering
+Finalized eligibility-query recommendation
+Finalized processed_at definition
+Finalized highest-risk operational area
+Finalized mitigation strategy
+Finalized rollback boundaries
+Finalized validation requirements
+Explicit DO NOT BATCH items
+Final recommended order of operations
+DO NOT IMPLEMENT.
+DO NOT MODIFY FILES.
+DO NOT CREATE MIGRATIONS.
+DO NOT WRITE CODE.

@@ -1,0 +1,74 @@
+║ BaseLodge — Deploy A Implementation (Phase D-1) ║
+╚══════════════════════════════════════════════════════════════╝
+Use checkpoints sparingly.
+Implement Deploy A ONLY.
+DO NOT implement any Deploy B work.
+DO NOT:
+add retry logic
+add retry runner
+add retry lineage
+add retry_locked_at
+add provider_message_id logic
+add sent_at logic
+add processed_at logic
+modify dispatch behavior
+modify rendering behavior
+modify payloads
+modify MEL semantics
+modify event contracts
+modify suppression logic
+modify delivery logic
+Deploy A scope is ONLY:
+add the composite partial dedupe index
+validate it safely
+preserve rollback simplicity
+────────────────────────────────────────
+REQUIRED IMPLEMENTATION
+────────────────────────────────────────
+Add the following PostgreSQL index to message_event_log:
+CREATE INDEX IF NOT EXISTS idx_mel_dedupe
+ON message_event_log (
+event_name,
+recipient_user_id,
+object_type,
+object_id,
+created_at
+)
+WHERE delivery_status != 'failed';
+IMPORTANT:
+DO NOT use CONCURRENTLY inside startup migration code
+DO NOT redesign migration infrastructure
+DO NOT introduce Alembic migration complexity
+DO NOT touch existing indexes
+DO NOT remove existing indexes
+Use the existing startup migration pattern already used in the app.
+This table is currently tiny.
+A standard CREATE INDEX IF NOT EXISTS is acceptable.
+────────────────────────────────────────
+VALIDATION REQUIREMENTS
+────────────────────────────────────────
+After implementation, validate:
+Flask boots cleanly.
+Index exists.
+Index is valid (not INVALID).
+No existing functionality changes.
+No push flows regress.
+No MEL writes regress.
+EXPLAIN ANALYZE for the dedupe query no longer relies solely on:
+ix_message_event_log_created_at
+New composite index appears in planner output OR is visible as eligible after ANALYZE.
+Existing single-column indexes remain untouched.
+Migration is idempotent across multiple Flask restarts.
+────────────────────────────────────────
+RETURN
+────────────────────────────────────────
+Return:
+Exact files changed
+Exact migration added
+Exact SQL used
+Validation results
+EXPLAIN ANALYZE before vs after summary
+Confirmation no Deploy B work was performed
+Confirmation rollback remains:
+DROP INDEX IF EXISTS idx_mel_dedupe
+DO NOT implement anything beyond Deploy A.

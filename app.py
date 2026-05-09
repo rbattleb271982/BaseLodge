@@ -1404,6 +1404,54 @@ def run_message_event_log_migration():
 run_message_event_log_migration()
 
 
+def run_mel_dedupe_index_migration():
+    """Add composite partial dedupe index to message_event_log (Phase D-1 Deploy A).
+
+    Index: idx_mel_dedupe
+    Columns: (event_name, recipient_user_id, object_type, object_id, created_at)
+    Partial:  WHERE delivery_status != 'failed'
+
+    Rationale: is_duplicate_event() filters on all five columns plus the
+    delivery_status exclusion. The composite index makes this query an index
+    seek rather than a full-table scan as the MEL grows. The partial clause
+    excludes FAILED rows — they are never considered duplicates — keeping the
+    index smaller and writes cheaper.
+
+    Uses IF NOT EXISTS — idempotent across all restarts. No CONCURRENTLY needed
+    at current table size; the standard CREATE INDEX holds a lock for microseconds.
+
+    Rollback: DROP INDEX IF EXISTS idx_mel_dedupe;
+    """
+    try:
+        with app.app_context():
+            conn = db.engine.connect()
+            trans = conn.begin()
+            try:
+                conn.execute(db.text("""
+                    CREATE INDEX IF NOT EXISTS idx_mel_dedupe
+                    ON message_event_log (
+                        event_name,
+                        recipient_user_id,
+                        object_type,
+                        object_id,
+                        created_at
+                    )
+                    WHERE delivery_status != 'failed'
+                """))
+                trans.commit()
+                print("mel_dedupe_index_migration: idx_mel_dedupe ready.")
+            except Exception as inner_e:
+                trans.rollback()
+                print(f"mel_dedupe_index_migration inner error (rolled back): {inner_e}")
+            finally:
+                conn.close()
+    except Exception as e:
+        print(f"mel_dedupe_index_migration: skipped ({e})")
+
+
+run_mel_dedupe_index_migration()
+
+
 # ============================================================================
 # PRODUCTION DIAGNOSTICS - Print on startup
 # ============================================================================

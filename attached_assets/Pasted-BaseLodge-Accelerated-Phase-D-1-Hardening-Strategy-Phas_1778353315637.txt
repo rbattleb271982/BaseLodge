@@ -1,0 +1,218 @@
+BaseLodge — Accelerated Phase D-1 Hardening Strategy
+
+Phase C is complete and stable.
+
+We are accelerating Phase D-1.
+
+DO NOT implement yet.
+
+Use checkpoints sparingly.
+
+DO NOT:
+- add email
+- add SMS
+- add WhatsApp
+- add queues/workers
+- add Celery/Redis
+- add campaigns/journeys
+- add experimentation
+- redesign architecture
+- modify rendering behavior
+- modify event contracts
+- modify payload structure
+- modify delivery semantics
+
+This phase is ONLY operational hardening of the existing finalized messaging system.
+
+────────────────────────────────────────
+ACCELERATION GOAL
+────────────────────────────────────────
+
+Optimize Phase D-1 for larger safe batches.
+
+We now want:
+- fewer deploys
+- fewer MEL refactors
+- fewer retry passes
+- fewer operational rewrites
+
+WITHOUT:
+- risking duplicate sends
+- risking audit corruption
+- risking retry loops
+- risking payload drift
+- risking dedupe regressions
+
+────────────────────────────────────────
+TARGET HARDENING SCOPE
+────────────────────────────────────────
+
+Analyze batching strategy for:
+
+1.
+provider_message_id write-back
+
+2.
+sent_at population
+
+3.
+processed_at population
+
+4.
+provider response normalization
+
+5.
+retry_count ownership
+
+6.
+retry lineage tracking
+
+7.
+retry suppression rules
+
+8.
+retry dedupe behavior
+
+9.
+minimal retry runner
+
+10.
+MEL write improvements
+
+11.
+retry auditability
+
+12.
+retry dispatch path
+
+SEPARATELY analyze:
+
+13.
+composite dedupe DB index
+
+────────────────────────────────────────
+REQUIRED ANALYSIS
+────────────────────────────────────────
+
+Analyze and answer:
+
+1.
+Which Phase D-1 items can safely batch into ONE deploy?
+
+2.
+Should ALL application-layer hardening happen together?
+
+3.
+Should the composite dedupe DB index remain isolated in its own deploy?
+
+4.
+Exact ownership recommendations for:
+- provider_message_id
+- sent_at
+- processed_at
+- retry_count
+- retry lineage
+
+5.
+Whether create_message_event() should evolve,
+or remain append-only/simple.
+
+6.
+Exact retry-runner architecture recommendation:
+- admin-only first?
+- synchronous?
+- queued?
+- emit_messaging_event re-dispatch?
+- lower-level dispatch?
+- provider retry directly?
+
+7.
+Whether retries should:
+- create new MEL rows
+- update existing rows
+- reference original rows
+- increment retry_count on original rows
+- increment retry_count on retry rows
+- or both
+
+8.
+Whether retries should bypass dedupe,
+partially bypass dedupe,
+or use retry-aware dedupe logic.
+
+9.
+How suppression should behave for:
+- USER_OPTED_OUT
+- DUPLICATE_EVENT
+- INVALID_PAYLOAD
+- PROVIDER_ERROR
+- TIMEOUT
+- PROVIDER_UNAVAILABLE
+
+10.
+Whether provider response normalization should happen:
+- inside providers
+- inside dispatchers
+- inside create_message_event
+- or via adapter layer
+
+11.
+Whether timestamps should be:
+- dispatcher-owned
+- provider-owned
+- MEL-owned
+- or DB-default-owned
+
+12.
+Which items introduce the greatest risk if batched:
+- retry loops
+- duplicate sends
+- retry storms
+- MEL inconsistency
+- stale retry rows
+- provider drift
+- race conditions
+
+13.
+Whether correlation IDs are required NOW,
+or should remain deferred.
+
+14.
+Safest rollback strategy if:
+- retries duplicate sends
+- retry_count corrupts
+- timestamps drift
+- provider IDs mismatch
+- retry lineage breaks
+
+15.
+Recommended deploy sequencing:
+- exact deployment boundaries
+- exact validation gates
+- exact rollback boundaries
+
+────────────────────────────────────────
+RETURN
+────────────────────────────────────────
+
+Return:
+
+1. Recommended accelerated Phase D-1 strategy
+2. Largest safe batching recommendation
+3. Recommended deploy breakdown
+4. Retry architecture recommendation
+5. Retry lineage recommendation
+6. Retry dedupe recommendation
+7. Timestamp ownership recommendation
+8. provider_message_id ownership recommendation
+9. MEL evolution recommendation
+10. Index deployment recommendation
+11. Highest-risk batching areas
+12. Validation requirements
+13. Rollback recommendations
+14. Explicit "DO NOT BATCH" items
+15. Final recommended order of operations
+
+DO NOT IMPLEMENT.
+DO NOT MODIFY FILES.
+DO NOT CREATE MIGRATIONS.
