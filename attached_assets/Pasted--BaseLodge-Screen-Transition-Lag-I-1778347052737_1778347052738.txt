@@ -1,0 +1,81 @@
+╔════════════════════════════════════════════════════════════╗
+║ BaseLodge — Screen Transition Lag Investigation Plan      ║
+╚════════════════════════════════════════════════════════════╝
+
+Investigate why screen-to-screen navigation feels slower again in BaseLodge.
+
+Do NOT implement fixes yet.
+Do NOT redesign layouts.
+Do NOT refactor routing.
+Do NOT remove CSS yet.
+Do NOT change push notification code.
+Do NOT change native iOS/Android code yet.
+
+Goal:
+Identify the specific causes of perceived lag between screens across:
+- iOS TestFlight
+- Android beta/APK
+- mobile web
+
+Focus on whether the lag is caused by:
+- backend route/query time
+- template rendering time
+- too much JavaScript on navigation
+- CSS/layout/reflow cost
+- large assets
+- PostHog/analytics scripts
+- push/OneSignal initialization
+- Capacitor native bridge initialization
+- slow database queries
+- blocking network calls
+- duplicate scripts/listeners
+- stale code from recent QA fixes
+- safe-area/viewport listeners
+- home/trips/friends/ideas logic
+
+Audit these routes/screens:
+- /home
+- /trips
+- /ideas
+- /friends
+- /profile
+- /trips/<id> or trip detail route
+- /trips/add or add trip route
+- /push-settings
+
+Required investigation:
+1. Add temporary timing logs only if needed.
+2. Measure route handler duration on the server.
+3. Measure template render duration where useful.
+4. Inspect network waterfall for slow requests.
+5. Inspect whether analytics_head.html, OneSignal, push bridge, or BadgeClear code is running too often.
+6. Check for duplicate event listeners being registered on every page load.
+7. Check whether visualViewport listeners from the recent keyboard fix are scoped correctly and not firing globally.
+8. Check whether large CSS or unused selectors are affecting first paint.
+9. Check database query counts or expensive joins on Home, Trips, Ideas, Friends, and Trip Detail.
+10. Determine whether lag is actual load time or perceived transition delay due to lack of loading feedback.
+
+Output:
+1. Ranked suspected causes
+2. Route-by-route timing findings
+3. Platform affected:
+   - iOS
+   - Android
+   - mobile web
+   - all
+4. Exact files likely involved
+5. Whether each issue is:
+   - backend
+   - template
+   - JavaScript
+   - CSS/layout
+   - native shell
+   - analytics/third-party
+   - perceived UX
+6. Which fixes are safe to do immediately
+7. Which fixes need a native rebuild
+8. Which fixes should wait until dead CSS cleanup
+9. Recommended first implementation batch
+
+Use checkpoints sparingly.
+Return a clear investigation report before making changes.

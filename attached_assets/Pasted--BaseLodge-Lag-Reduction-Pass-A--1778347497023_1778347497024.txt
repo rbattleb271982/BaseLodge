@@ -1,0 +1,211 @@
+╔════════════════════════════════════════════════════════════╗
+║ BaseLodge — Lag Reduction Pass A                          ║
+╚════════════════════════════════════════════════════════════╝
+
+Implement ONLY the approved low-risk/high-ROI lag reduction fixes.
+
+Use checkpoints sparingly.
+
+Do NOT:
+- refactor route architecture
+- rewrite ORM models globally
+- change all lazy=True relationships
+- introduce Redis/Flask-Caching
+- perform dead CSS cleanup
+- modify push delivery logic
+- modify MessageEventLog
+- modify native iOS/Android files
+- redesign layouts
+
+This pass is strictly surgical performance optimization.
+
+────────────────────────────────────────
+IMPLEMENT THESE 6 FIXES ONLY
+────────────────────────────────────────
+
+1. Push beacon native gate (HIGH ROI)
+----------------------------------------
+
+File:
+- templates/components/analytics_head.html
+
+Problem:
+The push beacon block runs unconditional diagnostics and _waitForCapacitor() timers on every authenticated page load, including mobile web.
+
+Fix:
+Apply the SAME early native pre-check pattern already used by the OneSignal and BadgeClear blocks.
+
+Goal:
+- avoid unnecessary beacon POSTs
+- avoid unnecessary _waitForCapacitor polling
+- avoid 2s timers on non-native platforms
+- preserve diagnostics for native builds only
+
+Do NOT remove the diagnostics system entirely.
+Only gate it appropriately.
+
+────────────────────────────────────────
+
+2. Happening joinedload fix (HIGH ROI)
+----------------------------------------
+
+File:
+- app.py (home route)
+
+Problem:
+ft.resort lazy-loads inside the Happening loop, causing up to 30 extra SQL queries.
+
+Fix:
+Add joinedload/selectinload so resorts are fetched with the initial Happening trip query.
+
+Goal:
+Eliminate N+1 query behavior without changing business logic.
+
+────────────────────────────────────────
+
+3. Bottom-nav loading feedback (HIGH PERCEIVED ROI)
+---------------------------------------------------
+
+Files:
+- base_app.html
+- relevant JS/CSS files
+
+Problem:
+The app is an MPA inside WKWebView with no immediate visual acknowledgment during navigation.
+
+Fix:
+Add lightweight immediate tap feedback for bottom-nav navigation.
+
+Acceptable:
+- opacity state
+- loading class
+- active transition
+- subtle spinner
+- pressed state
+
+Goal:
+Reduce perceived lag without changing routing architecture.
+
+Must:
+- feel instant
+- preserve current nav structure
+- avoid flicker
+- avoid broken back behavior
+
+────────────────────────────────────────
+
+4. Resort form cache (MEDIUM ROI)
+----------------------------------------
+
+File:
+- app.py
+- get_resorts_for_trip_form()
+
+Problem:
+693-resort payload rebuilt from DB every request.
+
+Fix:
+Add safe lightweight caching:
+- functools.lru_cache(maxsize=1)
+OR
+- equivalent in-process memoization
+
+Requirements:
+- preserve existing payload structure
+- preserve ordering
+- preserve add_trip/edit_trip/trip_detail behavior
+- avoid introducing stale-request bugs
+
+No Redis.
+No Flask-Caching.
+No architecture changes.
+
+────────────────────────────────────────
+
+5. Home connection-card query batching (MEDIUM ROI)
+---------------------------------------------------
+
+File:
+- app.py (home route)
+
+Problem:
+DismissedInsightCard/User lookups occur inside loops.
+
+Fix:
+Batch-fetch required rows before loops instead of querying repeatedly.
+
+Goal:
+Reduce unnecessary ORM roundtrips while preserving identical UI behavior.
+
+────────────────────────────────────────
+
+6. Trip detail participant batching (MEDIUM ROI)
+------------------------------------------------
+
+File:
+- app.py (trip_detail route)
+
+Problem:
+db.session.get(User, user_id) and related lookups occur repeatedly inside participant loops.
+
+Fix:
+Batch-fetch participant users before loop iteration.
+
+Goal:
+Reduce N+1 participant query behavior while preserving overlap logic exactly.
+
+────────────────────────────────────────
+DO NOT TOUCH
+────────────────────────────────────────
+
+Do NOT:
+- globally modify relationships
+- remove lazy=True declarations
+- redesign Home
+- redesign Trips
+- redesign Ideas
+- modify analytics tracking behavior beyond gating unnecessary calls
+- change push notification architecture
+- change OneSignal setup
+- modify CSS cleanup groups
+- touch native projects
+
+────────────────────────────────────────
+TESTING
+────────────────────────────────────────
+
+Verify:
+- Flask app boots cleanly
+- no template errors
+- no ORM errors
+- Home renders correctly
+- Happening still renders correctly
+- Trip detail overlap logic unchanged
+- add_trip/edit_trip/trip_detail resort search still works
+- bottom nav feedback feels immediate
+- Android unaffected
+- mobile web unaffected
+- no push regressions
+- no analytics regressions for native builds
+
+Measure/compare:
+- Home route query count reduction
+- Happening query reduction
+- trip_detail query reduction
+- beacon request reduction on mobile web
+
+────────────────────────────────────────
+FINAL RESPONSE FORMAT
+────────────────────────────────────────
+
+Return:
+1. Exact files changed
+2. Exact optimizations implemented
+3. Before/after query behavior
+4. Before/after beacon behavior
+5. Any measurable improvements
+6. Remaining known bottlenecks
+7. Whether Replit publish/deploy is required
+8. Whether Xcode/TestFlight rebuild is required
+
+Do not stop before verification.

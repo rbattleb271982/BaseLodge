@@ -83,5 +83,36 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% block scripts %}{% endblock %}
+<script>
+/* ── Bottom-nav tap feedback — immediate visual response to navigation taps.
+   When the user taps a nav item that triggers a full-page navigation, the MPA
+   shell shows a blank WKWebView frame until the server responds. This script
+   applies an instant pressed state to the tapped item so the UI never feels
+   frozen, even on 200–400 ms server round-trips.
+   Cleans itself up automatically — the new page renders a fresh nav.         */
+(function() {
+  var nav = document.querySelector('.bl-bottom-nav');
+  if (!nav) return;
+  nav.querySelectorAll('.bl-nav-item').forEach(function(link) {
+    link.addEventListener('click', function() {
+      if (this.classList.contains('active')) return;
+      nav.querySelectorAll('.bl-nav-item').forEach(function(l) {
+        l.style.opacity = '0.45';
+        l.style.transition = 'opacity 80ms ease';
+      });
+      this.style.opacity = '1';
+      this.style.transition = 'opacity 80ms ease';
+    });
+  });
+  /* touchstart fires before click — gives haptic-matching visual on iOS */
+  nav.querySelectorAll('.bl-nav-item').forEach(function(link) {
+    link.addEventListener('touchstart', function() {
+      if (this.classList.contains('active')) return;
+      this.style.opacity = '0.6';
+      this.style.transition = 'opacity 60ms ease';
+    }, { passive: true });
+  });
+})();
+</script>
 </body>
 </html>

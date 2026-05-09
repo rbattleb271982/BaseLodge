@@ -85,17 +85,21 @@
 
   // ── Synchronous pre-check at script-parse time ────────────────────────────
   // Fires before DOMContentLoaded — confirms the script tag itself executes.
-  // Only beacons for authenticated users (window.__USER__ is set by the
-  // prior <script> block in this same <head>).
+  // Native-only: same guard pattern as OneSignal and BadgeClear blocks so
+  // mobile-web and desktop users don't fire unnecessary beacon POSTs.
   (function() {
     var userId = window.__USER__ && window.__USER__.id;
     if (!userId) return;
-    var capExists = !!(window.Capacitor);
-    var isNative = !!(capExists && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+    var _cap0sp = window.Capacitor;
+    var _wk0sp  = window.webkit;
+    var _isNativeSP = !!(_cap0sp && typeof _cap0sp.isNativePlatform === 'function' && _cap0sp.isNativePlatform());
+    var _hasWkSP    = !!(_wk0sp && _wk0sp.messageHandlers && _wk0sp.messageHandlers.capacitor);
+    if (!_isNativeSP && !_hasWkSP) return;
+    var capExists = !!_cap0sp;
     _pushBeacon('script_parsed', {
       user_id: userId,
       capacitor_exists: capExists,
-      is_native: isNative,
+      is_native: _isNativeSP,
       ua: navigator.userAgent.slice(0, 120)
     });
   })();
@@ -121,10 +125,17 @@
   // ── DOMContentLoaded: full registration flow ──────────────────────────────
   document.addEventListener('DOMContentLoaded', function() {
 
-    // UNCONDITIONAL environment snapshot — fires before any gate.
-    // This is the key diagnostic: the user agent and webkit handler
-    // tell us whether we're in Safari or a native WKWebView, and
-    // whether Capacitor's bridge was injected at document-start time.
+    // Native pre-check — same guard pattern as OneSignal and BadgeClear blocks.
+    // On non-native platforms (mobile web, desktop browser) exit immediately:
+    // no beacon POSTs, no _waitForCapacitor timers, no diagnostic overhead.
+    // Diagnostics are preserved for native builds (iOS TestFlight, Android APK).
+    var _cap0ps = window.Capacitor;
+    var _wk0ps  = window.webkit;
+    var _isNativePS = !!(_cap0ps && typeof _cap0ps.isNativePlatform === 'function' && _cap0ps.isNativePlatform());
+    var _hasWkPS    = !!(_wk0ps && _wk0ps.messageHandlers && _wk0ps.messageHandlers.capacitor);
+    if (!_isNativePS && !_hasWkPS) return;
+
+    // Environment snapshot — native builds only from this point forward.
     var userId = window.__USER__ && window.__USER__.id;
     if (userId) {
       _pushBeacon('dcl_environment', Object.assign({ user_id: userId }, _capSnapshot()));

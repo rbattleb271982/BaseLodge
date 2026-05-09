@@ -57,7 +57,7 @@ from sqlalchemy import func
 from urllib.parse import urlparse
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file, current_app
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
-from functools import wraps
+from functools import wraps, lru_cache
 from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -1703,20 +1703,26 @@ def get_grouped_locations():
         "Canada": sorted(ALL_CANADA_PROVINCES, key=lambda x: x[1])
     }
 
+@lru_cache(maxsize=1)
 def get_resorts_for_trip_form():
     """Get all active resorts for the Add Trip form.
     Returns list of dicts with id, name, country_code, state_code, pass_brands.
-    
+
     ⚠️ CONTRACT: This data is used ONLY for filtering States and Resorts after
     a country is selected. The Country dropdown is populated from COUNTRIES
     in utils/countries.py, NOT from this data. Do not change this contract.
-    
+
     Excludes region-level entities (is_region=True).
+
+    Cached via lru_cache(maxsize=1) — result is process-scoped and reused across
+    requests. Resort data changes rarely; the cache eliminates repeated full-table
+    scans on add_trip, edit_trip, and trip_detail (owner) pages.
+    Call get_resorts_for_trip_form.cache_clear() after any admin resort mutation.
     """
     resorts = Resort.query.filter_by(is_active=True, is_region=False).order_by(
         Resort.country_code, Resort.state_code, Resort.name
     ).all()
-    return [
+    return tuple(
         {
             "id": r.id,
             "name": r.name,
@@ -1725,7 +1731,7 @@ def get_resorts_for_trip_form():
             "pass_brands": r.pass_brands or r.brand or ""
         }
         for r in resorts
-    ]
+    )
 
 RIDER_TYPES = ["Skier", "Snowboarder", "Telemark", "Cross-Country", "Adaptive", "Social"]
 
@@ -6849,15 +6855,28 @@ def home():
             Activity.created_at >= cutoff,
         ).order_by(Activity.created_at.desc()).all()
 
+        # Batch-fetch dismissed keys and actor users before looping — avoids N+1.
+        _conn_card_keys = [
+            f"connection:{act.actor_user_id}:{act.recipient_user_id}"
+            for act in recent_connections
+        ]
+        _dismissed_conn_keys = set()
+        if _conn_card_keys:
+            _dismissed_conn_rows = DismissedInsightCard.query.filter(
+                DismissedInsightCard.user_id == user.id,
+                DismissedInsightCard.card_type == 'connection_accepted',
+                DismissedInsightCard.card_key.in_(_conn_card_keys),
+            ).all()
+            _dismissed_conn_keys = {d.card_key for d in _dismissed_conn_rows}
+        _conn_actor_ids = list({act.actor_user_id for act in recent_connections})
+        _conn_actors_map = (
+            {u.id: u for u in User.query.filter(User.id.in_(_conn_actor_ids)).all()}
+            if _conn_actor_ids else {}
+        )
         for act in recent_connections:
             card_key = f"connection:{act.actor_user_id}:{act.recipient_user_id}"
-            already_dismissed = DismissedInsightCard.query.filter_by(
-                user_id=user.id,
-                card_type='connection_accepted',
-                card_key=card_key,
-            ).first()
-            if not already_dismissed:
-                other_user = db.session.get(User, act.actor_user_id)
+            if card_key not in _dismissed_conn_keys:
+                other_user = _conn_actors_map.get(act.actor_user_id)
                 if other_user:
                     sender_connection_card = {
                         'name': other_user.first_name or other_user.username or 'your new friend',
@@ -7039,7 +7058,7 @@ def home():
                 SkiTrip.user_id.in_(friend_ids),
                 SkiTrip.is_public == True,
                 SkiTrip.end_date >= today
-            ).order_by(SkiTrip.start_date.asc()).limit(30).all()
+            ).options(db.joinedload(SkiTrip.resort)).order_by(SkiTrip.start_date.asc()).limit(30).all()
             _ft_users_map = {u.id: u for u in all_friends}
             # Group by (user_id, mountain, status) — 3+ trips → one summarised signal
             from collections import defaultdict as _dd_hap
@@ -8869,9 +8888,13 @@ def trip_detail(trip_id):
         # Get other participants' confirmed trips at the same resort during the same period
         other_user_ids = [p.user_id for p in all_participants if p.user_id != current_user.id]
         if other_user_ids:
+            # Batch-load all participant users before loop — avoids N+1 (1 query replaces N).
+            _participant_users_map = {
+                u.id: u for u in User.query.filter(User.id.in_(other_user_ids)).all()
+            }
             # Find overlapping trips from other participants
             for user_id in other_user_ids:
-                other_user = db.session.get(User, user_id)
+                other_user = _participant_users_map.get(user_id)
                 if not other_user:
                     continue
                 
@@ -12263,6 +12286,7 @@ def admin_update_pass_brand():
     
     resort.pass_brands_json = pass_brands
     db.session.commit()
+    get_resorts_for_trip_form.cache_clear()
     return jsonify({'success': True, 'pass_brands': resort.get_pass_brands_list()})
 
 
@@ -12294,6 +12318,7 @@ def admin_update_resort_field():
         resort.state = value
     
     db.session.commit()
+    get_resorts_for_trip_form.cache_clear()
     return jsonify({'success': True})
 
 
@@ -12313,7 +12338,7 @@ def admin_update_country_name():
     # Set to None if empty (falls back to COUNTRIES lookup)
     resort.country_name_override = country_name_override if country_name_override else None
     db.session.commit()
-    
+    get_resorts_for_trip_form.cache_clear()
     return jsonify({'success': True, 'display_country_name': resort.display_country_name})
 
 
@@ -12332,6 +12357,7 @@ def admin_toggle_resort_active():
     
     resort.is_active = is_active
     db.session.commit()
+    get_resorts_for_trip_form.cache_clear()
     return jsonify({'success': True})
 
 
@@ -12370,7 +12396,7 @@ def admin_delete_resort_post():
     resort_name = resort.name
     db.session.delete(resort)
     db.session.commit()
-    
+    get_resorts_for_trip_form.cache_clear()
     return jsonify({'success': True, 'message': f'Deleted resort: {resort_name}'})
 
 
