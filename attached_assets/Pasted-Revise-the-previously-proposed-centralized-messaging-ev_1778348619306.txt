@@ -1,0 +1,86 @@
+Revise the previously proposed centralized messaging event layer plan with the following architectural adjustments.
+This is still a planning task only.
+Do NOT implement.
+Use checkpoints sparingly.
+────────────────────────────────────────
+APPROVED DIRECTION
+────────────────────────────────────────
+The overall direction is approved:
+centralized messaging orchestration
+event registry
+phased rollout
+no large rewrite
+no queues/workers yet
+no MessageEventLog schema changes
+keep _notify_push() alive as a shim initially
+move toward routes emitting intent instead of directly choosing delivery behavior
+The following changes must now be incorporated into the architecture plan.
+────────────────────────────────────────
+REVISION 1 — DELIVERY STRATEGY
+────────────────────────────────────────
+The current proposal uses:
+channels
+journey_event
+is_silent
+This creates ambiguity about actual execution behavior.
+Revise the EventSpec design to include:
+delivery_strategy
+Examples:
+"push_only"
+"journey_only"
+"push_and_journey"
+"silent"
+The revised plan should explain:
+how delivery_strategy affects orchestration
+how it interacts with channels
+how future email support would integrate later
+which currently active events map to which strategies
+Examples expected:
+friend.request.created → push_only
+friend.pass.changed → journey_only
+trip.invite.declined → silent
+Clarify whether channels still belong in EventSpec or whether delivery_strategy becomes the primary execution controller.
+────────────────────────────────────────
+REVISION 2 — REMOVE NEW ADMIN ROUTE
+────────────────────────────────────────
+Do NOT add:
+/admin/test-emit-event
+Reason:
+BaseLodge already has too many admin/debug routes.
+Instead:
+reuse an existing admin test route if needed
+OR
+use a temporary local validation strategy during Phase A
+Revise the implementation plan accordingly.
+────────────────────────────────────────
+ADDITIONAL QUESTIONS TO ANSWER
+────────────────────────────────────────
+Update the plan to explicitly answer:
+Should emit_messaging_event() always create exactly one MessageEventLog row per emitted event?
+For push_and_journey in the future:
+should there be one MEL row or separate rows per channel/provider?
+Should delivery_strategy live:
+directly in EventSpec
+or be derived from channels + journey_event internally?
+Should silent events still fully pass through emit_messaging_event()
+for audit consistency?
+Should Journey-triggered events participate in dedupe or not?
+Should OneSignal Journey events honor push_notifications_enabled,
+or should they later evolve into a separate marketing preference system?
+Do NOT implement preference systems yet.
+Only recommend the safest architecture direction.
+────────────────────────────────────────
+RETURN
+────────────────────────────────────────
+Return:
+revised EventSpec design
+revised orchestration flow
+revised phase plan
+revised risks section
+revised implementation recommendation
+updated answers to the new architectural questions
+Do not implement.
+Do not edit files.
+Do not create routes.
+Do not create migrations.
+Return the revised plan only.

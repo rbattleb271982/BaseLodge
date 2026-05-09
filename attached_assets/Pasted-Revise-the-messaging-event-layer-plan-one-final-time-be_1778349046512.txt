@@ -1,0 +1,87 @@
+Revise the messaging event layer plan one final time before implementation.
+This is still a planning task only.
+Do NOT implement.
+Use checkpoints sparingly.
+────────────────────────────────────────
+APPROVED DIRECTION
+────────────────────────────────────────
+The revised architecture is approved overall:
+centralized orchestration
+EventSpec registry
+emit_messaging_event()
+MEL-first auditing
+phased rollout
+no queues/workers yet
+no schema changes
+admin diagnostics remain isolated
+delivery_strategy becomes the primary execution controller
+However, the current naming for delivery strategies still creates conceptual ambiguity.
+────────────────────────────────────────
+REQUIRED REVISION — DELIVERY STRATEGY NAMING
+────────────────────────────────────────
+Current proposed values:
+PUSH_ONLY
+JOURNEY_ONLY
+PUSH_AND_JOURNEY
+SILENT
+Problem:
+The word “Journey” leaks OneSignal-specific terminology into the orchestration architecture.
+A OneSignal Journey may itself produce push notifications later, which makes:
+PUSH_ONLY
+vs
+JOURNEY_ONLY
+conceptually confusing.
+The architecture should describe behavioral intent, not vendor terminology.
+Revise the strategy system to use behavior-oriented naming instead.
+Recommended direction:
+IMMEDIATE_PUSH
+AUTOMATION_EVENT
+IMMEDIATE_PUSH_AND_AUTOMATION
+SILENT
+Update the plan accordingly.
+────────────────────────────────────────
+REQUIRED ANALYSIS
+────────────────────────────────────────
+Update the plan to explicitly explain:
+Why the new naming is architecturally safer long-term
+How the naming cleanly separates:
+immediate delivery
+vs
+automation signal emission
+How the naming survives:
+future provider changes
+future email support
+future SMS support
+future journey vendors
+future orchestration engines
+Whether the orchestration layer should know or care that:
+OneSignal is the current provider
+or whether provider details should remain fully isolated inside dispatch functions
+Whether AUTOMATION_EVENT should conceptually mean:
+“emit a signal into another orchestration system”
+rather than:
+“send a notification”
+How future email/SMS automation flows would map into the strategy model.
+────────────────────────────────────────
+REVISE THE FOLLOWING SECTIONS
+────────────────────────────────────────
+Revise:
+DeliveryStrategy class
+EventSpec examples
+orchestration flow diagrams
+risks section
+implementation recommendation
+future extensibility explanation
+Update all examples consistently.
+────────────────────────────────────────
+IMPORTANT
+────────────────────────────────────────
+Do NOT:
+implement
+edit files
+create migrations
+create routes
+add providers
+change MessageEventLog schema
+This is the final planning refinement before Phase A implementation.
+Return the revised architecture plan only.

@@ -1,0 +1,186 @@
+╔════════════════════════════════════════════════════════════╗
+║ BaseLodge — Centralized Messaging Event Layer Plan        ║
+╚════════════════════════════════════════════════════════════╝
+
+Create a surgical implementation plan for a centralized messaging event layer.
+
+Do NOT implement yet.
+
+Goal:
+Move BaseLodge toward a cleaner communication architecture where product routes emit standardized messaging events, and a centralized orchestration layer handles delivery decisions, logging, preferences, suppression, and provider routing.
+
+This is a planning task only.
+
+Use checkpoints sparingly.
+
+────────────────────────────────────────
+CURRENT CONTEXT
+────────────────────────────────────────
+
+BaseLodge already has:
+
+* MessageEventLog
+* canonical messaging constants
+* push notification delivery working
+* OneSignal product pushes working
+* APNs direct diagnostics working
+* Android FCM diagnostics working
+* push opt-out support
+* push token hygiene
+* badge clearing
+* dedupe handling
+* skipped/user_opted_out behavior
+* route-level notification sends
+
+The issue:
+Product routes still directly trigger notification logic.
+
+Desired direction:
+Product routes should emit standardized internal events, and a centralized messaging layer should decide:
+
+* whether to send
+* who receives it
+* which channel/provider to use
+* whether user preferences suppress it
+* whether dedupe applies
+* how MessageEventLog is written
+* whether future email/push/SMS/journey orchestration should happen
+
+────────────────────────────────────────
+SCOPE
+────────────────────────────────────────
+
+Plan only the next safe foundational step.
+
+Do NOT propose a huge rewrite.
+Do NOT build full lifecycle journeys yet.
+Do NOT change MessageEventLog schema unless absolutely required.
+Do NOT replace OneSignal.
+Do NOT remove APNs/FCM diagnostic routes.
+Do NOT modify push token registration.
+Do NOT change native iOS/Android code.
+Do NOT add SMS.
+Do NOT add email journeys yet.
+Do NOT change product UX.
+
+────────────────────────────────────────
+FOCUS AREAS
+────────────────────────────────────────
+
+Audit and plan around:
+
+1. Current product events
+
+* friend.request.created
+* friend.request.accepted
+* trip.invite.created
+* trip.invite.accepted
+* trip.invite.declined if currently silent
+* push.test.sent
+* push.broadcast.sent
+* any other current MessageEventLog event names
+
+2. Current notification call sites
+
+* where routes directly call _notify_push()
+* where routes call send_onesignal_push()
+* where MessageEventLog rows are created directly
+* where suppression logic lives today
+
+3. Proposed centralized API
+   Example direction:
+
+* emit_messaging_event(...)
+* handle_messaging_event(...)
+* dispatch_message_event(...)
+  or similar
+
+The plan should recommend naming and shape.
+
+4. Event payload shape
+   Recommend a standard internal event payload with:
+
+* event_name
+* actor_user_id
+* recipient_user_id
+* related_entity_type
+* related_entity_id
+* category
+* channel eligibility
+* metadata
+* dedupe key/input
+* source_route
+
+5. Delivery rules
+   Plan how the centralized layer should decide:
+
+* push vs no push
+* silent-by-design events
+* opt-out suppression
+* duplicate suppression
+* future email eligibility
+* future OneSignal Journey/event handoff
+
+6. MessageEventLog integrity
+   Plan how existing log behavior remains stable:
+
+* sent
+* failed
+* skipped
+* duplicate_event
+* user_opted_out
+* silent_by_design
+* not_implemented
+* no_recipient/no_token if present
+
+7. Migration strategy
+   Recommend the safest phased rollout:
+   Phase A: wrapper layer around current _notify_push()
+   Phase B: update one product route at a time to emit events
+   Phase C: add richer orchestration rules
+   Phase D: future email/journey support
+
+8. File impact
+   Identify exact files likely affected:
+
+* app.py
+* services/message_events.py
+* services/messaging_constants.py
+* any new service file
+* tests if present
+
+────────────────────────────────────────
+RETURN
+────────────────────────────────────────
+
+Return:
+
+1. Current communication architecture map
+2. All current messaging call sites
+3. Recommended event layer design
+4. Proposed function/API names and signatures
+5. Standard event payload shape
+6. Recommended phased implementation plan
+7. What should NOT be changed yet
+8. Exact files likely affected
+9. Risks
+10. Test plan
+11. First implementation prompt recommendation
+
+Do not implement.
+Do not refactor.
+Only plan.
+
+────────────────────────────────────────
+IMPORTANT
+────────────────────────────────────────
+
+Before writing any code, return the plan and wait for my approval.
+
+Do not edit files.
+Do not create migrations.
+Do not run implementation changes.
+Do not silently refactor existing notification flows.
+Do not introduce background jobs yet.
+Do not add Celery, Redis, queues, workers, or async orchestration.
+Keep the recommendation compatible with the current Flask architecture.

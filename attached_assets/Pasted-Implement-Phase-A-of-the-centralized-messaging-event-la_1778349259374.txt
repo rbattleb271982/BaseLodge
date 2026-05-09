@@ -1,0 +1,347 @@
+Implement Phase A of the centralized messaging event layer.
+
+This is a foundational extraction and orchestration setup pass only.
+
+Use checkpoints sparingly.
+
+────────────────────────────────────────
+GOALS
+────────────────────────────────────────
+
+Implement the foundational messaging orchestration layer without changing any existing product behavior.
+
+The architecture goals are:
+
+- routes will eventually emit messaging intent
+- orchestration layer decides behavioral execution strategy
+- provider-specific code lives outside app.py
+- MessageEventLog remains the audit source of truth
+- no user-facing behavior changes in Phase A
+
+Phase A is NOT a migration phase yet.
+
+────────────────────────────────────────
+DO NOT CHANGE
+────────────────────────────────────────
+
+Do NOT:
+- migrate existing product routes yet
+- change product UX
+- change MessageEventLog schema
+- add Celery/Redis/background jobs
+- add async orchestration
+- change native iOS/Android code
+- modify push token registration
+- modify APNs diagnostic routes
+- modify FCM diagnostic routes
+- modify OneSignal delivery behavior
+- add new admin/debug endpoints
+- remove _notify_push()
+- remove existing notification paths
+- change existing push payload structure
+- change dedupe behavior
+- change push opt-out behavior
+
+Admin diagnostic routes intentionally remain outside orchestration.
+
+────────────────────────────────────────
+STEP 1 — CREATE services/push_providers.py
+────────────────────────────────────────
+
+Create:
+
+services/push_providers.py
+
+Move the COMPLETE bodies of:
+
+- send_onesignal_push()
+- send_onesignal_custom_event()
+
+from app.py into this new file.
+
+Move all required imports with them, including things like:
+- os
+- httpx
+- current_app
+- db
+- User
+- any helper imports they currently rely on
+
+Behavior must remain IDENTICAL.
+
+In app.py:
+- remove the old function bodies
+- import the functions from services.push_providers instead
+
+Result:
+app.py should continue functioning exactly the same after the extraction.
+
+This step exists primarily to prevent future circular import issues.
+
+────────────────────────────────────────
+STEP 2 — UPDATE messaging_constants.py
+────────────────────────────────────────
+
+Update:
+
+services/messaging_constants.py
+
+Add:
+
+class DeliveryStrategy:
+    IMMEDIATE_PUSH = "immediate_push"
+    AUTOMATION_EVENT = "automation_event"
+    IMMEDIATE_PUSH_AND_AUTOMATION = "immediate_push_and_automation"
+    SILENT = "silent"
+
+Add:
+
+EventName.FRIEND_PASS_CHANGED = "friend.pass.changed"
+
+Add:
+
+Provider.ONESIGNAL_JOURNEY = "onesignal_journey"
+
+Do not change existing constants behavior.
+
+────────────────────────────────────────
+STEP 3 — CREATE services/message_dispatch.py
+────────────────────────────────────────
+
+Create:
+
+services/message_dispatch.py
+
+This file becomes the orchestration entry point.
+
+────────────────────────────────────────
+3A — CREATE EventSpec
+────────────────────────────────────────
+
+Create an EventSpec dataclass with:
+
+- event_name
+- category
+- delivery_strategy
+- title_template
+- body_template
+- data_keys
+- automation_event_name
+- bypass_dedupe
+- email_eligible
+
+Notes:
+- title_template/body_template remain None in Phase A
+- email_eligible has no execution effect yet
+
+────────────────────────────────────────
+3B — CREATE _EVENT_REGISTRY
+────────────────────────────────────────
+
+Create a registry covering these events:
+
+Immediate push:
+- friend.request.created
+- friend.request.accepted
+- trip.invite.created
+- trip.invite.accepted
+
+Silent:
+- trip.invite.declined
+- overlap.detected
+- friend.trip.created
+- friend.trip.updated
+- wishlist.match.detected
+- digest.weekly.generated
+
+Automation event:
+- friend.pass.changed
+
+Use the correct DeliveryStrategy for each.
+
+Silent events must still produce MEL rows later.
+
+────────────────────────────────────────
+3C — IMPLEMENT emit_messaging_event()
+────────────────────────────────────────
+
+Create the public API:
+
+emit_messaging_event(...)
+
+This function:
+- never raises
+- loads the EventSpec
+- builds an internal payload
+- switches ONLY on delivery_strategy
+- delegates to dispatch functions
+
+The orchestration layer must NOT:
+- know OneSignal APIs
+- know APNs APIs
+- know FCM APIs
+- know HTTP payload details
+- know vendor-specific implementation details
+
+It only knows behavioral strategy.
+
+────────────────────────────────────────
+3D — IMPLEMENT DISPATCH FUNCTIONS
+────────────────────────────────────────
+
+Implement:
+
+1.
+_dispatch_immediate_push()
+
+Phase A behavior:
+- wrap existing _notify_push()
+- preserve all existing behavior
+- preserve existing MEL behavior
+- preserve dedupe behavior
+- preserve opt-out behavior
+
+Do NOT rewrite notification delivery logic yet.
+
+2.
+_dispatch_automation_event()
+
+Behavior:
+- check push_notifications_enabled
+- if opted out:
+  - create MEL row
+  - skipped/user_opted_out
+  - return safely
+- otherwise:
+  - call send_onesignal_custom_event()
+  - create MEL row
+  - provider=onesignal_journey
+
+IMPORTANT:
+Add comments clearly explaining:
+
+For AUTOMATION_EVENT:
+delivery_status=sent means:
+“the automation signal was emitted successfully”
+
+It does NOT mean:
+“a notification was delivered to the user”
+
+The downstream automation platform controls:
+- if communication happens
+- when it happens
+- which channel it uses
+
+3.
+_dispatch_silent()
+
+Behavior:
+- create MEL row only
+- delivery_status=skipped
+- suppression_reason=silent_by_design
+
+No delivery attempt.
+
+4.
+_dispatch_not_implemented()
+
+Behavior:
+- safe fallback
+- create MEL row
+- suppression_reason=not_implemented
+- log warning
+- never raise
+
+────────────────────────────────────────
+STEP 4 — TEMPORARY VALIDATION INSIDE EXISTING ROUTE
+────────────────────────────────────────
+
+DO NOT create a new route.
+
+Inside the EXISTING:
+
+/admin/test-messaging
+
+temporarily add ONE call to:
+
+emit_messaging_event()
+
+Use:
+- event_name=friend.request.created
+- actor_user_id=admin user
+- recipient_user_id=admin user
+- source_route="admin_test_messaging_phase_a"
+
+This exists ONLY for Phase A validation.
+
+Add a clear comment saying:
+REMOVE AFTER PHASE A VALIDATION.
+
+────────────────────────────────────────
+STEP 5 — VALIDATION
+────────────────────────────────────────
+
+Validate ALL of the following:
+
+1.
+Flask starts cleanly
+
+2.
+No circular import errors
+
+3.
+Existing notification flows still work
+
+4.
+Existing admin diagnostic routes still work:
+- APNs
+- FCM
+- broadcast
+- OneSignal test push
+
+5.
+GET /admin/test-messaging creates:
+- a new MEL row
+- via emit_messaging_event()
+
+6.
+The MEL row correctly reflects:
+- event_name
+- provider
+- delivery behavior
+- source_route
+
+7.
+No duplicate MEL rows created
+
+────────────────────────────────────────
+IMPORTANT IMPLEMENTATION RULES
+────────────────────────────────────────
+
+- Preserve existing behavior
+- Preserve existing delivery semantics
+- Preserve existing provider behavior
+- Preserve existing audit behavior
+- Do not over-engineer
+- Do not add async systems
+- Do not add queues
+- Do not add retries
+- Do not add workers
+- Do not create abstractions not explicitly requested
+
+This is a surgical foundational extraction only.
+
+────────────────────────────────────────
+AFTER COMPLETION
+────────────────────────────────────────
+
+Return:
+
+1. Files changed
+2. Exact architectural changes made
+3. Any import/circular dependency fixes required
+4. Validation results
+5. Any temporary Phase A validation code added
+6. Any risks before Phase B
+
+Do not continue into Phase B.

@@ -68,6 +68,8 @@ from services.open_dates import get_open_date_matches
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
 from services.message_events import create_message_event, is_duplicate_event, should_retry
 from services.messaging_constants import EventName, Category, DeliveryStatus, SuppressionReason, Channel, Provider
+from services.push_providers import send_onesignal_push, send_onesignal_custom_event
+from services.message_dispatch import emit_messaging_event
 from io import BytesIO
 import segno
 import random
@@ -4557,107 +4559,11 @@ def admin_push_diagnostics():
     }), 200
 
 
-def send_onesignal_push(user_ids, title, body, data=None):
-    """Send a push notification via the OneSignal REST API.
-
-    Targets BaseLodge users by their internal integer user ID, which is
-    registered as the OneSignal external_id from the client SDK init block.
-
-    Args:
-        user_ids: iterable of integer BaseLodge user IDs.
-        title:    notification title string.
-        body:     notification body / message string.
-        data:     optional dict of extra key/value data forwarded to the device.
-
-    Returns a dict with keys:
-        success (bool), notification_id (str|None), error (str|None).
-
-    Environment variables required (never exposed client-side):
-        ONESIGNAL_APP_ID        — public app identifier (safe to log).
-        ONESIGNAL_REST_API_KEY  — secret REST key (never logged).
-    """
-    app_id   = os.environ.get("ONESIGNAL_APP_ID", "")
-    rest_key = os.environ.get("ONESIGNAL_REST_API_KEY", "")
-
-    if not app_id or not rest_key:
-        current_app.logger.warning(
-            "[OneSignal] send_onesignal_push: ONESIGNAL_APP_ID or "
-            "ONESIGNAL_REST_API_KEY not set — push skipped"
-        )
-        return {"success": False, "notification_id": None, "error": "missing_config"}
-
-    all_ids = list(user_ids)
-
-    # Filter out users who have opted out of push notifications
-    try:
-        opted_out = {
-            row.id for row in
-            db.session.query(User.id).filter(
-                User.id.in_(all_ids),
-                User.push_notifications_enabled == False  # noqa: E712
-            ).all()
-        }
-        if opted_out:
-            current_app.logger.warning(
-                "[OneSignal] send_push: skipping %d opted-out user(s): %s",
-                len(opted_out), sorted(opted_out),
-            )
-        all_ids = [uid for uid in all_ids if uid not in opted_out]
-    except Exception as _filter_err:
-        current_app.logger.warning(
-            "[OneSignal] send_push: opt-out filter failed (%s) — proceeding with all ids", _filter_err
-        )
-
-    if not all_ids:
-        current_app.logger.warning("[OneSignal] send_push: all recipients opted out — silent skip (no delivery attempt)")
-        return {"success": True, "notification_id": None, "skipped": True, "reason": "all_opted_out"}
-
-    external_ids = [str(uid) for uid in all_ids]
-
-    payload = {
-        "app_id":          app_id,
-        "include_aliases": {"external_id": external_ids},
-        "target_channel":  "push",
-        "headings":        {"en": title},
-        "contents":        {"en": body},
-        "ios_badgeType":   "SetTo",
-        "ios_badgeCount":  1,
-    }
-    if data:
-        payload["data"] = data
-
-    current_app.logger.warning(
-        "[OneSignal] send_push → external_ids=%s title=%r",
-        external_ids, title,
-    )
-
-    try:
-        resp = httpx.post(
-            "https://onesignal.com/api/v1/notifications",
-            headers={
-                "Authorization":  f"Basic {rest_key}",
-                "Content-Type":   "application/json",
-            },
-            json=payload,
-            timeout=10.0,
-        )
-        result          = resp.json()
-        notification_id = result.get("id")
-        errors          = result.get("errors")
-        current_app.logger.warning(
-            "[OneSignal] response status=%d notification_id=%s errors=%s",
-            resp.status_code, notification_id, errors,
-        )
-        if resp.status_code in (200, 202) and not errors:
-            return {"success": True, "notification_id": notification_id, "error": None}
-        return {
-            "success":         False,
-            "notification_id": notification_id,
-            "error":           str(errors or result),
-        }
-    except Exception as _exc:
-        current_app.logger.exception("[OneSignal] request failed: %s", _exc)
-        return {"success": False, "notification_id": None, "error": str(_exc)}
+# send_onesignal_push and send_onesignal_custom_event have been moved to
+# services/push_providers.py (Phase A extraction). They are imported at the
+# top of this file via:
+#   from services.push_providers import send_onesignal_push, send_onesignal_custom_event
+# All callers in app.py continue to work identically — behavior is unchanged.
 
 
 def _notify_push(
@@ -4757,83 +4663,8 @@ def _notify_push(
         current_app.logger.warning("[_notify_push] audit log failed: %s", _e)
 
 
-def send_onesignal_custom_event(user_ids, event_name, properties=None):
-    """Send a OneSignal Custom Event for each user in user_ids.
-
-    Used to trigger OneSignal Journeys (e.g. a delayed push) rather than
-    sending an immediate notification. The Custom Events API accepts one
-    external_id per request, so this function loops and fires one POST per
-    recipient.
-
-    Args:
-        user_ids:   iterable of integer BaseLodge user IDs.
-        event_name: string event name registered in the OneSignal dashboard.
-        properties: optional dict of key/value properties attached to the event.
-
-    Returns a dict with keys:
-        success (bool), sent (int), failed (int).
-
-    Environment variables required:
-        ONESIGNAL_APP_ID       — public app identifier (safe to log).
-        ONESIGNAL_REST_API_KEY — secret REST key (never logged).
-    """
-    app_id   = os.environ.get("ONESIGNAL_APP_ID", "")
-    rest_key = os.environ.get("ONESIGNAL_REST_API_KEY", "")
-
-    if not app_id or not rest_key:
-        current_app.logger.warning(
-            "[OneSignal] send_onesignal_event: ONESIGNAL_APP_ID or "
-            "ONESIGNAL_REST_API_KEY not set — event skipped"
-        )
-        return {"success": False, "sent": 0, "failed": 0}
-
-    all_ids = list(user_ids)
-    if not all_ids:
-        return {"success": True, "sent": 0, "failed": 0}
-
-    url     = f"https://api.onesignal.com/apps/{app_id}/events"
-    headers = {
-        "Authorization": f"Basic {rest_key}",
-        "Content-Type":  "application/json",
-    }
-    props = properties or {}
-
-    current_app.logger.warning(
-        "[OneSignal] send_event → event_name=%r recipient_count=%d",
-        event_name, len(all_ids),
-    )
-
-    sent   = 0
-    failed = 0
-    for uid in all_ids:
-        ext_id  = str(uid)
-        payload = {
-            "name":       event_name,
-            "properties": props,
-            "identity":   {"external_id": ext_id},
-        }
-        try:
-            resp = httpx.post(url, headers=headers, json=payload, timeout=10.0)
-            if resp.status_code in (200, 202):
-                current_app.logger.warning(
-                    "[OneSignal] send_event: external_id=%s status=%d",
-                    ext_id, resp.status_code,
-                )
-                sent += 1
-            else:
-                current_app.logger.warning(
-                    "[OneSignal] send_event: external_id=%s status=%d error=%s",
-                    ext_id, resp.status_code, resp.text[:200],
-                )
-                failed += 1
-        except Exception as _exc:
-            current_app.logger.exception(
-                "[OneSignal] send_event: request failed for external_id=%s: %s",
-                ext_id, _exc,
-            )
-            failed += 1
-
-    return {"success": failed == 0, "sent": sent, "failed": failed}
+# send_onesignal_custom_event has been moved to services/push_providers.py
+# (Phase A extraction). Imported at the top of this file. Behavior unchanged.
 
 
 @app.route("/admin/test-push", methods=["GET", "POST"])
@@ -13495,6 +13326,28 @@ def admin_test_message_event():
         message_body="Test sent row created by admin test route.",
         delivery_status=DeliveryStatus.SENT,
     )
+
+    # ── PHASE A VALIDATION ONLY — REMOVE AFTER PHASE A VALIDATION ──
+    # Exercises emit_messaging_event() end-to-end through the new dispatch layer.
+    # Verify in /admin/message-events: look for event_name=friend.request.created,
+    # source_route=admin_test_messaging_phase_a. Then remove this block before Phase B.
+    try:
+        emit_messaging_event(
+            event_name=EventName.FRIEND_REQUEST_CREATED,
+            actor_user_id=current_user.id,
+            recipient_user_id=current_user.id,
+            entity_type="user",
+            entity_id=current_user.id,
+            metadata={
+                "title":     "BaseLodge Phase A Test",
+                "body":      "emit_messaging_event() validation row.",
+                "push_data": {"source": "phase_a_validation"},
+            },
+            source_route="admin_test_messaging_phase_a",
+        )
+    except Exception as _phase_a_err:
+        current_app.logger.warning("[Phase A] emit_messaging_event validation failed: %s", _phase_a_err)
+    # ── END PHASE A VALIDATION ──
 
     create_message_event(
         event_name=EventName.OVERLAP_DETECTED,
