@@ -2497,25 +2497,30 @@ def edit_profile():
             # Emit profile_completed event
             emit_event('profile_completed', user)
 
-            # Emit friend_pass_changed event only when pass actually changed
+            # ── B3: friend.pass.changed (edit_profile) — centralized dispatch ──
+            # One emit per friend → one MEL audit row per recipient.
             if _old_pass_ep != normalized_passes:
                 _ep_friend_ids = get_friend_ids(user.id)
                 if _ep_friend_ids:
                     _ep_display = format_passes_for_display(normalized_passes).replace(" · ", " + ")
-                    current_app.logger.warning(
-                        "[OneSignal] pass_changed (edit_profile): old=%r new=%r friend_count=%d",
+                    current_app.logger.info(
+                        "[MESSAGE_DISPATCH] pass_changed (edit_profile): old=%r new=%r friend_count=%d",
                         _old_pass_ep, normalized_passes, len(_ep_friend_ids),
                     )
-                    send_onesignal_custom_event(
-                        _ep_friend_ids,
-                        "friend_pass_changed",
-                        properties={
-                            "actor_user_id":    user.id,
-                            "actor_first_name": user.first_name,
-                            "new_pass":         normalized_passes,
-                            "new_pass_display": _ep_display,
-                        },
-                    )
+                    for _friend_id in _ep_friend_ids:
+                        emit_messaging_event(
+                            event_name=EventName.FRIEND_PASS_CHANGED,
+                            actor_user_id=user.id,
+                            recipient_user_id=_friend_id,
+                            entity_type="user",
+                            entity_id=user.id,
+                            metadata={
+                                "actor_first_name": user.first_name,
+                                "new_pass":         normalized_passes,
+                                "new_pass_display": _ep_display,
+                            },
+                            source_route="edit_profile",
+                        )
 
             return redirect(url_for("profile"))
         except Exception as e:
@@ -9768,25 +9773,30 @@ def select_pass():
         try:
             db.session.commit()
             session["pass_prompt_skipped"] = False
-            # Emit friend_pass_changed event only when pass actually changed
+            # ── B3: friend.pass.changed (select_pass) — centralized dispatch ──
+            # One emit per friend → one MEL audit row per recipient.
             if _old_pass_sp != normalized_chosen:
                 _sp_friend_ids = get_friend_ids(current_user.id)
                 if _sp_friend_ids:
                     _sp_display = format_passes_for_display(normalized_chosen).replace(" · ", " + ")
-                    current_app.logger.warning(
-                        "[OneSignal] pass_changed (select-pass): old=%r new=%r friend_count=%d",
+                    current_app.logger.info(
+                        "[MESSAGE_DISPATCH] pass_changed (select_pass): old=%r new=%r friend_count=%d",
                         _old_pass_sp, normalized_chosen, len(_sp_friend_ids),
                     )
-                    send_onesignal_custom_event(
-                        _sp_friend_ids,
-                        "friend_pass_changed",
-                        properties={
-                            "actor_user_id":    current_user.id,
-                            "actor_first_name": current_user.first_name,
-                            "new_pass":         normalized_chosen,
-                            "new_pass_display": _sp_display,
-                        },
-                    )
+                    for _friend_id in _sp_friend_ids:
+                        emit_messaging_event(
+                            event_name=EventName.FRIEND_PASS_CHANGED,
+                            actor_user_id=current_user.id,
+                            recipient_user_id=_friend_id,
+                            entity_type="user",
+                            entity_id=current_user.id,
+                            metadata={
+                                "actor_first_name": current_user.first_name,
+                                "new_pass":         normalized_chosen,
+                                "new_pass_display": _sp_display,
+                            },
+                            source_route="select_pass",
+                        )
             return redirect(url_for("profile"))
         except Exception as e:
             db.session.rollback()

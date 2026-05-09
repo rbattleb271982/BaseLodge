@@ -144,6 +144,9 @@ _EVENT_REGISTRY: dict[str, EventSpec] = {
         category=Category.FRIEND,
         delivery_strategy=DeliveryStrategy.AUTOMATION_EVENT,
         automation_event_name="friend_pass_changed",  # OneSignal Custom Event name
+        # data_keys: forwarded from metadata into Journey properties.
+        # actor_user_id is injected automatically by _dispatch_automation_event.
+        data_keys=["actor_first_name", "new_pass", "new_pass_display"],
         bypass_dedupe=True,   # Journey events bypass push dedupe (see architecture notes)
         email_eligible=False,
         # Note: automation_event_name is the signal identifier sent to the

@@ -1,0 +1,149 @@
+Phase B3 — Migrate friend.pass.changed to AUTOMATION_EVENT orchestration
+
+Use checkpoints sparingly.
+
+DO NOT migrate trip invite events yet.
+DO NOT migrate trip.invite.accepted yet.
+DO NOT change MessageEventLog schema.
+DO NOT change provider behavior.
+DO NOT change Journey payload behavior.
+DO NOT change admin diagnostic routes.
+
+IMPORTANT:
+This is the FIRST AUTOMATION_EVENT migration.
+Validate extremely carefully.
+
+────────────────────────────────────────
+STEP 1 — FIND BOTH friend.pass.changed CALL SITES
+────────────────────────────────────────
+
+Find BOTH current direct calls to:
+
+send_onesignal_custom_event()
+
+Expected locations:
+- edit_profile flow
+- select_pass flow
+
+Current behavior:
+- direct Journey signal emission
+- no orchestration
+- no MEL audit row
+- no opt-out suppression
+
+────────────────────────────────────────
+STEP 2 — REPLACE BOTH WITH emit_messaging_event()
+────────────────────────────────────────
+
+Replace BOTH direct send_onesignal_custom_event() calls with:
+
+emit_messaging_event()
+
+IMPORTANT:
+Remove the old direct send_onesignal_custom_event() calls completely in the SAME edit.
+
+Never allow:
+- old direct path
+AND
+- orchestration path
+to coexist simultaneously.
+
+Use:
+
+- event_name=EventName.FRIEND_PASS_CHANGED
+- actor_user_id=current_user.id
+- recipient_user_id=current_user.id
+- entity_type="user"
+- entity_id=current_user.id
+- metadata containing the EXISTING Journey event payload/properties
+- source_route matching the route name
+
+Preserve:
+- exact Journey event name
+- exact Journey properties payload
+- exact downstream automation behavior
+
+DO NOT change Journey semantics.
+
+────────────────────────────────────────
+STEP 3 — VALIDATE AUTOMATION_EVENT PATH
+────────────────────────────────────────
+
+Validate ALL of the following:
+
+1.
+Flask starts cleanly
+
+2.
+No circular import issues
+
+3.
+Both routes still function normally
+
+4.
+Exactly ONE MEL row created per AUTOMATION_EVENT emission
+
+5.
+provider=onesignal_journey on MEL rows
+
+6.
+delivery_status=sent means:
+“signal emitted successfully”
+NOT:
+“notification delivered”
+
+7.
+Opt-out suppression now works correctly
+
+8.
+Opted-out users create:
+- skipped
+- suppression_reason=user_opted_out
+
+9.
+No duplicate MEL rows
+
+10.
+No duplicate Journey emissions
+
+11.
+Phase B structured logging still works
+
+12.
+B1 and B2 still function normally
+
+13.
+Admin diagnostic routes still untouched
+
+────────────────────────────────────────
+IMPORTANT
+────────────────────────────────────────
+
+This migration closes the existing audit gap for friend.pass.changed.
+
+Before B3:
+- Journey events had no MEL visibility
+- Journey events ignored push opt-out settings
+
+After B3:
+- Journey emissions are centrally orchestrated
+- fully audited
+- preference-aware
+
+DO NOT continue into trip events afterward.
+
+STOP after validation.
+
+────────────────────────────────────────
+AFTER COMPLETION
+────────────────────────────────────────
+
+Return:
+
+1. Exact files changed
+2. Exact routes migrated
+3. Validation results
+4. Whether Journey emissions still fire correctly
+5. Whether opt-out suppression now works
+6. Whether exactly one MEL row is produced
+7. Any issues encountered
