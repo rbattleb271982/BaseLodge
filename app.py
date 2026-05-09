@@ -3804,26 +3804,25 @@ def accept_invitation(invitation_id):
     if sender:
         session['new_connection_name'] = sender.first_name or sender.username or 'your new friend'
 
-    # ── v2: push + audit log — friend request accepted ──
-    try:
-        _notify_push(
-            event_name=EventName.FRIEND_REQUEST_ACCEPTED,
-            category=Category.FRIEND,
-            actor_user_id=current_user.id,
-            recipient_user_id=invitation.sender_id,
-            object_type="user",
-            object_id=current_user.id,
-            title=f"{current_user.first_name or current_user.username} accepted your request",
-            body="You're now connected on BaseLodge.",
-            data={
-                "event": "friend.request.accepted",
-                "user_id": current_user.id,
+    # ── B2: friend.request.accepted — routed through centralized dispatch ──
+    emit_messaging_event(
+        event_name=EventName.FRIEND_REQUEST_ACCEPTED,
+        actor_user_id=current_user.id,
+        recipient_user_id=invitation.sender_id,
+        entity_type="user",
+        entity_id=current_user.id,
+        metadata={
+            "title":     f"{current_user.first_name or current_user.username} accepted your request",
+            "body":      "You're now connected on BaseLodge.",
+            "push_data": {
+                "event":     "friend.request.accepted",
+                "user_id":   current_user.id,
                 "deep_link": f"/friends/{current_user.id}",
-                "screen": "friend_profile",
+                "screen":    "friend_profile",
             },
-        )
-    except Exception as _notif_err:
-        current_app.logger.warning("[notify] friend_request_accepted failed: %s", _notif_err)
+        },
+        source_route="accept_invitation",
+    )
 
     return jsonify({"success": True, "message": "Friend added"}), 200
 

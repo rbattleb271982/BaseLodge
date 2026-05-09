@@ -1,0 +1,109 @@
+Phase B2 — Migrate friend.request.accepted to emit_messaging_event()
+
+Use checkpoints sparingly.
+
+DO NOT migrate any other events.
+DO NOT touch trip invites yet.
+DO NOT touch friend.pass.changed yet.
+DO NOT change MessageEventLog schema.
+DO NOT change provider behavior.
+DO NOT change dedupe behavior.
+DO NOT change push payloads.
+DO NOT change admin diagnostic routes.
+
+────────────────────────────────────────
+STEP 1 — MIGRATE friend.request.accepted
+────────────────────────────────────────
+
+Find the route:
+
+POST /api/friends/invite/<id>/accept
+
+Current behavior:
+- route directly calls _notify_push()
+
+Replace ONLY the friend.request.accepted notification path with:
+emit_messaging_event()
+
+IMPORTANT:
+Remove the old _notify_push() call completely in the SAME edit.
+Never allow both paths simultaneously.
+
+Use:
+
+- event_name=EventName.FRIEND_REQUEST_ACCEPTED
+- actor_user_id=current_user.id
+- recipient_user_id=invitation.sender_id
+- entity_type="user"
+- entity_id=current_user.id
+- metadata with the EXISTING push title/body/payload values
+- source_route="accept_invitation"
+
+Preserve:
+- exact push copy
+- exact payload structure
+- exact deep link behavior
+
+Do NOT introduce title templates yet.
+Phase B still preserves route-owned copy.
+
+────────────────────────────────────────
+STEP 2 — VALIDATION
+────────────────────────────────────────
+
+Validate ALL of the following:
+
+1.
+Flask starts cleanly
+
+2.
+No circular import issues
+
+3.
+POST /api/friends/invite/<id>/accept still works normally
+
+4.
+Exactly ONE MEL row created for friend.request.accepted
+
+5.
+Push notification still sends successfully
+
+6.
+No duplicate MEL rows
+
+7.
+Dedupe still works correctly
+
+8.
+Structured Phase B logging still appears correctly
+
+9.
+friend.request.created still works after B2 migration
+
+10.
+Admin diagnostic routes still work unchanged
+
+────────────────────────────────────────
+IMPORTANT
+────────────────────────────────────────
+
+Transactional swap only:
+- remove old path
+- add new path
+- validate
+- stop
+
+Do NOT continue into B3.
+
+────────────────────────────────────────
+AFTER COMPLETION
+────────────────────────────────────────
+
+Return:
+
+1. Exact files changed
+2. Exact route migrated
+3. Validation results
+4. Whether exactly one MEL row is produced
+5. Whether dedupe still works
+6. Any issues encountered
