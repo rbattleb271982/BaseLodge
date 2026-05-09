@@ -1,0 +1,134 @@
+The push notification opt-out system is already implemented.
+This task is a surgical QA + verification pass only.
+Do NOT refactor architecture.
+Do NOT modify MessageEventLog schema.
+Do NOT modify product push wiring.
+Do NOT modify APNs or FCM send paths.
+Do NOT create new preference systems.
+Use checkpoints sparingly.
+────────────────────────────────────────
+GOAL
+────────────────────────────────────────
+Verify that push opt-out works correctly end-to-end across:
+server-side suppression
+MessageEventLog behavior
+OneSignal suppression
+native SDK optIn()/optOut()
+TestFlight behavior
+profile/settings UI consistency
+The primary risk to verify:
+blSetPushEnabled() may not always be registered before the toggle page loads in the Capacitor environment.
+────────────────────────────────────────
+VERIFY CURRENT IMPLEMENTATION
+────────────────────────────────────────
+Audit and verify the following existing paths:
+User.push_notifications_enabled
+/api/push/preferences
+/push-settings UI
+Profile subtitle state
+send_onesignal_push() suppression
+_notify_push() suppression mapping
+MessageEventLog skipped/user_opted_out behavior
+blSetPushEnabled()
+OneSignal optIn()/optOut() bridge
+TestFlight native behavior
+────────────────────────────────────────
+SPECIFIC TASKS
+────────────────────────────────────────
+VERIFY TOGGLE FLOW
+Verify:
+toggle OFF updates DB
+toggle ON updates DB
+profile subtitle updates correctly
+API responses are correct
+state persists after refresh/login
+Expected:
+push_notifications_enabled=True/False remains authoritative.
+────────────────────────────────────────
+VERIFY SERVER-SIDE SUPPRESSION
+With push OFF:
+trigger real product push events
+confirm:
+no OneSignal send occurs
+MessageEventLog:
+delivery_status=skipped
+suppression_reason=user_opted_out
+Verify:
+no regressions in dedupe
+no regressions in MessageEventLog integrity
+────────────────────────────────────────
+VERIFY ADMIN TEST ROUTES
+Confirm:
+/admin/test-push
+/admin/test-push-all
+/admin/test-push-broadcast
+still bypass opt-out intentionally.
+This is by design.
+Verify:
+direct APNs/FCM diagnostics still function when user is opted out.
+────────────────────────────────────────
+VERIFY ONESIGNAL TEST ROUTE
+Verify:
+/admin/test-onesignal-push
+DOES respect opt-out.
+Expected:
+skipped
+suppression_reason=user_opted_out
+────────────────────────────────────────
+VERIFY NATIVE SDK BRIDGE
+MOST IMPORTANT QA ITEM.
+In TestFlight:
+toggle OFF
+confirm blSetPushEnabled(false) executes
+confirm OneSignal.optOut() executes
+Then:
+toggle ON
+confirm OneSignal.optIn() executes
+Look for:
+console logs
+OneSignal logs
+backend diagnostics
+any race/load-order issues
+────────────────────────────────────────
+ONLY FIX IF NECESSARY
+If and ONLY if the native bridge timing issue is real:
+Implement the smallest possible fix.
+Allowed:
+tiny deferred retry
+short setTimeout
+bridge-ready listener
+minimal guard
+NOT allowed:
+architecture rewrite
+SDK rewrite
+large async refactor
+Document exact cause if a fix is required.
+────────────────────────────────────────
+FILES EXPECTED
+────────────────────────────────────────
+Likely verification targets:
+app.py
+templates/push_settings.html
+templates/profile.html
+templates/components/analytics_head.html
+models.py
+Avoid touching unrelated systems.
+────────────────────────────────────────
+FINAL RESPONSE FORMAT
+────────────────────────────────────────
+Return:
+Files inspected
+Whether native bridge timing issue exists
+Whether code changes were needed
+Exact changes made (if any)
+Verification results for:
+opt-out
+opt-in
+server suppression
+MessageEventLog
+OneSignal
+APNs direct
+admin routes
+Any remaining risks
+Production readiness assessment
+Do not stop before testing the full flow.

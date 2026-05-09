@@ -137,15 +137,27 @@
             if (data.ok) {
                 var osStatus = typeof window.blGetOSPermStatus === 'function' ? window.blGetOSPermStatus() : null;
                 if (statusEl) statusEl.textContent = _blPushStatusLabel(nextEnabled, osStatus);
-                if (typeof window.blSetPushEnabled === 'function') {
-                    window.blSetPushEnabled(nextEnabled);
-                    if (nextEnabled) {
-                        setTimeout(function() {
-                            var freshOs = typeof window.blGetOSPermStatus === 'function' ? window.blGetOSPermStatus() : null;
-                            if (statusEl) statusEl.textContent = _blPushStatusLabel(true, freshOs);
-                        }, 2500);
+                // Apply native SDK opt-in/out with a short deferred retry.
+                // blSetPushEnabled is registered inside an async init sequence in
+                // analytics_head.html (after Capacitor bridge + OS.initialize +
+                // OS.login). On cold starts it can take 2–4 s to register. If it
+                // is already available we call it immediately; otherwise we retry
+                // up to 6 times at 500 ms intervals (~3 s total) before giving up.
+                // The server-side push_notifications_enabled flag is the
+                // authoritative gate — this layer is hygiene only.
+                (function _applySDKPref(enabled, attemptsLeft) {
+                    if (typeof window.blSetPushEnabled === 'function') {
+                        window.blSetPushEnabled(enabled);
+                        if (enabled) {
+                            setTimeout(function() {
+                                var freshOs = typeof window.blGetOSPermStatus === 'function' ? window.blGetOSPermStatus() : null;
+                                if (statusEl) statusEl.textContent = _blPushStatusLabel(true, freshOs);
+                            }, 2500);
+                        }
+                    } else if (attemptsLeft > 0) {
+                        setTimeout(function() { _applySDKPref(enabled, attemptsLeft - 1); }, 500);
                     }
-                }
+                }(nextEnabled, 6));
             } else {
                 btn.setAttribute('aria-checked', String(currentlyEnabled));
                 btn.style.background = currentlyEnabled ? '#5C1219' : '#C9C3B8';
