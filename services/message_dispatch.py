@@ -1,5 +1,5 @@
 """
-BaseLodge Centralized Messaging Orchestration Layer — Phase A.
+BaseLodge Centralized Messaging Orchestration Layer — Phase C.
 
 This module is the single entry point for all product messaging events.
 Routes call emit_messaging_event() with intent. This layer decides execution.
@@ -11,14 +11,15 @@ Architecture contract:
     - Provider knowledge lives exclusively inside dispatch functions, which
       call services/push_providers.py.
     - Every emit_messaging_event() call produces exactly one MEL row
-      (one per dispatch function in Phase A; two rows for
-      IMMEDIATE_PUSH_AND_AUTOMATION in Phase C).
+      (one per dispatch function; two rows for IMMEDIATE_PUSH_AND_AUTOMATION).
     - This function never raises. All exceptions are caught internally.
 
-Phase A status:
-    _dispatch_immediate_push() wraps _notify_push() from app.py.
-    Full internalization of delivery logic is deferred to Phase C.
-    _dispatch_automation_event() is fully implemented here.
+Phase C status:
+    _dispatch_immediate_push() is fully internalized — no dependency on
+    app._notify_push(). Pipeline: render → dedupe → send → map → MEL.
+    Title/body/push_data are owned by the registry and rendered from
+    EventSpec templates. Routes pass context-only metadata.
+    _notify_push() in app.py is DEPRECATED and unreachable.
 
 Public API:
     emit_messaging_event(event_name, actor_user_id, recipient_user_id,
@@ -39,6 +40,7 @@ from services.messaging_constants import (
     Provider,
     SuppressionReason,
 )
+from services.push_providers import send_onesignal_push
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -79,6 +81,9 @@ class EventSpec:
     delivery_strategy:     str
     title_template:        str | None       = None
     body_template:         str | None       = None
+    deep_link_template:    str | None       = None
+    screen:                str | None       = None
+    context_keys:          list             = field(default_factory=list)
     data_keys:             list             = field(default_factory=list)
     automation_event_name: str | None       = None
     bypass_dedupe:         bool             = False
@@ -97,44 +102,56 @@ _EVENT_REGISTRY: dict[str, EventSpec] = {
         event_name=EventName.FRIEND_REQUEST_CREATED,
         category=Category.FRIEND,
         delivery_strategy=DeliveryStrategy.IMMEDIATE_PUSH,
+        title_template="{actor_name} wants to connect",
+        body_template="You have a new friend request on BaseLodge.",
+        deep_link_template="/friends",
+        screen="friends",
+        context_keys=["actor_name", "invitation_id", "user_id"],
+        data_keys=["user_id", "invitation_id"],
         bypass_dedupe=False,
         email_eligible=False,
-        # Phase C: title_template="{actor_name} wants to connect"
-        # Phase C: body_template="You have a new friend request on BaseLodge."
-        # Phase C: data_keys=["user_id", "invitation_id"]
     ),
 
     EventName.FRIEND_REQUEST_ACCEPTED: EventSpec(
         event_name=EventName.FRIEND_REQUEST_ACCEPTED,
         category=Category.FRIEND,
         delivery_strategy=DeliveryStrategy.IMMEDIATE_PUSH,
+        title_template="{actor_name} accepted your request",
+        body_template="You're now connected on BaseLodge.",
+        deep_link_template="/friends/{actor_user_id}",
+        screen="friend_profile",
+        context_keys=["actor_name", "user_id"],
+        data_keys=["user_id"],
         bypass_dedupe=False,
         email_eligible=False,
-        # Phase C: title_template="{actor_name} accepted your request"
-        # Phase C: body_template="You're now connected on BaseLodge."
-        # Phase C: data_keys=["user_id"]
     ),
 
     EventName.TRIP_INVITE_CREATED: EventSpec(
         event_name=EventName.TRIP_INVITE_CREATED,
         category=Category.TRIP,
         delivery_strategy=DeliveryStrategy.IMMEDIATE_PUSH,
+        title_template="{actor_name} invited you to a trip",
+        body_template="You've been invited to {resort}.",
+        deep_link_template="/trips/{entity_id}",
+        screen="trip_detail",
+        context_keys=["actor_name", "resort", "trip_id"],
+        data_keys=["trip_id"],
         bypass_dedupe=False,
         email_eligible=False,
-        # Phase C: title_template="{actor_name} invited you to a trip"
-        # Phase C: body_template="You've been invited to {resort}."
-        # Phase C: data_keys=["trip_id", "deep_link", "screen"]
     ),
 
     EventName.TRIP_INVITE_ACCEPTED: EventSpec(
         event_name=EventName.TRIP_INVITE_ACCEPTED,
         category=Category.TRIP,
         delivery_strategy=DeliveryStrategy.IMMEDIATE_PUSH,
+        title_template="{actor_name} accepted your invite",
+        body_template="They're joining you for {resort}.",
+        deep_link_template="/trips/{entity_id}",
+        screen="trip_detail",
+        context_keys=["actor_name", "resort", "trip_id"],
+        data_keys=["trip_id"],
         bypass_dedupe=False,
         email_eligible=False,
-        # Phase C: title_template="{actor_name} accepted your invite"
-        # Phase C: body_template="They're joining you for {resort}."
-        # Phase C: data_keys=["trip_id", "deep_link", "screen"]
     ),
 
     # ── Automation event (active — currently unlogged friend.pass.changed path) ──
@@ -215,6 +232,92 @@ def _get_event_spec(event_name: str) -> EventSpec | None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Rendering helpers — Phase C
+# ─────────────────────────────────────────────────────────────────────────────
+
+class _SafeFormatMap(dict):
+    """dict subclass that returns '' for missing keys during template rendering.
+
+    Prevents KeyError when a context key is absent from route metadata.
+    A missing key degrades gracefully to an empty string and writes a warning
+    to the server log — the push still fires rather than being suppressed.
+    """
+    def __init__(self, data, event_name=""):
+        super().__init__(data)
+        self._event_name = event_name
+
+    def __missing__(self, key):
+        current_app.logger.warning(
+            "[MessageDispatch] _render_immediate_push: template key %r missing "
+            "for event=%s — using empty string fallback",
+            key, self._event_name,
+        )
+        return ""
+
+
+def _render_immediate_push(spec, metadata, actor_user_id, entity_id):
+    """Render title, body, and push_data from registry-owned templates.
+
+    Returns a dict with keys: title, body, push_data.
+
+    Registry templates (spec.title_template etc.) take priority.
+    If a template field is None, falls back to metadata["title"] / ["body"] /
+    ["push_data"] — Deploy 1 backward-compatibility safety net.
+    Remove fallbacks in Deploy 2 once all routes are confirmed on context-only
+    metadata and no "title"/"body"/"push_data" keys remain in any route call.
+
+    Args:
+        spec:          EventSpec for the event being dispatched.
+        metadata:      dict passed by the route (context keys in Phase C).
+        actor_user_id: int — available as {actor_user_id} in templates.
+        entity_id:     int | None — available as {entity_id} in templates.
+    """
+    meta = metadata or {}
+
+    # Build rendering context: all scalar metadata values + call-site parameters.
+    context = _SafeFormatMap(
+        {
+            **{k: v for k, v in meta.items()
+               if isinstance(v, (str, int, float, bool, type(None)))},
+            "entity_id":     entity_id if entity_id is not None else "",
+            "actor_user_id": actor_user_id if actor_user_id is not None else "",
+        },
+        event_name=spec.event_name,
+    )
+
+    # ── Title ──
+    if spec.title_template is not None:
+        title = spec.title_template.format_map(context)
+    else:
+        title = meta.get("title", "")   # Deploy 1 fallback — remove in Deploy 2
+
+    # ── Body ──
+    if spec.body_template is not None:
+        body = spec.body_template.format_map(context)
+    else:
+        body = meta.get("body", "")     # Deploy 1 fallback — remove in Deploy 2
+
+    # ── push_data ──
+    if spec.deep_link_template is not None or spec.screen is not None:
+        # Registry owns the full push_data structure.
+        push_data = {"event": spec.event_name}
+        # Forward data_keys from metadata (entity ID fields, invitation_id, etc.).
+        for key in (spec.data_keys or []):
+            if key in meta:
+                push_data[key] = meta[key]
+        # Render deep_link from template.
+        if spec.deep_link_template is not None:
+            push_data["deep_link"] = spec.deep_link_template.format_map(context)
+        # Screen is a constant per event.
+        if spec.screen is not None:
+            push_data["screen"] = spec.screen
+    else:
+        push_data = dict(meta.get("push_data") or {})   # Deploy 1 fallback
+
+    return {"title": title, "body": body, "push_data": push_data}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Dispatch functions — one per delivery strategy branch
 # Each dispatch fn is the ONLY place that knows how to execute its strategy.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -223,55 +326,103 @@ def _dispatch_immediate_push(spec, actor_user_id, recipient_user_id,
                              entity_type, entity_id, metadata, source_route):
     """Execute the IMMEDIATE_PUSH delivery path.
 
-    Phase A: delegates to _notify_push() in app.py, preserving all existing
-    behavior — dedupe, opt-out filtering, OneSignal delivery, MEL logging.
+    Phase C: fully internalized — no dependency on app._notify_push().
+    Pipeline: render payload → dedupe guard → send → map outcome → write MEL.
 
-    Phase C: _notify_push() will be retired and this function will contain
-    the full delivery logic directly, using services/push_providers.py.
-
-    The orchestration layer is not aware of this delegation detail.
+    Opt-out filtering is handled inside send_onesignal_push() in
+    push_providers.py (queries push_notifications_enabled per recipient).
+    Dedupe uses is_duplicate_event() from message_events.py.
     """
-    # Phase A: import _notify_push lazily to avoid circular import.
-    # app.py imports from services/*, so services/* must not import from app.py
-    # at module load time. A function-level import is safe and is explicitly
-    # the right pattern for Phase A's "shim" approach.
-    try:
-        import app as _app_module
-        _notify_push = getattr(_app_module, "_notify_push")
-    except Exception as _imp_err:
-        current_app.logger.warning(
-            "[MessageDispatch] _dispatch_immediate_push: could not import _notify_push: %s",
-            _imp_err,
-        )
-        return
-
-    meta = metadata or {}
-
-    # Extract the fields _notify_push expects from metadata.
-    # In Phase C these come from spec.title_template / spec.body_template rendering.
-    title      = meta.get("title", "")
-    body       = meta.get("body", "")
-    push_data  = meta.get("push_data") or {}
+    # 1. Render push payload from registry templates (Phase C) with metadata fallback.
+    rendered  = _render_immediate_push(spec, metadata, actor_user_id, entity_id)
+    title     = rendered["title"]
+    body      = rendered["body"]
+    push_data = rendered["push_data"]
 
     # Include source_route in push_data for audit trail continuity.
     if source_route:
         push_data = {**push_data, "source_route": source_route}
 
+    # 2. Dedupe guard — skip if a non-suppressed event for the same
+    #    (name, recipient, object) was already sent within the dedupe window.
+    #    NOT_IMPLEMENTED rows are excluded from dedupe by is_duplicate_event().
+    if is_duplicate_event(spec.event_name, recipient_user_id, entity_type, entity_id):
+        try:
+            create_message_event(
+                event_name=spec.event_name,
+                category=spec.category,
+                actor_user_id=actor_user_id,
+                recipient_user_id=recipient_user_id,
+                object_type=entity_type,
+                object_id=entity_id,
+                channel=Channel.PUSH,
+                provider=Provider.ONESIGNAL,
+                payload_json=push_data,
+                message_title=title,
+                message_body=body,
+                delivery_status=DeliveryStatus.SKIPPED,
+                suppression_reason=SuppressionReason.DUPLICATE_EVENT,
+            )
+        except Exception as _e:
+            current_app.logger.warning(
+                "[MessageDispatch] _dispatch_immediate_push: dedupe MEL write failed: %s", _e,
+            )
+        return
+
+    # 3. Send — opt-out filter (push_notifications_enabled) is handled inside.
     try:
-        _notify_push(
+        result = send_onesignal_push(
+            user_ids=[recipient_user_id],
+            title=title,
+            body=body,
+            data=push_data or None,
+        )
+    except Exception as _send_err:
+        current_app.logger.warning(
+            "[MessageDispatch] _dispatch_immediate_push: send_onesignal_push raised: %s",
+            _send_err,
+        )
+        result = {"success": False, "notification_id": None,
+                  "error": f"send_raised: {_send_err}"}
+
+    # 4. Map result → delivery outcome.
+    _skipped = result.get("skipped", False)
+    _success = bool(result.get("success")) and not _skipped
+
+    if _success:
+        _status      = DeliveryStatus.SENT
+        _suppression = None
+        _error       = None
+    elif _skipped:
+        _status      = DeliveryStatus.SKIPPED
+        _suppression = SuppressionReason.USER_OPTED_OUT
+        _error       = None
+    else:
+        _status      = DeliveryStatus.FAILED
+        _suppression = None
+        _error       = result.get("error") or "unknown_onesignal_error"
+
+    # 5. MEL audit write — canonical record of actual delivery outcome.
+    try:
+        create_message_event(
             event_name=spec.event_name,
             category=spec.category,
             actor_user_id=actor_user_id,
             recipient_user_id=recipient_user_id,
             object_type=entity_type,
             object_id=entity_id,
-            title=title,
-            body=body,
-            data=push_data or None,
+            channel=Channel.PUSH,
+            provider=Provider.ONESIGNAL,
+            payload_json=push_data,
+            message_title=title,
+            message_body=body,
+            delivery_status=_status,
+            suppression_reason=_suppression,
+            error_message=_error,
         )
     except Exception as _e:
         current_app.logger.warning(
-            "[MessageDispatch] _dispatch_immediate_push: _notify_push raised: %s", _e,
+            "[MessageDispatch] _dispatch_immediate_push: MEL audit write failed: %s", _e,
         )
 
 

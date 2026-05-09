@@ -1,0 +1,169 @@
+BaseLodge — Phase C Planning Pass
+
+Create a surgical implementation plan for Phase C of the messaging orchestration system.
+
+DO NOT implement yet.
+
+Use checkpoints sparingly.
+
+────────────────────────────────────────
+CURRENT STATE
+────────────────────────────────────────
+
+Phase A and B are complete.
+
+Current architecture:
+
+- emit_messaging_event() is now the sole orchestration entry point for all product communication events
+- services/message_dispatch.py exists
+- services/push_providers.py exists
+- _notify_push() still exists as a Phase A/B shim
+- all product routes now emit orchestration events
+- MEL auditing is centralized
+- AUTOMATION_EVENT orchestration works
+- SILENT orchestration works
+- IMMEDIATE_PUSH orchestration works
+
+Current state of routes:
+Routes still own:
+- title text
+- body text
+- push_data payload construction
+
+Current state of orchestration:
+emit_messaging_event() still forwards route-owned payloads into _notify_push().
+
+Phase C goal:
+Move message copy ownership and payload construction into the orchestration registry layer.
+
+────────────────────────────────────────
+PHASE C GOALS
+────────────────────────────────────────
+
+Plan ONLY the next safe architectural step.
+
+Goals:
+- centralize message copy ownership
+- centralize push payload construction
+- remove route-owned title/body strings
+- reduce payload duplication
+- retire _notify_push() shim eventually
+- preserve all current behavior
+- preserve all payload semantics
+- preserve MEL behavior
+- preserve dedupe behavior
+- preserve provider behavior
+
+────────────────────────────────────────
+DO NOT PROPOSE
+────────────────────────────────────────
+
+Do NOT:
+- add async orchestration
+- add queues/workers
+- add retries
+- add SMS
+- add email yet
+- add template engines
+- add localization systems
+- add rich notification systems
+- add batching systems
+- add retry daemons
+- change MessageEventLog schema unless absolutely required
+- change provider APIs
+- change admin diagnostic routes
+- change push token logic
+- change OneSignal semantics
+
+────────────────────────────────────────
+FOCUS AREAS
+────────────────────────────────────────
+
+Plan around:
+
+1.
+How title/body ownership should move into EventSpec
+
+2.
+How push_data ownership should move into orchestration
+
+3.
+Whether EventSpec should gain:
+- title_template
+- body_template
+- payload_builder
+- payload_keys
+- deep_link_builder
+- screen
+or other structures
+
+4.
+Whether payload generation should be:
+- declarative
+OR
+- builder-function based
+
+5.
+How to safely preserve:
+- exact payload shapes
+- exact deep links
+- exact screen values
+- existing client expectations
+
+6.
+How _notify_push() should eventually be retired
+
+7.
+Whether _dispatch_immediate_push() should:
+- directly call send_onesignal_push()
+instead of:
+- routing through _notify_push()
+
+8.
+What should happen to:
+- dedupe
+- MEL writes
+- suppression handling
+once _notify_push() disappears
+
+9.
+How to prevent:
+- template drift
+- payload drift
+- duplicated payload logic
+
+10.
+Whether metadata passed from routes should shrink over time
+
+11.
+Whether orchestration should own:
+- title rendering
+- body rendering
+- push payload rendering
+- deep link rendering
+
+12.
+What should remain route-owned permanently
+
+────────────────────────────────────────
+RETURN
+────────────────────────────────────────
+
+Return:
+
+1. Recommended Phase C architecture
+2. EventSpec evolution proposal
+3. Payload ownership strategy
+4. Copy ownership strategy
+5. _notify_push() retirement plan
+6. Recommended migration order
+7. Risk analysis
+8. Validation strategy
+9. Exact files likely affected
+10. Recommended Phase C implementation sequence
+
+DO NOT implement.
+DO NOT edit files.
+DO NOT create migrations.
+
+Return the plan only.

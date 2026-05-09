@@ -3400,14 +3400,9 @@ def create_trip():
             entity_type="trip",
             entity_id=trip.id,
             metadata={
-                "title":     f"{current_user.first_name or current_user.username} invited you to a trip",
-                "body":      f"You've been invited to {mountain or 'a trip'}.",
-                "push_data": {
-                    "event":     "trip.invite.created",
-                    "trip_id":   trip.id,
-                    "deep_link": f"/trips/{trip.id}",
-                    "screen":    "trip_detail",
-                },
+                "actor_name": current_user.first_name or current_user.username,
+                "resort":     mountain or "a trip",
+                "trip_id":    trip.id,
             },
             source_route="create_trip",
         )
@@ -3734,15 +3729,9 @@ def invite_friend():
         entity_type="user",
         entity_id=friend.id,
         metadata={
-            "title":     f"{current_user.first_name or current_user.username} wants to connect",
-            "body":      "You have a new friend request on BaseLodge.",
-            "push_data": {
-                "event":         "friend.request.created",
-                "user_id":       current_user.id,
-                "invitation_id": invitation.id,
-                "deep_link":     "/friends",
-                "screen":        "friends",
-            },
+            "actor_name":    current_user.first_name or current_user.username,
+            "invitation_id": invitation.id,
+            "user_id":       current_user.id,
         },
         source_route="invite_friend",
     )
@@ -3816,14 +3805,8 @@ def accept_invitation(invitation_id):
         entity_type="user",
         entity_id=current_user.id,
         metadata={
-            "title":     f"{current_user.first_name or current_user.username} accepted your request",
-            "body":      "You're now connected on BaseLodge.",
-            "push_data": {
-                "event":     "friend.request.accepted",
-                "user_id":   current_user.id,
-                "deep_link": f"/friends/{current_user.id}",
-                "screen":    "friend_profile",
-            },
+            "actor_name": current_user.first_name or current_user.username,
+            "user_id":    current_user.id,
         },
         source_route="accept_invitation",
     )
@@ -4568,6 +4551,9 @@ def admin_push_diagnostics():
 # All callers in app.py continue to work identically — behavior is unchanged.
 
 
+# DEPRECATED — unreachable after Phase C Deploy 1.
+# _dispatch_immediate_push() in services/message_dispatch.py now owns the full
+# pipeline (render → dedupe → send → MEL). Delete this function in Deploy 2.
 def _notify_push(
     event_name,
     category,
@@ -8421,14 +8407,9 @@ def add_trip():
                     entity_type="trip",
                     entity_id=trip.id,
                     metadata={
-                        "title":     f"{current_user.first_name or current_user.username} invited you to a trip",
-                        "body":      f"You've been invited to {resort.name if resort else 'a trip'}.",
-                        "push_data": {
-                            "event":     "trip.invite.created",
-                            "trip_id":   trip.id,
-                            "deep_link": f"/trips/{trip.id}",
-                            "screen":    "trip_detail",
-                        },
+                        "actor_name": current_user.first_name or current_user.username,
+                        "resort":     resort.name if resort else "a trip",
+                        "trip_id":    trip.id,
                     },
                     source_route="add_trip",
                 )
@@ -9045,14 +9026,9 @@ def send_trip_invites(trip_id):
                 entity_type="trip",
                 entity_id=trip_id,
                 metadata={
-                    "title":     f"{current_user.first_name or current_user.username} invited you to a trip",
-                    "body":      f"You've been invited to {trip.mountain or 'a trip'}.",
-                    "push_data": {
-                        "event":     "trip.invite.created",
-                        "trip_id":   trip_id,
-                        "deep_link": f"/trips/{trip_id}",
-                        "screen":    "trip_detail",
-                    },
+                    "actor_name": current_user.first_name or current_user.username,
+                    "resort":     trip.mountain or "a trip",
+                    "trip_id":    trip_id,
                 },
                 source_route="trip_detail_invite",
             )
@@ -9249,14 +9225,9 @@ def respond_to_trip_invite(trip_id):
             entity_type="trip",
             entity_id=trip.id,
             metadata={
-                "title":     f"{current_user.first_name or current_user.username} accepted your invite",
-                "body":      f"They're joining you for {trip.mountain or 'your trip'}.",
-                "push_data": {
-                    "event":     "trip.invite.accepted",
-                    "trip_id":   trip_id,
-                    "deep_link": f"/trips/{trip_id}",
-                    "screen":    "trip_detail",
-                },
+                "actor_name": current_user.first_name or current_user.username,
+                "resort":     trip.mountain or "your trip",
+                "trip_id":    trip_id,
             },
             source_route="respond_to_trip_invite_accept",
         )

@@ -1,0 +1,248 @@
+BaseLodge — Phase C Deploy 1 (Accelerated Batch Migration)
+
+Implement ONLY Deploy 1 from the approved accelerated Phase C strategy.
+
+Use checkpoints sparingly.
+
+DO NOT begin Deploy 2 cleanup work.
+DO NOT delete _notify_push().
+DO NOT remove backward compatibility fallback logic yet.
+DO NOT modify MessageEventLog schema.
+DO NOT modify admin diagnostic routes.
+DO NOT touch FRIEND_PASS_CHANGED or TRIP_INVITE_DECLINED behavior.
+
+────────────────────────────────────────
+GOAL
+────────────────────────────────────────
+
+Complete the full Phase C behavioral migration in ONE deploy:
+
+- internalize orchestration ownership
+- internalize send_onesignal_push ownership
+- move rendering ownership into registry/templates
+- migrate all IMMEDIATE_PUSH routes to context-only metadata
+
+BUT:
+
+- retain temporary backward compatibility fallback logic
+- retain _notify_push() as dead code marked deprecated
+- preserve exact payload compatibility
+- preserve MEL audit integrity
+- preserve dedupe behavior
+- preserve retry behavior
+- preserve deep links
+- preserve push delivery behavior
+
+────────────────────────────────────────
+IMPLEMENTATION SCOPE
+────────────────────────────────────────
+
+FILES ALLOWED:
+- services/message_dispatch.py
+- app.py
+
+DO NOT MODIFY ANY OTHER FILES.
+
+────────────────────────────────────────
+STEP 1 — INTERNALIZE IMMEDIATE PUSH PIPELINE
+────────────────────────────────────────
+
+In:
+services/message_dispatch.py
+
+Replace the current _dispatch_immediate_push implementation.
+
+Remove:
+- lazy import app as _app_module
+- dependency on app._notify_push()
+
+Internalize the pipeline directly inside _dispatch_immediate_push.
+
+The internalized flow should become:
+
+1. dedupe guard
+2. render payload
+3. send push
+4. map outcome
+5. write MEL row
+
+Import:
+from services.push_providers import send_onesignal_push
+
+at module level.
+
+DO NOT create circular imports.
+
+────────────────────────────────────────
+STEP 2 — ADD RENDER HELPER
+────────────────────────────────────────
+
+In:
+services/message_dispatch.py
+
+Add:
+
+_render_immediate_push(
+    spec,
+    metadata,
+    actor_user_id,
+    entity_id
+)
+
+The helper must render:
+
+- title
+- body
+- push_data
+- deep_link
+- screen
+
+from registry-owned templates.
+
+────────────────────────────────────────
+CRITICAL — TEMPORARY FALLBACK
+────────────────────────────────────────
+
+Deploy 1 MUST retain temporary fallback compatibility.
+
+If template fields are absent:
+
+fallback to:
+- metadata.get("title", "")
+- metadata.get("body", "")
+- metadata.get("push_data", {})
+
+This fallback is TEMPORARY.
+DO NOT remove it yet.
+
+────────────────────────────────────────
+STEP 3 — POPULATE EVENT REGISTRY
+────────────────────────────────────────
+
+Populate all 4 IMMEDIATE_PUSH EventSpec entries with:
+
+- title_template
+- body_template
+- deep_link_template
+- screen
+- context_keys
+
+Events:
+
+- friend.request.created
+- friend.request.accepted
+- trip.invite.created
+- trip.invite.accepted
+
+Maintain current payload behavior exactly.
+
+────────────────────────────────────────
+STEP 4 — MIGRATE ALL ROUTES
+────────────────────────────────────────
+
+In:
+app.py
+
+Migrate ALL 7 IMMEDIATE_PUSH call sites.
+
+Replace route-owned metadata:
+
+REMOVE:
+- title
+- body
+- push_data
+
+REPLACE WITH:
+context-only metadata.
+
+Routes should only pass:
+- actor_name
+- resort
+- other render context keys
+
+Maintain existing:
+- entity_id
+- actor_user_id
+- recipient_user_id
+- source_route
+
+DO NOT change business logic.
+
+────────────────────────────────────────
+STEP 5 — _notify_push STATUS
+────────────────────────────────────────
+
+DO NOT delete _notify_push().
+
+Mark it:
+
+# DEPRECATED — unreachable after Phase C Deploy 1
+
+Leave function intact.
+
+────────────────────────────────────────
+VALIDATION REQUIREMENTS
+────────────────────────────────────────
+
+Before finishing:
+
+1.
+Flask app must boot cleanly.
+
+2.
+No circular imports.
+
+3.
+grep confirms:
+- no import app as _app_module remains in message_dispatch.py
+
+4.
+All 4 EventSpec entries contain non-null templates.
+
+5.
+All 7 IMMEDIATE_PUSH routes now pass context-only metadata.
+
+6.
+No route-owned:
+- title
+- body
+- push_data
+
+remain in emit_messaging_event IMMEDIATE_PUSH calls.
+
+7.
+Dedupe behavior unchanged.
+
+8.
+MEL writes still occur for:
+- SENT
+- SKIPPED
+- FAILED
+
+9.
+Payloads still contain:
+- deep_link
+- screen
+- event
+- actor_user_id
+- entity_id
+
+10.
+No admin routes broken.
+
+────────────────────────────────────────
+DELIVERABLE
+────────────────────────────────────────
+
+Return:
+
+1. Files changed
+2. Exact routes migrated
+3. Exact EventSpec entries updated
+4. Validation results
+5. Any fallback logic retained intentionally
+6. Confirmation that _notify_push remains present but unreachable
+7. Any risks or follow-up notes before Deploy 2
+
+DO NOT BEGIN DEPLOY 2.
+DO NOT DELETE DEAD CODE YET.

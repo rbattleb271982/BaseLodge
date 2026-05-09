@@ -1,0 +1,176 @@
+BaseLodge — Accelerated Phase C Strategy
+
+First inspect the current messaging/event orchestration code and produce a revised Phase C plan based on the actual codebase state.
+
+DO NOT implement anything yet.
+
+DO NOT edit files.
+DO NOT create migrations.
+DO NOT remove compatibility logic.
+DO NOT modify production behavior.
+
+Use checkpoints sparingly.
+
+────────────────────────────────────────
+CURRENT STATE
+────────────────────────────────────────
+
+Phase B is fully complete.
+
+All product communication events already flow through:
+emit_messaging_event()
+
+The system is stable.
+
+Current remaining technical debt:
+- _notify_push() shim still exists
+- routes still own:
+  - title strings
+  - body strings
+  - push_data dicts
+- orchestration layer still relies on route-owned rendering inputs
+
+Current architecture goals:
+- registry-owned rendering
+- orchestration-owned payload assembly
+- route simplification
+- eventual elimination of compatibility shims
+
+────────────────────────────────────────
+NEW GOAL
+────────────────────────────────────────
+
+Phase C should move faster.
+
+The original migration strategy optimized for:
+- one event at a time
+- one route at a time
+- multiple tiny deploys
+
+That was appropriate for earlier stabilization work.
+
+For Phase C:
+optimize for larger safe architectural batches.
+
+We now want:
+- fewer deploys
+- fewer migration passes
+- fewer repetitive edits
+- fewer intermediate compatibility layers
+
+WITHOUT:
+- sacrificing stability
+- sacrificing audit integrity
+- sacrificing payload compatibility
+- risking production push delivery
+- creating silent rendering drift
+
+────────────────────────────────────────
+REQUIRED ANALYSIS
+────────────────────────────────────────
+
+Inspect the current codebase and revise the Phase C execution strategy to answer:
+
+1.
+Which Phase C steps can now safely be batched together?
+
+2.
+Can ALL IMMEDIATE_PUSH events migrate to registry/template ownership in a single deploy safely?
+
+3.
+Should backward compatibility fallback logic:
+- metadata["title"]
+- metadata["body"]
+- metadata["push_data"]
+
+exist only temporarily in one deploy,
+then be removed immediately afterward?
+
+4.
+Can _notify_push() retirement happen in the SAME deploy as:
+- orchestration internalization
+- direct send_onesignal_push() ownership
+- registry rendering ownership
+
+5.
+Can:
+- title rendering
+- body rendering
+- push_data rendering
+- deep_link rendering
+
+all move simultaneously?
+
+6.
+What is the largest safe batching strategy?
+
+7.
+What is still too risky to batch?
+
+8.
+Which validation checks become mandatory if batching increases?
+
+9.
+Should there be:
+- a temporary dual-render validation mode
+
+where orchestration compares:
+- old route-generated payload
+vs
+- new registry-generated payload
+
+before compatibility logic is deleted?
+
+10.
+Would snapshot-style payload validation help?
+
+11.
+Can the entire C1 + C2 migration realistically happen in:
+- one deploy
+- two deploys
+- or should it still remain more granular?
+
+12.
+Which exact deploy boundary is safest for:
+- compatibility shim removal
+- _notify_push() deletion
+- orchestration finalization
+
+13.
+Identify any hidden risks around:
+- push payload drift
+- dedupe behavior
+- retry behavior
+- analytics continuity
+- audit logging continuity
+- deep link integrity
+- OneSignal payload expectations
+- APNs payload expectations
+
+14.
+Identify which events, if any, should remain isolated and migrated separately even under an accelerated strategy.
+
+────────────────────────────────────────
+RETURN
+────────────────────────────────────────
+
+Return:
+
+1. Recommended accelerated Phase C strategy
+2. Largest safe batching recommendation
+3. Revised deployment plan
+4. Revised validation requirements
+5. Whether dual-render validation is recommended
+6. Whether snapshot payload validation is recommended
+7. Revised _notify_push() retirement strategy
+8. Risks introduced by batching
+9. Fastest safe execution sequence
+10. Explicit “DO NOT BATCH” items
+11. Recommended deploy-by-deploy breakdown
+12. Recommended rollback strategy if payload drift appears
+
+Return the revised acceleration plan only.
+
+DO NOT implement.
+DO NOT edit files.
+DO NOT create migrations.
