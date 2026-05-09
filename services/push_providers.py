@@ -13,6 +13,25 @@ The orchestration layer DOES NOT import from this file directly.
 Dispatch functions (_dispatch_immediate_push, _dispatch_automation_event)
 are the only callers — they live in services/message_dispatch.py and
 encapsulate all provider knowledge from the orchestration switch.
+
+Canonical return shape (Phase D-1):
+    Both functions return:
+        {
+            "success":             bool,
+            "provider_message_id": str | None,
+            "skipped":             bool,
+            "error":               str | None,
+        }
+
+    success=True + skipped=True  → recipient opted out or no eligible recipients;
+                                   no delivery attempted, no error.
+    success=True + skipped=False → delivery accepted by the provider.
+    success=False                → provider error or configuration failure;
+                                   error field contains detail.
+    provider_message_id          → OneSignal notification ID on SENT rows;
+                                   None on all other outcomes.
+                                   send_onesignal_custom_event always returns None
+                                   (Custom Events API provides no per-send ID).
 """
 
 import os
@@ -35,8 +54,13 @@ def send_onesignal_push(user_ids, title, body, data=None):
         body:     notification body / message string.
         data:     optional dict of extra key/value data forwarded to the device.
 
-    Returns a dict with keys:
-        success (bool), notification_id (str|None), error (str|None).
+    Returns canonical dict:
+        {
+            "success":             bool,
+            "provider_message_id": str | None,   # OneSignal notification ID
+            "skipped":             bool,
+            "error":               str | None,
+        }
 
     Environment variables required (never exposed client-side):
         ONESIGNAL_APP_ID        — public app identifier (safe to log).
@@ -50,7 +74,8 @@ def send_onesignal_push(user_ids, title, body, data=None):
             "[OneSignal] send_onesignal_push: ONESIGNAL_APP_ID or "
             "ONESIGNAL_REST_API_KEY not set — push skipped"
         )
-        return {"success": False, "notification_id": None, "error": "missing_config"}
+        return {"success": False, "provider_message_id": None, "skipped": False,
+                "error": "missing_config"}
 
     all_ids = list(user_ids)
 
@@ -76,7 +101,7 @@ def send_onesignal_push(user_ids, title, body, data=None):
 
     if not all_ids:
         current_app.logger.warning("[OneSignal] send_push: all recipients opted out — silent skip (no delivery attempt)")
-        return {"success": True, "notification_id": None, "skipped": True, "reason": "all_opted_out"}
+        return {"success": True, "provider_message_id": None, "skipped": True, "error": None}
 
     external_ids = [str(uid) for uid in all_ids]
 
@@ -115,15 +140,14 @@ def send_onesignal_push(user_ids, title, body, data=None):
             resp.status_code, notification_id, errors,
         )
         if resp.status_code in (200, 202) and not errors:
-            return {"success": True, "notification_id": notification_id, "error": None}
-        return {
-            "success":         False,
-            "notification_id": notification_id,
-            "error":           str(errors or result),
-        }
+            return {"success": True, "provider_message_id": notification_id,
+                    "skipped": False, "error": None}
+        return {"success": False, "provider_message_id": notification_id,
+                "skipped": False, "error": str(errors or result)}
     except Exception as _exc:
         current_app.logger.exception("[OneSignal] request failed: %s", _exc)
-        return {"success": False, "notification_id": None, "error": str(_exc)}
+        return {"success": False, "provider_message_id": None,
+                "skipped": False, "error": str(_exc)}
 
 
 def send_onesignal_custom_event(user_ids, event_name, properties=None):
@@ -139,8 +163,13 @@ def send_onesignal_custom_event(user_ids, event_name, properties=None):
         event_name: string event name registered in the OneSignal dashboard.
         properties: optional dict of key/value properties attached to the event.
 
-    Returns a dict with keys:
-        success (bool), sent (int), failed (int).
+    Returns canonical dict:
+        {
+            "success":             bool,
+            "provider_message_id": None,   # Custom Events API provides no per-send ID
+            "skipped":             bool,
+            "error":               str | None,
+        }
 
     Environment variables required:
         ONESIGNAL_APP_ID       — public app identifier (safe to log).
@@ -154,11 +183,12 @@ def send_onesignal_custom_event(user_ids, event_name, properties=None):
             "[OneSignal] send_onesignal_event: ONESIGNAL_APP_ID or "
             "ONESIGNAL_REST_API_KEY not set — event skipped"
         )
-        return {"success": False, "sent": 0, "failed": 0}
+        return {"success": False, "provider_message_id": None,
+                "skipped": False, "error": "missing_config"}
 
     all_ids = list(user_ids)
     if not all_ids:
-        return {"success": True, "sent": 0, "failed": 0}
+        return {"success": True, "provider_message_id": None, "skipped": True, "error": None}
 
     url     = f"https://api.onesignal.com/apps/{app_id}/events"
     headers = {
@@ -202,4 +232,6 @@ def send_onesignal_custom_event(user_ids, event_name, properties=None):
             )
             failed += 1
 
-    return {"success": failed == 0, "sent": sent, "failed": failed}
+    _error = None if failed == 0 else f"sent={sent} failed={failed}"
+    return {"success": failed == 0, "provider_message_id": None,
+            "skipped": False, "error": _error}

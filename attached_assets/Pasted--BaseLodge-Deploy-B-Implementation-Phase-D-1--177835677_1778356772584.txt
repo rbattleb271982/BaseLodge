@@ -1,0 +1,247 @@
+║ BaseLodge — Deploy B Implementation (Phase D-1) ║
+╚══════════════════════════════════════════════════════════════╝
+Use checkpoints sparingly.
+Implement ALL of Deploy B as one consolidated batch.
+DO NOT implement anything outside Deploy B scope.
+DO NOT:
+add queues/workers
+add Celery/Redis
+add schedulers/cron
+add campaigns/journeys
+add provider abstraction layers
+add locale/i18n
+add correlation IDs
+redesign architecture
+modify rendering semantics
+modify payload contracts
+modify event contracts
+modify delivery semantics
+modify existing retry-independent push behavior
+────────────────────────────────────────
+DEPLOY B SCOPE
+────────────────────────────────────────
+Implement ALL of the following together:
+provider response normalization
+provider_message_id write-back
+sent_at write-back
+processed_at ownership finalization
+create_message_event() signature evolution
+parent_mel_id retry lineage support
+retry_locked_at concurrency protection
+retry eligibility query
+retry suppression enforcement
+retry_count ownership
+retry transaction ordering
+admin retry runner
+dry-run retry mode
+execute retry mode (DISABLED by default)
+50-row retry execution limit
+15-minute stale-lock timeout behavior
+opt-out recheck during retry execution
+retry child MEL creation
+flat retry lineage enforcement
+rollback-safe implementation structure
+────────────────────────────────────────
+REQUIRED IMPLEMENTATION
+────────────────────────────────────────
+PHASE 1 — SCHEMA
+Using the existing startup migration pattern in app.py:
+Add:
+ALTER TABLE message_event_log
+ADD COLUMN IF NOT EXISTS parent_mel_id INTEGER REFERENCES message_event_log(id),
+ADD COLUMN IF NOT EXISTS retry_locked_at TIMESTAMP;
+Requirements:
+nullable columns only
+no defaults
+no table rewrite behavior
+idempotent
+one migration function
+startup-safe
+────────────────────────────────────────
+PHASE 2 — PROVIDER NORMALIZATION
+In services/push_providers.py:
+Normalize BOTH:
+send_onesignal_push()
+send_onesignal_custom_event()
+Return canonical dict shape:
+{
+"success": bool,
+"provider_message_id": str | None,
+"skipped": bool,
+"error": str | None
+}
+Requirements:
+preserve existing behavior
+preserve delivery semantics
+preserve existing logging
+no provider abstraction layers
+no payload changes
+────────────────────────────────────────
+PHASE 3 — MEL WRITE EVOLUTION
+In services/message_events.py:
+Extend create_message_event():
+Add kwargs:
+provider_message_id=None
+sent_at=None
+processed_at:
+MUST be set internally
+MUST use datetime.utcnow()
+MUST apply to ALL newly written rows
+callers MUST NOT pass processed_at
+Requirements:
+backward-compatible with all existing callers
+append-only philosophy preserved
+no update logic
+no retry orchestration logic
+In services/message_dispatch.py:
+Update _dispatch_immediate_push():
+On SENT rows:
+write provider_message_id
+write sent_at=datetime.utcnow()
+On SKIPPED/FAILED rows:
+provider_message_id=None
+sent_at=None
+Requirements:
+preserve all existing suppression behavior
+preserve dedupe behavior
+preserve rendering behavior
+preserve payload behavior
+────────────────────────────────────────
+PHASE 4 — RETRY INFRASTRUCTURE
+In app.py:
+Add admin retry runner route:
+GET /admin/retry-failed-events
+dry-run only
+NO sends
+returns:
+eligible count
+locked count
+stale-locked count
+rows eligible for next execute batch
+POST /admin/retry-failed-events
+execute mode
+MUST initially ship disabled
+Add module-level constant:
+RETRY_EXECUTION_ENABLED = False
+POST behavior when disabled:
+HTTP 200
+JSON:
+{
+"status": "disabled",
+"message": "retry execution not yet enabled — use dry-run GET"
+}
+────────────────────────────────────────
+RETRY ELIGIBILITY RULES
+────────────────────────────────────────
+Eligibility query MUST be fully SQL-driven.
+Eligible rows:
+delivery_status = 'failed'
+retry_count < MAX_RETRY_COUNT
+suppression_reason NOT IN non-retryable set
+retry_locked_at IS NULL
+OR retry_locked_at older than 15 minutes
+NO successful retry child exists
+created_at within retry lookback window
+LIMIT 50
+Non-retryable set:
+USER_OPTED_OUT
+DUPLICATE_EVENT
+CHANNEL_UNAVAILABLE
+MISSING_REQUIRED_PAYLOAD
+RECIPIENT_INELIGIBLE
+Flat lineage ONLY:
+retry child rows MUST always reference ORIGINAL failed row
+child rows MUST NEVER reference retry children
+────────────────────────────────────────
+RETRY EXECUTION ORDERING
+────────────────────────────────────────
+Execute flow MUST be:
+STEP 1
+Atomic claim:
+UPDATE retry_locked_at=NOW()
+ONLY if currently NULL
+If 0 rows updated:
+skip row
+concurrent runner already claimed it
+STEP 2
+Increment retry_count
+COMMIT before external send
+STEP 3
+Re-check push_notifications_enabled live from DB
+If opted out:
+write SKIPPED retry child row
+DO NOT send
+STEP 4
+Execute send_onesignal_push()
+STEP 5
+Write retry child MEL row:
+parent_mel_id
+provider_message_id
+sent_at
+processed_at
+source_route='admin_retry_runner'
+STEP 6
+Unlock ONLY AFTER successful child MEL commit:
+retry_locked_at=NULL
+If child MEL write fails:
+DO NOT unlock
+stale-lock timeout handles recovery
+────────────────────────────────────────
+RETRY EXECUTION REQUIREMENTS
+────────────────────────────────────────
+hard limit: 50 rows
+non-configurable
+no queues
+no workers
+no schedulers
+no feature flag framework
+no automatic retries
+no startup cleanup
+no SELECT FOR UPDATE SKIP LOCKED
+retry_locked_at is the ONLY concurrency authority
+────────────────────────────────────────
+VALIDATION REQUIREMENTS
+────────────────────────────────────────
+Validate ALL of the following:
+Flask boots cleanly.
+New columns exist:
+parent_mel_id
+retry_locked_at
+All existing rows:
+parent_mel_id IS NULL
+retry_locked_at IS NULL
+provider_message_id populated on SENT rows.
+sent_at populated on SENT rows.
+processed_at populated on ALL new rows.
+SKIPPED/FAILED rows:
+provider_message_id NULL
+sent_at NULL
+GET dry-run route:
+no sends
+correct counts
+correct eligible rows
+POST execute route:
+returns disabled response
+Eligibility query excludes:
+exhausted rows
+opted-out rows
+permanently suppressed rows
+rows with successful retry children
+Dedupe behavior unchanged.
+Deploy A index untouched and valid.
+All existing push flows still work.
+Migration idempotent across multiple Flask restarts.
+────────────────────────────────────────
+RETURN
+────────────────────────────────────────
+Return:
+Exact files changed
+Exact migration added
+Exact retry eligibility query implemented
+Exact retry execution flow implemented
+Validation results
+Dry-run output example
+Confirmation execute mode ships disabled
+Confirmation no behavior outside Deploy B changed
+Confirmation rollback boundary remains unified
+Any operational warnings discovered during implementation

@@ -38,11 +38,25 @@ def create_message_event(
     delivery_status=DeliveryStatus.PENDING,
     suppression_reason=None,
     error_message=None,
+    provider_message_id=None,
+    sent_at=None,
+    parent_mel_id=None,
 ):
     """Create and persist a MessageEventLog row.
 
     This helper only logs the event — it does NOT send any push, email, or
     in-app notification. That wiring is deferred to a future phase.
+
+    Phase D-1 additions (backward-compatible — all new kwargs default to None):
+        provider_message_id  — OneSignal notification ID on SENT rows; None otherwise.
+        sent_at              — timestamp of successful provider response; None otherwise.
+                               Dispatcher-owned: callers set this on SENT rows only.
+        parent_mel_id        — FK to original FAILED row for retry child rows.
+                               Flat lineage only: always references the original row,
+                               never another child.
+
+    processed_at is set internally to datetime.utcnow() at row creation time.
+    Callers MUST NOT pass processed_at — it is always the persistence timestamp.
 
     Returns the created MessageEventLog instance.
 
@@ -71,6 +85,10 @@ def create_message_event(
         delivery_status=delivery_status,
         suppression_reason=suppression_reason,
         error_message=error_message,
+        provider_message_id=provider_message_id,
+        sent_at=sent_at,
+        parent_mel_id=parent_mel_id,
+        processed_at=datetime.utcnow(),
     )
 
     db.session.add(row)

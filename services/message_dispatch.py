@@ -27,6 +27,7 @@ Public API:
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from flask import current_app
 
@@ -369,27 +370,36 @@ def _dispatch_immediate_push(spec, actor_user_id, recipient_user_id,
             "[MessageDispatch] _dispatch_immediate_push: send_onesignal_push raised: %s",
             _send_err,
         )
-        result = {"success": False, "notification_id": None,
-                  "error": f"send_raised: {_send_err}"}
+        result = {"success": False, "provider_message_id": None,
+                  "skipped": False, "error": f"send_raised: {_send_err}"}
 
     # 4. Map result → delivery outcome.
     _skipped = result.get("skipped", False)
     _success = bool(result.get("success")) and not _skipped
 
     if _success:
-        _status      = DeliveryStatus.SENT
-        _suppression = None
-        _error       = None
+        _status              = DeliveryStatus.SENT
+        _suppression         = None
+        _error               = None
+        _provider_message_id = result.get("provider_message_id")
+        _sent_at             = datetime.utcnow()
     elif _skipped:
-        _status      = DeliveryStatus.SKIPPED
-        _suppression = SuppressionReason.USER_OPTED_OUT
-        _error       = None
+        _status              = DeliveryStatus.SKIPPED
+        _suppression         = SuppressionReason.USER_OPTED_OUT
+        _error               = None
+        _provider_message_id = None
+        _sent_at             = None
     else:
-        _status      = DeliveryStatus.FAILED
-        _suppression = None
-        _error       = result.get("error") or "unknown_onesignal_error"
+        _status              = DeliveryStatus.FAILED
+        _suppression         = None
+        _error               = result.get("error") or "unknown_onesignal_error"
+        _provider_message_id = None
+        _sent_at             = None
 
     # 5. MEL audit write — canonical record of actual delivery outcome.
+    #    Phase D-1: provider_message_id and sent_at are written on SENT rows only;
+    #    both are None for SKIPPED and FAILED. processed_at is set internally by
+    #    create_message_event() for all rows.
     try:
         create_message_event(
             event_name=spec.event_name,
@@ -406,6 +416,8 @@ def _dispatch_immediate_push(spec, actor_user_id, recipient_user_id,
             delivery_status=_status,
             suppression_reason=_suppression,
             error_message=_error,
+            provider_message_id=_provider_message_id,
+            sent_at=_sent_at,
         )
     except Exception as _e:
         current_app.logger.warning(

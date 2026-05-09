@@ -67,7 +67,10 @@ from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
 from services.message_events import create_message_event, is_duplicate_event, should_retry
-from services.messaging_constants import EventName, Category, DeliveryStatus, SuppressionReason, Channel, Provider
+from services.messaging_constants import (
+    EventName, Category, DeliveryStatus, SuppressionReason, Channel, Provider,
+    MAX_RETRY_COUNT, RETRYABLE_STATUSES,
+)
 from services.push_providers import send_onesignal_push, send_onesignal_custom_event
 from services.message_dispatch import emit_messaging_event
 from io import BytesIO
@@ -1450,6 +1453,51 @@ def run_mel_dedupe_index_migration():
 
 
 run_mel_dedupe_index_migration()
+
+
+def run_deploy_b_schema_migration():
+    """Phase D-1 Deploy B: add parent_mel_id and retry_locked_at to message_event_log.
+
+    parent_mel_id  — nullable FK to self; links retry child rows to the original
+                     FAILED row. Flat lineage only: children always reference the
+                     original row, never another child.
+
+    retry_locked_at — nullable timestamp; set to NOW() when the retry runner
+                      claims a row for processing, reset to NULL after the child
+                      MEL row commits. Rows locked for > 15 minutes are treated
+                      as stale and become eligible again automatically (no manual
+                      unlock needed).
+
+    Both columns are nullable with no DEFAULT — purely additive, no table rewrite,
+    no existing row impact. Uses ADD COLUMN IF NOT EXISTS for idempotency.
+
+    Rollback: ALTER TABLE message_event_log
+              DROP COLUMN IF EXISTS parent_mel_id,
+              DROP COLUMN IF EXISTS retry_locked_at;
+    """
+    try:
+        with app.app_context():
+            conn = db.engine.connect()
+            trans = conn.begin()
+            try:
+                conn.execute(db.text("""
+                    ALTER TABLE message_event_log
+                        ADD COLUMN IF NOT EXISTS parent_mel_id   INTEGER
+                            REFERENCES message_event_log(id),
+                        ADD COLUMN IF NOT EXISTS retry_locked_at TIMESTAMP
+                """))
+                trans.commit()
+                print("deploy_b_schema_migration: parent_mel_id + retry_locked_at ready.")
+            except Exception as inner_e:
+                trans.rollback()
+                print(f"deploy_b_schema_migration inner error (rolled back): {inner_e}")
+            finally:
+                conn.close()
+    except Exception as e:
+        print(f"deploy_b_schema_migration: skipped ({e})")
+
+
+run_deploy_b_schema_migration()
 
 
 # ============================================================================
@@ -13142,7 +13190,7 @@ def admin_test_onesignal_push():
             channel=Channel.PUSH,
             provider=Provider.ONESIGNAL,
             payload_json={
-                "notification_id": result.get("notification_id"),
+                "notification_id": result.get("provider_message_id"),
                 "source_route": "admin_test_onesignal_push",
             },
             message_title="BaseLodge",
@@ -13268,6 +13316,355 @@ def admin_test_message_event():
     )
 
     return redirect(url_for("admin_message_events"))
+
+
+# ─── Phase D-1 Deploy B: Retry Runner ────────────────────────────────────────
+#
+# RETRY_EXECUTION_ENABLED gates the POST execute route.
+#
+# Set True ONLY after the Deploy B monitoring period confirms:
+#   - provider_message_id populated on all new SENT rows
+#   - sent_at and processed_at populated on all new rows
+#   - Dry-run GET returns a stable, correct eligible set
+#   - No unexpected retry_locked_at values anywhere in the table
+#
+# Changing this to True and restarting Flask is the ONLY code change needed
+# to enable retry execution.
+# ─────────────────────────────────────────────────────────────────────────────
+RETRY_EXECUTION_ENABLED = False
+
+_RETRY_LOOKBACK_HOURS  = 72
+_RETRY_STALE_LOCK_MINS = 15
+_RETRY_BATCH_LIMIT     = 50   # hard limit — non-configurable per D-1 spec
+
+# Suppression reasons that permanently exclude a row from retry eligibility.
+# Mirrors RETRYABLE_STATUSES frozenset in messaging_constants.py.
+_NON_RETRYABLE_SUPPRESSION = (
+    SuppressionReason.USER_OPTED_OUT,
+    SuppressionReason.DUPLICATE_EVENT,
+    SuppressionReason.CHANNEL_UNAVAILABLE,
+    SuppressionReason.MISSING_REQUIRED_PAYLOAD,
+    SuppressionReason.RECIPIENT_INELIGIBLE,
+)
+
+# Shared eligibility SQL — used by both GET (dry-run) and POST (execute).
+# Non-retryable suppression values are hardcoded string literals (avoids
+# IN-clause parameter binding complexity with db.text()).
+# Flat lineage: parent_mel_id IS NULL ensures only original FAILED rows are
+# eligible; retry child rows are never themselves retried.
+_RETRY_ELIGIBILITY_SQL = """
+    SELECT mel.id,
+           mel.event_name,
+           mel.recipient_user_id,
+           mel.retry_count,
+           mel.created_at,
+           mel.payload_json,
+           mel.message_title,
+           mel.message_body,
+           mel.object_type,
+           mel.object_id,
+           mel.actor_user_id,
+           mel.category,
+           mel.channel
+    FROM message_event_log mel
+    WHERE mel.delivery_status   = 'failed'
+      AND mel.parent_mel_id     IS NULL
+      AND mel.retry_count       < :max_retry_count
+      AND (
+          mel.suppression_reason IS NULL
+          OR mel.suppression_reason NOT IN (
+              'user_opted_out', 'duplicate_event', 'channel_unavailable',
+              'missing_required_payload', 'recipient_ineligible'
+          )
+      )
+      AND (
+          mel.retry_locked_at IS NULL
+          OR mel.retry_locked_at < :stale_cutoff
+      )
+      AND NOT EXISTS (
+          SELECT 1 FROM message_event_log child
+          WHERE child.parent_mel_id  = mel.id
+            AND child.delivery_status = 'sent'
+      )
+      AND mel.created_at > :lookback_cutoff
+    ORDER BY mel.created_at ASC
+    LIMIT :batch_limit
+"""
+
+
+@app.route("/admin/retry-failed-events", methods=["GET", "POST"])
+@login_required
+@admin_required
+def admin_retry_failed_events():
+    """Admin retry runner — dry-run GET, execute POST (execute ships disabled).
+
+    GET (always enabled — no sends, no mutations):
+        Returns a JSON inspection report of retryable rows.
+        Response fields:
+            execute_enabled     current value of RETRY_EXECUTION_ENABLED
+            eligible_count      rows that would be processed on next execute
+            locked_count        rows currently claimed (retry_locked_at IS NOT NULL)
+            stale_locked_count  locked rows overdue > 15 min (auto-eligible next run)
+            eligible_rows       list of {id, event_name, recipient_user_id,
+                                         retry_count, created_at}
+
+    POST (execute — RETRY_EXECUTION_ENABLED must be True):
+        When disabled: HTTP 200, {"status": "disabled", "message": "..."}.
+        When enabled:  processes up to 50 eligible rows using strict ordering.
+
+    Retry execution ordering:
+        STEP 1  Atomic claim: UPDATE retry_locked_at=NOW() WHERE NULL.
+                If 0 rows updated, a concurrent runner already claimed it — skip.
+        STEP 2  Increment retry_count + COMMIT before any external call.
+        STEP 3  Re-check push_notifications_enabled live from DB.
+                If opted out: write SKIPPED child, proceed to unlock.
+        STEP 4  Execute send_onesignal_push().
+        STEP 5  Write retry child MEL row with parent_mel_id, provider_message_id,
+                sent_at, processed_at (internal), source_route='admin_retry_runner'.
+        STEP 6  Unlock (retry_locked_at = NULL) ONLY after child MEL commit.
+                If child write fails, do NOT unlock — stale-lock timeout recovers.
+
+    Flat lineage: only rows with parent_mel_id IS NULL are eligible.
+    All child rows point to the original FAILED row — never to another child.
+    """
+    _now             = datetime.utcnow()
+    _stale_cutoff    = _now - timedelta(minutes=_RETRY_STALE_LOCK_MINS)
+    _lookback_cutoff = _now - timedelta(hours=_RETRY_LOOKBACK_HOURS)
+    _params = {
+        "max_retry_count": MAX_RETRY_COUNT,
+        "stale_cutoff":    _stale_cutoff,
+        "lookback_cutoff": _lookback_cutoff,
+        "batch_limit":     _RETRY_BATCH_LIMIT,
+    }
+
+    # ── GET — dry-run (no sends, no mutations) ─────────────────────────────
+    if request.method == "GET":
+        try:
+            eligible_rows = db.session.execute(
+                db.text(_RETRY_ELIGIBILITY_SQL), _params
+            ).fetchall()
+
+            locked_count = db.session.execute(db.text(
+                "SELECT COUNT(*) FROM message_event_log "
+                "WHERE retry_locked_at IS NOT NULL"
+            )).scalar() or 0
+
+            stale_locked_count = db.session.execute(db.text(
+                "SELECT COUNT(*) FROM message_event_log "
+                "WHERE retry_locked_at IS NOT NULL AND retry_locked_at < :cutoff"
+            ), {"cutoff": _stale_cutoff}).scalar() or 0
+
+        except Exception as _qe:
+            current_app.logger.exception("[RetryRunner] dry-run query failed: %s", _qe)
+            return jsonify({"error": f"query failed: {_qe}"}), 500
+
+        return jsonify({
+            "execute_enabled":    RETRY_EXECUTION_ENABLED,
+            "eligible_count":     len(eligible_rows),
+            "locked_count":       int(locked_count),
+            "stale_locked_count": int(stale_locked_count),
+            "eligible_rows": [
+                {
+                    "id":                row[0],
+                    "event_name":        row[1],
+                    "recipient_user_id": row[2],
+                    "retry_count":       row[3],
+                    "created_at":        row[4].isoformat() if row[4] else None,
+                }
+                for row in eligible_rows
+            ],
+        })
+
+    # ── POST — execute ─────────────────────────────────────────────────────
+    if not RETRY_EXECUTION_ENABLED:
+        return jsonify({
+            "status":  "disabled",
+            "message": "retry execution not yet enabled — use dry-run GET",
+        }), 200
+
+    current_app.logger.warning(
+        "[RetryRunner] execute triggered by admin user_id=%d email=%s",
+        current_user.id, current_user.email,
+    )
+
+    try:
+        eligible_rows = db.session.execute(
+            db.text(_RETRY_ELIGIBILITY_SQL), _params
+        ).fetchall()
+    except Exception as _qe:
+        current_app.logger.exception("[RetryRunner] execute eligibility query failed: %s", _qe)
+        return jsonify({"error": f"eligibility query failed: {_qe}"}), 500
+
+    results = {
+        "attempted":          0,
+        "sent":               0,
+        "skipped_opted_out":  0,
+        "failed":             0,
+        "skipped_concurrent": 0,
+    }
+
+    for row in eligible_rows:
+        row_id       = row[0]
+        _recipient_id = row[2]
+
+        # STEP 1 — Atomic claim: SET retry_locked_at=NOW() WHERE NULL.
+        # rowcount=0 means a concurrent runner claimed this row — skip it.
+        try:
+            _claim = db.session.execute(db.text(
+                "UPDATE message_event_log "
+                "SET retry_locked_at = NOW() "
+                "WHERE id = :row_id AND retry_locked_at IS NULL"
+            ), {"row_id": row_id})
+            db.session.commit()
+        except Exception as _ce:
+            db.session.rollback()
+            current_app.logger.warning(
+                "[RetryRunner] claim failed row_id=%d: %s", row_id, _ce
+            )
+            results["skipped_concurrent"] += 1
+            continue
+
+        if _claim.rowcount == 0:
+            current_app.logger.warning(
+                "[RetryRunner] row_id=%d already claimed — skipping", row_id
+            )
+            results["skipped_concurrent"] += 1
+            continue
+
+        # STEP 2 — Increment retry_count + COMMIT before any external call.
+        # Burning the attempt slot first prevents silent double-sends if the
+        # process is killed mid-flight.
+        try:
+            db.session.execute(db.text(
+                "UPDATE message_event_log "
+                "SET retry_count = retry_count + 1 "
+                "WHERE id = :row_id"
+            ), {"row_id": row_id})
+            db.session.commit()
+        except Exception as _ie:
+            db.session.rollback()
+            current_app.logger.warning(
+                "[RetryRunner] retry_count increment failed row_id=%d: %s", row_id, _ie
+            )
+            results["failed"] += 1
+            continue
+
+        results["attempted"] += 1
+
+        # STEP 3 — Re-check push_notifications_enabled live from DB.
+        try:
+            _opt_row  = db.session.execute(db.text(
+                'SELECT push_notifications_enabled FROM "user" WHERE id = :uid'
+            ), {"uid": _recipient_id}).fetchone()
+            _opted_in = bool(_opt_row[0]) if _opt_row else False
+        except Exception as _oe:
+            current_app.logger.warning(
+                "[RetryRunner] opt-out recheck failed row_id=%d: %s", row_id, _oe
+            )
+            _opted_in = False
+
+        _child_status      = None
+        _child_suppression = None
+        _child_error       = None
+        _child_prov_msg_id = None
+        _child_sent_at     = None
+
+        if not _opted_in:
+            # Recipient opted out since the original failure — write SKIPPED child.
+            _child_status      = DeliveryStatus.SKIPPED
+            _child_suppression = SuppressionReason.USER_OPTED_OUT
+            results["skipped_opted_out"] += 1
+        else:
+            # STEP 4 — Execute send_onesignal_push().
+            _title   = row[6]   # message_title
+            _body    = row[7]   # message_body
+            _payload = dict(row[5] or {})
+            _payload["source_route"] = "admin_retry_runner"
+
+            try:
+                _send_result = send_onesignal_push(
+                    user_ids=[_recipient_id],
+                    title=_title or "",
+                    body=_body or "",
+                    data=_payload or None,
+                )
+            except Exception as _se:
+                current_app.logger.warning(
+                    "[RetryRunner] send raised row_id=%d: %s", row_id, _se
+                )
+                _send_result = {
+                    "success": False, "provider_message_id": None,
+                    "skipped": False, "error": f"send_raised: {_se}",
+                }
+
+            _send_skipped = _send_result.get("skipped", False)
+            _send_success = bool(_send_result.get("success")) and not _send_skipped
+
+            if _send_success:
+                _child_status      = DeliveryStatus.SENT
+                _child_prov_msg_id = _send_result.get("provider_message_id")
+                _child_sent_at     = datetime.utcnow()
+                results["sent"] += 1
+            elif _send_skipped:
+                _child_status      = DeliveryStatus.SKIPPED
+                _child_suppression = SuppressionReason.USER_OPTED_OUT
+                results["skipped_opted_out"] += 1
+            else:
+                _child_status = DeliveryStatus.FAILED
+                _child_error  = _send_result.get("error") or "unknown_onesignal_error"
+                results["failed"] += 1
+
+        # STEP 5 — Write retry child MEL row.
+        # parent_mel_id always points to the original FAILED row (flat lineage).
+        # processed_at is set internally by create_message_event().
+        _child_committed = False
+        try:
+            create_message_event(
+                event_name=row[1],
+                category=row[11],
+                actor_user_id=row[10],
+                recipient_user_id=_recipient_id,
+                object_type=row[8],
+                object_id=row[9],
+                channel=row[12] or Channel.PUSH,
+                provider=Provider.ONESIGNAL,
+                payload_json={**(row[5] or {}), "source_route": "admin_retry_runner"},
+                message_title=row[6],
+                message_body=row[7],
+                delivery_status=_child_status,
+                suppression_reason=_child_suppression,
+                error_message=_child_error,
+                provider_message_id=_child_prov_msg_id,
+                sent_at=_child_sent_at,
+                parent_mel_id=row_id,
+            )
+            _child_committed = True
+        except Exception as _mel_err:
+            current_app.logger.warning(
+                "[RetryRunner] child MEL write failed row_id=%d: %s", row_id, _mel_err
+            )
+
+        # STEP 6 — Unlock ONLY after successful child MEL commit.
+        # If the child write failed, leave retry_locked_at set — the 15-minute
+        # stale-lock timeout will make the row eligible again automatically.
+        if _child_committed:
+            try:
+                db.session.execute(db.text(
+                    "UPDATE message_event_log "
+                    "SET retry_locked_at = NULL "
+                    "WHERE id = :row_id"
+                ), {"row_id": row_id})
+                db.session.commit()
+            except Exception as _ue:
+                db.session.rollback()
+                current_app.logger.warning(
+                    "[RetryRunner] unlock failed row_id=%d "
+                    "(stale-lock timeout will recover): %s",
+                    row_id, _ue,
+                )
+
+    current_app.logger.warning("[RetryRunner] execute complete: %s", results)
+    return jsonify({"status": "ok", **results})
 
 
 if __name__ == "__main__":

@@ -1319,6 +1319,16 @@ class MessageEventLog(db.Model):
 
     retry_count = db.Column(db.Integer, nullable=False, default=0)
 
+    # Phase D-1 Deploy B — retry lineage and concurrency protection.
+    # Both columns are nullable; added via startup migration (ADD COLUMN IF NOT EXISTS).
+    # Rollback: DROP COLUMN IF EXISTS parent_mel_id, retry_locked_at.
+    parent_mel_id   = db.Column(
+        db.Integer,
+        db.ForeignKey("message_event_log.id"),
+        nullable=True,
+    )
+    retry_locked_at = db.Column(db.DateTime, nullable=True)
+
     created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
     processed_at = db.Column(db.DateTime, nullable=True)
     sent_at      = db.Column(db.DateTime, nullable=True)
