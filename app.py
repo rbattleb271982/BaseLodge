@@ -3958,15 +3958,37 @@ def push_register_token():
             action = "inserted"
         db.session.flush()   # populate new_row.id (insert) before commit
         tok_id = existing.id if existing else new_row.id
+
+        # ── Hygiene: deactivate all OTHER active tokens for this user/platform ──
+        # This caps the user to 1 active token per platform, preventing stale
+        # duplicate rows from causing OneSignal invalid_aliases errors after
+        # repeated TestFlight reinstalls.
+        stale_others = (
+            PushDeviceToken.query
+            .filter(
+                PushDeviceToken.user_id == current_user.id,
+                PushDeviceToken.platform == platform,
+                PushDeviceToken.active == True,
+                PushDeviceToken.id != tok_id,
+            )
+            .all()
+        )
+        for _stale in stale_others:
+            _stale.active = False
+            current_app.logger.warning(
+                "[PushToken] Deactivated stale token id=%s user=%s platform=%s",
+                _stale.id, current_user.id, platform,
+            )
+
         db.session.commit()
         current_app.logger.info(
             "[PushToken] action=%s token_id=%s user_id=%s token=%s platform=%s "
             "active_before=%s active_after=True "
             "apns_environment_before=%s apns_environment_after=%s "
-            "env_source=%s env_preserved=%s",
+            "env_source=%s env_preserved=%s stale_deactivated=%s",
             action, tok_id, current_user.id, token_preview, platform,
             active_before, env_before, env_after,
-            env_source, env_preserved,
+            env_source, env_preserved, len(stale_others),
         )
     except Exception:
         db.session.rollback()
@@ -5510,6 +5532,156 @@ def admin_list_tokens():
             }
             for r in rows
         ],
+    }), 200
+
+
+@app.route("/admin/push-token-dedup", methods=["GET"])
+@login_required
+@admin_required
+def admin_push_token_dedup():
+    """One-time admin cleanup: deactivate all but the most-recently-updated
+    active PushDeviceToken per user/platform pair.
+
+    Safe to run repeatedly — idempotent after first clean run.
+    Never deletes rows. Never calls OneSignal or any push provider.
+
+    GET /admin/push-token-dedup
+    """
+    # Gather all active tokens, grouped by (user_id, platform)
+    all_active = (
+        PushDeviceToken.query
+        .filter_by(active=True)
+        .order_by(PushDeviceToken.user_id, PushDeviceToken.platform,
+                  PushDeviceToken.updated_at.desc())
+        .all()
+    )
+
+    # Group by (user_id, platform) — first row in each group is the keeper
+    from collections import defaultdict
+    groups = defaultdict(list)
+    for row in all_active:
+        groups[(row.user_id, row.platform)].append(row)
+
+    users_affected    = 0
+    tokens_deactivated = 0
+    details            = []
+
+    try:
+        for (uid, plat), rows in groups.items():
+            if len(rows) <= 1:
+                continue
+            keeper     = rows[0]   # most recently updated active token
+            to_deactivate = rows[1:]
+            deactivated_ids = []
+            for row in to_deactivate:
+                row.active = False
+                deactivated_ids.append(row.id)
+                current_app.logger.warning(
+                    "[PushTokenDedup] Deactivated stale token id=%s user=%s platform=%s",
+                    row.id, uid, plat,
+                )
+            users_affected    += 1
+            tokens_deactivated += len(deactivated_ids)
+            details.append({
+                "user_id":             uid,
+                "platform":            plat,
+                "kept_token_id":       keeper.id,
+                "deactivated_token_ids": deactivated_ids,
+            })
+
+        db.session.commit()
+        current_app.logger.warning(
+            "[PushTokenDedup] complete — users_affected=%d tokens_deactivated=%d",
+            users_affected, tokens_deactivated,
+        )
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("[PushTokenDedup] failed — rolled back")
+        return jsonify({"success": False, "error": "Server error during dedup"}), 500
+
+    return jsonify({
+        "success":           True,
+        "users_affected":    users_affected,
+        "tokens_deactivated": tokens_deactivated,
+        "details":           details,
+    }), 200
+
+
+@app.route("/admin/push-token-audit", methods=["GET"])
+@login_required
+@admin_required
+def admin_push_token_audit():
+    """Audit active PushDeviceToken counts per user/platform.
+
+    Flags any user/platform pair with more than 1 active token.
+    Read-only — no writes, no push sends.
+
+    GET /admin/push-token-audit
+    GET /admin/push-token-audit?user_id=2   (filter to one user)
+    """
+    try:
+        target_user_id = request.args.get("user_id")
+        if target_user_id is not None:
+            target_user_id = int(target_user_id)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "user_id must be an integer"}), 400
+
+    query = PushDeviceToken.query.filter_by(active=True)
+    if target_user_id is not None:
+        query = query.filter_by(user_id=target_user_id)
+    active_rows = query.order_by(
+        PushDeviceToken.user_id, PushDeviceToken.platform,
+        PushDeviceToken.updated_at.desc()
+    ).all()
+
+    from collections import defaultdict
+    groups = defaultdict(list)
+    for row in active_rows:
+        groups[(row.user_id, row.platform)].append(row)
+
+    audit_rows  = []
+    total_clean = 0
+    total_dirty = 0
+
+    def _tok_preview(t):
+        return t[:8] + "\u2026" + t[-6:] if len(t) > 14 else t[:8] + "\u2026"
+
+    for (uid, plat), rows in sorted(groups.items()):
+        count  = len(rows)
+        status = "OK" if count == 1 else "DUPLICATE_ACTIVE_TOKENS"
+        if count == 1:
+            total_clean += 1
+        else:
+            total_dirty += 1
+        audit_rows.append({
+            "user_id":      uid,
+            "platform":     plat,
+            "active_count": count,
+            "status":       status,
+            "tokens": [
+                {
+                    "id":               r.id,
+                    "token_preview":    _tok_preview(r.token),
+                    "apns_environment": r.apns_environment,
+                    "updated_at":       r.updated_at.isoformat() if r.updated_at else None,
+                    "created_at":       r.created_at.isoformat() if r.created_at else None,
+                }
+                for r in rows
+            ],
+        })
+
+    # Sort: dirty (DUPLICATE) first, then by user_id
+    audit_rows.sort(key=lambda x: (0 if x["status"] == "DUPLICATE_ACTIVE_TOKENS" else 1, x["user_id"]))
+
+    return jsonify({
+        "success":            True,
+        "filter_user_id":     target_user_id,
+        "summary": {
+            "total_user_platform_pairs": len(audit_rows),
+            "clean":     total_clean,
+            "duplicate": total_dirty,
+        },
+        "audit": audit_rows,
     }), 200
 
 
