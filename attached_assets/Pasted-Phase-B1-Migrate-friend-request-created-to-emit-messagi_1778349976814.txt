@@ -1,0 +1,139 @@
+Phase B1 — Migrate friend.request.created to emit_messaging_event()
+
+Use checkpoints sparingly.
+
+DO NOT migrate any other events.
+DO NOT touch trip invites yet.
+DO NOT touch friend.request.accepted yet.
+DO NOT change MessageEventLog schema.
+DO NOT change provider behavior.
+DO NOT change dedupe behavior.
+DO NOT change push payloads.
+DO NOT change admin diagnostic routes.
+
+────────────────────────────────────────
+STEP 1 — REMOVE PHASE A VALIDATION BLOCK
+────────────────────────────────────────
+
+In app.py:
+
+Remove the temporary Phase A validation block previously added inside:
+/admin/test-message-event
+
+Delete:
+- the emit_messaging_event() validation call
+- the REMOVE AFTER PHASE A VALIDATION comment block
+
+This must happen BEFORE the real migration.
+
+────────────────────────────────────────
+STEP 2 — MIGRATE friend.request.created
+────────────────────────────────────────
+
+Find the route:
+
+POST /api/friends/invite
+
+Current behavior:
+- route directly calls _notify_push()
+
+Replace ONLY the friend.request.created notification path with:
+emit_messaging_event()
+
+IMPORTANT:
+Remove the old _notify_push() call completely in the SAME edit.
+Never allow both paths simultaneously.
+
+Use:
+
+- event_name=EventName.FRIEND_REQUEST_CREATED
+- actor_user_id=current_user.id
+- recipient_user_id=friend.id
+- entity_type="user"
+- entity_id=friend.id
+- metadata with any existing push payload context currently used
+- source_route="invite_friend"
+
+Do NOT change the actual push copy yet.
+Phase B still preserves existing messaging text behavior.
+
+────────────────────────────────────────
+STEP 3 — TEMPORARY PHASE B LOGGING
+────────────────────────────────────────
+
+Inside emit_messaging_event() in services/message_dispatch.py:
+
+Add temporary structured logging:
+
+current_app.logger.info(
+    "[MESSAGE_DISPATCH] event=%s strategy=%s actor=%s recipient=%s",
+    event_name,
+    spec.delivery_strategy,
+    actor_user_id,
+    recipient_user_id,
+)
+
+Add a comment above it:
+
+# TEMP PHASE B DEBUG LOGGING
+# Remove or downgrade after Phase B stabilizes
+
+Do not add excessive logging elsewhere.
+
+────────────────────────────────────────
+STEP 4 — VALIDATION
+────────────────────────────────────────
+
+Validate ALL of the following:
+
+1.
+Flask starts cleanly
+
+2.
+No circular import issues
+
+3.
+POST /api/friends/invite still works normally
+
+4.
+Exactly ONE MEL row created for friend.request.created
+
+5.
+Push notification still sends successfully
+
+6.
+No duplicate MEL rows
+
+7.
+Deduping still works on repeated requests
+
+8.
+Structured logging appears correctly in server logs
+
+9.
+Admin diagnostic routes still work unchanged
+
+────────────────────────────────────────
+IMPORTANT
+────────────────────────────────────────
+
+This is a transactional swap:
+- remove old path
+- add new path
+- validate
+- stop
+
+Do NOT continue into B2.
+
+────────────────────────────────────────
+AFTER COMPLETION
+────────────────────────────────────────
+
+Return:
+
+1. Exact files changed
+2. Exact lines/routes migrated
+3. Validation results
+4. Any issues encountered
+5. Whether dedupe still works correctly
+6. Whether exactly one MEL row is produced

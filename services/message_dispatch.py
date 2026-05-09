@@ -520,9 +520,11 @@ def emit_messaging_event(
             )
             return
 
-        current_app.logger.debug(
-            "[MessageDispatch] emit event=%s strategy=%s actor=%s recipient=%s route=%s",
-            event_name, spec.delivery_strategy, actor_user_id, recipient_user_id, source_route,
+        # TEMP PHASE B DEBUG LOGGING
+        # Remove or downgrade to .debug() after Phase B stabilizes.
+        current_app.logger.info(
+            "[MESSAGE_DISPATCH] event=%s strategy=%s actor=%s recipient=%s",
+            event_name, spec.delivery_strategy, actor_user_id, recipient_user_id,
         )
 
         if spec.delivery_strategy == DeliveryStrategy.IMMEDIATE_PUSH:

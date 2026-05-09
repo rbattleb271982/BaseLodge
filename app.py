@@ -3722,27 +3722,26 @@ def invite_friend():
         current_app.logger.exception("Invite failed")
         return jsonify({"success": False, "error": "Invite failed"}), 500
 
-    # ── v2: push + audit log — friend request created ──
-    try:
-        _notify_push(
-            event_name=EventName.FRIEND_REQUEST_CREATED,
-            category=Category.FRIEND,
-            actor_user_id=current_user.id,
-            recipient_user_id=friend.id,
-            object_type="user",
-            object_id=friend.id,
-            title=f"{current_user.first_name or current_user.username} wants to connect",
-            body="You have a new friend request on BaseLodge.",
-            data={
-                "event": "friend.request.created",
-                "user_id": current_user.id,
+    # ── B1: friend.request.created — routed through centralized dispatch ──
+    emit_messaging_event(
+        event_name=EventName.FRIEND_REQUEST_CREATED,
+        actor_user_id=current_user.id,
+        recipient_user_id=friend.id,
+        entity_type="user",
+        entity_id=friend.id,
+        metadata={
+            "title":     f"{current_user.first_name or current_user.username} wants to connect",
+            "body":      "You have a new friend request on BaseLodge.",
+            "push_data": {
+                "event":         "friend.request.created",
+                "user_id":       current_user.id,
                 "invitation_id": invitation.id,
-                "deep_link": "/friends",
-                "screen": "friends",
+                "deep_link":     "/friends",
+                "screen":        "friends",
             },
-        )
-    except Exception as _notif_err:
-        current_app.logger.warning("[notify] friend_request_created failed: %s", _notif_err)
+        },
+        source_route="invite_friend",
+    )
 
     return jsonify({"success": True, "message": "Invitation sent"}), 201
 
@@ -13326,28 +13325,6 @@ def admin_test_message_event():
         message_body="Test sent row created by admin test route.",
         delivery_status=DeliveryStatus.SENT,
     )
-
-    # ── PHASE A VALIDATION ONLY — REMOVE AFTER PHASE A VALIDATION ──
-    # Exercises emit_messaging_event() end-to-end through the new dispatch layer.
-    # Verify in /admin/message-events: look for event_name=friend.request.created,
-    # source_route=admin_test_messaging_phase_a. Then remove this block before Phase B.
-    try:
-        emit_messaging_event(
-            event_name=EventName.FRIEND_REQUEST_CREATED,
-            actor_user_id=current_user.id,
-            recipient_user_id=current_user.id,
-            entity_type="user",
-            entity_id=current_user.id,
-            metadata={
-                "title":     "BaseLodge Phase A Test",
-                "body":      "emit_messaging_event() validation row.",
-                "push_data": {"source": "phase_a_validation"},
-            },
-            source_route="admin_test_messaging_phase_a",
-        )
-    except Exception as _phase_a_err:
-        current_app.logger.warning("[Phase A] emit_messaging_event validation failed: %s", _phase_a_err)
-    # ── END PHASE A VALIDATION ──
 
     create_message_event(
         event_name=EventName.OVERLAP_DETECTED,
