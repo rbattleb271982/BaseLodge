@@ -315,16 +315,20 @@
                     Type your email address to confirm
                 </label>
                 <input
+                    id="delete-confirm-email"
                     type="email"
                     name="confirm_email"
-                    placeholder="{{ current_user.email }}"
+                    placeholder="Enter your email address"
                     autocomplete="off"
                     required
+                    data-expected="{{ current_user.email | lower }}"
                     style="width:100%; padding:12px; border:1px solid var(--bl-color-border); border-radius:var(--bl-radius-md); font-size:15px; font-family:inherit; background:var(--bl-color-surface); color:var(--bl-color-text); box-sizing:border-box; margin-bottom:16px;"
                 >
                 <button
+                    id="delete-confirm-btn"
                     type="submit"
-                    style="width:100%; padding:14px; background:var(--bl-color-primary); color:#fff; border:none; border-radius:var(--bl-radius-md); font-size:15px; font-weight:600; font-family:inherit; cursor:pointer; margin-bottom:10px;"
+                    disabled
+                    style="width:100%; padding:14px; background:var(--bl-color-primary); color:#fff; border:none; border-radius:var(--bl-radius-md); font-size:15px; font-weight:600; font-family:inherit; cursor:not-allowed; opacity:0.45; margin-bottom:10px;"
                 >
                     Delete my account
                 </button>
@@ -358,6 +362,31 @@
                     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 80);
             }
+        }
+    })();
+
+    // ── Delete account: submit-gate ───────────────────────────────────
+    // The submit button starts disabled. It only becomes active once the
+    // user has typed their exact email address (case-insensitive match).
+    (function() {
+        var input  = document.getElementById('delete-confirm-email');
+        var btn    = document.getElementById('delete-confirm-btn');
+        if (!input || !btn) return;
+        var expected = (input.getAttribute('data-expected') || '').toLowerCase();
+        function check() {
+            var matches = input.value.trim().toLowerCase() === expected;
+            btn.disabled = !matches;
+            btn.style.opacity  = matches ? '1'            : '0.45';
+            btn.style.cursor   = matches ? 'pointer'      : 'not-allowed';
+        }
+        input.addEventListener('input', check);
+        // Also reset the field when the modal is opened so a re-open starts clean.
+        var openBtn = document.querySelector('[onclick*="delete-account-modal"]');
+        if (openBtn) {
+            openBtn.addEventListener('click', function() {
+                input.value = '';
+                check();
+            });
         }
     })();
 

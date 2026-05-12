@@ -9650,6 +9650,7 @@ def delete_account():
 
     user = current_user._get_current_object()
     user_id = user.id
+    user_email = user.email
 
     try:
         # 1. Activity feed rows (actor or recipient)
@@ -9734,21 +9735,41 @@ def delete_account():
             SkiTrip.user_id != user_id
         ).update({SkiTrip.created_by_user_id: None}, synchronize_session=False)
 
-        # 17. Log the user out before deleting the row
-        logout_user()
-        # NOTE: do NOT call session.clear() — same reason as /logout
+        # 16c. NULL out MessageEventLog actor/recipient FKs.
+        #      These columns are nullable but have a hard FK to user.id with no
+        #      ON DELETE action — leaving them set causes a FK violation when the
+        #      user row is deleted. We preserve the audit rows and only clear the
+        #      user references.
+        MessageEventLog.query.filter(
+            MessageEventLog.actor_user_id == user_id
+        ).update({MessageEventLog.actor_user_id: None}, synchronize_session=False)
+        MessageEventLog.query.filter(
+            MessageEventLog.recipient_user_id == user_id
+        ).update({MessageEventLog.recipient_user_id: None}, synchronize_session=False)
 
-        # 18. Delete the user row and commit everything
+        # 17. Flush to surface any remaining FK issues before the final delete.
+        db.session.flush()
+
+        # 18. Delete the user row, commit, THEN log out.
+        #     logout_user() must come AFTER a successful commit so that if the
+        #     commit raises, the user is still authenticated and can see the error
+        #     flash on /profile.  Calling it before the commit (old behaviour) left
+        #     the user logged out with their account still intact on rollback.
         db.session.delete(user)
         db.session.commit()
+
+        # NOTE: do NOT call session.clear() — same reason as /logout
+        logout_user()
 
         flash("Your account has been deleted.", "success")
         return redirect(url_for("auth"))
 
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error deleting account for user {user_id}: {e}")
-        flash("Something went wrong while deleting your account. Please try again.", "error")
+        app.logger.error(
+            f"[delete_account] user_id={user_id} email={user_email} error={repr(e)}"
+        )
+        flash("We couldn't delete your account right now. Please try again.", "error")
         return redirect(url_for("profile"))
 
 

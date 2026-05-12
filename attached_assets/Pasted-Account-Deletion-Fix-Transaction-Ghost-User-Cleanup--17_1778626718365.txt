@@ -1,0 +1,103 @@
+Account Deletion Fix — Transaction + Ghost User Cleanup  ║
+╚════════════════════════════════════════════════════════════╝
+
+Create a plan to fix the BaseLodge account deletion flow.
+
+Known issue:
+
+* Delete account modal currently pre-populates the email field.
+* User taps “Delete my account.”
+* App redirects to login.
+* Flash message says deletion failed.
+* Likely root cause: route deletes many user-linked rows but misses at least one FK-linked row, causing commit rollback.
+* Ghost users may remain visible through surviving related records or profile-linked/feed queries.
+
+Plan only. Do not change code yet.
+
+The plan should cover:
+
+1. DELETE CONFIRMATION UX
+
+* Empty the confirmation input.
+* Placeholder should be:
+    “Enter your email address”
+* Require manually typing the account email.
+* Disable submit until the typed value matches current_user.email case-insensitively.
+* Keep the modal copy clear but not scary.
+
+2. TRANSACTION SAFETY
+
+* Refactor deletion into one intentional cleanup flow.
+* Capture user_id and email before deleting/logging out.
+* Delete all dependent rows first.
+* Flush before deleting User if helpful.
+* Commit once at the end.
+* Roll back and log exact exception if anything fails.
+* Only call logout_user after successful commit.
+* Redirect to login/home with success message after commit.
+
+3. REQUIRED CLEANUP COVERAGE
+    Audit and explicitly clean all records linked to the user, including:
+
+* friend relationships where user is either side
+* friend invitations sent or received
+* trip invitations sent or received
+* trip participant rows
+* trips owned by the user or dependent trip rows
+* wishlist/open-date/availability records
+* push tokens
+* notification preference/token rows
+* MessageEventLog rows where user is sender or recipient, if FK constraints require it
+* activity/feed rows
+* overlap/planning-window records
+* any user profile/photo/avatar references
+* any other tables with user_id, sender_id, recipient_id, friend_id, owner_id, invited_user_id, created_by_user_id, or accepted_by_user_id
+
+4. GHOST USER PREVENTION
+
+* Ensure deleted users disappear from:
+    Friends tab
+    Happening feed
+    overlap cards
+    planning windows
+    trip invite views
+    friend activity
+    admin/social audits
+* Update any queries that should join only active existing users.
+* Avoid returning orphaned rows.
+* If a related row survives by design, make sure it cannot surface a deleted user.
+
+5. SUCCESS + FAILURE MESSAGING
+    On success, use:
+    “Your account has been deleted.”
+
+On failure, use:
+“We couldn’t delete your account right now. Please try again.”
+
+Also log the backend exception clearly.
+
+6. VALIDATION PLAN
+    Include test cases for:
+
+* deleting a user with no relationships
+* deleting a user with friends
+* deleting a user with pending friend requests
+* deleting a user with trips
+* deleting a user with trip invites
+* deleting a user with push tokens/message events
+* confirming deleted user cannot log in
+* confirming connected friends no longer see deleted user anywhere
+
+7. DEPLOYMENT NOTES
+    Explicitly state:
+
+* whether this requires Replit publish/deploy
+* whether GitHub push/pull/Mac sync is needed
+* whether Xcode/TestFlight rebuild is needed
+
+Important:
+
+* Do not introduce soft delete.
+* Do not redesign unrelated account/profile flows.
+* Do not add background jobs.
+* Use checkpoints sparingly.

@@ -1,0 +1,63 @@
+Implement 86 — Account Deletion Fix                      ║
+╚════════════════════════════════════════════════════════════╝
+
+Implement the approved plan exactly.
+
+Use the provided scope, files, and steps from “86 - Account Deletion Fix.”
+
+Key requirements:
+
+* Fix delete confirmation UX in templates/profile.html
+* Empty confirmation input
+* Placeholder: Enter your email address
+* Disable submit until typed email matches current_user.email case-insensitively
+* Fix delete_account() in app.py
+* Capture user_id and user_email before deletion
+* Clean MessageEventLog.actor_user_id and recipient_user_id
+* Clean/null MessageEventLog.parent_mel_id child references where needed
+* Audit remaining user FK gaps listed in the plan
+* Delete/null dependent records before deleting the User
+* Commit before logout_user()
+* On success, redirect to /auth with:
+    Your account has been deleted.
+* On failure, keep user logged in, rollback, redirect to /profile with:
+    We couldn't delete your account right now. Please try again.
+* Log the exact exception with user_id and repr(e)
+* Add query/template null guards needed to prevent ghost users in Friends, Happening, overlaps/planning windows, and trip invite views
+
+Relevant files:
+
+* app.py:9642-9752
+* templates/profile.html:303-340
+* models.py:1299-1340
+
+Out of scope:
+
+* No soft delete
+* No account deactivation
+* No unrelated account/profile changes
+* No background jobs
+* No admin tooling changes
+* No new DB migrations
+
+Validation required:
+
+* User with no relationships deletes successfully
+* User with friends deletes successfully
+* User with pending friend invitations deletes successfully
+* User with owned trips deletes successfully
+* User who is guest on another trip deletes successfully
+* User with push tokens and MessageEventLog rows deletes successfully
+* Deleted user cannot log in
+* Remaining users no longer see deleted user in Friends tab, Happening feed, overlap cards, planning windows, or trip invite views
+* Flask boots cleanly
+
+At the end, report:
+
+1. Exact files changed
+2. Root cause fixed
+3. FK cleanup coverage
+4. Validation results
+5. Any edge cases found
+
+Use checkpoints sparingly.
