@@ -9761,7 +9761,9 @@ def delete_account():
         # NOTE: do NOT call session.clear() — same reason as /logout
         logout_user()
 
-        flash("Your account has been deleted.", "success")
+        # Category "message" renders on auth.html (which filters to
+        # ['error', 'auth', 'message']).  "success" is silently dropped there.
+        flash("Your account has been deleted.", "message")
         return redirect(url_for("auth"))
 
     except Exception as e:
@@ -9770,6 +9772,23 @@ def delete_account():
             f"[delete_account] user_id={user_id} email={user_email} error={repr(e)}"
         )
         flash("We couldn't delete your account right now. Please try again.", "error")
+        # After db.session.delete(user) + rollback, SQLAlchemy expels the user
+        # object from its identity map (detached state).  On the next request
+        # Flask-Login's user_loader calls db.session.get(User, user_id) on a
+        # fresh scoped session — but with pgBouncer/Supabase the connection
+        # returned to the pool may still be in an aborted-transaction state,
+        # causing the get() to fail and Flask-Login to treat the user as
+        # anonymous.  @login_required on /profile then bounces them to /auth
+        # where the flash is lost or invisible.
+        #
+        # Fix: re-query the user on the now-clean session and explicitly
+        # re-establish the Flask-Login session so /profile loads correctly.
+        try:
+            _fresh = db.session.get(User, user_id)
+            if _fresh:
+                login_user(_fresh, remember=True)
+        except Exception:
+            pass
         return redirect(url_for("profile"))
 
 

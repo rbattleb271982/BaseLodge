@@ -1,0 +1,56 @@
+Fix the BaseLodge delete-account failure UX regression.
+
+Current observed behavior:
+When account deletion fails, the account is still live, but the user is taken to the auth screen and no message is visible.
+
+Desired behavior:
+- If deletion succeeds:
+  - commit succeeds
+  - then logout_user()
+  - redirect to /auth
+  - show flash: "Your account has been deleted."
+- If deletion fails for any reason:
+  - rollback
+  - DO NOT call logout_user()
+  - user remains authenticated
+  - redirect to /profile
+  - show flash: "We couldn't delete your account right now. Please try again."
+  - server logs the exact exception
+
+Investigate:
+- app.py delete_account() route
+- any finally block, broad cleanup block, or redirect path that could still call logout_user()
+- any nested try/except where logout_user() might fire before commit
+- whether the route flashes before/after rollback correctly
+- whether profile.html/base_app.html displays flashed messages after redirect
+- whether /profile is the actual profile endpoint name or if redirect should use url_for('profile')
+- whether auth screen template displays flashed messages on successful deletion
+
+Fix requirements:
+1. Ensure logout_user() is ONLY called after db.session.commit() succeeds.
+2. On exception:
+   - db.session.rollback()
+   - log exception with user_id and user_email
+   - flash the failure message
+   - return redirect(url_for('profile'))
+   - do not logout
+3. Do not swallow the flash by redirecting to a login-required page after logout.
+4. Confirm the auth screen can show the success flash after successful deletion.
+5. Confirm the profile screen can show the failure flash after failed deletion.
+6. Add or adjust a safe test/debug method if needed to simulate deletion failure without deleting the account, but do not leave dangerous public debug routes exposed.
+
+QA:
+- Simulate a deletion failure:
+  - account remains live
+  - user remains logged in
+  - redirected to /profile
+  - visible flash: "We couldn't delete your account right now. Please try again."
+- Test a successful deletion using a disposable user:
+  - account deleted
+  - user logged out only after commit
+  - redirected to /auth
+  - visible flash: "Your account has been deleted."
+- Confirm no ghost user remains in friends/trips/activity after successful deletion.
+- Server boots cleanly.
+
+Do not change unrelated routes, models, messaging infrastructure, or app shell layout.
