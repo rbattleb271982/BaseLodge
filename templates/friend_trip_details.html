@@ -1,5 +1,7 @@
 {% extends "base_app.html" %}
 {% block title %}BaseLodge — {{ friend.first_name | format_name }}'s Trip{% endblock %}
+{% block topbar_left %}<a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="bl-top-bar-back" aria-label="Back">‹</a>{% endblock %}
+{% block topbar_title %}{{ friend.first_name | format_name }}'s trip{% endblock %}
 {% block head %}
 <style>
         /* ── Nav ── */
@@ -117,17 +119,6 @@
 {% block content %}
     <div class="page-container">
 
-        <!-- Back nav -->
-        <div class="ftd-nav">
-            <a href="{{ url_for('friend_profile', friend_id=friend.id) }}" class="ftd-back">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
-                {{ friend.first_name | format_name }}
-            </a>
-        </div>
-
-        <h1 class="ftd-title">{{ friend.first_name | format_name }}'s Trip</h1>
 
         <!-- Blush hero with mountain + dates -->
         {% set mountain_name = trip.resort.name if trip.resort else trip.mountain %}

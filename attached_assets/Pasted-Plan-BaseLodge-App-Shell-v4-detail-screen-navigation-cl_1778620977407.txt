@@ -1,0 +1,94 @@
+Plan BaseLodge App Shell v4: detail screen navigation cleanup.
+
+Context:
+BaseLodge now has:
+- App Shell v1: fixed top bar
+- App Shell v2: root navigation titles cleaned up
+- App Shell v3: secondary utility screens converted to native-style back + title top bars
+
+The remaining screens are complex detail/navigation screens that still show:
+- default “Hi, [name]” top bar
+- old in-body back rows / mini navigation bars
+- contextual titles already rendered inside the page
+
+Goal:
+Audit and plan the final major app-shell navigation cleanup pass for complex detail screens only.
+
+Do not modify files.
+
+Screens to audit:
+- friend_profile.html
+- mountain_detail.html
+- trip_detail.html
+- trip_invite_detail.html
+- friend_trip_details.html
+- group_trip_detail.html
+- overlap_detail.html
+- planning_window.html
+- season_snapshot.html
+- settings_wish_list.html read_only mode
+- mountains_visited.html read_only mode
+- idea_detail_availability.html
+- idea_detail_trip.html
+- idea_detail_wishlist.html
+
+For each screen, return:
+- Template
+- Route/screen
+- Current body navigation/header structure
+- Current back destination
+- Recommended topbar_left behavior
+- Recommended topbar_title
+- Recommended topbar_right
+- Which body navigation/header elements should be removed
+- Which body title/identity elements should remain
+- Layout or truncation risks
+- Recommended implementation difficulty (Low / Medium / High)
+
+Important architectural guidance:
+- Detail screens should move toward:
+  topbar_left = back
+  topbar_title = contextual title
+  topbar_right = avatar or empty
+- But identity/profile hero content should usually remain in the body.
+- Do not remove meaningful identity sections or metadata.
+- We are trying to eliminate duplicated navigation/header systems, not flatten all page hierarchy.
+
+Specific examples:
+- Friend Profile:
+  - topbar_left: back to Friends
+  - topbar_title: “Friends”
+  - keep the large friend name in the body
+  - remove old body back row only
+
+- Mountain Detail:
+  - likely topbar_left: back
+  - topbar_title: resort short name
+  - evaluate whether the large resort hero title should remain or reduce
+
+- Trip Detail:
+  - evaluate carefully before implementation
+  - existing body nav/header already contains:
+    - back
+    - title
+    - editable dates/actions
+  - identify the safest migration strategy
+  - do not assume everything should move into the fixed top bar
+
+- Read-only friend wishlist/mountains:
+  - likely back + contextual title
+  - preserve friend identity content
+
+Important:
+Do not redesign screens.
+Do not change routes/models.
+Do not touch bottom nav.
+Do not implement yet.
+This is planning only.
+
+Return:
+1. Detailed table
+2. Recommended implementation order
+3. Which screens are safe/easy
+4. Which screens should potentially remain partially custom
+5. Any screens that should intentionally keep larger hero headers even after nav cleanup

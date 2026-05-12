@@ -1,0 +1,131 @@
+Implement BaseLodge App Shell v4A: safe detail screen navigation cleanup only.
+
+Goal:
+Clean up the remaining safe/easy detail screens so they use the global fixed top bar for navigation instead of old in-body back rows.
+
+Important:
+Do NOT touch mountain_detail.html yet.
+Do NOT touch idea_detail_availability.html yet.
+Do NOT touch read-only wishlist/mountains yet.
+Do NOT redesign screens.
+Do NOT change routes, models, database, auth, push/messaging, or bottom nav.
+Use checkpoints sparingly.
+
+Screens in scope:
+
+1. friend_profile.html
+- topbar_left: back to url_for('friends')
+- topbar_title: Friends
+- topbar_right: default avatar
+- remove the old fp-nav / fp-back row
+- keep the large friend name and identity card in the body
+
+2. trip_detail.html
+- topbar_left: back to url_for('my_trips')
+- topbar_title: Trips
+- topbar_right: default avatar
+- remove the old trip-nav-header / back-chevron row
+- keep td-header fully intact, including resort name and tappable dates
+
+3. trip_invite_detail.html
+- topbar_left: back to url_for('my_trips')
+- topbar_title: Trips
+- topbar_right: default avatar
+- remove the old trip-nav-header / back-chevron row
+- keep tid-hero fully intact
+
+4. friend_trip_details.html
+- topbar_left: back to url_for('friend_profile', friend_id=friend.id)
+- topbar_title: “[Friend first name]’s trip”
+- topbar_right: default avatar
+- remove old ftd-nav row
+- remove body H1 ftd-title if it duplicates the new topbar_title
+- keep ftd-hero fully intact
+
+5. group_trip_detail.html
+- topbar_left: back to url_for('home')
+- topbar_title: Group trip
+- topbar_right: default avatar
+- remove old gtd-nav row, including the obsolete BaseLodge brand label
+- keep the body trip title and dates
+
+6. overlap_detail.html
+- topbar_left: back to url_for('friends', tab='overlaps')
+- topbar_title:
+  - if overlap_type == 'trip': mountain name or “Trip overlap”
+  - else: “Open day”
+- topbar_right: default avatar
+- remove old page-header row that combines back link + H1
+- keep page subtitle, friends list, and CTA content
+
+7. planning_window.html
+- topbar_left: back to url_for('my_trips', tab='planning')
+- topbar_title: display_dates
+- topbar_right: default avatar
+- remove old bl-header BaseLodge link
+- remove old back-link
+- remove old window-header title/subtitle block
+- keep the friends/content list below
+
+8. season_snapshot.html
+- topbar_left: back to url_for('my_trips')
+- topbar_title: Season
+- topbar_right: default avatar
+- remove old ss-back row only
+- keep the entire ss-card untouched, including ss-title inside the poster card
+
+9. idea_detail_trip.html
+- topbar_left: back to url_for('home')
+- topbar_title: resort name only
+- topbar_right: default avatar
+- remove old idea-detail-back anchor only
+- keep the narrative idea-detail-header H1 and body content
+
+10. idea_detail_wishlist.html
+- topbar_left: back to url_for('home')
+- topbar_title: resort name only
+- topbar_right: default avatar
+- remove old idea-detail-back anchor only
+- keep the narrative idea-detail-header H1, subhead, why copy, and body content
+
+Do NOT touch:
+- mountain_detail.html
+- idea_detail_availability.html
+- settings_wish_list.html read_only mode
+- mountains_visited.html read_only mode
+- any root screens already handled
+- any secondary screens already handled
+
+Implementation requirements:
+- Use the existing topbar_left, topbar_title, and topbar_right block system.
+- Use the existing .bl-top-bar-back class for back links.
+- Preserve meaningful body identity/hero content.
+- Only remove obsolete navigation/header rows that now duplicate the fixed top bar.
+- Keep all existing functionality intact.
+
+QA:
+- App boots cleanly.
+- Verify these routes return 200 where test data exists:
+  - friend profile
+  - trip detail
+  - trip invite detail
+  - friend trip details
+  - group trip detail
+  - overlap detail
+  - planning window
+  - season snapshot
+  - idea detail trip
+  - idea detail wishlist
+- Visually check that:
+  - fixed top bar shows correct back + title
+  - old in-body back rows are gone
+  - body hero/identity content remains
+  - no duplicate nav/title rows remain
+  - bottom nav remains unchanged
+  - no content is hidden behind the top bar
+
+Deliver:
+- files changed
+- implementation summary
+- QA results
+- any visual edge cases

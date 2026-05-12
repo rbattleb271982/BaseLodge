@@ -1,6 +1,8 @@
 {% extends "base_app.html" %}
 {% block flash %}{% endblock %}
 {% block title %}BaseLodge — Trip{% endblock %}
+{% block topbar_left %}<a href="{{ url_for('my_trips') }}" class="bl-top-bar-back" aria-label="Back">‹</a>{% endblock %}
+{% block topbar_title %}Trips{% endblock %}
 {% block head %}
 <style>
         /* ── Nav ── */
@@ -955,20 +957,6 @@
 
     <div class="page-container{% if is_invited %} page-container-with-sticky{% endif %}">
 
-        <!-- Nav -->
-        <div class="trip-nav-header">
-            <a href="{{ url_for('home') }}" class="back-chevron" aria-label="Back to home">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
-            </a>
-            {% if trip.resort and trip.resort.slug %}
-            <a href="{{ url_for('mountain_detail', slug=trip.resort.slug) }}" class="trip-title trip-title-link">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</a>
-            {% else %}
-            <h1 class="trip-title">{% if trip.resort %}{{ trip.resort.name }}{% else %}{{ trip.mountain }}{% endif %}</h1>
-            {% endif %}
-            <div class="nav-spacer"></div>
-        </div>
 
         <!-- Trip header -->
         {% set mountain_name = trip.resort.name if trip.resort else trip.mountain %}

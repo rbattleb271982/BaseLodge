@@ -1,5 +1,7 @@
 {% extends "base_app.html" %}
 {% block title %}BaseLodge — {{ resort_name }}{% endblock %}
+{% block topbar_left %}<a href="{{ url_for('home') }}" class="bl-top-bar-back" aria-label="Back">‹</a>{% endblock %}
+{% block topbar_title %}{{ resort_name }}{% endblock %}
 {% block head %}
 <style>
         .idea-detail-back {
@@ -129,7 +131,6 @@
 {% block content %}
     <div class="page-container">
 
-        <a href="{{ url_for('home') }}" class="idea-detail-back">← Home</a>
 
         <div class="idea-detail-header">
             {% set full_anchor = ((trip_owner.first_name or '') + ' ' + (trip_owner.last_name or '')).strip() if trip_owner else anchor_name %}
