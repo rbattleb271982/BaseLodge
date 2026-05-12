@@ -1,0 +1,109 @@
+║ BaseLodge — P0 Launch Readiness Cleanup Implementation ║
+╚════════════════════════════════════════════════════════════════╝
+Use checkpoints sparingly.
+Implement ONLY the five P0 launch readiness cleanup fixes below.
+DO NOT:
+refactor app.py broadly
+decompose routes
+convert startup migrations to Alembic
+modify messaging/retry architecture
+enable RETRY_EXECUTION_ENABLED
+delete attached_assets
+redesign UI
+change App Store metadata
+add new features
+────────────────────────────────────────
+FIX 1 — REMOVE HARDCODED ADMIN FALLBACK
+────────────────────────────────────────
+File: app.py
+Find:
+admin_emails_str = os.environ.get("ALLOWED_ADMIN_EMAILS", "richardbattlebaxter@gmail.com,battle@battle.com")
+Change to:
+admin_emails_str = os.environ.get("ALLOWED_ADMIN_EMAILS", "")
+Before validating admin routes, confirm ALLOWED_ADMIN_EMAILS is set in Replit Secrets.
+────────────────────────────────────────
+FIX 2 — DELETE DEBUG ROUTES FROM PRODUCTION CODE
+────────────────────────────────────────
+Files:
+app.py
+debug_routes.py
+Remove from app.py:
+from debug_routes import debug_bp
+Remove the debug blueprint registration block:
+if not is_production:
+    app.register_blueprint(debug_bp)
+Then delete debug_routes.py.
+Goal:
+/debug/seed_friends should return 404.
+────────────────────────────────────────
+FIX 3 — DELETE LEGACY DEV/SEED ROUTES
+────────────────────────────────────────
+File: app.py
+Delete the continuous block of legacy dev/seed routes from approximately lines 9810–10178.
+Routes to remove:
+/generate-dummy-users
+/connect-jonathan-to-dummies
+/migrate-trips-to-resorts
+/create-extra-dummy-users
+/delete-account-data
+/create-real-users-and-connect
+/force-create-base-users
+Do not delete /admin/init-db.
+Goal:
+all deleted routes return 404.
+────────────────────────────────────────
+FIX 4 — CLEAN SMALL mountains_visited REMOVE EDGE CASE
+────────────────────────────────────────
+File: app.py
+In /api/mountains-visited/remove, keep the existing dual-write behavior.
+Only make the small safe cleanup so mountains_visited is cleaned when possible and behavior remains unchanged when the resort exists.
+Do NOT drop either column.
+Do NOT change the add endpoint.
+Do NOT introduce a migration.
+Validate:
+adding a mountain updates both visited_resort_ids and mountains_visited
+removing a mountain updates both
+────────────────────────────────────────
+FIX 5 — ENFORCE INVITE TOKEN EXPIRATION
+────────────────────────────────────────
+Files:
+models.py
+app.py
+In models.py, update InviteToken.is_expired() so:
+tokens with expires_at is None return False
+tokens with expires_at in the past return True
+use datetime.utcnow()
+In app.py, update get_or_create_invite_token() so it only reuses tokens that are:
+not used
+not expired
+Expected logic:
+for token_obj in existing:
+    if not token_obj.is_used() and not token_obj.is_expired():
+        return token_obj
+Validate:
+new invite tokens still get expires_at
+expired links render invite_expired.html
+fresh invite links still work
+/invite issues a fresh token when the old unused token is expired
+────────────────────────────────────────
+VALIDATION REQUIREMENTS
+────────────────────────────────────────
+After implementation, validate:
+Flask boots cleanly.
+ALLOWED_ADMIN_EMAILS is set.
+Admin user can access admin routes.
+Non-admin user cannot access admin routes.
+/debug/seed_friends returns 404.
+Deleted seed routes return 404.
+Add/remove visited mountain updates both legacy and modern fields.
+Fresh invite token works.
+Expired invite token renders expired template.
+Expired unused token is not reused by /invite.
+No messaging/retry behavior changed.
+RETRY_EXECUTION_ENABLED remains False.
+Return:
+files changed
+exact routes removed
+exact validation results
+any warnings
+confirmation no out-of-scope changes were made.

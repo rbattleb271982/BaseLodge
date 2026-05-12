@@ -63,7 +63,6 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
 from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog
-from debug_routes import debug_bp
 from services.open_dates import get_open_date_matches
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
 from services.message_events import create_message_event, is_duplicate_event, should_retry
@@ -686,7 +685,7 @@ def before_request_handlers():
 def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        admin_emails_str = os.environ.get("ALLOWED_ADMIN_EMAILS", "richardbattlebaxter@gmail.com,battle@battle.com")
+        admin_emails_str = os.environ.get("ALLOWED_ADMIN_EMAILS", "")
         admin_emails = [e.strip().lower() for e in admin_emails_str.split(",") if e.strip()]
         if not current_user.is_authenticated or current_user.email.lower() not in admin_emails:
             if request.path.startswith('/api/'):
@@ -1215,8 +1214,6 @@ oauth.register(
 if "sqlite" in app.config.get("SQLALCHEMY_DATABASE_URI", ""):
     with app.app_context():
         db.create_all()
-if not is_production:
-    app.register_blueprint(debug_bp)
 
 
 def run_equipment_migration():
@@ -1667,7 +1664,7 @@ def get_or_create_invite_token(user):
     # Look for existing unused token (most recent first)
     existing = InviteToken.query.filter_by(inviter_id=user.id).order_by(InviteToken.created_at.desc()).all()
     for token_obj in existing:
-        if not token_obj.is_used():
+        if not token_obj.is_used() and not token_obj.is_expired():
             return token_obj
     
     # Create new token with 48-hour expiration
@@ -7919,10 +7916,11 @@ def api_mountains_visited_remove():
     if not resort_id:
         return jsonify({"error": "resort_id required"}), 400
     resort = db.session.get(Resort, resort_id)
+    resort_name = resort.name if resort else None
     ids = [i for i in (current_user.visited_resort_ids or []) if i != resort_id]
     names = list(current_user.mountains_visited or [])
-    if resort and resort.name in names:
-        names.remove(resort.name)
+    if resort_name and resort_name in names:
+        names.remove(resort_name)
     current_user.visited_resort_ids = ids
     current_user.mountains_visited = names
     db.session.commit()
@@ -9806,375 +9804,6 @@ def select_pass():
             return redirect(url_for("select_pass"))
 
     return render_template("select_pass.html")
-
-@app.route("/generate-dummy-users")
-@login_required
-@admin_required
-def generate_dummy_users():
-    rider_types = ["Skier", "Snowboarder", "Cross-country", "Telemark", "Adaptive", "Other"]
-    skill_levels = ["Beginner", "Intermediate", "Advanced", "Expert"]
-    pass_types = ["Epic", "Ikon", "Indy", "Mountain Collective", "Other", "None"]
-    mountains_pool = [
-        "Vail", "Breckenridge", "Keystone", "Park City", "Heavenly",
-        "Copper Mountain", "Winter Park", "Aspen", "Alta", "Snowbird",
-        "Jackson Hole", "Brighton", "Big Sky", "Palisades Tahoe",
-        "Loveland", "Arapahoe Basin"
-    ]
-
-    created_users = []
-
-    for i in range(30):
-        email = f"dummy{i+1}@example.com"
-        existing = User.query.filter_by(email=email).first()
-        if existing:
-            continue
-
-        u = User(
-            first_name="User",
-            last_name=f"Test{i+1}",
-            email=email,
-            primary_rider_type=random.choice(rider_types),
-            skill_level=random.choice(skill_levels),
-            pass_type=random.choice(pass_types)
-        )
-        u.set_password("password123")
-        db.session.add(u)
-        db.session.commit()
-
-        chosen_mountains = random.sample(mountains_pool, random.randint(2, 8))
-        if hasattr(u, "mountains_visited"):
-            u.mountains_visited = chosen_mountains
-        db.session.commit()
-
-        for _ in range(random.randint(1, 3)):
-            start = datetime.utcnow() + timedelta(days=random.randint(5, 60))
-            end = start + timedelta(days=2)
-            mountain_choice = random.choice(mountains_pool)
-            trip = SkiTrip(
-                user_id=u.id,
-                state="Colorado",
-                mountain=mountain_choice,
-                start_date=start,
-                end_date=end
-            )
-            db.session.add(trip)
-
-        db.session.commit()
-        created_users.append(email)
-
-    return {"status": "success", "dummy_users_created": created_users}
-
-@app.route("/connect-jonathan-to-dummies")
-@login_required
-@admin_required
-def connect_jonathan_to_dummies():
-    richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
-    jonathan = User.query.filter_by(email="jonathanmschmitz@gmail.com").first()
-
-    if not richard or not jonathan:
-        return "One or both main users not found.", 400
-
-    dummy_users = User.query.filter(User.email.like("dummy%@example.com")).all()
-    linked = []
-
-    for u in dummy_users:
-        if not Friend.query.filter_by(user_id=richard.id, friend_id=u.id).first():
-            db.session.add(Friend(user_id=richard.id, friend_id=u.id))
-        if not Friend.query.filter_by(user_id=u.id, friend_id=richard.id).first():
-            db.session.add(Friend(user_id=u.id, friend_id=richard.id))
-
-        if not Friend.query.filter_by(user_id=jonathan.id, friend_id=u.id).first():
-            db.session.add(Friend(user_id=jonathan.id, friend_id=u.id))
-        if not Friend.query.filter_by(user_id=u.id, friend_id=jonathan.id).first():
-            db.session.add(Friend(user_id=u.id, friend_id=jonathan.id))
-
-        linked.append(u.email)
-
-    db.session.commit()
-
-    return {
-        "status": "success",
-        "dummy_users_linked_to_richard_and_jonathan": linked,
-        "count": len(linked)
-    }
-
-@app.route("/migrate-trips-to-resorts")
-@login_required
-@admin_required
-def migrate_trips_to_resorts():
-    """Backfill resort_id for all existing trips based on mountain name."""
-    trips = SkiTrip.query.all()
-    migrated = 0
-    not_found = []
-
-    for trip in trips:
-        if trip.resort_id:
-            continue
-
-        # Best-effort lookup by mountain name
-        resort = Resort.query.filter(
-            db.func.lower(Resort.name) == trip.mountain.lower()
-        ).first()
-
-        if resort:
-            trip.resort_id = resort.id
-            migrated += 1
-        else:
-            if trip.mountain and trip.mountain not in not_found:
-                not_found.append(trip.mountain)
-
-    db.session.commit()
-
-    return {
-        "status": "success",
-        "trips_migrated": migrated,
-        "mountains_not_found": not_found
-    }
-
-@app.route("/create-extra-dummy-users")
-@login_required
-@admin_required
-def create_extra_dummy_users():
-    """Create 10 additional dummy users (Test31-40) with overlapping trips."""
-    main_email = "richardbattlebaxter@gmail.com"
-    jon_email = "jonathanmschmitz@gmail.com"
-
-    main_user = User.query.filter_by(email=main_email).first()
-    jon_user = User.query.filter_by(email=jon_email).first()
-
-    if not main_user or not jon_user:
-        return {"error": f"Anchor users not found. main={bool(main_user)}, jon={bool(jon_user)}"}, 400
-
-    # Load anchor trips separately for each user to ensure coverage
-    main_trips = SkiTrip.query.filter_by(user_id=main_user.id).all()
-    jon_trips = SkiTrip.query.filter_by(user_id=jon_user.id).all()
-
-    if not main_trips and not jon_trips:
-        return {"error": "No anchor trips found to create overlaps."}, 400
-
-    rider_types = ["Skier", "Snowboarder", "Telemark", "Adaptive", "Other"]
-    pass_types = ["Epic", "Epic Local", "Ikon", "Ikon Base", "Indy", "Other", "None"]
-    skill_levels = ["Beginner", "Intermediate", "Advanced", "Expert"]
-
-    created_users = []
-    for idx in range(31, 41):
-        email = f"usertest{idx}@example.com"
-        existing = User.query.filter_by(email=email).first()
-        if existing:
-            continue
-
-        u = User(
-            first_name="User",
-            last_name=f"Test{idx}",
-            email=email,
-            primary_rider_type=random.choice(rider_types),
-            pass_type=random.choice(pass_types),
-            skill_level=random.choice(skill_levels),
-        )
-        u.set_password("skitest123")
-        db.session.add(u)
-        created_users.append(u)
-
-    db.session.commit()
-
-    if not created_users:
-        return {"status": "success", "message": "All dummy users Test31-Test40 already exist.", "created": 0}
-
-    # Create overlapping trips ensuring coverage for both anchor users
-    for u in created_users:
-        # Ensure at least one trip overlaps with main_user
-        if main_trips:
-            template_trip = random.choice(main_trips)
-            overlap_trip = SkiTrip(
-                user_id=u.id,
-                state=template_trip.state,
-                mountain=template_trip.mountain,
-                start_date=template_trip.start_date,
-                end_date=template_trip.end_date,
-                is_public=True,
-            )
-            if template_trip.resort_id:
-                overlap_trip.resort_id = template_trip.resort_id
-            db.session.add(overlap_trip)
-
-        # Ensure at least one trip overlaps with jon_user
-        if jon_trips:
-            template_trip = random.choice(jon_trips)
-            overlap_trip = SkiTrip(
-                user_id=u.id,
-                state=template_trip.state,
-                mountain=template_trip.mountain,
-                start_date=template_trip.start_date,
-                end_date=template_trip.end_date,
-                is_public=True,
-            )
-            if template_trip.resort_id:
-                overlap_trip.resort_id = template_trip.resort_id
-            db.session.add(overlap_trip)
-
-        # Add 0-1 additional random trips from either account
-        all_anchor_trips = main_trips + jon_trips
-        if all_anchor_trips and random.random() > 0.5:
-            template_trip = random.choice(all_anchor_trips)
-            overlap_trip = SkiTrip(
-                user_id=u.id,
-                state=template_trip.state,
-                mountain=template_trip.mountain,
-                start_date=template_trip.start_date,
-                end_date=template_trip.end_date,
-                is_public=True,
-            )
-            if template_trip.resort_id:
-                overlap_trip.resort_id = template_trip.resort_id
-            db.session.add(overlap_trip)
-
-    db.session.commit()
-
-    # Add bidirectional friendships to both main accounts
-    def ensure_friendship(a, b):
-        existing = Friend.query.filter_by(user_id=a.id, friend_id=b.id).first()
-        if not existing:
-            db.session.add(Friend(user_id=a.id, friend_id=b.id))
-
-        existing_rev = Friend.query.filter_by(user_id=b.id, friend_id=a.id).first()
-        if not existing_rev:
-            db.session.add(Friend(user_id=b.id, friend_id=a.id))
-
-    for u in created_users:
-        ensure_friendship(main_user, u)
-        ensure_friendship(jon_user, u)
-
-    db.session.commit()
-
-    return {
-        "status": "success",
-        "message": f"Created {len(created_users)} extra dummy users with overlapping trips and friendships.",
-        "created_users": [u.email for u in created_users]
-    }
-
-@app.route("/delete-account-data")
-@login_required
-@admin_required
-def delete_account_data():
-    target_emails = [
-        "richardbattlebaxter@gmail.com",
-        "jonathanmschmitz@gmail.com"
-    ]
-
-    deleted_summary = {}
-
-    for email in target_emails:
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            deleted_summary[email] = "User not found"
-            continue
-
-        SkiTrip.query.filter_by(user_id=user.id).delete()
-
-        Friend.query.filter_by(user_id=user.id).delete()
-        Friend.query.filter_by(friend_id=user.id).delete()
-
-        if hasattr(user, "mountains_visited"):
-            user.mountains_visited = []
-        
-        db.session.delete(user)
-        db.session.commit()
-
-        deleted_summary[email] = "All associated data deleted"
-
-    return {
-        "status": "success",
-        "details": deleted_summary
-    }
-
-@app.route("/create-real-users-and-connect")
-@login_required
-@admin_required
-def create_real_users_and_connect():
-    richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
-    if not richard:
-        richard = User(
-            first_name="Richard",
-            last_name="Battle",
-            email="richardbattlebaxter@gmail.com"
-        )
-        richard.set_password("123456")
-        db.session.add(richard)
-        db.session.commit()
-
-    jonathan = User.query.filter_by(email="jonathanmschmitz@gmail.com").first()
-    if not jonathan:
-        jonathan = User(
-            first_name="Jonathan",
-            last_name="Schmitz",
-            email="jonathanmschmitz@gmail.com"
-        )
-        jonathan.set_password("123456")
-        db.session.add(jonathan)
-        db.session.commit()
-
-    dummy_users = User.query.filter(User.email.like("dummy%@example.com")).all()
-
-    linked_richard = []
-    linked_jonathan = []
-
-    for u in dummy_users:
-        if not Friend.query.filter_by(user_id=richard.id, friend_id=u.id).first():
-            db.session.add(Friend(user_id=richard.id, friend_id=u.id))
-        if not Friend.query.filter_by(user_id=u.id, friend_id=richard.id).first():
-            db.session.add(Friend(user_id=u.id, friend_id=richard.id))
-        linked_richard.append(u.email)
-
-        if not Friend.query.filter_by(user_id=jonathan.id, friend_id=u.id).first():
-            db.session.add(Friend(user_id=jonathan.id, friend_id=u.id))
-        if not Friend.query.filter_by(user_id=u.id, friend_id=jonathan.id).first():
-            db.session.add(Friend(user_id=u.id, friend_id=jonathan.id))
-        linked_jonathan.append(u.email)
-
-    db.session.commit()
-
-    return {
-        "status": "success",
-        "richard_connected_to": linked_richard,
-        "jonathan_connected_to": linked_jonathan,
-        "dummy_count": len(dummy_users)
-    }
-
-@app.route("/force-create-base-users")
-@login_required
-@admin_required
-def force_create_base_users():
-    created = {}
-
-    richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
-    if not richard:
-        richard = User(
-            first_name="Richard",
-            last_name="Battle",
-            email="richardbattlebaxter@gmail.com"
-        )
-        richard.set_password("123456")
-        db.session.add(richard)
-        db.session.commit()
-        created["richard"] = "created"
-    else:
-        created["richard"] = "already existed"
-
-    jonathan = User.query.filter_by(email="jonathanmschmitz@gmail.com").first()
-    if not jonathan:
-        jonathan = User(
-            first_name="Jonathan",
-            last_name="Schmitz",
-            email="jonathanmschmitz@gmail.com"
-        )
-        jonathan.set_password("123456")
-        db.session.add(jonathan)
-        db.session.commit()
-        created["jonathan"] = "created"
-    else:
-        created["jonathan"] = "already existed"
-
-    return {"status": "success", "result": created}
 
 @app.route("/admin/init-db", methods=["POST"])
 @login_required

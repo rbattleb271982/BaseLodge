@@ -996,8 +996,14 @@ class InviteToken(db.Model):
     inviter = db.relationship("User", backref="invite_tokens")
 
     def is_expired(self):
-        # Temporarily disable expiration for MVP
-        return False
+        """Return True if the token is past its 48-hour validity window.
+
+        Tokens with no expires_at (legacy rows created before the field existed)
+        are treated as non-expired so existing links continue to work.
+        """
+        if self.expires_at is None:
+            return False
+        return datetime.utcnow() > self.expires_at
 
     def is_used(self):
         """Check if token has been used (single-use enforcement via used_at)."""
