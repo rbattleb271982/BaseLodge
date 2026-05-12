@@ -22,11 +22,8 @@
 <body>
 <div class="app-shell">
     <div class="bl-top-bar">
-      {%- set _tb_fn = current_user.first_name or '' -%}
-      <span class="bl-top-bar-greeting">{% if _tb_fn %}Hi, {{ _tb_fn }}{% else %}BaseLodge{% endif %}</span>
-      {%- set _tb1 = (_tb_fn[0] | upper) if _tb_fn else '?' -%}
-      {%- set _tb2 = (current_user.last_name[0] | upper) if current_user.last_name else '' -%}
-      <a href="{{ url_for('profile') }}" class="bl-top-bar-avatar" aria-label="Go to profile">{{ _tb1 }}{{ _tb2 }}</a>
+      <span class="bl-top-bar-title">{% block topbar_title %}{%- set _tb_fn = current_user.first_name or '' -%}{% if _tb_fn %}Hi, {{ _tb_fn }}{% else %}BaseLodge{% endif %}{% endblock %}</span>
+      {% block topbar_right %}{%- set _tba_fn = current_user.first_name or '' -%}{%- set _tba1 = (_tba_fn[0] | upper) if _tba_fn else '?' -%}{%- set _tba2 = (current_user.last_name[0] | upper) if current_user.last_name else '' -%}<a href="{{ url_for('profile') }}" class="bl-top-bar-avatar" aria-label="Go to profile">{{ _tba1 }}{{ _tba2 }}</a>{% endblock %}
     </div>
     {% block flash %}
     {% with _flash_messages = get_flashed_messages(with_categories=true) %}

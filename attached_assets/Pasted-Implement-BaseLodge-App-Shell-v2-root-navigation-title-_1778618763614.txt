@@ -1,0 +1,79 @@
+Implement BaseLodge App Shell v2: root navigation title cleanup only.
+
+Goal:
+Now that BaseLodge has a fixed top bar, make the main root screens feel more native by moving their primary screen identity into the fixed top bar and removing redundant body H1/header rows.
+
+Scope:
+Root/peer-level screens only.
+Do not touch detail screens yet.
+Do not migrate back buttons yet.
+Do not redesign screens.
+
+Screens in scope:
+- Home
+- Trips
+- Friends
+- Mountains
+- Invite
+- Ideas
+- Notifications
+
+Desired top bar behavior:
+- Home: top bar title should be “Welcome, [first_name].”
+- Trips: top bar title should be “Trips”
+- Friends: top bar title should be “Friends”
+- Mountains: top bar title should be “Mountains”
+- Invite: top bar title should be “Invite friends”
+- Ideas: top bar title should be “Ideas”
+- Notifications: top bar title should be “Notifications”
+
+Top-right behavior:
+- Default: keep initials avatar linking to profile
+- Friends: move/preserve “Invite →” as the top-right action instead of the initials avatar, if safe
+- Ideas: move/preserve “Edit dates” / “Add dates” as the top-right action instead of the initials avatar, if safe
+- Do not force right actions if it creates layout risk
+
+Implementation guidance:
+- Add a simple per-page way for templates to define the fixed top bar title and optional right action.
+- Keep this lightweight and Jinja-friendly.
+- Avoid JS.
+- Avoid route/model changes.
+- Avoid touching messaging, push, database, or auth logic.
+- Keep public/logged-out pages unchanged.
+
+Remove redundancy:
+- Home: remove the large duplicate “Welcome, [first_name].” body H1/header row from the home card, but keep the card content that still matters.
+- Trips: remove the redundant large “Trips” body H1/header row.
+- Friends: remove the redundant large “Friends” body H1/header row from both empty and populated states, but keep the Invite action.
+- Mountains: remove the redundant large “Mountains” body H1/header row, but keep helper/subtitle copy only if it still reads naturally.
+- Invite: remove the redundant large “Invite friends” / “Invite a friend” body H1 if the top bar carries that title, but keep the actual invite UI and explanatory copy.
+- Ideas: remove the redundant large “Ideas” body H1 row, but keep the Edit/Add dates action and all idea content.
+- Notifications: remove the redundant large “Notifications” body H1, but keep notification list/empty-state content.
+
+Do NOT remove:
+- tabs
+- filters
+- search bars
+- empty-state explanations
+- CTA buttons
+- friend invite functionality
+- trip cards
+- mountain cards
+- useful section labels like “Upcoming”, “Past”, “Happening”, etc.
+- detail screen headers
+- body back buttons on detail screens
+
+QA:
+- App boots cleanly.
+- /home, /my-trips, /friends, /mountains, /invite, /ideas, /notifications return 200.
+- Each scoped screen shows the correct fixed top bar title.
+- No scoped screen has a duplicate giant H1 directly below the top bar.
+- Friends still exposes Invite.
+- Ideas still exposes Edit/Add dates.
+- Avatar/profile access still exists on screens without a custom right action.
+- Bottom nav remains unchanged.
+- Content starts at an appropriate vertical position under the top bar.
+- No logged-out/public page changes.
+
+Use checkpoints sparingly.
+Do not finish until the app boots cleanly and the scoped screens are visually checked.

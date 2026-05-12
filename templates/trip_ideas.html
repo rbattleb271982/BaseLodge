@@ -1,5 +1,7 @@
 {% extends "base_app.html" %}
 {% block title %}BaseLodge — Ideas{% endblock %}
+{% block topbar_title %}Ideas{% endblock %}
+{% block topbar_right %}<a href="{{ url_for('add_open_dates') }}" class="bl-top-bar-action">{% if has_availability %}Edit dates{% else %}Add dates{% endif %}</a>{% endblock %}
 {% block head %}
 <link rel="prefetch" href="{{ url_for('home') }}">
 <link rel="prefetch" href="{{ url_for('profile') }}">
@@ -292,12 +294,6 @@
     {# no_avail: user hasn't set any dates yet — show hard gate #}
     {% set show_no_avail = not has_availability and ideas_state != 'populated' %}
 
-    <div class="ideas-screen-header">
-        <h1 class="ideas-screen-title">Ideas</h1>
-        <a href="{{ url_for('add_open_dates') }}" class="ideas-screen-pill">
-            {% if has_availability %}Edit dates{% else %}Add dates{% endif %}
-        </a>
-    </div>
 
     {% if ideas_state == 'populated' %}
         {%- set _total_friends = dest_feed | sum(attribute='friend_count') -%}
