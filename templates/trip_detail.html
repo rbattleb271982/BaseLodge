@@ -43,6 +43,13 @@
         .td-header {
             margin-bottom: 6px;
         }
+        .td-mountain-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--bl-color-text-muted);
+            margin: 0 0 6px 0;
+            line-height: 1.3;
+        }
         .td-header-notice {
             font-size: 13px;
             color: #8A857A;
@@ -965,6 +972,9 @@
         {% set ts = trip.trip_status or 'planning' %}
 
         <div class="td-header">
+            {% if mountain_name %}
+            <p class="td-mountain-name">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+            {% endif %}
             {% if is_owner %}
             <button type="button" class="td-header-dates td-header-dates--tap" onclick="openDateSheet()" aria-label="Edit trip dates">
                 <span class="td-date-text" id="td-dates-text">{% if trip.start_date and trip.end_date %}{% set _nights = (trip.end_date - trip.start_date).days %}{{ format_trip_dates(trip) }}, {{ trip.end_date.year }}{% if _nights > 0 %} · {{ _nights }} night{{ 's' if _nights != 1 else '' }}{% else %} · Day trip{% endif %}{% else %}{{ format_trip_dates(trip) }}{% endif %}<span class="td-date-chevron">›</span></span>

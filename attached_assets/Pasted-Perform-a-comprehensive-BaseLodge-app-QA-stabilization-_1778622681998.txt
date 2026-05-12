@@ -1,0 +1,148 @@
+Perform a comprehensive BaseLodge app QA + stabilization sweep after the App Shell v1–v4 navigation refactor.
+
+Goal:
+Identify and fix regressions, spacing issues, navigation inconsistencies, duplicate headers, broken back behavior, safe-area issues, sticky bar conflicts, overflow problems, and visual polish issues introduced during the app-shell conversion.
+
+This is a QA/stabilization pass.
+Prioritize production readiness and App Store quality.
+Do not redesign the product.
+Use checkpoints sparingly.
+
+Priority focus:
+- navigation consistency
+- fixed top bar behavior
+- safe-area spacing
+- scrolling behavior
+- content hidden behind headers
+- sticky bottom bars
+- back navigation
+- duplicate titles
+- overflow/truncation
+- mobile polish
+- iOS feel
+
+QA all major logged-in flows/screens:
+
+ROOT SCREENS
+- Home
+- Trips
+- Friends
+- Mountains
+- Invite
+- Ideas
+- Notifications
+
+SECONDARY SCREENS
+- Add Trip
+- Edit Profile
+- Push Settings
+- Equipment
+- Wish List (own + read-only)
+- Select Pass
+- Change Password
+- Feedback
+- Mountains Visited (own + read-only)
+- Add Open Dates
+
+DETAIL SCREENS
+- Friend Profile
+- Mountain Detail
+- Trip Detail
+- Trip Invite Detail
+- Friend Trip Details
+- Group Trip Detail
+- Overlap Detail
+- Planning Window
+- Season Snapshot
+- Idea Detail screens
+
+Validate:
+1. Fixed top bar
+- title correct
+- back behavior correct
+- no duplicate body nav rows
+- no clipped/truncated titles
+- spacing consistent
+- safe-area correct on iPhone notch layouts
+
+2. Scrolling behavior
+- content scrolls naturally
+- no double-scroll areas
+- no hidden top content
+- no excessive blank gaps after removed headers
+- no jumpiness
+
+3. Bottom nav
+- remains fixed
+- no overlap with content
+- safe-area correct
+- no clipping on shorter screens
+
+4. Sticky bottom bars/buttons
+- Save bars
+- Invite bars
+- CTA bars
+- date selectors
+- all clear the bottom nav properly
+
+5. Forms + sheets
+- keyboard overlap
+- inputs not hidden
+- save/cancel still visible
+- sheets still open/close correctly
+
+6. Navigation
+- all back links correct
+- JS back behavior still works
+- no dead links
+- no orphan screens
+
+7. Visual cleanup
+- remove any obvious dead spacing left after header removal
+- remove obvious duplicate separators/dividers
+- remove empty wrapper div visual artifacts if any
+- tighten awkward vertical spacing only where clearly needed
+- do NOT redesign layouts
+
+8. Responsive/mobile polish
+- narrow widths
+- long names
+- long resort names
+- long titles
+- overlap cards
+- hero sections
+- ensure top bar titles truncate gracefully if needed
+
+9. Public/logged-out pages
+Confirm:
+- auth
+- forgot password
+- invite/public flows
+remain unaffected by the app-shell work.
+
+10. App stability
+- app boots cleanly
+- no template errors
+- no JS console errors introduced
+- no missing block errors
+- no undefined variable errors
+
+Important:
+Do NOT:
+- redesign the app
+- re-architect navigation
+- add new features
+- modify push systems
+- modify database logic
+- touch messaging infrastructure
+- remove meaningful hero content
+- start dead CSS cleanup yet unless directly tied to a visible regression
+
+Fix only issues discovered during QA.
+
+Deliver:
+- issues found
+- fixes applied
+- files changed
+- any remaining known issues
+- any screens recommended for future polish
