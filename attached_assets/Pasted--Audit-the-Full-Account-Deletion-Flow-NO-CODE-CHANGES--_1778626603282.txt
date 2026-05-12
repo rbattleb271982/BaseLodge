@@ -1,0 +1,114 @@
+║ Audit the Full Account Deletion Flow (NO CODE CHANGES)   ║
+╚════════════════════════════════════════════════════════════╝
+
+Do NOT modify any code.
+
+I need a complete audit of the current BaseLodge account deletion flow and why deletion appears to fail.
+
+Observed behavior:
+
+* User opens Delete Account modal
+* Email field is pre-populated
+* User taps “Delete my account”
+* App redirects to login screen
+* Flash error says:
+    “Something went wrong while deleting your account”
+* BUT the account may partially persist because ghost users remain in friend lists/activity
+
+I need a complete diagnostic report.
+
+Investigate ALL of the following:
+
+1. ROUTE + FLOW
+
+* Exact route/function handling account deletion
+* All helper/service functions involved
+* Full order of operations from button tap → DB delete → logout → redirect
+
+2. FAILURE ROOT CAUSE
+    Determine EXACTLY why deletion fails.
+
+Inspect for:
+
+* SQLAlchemy rollback
+* FK constraint errors
+* IntegrityError exceptions
+* session.commit ordering problems
+* current_user/session teardown timing
+* orphaned relationship rows
+* cascade misconfiguration
+* relationship back_populates mismatches
+* nullable vs non-null FK conflicts
+
+Identify the exact failing table/model if possible.
+
+3. SOCIAL GRAPH CLEANUP
+    Audit whether deletion currently removes:
+
+* friend relationships both directions
+* pending invites
+* trip invites
+* trip participants
+* push tokens
+* activity feed references
+* overlap/feed logic references
+* wishlist/open-date records
+* MessageEventLog rows
+* notifications
+
+Identify what IS cleaned up vs what is NOT.
+
+4. GHOST USER ANALYSIS
+    Determine why deleted users can still appear in:
+
+* Friends tab
+* feed systems
+* overlap/social calculations
+
+Specifically identify:
+
+* which query/path is still surfacing them
+* whether those users are truly undeleted
+* or whether orphan rows are still being queried
+
+5. MODEL / CASCADE AUDIT
+    Provide:
+
+* all relevant models
+* cascade rules
+* FK relationships
+* delete-orphan usage
+* passive_deletes usage if any
+
+Identify weak spots.
+
+6. UX OBSERVATIONS
+    Review:
+
+* pre-populated email field
+* delete confirmation flow
+* failure flash messaging
+* redirect behavior after failure
+
+Recommend:
+
+* safest UX flow
+* best place to logout
+* safest commit ordering
+
+7. OUTPUT FORMAT
+    Provide:
+    A. Root cause summary
+    B. Exact files/routes/models involved
+    C. What currently breaks
+    D. What cleanup is missing
+    E. Recommended implementation strategy
+    F. Any dangerous edge cases
+
+IMPORTANT:
+
+* NO CODE CHANGES
+* NO REFACTORING
+* NO CHECKPOINTS
+* INVESTIGATION ONLY
+* Be extremely precise and grounded in the actual codebase
