@@ -1,0 +1,78 @@
+Plan BaseLodge App Shell v3: secondary screen header cleanup.
+
+Context:
+BaseLodge now has a global fixed top bar with per-template Jinja blocks:
+- {% block topbar_title %}
+- {% block topbar_right %}
+
+Root screens were cleaned up already. Now secondary screens like Add Trip still show the default “Hi, [name]” top bar plus an old body header like “← Back / Plan a trip,” which feels redundant and less native.
+
+Goal:
+Plan the next cleanup pass for secondary non-detail screens only. Do not modify files yet.
+
+Screens to audit and plan:
+- add_trip.html
+- edit_profile.html
+- push_settings.html
+- settings_equipment.html
+- settings_wish_list.html, own-user mode only
+- select_pass.html
+- change_password.html
+- feedback.html
+- mountains_visited.html, own-user mode only
+- add_open_dates.html
+- invite_limit_reached.html if not already fully cleaned
+- any other simple logged-in secondary screen that extends base_app.html and has a body page title/header
+
+Do NOT include complex detail screens yet:
+- trip_detail.html
+- edit_trip.html
+- trip_invite_detail.html
+- mountain_detail.html
+- friend_profile.html
+- friend_trip_details.html
+- group_trip_detail.html
+- overlap_detail.html
+- planning_window.html
+- season_snapshot.html
+- read-only friend wishlist/mountains screens
+
+For each secondary screen, recommend:
+- fixed top bar title
+- whether top-left needs a back action
+- whether top-right should be avatar, Save, Cancel, or empty
+- which body H1/header/back row should be removed
+- which helper/subtitle copy should remain in the body
+- risk level
+
+Expected direction:
+- Add Trip: top bar title “Plan a trip”; move/keep back affordance in top bar if supported; remove body “← Back” and “Plan a trip” title; keep helper copy “Pick your mountain and dates.”
+- Edit Profile: top bar title “Your details”; remove body H1; keep form content and bottom save bar.
+- Push Settings: top bar title “Notifications”; remove body H1; keep explanatory copy and settings UI.
+- Equipment: top bar title “Equipment”; remove body H1.
+- Own Wishlist: top bar title “Wish list”; remove body H1.
+- Select Pass: top bar title “Your ski pass”; remove body H1.
+- Change Password: top bar title “Change password”; remove body H1.
+- Feedback: top bar title “Feedback”; remove body H1.
+- Own Mountains Visited: top bar title “Mountains visited”; remove body H1.
+- Add Open Dates: top bar title “Edit availability”; remove redundant body nav title; keep useful body guidance.
+
+Important:
+- This is still planning only.
+- Do not redesign pages.
+- Do not touch routes, models, push/messaging, auth, database, or bottom nav.
+- Do not create new JS architecture.
+- Keep changes HTML/CSS/Jinja-only for the eventual implementation.
+
+Return:
+A table with:
+- Template
+- Route/screen
+- Current visible header/back/title
+- Recommended top bar title
+- Recommended top-left/back behavior
+- Recommended top-right behavior
+- Body elements to remove
+- Body elements to keep
+- Risk
+- Notes

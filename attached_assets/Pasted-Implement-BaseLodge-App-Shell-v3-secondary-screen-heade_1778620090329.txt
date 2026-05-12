@@ -1,0 +1,143 @@
+Implement BaseLodge App Shell v3: secondary screen header cleanup.
+
+Goal:
+Now that root screens use the fixed top bar correctly, update simple secondary screens so they use a native-style top bar with:
+- left back chevron
+- screen title
+- optional/default right avatar
+- no duplicate body header/title row
+
+Important:
+Do not touch complex detail screens yet.
+Do not modify routes, models, database, auth, push/messaging, or bottom nav.
+Do not redesign pages.
+Use checkpoints sparingly.
+
+STEP 1 — Add topbar_left support
+
+In templates/base_app.html:
+- Add a new Jinja block named topbar_left inside .bl-top-bar, before the title block.
+- Existing root screens must remain visually unchanged if they do not override topbar_left.
+- Existing topbar_title and topbar_right behavior must continue working.
+
+In static/styles.css:
+- Add .bl-top-bar-back styling for a small native-style back chevron/link.
+- Adjust top bar layout so it supports:
+  left slot | title slot | right slot
+- Root screens with no left slot should not visually shift.
+
+STEP 2 — Update these secondary screens only
+
+For each screen:
+- Set the correct topbar_title
+- Add topbar_left back link
+- Remove old body back/header/title elements
+- Keep useful helper copy, forms, buttons, cards, search, toggles, and save controls
+
+Screens:
+
+1. add_trip.html
+- topbar_title: Plan a trip
+- topbar_left: back to url_for('home')
+- remove body “← Back” and body H1 “Plan a trip”
+- keep subtitle “Pick your mountain and dates.”
+
+2. edit_profile.html
+- topbar_title: Your details
+- topbar_left: back to url_for('profile')
+- topbar_right: empty if needed so Save is not duplicated
+- remove body back, eyebrow, and H1
+- keep form and floating Save bar
+
+3. push_settings.html
+- topbar_title: Notifications
+- topbar_left: back to url_for('profile')
+- remove body back, eyebrow, and H1
+- keep toggle UI and explanatory copy
+
+4. settings_equipment.html
+- topbar_title: Equipment
+- topbar_left: back to url_for('profile')
+- remove body back, eyebrow, and H1
+- keep subtitle/guidance copy, setup cards, and inline save buttons
+
+5. settings_wish_list.html — own-user mode only
+- if not read_only:
+  - topbar_title: Wish list
+  - topbar_left: back to url_for('profile')
+  - remove own-user body back and H1
+- if read_only:
+  - do not change behavior/header in this pass
+- keep wish list items, search, empty states
+
+6. select_pass.html
+- topbar_title: Your ski pass
+- topbar_left: back to url_for('profile')
+- remove body back and H1
+- keep pass grid and bottom Save
+
+7. change_password.html
+- topbar_title: Change password
+- topbar_left: back to url_for('profile')
+- remove body “← Profile” link and body H1
+- keep form fields and post-submit Back to Profile CTA
+
+8. feedback.html
+- topbar_title: Feedback
+- topbar_left: back to url_for('home')
+- remove old BaseLodge/home header link and body H1
+- keep form, textarea, submit button, and flash behavior
+
+9. mountains_visited.html — own-user mode only
+- if not read_only:
+  - topbar_title: Mountains visited
+  - topbar_left: back to url_for('profile')
+  - remove own-user body back and H1
+- if read_only:
+  - do not change behavior/header in this pass
+- keep mountain list, search, remove buttons, empty state
+
+10. add_open_dates.html
+- topbar_title: Edit availability
+- topbar_left: back to url_for('home')
+- remove old body mini-nav back, od-nav-title, and body H1
+- keep guidance copy, longer explanation, calendar UI, Save button, and Cancel link
+
+Do not touch:
+- trip_detail.html
+- edit_trip.html
+- trip_invite_detail.html
+- mountain_detail.html
+- friend_profile.html
+- friend_trip_details.html
+- group_trip_detail.html
+- overlap_detail.html
+- planning_window.html
+- season_snapshot.html
+- read-only friend wishlist/mountains screens
+
+QA:
+- App boots cleanly.
+- Test these routes return 200:
+  - /add-trip
+  - /edit-profile
+  - /push-settings
+  - /settings/equipment
+  - /wish-list
+  - /select-pass
+  - /change-password
+  - /feedback
+  - /mountains-visited
+  - /add-open-dates
+- Each screen shows native-style top bar: back + title.
+- No duplicate body H1/header remains on these screens.
+- Helper copy remains where useful.
+- Save controls still work and are not duplicated.
+- Root screens remain unchanged.
+- Read-only friend wishlist/mountains views are not altered.
+- Bottom nav remains unchanged.
+
+Deliver:
+- files changed
+- implementation summary
+- any QA issues or visual edge cases
