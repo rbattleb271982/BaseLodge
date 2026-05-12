@@ -1,0 +1,87 @@
+URGENT: Fully diagnose and fix BaseLodge account deletion. The user can still log in after attempting deletion, and they were not prompted to type their email before deleting.
+
+Observed behavior:
+- User clicked delete account.
+- User was not required to type their email immediately before deletion.
+- User was taken to auth screen.
+- User can still log back in.
+- Therefore the account was not actually deleted and the confirmation gate may be bypassed.
+
+Goal:
+Make account deletion safe, explicit, and actually functional.
+
+Required behavior:
+1. User must open a delete modal/form from Profile.
+2. Confirmation input must start empty.
+3. User must type their exact email before the delete submit button becomes enabled.
+4. Server must ALSO verify the submitted confirmation email matches current_user.email.
+5. If the confirmation email is missing or does not match:
+   - do not delete anything
+   - keep user logged in
+   - redirect to /profile
+   - show flash: "Please type your email address to confirm account deletion."
+6. If deletion succeeds:
+   - delete the user and required related data
+   - commit succeeds
+   - only then logout_user()
+   - flash category must render on auth screen
+   - redirect to /auth with "Your account has been deleted."
+   - user must not be able to log in again
+7. If deletion fails:
+   - rollback
+   - keep/re-login user
+   - redirect to /profile
+   - show visible error
+   - log exact exception
+
+Investigate:
+- templates/profile.html
+- app.py delete_account() route
+- any other delete account forms/buttons/routes
+- whether there is more than one delete button
+- whether a hidden form can submit without the modal
+- whether the JS listener is inside the correct scripts block and actually included by base_app.html
+- whether the confirmation input has a name attribute that app.py reads
+- whether app.py validates confirmation_email server-side before any destructive action
+- whether the POST route is receiving confirmation_email
+- whether the frontend button is type="submit" only after validation
+- whether browser autofill or placeholder text is being mistaken as input
+- whether the profile page still has an old direct-delete form
+
+Implementation requirements:
+- Add server-side confirmation validation. Do not rely only on JS.
+- The delete form must include an input like name="confirm_email".
+- The input must be empty by default. Do not prefill value.
+- Placeholder may say "Enter your email address" but value must be blank.
+- Submit button must start disabled client-side.
+- JS should enable only when typed email matches current_user.email case-insensitively.
+- Even if JS fails or is bypassed, server must reject deletion unless confirm_email matches.
+- Remove or disable any old direct-delete form/button that bypasses the modal.
+- Log the incoming deletion attempt safely:
+  - user_id
+  - user_email
+  - whether confirmation matched true/false
+  - do not log password or sensitive auth tokens
+
+QA:
+A. No confirmation:
+- Try to submit delete without typing email.
+- Expected: deletion blocked, user remains logged in, profile flash visible.
+
+B. Wrong confirmation:
+- Type wrong email.
+- Expected: deletion blocked, user remains logged in, profile flash visible.
+
+C. Correct confirmation:
+- Type exact email.
+- Expected: account deleted, commit succeeds, logout happens after commit, auth screen shows success message, user cannot log in again.
+
+D. Confirm no bypass:
+- Search the codebase for all references to delete_account, account deletion, delete modal, and profile delete forms.
+- Ensure there is only one safe POST path and it validates confirm_email server-side.
+
+E. Confirm data:
+- After successful deletion, verify the user row no longer exists.
+- Verify they no longer appear in friends, activity, trips, or invite surfaces.
+
+Do not touch unrelated routes, app shell, push/messaging systems, or database schema unless absolutely required for FK cleanup.

@@ -9643,14 +9643,26 @@ def change_password():
 @login_required
 def delete_account():
     validate_csrf_request()
-    confirm_email = request.form.get("confirm_email", "").lower().strip()
-    if confirm_email != current_user.email.lower():
-        flash("Email address did not match. Account was not deleted.", "error")
+
+    # Capture identity first so every log line and error path has context.
+    user       = current_user._get_current_object()
+    user_id    = user.id
+    user_email = user.email
+
+    confirm_email       = request.form.get("confirm_email", "").strip()
+    confirmation_matched = confirm_email.lower() == user_email.lower()
+    app.logger.info(
+        f"[delete_account] attempt user_id={user_id} email={user_email} "
+        f"confirmation_matched={confirmation_matched}"
+    )
+
+    if not confirm_email:
+        flash("Please type your email address to confirm account deletion.", "error")
         return redirect(url_for("profile"))
 
-    user = current_user._get_current_object()
-    user_id = user.id
-    user_email = user.email
+    if not confirmation_matched:
+        flash("Email address did not match. Account was not deleted.", "error")
+        return redirect(url_for("profile"))
 
     try:
         # 1. Activity feed rows (actor or recipient)
