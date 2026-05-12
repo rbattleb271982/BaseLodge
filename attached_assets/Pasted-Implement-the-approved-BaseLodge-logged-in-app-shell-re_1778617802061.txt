@@ -1,0 +1,116 @@
+Implement the approved BaseLodge logged-in app-shell refactor for a persistent fixed top header.
+
+Goal:
+Make BaseLodge feel more like a native app and less like a scrolling website by introducing a fixed top app bar across logged-in screens while preserving the existing fixed bottom nav. Only the content area should scroll.
+
+Important:
+This is NOT a redesign.
+This is an app-shell/layout refactor only.
+Use checkpoints sparingly.
+
+Implementation requirements
+
+STEP 1 — Add a global fixed top bar to templates/base_app.html
+
+Inside <div class="app-shell">, immediately after the opening tag and before {% block flash %}, add a persistent top bar.
+
+Requirements:
+- Left side:
+  - Show “Hi, {{ first_name }}” when available
+  - Fallback to “BaseLodge”
+- Right side:
+  - Existing profile initials bubble behavior
+  - Link to url_for('profile')
+- Keep it compact and app-like
+- Logged-in screens only
+- Do not affect logged-out/public templates
+
+STEP 2 — Add top bar CSS in static/styles.css
+
+Add:
+- .bl-top-bar
+- .bl-top-bar-greeting
+- .bl-top-bar-avatar
+
+Requirements:
+- position: fixed
+- top: 0
+- left/right: 0
+- respect iOS safe area
+- cream/beige BaseLodge background
+- subtle bottom border
+- z-index above page content
+- compact native-app feel
+- avatar remains tappable and visually identical to existing initials bubble styling
+
+STEP 3 — Update .app-shell spacing
+
+Current behavior:
+The entire page scrolls including the header area.
+
+New behavior:
+- Fixed top bar
+- Fixed bottom nav
+- Only content scrolls between them
+
+Update .app-shell padding-top so ALL logged-in screens automatically clear the fixed top bar without needing per-page spacing hacks.
+
+Do NOT introduce JS layout calculations.
+
+STEP 4 — Remove duplicate page-level initials/profile bubbles
+
+Remove existing per-page initials bubbles from:
+- partials/home/_header.html
+- partials/home/_header_empty.html
+- my_trips.html
+- friends.html (both locations)
+- mountains_tab.html
+
+Keep all surrounding layout and functionality intact.
+Do not redesign the pages.
+Do not remove titles or Invite links.
+
+STEP 5 — Remove dead duplicate initials-bubble CSS
+
+Remove duplicate inline .hc-initials-bubble CSS from templates/home.html if it becomes unused after the refactor.
+
+DO NOT:
+- redesign screens
+- change routes
+- change models
+- touch messaging/push systems
+- change bottom nav behavior
+- alter public/logged-out pages
+- introduce new JS architecture
+- create a second scrolling container
+- add dark mode logic
+
+QA REQUIRED
+
+Visually verify:
+- Home
+- Trips
+- Friends
+- Mountains
+- Mountain Detail
+- Trip Detail
+- Add Trip
+- Edit Profile
+- Profile
+- Push Settings
+
+Confirm:
+- top bar stays fixed while scrolling
+- bottom nav stays fixed
+- content scrolls cleanly between them
+- no content hides behind the header
+- iOS safe-area spacing works correctly
+- Android/mobile web still looks correct
+- flash messages appear below the top bar
+- no duplicate profile bubbles remain
+- app boots cleanly with no template errors
+
+Deliver:
+- concise implementation summary
+- files changed
+- any visual edge cases discovered during QA
