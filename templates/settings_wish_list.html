@@ -1,7 +1,7 @@
 {% extends "base_app.html" %}
 {% block title %}BaseLodge — {% if read_only %}{{ view_user.first_name | format_name }}'s Wish List{% else %}Wish List{% endif %}{% endblock %}
-{% block topbar_left %}{% if not read_only %}<a href="{{ url_for('profile') }}" class="bl-top-bar-back" aria-label="Back">‹</a>{% endif %}{% endblock %}
-{% block topbar_title %}{% if not read_only %}Wish list{% else %}{{ super() }}{% endif %}{% endblock %}
+{% block topbar_left %}{% if read_only %}<a href="{{ url_for('friend_profile', friend_id=view_user.id) }}" class="bl-top-bar-back" aria-label="Back">‹</a>{% else %}<a href="{{ url_for('profile') }}" class="bl-top-bar-back" aria-label="Back">‹</a>{% endif %}{% endblock %}
+{% block topbar_title %}{% if read_only %}{{ view_user.first_name | format_name }}'s wish list{% else %}Wish list{% endif %}{% endblock %}
 {% block head %}
 <style>
         .wl-back {
@@ -118,15 +118,8 @@
 
 {% block content %}
     <div class="page-container">
-        <!-- Back (read-only only — own-user back is in top bar) -->
-        {% if read_only %}
-        <a href="{{ url_for('friend_profile', friend_id=view_user.id) }}" class="wl-back">‹</a>
-        {% endif %}
-
         <!-- Header -->
         {% if read_only %}
-        <p class="wl-eyebrow">Wish List</p>
-        <h1 class="wl-title">{{ view_user.first_name | format_name }}'s wish list</h1>
         <p class="wl-subtext">Mountains they want to ski</p>
         {% else %}
         <p class="wl-subtext" id="wl-subtext">

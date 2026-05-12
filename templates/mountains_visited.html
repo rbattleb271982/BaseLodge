@@ -1,7 +1,7 @@
 {% extends "base_app.html" %}
 {% block title %}BaseLodge — {% if read_only %}{{ view_user.first_name | format_name }}'s Mountains{% else %}Mountains Visited{% endif %}{% endblock %}
-{% block topbar_left %}{% if not read_only %}<a href="{{ url_for('profile') }}" class="bl-top-bar-back" aria-label="Back">‹</a>{% endif %}{% endblock %}
-{% block topbar_title %}{% if not read_only %}Mountains visited{% else %}{{ super() }}{% endif %}{% endblock %}
+{% block topbar_left %}{% if read_only %}<a href="{{ url_for('friend_profile', friend_id=view_user.id) }}" class="bl-top-bar-back" aria-label="Back">‹</a>{% else %}<a href="{{ url_for('profile') }}" class="bl-top-bar-back" aria-label="Back">‹</a>{% endif %}{% endblock %}
+{% block topbar_title %}{% if read_only %}{{ view_user.first_name | format_name }}'s mountains{% else %}Mountains visited{% endif %}{% endblock %}
 {% block head %}
 <style>
         .mv-back {
@@ -113,15 +113,8 @@
 
 {% block content %}
     <div class="page-container">
-        <!-- Back (read-only only — own-user back is in top bar) -->
-        {% if read_only %}
-        <a href="{{ url_for('friend_profile', friend_id=view_user.id) }}" class="mv-back">‹</a>
-        {% endif %}
-
         <!-- Header -->
         {% if read_only %}
-        <p class="mv-eyebrow">Mountains Visited</p>
-        <h1 class="mv-title">{{ view_user.first_name | format_name }}'s mountains</h1>
         <p class="mv-subtext">{{ mountains_visited_count }} mountain{{ 's' if mountains_visited_count != 1 else '' }} ridden</p>
         {% else %}
         <p class="mv-subtext" id="mv-subtext">{{ mountains_visited_count }} mountain{{ 's' if mountains_visited_count != 1 else '' }} so far</p>

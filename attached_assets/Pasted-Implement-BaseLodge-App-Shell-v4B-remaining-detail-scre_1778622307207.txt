@@ -1,0 +1,69 @@
+Implement BaseLodge App Shell v4B: remaining detail-screen navigation cleanup.
+
+Goal:
+Finish the remaining app-shell/detail navigation cleanup for the screens intentionally left out of v4A.
+
+Scope:
+- mountain_detail.html
+- idea_detail_availability.html
+- settings_wish_list.html read_only mode only
+- mountains_visited.html read_only mode only
+
+Do NOT touch:
+- root screens
+- secondary screens already handled
+- v4A screens already handled
+- routes, models, database, auth, push/messaging, or bottom nav
+
+Requirements:
+
+1. mountain_detail.html
+- topbar_left: back to mountains tab
+- topbar_title: Mountains
+- topbar_right: default avatar
+- remove old md-nav body row
+- preserve the existing md-back-btn JS/referrer behavior by moving the id="md-back-btn" onto the new topbar_left anchor if needed
+- keep the full md-hero block intact, including resort name, state, pass coverage, and social signals
+
+2. idea_detail_availability.html
+- topbar_left: back to home
+- topbar_title:
+  - resort.name if resort exists
+  - otherwise “Date overlap”
+- topbar_right: default avatar
+- remove old idea-detail-back anchor
+- remove the duplicate H1 idea-detail-title from the body
+- keep the dateline/date context paragraph and all body content
+
+3. settings_wish_list.html read_only mode only
+- if read_only:
+  - topbar_left: back to friend_profile for view_user
+  - topbar_title: “[First name]’s wish list”
+  - remove read-only wl-back, wl-eyebrow, and wl-title body header
+  - keep wl-subtext and the wish list content
+- if not read_only:
+  - do not alter existing own-user behavior from v3
+
+4. mountains_visited.html read_only mode only
+- if read_only:
+  - topbar_left: back to friend_profile for view_user
+  - topbar_title: “[First name]’s mountains”
+  - remove read-only mv-back, mv-eyebrow, and mv-title body header
+  - keep mv-subtext and mountain list content
+- if not read_only:
+  - do not alter existing own-user behavior from v3
+
+QA:
+- App boots cleanly.
+- Verify available routes return 200.
+- Mountain Detail back behavior still works.
+- Read-only friend wishlist/mountains still route back to friend profile.
+- No duplicate nav rows remain.
+- Meaningful hero/content sections remain intact.
+- Bottom nav unchanged.
+
+Deliver:
+- files changed
+- implementation summary
+- QA results
+- any visual edge cases

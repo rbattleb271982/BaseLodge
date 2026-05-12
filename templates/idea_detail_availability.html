@@ -1,5 +1,7 @@
 {% extends "base_app.html" %}
 {% block title %}BaseLodge — Opening{% endblock %}
+{% block topbar_left %}<a href="{{ url_for('home') }}" class="bl-top-bar-back" aria-label="Back">‹</a>{% endblock %}
+{% block topbar_title %}{% if resort %}{{ resort.name }}{% else %}Date overlap{% endif %}{% endblock %}
 {% block head %}
 <style>
         .idea-detail-back {
@@ -131,16 +133,7 @@
 {% block content %}
     <div class="page-container">
 
-        <a href="{{ url_for('home') }}" class="idea-detail-back">← Home</a>
-
         <div class="idea-detail-header">
-            {# Hero: destination name, or fallback #}
-            {% if resort %}
-            <h1 class="idea-detail-title">{{ resort.name }}</h1>
-            {% else %}
-            <h1 class="idea-detail-title">Your dates overlap</h1>
-            {% endif %}
-
             {% if date_range_display %}
             <p class="idea-detail-dateline">{{ date_range_display }}</p>
             {% endif %}
