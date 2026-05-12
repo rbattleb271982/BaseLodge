@@ -1,0 +1,44 @@
+Plan a BaseLodge logged-in app-shell refactor to make the app feel more native and less like a scrolling website.
+
+Goal:
+Create a persistent fixed top header across logged-in app screens, while keeping the existing fixed bottom navigation. Only the main page content should scroll between the fixed header and bottom nav.
+
+Desired behavior:
+- Top header stays fixed while scrolling.
+- Bottom nav stays fixed.
+- Screen content scrolls behind/between them.
+- Header should respect iOS safe area.
+- Content should not be hidden underneath the header or bottom nav.
+- Do not redesign individual screens yet.
+- Do not change routes, database models, notification logic, or page functionality.
+
+Header content:
+- Left side: greeting or simple app context, preferably “Hi, {{ current_user.first_name or current_user.name }}” if safely available.
+- Right side: existing profile initials bubble/button.
+- Use the existing profile link behavior.
+- Keep it compact, app-like, and consistent with the current BaseLodge visual style.
+
+Implementation approach:
+- Identify the shared logged-in layout template, likely templates/base_app.html.
+- Move or centralize the profile bubble/header area into that shared layout if possible.
+- Add a fixed top app header for authenticated/logged-in screens only.
+- Ensure logged-out/public pages are not affected.
+- Adjust CSS in the shared stylesheet or base template so the app content area has correct top padding and bottom padding.
+- Preserve the existing bottom nav.
+- Remove or avoid duplicate profile buttons on individual screens if the global header replaces them.
+- Keep changes minimal and reversible.
+
+QA:
+- Test Home, Trips, Friends, Mountains, Mountain Detail, Trip Detail, Profile/Edit Profile, Push Settings, and Add Trip.
+- Confirm the header stays fixed while content scrolls.
+- Confirm bottom nav remains fixed.
+- Confirm no content is covered by the header or bottom nav.
+- Confirm iPhone safe-area spacing looks correct.
+- Confirm Android/mobile web still looks good.
+- Confirm public logged-out pages are unchanged.
+
+Important:
+Use checkpoints sparingly.
+Do not make broad visual redesigns.
+Do not remove existing screen functionality.
+Do not finish until the app boots cleanly and the listed screens have been visually checked.

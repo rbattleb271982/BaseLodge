@@ -1,0 +1,224 @@
+║ BaseLodge — Pre-Archive App Testing QA Sweep ║
+╚════════════════════════════════════════════════════════════════╝
+Run a full read-only QA pass before archive/TestFlight.
+DO NOT modify code.
+DO NOT create files.
+DO NOT create migrations.
+DO NOT fix issues.
+DO NOT enable RETRY_EXECUTION_ENABLED.
+Report findings only.
+Focus on regressions from:
+Phase D-1 messaging hardening
+Deploy A dedupe index
+Deploy B MEL/retry infrastructure
+P0 launch/security cleanup
+debug route deletion
+legacy seed route deletion
+invite token expiration enforcement
+admin email secret enforcement
+────────────────────────────────────────
+STARTUP / IMPORT QA
+────────────────────────────────────────
+Verify:
+Flask boots cleanly
+no missing import from deleted debug_routes.py
+all startup migrations run idempotently
+idx_mel_dedupe remains valid
+parent_mel_id column exists
+retry_locked_at column exists
+RETRY_EXECUTION_ENABLED remains False
+no production debug blueprint is registered
+Return exact results.
+────────────────────────────────────────
+2. SECURITY / LAUNCH CLEANUP QA
+────────────────────────────────────────
+Verify:
+ALLOWED_ADMIN_EMAILS is set
+admin user can access admin routes
+non-admin user receives 403 on admin routes
+unauthenticated user cannot access admin routes
+/debug/seed_friends returns 404
+/generate-dummy-users returns 404
+/connect-jonathan-to-dummies returns 404
+/migrate-trips-to-resorts returns 404
+/create-extra-dummy-users returns 404
+/delete-account-data returns 404
+/create-real-users-and-connect returns 404
+/force-create-base-users returns 404
+/admin/init-db is still present and protected
+Return exact route status results.
+────────────────────────────────────────
+3. AUTH / ACCOUNT QA
+────────────────────────────────────────
+Test:
+login
+logout
+signup
+forgot password request
+password reset flow if safely testable
+profile page loads
+profile edit works
+delete account flow exists and is reachable
+app does not expose admin/debug controls to normal users
+Return pass/fail and any broken states.
+────────────────────────────────────────
+4. INVITE TOKEN QA
+────────────────────────────────────────
+Test fresh and expired invite behavior.
+Verify:
+/invite creates or returns a valid non-expired token
+new invite token has expires_at
+fresh invite link works
+expired invite link renders invite_expired.html
+expired unused token is NOT reused by get_or_create_invite_token()
+visiting /invite after token expiry issues a fresh token
+accepted invite behavior still works
+invite acceptance still creates intended relationship/connection
+no old debug/seed routes are involved
+Return exact token behavior and any edge cases.
+────────────────────────────────────────
+5. CORE USER FLOW QA
+────────────────────────────────────────
+Test logged-in normal user flows:
+Home screen loads
+bottom nav works
+Trips screen loads
+Friends screen loads
+Mountains screen loads
+Profile/edit profile loads
+Add trip flow works
+Trip detail page loads
+Edit trip flow works if available
+Add/remove visited mountain works
+Add/remove wishlist mountain works if available
+Friend request flow works
+Friend accept flow works
+Trip invite flow works if still available
+Push settings page works
+logout returns user to logged-out state
+Return pass/fail by screen/flow.
+────────────────────────────────────────
+6. MOUNTAINS VISITED QA
+────────────────────────────────────────
+Verify both columns stay in sync:
+Add visited mountain
+visited_resort_ids updates
+mountains_visited updates
+Remove visited mountain
+visited_resort_ids updates
+mountains_visited updates
+Remove behavior works when resort row exists
+If safely testable:
+simulate missing resort row edge case
+confirm legacy name cleanup does not break normal behavior
+Return DB state before/after.
+────────────────────────────────────────
+7. MESSAGING / PUSH QA
+────────────────────────────────────────
+Verify existing push behavior did not regress.
+Test or inspect:
+friend.request.created
+friend.request.accepted
+trip.invite.created
+trip.invite.accepted
+admin test push if safe
+OneSignal sends still work
+APNs/FCM test routes still work if applicable
+push opt-out still suppresses sends
+push opt-in still allows sends
+badge behavior unchanged
+deep links still work
+For MessageEventLog rows verify:
+SENT rows have provider_message_id
+SENT rows have sent_at
+ALL new rows have processed_at
+SKIPPED rows have provider_message_id = NULL
+SKIPPED rows have sent_at = NULL
+FAILED rows have provider_message_id = NULL
+FAILED rows have sent_at = NULL
+dedupe still suppresses duplicate events
+no unexpected retry child rows exist
+retry_locked_at remains NULL unless manually tested
+Return exact MEL observations.
+────────────────────────────────────────
+8. RETRY INFRASTRUCTURE QA
+────────────────────────────────────────
+Do NOT enable execute mode.
+Verify:
+GET /admin/retry-failed-events works
+GET has zero side effects
+response includes:
+execute_enabled
+eligible_count
+locked_count
+stale_locked_count
+eligible_rows
+POST /admin/retry-failed-events returns disabled response
+no sends occur from POST while disabled
+no rows become locked
+no retry child rows are created
+RETRY_EXECUTION_ENABLED = False
+Return exact GET/POST responses.
+────────────────────────────────────────
+9. APP STORE / GOOGLE PLAY READINESS QA
+────────────────────────────────────────
+Review for reviewer-risk issues:
+no debug text visible
+no test/dummy routes visible
+no placeholder copy
+no broken buttons
+no dead links
+no “coming soon” sections that block core use
+no browser-like behavior in app shell
+bottom nav feels app-like
+external links behave clearly
+Terms page accessible
+Privacy Policy accessible
+delete account reachable
+push permission explanation feels reasonable
+app works if push is denied
+app works if user has no friends/trips
+empty states feel intentional
+tap targets are usable
+no obvious clipped text
+no keyboard overlap on forms
+no dark-mode inversion or black flash regression
+Return reviewer-risk findings separately from engineering bugs.
+────────────────────────────────────────
+10. MOBILE / NATIVE QA
+────────────────────────────────────────
+If device testing is available, test on:
+iOS/TestFlight or local iOS build
+Android emulator or physical Android device
+mobile web fallback if relevant
+Check:
+safe-area padding
+bottom nav
+back behavior
+keyboard behavior
+scroll behavior
+loading behavior
+push permission behavior
+app resume behavior
+badge clear behavior
+no horizontal overflow
+no desktop-style layouts
+Return device-specific notes.
+────────────────────────────────────────
+11. FINAL REPORT FORMAT
+────────────────────────────────────────
+Return:
+Executive summary
+Pass/fail table by section
+Blocking issues before archive
+Non-blocking issues before archive
+App Store / Google Play reviewer risks
+Messaging/retry safety findings
+Admin/security findings
+Invite-token findings
+Mobile/native findings
+Exact recommended next step:
+safe to archive
+fix blockers first
+requires more QA
+Do not fix anything. Report only.
