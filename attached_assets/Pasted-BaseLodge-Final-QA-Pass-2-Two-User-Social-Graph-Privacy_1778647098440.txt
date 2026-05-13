@@ -1,0 +1,240 @@
+BaseLodge Final QA — Pass 2: Two-User Social Graph, Privacy, and Visibility Matrix
+
+This is a READ-ONLY QA/testing pass.
+
+Do not change code.
+Do not delete data.
+Do not create migrations.
+Do not fix issues.
+Only inspect, test, document, and report.
+
+Purpose:
+BaseLodge is preparing for Apple App Store and Google Play submission. Pass 1 confirmed account deletion and ghost-user cleanup are launch-safe, with only minor follow-up items. This pass focuses on the next highest-risk area: whether social visibility, friend relationships, trip privacy, feeds, invites, and deep links behave correctly across multiple users.
+
+This pass should simulate real social-app behavior with at least two test users, ideally three:
+- User A: trip owner / sender
+- User B: friend / receiver
+- User C: non-friend / outsider
+
+Test and inspect:
+
+1. Friend request state matrix
+- A sends request to B.
+- B sees request.
+- B accepts request.
+- A and B both see each other as friends.
+- A cannot send duplicate pending requests to B.
+- B cannot receive duplicate pending requests from A.
+- A removes B.
+- Both sides lose friend visibility.
+- A can re-request B only if the product allows it.
+- B cannot see A’s private friend-only data after removal.
+
+2. Duplicate action testing
+Test rapid/double actions:
+- double-tap send friend request
+- double-tap accept request
+- double-tap remove friend
+- double-tap save trip
+- double-tap trip invite if present
+
+Check:
+- no duplicate friendships
+- no duplicate pending invites
+- no duplicate trips
+- no duplicate activity feed rows
+- no duplicate push events
+- no 500s
+
+3. Trip visibility matrix
+Create trips as User A and verify visibility from User B and User C.
+
+Test:
+- public/friend-visible trip
+- private trip
+- trip changed from visible → private
+- trip changed from private → visible
+- trip edited after B has already viewed it
+- trip deleted/canceled if supported
+- past trip vs future trip
+
+Check:
+- B sees only what B should see.
+- C sees nothing private or friend-only.
+- Removed friends lose access immediately.
+- Private trips do not appear in Home, Happening, Ideas, Mountains, profile, overlap, or social proof.
+- Trip detail routes enforce permissions server-side, not just in UI.
+
+4. Home feed/social activity
+Verify:
+- Happening cards
+- Ideas/destination suggestions
+- Requests pill
+- overlap nudges
+- friend activity cards
+- empty states
+
+Check:
+- A’s visible trip appears to B where appropriate.
+- A’s private trip does not appear to B.
+- A’s trip does not appear to C.
+- Removing friendship removes A from B’s social feed.
+- Changing visibility updates feed behavior.
+- No stale activity remains after trip privacy changes.
+- No duplicate cards render for the same social signal.
+
+5. Mountain/social proof visibility
+Test mountain detail and mountain list surfaces.
+
+Check:
+- friend counts exclude private trips.
+- friend counts exclude non-friends.
+- friend counts update after trip visibility changes.
+- friend counts update after friend removal.
+- mountain pages do not leak private trip existence.
+- duplicate mountain names do not create confusing social proof.
+
+6. Deep link permission testing
+Manually test or inspect links to:
+- A’s visible trip
+- A’s private trip
+- A’s trip after B is removed
+- A’s deleted/canceled trip if supported
+- A’s mountain/trip-related route from B
+- A’s route from C
+
+Check:
+- unauthorized users get a safe “not available” or redirect.
+- deep links do not reveal private trip existence.
+- logged-out users are routed safely.
+- after login, access is still permission-checked.
+- stale links fail gracefully.
+
+7. Trip invite / participant visibility if still present
+Test:
+- A invites B to a trip.
+- B sees invite.
+- B accepts.
+- B declines if supported.
+- A changes trip visibility after invite.
+- A deletes/cancels trip after invite.
+- A removes B as friend after invite.
+
+Check:
+- invite state updates correctly.
+- invitee access is appropriate.
+- non-participants cannot access invite-only data.
+- stale invite links do not break.
+- no duplicate invite rows or duplicate activity.
+
+8. Notifications/activity consistency
+Inspect:
+- activity rows
+- notification surface
+- MessageEventLog if related
+- push-triggering social events
+
+Check:
+- friend request accepted creates expected user-facing state.
+- removed/private/deleted trips do not keep misleading notifications.
+- actor/recipient labels are safe.
+- duplicate actions do not duplicate notifications.
+- old notifications deep-link safely.
+
+9. Raw route/API authorization spot checks
+Where feasible, inspect whether route permissions are server-enforced.
+
+Test/inspect:
+- trip detail route with unauthorized user
+- friend-only profile route with unauthorized user
+- invite response route with wrong user
+- friend removal route with wrong user
+- trip edit route with non-owner
+- trip visibility toggle with non-owner
+
+Check:
+- unauthorized users cannot access or mutate data.
+- changing IDs in URLs or form payloads does not expose data.
+- failures are 403/404/redirect, not 500.
+
+10. Race/state mismatch scenarios
+Simulate or inspect:
+- A changes trip to private while B has page open.
+- B taps stale trip link after A changes visibility.
+- B accepts friend request after A removes/cancels it.
+- A removes B while B has A’s trip open.
+- B taps old push/deep link after friendship removal.
+- A edits trip dates while B is viewing overlap/feed.
+
+Check:
+- no stale unauthorized access after refresh/action.
+- no 500s.
+- no duplicate rows.
+- no misleading social state.
+
+11. Database integrity checks
+Inspect for:
+- duplicate Friend rows
+- one-sided Friend rows
+- duplicate pending Invitation rows
+- stale Invitation rows after accept/remove
+- stale SkiTripParticipant rows
+- orphaned Activity rows
+- duplicate Activity rows for same event
+- duplicate MessageEventLog rows for same event/user/object
+- private trips included in social queries
+
+12. Final report format
+
+Return a structured report:
+
+A. Executive Summary
+- PASS / FAIL / PARTIAL
+- Is social visibility launch-ready?
+- Does anything block App Store / Google Play submission?
+
+B. Critical Findings
+For each:
+- Severity
+- User impact
+- Trust/privacy impact
+- App Store / Google Play risk
+- Steps to reproduce
+- Suspected files/routes/models
+- Recommended fix direction
+
+C. Friend Graph Findings
+- duplicate relationships
+- one-sided relationships
+- stale pending invites
+- remove/re-add behavior
+- duplicate action behavior
+
+D. Trip Visibility Findings
+- visible trip behavior
+- private trip behavior
+- visibility transition behavior
+- removed-friend behavior
+- non-friend behavior
+
+E. Feed/Social Surface Findings
+- Home
+- Happening
+- Ideas
+- Mountains
+- Profile
+- Notifications
+
+F. Deep Link/Auth Findings
+- unauthorized trip links
+- logged-out deep links
+- stale/deleted links
+- private route behavior
+
+G. Data Integrity Findings
+List all duplicate/stale/orphaned rows found.
+
+H. Recommended Fix Order
+Give a numbered fix order from highest to lowest priority.
+
+Again: do not change code. This is read-only QA only.
