@@ -842,11 +842,11 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
+            padding: 9px 0;
+            border-bottom: 1px solid rgba(213, 207, 198, 0.55);
         }
         .bl-happening-row:first-child {
-            border-top: 1px solid var(--bl-color-border-soft);
+            border-top: 1px solid rgba(213, 207, 198, 0.55);
         }
         a.bl-happening-row {
             text-decoration: none;
@@ -854,21 +854,31 @@
             -webkit-tap-highlight-color: transparent;
         }
         a.bl-happening-row:active { opacity: 0.7; }
+        .bl-happening-body {
+            flex: 1;
+            min-width: 0;
+        }
         .bl-happening-text {
             font-size: 14px;
             color: var(--bl-color-text-muted);
             margin: 0;
-            line-height: 1.4;
-            flex: 1;
-            min-width: 0;
+            line-height: 1.35;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        .bl-happening-recency {
+            font-size: 11px;
+            color: var(--bl-color-text-tertiary);
+            margin: 2px 0 0;
+            line-height: 1.2;
+            font-weight: 400;
+            letter-spacing: 0.01em;
+        }
         .bl-happening-chevron {
             font-size: 16px;
             color: var(--bl-color-text-tertiary);
-            opacity: 0.45;
+            opacity: 0.35;
             flex-shrink: 0;
             padding-left: 8px;
             line-height: 1;
@@ -1003,6 +1013,13 @@
             color: var(--bl-color-text-muted);
             margin: 12px 0 0;
             line-height: 1.5;
+        }
+        /* de-emphasised "+N other(s)" suffix inside Ideas line2 */
+        .bl-opp-more {
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--bl-color-text-tertiary);
+            opacity: 0.8;
         }
 
         /* ── Pill-activated focus/dim states ── */
@@ -1171,6 +1188,17 @@
             }
         });
     }
+
+    // De-emphasise "+N other(s)" suffixes inside Ideas line2 text
+    (function() {
+        var oppSecondaries = document.querySelectorAll('.bl-opp-secondary');
+        oppSecondaries.forEach(function(el) {
+            el.innerHTML = el.innerHTML.replace(
+                /(\+\s*\d+\s+(?:other|others|more))/g,
+                '<span class="bl-opp-more">$1</span>'
+            );
+        });
+    })();
 
     function acceptConnectInvite(invitationId) {
         var card = document.getElementById('secondary-card');

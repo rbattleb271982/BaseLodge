@@ -6909,10 +6909,8 @@ def home():
             for _fid in (_opp_row.get('friend_ids') or []):
                 _opp_friend_resort_pairs.add((_fid, _opp_rid))
 
-    HOME_HAPPENING_RENDER_CAP = 10
-    # Product decision: Home Happening should show up to 10 grouped signals.
-    # Do not reduce this back to 3 unless the product decision changes.
-    # --- Happening signals (passive, text-only, max 10 public friend trips) ---
+    HOME_HAPPENING_RENDER_CAP = 5
+    # --- Happening signals (one row per friend, editorial format, max 5) ---
     happening_signals = []
     if friend_ids:
         try:
@@ -6920,49 +6918,49 @@ def home():
                 SkiTrip.user_id.in_(friend_ids),
                 SkiTrip.is_public == True,
                 SkiTrip.end_date >= today
-            ).options(db.joinedload(SkiTrip.resort)).order_by(SkiTrip.start_date.asc()).limit(30).all()
+            ).options(db.joinedload(SkiTrip.resort)).order_by(SkiTrip.start_date.asc()).limit(50).all()
             _ft_users_map = {u.id: u for u in all_friends}
-            # Group by (user_id, mountain, status) — 3+ trips → one summarised signal
-            from collections import defaultdict as _dd_hap
-            _hap_groups = _dd_hap(list)
-            for ft in _hap_trips:
-                ft_resort = ft.resort
-                ft_mountain = ft_resort.name if ft_resort else ft.mountain
-                _hap_groups[(ft.user_id, ft_mountain, ft.trip_status or 'planning')].append(ft)
             _diag_hap_raw_trips = len(_hap_trips)
-            _diag_hap_candidates = len(_hap_groups)
-            _hap_seen = set()
+            _hap_seen_users = set()
+            _now = datetime.utcnow()
             for ft in _hap_trips:
                 ft_user = _ft_users_map.get(ft.user_id)
                 if not ft_user:
                     continue
+                if ft.user_id in _hap_seen_users:
+                    continue
+                _hap_seen_users.add(ft.user_id)
                 ft_resort = ft.resort
                 ft_mountain = ft_resort.name if ft_resort else ft.mountain
                 status = ft.trip_status or 'planning'
-                key = (ft.user_id, ft_mountain, status)
-                if key in _hap_seen:
-                    continue
-                _hap_seen.add(key)
-                group = _hap_groups[key]
                 full_name = (
                     f"{ft_user.first_name or ''} {ft_user.last_name or ''}".strip()
                 ) if ft_user else 'A friend'
-                if len(group) >= 3:
-                    n = len(group)
-                    text = (
-                        f"{full_name} is going to {ft_mountain} · {n} dates"
-                        if status == 'going'
-                        else f"{full_name} is planning {ft_mountain} · {n} dates"
-                    )
+                # Editorial text: "Name · Resort" or "Name · planning Resort"
+                if status == 'going':
+                    text = f"{full_name} · {ft_mountain}"
                 else:
-                    text = (
-                        f"{full_name} is going to {ft_mountain}"
-                        if status == 'going'
-                        else f"{full_name} is planning {ft_mountain}"
-                    )
-                happening_signals.append({'text': text, 'friend_id': ft.user_id})
+                    text = f"{full_name} · planning {ft_mountain}"
+                # Recency label derived from trip.created_at
+                _age = (_now - ft.created_at).total_seconds() if ft.created_at else None
+                if _age is None:
+                    recency_label = "Planned recently"
+                elif _age < 86400:
+                    recency_label = "Updated today"
+                elif _age < 7 * 86400:
+                    recency_label = "Added this week"
+                elif _age < 21 * 86400:
+                    recency_label = "Recently updated"
+                else:
+                    recency_label = "Planned recently"
+                happening_signals.append({
+                    'text': text,
+                    'friend_id': ft.user_id,
+                    'recency_label': recency_label,
+                })
                 if len(happening_signals) >= HOME_HAPPENING_RENDER_CAP:
                     break
+            _diag_hap_candidates = len(happening_signals)
         except Exception:
             db.session.rollback()
 

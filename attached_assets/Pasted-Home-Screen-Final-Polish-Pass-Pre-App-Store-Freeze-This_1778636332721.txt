@@ -1,0 +1,128 @@
+Home Screen Final Polish Pass (Pre–App Store Freeze)
+
+This is a refinement pass only.
+Do NOT redesign the Home screen.
+Do NOT alter navigation structure.
+Do NOT change Ideas engine logic.
+Do NOT add new UI patterns (no accordions, no modals, no carousels).
+
+Goal:
+Finalize the Home screen so it feels like:
+“a lightweight social pulse of what your ski network is doing lately.”
+
+Direction:
+- Happening = ambient/recent/social
+- Ideas = intelligent coordination layer
+- Trips = planning
+- Mountains = discovery
+
+────────────────────────────────────
+PART 1 — HAPPENING REFINEMENT
+────────────────────────────────────
+
+Keep:
+- grouped rows
+- one row per friend
+- 5-row cap
+- simplified editorial copy style
+
+Add a subtle recency layer beneath each Happening row.
+
+NOT:
+- “2h ago”
+- “5 mins ago”
+- social-media timestamps
+
+Instead use editorial recency language:
+- Updated today
+- Added this week
+- Recently updated
+- Planned recently
+
+Implementation guidance:
+- derive wording from trip updated_at / created_at recency
+- keep logic simple and deterministic
+- muted/smaller typography
+- visually secondary to the main row
+- should feel ambient, not actionable
+
+Example desired structure:
+
+Avery Brooks · Park City
+Updated today
+
+Mia Chen · planning Mammoth
+Recently updated
+
+────────────────────────────────────
+PART 2 — +N MORE POLISH
+────────────────────────────────────
+
+The “+1 more” suffix currently reads too strongly inline.
+
+Adjust:
+- smaller font size
+- lighter opacity/color
+- slightly reduced weight
+- preserve inline positioning
+
+Goal:
+metadata hint, not primary content.
+
+────────────────────────────────────
+PART 3 — HOME VISUAL POLISH
+────────────────────────────────────
+
+Preserve current structure and warmth.
+
+Apply only subtle refinements:
+- slightly lighten Happening dividers
+- slightly tighten vertical spacing where appropriate
+- preserve editorial serif hierarchy
+- preserve warm cream/burgundy aesthetic
+
+Do NOT:
+- shrink the screen aggressively
+- compress card layouts
+- alter bottom nav
+- alter Ideas card structure
+
+────────────────────────────────────
+PART 4 — IMPLEMENTATION CONSTRAINTS
+────────────────────────────────────
+
+Safe areas to modify:
+- app.py home() grouping/render logic
+- templates/home.html
+- partials under templates/partials/home/
+- Home-specific CSS
+
+Do NOT modify:
+- services/ideas_engine.py
+- dismissal logic
+- bottom navigation system
+- global design system unnecessarily
+
+────────────────────────────────────
+PART 5 — VALIDATION
+────────────────────────────────────
+
+Validate:
+1. Happening still capped at 5 rows.
+2. One row per friend.
+3. Recency labels render correctly.
+4. No repeated friend spam.
+5. “+1 more” visually de-emphasized.
+6. Home still feels warm/editorial.
+7. Mobile spacing remains clean.
+8. Flask boots cleanly.
+9. No regressions to Ideas or Requests.
+
+Return:
+- files changed
+- exact recency logic used
+- before/after row examples
+- CSS adjustments made
+- QA summary
+
+Do not finish until fully tested locally.

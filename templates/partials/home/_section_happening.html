@@ -1,12 +1,14 @@
 <!--
 Component: Happening Section
-Purpose: Quiet ambient awareness of friend ski activity. Text-only, no avatars.
+Purpose: Quiet ambient awareness of friend ski activity. One row per friend,
+         editorial text format with subtle recency label beneath each row.
 Used on: Home screen (only when happening_signals is non-empty)
 
 Inputs:
   happening_signals  list of dicts
-    [].text          string — pre-formatted signal, e.g. "Sam is planning Vail"
-    [].friend_id     int | None — user_id of the friend; when present the row links to their profile
+    [].text          string — editorial signal, e.g. "Mia Chen · Whistler"
+    [].recency_label string — e.g. "Updated today", "Added this week"
+    [].friend_id     int | None — user_id; when present the row links to their profile
 -->
 
 <div class="bl-section" id="section-happening">
@@ -17,12 +19,22 @@ Inputs:
         {% for signal in happening_signals %}
         {% if signal.friend_id %}
         <a href="/friends/{{ signal.friend_id }}" class="bl-happening-row bl-happening-row--link">
-            <p class="bl-happening-text">{{ signal.text }}</p>
+            <div class="bl-happening-body">
+                <p class="bl-happening-text">{{ signal.text }}</p>
+                {% if signal.recency_label %}
+                <p class="bl-happening-recency">{{ signal.recency_label }}</p>
+                {% endif %}
+            </div>
             <span class="bl-happening-chevron">›</span>
         </a>
         {% else %}
         <div class="bl-happening-row">
-            <p class="bl-happening-text">{{ signal.text }}</p>
+            <div class="bl-happening-body">
+                <p class="bl-happening-text">{{ signal.text }}</p>
+                {% if signal.recency_label %}
+                <p class="bl-happening-recency">{{ signal.recency_label }}</p>
+                {% endif %}
+            </div>
         </div>
         {% endif %}
         {% endfor %}
