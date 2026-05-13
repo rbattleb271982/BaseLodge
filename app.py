@@ -1889,11 +1889,6 @@ CANONICAL_PASSES = [
     "no_pass_yet",
     "epic",
     "ikon",
-    "mountain_collective",
-    "indy",
-    "powder_alliance",
-    "freedom",
-    "ski_california",
     "other",
 ]
 
@@ -1902,11 +1897,6 @@ def get_sorted_passes():
     return [
         "epic",
         "ikon",
-        "mountain_collective",
-        "indy",
-        "freedom",
-        "ski_california",
-        "powder_alliance",
         "other",
         "no_pass",
         "no_pass_yet",
@@ -3082,9 +3072,26 @@ def mountains_tab():
         friend_resort_counts = {rid: cnt for rid, cnt in _counts}
 
     # ── Pass extraction helper ─────────────────────────────────────────────────
-    _PASS_SKIP = frozenset({'no_pass', 'no_pass_yet', 'other'})
+    _PASS_SKIP = frozenset({'no_pass', 'no_pass_yet'})
 
     def _resort_passes(r):
+        # Prefer resort_pass table (populated by import script); fall back to legacy strings
+        rp_rows = r.get_passes() if hasattr(r, 'get_passes') else []
+        if rp_rows:
+            labels, keys = [], []
+            for p in rp_rows:
+                pname = p.get('pass_name', '') if isinstance(p, dict) else getattr(p, 'pass_name', '')
+                if not pname or str(pname).lower() in ('none', ''):
+                    continue
+                norm = normalize_pass(pname)
+                if norm and norm not in _PASS_SKIP:
+                    label = display_pass_label(norm)
+                    if label:
+                        labels.append(label)
+                        keys.append(norm)
+            if keys:
+                return ' · '.join(labels), keys
+        # Legacy fallback — resort_pass table empty
         raw = r.pass_brands or r.brand or ""
         if not raw or str(raw).lower() in ('none', ''):
             return "", []
@@ -3145,8 +3152,7 @@ def mountains_tab():
     }
 
     # ── Pass filter options (canonical order, from actual data) ───────────────
-    _PASS_ORDER = ['epic', 'ikon', 'mountain_collective', 'indy',
-                   'powder_alliance', 'freedom', 'ski_california']
+    _PASS_ORDER = ['epic', 'ikon', 'other']
     seen_pass_keys = set()
     for rd in resorts_data:
         for k in rd['pass_keys']:
@@ -4000,7 +4006,7 @@ def set_trip_invites(friend_id):
 @login_required
 def update_buddy_pass():
     """Update buddy pass availability for a specific pass."""
-    SUPPORTED_PASSES = ['epic', 'ikon', 'mountain_collective']
+    SUPPORTED_PASSES = ['epic', 'ikon', 'other']
     
     data = request.get_json() or {}
     pass_key = data.get('pass_key', '').lower()

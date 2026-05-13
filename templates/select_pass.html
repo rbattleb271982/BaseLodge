@@ -132,9 +132,13 @@
     <form method="POST" id="spForm">
         <input type="hidden" name="pass_type" id="sp-pass-hidden" value="">
 
-        {% set current_passes = (current_user.pass_type or '').split(',') | map('trim') | list %}
-
-        {% set exclusive_passes = ['no_pass', 'no_pass_yet', 'other'] %}
+        {# Normalize legacy pass values to MVP before checking selection state #}
+        {% set _legacy_map = {'freedom': 'other', 'indy': 'other', 'mountain_collective': 'other', 'powder_alliance': 'other', 'ski_california': 'other'} %}
+        {% set current_passes = [] %}
+        {% for p in (current_user.pass_type or '').split(',') | map('trim') | list %}
+          {% set _np = _legacy_map.get(p, p) %}
+          {% if _np and _np not in current_passes %}{% set _ = current_passes.append(_np) %}{% endif %}
+        {% endfor %}
 
         <button type="button" class="sp-pill {% if 'no_pass' in current_passes %}sel{% endif %}"
                 data-val="no_pass" data-exclusive="1" onclick="spToggle(this)">
@@ -149,29 +153,19 @@
 
         <div class="sp-divider"></div>
 
-        {% set real_passes = ['epic', 'ikon', 'freedom', 'indy', 'mountain_collective', 'powder_alliance', 'ski_california'] %}
-        {% set pass_labels = {
-            'epic': 'Epic',
-            'ikon': 'Ikon',
-            'freedom': 'Freedom',
-            'indy': 'Indy',
-            'mountain_collective': 'Mountain Collective',
-            'powder_alliance': 'Powder Alliance',
-            'ski_california': 'Ski California'
-        } %}
-        {% for p in real_passes %}
-        <button type="button" class="sp-pill {% if p in current_passes %}sel{% endif %}"
-                data-val="{{ p }}" onclick="spToggle(this)">
-            {{ pass_labels[p] }}
+        <button type="button" class="sp-pill {% if 'epic' in current_passes %}sel{% endif %}"
+                data-val="epic" onclick="spToggle(this)">
+            Epic
             <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </button>
-        {% endfor %}
-
-        <div class="sp-divider"></div>
-
+        <button type="button" class="sp-pill {% if 'ikon' in current_passes %}sel{% endif %}"
+                data-val="ikon" onclick="spToggle(this)">
+            Ikon
+            <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
         <button type="button" class="sp-pill {% if 'other' in current_passes %}sel{% endif %}"
-                data-val="other" data-exclusive="1" onclick="spToggle(this)">
-            Other
+                data-val="other" onclick="spToggle(this)">
+            Other pass
             <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </button>
 
@@ -187,8 +181,12 @@
 <script>
 (function() {
     var PASS_REAL_MAX = 3;
+    var _LEGACY_TO_MVP = {freedom:'other',indy:'other',mountain_collective:'other',powder_alliance:'other',ski_california:'other'};
     var selected = new Set(
-        ({{ (current_user.pass_type or '') | tojson }}).split(',').map(s => s.trim()).filter(Boolean)
+        ({{ (current_user.pass_type or '') | tojson }}).split(',').map(function(s){
+            s = s.trim();
+            return _LEGACY_TO_MVP[s] || s;
+        }).filter(Boolean)
     );
 
     function countReal() {

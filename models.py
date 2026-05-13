@@ -514,7 +514,7 @@ class Resort(db.Model):
     trips = db.relationship('SkiTrip', backref='resort', lazy=True)
     
     # Canonical pass brands (display order)
-    VALID_PASS_BRANDS = ['Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other', 'None']
+    VALID_PASS_BRANDS = ['Epic', 'Ikon', 'Other', 'None']
     
     def get_pass_brands_list(self):
         """Returns pass brands as a list, preferring JSON column, falling back to legacy."""
@@ -629,7 +629,7 @@ class ResortPass(db.Model):
         db.UniqueConstraint('resort_id', 'pass_name', name='uq_resort_pass'),
     )
 
-    VALID_PASS_NAMES = ['Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other']
+    VALID_PASS_NAMES = ['Epic', 'Ikon', 'Other']
 
     id = db.Column(db.Integer, primary_key=True)
     resort_id = db.Column(

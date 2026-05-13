@@ -60,7 +60,7 @@
     {% endif %}
 
     {# 2b. Buddy Pass Availability (per supported pass) #}
-    {% set buddy_pass_supported = ['epic', 'ikon', 'mountain_collective'] %}
+    {% set buddy_pass_supported = ['epic', 'ikon', 'other'] %}
     {% set user_passes_norm = (profile_user.pass_type or '').split(',') | map('normalize_pass') | list %}
     {% set buddy_passes_data = profile_user.buddy_passes or {} %}
     {% for pass_key in buddy_pass_supported %}
@@ -132,7 +132,7 @@
 
 {# Buddy Pass Modals (owner only) #}
 {% if is_owner %}
-    {% set buddy_pass_supported = ['Epic', 'Ikon', 'Mountain Collective'] %}
+    {% set buddy_pass_supported = ['Epic', 'Ikon', 'Other'] %}
     {% set user_passes = (profile_user.pass_type or '')|replace(' Pass', '')|replace(' pass', '') %}
     {% set buddy_passes_data = profile_user.buddy_passes or {} %}
     {% for pass_name in buddy_pass_supported %}

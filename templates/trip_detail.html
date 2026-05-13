@@ -1414,18 +1414,7 @@
 
             <button type="button" class="td-pass-pill" data-val="epic" onclick="tdPassToggle(this)">Epic<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
             <button type="button" class="td-pass-pill" data-val="ikon" onclick="tdPassToggle(this)">Ikon<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-            <button type="button" class="td-pass-pill" data-val="freedom" onclick="tdPassToggle(this)">Freedom<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-            <button type="button" class="td-pass-pill" data-val="indy" onclick="tdPassToggle(this)">Indy<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-            <button type="button" class="td-pass-pill" data-val="mountain_collective" onclick="tdPassToggle(this)">Mountain Collective<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-            <button type="button" class="td-pass-pill" data-val="powder_alliance" onclick="tdPassToggle(this)">Powder Alliance<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-            <button type="button" class="td-pass-pill" data-val="ski_california" onclick="tdPassToggle(this)">Ski California<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-
-            <div class="td-pass-divider"></div>
-
-            <button type="button" class="td-pass-pill" data-val="other" data-exclusive="1" onclick="tdPassToggle(this)">
-                Other
-                <span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            </button>
+            <button type="button" class="td-pass-pill" data-val="other" onclick="tdPassToggle(this)">Other pass<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
 
             <button type="button" class="td-pass-sheet-save" id="td-pass-save-btn" onclick="saveTripPass()">Save</button>
             <button type="button" class="td-pass-sheet-cancel" onclick="closePassSheet()">Cancel</button>
@@ -1705,8 +1694,9 @@
         (function() {
             const _tdPassTripId = {{ trip.id }};
             let _tdCurrentPassStr = {{ (trip.pass_type or '') | tojson }};
+            var _TD_LEGACY_MVP = {freedom:'other',indy:'other',mountain_collective:'other',powder_alliance:'other',ski_california:'other'};
             var _tdPassSelected = new Set(
-                _tdCurrentPassStr.split(',').map(s => s.trim()).filter(Boolean)
+                _tdCurrentPassStr.split(',').map(function(s){s=s.trim();return _TD_LEGACY_MVP[s]||s;}).filter(Boolean)
             );
             var PASS_REAL_MAX = 3;
 
@@ -1734,7 +1724,7 @@
 
             window.openPassSheet = function() {
                 _tdPassSelected = new Set(
-                    _tdCurrentPassStr.split(',').map(s => s.trim()).filter(Boolean)
+                    _tdCurrentPassStr.split(',').map(function(s){s=s.trim();return _TD_LEGACY_MVP[s]||s;}).filter(Boolean)
                 );
                 tdPassSyncState();
                 document.getElementById('td-pass-sheet').classList.add('active');
