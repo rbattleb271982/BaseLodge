@@ -1,0 +1,58 @@
+BaseLodge — Social Invite Integrity Hardening
+
+Fix the two remaining social integrity issues from QA Pass 2.
+
+Important:
+- Make only targeted changes.
+- Do not redesign architecture.
+- Do not change unrelated UI.
+- Do not remove routes.
+- Use checkpoints sparingly.
+
+Fix 1 — Stale pending invitations after friendship already exists
+
+Current issue:
+Invitation rows 1 and 4 are still status='pending' from user 11 to user 2 even though those users are already friends.
+
+Tasks:
+1. In the friend invite creation route, before creating a new pending invitation:
+   - If users are already friends, return a clean response indicating they are already connected.
+   - Do not create a pending invite.
+2. In the QR/connect_add friendship creation path:
+   - When a friendship is created directly, mark any existing pending Invitation rows between those two users as accepted or cancelled.
+   - Use whichever status is already most consistent with the app. Prefer accepted if the connection was successfully created.
+3. In remove_friend and remove_friend_web:
+   - When removing a friendship, cancel or clean up pending friend invitations between those two users so stale pending requests cannot survive after removal.
+
+Fix 2 — Idempotency guard for accept_invitation
+
+Current issue:
+accept_invitation can 500 on double-tap/retry because it tries to create Friend rows even if the users are already friends.
+
+Tasks:
+1. In accept_invitation:
+   - If the invitation is already accepted and the users are already friends, return a clean success response/redirect without creating duplicate Friend rows.
+   - If the users are already friends but the invitation is still pending, mark the invitation accepted and return success.
+   - Do not attempt to insert duplicate Friend rows.
+2. Preserve existing authorization:
+   - Only the invitation receiver can accept.
+   - Wrong user still gets 403.
+3. Avoid duplicate Activity rows and duplicate messaging events on idempotent re-accept.
+
+Validation:
+Run read-only checks confirming:
+- Existing duplicate pending invites between users 11 and 2 are identified.
+- The invite creation route does not create a new pending invite for users who are already friends.
+- QR/connect friendship creation cleans pending invitations between the same users.
+- Removing a friend cleans pending invitations between the pair.
+- Accepting an already-accepted invite does not 500.
+- Accepting when already friends returns success without duplicate Friend rows.
+- No duplicate Friend rows are created.
+- No one-sided Friend rows are created.
+- No unrelated routes break.
+
+Return:
+- Files changed
+- Exact fixes made
+- Validation results
+- Any data cleanup recommendation for existing stale rows

@@ -3965,18 +3965,30 @@ def get_friend_profile(friend_id):
 @login_required
 def accept_invitation(invitation_id):
     invitation = db.session.get(Invitation, invitation_id)
-    
+
     if not invitation:
         return jsonify({"success": False, "error": "Invitation not found"}), 404
-    
+
     if invitation.receiver_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
-    
+
+    # Idempotency: if users are already friends (double-tap, retry, or QR path raced ahead),
+    # mark the invitation accepted and return success without creating duplicate Friend rows
+    # or firing duplicate activity/messaging events.
+    already_friends = Friend.query.filter_by(
+        user_id=current_user.id, friend_id=invitation.sender_id
+    ).first()
+    if already_friends:
+        if invitation.status != 'accepted':
+            invitation.status = 'accepted'
+            db.session.commit()
+        return jsonify({"success": True, "message": "Already friends"}), 200
+
     invitation.status = 'accepted'
-    
+
     friend_relationship = Friend(user_id=current_user.id, friend_id=invitation.sender_id)
     reverse_friend = Friend(user_id=invitation.sender_id, friend_id=current_user.id)
-    
+
     db.session.add(friend_relationship)
     db.session.add(reverse_friend)
     emit_connection_accepted_activity(current_user.id, invitation.sender_id)
@@ -4008,17 +4020,34 @@ def accept_invitation(invitation_id):
 def remove_friend(friend_id):
     friend1 = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
     friend2 = Friend.query.filter_by(user_id=friend_id, friend_id=current_user.id).first()
-    
+
     if not friend1 and not friend2:
         return jsonify({"success": False, "error": "Friendship not found"}), 404
-    
+
     if friend1:
         db.session.delete(friend1)
     if friend2:
         db.session.delete(friend2)
-    
+
+    # Cancel any pending friend invitations between the two users in either direction
+    # so stale requests cannot survive after the friendship is removed.
+    Invitation.query.filter(
+        db.or_(
+            db.and_(
+                Invitation.sender_id == current_user.id,
+                Invitation.receiver_id == friend_id,
+                Invitation.status == 'pending',
+            ),
+            db.and_(
+                Invitation.sender_id == friend_id,
+                Invitation.receiver_id == current_user.id,
+                Invitation.status == 'pending',
+            ),
+        )
+    ).update({'status': 'cancelled'}, synchronize_session=False)
+
     db.session.commit()
-    
+
     return jsonify({"success": True, "message": "Friend removed"}), 200
 
 
@@ -6047,6 +6076,24 @@ def remove_friend_web(friend_id):
     db.session.delete(row_a)
     if row_b:
         db.session.delete(row_b)
+
+    # Cancel any pending friend invitations between the two users in either direction
+    # so stale requests cannot survive after the friendship is removed.
+    Invitation.query.filter(
+        db.or_(
+            db.and_(
+                Invitation.sender_id == current_user.id,
+                Invitation.receiver_id == friend_id,
+                Invitation.status == 'pending',
+            ),
+            db.and_(
+                Invitation.sender_id == friend_id,
+                Invitation.receiver_id == current_user.id,
+                Invitation.status == 'pending',
+            ),
+        )
+    ).update({'status': 'cancelled'}, synchronize_session=False)
+
     db.session.commit()
 
     flash("Friend removed.", "success")
@@ -6364,18 +6411,35 @@ def connect_via_qr(user_id):
 @limiter.limit("20 per hour", key_func=_user_or_ip)
 def connect_add(user_id):
     inviter = User.query.get_or_404(user_id)
-    
+
     existing_a_to_b = Friend.query.filter_by(user_id=current_user.id, friend_id=inviter.id).first()
     existing_b_to_a = Friend.query.filter_by(user_id=inviter.id, friend_id=current_user.id).first()
-    
+
     if not existing_a_to_b:
         new_a_to_b = Friend(user_id=current_user.id, friend_id=inviter.id)
         db.session.add(new_a_to_b)
-    
+
     if not existing_b_to_a:
         new_b_to_a = Friend(user_id=inviter.id, friend_id=current_user.id)
         db.session.add(new_b_to_a)
-    
+
+    # Mark any pending invitations between these two users as accepted,
+    # since the connection was successfully established via QR/direct link.
+    Invitation.query.filter(
+        db.or_(
+            db.and_(
+                Invitation.sender_id == current_user.id,
+                Invitation.receiver_id == inviter.id,
+                Invitation.status == 'pending',
+            ),
+            db.and_(
+                Invitation.sender_id == inviter.id,
+                Invitation.receiver_id == current_user.id,
+                Invitation.status == 'pending',
+            ),
+        )
+    ).update({'status': 'accepted'}, synchronize_session=False)
+
     db.session.commit()
     return render_template("connect_success.html", friend=inviter)
 
