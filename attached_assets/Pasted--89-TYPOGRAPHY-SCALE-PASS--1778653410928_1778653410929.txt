@@ -1,0 +1,142 @@
+║                  89 — TYPOGRAPHY SCALE PASS                ║
+╚══════════════════════════════════════════════════════════════╝
+
+Use the full spec from Plan item 89 and implement it now.
+
+Key guardrails:
+
+* Do not change colors.
+* Do not redesign layouts.
+* Do not change architecture.
+* Do not change stat numerals.
+* Do not change large section headers like “Happening” and “Ideas.”
+* Do not change 11px uppercase eyebrow/badge labels.
+* Skip auth/onboarding/legal/error pages unless the change is trivial through shared CSS.
+* Use checkpoints sparingly.
+
+Primary goal:
+Make the logged-in BaseLodge app feel more native and readable on mobile by increasing typography scale across the app.
+
+Implementation targets:
+
+* Body/list text: ~15px → 17px
+* Secondary/meta/helper text: 12–13px → 14–15px
+* Card/row titles: 18–20px → 20–22px
+* Bottom nav labels: 12px → 14px
+* Pills/buttons: +1–2px
+* Preserve stat numbers and section eyebrow labels
+
+Files to review/update:
+
+* static/styles.css
+* templates/home.html
+* templates/my_trips.html
+* templates/friends.html
+* templates/friend_profile.html
+* templates/trip_detail.html
+* templates/add_trip.html
+* templates/profile.html
+* templates/trip_ideas.html
+* templates/idea_detail_trip.html
+* templates/mountains_tab.html
+* templates/mountains_visited.html
+* templates/partials
+
+Specific changes:
+
+1. Update :root CSS variables:
+    * –bl-text-body: 15px → 17px
+    * –bl-text-caption: 13px → 14px
+    * Leave –bl-text-input at 16px
+2. Update canonical utility classes:
+    * .bl-heading-xl: 24px → 26px
+    * .bl-heading-l: 20px → 22px
+    * .bl-heading-m: 18px → 20px
+    * .bl-body: 16px → 17px
+    * .bl-label: 14px → 15px
+    * .bl-caption: 13px → 14px
+    * .type-list: 16px → 17px
+    * .type-caption: 14px → 15px
+    * .type-tagline: 16px → 17px
+    * .bl-page-subtitle: 16px → 17px
+3. Update shared component classes:
+    * .bl-nav-item: 12px → 14px
+    * 5-tab override .bl-bottom-nav .bl-nav-item: 11px → 12px only if still present
+    * .friend-row/.friend-row-link: 15px → 17px
+    * .friend-name: 16px → 17px
+    * .friend-meta: 14px → 15px
+    * .friend-trip-date: 15px → 16px
+    * .friend-trip-location: 14px → 15px
+    * .bl-trip-row: 14px → 16px
+    * .bl-trip-card-dates: 1rem → 17px
+    * .bl-trip-card-resort: 0.9375rem → 16px
+    * .bl-trip-card-pass/.bl-trip-card-friend: 0.8125rem → 14px
+    * .trip-detail-label and .trip-detail-value: 14px → 15px
+    * .home-match-line1: 16px → 17px
+    * .home-match-date: 14px → 15px
+    * .home-match-meta: 13px → 14px
+    * .home-nudge-title: 18px → 20px
+    * .home-nudge-sub: 14px → 15px
+    * .home-insight-card-text: 14px → 15px
+    * .ideas-window-title: 19px → 21px
+    * .ideas-window-sub: 13px → 14px
+    * .ideas-reeng-sub: 15px → 16px
+    * .ideas-step-label: 16px → 17px
+    * .ideas-step-sub: 14px → 15px
+    * .ideas-footer: 13px → 14px
+    * .bl-es-headline: 20px → 22px
+    * .bl-es-sub: 15px → 16px
+    * .bl-es–inline .bl-es-headline: 16px → 17px
+    * .bl-es–inline .bl-es-sub: 14px → 15px
+    * .fr-empty-headline: 20px → 22px
+    * .fr-empty-sub: 14px → 15px
+    * .profile-identity-row: 16px → 17px
+    * .profile-meta: 16px → 17px
+    * .profile-mountains: 14px → 15px
+    * .profile-pill: 14px → 15px
+    * .bl-btn-secondary: 15px → 16px
+    * .bl-btn-ghost: 15px → 16px
+    * .bl-cta-trip: 16px → 17px
+    * .bl-segment: 14px → 15px
+    * .bl-tab-button: 0.875rem → 15px
+    * .form-label: 13px → 14px
+    * .bl-select: 14px → 15px
+    * .readonly-field: 14px → 15px
+    * .settings-value: normalize to 15px
+    * .settings-action: 0.9rem → 14px
+    * .bl-accordion-row-label: 14px → 15px
+    * .stat-label: 13px → 14px
+    * Leave .stat-value unchanged
+4. Sweep logged-in template-level style blocks:
+    * Increase body/list values around 15px to 17px
+    * Increase meta/secondary values around 12–13px to 14px
+    * Increase card/row titles around 18–20px to 20–22px
+    * Do not change stat numerals
+    * Do not change 11px uppercase eyebrow labels
+    * Do not change large section headers already at premium size
+5. Run QA:
+    * Home
+    * Trips
+    * Friends
+    * Mountains
+    * Profile
+    * Add Trip
+    * Trip Detail
+    * Friend Profile
+    * Empty states
+    * Bottom nav
+    * Pills/buttons
+    * iPhone-sized viewport
+    * Android-sized viewport
+
+Validation:
+
+* Confirm no clipped text.
+* Confirm no horizontal scroll.
+* Confirm no broken flex rows.
+* Confirm no label overlap.
+* Confirm bottom nav labels fit.
+* Confirm stat numerals are unchanged.
+* Confirm section eyebrows are unchanged.
+
+Do not finish until you have fully tested the changed pages and can report exactly what changed, which files changed, and what QA passed.
