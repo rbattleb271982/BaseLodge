@@ -83,6 +83,7 @@ class EventSpec:
     title_template:        str | None       = None
     body_template:         str | None       = None
     deep_link_template:    str | None       = None
+    url_template:          str | None       = None
     screen:                str | None       = None
     context_keys:          list             = field(default_factory=list)
     data_keys:             list             = field(default_factory=list)
@@ -106,6 +107,7 @@ _EVENT_REGISTRY: dict[str, EventSpec] = {
         title_template="{actor_name} wants to connect",
         body_template="You have a new friend request on BaseLodge.",
         deep_link_template="/friends",
+        url_template="/friends",
         screen="friends",
         context_keys=["actor_name", "invitation_id", "user_id"],
         data_keys=["user_id", "invitation_id"],
@@ -120,6 +122,7 @@ _EVENT_REGISTRY: dict[str, EventSpec] = {
         title_template="{actor_name} accepted your request",
         body_template="You're now connected on BaseLodge.",
         deep_link_template="/friends/{actor_user_id}",
+        url_template="/friends",
         screen="friend_profile",
         context_keys=["actor_name", "user_id"],
         data_keys=["user_id"],
@@ -134,6 +137,7 @@ _EVENT_REGISTRY: dict[str, EventSpec] = {
         title_template="{actor_name} invited you to a trip",
         body_template="You've been invited to {resort}.",
         deep_link_template="/trips/{entity_id}",
+        url_template="/trips",
         screen="trip_detail",
         context_keys=["actor_name", "resort", "trip_id"],
         data_keys=["trip_id"],
@@ -148,6 +152,7 @@ _EVENT_REGISTRY: dict[str, EventSpec] = {
         title_template="{actor_name} accepted your invite",
         body_template="They're joining you for {resort}.",
         deep_link_template="/trips/{entity_id}",
+        url_template="/trips",
         screen="trip_detail",
         context_keys=["actor_name", "resort", "trip_id"],
         data_keys=["trip_id"],
@@ -298,6 +303,14 @@ def _render_immediate_push(spec, metadata, actor_user_id, entity_id):
     # Render deep_link from template.
     if spec.deep_link_template is not None:
         push_data["deep_link"] = spec.deep_link_template.format_map(context)
+    # Render url for client-side push-tap navigation (_extractPushUrl in analytics_head.html).
+    # Must be a same-origin relative path. url_template is kept separate from deep_link_template
+    # so that deep_link can carry entity-specific paths (e.g. /trips/42) while url always
+    # points to a stable, guaranteed-valid in-app route.
+    if spec.url_template is not None:
+        rendered_url = spec.url_template.format_map(context)
+        if rendered_url.startswith("/") and not rendered_url.startswith("//"):
+            push_data["url"] = rendered_url
     # Screen is a constant per event.
     if spec.screen is not None:
         push_data["screen"] = spec.screen
