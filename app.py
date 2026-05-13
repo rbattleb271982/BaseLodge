@@ -1034,7 +1034,8 @@ def compute_friend_trip_availability_overlaps(user):
     
     friend_trips = SkiTrip.query.filter(
         SkiTrip.user_id.in_(friend_ids),
-        SkiTrip.end_date >= date.today()
+        SkiTrip.end_date >= date.today(),
+        SkiTrip.is_public == True,
     ).all()
 
     overlap_by_range = {}
@@ -3938,17 +3939,23 @@ def get_friends():
 @app.route("/api/friends/<int:friend_id>", methods=["GET"])
 @login_required
 def get_friend_profile(friend_id):
-    
+
     friend = db.session.get(User, friend_id)
     if not friend:
         return jsonify({"success": False, "error": "User not found"}), 404
-    
+
+    if friend.id != current_user.id:
+        _auth = Friend.query.filter_by(
+            user_id=current_user.id, friend_id=friend.id
+        ).first()
+        if not _auth:
+            return jsonify({"success": False, "error": "Not authorized"}), 403
+
     return jsonify({
         "success": True,
         "friend": {
             "id": friend.id,
             "name": f"{friend.first_name} {friend.last_name}",
-            "email": friend.email,
             "pass_type": friend.pass_type or "No Pass",
             "rider_type": friend.display_rider_type or "Not specified"
         }
@@ -5825,6 +5832,14 @@ def friends():
 def friend_profile(friend_id):
     friend = User.query.get_or_404(friend_id)
     user = current_user
+
+    # Authorization guard: only confirmed friends (or self) may view this profile.
+    if friend.id != user.id:
+        _auth_friendship = Friend.query.filter_by(
+            user_id=user.id, friend_id=friend.id
+        ).first()
+        if not _auth_friendship:
+            abort(403)
 
     # Mark profile as viewed — clears the NEW badge on the Friends screen.
     # Only touches the current user's side of the relationship; no-op if not found.
@@ -7726,11 +7741,13 @@ def mountain_detail(slug):
     allowed_ids = friend_ids | {current_user.id}
 
     # Upcoming + in-progress trips for this resort only (resort_id canonical; no string fallback)
+    # is_public=True: private trips must not appear in friend social proof rows.
     raw_trips = (
         SkiTrip.query
         .filter(
             SkiTrip.resort_id == resort.id,
-            SkiTrip.end_date >= today
+            SkiTrip.end_date >= today,
+            SkiTrip.is_public == True,
         )
         .order_by(SkiTrip.start_date.asc())
         .all()
