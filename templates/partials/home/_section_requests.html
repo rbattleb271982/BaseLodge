@@ -28,7 +28,7 @@ Inputs:
 
         {% for inv in trip_invites %}
         {%- set inv_resort = inv.resort -%}
-        {%- set inv_mountain = inv_resort.name if inv_resort else inv.trip.mountain -%}
+        {%- set inv_mountain = (inv_resort | resort_display) if inv_resort else inv.trip.mountain -%}
         <a href="{{ url_for('trip_detail', trip_id=inv.trip_id) }}" class="bl-request-row">
             <div class="bl-request-body">
                 <p class="bl-request-primary">{{ inv.inviter_name }} invited you to {{ inv_mountain }}</p>

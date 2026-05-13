@@ -952,7 +952,7 @@
 {% block content %}
     {% set _trip_flash = get_flashed_messages(category_filter=['trip']) %}
     {% if _trip_flash %}
-    {% set mountain_name_for_modal = trip.resort.name if trip.resort else (trip.mountain or 'your trip') %}
+    {% set mountain_name_for_modal = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'your trip') %}
     <div class="td-success-overlay" id="td-success-modal" onclick="if(event.target===this)dismissSuccess()">
         <div class="td-success-card">
             <button class="td-success-close" onclick="dismissSuccess()" aria-label="Close">×</button>

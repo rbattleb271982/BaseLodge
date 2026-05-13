@@ -292,7 +292,7 @@
 
 {% block content %}
 
-{% set resort_name_init = trip.resort.name if trip.resort else (trip.mountain or '') %}
+{% set resort_name_init = (trip.resort | resort_display) if trip.resort else (trip.mountain or '') %}
 {% set resort_state_init = trip.resort.state_code if trip.resort else (trip.state or '') %}
 {% set resort_country_init = trip.resort.country_code if trip.resort else '' %}
 {% set location_display_init = (resort_name_init + ', ' + states_map.get(resort_state_init, resort_state_init)) if resort_state_init else resort_name_init %}
@@ -555,7 +555,7 @@
   // ===== INITIAL TRIP STATE =====
   const INIT = {
     resort_id: {{ trip.resort_id|tojson }},
-    resort_name: {{ (trip.resort.name if trip.resort else (trip.mountain or ''))|tojson }},
+    resort_name: {{ ((trip.resort | resort_display) if trip.resort else (trip.mountain or ''))|tojson }},
     resort_state: {{ (trip.resort.state_code if trip.resort else (trip.state or ''))|tojson }},
     resort_country: {{ (trip.resort.country_code if trip.resort else '')|tojson }},
     start_date: {{ (trip.start_date.isoformat() if trip.start_date else none)|tojson }},
@@ -739,7 +739,7 @@
       const item = document.createElement('div');
       item.className = 'et-resort-item';
       item.innerHTML =
-        '<span class="et-resort-name">' + escapeHtml(r.name) + '</span>' +
+        '<span class="et-resort-name">' + escapeHtml(r.display_name || r.name) + '</span>' +
         (locStr ? '<span class="et-resort-loc">' + escapeHtml(locStr) + '</span>' : '');
       item.addEventListener('click', function () { selectResort(r); });
       list.appendChild(item);
@@ -748,7 +748,7 @@
 
   function selectResort(r) {
     pending.resort_id = r.id;
-    pending.resort_name = r.name;
+    pending.resort_name = r.display_name || r.name;
     pending.resort_state = r.state_code;
     pending.resort_country = r.country_code;
     closeLocationOverlay();
