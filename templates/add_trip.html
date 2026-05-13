@@ -1,31 +1,702 @@
 {% extends "base_app.html" %}
-{% block title %}Plan a Trip — BaseLodge{% endblock %}
-{% block topbar_title %}Plan a Trip{% endblock %}
+{% block title %}BaseLodge — Plan a Trip{% endblock %}
+{% block topbar_left %}<a href="{{ url_for('home') }}" class="bl-top-bar-back" aria-label="Back">‹</a>{% endblock %}
+{% block topbar_title %}Plan a trip{% endblock %}
+{% block head %}
+<style>
+        body { background: #F5F1E8; }
+
+        .at-container {
+            padding: 20px 20px 100px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* ── Back link ── */
+        .at-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #6B665A;
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        /* ── Page header ── */
+        .at-page-title {
+            font-family: var(--bl-font-serif);
+            font-size: 28px;
+            color: #1A1A1A;
+            margin: 0 0 6px;
+            line-height: 1.15;
+        }
+        .at-page-sub {
+            font-size: 15px;
+            color: #6B665A;
+            margin: 0 0 18px;
+            line-height: 1.45;
+        }
+
+        /* ── Sections ── */
+        .at-section {
+            padding: 18px 0 14px;
+        }
+        .at-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            color: #5C1219;
+            margin: 0 0 4px;
+        }
+        .at-section-title {
+            font-family: var(--bl-font-serif);
+            font-size: 20px;
+            color: #1A1A1A;
+            margin: 0 0 4px;
+            line-height: 1.2;
+        }
+        .at-section-hint {
+            font-size: 14px;
+            color: #6B665A;
+            margin: 0 0 16px;
+            line-height: 1.45;
+        }
+        .at-visibility-helper {
+            font-size: 12px;
+            color: #9B9488;
+            margin: 8px 0 0;
+            line-height: 1.45;
+        }
+
+        /* ── Buttons ── */
+        .at-btn-primary {
+            display: block;
+            width: 100%;
+            min-height: 52px;
+            padding: 0 24px;
+            background: #5C1219;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+            text-align: center;
+            text-decoration: none;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        .at-btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+        .at-btn-secondary {
+            display: block;
+            width: 100%;
+            min-height: 52px;
+            padding: 0 24px;
+            background: transparent;
+            color: #5C1219;
+            border: 1px solid #5C1219;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+            text-align: center;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        /* ── Mountain search ── */
+        .at-search-results {
+            background: #FFFFFF;
+            border: 1px solid #E5DFD0;
+            border-radius: 10px;
+            margin-top: 6px;
+            overflow: hidden;
+            max-height: 260px;
+            max-height: min(260px, 40dvh);
+            overflow-y: auto;
+            display: none;
+        }
+        .at-search-results.visible { display: block; }
+        .at-result-item {
+            padding: 13px 16px;
+            font-size: 15px;
+            color: #1A1A1A;
+            cursor: pointer;
+            border-bottom: 1px solid #F0EDE6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+        .at-result-item:last-child { border-bottom: none; }
+        .at-result-item:active { background: #F5F1E8; }
+        .at-result-item.no-match { color: #8A857A; cursor: default; }
+        .at-result-meta { font-size: 13px; color: #8A857A; white-space: nowrap; flex-shrink: 0; }
+        .at-pass-badge {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #5C1219;
+            background: #F0DDD8;
+            border-radius: 4px;
+            padding: 2px 5px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
+        /* ── Selected mountain card ── */
+        .at-selected-card {
+            background: #FFFFFF;
+            border: 1.5px solid #5C1219;
+            border-radius: 10px;
+            padding: 12px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .at-selected-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1A1A1A;
+        }
+        .at-selected-meta {
+            font-size: 13px;
+            color: #6B665A;
+            margin-top: 2px;
+        }
+
+        /* ── Date summary (above calendar) ── */
+        .at-date-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            min-height: 32px;
+        }
+        .at-date-summary-text {
+            font-size: 15px;
+            font-weight: 500;
+            color: #1A1A1A;
+            line-height: 1.35;
+        }
+        .at-date-summary-text.placeholder {
+            color: #A09A91;
+            font-weight: 400;
+        }
+        .at-add-date-btn {
+            background: none;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            color: #5C1219;
+            cursor: pointer;
+            padding: 0;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            font-family: inherit;
+            flex-shrink: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .at-clear-btn {
+            background: none;
+            border: none;
+            font-size: 13px;
+            color: #5C1219;
+            cursor: pointer;
+            padding: 0;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            font-family: inherit;
+        }
+
+        /* ── Calendar ── */
+        .at-cal-card {
+            background: #FFFFFF;
+            border: 1px solid #E5DFD0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .at-cal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px 8px;
+        }
+        .at-cal-nav {
+            background: none;
+            border: none;
+            font-size: 22px;
+            color: #6B665A;
+            cursor: pointer;
+            padding: 0 6px;
+            line-height: 1;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .at-cal-nav:disabled { opacity: 0.2; cursor: not-allowed; }
+        .at-cal-month-label {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1A1A1A;
+            text-align: center;
+            flex: 1;
+        }
+        .at-cal-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            padding: 0 8px 0;
+        }
+        .at-cal-wd {
+            text-align: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: #B5AFA5;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 6px 0 4px;
+        }
+        .at-cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            padding: 0 8px 8px;
+        }
+
+        /* ── Day cells ── */
+        .at-day {
+            position: relative;
+            aspect-ratio: 1;
+            border: none;
+            background: none;
+            font-size: 13px;
+            cursor: pointer;
+            color: #1A1A1A;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            border-radius: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .at-day span { position: relative; z-index: 2; }
+        .at-day.other-month { visibility: hidden; pointer-events: none; }
+        .at-day.past { color: #C9C3B8; cursor: not-allowed; pointer-events: none; }
+
+        /* today dot */
+        .at-day.is-today:not(.sel-start):not(.sel-end) span::after {
+            content: '';
+            display: block;
+            position: absolute;
+            bottom: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 3px;
+            height: 3px;
+            background: #5C1219;
+            border-radius: 50%;
+        }
+
+        /* In-range tint */
+        .at-day.in-range::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            bottom: 4px;
+            left: 0;
+            right: 0;
+            background: rgba(92, 18, 25, 0.08);
+            z-index: 0;
+        }
+
+        /* Start half-tint */
+        .at-day.sel-start.has-range::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            bottom: 4px;
+            left: 50%;
+            right: 0;
+            background: rgba(92, 18, 25, 0.08);
+            z-index: 0;
+        }
+        .at-day.sel-end.has-range::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            bottom: 4px;
+            left: 0;
+            right: 50%;
+            background: rgba(92, 18, 25, 0.08);
+            z-index: 0;
+        }
+
+        /* Filled circle for start/end */
+        .at-day.sel-start::after,
+        .at-day.sel-end::after {
+            content: '';
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            background: #5C1219;
+            border-radius: 50%;
+            z-index: 1;
+        }
+        .at-day.sel-start span,
+        .at-day.sel-end span { color: white; font-weight: 600; }
+
+        /* ── Staged list ── */
+        .at-staged-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .at-staged-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 11px 14px;
+            background: rgba(92, 18, 25, 0.05);
+            border: 1px solid rgba(92, 18, 25, 0.12);
+            border-radius: 10px;
+        }
+        .at-staged-date {
+            font-size: 14px;
+            color: #1A1A1A;
+            font-weight: 500;
+        }
+        .at-staged-remove {
+            background: none;
+            border: none;
+            font-size: 18px;
+            line-height: 1;
+            color: #8A857A;
+            cursor: pointer;
+            padding: 0 2px;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+            opacity: 0.5;
+        }
+        .at-staged-remove:active { opacity: 1; }
+        .at-range-error {
+            font-size: 13px;
+            color: #A0220C;
+            background: rgba(160, 34, 12, 0.07);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+        }
+        .at-date-helper {
+            font-size: 13px;
+            color: #8A857A;
+            text-align: center;
+            padding: 4px 0 0;
+        }
+
+        /* ── Trip status pills ── */
+        .at-status-pills {
+            display: flex;
+            gap: 8px;
+            margin-top: 0;
+        }
+        .at-status-pill {
+            padding: 8px 18px;
+            border-radius: 20px;
+            border: 1px solid #D9D2BF;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6B665A;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .at-status-pill.active {
+            background: #5C1219;
+            border-color: #5C1219;
+            color: #FFFFFF;
+            font-weight: 600;
+        }
+
+        /* ── Sharing row ── */
+        .at-share-row {
+            margin-top: 0;
+        }
+        .at-vis-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            font-size: 15px;
+            color: #1A1A1A;
+        }
+        .at-vis-label input[type=checkbox] {
+            width: 20px;
+            height: 20px;
+            accent-color: #5C1219;
+            flex-shrink: 0;
+        }
+        .at-vis-hint {
+            font-size: 13px;
+            color: #8A857A;
+            margin: 4px 0 0 32px;
+            line-height: 1.4;
+        }
+
+        /* ── Proposal banner ── */
+        .at-proposal-banner {
+            background: rgba(92, 18, 25, 0.07);
+            border: 1px solid rgba(92, 18, 25, 0.18);
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #1A1A1A;
+            line-height: 1.5;
+        }
+
+        /* ── CTA area ── */
+        .at-cta-wrap {
+            padding-top: 24px;
+            border-top: 1px solid #E5DFD0;
+            margin-top: 4px;
+        }
+
+        /* ── Inline range confirmation ── */
+        .at-range-confirm-block {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 2px 4px;
+        }
+        .at-range-confirm-label {
+            font-size: 15px;
+            font-weight: 500;
+            color: #1A1A1A;
+            line-height: 1.35;
+        }
+        .at-range-confirm-btn {
+            background: #5C1219;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 9px 16px;
+            cursor: pointer;
+            font-family: inherit;
+            flex-shrink: 0;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .at-range-confirm-btn:active { opacity: 0.85; }
+
+        /* ── Overlap modal ── */
+        .at-overlap-modal {
+            display: flex;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .at-overlap-content {
+            background: #FFFFFF;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 320px;
+            width: 100%;
+        }
+        .at-overlap-title {
+            font-family: var(--bl-font-serif);
+            font-size: 18px;
+            color: #1A1A1A;
+            margin: 0 0 10px;
+        }
+        .at-overlap-text {
+            font-size: 15px;
+            color: #6B665A;
+            margin: 0 0 20px;
+            line-height: 1.5;
+        }
+        .at-overlap-actions { display: flex; gap: 10px; }
+        .at-overlap-actions .at-btn-primary,
+        .at-overlap-actions .at-btn-secondary {
+            flex: 1;
+            margin-top: 0;
+        }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="page-container">
-    <div class="at-overlap-banner" id="overlap-banner" style="display:none;">
-        <p class="at-overlap-text">You already have a trip to {{ overlap_resort_name }} that overlaps these dates. Want to update that trip instead?</p>
-    </div>
-    <div class="at-search-wrap">
-        <input id="mountain-search" class="at-search" type="search" placeholder="Search mountains" autocomplete="off" autocorrect="off" spellcheck="false">
-        <div id="search-results" class="at-results"></div>
-        <div id="selected-mountain-wrap" style="display:none;">
-            <div class="at-selected">
-                <div>
-                    <div id="sel-name"></div>
-                    <div id="sel-meta"></div>
+    <div class="at-container">
+
+        <p class="at-page-sub">Pick your mountain and dates.</p>
+
+        <!-- Overlap modal -->
+        {% if overlap_trip %}
+        <div class="at-overlap-modal" id="overlap-modal">
+            <div class="at-overlap-content">
+                <h3 class="at-overlap-title">Already planning this?</h3>
+                <p class="at-overlap-text">You already have a trip to {{ overlap_resort_name }} that overlaps these dates. Want to update that trip instead?</p>
+                <div class="at-overlap-actions">
+                    <a href="{{ url_for('edit_trip_form', trip_id=overlap_trip.id) }}" class="at-btn-primary">Edit existing</a>
+                    <button type="button" onclick="document.getElementById('overlap-modal').style.display='none'" class="at-btn-secondary">Cancel</button>
                 </div>
             </div>
         </div>
+        {% endif %}
+
+        <!-- Proposal banner (group flow) -->
+        {% if prefill_friend and is_group %}
+        <div class="at-proposal-banner">
+            <strong>Proposing a trip with {{ prefill_friend.first_name | format_name }}</strong><br>
+            <span style="color:#6B665A;">They'll receive an invite when you save this trip.</span>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ form_action }}" id="trip-form">
+            <input type="hidden" name="resort_id"        id="resort_id_input"        value="">
+            <input type="hidden" name="start_date"       id="start_date_input"       value="{{ prefill_start_date or '' }}">
+            <input type="hidden" name="end_date"         id="end_date_input"         value="{{ prefill_end_date or '' }}">
+            <input type="hidden" name="is_public"        id="is_public_input"        value="on">
+            <input type="hidden" name="date_ranges_json" id="date_ranges_json_input" value="">
+            <input type="hidden" name="trip_status"      id="trip_status_input"      value="planning">
+            {% if prefill_friend and is_group %}
+            <input type="hidden" name="friend_id" value="{{ prefill_friend.id }}">
+            <input type="hidden" name="is_group"  value="1">
+            {% endif %}
+
+            <!-- ─────────────────────────────── -->
+            <!-- SECTION 1 — WHERE              -->
+            <!-- ─────────────────────────────── -->
+            <div class="at-section">
+
+                <input
+                    type="text"
+                    class="bl-search-input"
+                    id="mountain-search"
+                    placeholder="Search by name or state…"
+                    autocomplete="off"
+                    spellcheck="false"
+                >
+                <div class="at-search-results" id="search-results"></div>
+                <p id="mountain-search-hint" style="font-size:12px; color:#8A857A; margin:6px 0 0 2px; line-height:1.4;">
+                    Type a mountain name or state — e.g. "Vail" or "Colorado"
+                </p>
+
+                <div id="selected-mountain-wrap" style="display:none; margin-top:10px;">
+                    <div class="at-selected-card">
+                        <div>
+                            <div class="at-selected-name" id="sel-name"></div>
+                            <div class="at-selected-meta" id="sel-meta"></div>
+                        </div>
+                        <button type="button" onclick="clearMountain()" aria-label="Remove mountain"
+                            style="background:none;border:none;cursor:pointer;padding:4px 6px;color:#A09A91;font-size:20px;line-height:1;flex-shrink:0;">&#10005;</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─────────────────────────────── -->
+            <!-- SECTION 2 — WHEN              -->
+            <!-- ─────────────────────────────── -->
+            <div class="at-section">
+
+                <!-- Date summary above calendar -->
+                <div class="at-date-summary">
+                    <span class="at-date-summary-text placeholder" id="range-text">Select your trip dates</span>
+                    {% if prefill_friend and is_group %}
+                    <button type="button" class="at-clear-btn" id="clear-dates-btn" style="display:none;" onclick="clearDates()">Clear</button>
+                    {% endif %}
+                </div>
+                <div class="at-range-error" id="range-error" style="display:none;"></div>
+
+                <!-- Calendar -->
+                <div class="at-cal-card">
+                    <div class="at-cal-header">
+                        <button type="button" class="at-cal-nav" id="prev-month">&#8249;</button>
+                        <span class="at-cal-month-label" id="cal-month-label"></span>
+                        <button type="button" class="at-cal-nav" id="next-month">&#8250;</button>
+                    </div>
+                    <div class="at-cal-weekdays">
+                        <div class="at-cal-wd">Su</div>
+                        <div class="at-cal-wd">Mo</div>
+                        <div class="at-cal-wd">Tu</div>
+                        <div class="at-cal-wd">We</div>
+                        <div class="at-cal-wd">Th</div>
+                        <div class="at-cal-wd">Fr</div>
+                        <div class="at-cal-wd">Sa</div>
+                    </div>
+                    <div class="at-cal-grid" id="cal-grid"></div>
+                </div>
+
+                <!-- Inline range confirmation (non-group flow) -->
+                {% if not (prefill_friend and is_group) %}
+                <div id="at-range-confirm" style="display:none;">
+                    <div class="at-range-confirm-block">
+                        <span class="at-range-confirm-label" id="at-confirm-label"></span>
+                        <button type="button" class="at-range-confirm-btn" onclick="confirmAddRange()">Add this range</button>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Staged ranges (non-group flow) -->
+                {% if not (prefill_friend and is_group) %}
+                <div id="staged-list" class="at-staged-list" style="display:none;"></div>
+                {% endif %}
+            </div>
+
+            <!-- ─────────────────────────────── -->
+            <!-- SECTION 3 — TRIP STATUS        -->
+            <!-- ─────────────────────────────── -->
+            <div class="at-section">
+                <div class="at-status-pills">
+                    <button type="button" class="at-status-pill active" id="status-planning" onclick="setTripStatus('planning')">Planning</button>
+                    <button type="button" class="at-status-pill"        id="status-going"    onclick="setTripStatus('going')">Going</button>
+                </div>
+            </div>
+
+            <!-- ─────────────────────────────── -->
+            <!-- SECTION 4 — SHARING            -->
+            <!-- ─────────────────────────────── -->
+            <div class="at-section">
+                <div class="at-share-row">
+                    <label class="at-vis-label">
+                        <input type="checkbox" id="visibility-toggle" checked>
+                        Friends can see this trip
+                    </label>
+                </div>
+                <p class="at-visibility-helper" id="visibility-helper">Visible to your friends and may appear in overlap suggestions.</p>
+            </div>
+
+            <!-- ─────────────────────────────── -->
+            <!-- CTA                            -->
+            <!-- ─────────────────────────────── -->
+            <div class="at-cta-wrap">
+                <button type="submit" class="at-btn-primary" id="submit-btn" {% if not (prefill_friend and is_group) %}disabled{% endif %} data-loading-text="Saving…">
+                    {% if prefill_friend and is_group %}Send invite{% else %}Create trip{% endif %}
+                </button>
+            </div>
+
+        </form>
+
     </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-(function () {
-    const RESORTS = {{ resorts|tojson }};
+    // ── Backend data ───────────────────────────────────────────
+    const RESORTS      = {{ resorts|tojson }};
+    const USER_PASSES  = {{ (user_passes or [])|tojson }};
     const STATE_NAMES  = {{ states_map|tojson if states_map else '{}' }};
     const COUNTRY_NAMES = {{ countries_map|tojson if countries_map else '{}' }};
 
@@ -33,33 +704,70 @@
     const PREFILL_RESORT_NAME = {{ ((prefill_resort | resort_display) if prefill_resort else none)|tojson }};
     const PREFILL_RESORT_META = {{ (((states_map or {}).get(prefill_resort.state_code or '', prefill_resort.state_code or '') + ', ' + (prefill_resort.display_country_name or prefill_resort.country_code or '')) if prefill_resort else none)|tojson }};
 
-    const PASS_DISPLAY_NAMES = {
-        'epic': 'Epic', 'ikon': 'Ikon', 'other': 'Other',
-        'indy': 'Other', 'mountain_collective': 'Other',
-        'mountaincollective': 'Other', 'powder_alliance': 'Other',
-        'powderalliance': 'Other', 'freedom': 'Other',
-        'ski_california': 'Other', 'skicalifornia': 'Other'
-    };
+    const IS_GROUP_FLOW = {{ 'true' if (prefill_friend and is_group) else 'false' }};
 
-    function formatPassName(p) {
-        return PASS_DISPLAY_NAMES[(p || '').trim().toLowerCase()] || '';
+    // ── Mutable state ──────────────────────────────────────────
+    let selResortId   = null;
+    let selResortName = null;
+    let selResortMeta = null;
+    let stagedRanges  = [];   // [{startStr, endStr, label}]
+
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+
+    const MONTH_NAMES = ['January','February','March','April','May','June',
+                         'July','August','September','October','November','December'];
+    let calMonth = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
+
+    const initStartVal = document.getElementById('start_date_input').value;
+    const initEndVal   = document.getElementById('end_date_input').value;
+    let selStart  = initStartVal ? new Date(initStartVal + 'T00:00:00') : null;
+    let selEnd    = initEndVal   ? new Date(initEndVal   + 'T00:00:00') : null;
+    let pickingEnd = !!(selStart && !selEnd);
+
+    // ── DOM refs ───────────────────────────────────────────────
+    const resortIdInput  = document.getElementById('resort_id_input');
+    const startDateInput = document.getElementById('start_date_input');
+    const endDateInput   = document.getElementById('end_date_input');
+    const isPublicInput  = document.getElementById('is_public_input');
+    const visibilityHelper = document.getElementById('visibility-helper');
+
+    // ── Trip status ────────────────────────────────────────────
+    function setTripStatus(val) {
+        document.getElementById('trip_status_input').value = val;
+        document.getElementById('status-planning').classList.toggle('active', val === 'planning');
+        document.getElementById('status-going').classList.toggle('active', val === 'going');
     }
 
+    // ── Pass name helpers ──────────────────────────────────────
+    const PASS_DISPLAY_NAMES = {
+        'epic': 'Epic', 'ikon': 'Ikon', 'other': 'Other pass',
+        // legacy values — normalize to Other pass for display
+        'indy': 'Other pass', 'mountain_collective': 'Other pass',
+        'mountaincollective': 'Other pass', 'powder_alliance': 'Other pass',
+        'powderalliance': 'Other pass', 'freedom': 'Other pass',
+        'ski_california': 'Other pass', 'skicalifornia': 'Other pass',
+    };
+    function formatPassName(p) {
+        const k = (p || '').trim().toLowerCase();
+        if (!k || k === 'none' || k === 'null') return '';
+        return PASS_DISPLAY_NAMES[k] || '';
+    }
     function getPassLabel(resort) {
         if (!resort || (!resort.pass_brands && !resort.pass_brands_json)) return null;
         const raw = Array.isArray(resort.pass_brands_json)
             ? resort.pass_brands_json
             : (resort.pass_brands || '').split(',');
-        const labels = raw.map(b => formatPassName(String(b).trim())).filter(Boolean);
-        return labels.length ? labels[0] : null;
+        const brands = raw.map(b => formatPassName(String(b).trim())).filter(Boolean);
+        return brands.length ? brands[0] : null;
     }
-
     function getResortMeta(r) {
-        const state   = STATE_NAMES[r.state_code] || r.state_code || '';
+        const state   = STATE_NAMES[r.state_code]    || r.state_code    || '';
         const country = COUNTRY_NAMES[r.country_code] || r.country_code || '';
         return [state, country].filter(Boolean).join(', ');
     }
 
+    // ── Mountain search ────────────────────────────────────────
     const searchInput   = document.getElementById('mountain-search');
     const searchResults = document.getElementById('search-results');
     const selectedWrap  = document.getElementById('selected-mountain-wrap');
@@ -80,9 +788,9 @@
             searchResults.innerHTML = '<div class="at-result-item no-match">No mountains found</div>';
         } else {
             searchResults.innerHTML = matches.map(r => {
-                const meta = getResortMeta(r);
+                const meta      = getResortMeta(r);
                 const passLabel = getPassLabel(r);
-                const passHint = passLabel ? ` <span class="at-pass-badge">${passLabel}</span>` : '';
+                const passHint  = passLabel ? ` <span class="at-pass-badge">${passLabel}</span>` : '';
                 return `<div class="at-result-item" data-id="${r.id}" data-name="${encodeURIComponent(r.display_name || r.name)}" data-meta="${encodeURIComponent(meta)}">
                     <span>${r.display_name || r.name}${passHint}</span>
                     <span class="at-result-meta">${meta}</span>
@@ -105,19 +813,382 @@
     });
 
     function selectMountain(id, name, meta) {
-        document.getElementById('resort_id_input').value = id;
+        selResortId   = id;
+        selResortName = name;
+        selResortMeta = meta;
+        resortIdInput.value = id;
+
         document.getElementById('sel-name').textContent = name;
         document.getElementById('sel-meta').textContent = meta;
+
         searchInput.value = '';
         searchResults.innerHTML = '';
         searchResults.classList.remove('visible');
-        searchInput.style.display = 'none';
-        selectedWrap.style.display = 'block';
+        searchInput.style.display   = 'none';
+        selectedWrap.style.display  = 'block';
+        const hint = document.getElementById('mountain-search-hint');
+        if (hint) hint.style.display = 'none';
     }
 
-    if (PREFILL_RESORT_ID) {
-        selectMountain(String(PREFILL_RESORT_ID), PREFILL_RESORT_NAME || '', PREFILL_RESORT_META || '');
+    function clearMountain() {
+        selResortId = selResortName = selResortMeta = null;
+        resortIdInput.value = '';
+        searchInput.value   = '';
+        searchInput.style.display  = 'block';
+        selectedWrap.style.display = 'none';
+        const hint = document.getElementById('mountain-search-hint');
+        if (hint) hint.style.display = '';
+        searchInput.focus();
     }
-}());
+
+    // ── Calendar helpers ───────────────────────────────────────
+    function fmtISO(d) {
+        return d.getFullYear() + '-' +
+               String(d.getMonth() + 1).padStart(2, '0') + '-' +
+               String(d.getDate()).padStart(2, '0');
+    }
+    function fmtMed(d) {
+        return MONTH_NAMES[d.getMonth()].slice(0, 3) + ' ' + d.getDate();
+    }
+    function sameDay(a, b) {
+        return a && b &&
+               a.getFullYear() === b.getFullYear() &&
+               a.getMonth()    === b.getMonth()    &&
+               a.getDate()     === b.getDate();
+    }
+    function inRange(d) {
+        return selStart && selEnd && d > selStart && d < selEnd;
+    }
+    function nightCount(s, e) {
+        return Math.round((e - s) / (1000 * 60 * 60 * 24));
+    }
+
+    // ── Calendar render ────────────────────────────────────────
+    function renderCalendar() {
+        const grid    = document.getElementById('cal-grid');
+        const prevBtn = document.getElementById('prev-month');
+        const label   = document.getElementById('cal-month-label');
+
+        const yr = calMonth.getFullYear();
+        const mo = calMonth.getMonth();
+
+        label.textContent = MONTH_NAMES[mo] + ' ' + yr;
+
+        const thisMonthStart = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
+        prevBtn.disabled = new Date(yr, mo, 1) <= thisMonthStart;
+
+        const firstWd     = new Date(yr, mo, 1).getDay();
+        const daysInMonth = new Date(yr, mo + 1, 0).getDate();
+        const hasRange    = !!(selStart && selEnd && !sameDay(selStart, selEnd));
+
+        let html = '';
+        for (let i = 0; i < firstWd; i++) {
+            html += '<div class="at-day other-month"></div>';
+        }
+        for (let day = 1; day <= daysInMonth; day++) {
+            const d       = new Date(yr, mo, day);
+            const dateStr = fmtISO(d);
+            const isPast  = d < todayDate;
+
+            let cls = ['at-day'];
+            if (isPast) cls.push('past');
+            if (sameDay(d, todayDate) && !isPast) cls.push('is-today');
+
+            const isStart  = sameDay(d, selStart);
+            const isEnd    = selEnd && sameDay(d, selEnd);
+            const isSingle = isStart && sameDay(selStart, selEnd);
+
+            if (isSingle) {
+                cls.push('sel-start', 'sel-end');
+            } else {
+                if (isStart) { cls.push('sel-start'); if (hasRange) cls.push('has-range'); }
+                if (isEnd)   { cls.push('sel-end');   if (hasRange) cls.push('has-range'); }
+            }
+            if (inRange(d)) cls.push('in-range');
+
+            html += `<div class="${cls.join(' ')}" data-date="${dateStr}"><span>${day}</span></div>`;
+        }
+        grid.innerHTML = html;
+    }
+
+    // ── Calendar update (no DOM rebuild on tap) ────────────────
+    function updateCalendarClasses() {
+        const hasRange = !!(selStart && selEnd && !sameDay(selStart, selEnd));
+        document.querySelectorAll('#cal-grid .at-day').forEach(cell => {
+            const ds = cell.dataset.date;
+            if (!ds) return;
+            const d = new Date(ds + 'T00:00:00');
+
+            cell.classList.remove('sel-start', 'sel-end', 'in-range', 'has-range');
+
+            const isStart  = sameDay(d, selStart);
+            const isEnd    = selEnd && sameDay(d, selEnd);
+            const isSingle = isStart && sameDay(selStart, selEnd);
+
+            if (isSingle) {
+                cell.classList.add('sel-start', 'sel-end');
+            } else {
+                if (isStart) { cell.classList.add('sel-start'); if (hasRange) cell.classList.add('has-range'); }
+                if (isEnd)   { cell.classList.add('sel-end');   if (hasRange) cell.classList.add('has-range'); }
+            }
+            if (inRange(d)) cell.classList.add('in-range');
+        });
+    }
+
+    function handleDayTap(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00');
+        if (d < todayDate) return;
+
+        clearRangeError();
+
+        if (!pickingEnd) {
+            // First tap — set start, begin picking end
+            selStart = d;
+            selEnd   = null;
+            startDateInput.value = dateStr;
+            endDateInput.value   = '';
+            pickingEnd = true;
+            hideRangeConfirm();
+            updateCalendarClasses();
+            updateRangeSummary();
+        } else if (d < selStart) {
+            // Tapped before current start — reset to new start
+            selStart = d;
+            selEnd   = null;
+            startDateInput.value = dateStr;
+            endDateInput.value   = '';
+            // stay in pickingEnd = true
+            hideRangeConfirm();
+            updateCalendarClasses();
+            updateRangeSummary();
+        } else {
+            // Same day (day trip) or after start — show confirmation, wait for explicit tap
+            selEnd = d;
+            endDateInput.value = dateStr;
+            pickingEnd = false;
+            updateCalendarClasses();
+            updateRangeSummary();
+            if (!IS_GROUP_FLOW) {
+                showRangeConfirm();
+            }
+        }
+    }
+
+    function navigateMonth(delta) {
+        calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + delta, 1);
+        renderCalendar();
+    }
+
+    // ── Multi-date staged list ─────────────────────────────────
+    function showRangeError(msg) {
+        const el = document.getElementById('range-error');
+        if (!el) return;
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+    function clearRangeError() {
+        const el = document.getElementById('range-error');
+        if (el) { el.textContent = ''; el.style.display = 'none'; }
+    }
+    function preserveMountainSelection() {
+        if (!selResortId) return;
+        resortIdInput.value = selResortId;
+        searchInput.value = '';
+        searchInput.style.display = 'none';
+        selectedWrap.style.display = 'block';
+        document.getElementById('sel-name').textContent = selResortName || '';
+        document.getElementById('sel-meta').textContent = selResortMeta || '';
+        const hint = document.getElementById('mountain-search-hint');
+        if (hint) hint.style.display = 'none';
+    }
+
+    function showRangeConfirm() {
+        const block = document.getElementById('at-range-confirm');
+        const labelEl = document.getElementById('at-confirm-label');
+        if (!block || !labelEl || !selStart || !selEnd) return;
+        const nights = nightCount(selStart, selEnd);
+        labelEl.textContent = sameDay(selStart, selEnd)
+            ? fmtMed(selStart) + ' → ' + fmtMed(selEnd) + ' · day trip'
+            : fmtMed(selStart) + ' → ' + fmtMed(selEnd) + (nights > 0 ? ' · ' + nights + (nights === 1 ? ' night' : ' nights') : '');
+        block.style.display = '';
+    }
+
+    function hideRangeConfirm() {
+        const block = document.getElementById('at-range-confirm');
+        if (block) block.style.display = 'none';
+    }
+
+    function confirmAddRange() {
+        if (!selStart || !selEnd) return;
+
+        const newStart = fmtISO(selStart);
+        const newEnd   = fmtISO(selEnd);
+
+        // Duplicate check
+        if (stagedRanges.some(r => r.startStr === newStart && r.endStr === newEnd)) {
+            showRangeError('This date range is already added.');
+            selStart = selEnd = null;
+            pickingEnd = false;
+            startDateInput.value = endDateInput.value = '';
+            updateCalendarClasses();
+            updateRangeSummary();
+            hideRangeConfirm();
+            preserveMountainSelection();
+            return;
+        }
+
+        // Overlap check
+        const ns = selStart, ne = selEnd;
+        for (const r of stagedRanges) {
+            const rs = new Date(r.startStr + 'T00:00:00');
+            const re = new Date(r.endStr   + 'T00:00:00');
+            if (ns <= re && ne >= rs) {
+                showRangeError('This range overlaps with an already-staged date. Pick different dates.');
+                selStart = selEnd = null;
+                pickingEnd = false;
+                startDateInput.value = endDateInput.value = '';
+                updateCalendarClasses();
+                updateRangeSummary();
+                hideRangeConfirm();
+                preserveMountainSelection();
+                return;
+            }
+        }
+
+        const nights = nightCount(selStart, selEnd);
+        const label = sameDay(selStart, selEnd)
+            ? fmtMed(selStart) + ' · day trip'
+            : fmtMed(selStart) + ' → ' + fmtMed(selEnd) + (nights > 0 ? ' · ' + nights + (nights === 1 ? ' night' : ' nights') : '');
+        stagedRanges.push({ startStr: newStart, endStr: newEnd, label });
+
+        selStart = selEnd = null;
+        pickingEnd = false;
+        startDateInput.value = endDateInput.value = '';
+        updateCalendarClasses();
+        updateRangeSummary();
+        hideRangeConfirm();
+        renderStagedList();
+        updateSubmitCTA();
+    }
+
+    function removeRange(idx) {
+        stagedRanges.splice(idx, 1);
+        renderStagedList();
+        updateSubmitCTA();
+        updateRangeSummary();
+    }
+
+    function renderStagedList() {
+        const list = document.getElementById('staged-list');
+        if (!list) return;
+        if (stagedRanges.length === 0) {
+            list.style.display = 'none';
+            list.innerHTML = '';
+            return;
+        }
+        list.style.display = 'flex';
+        list.innerHTML = stagedRanges.map((r, i) =>
+            `<div class="at-staged-item">
+                <span class="at-staged-date">${r.label}</span>
+                <button type="button" class="at-staged-remove" onclick="removeRange(${i})" aria-label="Remove this date range">&#10005;</button>
+            </div>`
+        ).join('') + '<p class="at-date-helper">Tap a start date to add another range.</p>';
+    }
+
+    function updateSubmitCTA() {
+        const btn = document.getElementById('submit-btn');
+        if (!btn || IS_GROUP_FLOW) return;
+        const n = stagedRanges.length;
+        btn.disabled = (n === 0);
+        btn.textContent = n > 1 ? `Save ${n} dates` : 'Save trip';
+    }
+
+    function updateRangeSummary() {
+        const rangeEl  = document.getElementById('range-text');
+        const clearBtn = document.getElementById('clear-dates-btn');
+        const submitBtn = document.getElementById('submit-btn');
+
+        if (selStart && selEnd) {
+            // Range selected, awaiting explicit confirmation ("Add this range")
+            const nights = nightCount(selStart, selEnd);
+            const rangeLabel = sameDay(selStart, selEnd)
+                ? fmtMed(selStart) + ' · day trip'
+                : fmtMed(selStart) + ' → ' + fmtMed(selEnd) + (nights > 0 ? ' · ' + nights + (nights === 1 ? ' night' : ' nights') : '');
+            rangeEl.textContent = rangeLabel;
+            rangeEl.classList.remove('placeholder');
+            if (IS_GROUP_FLOW) {
+                if (clearBtn) clearBtn.style.display = 'inline';
+                if (submitBtn) submitBtn.disabled = false;
+            }
+        } else if (selStart) {
+            rangeEl.textContent = fmtMed(selStart) + ' — select end date';
+            rangeEl.classList.remove('placeholder');
+            if (IS_GROUP_FLOW) {
+                if (clearBtn) clearBtn.style.display = 'inline';
+                if (submitBtn) submitBtn.disabled = true;
+            }
+        } else {
+            rangeEl.textContent = stagedRanges.length > 0
+                ? 'Tap a start date to add another range.'
+                : 'Select your trip dates';
+            rangeEl.classList.toggle('placeholder', stagedRanges.length === 0);
+            if (IS_GROUP_FLOW) {
+                if (clearBtn) clearBtn.style.display = 'none';
+                if (submitBtn) submitBtn.disabled = true;
+            }
+        }
+    }
+
+    function clearDates() {
+        selStart = selEnd = null;
+        pickingEnd = false;
+        startDateInput.value = endDateInput.value = '';
+        updateCalendarClasses();
+        updateRangeSummary();
+    }
+
+    // ── Visibility toggle ──────────────────────────────────────
+    document.getElementById('visibility-toggle').addEventListener('change', function () {
+        isPublicInput.value = this.checked ? 'on' : 'off';
+        visibilityHelper.textContent = this.checked
+            ? 'Visible to your friends and may appear in overlap suggestions.'
+            : 'Only visible to you.';
+    });
+
+    // ── Init ───────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('prev-month').addEventListener('click', () => navigateMonth(-1));
+        document.getElementById('next-month').addEventListener('click', () => navigateMonth(1));
+
+        document.getElementById('cal-grid').addEventListener('click', function (e) {
+            const cell = e.target.closest('.at-day[data-date]');
+            if (cell && !cell.classList.contains('past') && !cell.classList.contains('other-month')) {
+                handleDayTap(cell.dataset.date);
+            }
+        });
+
+        if (PREFILL_RESORT_ID) {
+            selectMountain(String(PREFILL_RESORT_ID), PREFILL_RESORT_NAME || '', PREFILL_RESORT_META || '');
+        }
+
+        if (selStart) {
+            calMonth = new Date(selStart.getFullYear(), selStart.getMonth(), 1);
+        }
+        renderCalendar();
+        updateRangeSummary();
+
+        if (!IS_GROUP_FLOW) {
+            updateSubmitCTA();
+            document.getElementById('trip-form').addEventListener('submit', function (e) {
+                if (stagedRanges.length === 0) {
+                    e.preventDefault();
+                    return;
+                }
+                document.getElementById('date_ranges_json_input').value = JSON.stringify(
+                    stagedRanges.map(r => ({ start_date: r.startStr, end_date: r.endStr }))
+                );
+            });
+        }
+    });
 </script>
 {% endblock %}

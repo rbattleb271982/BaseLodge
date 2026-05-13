@@ -300,6 +300,7 @@
     var elCount    = document.getElementById('md-count');
     var elClearBtn = document.getElementById('md-clear-btn');
 
+    /* ── State options ─────────────────────────────────────────── */
     function renderStateOptions(countryCode, selectedState) {
         var states = (countryCode && STATES_BY_COUNTRY[countryCode]) ? STATES_BY_COUNTRY[countryCode] : [];
         var html = '<option value="">All regions</option>';
@@ -313,9 +314,12 @@
         markActive(elState);
     }
 
+    /* ── Metadata line ─────────────────────────────────────────── */
     function buildMeta(r) {
         var stateFilter = elState.value;
         var parts = [];
+
+        // Location — omit when state filter is active (it's redundant)
         if (!stateFilter) {
             var loc = '';
             if (r.state_name && r.state_name !== r.state_code) {
@@ -324,14 +328,20 @@
                 loc = r.state_code;
             }
             if (r.country_code && r.country_code !== 'US') {
-                loc = loc ? (loc + ', ' + (r.country_name || r.country_code)) : (r.country_name || r.country_code);
+                loc = loc
+                    ? (loc + ', ' + (r.country_name || r.country_code))
+                    : (r.country_name || r.country_code);
             }
             if (loc) parts.push(loc);
         }
+
+        // Pass info
         if (r.pass_labels) parts.push(r.pass_labels);
+
         return parts.join(' · ');
     }
 
+    /* ── Filter + render ───────────────────────────────────────── */
     function filterAndRender() {
         var query   = elSearch.value.trim().toLowerCase();
         var pass    = elPass ? elPass.value : '';
@@ -352,14 +362,16 @@
         } else {
             elEmpty.style.display = 'none';
             elResults.innerHTML = filtered.map(function (r) {
-                var meta = buildMeta(r);
+                var meta        = buildMeta(r);
                 var friendCount = r.friend_count || 0;
-                var friendHtml = '';
+                var friendHtml  = '';
                 if (friendCount > 0) {
                     var label = friendCount === 1 ? '1 friend' : (friendCount + ' friends');
                     friendHtml = '<div class="md-row-right"><p class="md-row-friends">' + label + '</p></div>';
                 }
-                var metaHtml = meta ? '<span class="md-row-sep"> · </span><span class="md-row-meta">' + esc(meta) + '</span>' : '';
+                var metaHtml = meta
+                    ? '<span class="md-row-sep"> · </span><span class="md-row-meta">' + esc(meta) + '</span>'
+                    : '';
                 return '<a href="/mountain/' + esc(r.slug) + '" class="md-row">' +
                     '<div class="md-row-body">' +
                     '<p class="md-row-label">' +
@@ -373,24 +385,39 @@
             }).join('');
         }
 
-        elCount.textContent = filtered.length === 1 ? '1 mountain' : (filtered.length + ' mountains');
+        // Count label
+        elCount.textContent = filtered.length === 1
+            ? '1 mountain'
+            : (filtered.length + ' mountains');
+
+        // Clear button
         var hasFilter = query || pass || country || state;
         elClearBtn.style.display = hasFilter ? '' : 'none';
+
         if (elPass) markActive(elPass);
         markActive(elCountry);
         markActive(elState);
     }
 
+    /* ── Helpers ───────────────────────────────────────────────── */
     function markActive(el) {
-        if (el.value) el.classList.add('md-select--active');
-        else el.classList.remove('md-select--active');
+        if (el.value) {
+            el.classList.add('md-select--active');
+        } else {
+            el.classList.remove('md-select--active');
+        }
     }
 
     function esc(str) {
         if (!str) return '';
-        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
     }
 
+    /* ── Clear all filters ─────────────────────────────────────── */
     function mdClearFilters() {
         elSearch.value = '';
         if (elPass) elPass.value = '';
@@ -400,6 +427,7 @@
     }
     window.mdClearFilters = mdClearFilters;
 
+    /* ── Event listeners ───────────────────────────────────────── */
     elSearch.addEventListener('input', filterAndRender);
     if (elPass) elPass.addEventListener('change', filterAndRender);
     elCountry.addEventListener('change', function () {
@@ -408,9 +436,11 @@
     });
     elState.addEventListener('change', filterAndRender);
 
+    /* ── Initial render: United States, all states ─────────────── */
     elCountry.value = 'US';
     renderStateOptions('US', '');
     filterAndRender();
+
 }());
 </script>
 {% endblock %}
