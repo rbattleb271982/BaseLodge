@@ -3095,12 +3095,21 @@ def mountains_tab():
         ).group_by(SkiTrip.resort_id).all()
         friend_resort_counts = {rid: cnt for rid, cnt in _counts}
 
+    # ── Batch-load all ResortPass rows (1 query instead of N) ─────────────────
+    from models import ResortPass as _ResortPass
+    _all_rp = _ResortPass.query.all()
+    _rp_by_resort = {}
+    for _rp in _all_rp:
+        _rp_by_resort.setdefault(_rp.resort_id, []).append(
+            {'pass_name': _rp.pass_name, 'is_primary': _rp.is_primary}
+        )
+
     # ── Pass extraction helper ─────────────────────────────────────────────────
     _PASS_SKIP = frozenset({'no_pass', 'no_pass_yet'})
 
     def _resort_passes(r):
-        # Prefer resort_pass table (populated by import script); fall back to legacy strings
-        rp_rows = r.get_passes() if hasattr(r, 'get_passes') else []
+        # Use pre-fetched pass data — avoids one DB query per resort (N+1)
+        rp_rows = _rp_by_resort.get(r.id, [])
         if rp_rows:
             labels, keys = [], []
             for p in rp_rows:
