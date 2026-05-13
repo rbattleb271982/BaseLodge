@@ -1,0 +1,102 @@
+BaseLodge — Privacy / Authorization Hardening Fixes
+
+Fix the confirmed privacy issues from QA Pass 2.
+
+Important:
+- Make only the targeted changes below.
+- Do not redesign architecture.
+- Do not change unrelated UI.
+- Do not remove routes.
+- Do not create broad refactors.
+- Use checkpoints sparingly.
+
+Fix 1 — Protect /friends/<id>
+In app.py, find the friend_profile(friend_id) route.
+
+Current issue:
+Any authenticated user can view any other user’s full profile by guessing /friends/<id>.
+
+Add a friendship authorization guard immediately after loading friend and current_user.
+
+Rules:
+- current_user may view their own profile if this route supports that.
+- Otherwise, current_user may only view friend_id if a Friend row exists where:
+  user_id=current_user.id
+  friend_id=friend.id
+- If no friendship exists, abort(403) or abort(404). Prefer 403 if consistent with the app.
+- Do not load/render social profile data before the guard passes.
+
+Fix 2 — Protect GET /api/friends/<int:friend_id>
+In app.py, find get_friend_profile(friend_id).
+
+Current issue:
+Any authenticated user can retrieve name, email, pass_type, and rider_type for any user by ID.
+
+Add the same friendship authorization rule:
+- allow self only if product behavior requires it
+- allow confirmed friends
+- otherwise return JSON 403:
+  {"success": false, "error": "Not authorized"}
+
+Also consider removing email from the response unless the app clearly needs it. If nothing depends on email in this endpoint, remove it from the JSON payload.
+
+Fix 3 — Filter private trips from mountain_detail
+In app.py, find the mountain_detail route and the raw_trips query.
+
+Current issue:
+Private trips can appear in mountain detail social proof rows for friends.
+
+Add:
+SkiTrip.is_public == True
+
+to the raw_trips filter.
+
+Fix 4 — Filter private trips from planning overlap logic
+In app.py, find compute_friend_trip_availability_overlaps or the inline planning overlap query around the friend_trips query.
+
+Current issue:
+Private friend trips can contribute to planning overlap calculations.
+
+Add:
+SkiTrip.is_public == True
+
+to the friend_trips query.
+
+Validation:
+After making changes, run read-only checks that confirm:
+
+1. /friends/<id>
+- Friend can view friend profile.
+- Non-friend cannot view profile.
+- Logged-out user is redirected to login.
+- Self-view behavior still works if applicable.
+
+2. /api/friends/<id>
+- Friend can access endpoint.
+- Non-friend receives 403 JSON.
+- Email is not returned unless still required.
+- No frontend flow breaks.
+
+3. /mountain/<slug>
+- Public friend trips still appear.
+- Private friend trips do not appear.
+- User’s own private trip behavior is intentional and documented.
+
+4. Planning overlaps
+- Public friend trips can contribute.
+- Private friend trips do not contribute.
+
+5. Regression checks
+- Home still loads.
+- Friends page still loads.
+- Friend profile links still work for confirmed friends.
+- Mountains page still loads.
+- Mountain detail still loads.
+- Trip detail auth still works.
+- No new 500s.
+
+Return:
+- Files changed
+- Exact fixes made
+- Validation results
+- Any follow-up risks
