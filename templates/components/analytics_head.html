@@ -868,11 +868,52 @@
           }
         }
 
+        // ── Push-tap URL extractor ────────────────────────────────────────
+        // Reads the push payload from either OneSignal notificationOpened
+        // or Capacitor pushNotificationActionPerformed events and returns a
+        // validated same-origin relative path, or null if absent/invalid.
+        function _extractPushUrl(payload) {
+          try {
+            if (!payload) return null;
+            var raw = null;
+            var n = payload.notification || payload;
+            // OneSignal SDK 5: openedResult.notification.additionalData.url
+            // OneSignal SDK 4: openedResult.notification.additionalData.url
+            // Capacitor PushNotifications: action.notification.data.url
+            raw = (n.additionalData && n.additionalData.url)
+               || (n.data        && n.data.url)
+               || (payload.additionalData && payload.additionalData.url)
+               || (payload.data        && payload.data.url)
+               || null;
+            if (!raw || typeof raw !== 'string') return null;
+            raw = raw.trim();
+            // Safety: must be a relative path starting with a single "/"
+            if (!raw.startsWith('/') || raw.startsWith('//')) {
+              console.log('[PushRoute] invalid url ignored (not relative): ' + raw);
+              return null;
+            }
+            // Block embedded dangerous content
+            if (/javascript:/i.test(raw) || /data:/i.test(raw)) {
+              console.log('[PushRoute] invalid url ignored (dangerous scheme): ' + raw);
+              return null;
+            }
+            return raw;
+          } catch (_ue) {
+            console.warn('[PushRoute] url extraction error:', _ue);
+            return null;
+          }
+        }
+
         // ── Listen for notification opened (tap to open) ──────────────────
         if (OSPlugin && typeof OSPlugin.addListener === 'function') {
           try {
-            await OSPlugin.addListener('notificationOpened', async function() {
+            await OSPlugin.addListener('notificationOpened', async function(openedResult) {
               await _clearBadgeAndNotifs('notification_opened');
+              var url = _extractPushUrl(openedResult);
+              if (url) {
+                console.log('[PushRoute] navigating to ' + url);
+                window.location.href = url;
+              }
             });
             console.log('[BadgeClear] OneSignal notificationOpened listener registered');
           } catch (_oe) {
@@ -880,12 +921,38 @@
           }
         } else if (PushPlugin && typeof PushPlugin.addListener === 'function') {
           try {
-            await PushPlugin.addListener('pushNotificationActionPerformed', async function() {
+            await PushPlugin.addListener('pushNotificationActionPerformed', async function(action) {
               await _clearBadgeAndNotifs('push_action');
+              var url = _extractPushUrl(action);
+              if (url) {
+                console.log('[PushRoute] navigating to ' + url);
+                window.location.href = url;
+              }
             });
             console.log('[BadgeClear] PushNotifications pushNotificationActionPerformed listener registered');
           } catch (_pae) {
             console.warn('[BadgeClear] pushNotificationActionPerformed listener error:', _pae);
+          }
+        }
+
+        // ── Android back button handler ───────────────────────────────────
+        // Priority 1: close any open modal/overlay.
+        // Priority 2: go back in browser history if available.
+        // Priority 3: already at root — the Capacitor App plugin default
+        //             exits the app, which is the correct behaviour.
+        if (AppPlugin && typeof AppPlugin.addListener === 'function') {
+          try {
+            await AppPlugin.addListener('backButton', function(info) {
+              var modal = document.querySelector(
+                '.modal-overlay[style*="flex"], .modal-overlay[style*="block"], ' +
+                '[id$="-modal"][style*="flex"], [id$="-modal"][style*="block"]'
+              );
+              if (modal) { modal.style.display = 'none'; return; }
+              if (info && info.canGoBack) { window.history.back(); return; }
+            });
+            console.log('[BackButton] handler registered');
+          } catch (_be) {
+            console.warn('[BackButton] handler error:', _be);
           }
         }
 

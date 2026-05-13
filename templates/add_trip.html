@@ -1187,6 +1187,22 @@
                 document.getElementById('date_ranges_json_input').value = JSON.stringify(
                     stagedRanges.map(r => ({ start_date: r.startStr, end_date: r.endStr }))
                 );
+                // Validation passed — disable submit to prevent duplicate trips on slow networks.
+                // The page navigates away on success; on server failure the page reloads fresh.
+                var btn = document.getElementById('submit-btn');
+                if (btn && !btn.disabled) {
+                    btn.disabled = true;
+                    btn.textContent = btn.dataset.loadingText || 'Saving\u2026';
+                }
+            });
+        } else {
+            // Group flow: no staged-range validation — disable on submit directly.
+            document.getElementById('trip-form').addEventListener('submit', function() {
+                var btn = document.getElementById('submit-btn');
+                if (btn && !btn.disabled) {
+                    btn.disabled = true;
+                    btn.textContent = btn.dataset.loadingText || 'Saving\u2026';
+                }
             });
         }
     });

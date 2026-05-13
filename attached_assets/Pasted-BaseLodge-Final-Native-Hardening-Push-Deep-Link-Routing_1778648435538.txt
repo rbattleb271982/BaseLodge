@@ -1,0 +1,148 @@
+BaseLodge — Final Native Hardening + Push Deep Link Routing
+
+Implement the remaining high-priority native/mobile fixes from QA Pass 3.
+
+Important:
+- Make only targeted changes.
+- Do not redesign architecture.
+- Do not change unrelated UI.
+- Do not remove existing push infrastructure.
+- Use checkpoints sparingly.
+
+Fix 1 — Push notification tap deep-link routing (highest priority)
+
+Current issue:
+Tapping a push notification only foregrounds the app. It does not navigate to the relevant screen.
+
+Goal:
+When a push is tapped:
+- safely read the push payload URL/path
+- navigate the WebView to the correct in-app route
+- preserve existing badge clearing behavior
+- work for both:
+  - OneSignal notificationOpened
+  - Capacitor pushNotificationActionPerformed
+
+Implementation requirements:
+1. In templates/components/analytics_head.html:
+   - extend the existing notification-open handlers
+   - after badge clearing, inspect the notification payload
+   - support:
+     - notification.additionalData.url
+     - notification.data.url
+     - notification.notification.data.url
+     - equivalent safe fallback paths if needed
+
+2. Navigation safety:
+   - only allow same-origin relative paths
+   - reject:
+     - full external URLs
+     - javascript:
+     - malformed paths
+   - only navigate if path starts with "/"
+
+3. Route using:
+   window.location.href = url
+
+4. Preserve existing behavior:
+   - badge clearing
+   - push cleanup
+   - existing listeners
+   - browser-safe guards
+
+5. Add defensive logging:
+   - [PushRoute] navigating to ...
+   - [PushRoute] invalid url ignored ...
+
+Fix 2 — Root capacitor.config.json badge drift
+
+Current issue:
+Root capacitor.config.json is missing:
+"badge"
+inside presentationOptions.
+
+Add:
+["badge", "sound", "alert"]
+
+Ensure:
+- root config matches iOS embedded config
+- future cap sync will not silently remove badge support
+
+Fix 3 — Lock iOS to portrait-only
+
+Current issue:
+Info.plist currently allows landscape orientations, but the UI is not designed/tested for landscape.
+
+Remove landscape support from:
+- UISupportedInterfaceOrientations
+- UISupportedInterfaceOrientations~ipad
+
+Keep:
+- Portrait
+- PortraitUpsideDown only if already intentional
+
+Goal:
+Prevent broken landscape layouts during App Store review and real-world usage.
+
+Fix 4 — Logout token hardening
+
+Current issue:
+Direct navigation to /logout bypasses the client-side blOSLogout() cleanup path.
+
+Goal:
+Ensure logout safely deactivates current push identity/session association.
+
+Implementation:
+- keep existing client-side logout behavior
+- add server-side defensive cleanup where appropriate
+- avoid breaking multi-device support
+- do not mass-delete all historical tokens
+- only deactivate or disassociate the current active device/session safely if possible
+
+If exact device targeting is not currently available server-side:
+- document limitation clearly
+- implement safest low-risk mitigation possible
+
+Fix 5 — Android back button polish
+
+Goal:
+Improve Android native navigation behavior.
+
+Requirements:
+- back button closes modal/sheet first if applicable
+- if already at Home/root state:
+  - exiting app is acceptable
+- avoid weird browser-history loops
+- do not break existing navigation
+
+Use Capacitor App plugin patterns if already installed.
+
+Fix 6 — Trip creation submit hardening
+
+Goal:
+Reduce accidental duplicate trip submissions on slow networks.
+
+Requirements:
+- disable submit button immediately on first submit
+- visually indicate submitting state if simple to do
+- do not permanently disable if validation fails client-side
+- preserve accessibility/readability
+
+Validation:
+After changes:
+1. Send test push → tap push → confirm correct route navigation
+2. Invalid/malformed push URL does not navigate
+3. Badge clearing still works
+4. cap sync-safe config verified
+5. Portrait-only verified
+6. Logout flow still works
+7. Android back behavior acceptable
+8. Trip creation still works
+9. No new console errors
+10. Browser/web preview still does not fire native-only errors
+
+Return:
+- files changed
+- exact fixes
+- validation results
+- any remaining native launch concerns

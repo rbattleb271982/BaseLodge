@@ -9614,6 +9614,27 @@ def mountains_visited():
 def logout():
     user_id = current_user.id
     ph_analytics.track(user_id, 'logout')
+
+    # Server-side push token hardening: deactivate all active tokens for this
+    # user so no further pushes are dispatched after logout, even if the client
+    # blOSLogout() call was bypassed (e.g. direct /logout URL navigation).
+    # Tokens are soft-deactivated (not deleted) — the device re-registers on
+    # next app open, restoring delivery after the user logs back in.
+    # NOTE: This intentionally affects all platforms/devices for this account.
+    # A single-device targeted approach is not possible server-side without a
+    # per-session device identifier, which is not currently stored in the session.
+    try:
+        PushDeviceToken.query.filter_by(user_id=user_id, active=True).update(
+            {'active': False}, synchronize_session=False
+        )
+        db.session.commit()
+    except Exception as _tok_err:
+        db.session.rollback()
+        current_app.logger.warning(
+            "[logout] push token deactivation failed for user_id=%s: %s",
+            user_id, _tok_err,
+        )
+
     logout_user()
     # NOTE: do NOT call session.clear() here — it erases Flask-Login's internal
     # _remember='clear' flag, which prevents the remember_token cookie from being
