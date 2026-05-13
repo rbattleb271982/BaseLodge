@@ -1,0 +1,304 @@
+BaseLodge Final QA — Pass 3: Native/Mobile Lifecycle, Push, Deep Links, and Chaos Testing
+
+This is a READ-ONLY QA/testing pass.
+
+Do not change code.
+Do not edit data unless creating temporary test activity is required for QA.
+Do not delete users.
+Do not create migrations.
+Do not fix issues.
+Only inspect, test, document, and report.
+
+Purpose:
+BaseLodge is preparing for Apple App Store and Google Play submission. Pass 1 confirmed account deletion/social cleanup is launch-safe. Pass 2 found and fixed the major privacy/social-graph issues. This pass focuses on native mobile behavior, push notification lifecycle, deep links, session state, app lifecycle, flaky network behavior, and launch-readiness risks that may not appear in normal web testing.
+
+Primary focus:
+- iOS TestFlight behavior
+- Android build behavior
+- Capacitor WebView behavior
+- Push opt-in/out
+- OneSignal/APNs/FCM readiness
+- Deep link behavior
+- Session expiration/recovery
+- Badge clearing
+- App foreground/background behavior
+- stale notification handling
+- mobile UI under real-world conditions
+
+Test and inspect:
+
+1. Native app lifecycle
+Check behavior when:
+- app cold launches
+- app warm launches
+- app is backgrounded and resumed
+- app is force-quit and reopened
+- device is locked/unlocked
+- app is left open for a long session
+- user switches between apps mid-flow
+- app resumes on a form page
+- app resumes on a trip detail page
+- app resumes after session expiration
+
+Report:
+- any blank screens
+- stale states
+- broken redirects
+- forced logouts
+- duplicated submissions
+- missing refreshes
+- weird back-stack behavior
+
+2. iOS-specific QA
+Test/inspect:
+- iPhone safe areas
+- Dynamic Island/notch behavior
+- bottom nav spacing
+- keyboard overlap on forms
+- floating save bars
+- push permission prompt behavior
+- app badge clearing
+- locked-screen notification rendering
+- TestFlight build points to production domain
+- APNs production configuration
+- OneSignal iOS external_id behavior
+- iOS foreground push behavior
+- iOS background push behavior
+- app reopen from push tap
+
+Check:
+- no CTA hidden behind keyboard
+- no content hidden behind bottom nav
+- no dark-mode inversion
+- no safe-area clipping
+- no status bar contrast issues
+
+3. Android-specific QA
+Test/inspect:
+- Android back button behavior
+- Android keyboard behavior
+- Android spacing/tap targets
+- FCM configuration
+- OneSignal Android external_id behavior
+- notification channel behavior
+- push tap behavior
+- app resume after push tap
+- physical Android and/or emulator behavior
+- status/nav bar spacing
+- bottom nav behavior
+
+Check:
+- back button closes modals before exiting app
+- back button does not accidentally log out or exit during key flows
+- notification tap routes correctly
+- no Android-only layout clipping
+
+4. Push permission lifecycle
+Test:
+- first launch before push permission
+- grant push permission
+- deny push permission
+- revoke permission in OS settings
+- re-enable permission in OS settings
+- toggle push off inside BaseLodge
+- toggle push back on inside BaseLodge
+- logout
+- login as another user on the same device
+- delete account if safe/test-only
+- reinstall app
+- app update/reopen behavior
+
+Check:
+- push_notifications_enabled is respected
+- OneSignal external_id maps to the correct user
+- old user does not receive new user’s pushes
+- opt-out users produce SKIPPED/suppressed MessageEventLog entries
+- opt-in users receive expected pushes
+- duplicate active tokens do not create duplicate pushes
+- token registration recovers after reinstall/re-enable
+
+5. Push event QA
+Test/inspect push behavior for:
+- friend request created
+- friend request accepted
+- trip invite created if still active
+- trip invite accepted if still active
+- admin test push
+- broadcast/test tools only if admin-protected
+
+Check:
+- push sends to correct recipient only
+- push does not send to sender
+- push does not send to opted-out users
+- push title/body are correct
+- push payload has valid deep link/screen
+- push does not expose private/sensitive data
+- MessageEventLog records sent/skipped/failed properly
+- no duplicate pushes from one action
+- stale push taps fail gracefully
+
+6. Badge clearing QA
+Test:
+- receive push while app closed
+- receive push while app backgrounded
+- receive push while app foregrounded
+- tap push
+- open app normally after badge appears
+- switch away and back
+- logout/login
+
+Check:
+- app icon badge clears on open/resume/tap
+- foreground push does not incorrectly increment badge
+- badge clearing does not throw JS/native errors
+- delivered notifications are cleared if expected
+- Android behavior is acceptable even if badge semantics differ
+
+7. Deep link QA
+Test links to:
+- Home
+- Trips
+- trip detail
+- deleted/missing trip
+- private trip
+- friend request
+- friend profile
+- mountain detail
+- push-triggered screen
+- logged-out protected route
+
+Check:
+- logged-out users route through auth safely
+- after login, protected route is rechecked
+- unauthorized content does not display
+- private/deleted content shows safe fallback/404/403
+- malformed URLs do not 500
+- stale notification links do not expose data
+- Android/iOS behavior is consistent enough
+
+8. Session/auth lifecycle
+Test:
+- login
+- logout
+- app close/reopen
+- session expiration if possible
+- password reset link behavior
+- switching users on same device
+- push identity after switching users
+- browser/web session vs native session
+- opening stale tabs/routes
+
+Check:
+- no cross-user data bleed
+- old user’s push identity is cleared
+- current_user is correct after resume
+- protected pages redirect if logged out
+- form state behavior is acceptable after auth expiration
+
+9. Flaky network / partial success scenarios
+Simulate or inspect:
+- airplane mode mid-form submit
+- slow network during trip creation
+- network loss after server write but before client receives response
+- double-tap after slow response
+- retry after failed request
+- PostHog unavailable
+- OneSignal unavailable
+- push send failure
+- Supabase transient error
+
+Check:
+- no duplicate trips/friend requests/invites
+- no irreversible UI confusion
+- error messages are useful
+- analytics/push failures do not block core actions
+- user can retry safely
+- app does not hang forever
+
+10. Mobile UI stress testing
+Test:
+- small iPhone viewport
+- large iPhone viewport
+- Android viewport
+- long display names
+- long mountain names
+- empty states
+- many trips
+- many friends
+- many mountain results
+- large text / accessibility font size if feasible
+- landscape if app permits it
+
+Check:
+- no horizontal scrolling
+- no clipped text
+- no unreachable buttons
+- no hidden form fields
+- no overlapping bottom nav
+- no broken card layout
+- no unreadable contrast
+
+11. Native/web mismatch checks
+Inspect:
+- Capacitor detection logic
+- browser-safe guards
+- native-only JS not running on web
+- web-only behavior not breaking native
+- OneSignal bridge availability
+- BadgeClear block
+- push beacon native gate
+- analytics script behavior
+- console errors
+
+Check:
+- desktop/mobile web does not fire native-only errors
+- iOS/Android native does not skip required native setup
+- no repeated beacon loops
+- no repeated push registration loops
+- no major console errors
+
+12. App Store / Google Play readiness checks
+Inspect:
+- production domain is used
+- no staging/replit.dev/localhost references
+- no debug copy visible
+- no admin/test UI visible to normal users
+- no unsupported feature screenshots implied
+- account deletion still works
+- push opt-in/out is available
+- Terms/Privacy links work
+- demo/screenshot users are isolated
+- reviewer can meaningfully test the app
+
+13. Final report format
+
+Return a structured report:
+
+A. Executive Summary
+- PASS / FAIL / PARTIAL
+- Is native/mobile launch readiness acceptable?
+- Does anything block App Store / Google Play submission?
+
+B. Critical Findings
+For each:
+- Severity
+- User impact
+- App Store / Google Play risk
+- Steps to reproduce
+- Suspected files/routes/functions
+- Recommended fix direction
+
+C. iOS Findings
+D. Android Findings
+E. Push Notification Findings
+F. Badge Clearing Findings
+G. Deep Link Findings
+H. Session/Auth Findings
+I. Flaky Network / Partial Success Findings
+J. Mobile UI Findings
+K. Native/Web Bridge Findings
+L. App Store / Google Play Readiness Findings
+M. Recommended Fix Order
+
+Again:
+This is read-only QA only. Do not change code.
