@@ -10145,6 +10145,42 @@ def seed_narrative_states_endpoint():
         }), 500
 
 
+@app.route("/admin/seed-screenshot-data", methods=["GET", "POST"])
+@login_required
+@admin_required
+def seed_screenshot_data_endpoint():
+    """
+    Seed App Store / marketing screenshot demo data.
+
+    Creates John Carter (baselodge.screenshots@gmail.com / Ikon) plus 5 confirmed
+    friends, 2 pending-request stubs, and realistic SkiTrip rows designed to
+    populate every screenshot surface (Home, Friends, Ideas, Mountains, Profile).
+
+    Idempotent — safe to call multiple times. Existing rows are skipped.
+
+    Usage: GET /admin/seed-screenshot-data
+    """
+    try:
+        from seed_screenshots import seed_screenshot_data
+        results = seed_screenshot_data(
+            app, db,
+            User, Friend, SkiTrip, Invitation, SkiTripParticipant,
+            Resort, GuestStatus, InviteType,
+        )
+        return jsonify({
+            "status":  "success",
+            "message": "Screenshot seed data created successfully",
+            "details": results,
+        }), 200
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "status":    "error",
+            "message":   f"Screenshot seed failed: {str(e)}",
+            "traceback": traceback.format_exc(),
+        }), 500
+
+
 @app.route("/admin/backfill-planning-timestamp", methods=["GET", "POST"])
 @login_required
 @admin_required
