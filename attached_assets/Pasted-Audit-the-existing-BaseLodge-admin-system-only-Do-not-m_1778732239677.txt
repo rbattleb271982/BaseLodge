@@ -1,0 +1,85 @@
+Audit the existing BaseLodge admin system only. Do not make code changes yet.
+
+Goal:
+Create a complete map of what admin functionality already exists, where it lives, what data it uses, and what it connects to so we can plan a larger admin roadmap next.
+
+Please inspect the codebase and report back with:
+
+1. Admin routes
+- Every admin route currently defined
+- File path where each route lives
+- URL/path
+- HTTP methods
+- What the route does
+- Whether it is read-only or changes data
+- Whether it is production-safe, QA-only, seed-only, or should be retired
+
+2. Admin access control
+- Where admin authorization is enforced
+- How ALLOWED_ADMIN_EMAILS is used
+- Whether any admin/debug/test route is not properly gated
+- Any risk of public access
+
+3. Admin templates/UI
+- Every admin template currently used
+- File path
+- Which route renders it
+- What data appears on the page
+- Any broken, stale, duplicate, or unused templates
+
+4. Admin data sources
+Map what admin pages/tools currently touch:
+- User
+- SkiTrip / trip models
+- Friendships / invitations
+- Resorts / passes
+- PushDeviceToken
+- MessageEventLog
+- PostHog, if connected
+- SendGrid/email logs, if connected
+- OneSignal/APNs/FCM push systems
+- Any analytics or export logic
+
+5. Existing analytics/reporting
+- What metrics already exist
+- Where they are calculated
+- Whether they are database-based, PostHog-based, or hardcoded/test-only
+- Any exports already available
+- Any missing metrics that are obvious based on current models
+
+6. Existing admin actions
+List every admin action that can currently:
+- seed data
+- delete data
+- clean test users
+- send push notifications
+- inspect tokens
+- inspect message events
+- export data
+- modify resorts/passes
+- modify users/trips/friendships
+
+7. Technical architecture notes
+- Which files are central to admin
+- Which services admin depends on
+- Any duplicated admin logic
+- Any dangerous routes or legacy debug routes
+- Any TODOs or comments related to admin
+
+8. Recommended next admin build plan
+Do not implement anything yet. Based on the audit, recommend a phased roadmap:
+- Phase 1: stabilize existing admin
+- Phase 2: admin dashboard / KPI reporting
+- Phase 3: user management
+- Phase 4: trips/friends/resorts management
+- Phase 5: messaging + notification control center
+- Phase 6: analytics + exports
+
+Important constraints:
+- Do not edit files.
+- Do not create migrations.
+- Do not seed/delete/change data.
+- Do not send test push notifications.
+- Do not call external APIs unless only checking whether code exists.
+- Use checkpoints sparingly.
+- Return a clear written audit with file paths and route names.
