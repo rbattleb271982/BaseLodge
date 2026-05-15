@@ -680,6 +680,8 @@ def set_security_headers(response):
 
 
 @app.before_request
+# NOTE: This function is lightweight — zero DB queries. Navigation gate only.
+# Home-specific DB work lives in the home() route handler, not here.
 def before_request_handlers():
     import sys
 
@@ -6995,16 +6997,25 @@ def home():
         my_trips = []
 
     try:
+        _hp_t0 = time.perf_counter()
         accepted_participations = SkiTripParticipant.query.filter(
             SkiTripParticipant.user_id == user.id,
             SkiTripParticipant.status == GuestStatus.ACCEPTED
         ).all()
+        if app.debug:
+            print(f"[HOME_PERF] accepted_participations={time.perf_counter() - _hp_t0:.4f}s count={len(accepted_participations)}")
         accepted_trip_ids = [p.trip_id for p in accepted_participations]
-        accepted_guest_trips = SkiTrip.query.filter(
-            SkiTrip.id.in_(accepted_trip_ids),
-            SkiTrip.user_id != user.id,
-            SkiTrip.end_date >= today
-        ).order_by(SkiTrip.start_date.asc()).all() if accepted_trip_ids else []
+        if accepted_trip_ids:
+            _hp_t0 = time.perf_counter()
+            accepted_guest_trips = SkiTrip.query.filter(
+                SkiTrip.id.in_(accepted_trip_ids),
+                SkiTrip.user_id != user.id,
+                SkiTrip.end_date >= today
+            ).order_by(SkiTrip.start_date.asc()).all()
+            if app.debug:
+                print(f"[HOME_PERF] accepted_guest_trips={time.perf_counter() - _hp_t0:.4f}s count={len(accepted_guest_trips)}")
+        else:
+            accepted_guest_trips = []
     except Exception:
         db.session.rollback()
         accepted_guest_trips = []
@@ -7013,7 +7024,10 @@ def home():
     next_trip = all_upcoming[0] if all_upcoming else None
     # --- Friend IDs ---
     try:
+        _hp_t0 = time.perf_counter()
         friend_ids = get_friend_ids(user.id)
+        if app.debug:
+            print(f"[HOME_PERF] friend_ids={time.perf_counter() - _hp_t0:.4f}s count={len(friend_ids)}")
     except Exception:
         db.session.rollback()
         friend_ids = []
@@ -7023,10 +7037,13 @@ def home():
     banner_invite_count = 0
     trip_invites = []
     try:
+        _hp_t0 = time.perf_counter()
         invited_participations = SkiTripParticipant.query.filter(
             SkiTripParticipant.user_id == user.id,
             SkiTripParticipant.status == GuestStatus.INVITED
         ).all()
+        if app.debug:
+            print(f"[HOME_PERF] invited_participations={time.perf_counter() - _hp_t0:.4f}s count={len(invited_participations)}")
         active_invites = sorted(
             [p for p in invited_participations if p.trip and p.trip.end_date >= today],
             key=lambda p: p.trip.start_date
@@ -7090,7 +7107,10 @@ def home():
     # Fetch user availability once here — reused by build_destination_feed (avoids
     # two extra Supabase round-trips: one inside the engine, one at show_add_dates).
     from services.open_dates import get_available_dates_for_user as _get_avail_home
+    _hp_t0 = time.perf_counter()
     _user_avail_home = _get_avail_home(user)
+    if app.debug:
+        print(f"[HOME_PERF] availability_lookup={time.perf_counter() - _hp_t0:.4f}s has_dates={bool(_user_avail_home)}")
 
     # --- Coordination feed (Home opportunities stream) ---
     dest_feed = []
@@ -7098,16 +7118,22 @@ def home():
     try:
         from services.ideas_engine import build_destination_feed as _build_home_feed
         if all_friends:
+            _hp_t0 = time.perf_counter()
             _raw_feed, _ideas_engine_diag = _build_home_feed(
                 user, all_friends, user_avail_dates=_user_avail_home
             )
+            if app.debug:
+                print(f"[HOME_PERF] build_destination_feed={time.perf_counter() - _hp_t0:.4f}s raw_count={len(_raw_feed)}")
             _diag_opp_engine_count = len(_raw_feed)
             _dismissed_opp_keys = set()
             try:
+                _hp_t0 = time.perf_counter()
                 _dismissed_cards = DismissedInsightCard.query.filter_by(
                     user_id=user.id,
                     card_type='opportunity',
                 ).all()
+                if app.debug:
+                    print(f"[HOME_PERF] dismissed_cards_lookup={time.perf_counter() - _hp_t0:.4f}s count={len(_dismissed_cards)}")
                 _dismissed_opp_keys = {d.card_key for d in _dismissed_cards}
             except Exception:
                 db.session.rollback()
@@ -7144,11 +7170,14 @@ def home():
     happening_signals = []
     if friend_ids:
         try:
+            _hp_t0 = time.perf_counter()
             _hap_trips = SkiTrip.query.filter(
                 SkiTrip.user_id.in_(friend_ids),
                 SkiTrip.is_public == True,
                 SkiTrip.end_date >= today
             ).options(db.joinedload(SkiTrip.resort)).order_by(SkiTrip.start_date.asc()).limit(50).all()
+            if app.debug:
+                print(f"[HOME_PERF] happening_trips={time.perf_counter() - _hp_t0:.4f}s count={len(_hap_trips)}")
             _ft_users_map = {u.id: u for u in all_friends}
             _diag_hap_raw_trips = len(_hap_trips)
             _hap_seen_users = set()
