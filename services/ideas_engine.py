@@ -451,7 +451,7 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
             display_date_long = f"{start_obj_inner.strftime('%B %-d')} – {end_obj_inner.strftime('%B %-d')}"
 
         # Tier base 1000: guarantees availability ranks above all trip cards (max ~380)
-        score = 1000
+        score = 225
         score += min(n * 5, 20)   # up to 20 for overlapping friend count
         if shared_resort_name:
             score += 15
