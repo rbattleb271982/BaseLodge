@@ -695,7 +695,7 @@ def _fmt_wishlist_names(friend_names, suffix):
     return f"{s} {suffix}"
 
 
-def build_destination_feed(user, all_friends):
+def build_destination_feed(user, all_friends, user_avail_dates=None):
     """
     Builds the Ideas feed: one card per destination (resort_id), best signal wins.
 
@@ -733,9 +733,25 @@ def build_destination_feed(user, all_friends):
 
     user_wishlist = set(user.wish_list_resorts or [])
 
-    # User's available dates — for date-overlap scoring of friend trip candidates
+    # User's available dates — for date-overlap scoring of friend trip candidates.
+    # Accept a pre-fetched set from the caller (home route) to avoid a duplicate
+    # UserAvailability query when the caller already has the data.
     from services.open_dates import get_available_dates_for_user as _get_avail_engine
-    _user_avail_dates = _get_avail_engine(user)
+    _user_avail_dates = user_avail_dates if user_avail_dates is not None else _get_avail_engine(user)
+
+    # Pre-fetch all wishlist resort objects (user + every friend) in ONE batch query.
+    # Eliminates the N+1 db.session.get(Resort, rid) pattern that fired once per
+    # shared-wishlist resort inside Source 2 and Source 3 loops below.
+    _all_wishlist_ids = user_wishlist | {
+        rid for f in all_friends for rid in (f.wish_list_resorts or [])
+    }
+    _resort_cache: dict = {}
+    if _all_wishlist_ids:
+        try:
+            _resort_rows = Resort.query.filter(Resort.id.in_(_all_wishlist_ids)).all()
+            _resort_cache = {r.id: r for r in _resort_rows}
+        except Exception:
+            pass
 
     print(f"[Ideas] start user_id={user.id} friends={len(friend_ids)} wishlist={len(user_wishlist)} pass={user.pass_type!r}")
 
@@ -853,6 +869,7 @@ def build_destination_feed(user, all_friends):
             SkiTrip.is_public == True,
             SkiTrip.resort_id.isnot(None),
         )
+        .options(db.joinedload(SkiTrip.resort))  # eager-load resort — eliminates N+1 lazy SELECTs at line 881
         .order_by(SkiTrip.start_date.asc())
         .all()
     )
@@ -925,7 +942,7 @@ def build_destination_feed(user, all_friends):
     # If not, the card still surfaces with resort_id=None so the user can
     # pick a mountain themselves (BUG-3 fix — previously suppressed).
     try:
-        matches = get_open_date_matches(user)
+        matches = get_open_date_matches(user, cached_my_dates=_user_avail_dates)
         if matches:
             windows = build_overlap_windows(matches, user.pass_type)
 
@@ -955,7 +972,7 @@ def build_destination_feed(user, all_friends):
                     shared = user_wishlist & set(friend_obj.wish_list_resorts or [])
                     if shared:
                         rid = next(iter(shared))
-                        r = db.session.get(Resort, rid)
+                        r = _resort_cache.get(rid) or db.session.get(Resort, rid)
                         if r:
                             shared_resort_id = rid
                             shared_resort    = r
@@ -1004,7 +1021,7 @@ def build_destination_feed(user, all_friends):
             overlapping = rd.get("overlapping_people", [])
             if not overlapping:
                 continue
-            resort_obj = db.session.get(Resort, rid)
+            resort_obj = _resort_cache.get(rid) or db.session.get(Resort, rid)
             if not resort_obj:
                 continue
             n      = len(overlapping)

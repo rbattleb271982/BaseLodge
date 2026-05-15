@@ -1,0 +1,531 @@
+#100 — Navigation Lag Investigation & Instrumentation
+
+Important:
+This is an investigation and instrumentation task first. Do not perform broad performance refactors until timing data proves where the lag is coming from.
+
+What & Why
+
+Switching between screens in BaseLodge — bottom tabs, detail pages, modals, profile pages, forms, settings pages, back navigation, and native Capacitor screens — can sometimes feel delayed, jumpy, or visually laggy.
+
+There is currently no timing instrumentation in the codebase, so the root cause is unknown.
+
+This task adds lightweight server-side and client-side timing, identifies which screens are actually slow and why, and applies only obvious safe fixes if timing data proves them necessary.
+
+Done looks like
+
+- Every user-facing route logs server timing:
+  route start → DB duration → render duration → total duration
+
+- Every page records client-side navigation timing:
+  click timestamp → navigation start → DOMContentLoaded → first visible content
+
+- All instrumentation runs behind a shared debug flag
+
+- A clear report exists identifying:
+  - slowest screens
+  - measured timings
+  - root causes
+
+- Small safe fixes are applied only where evidence supports them
+
+- No UI redesign
+- No transition animations
+- No spinners or skeletons
+- No features removed
+- No console errors
+- Existing navigation behavior remains intact
+
+Out of scope
+
+- UI redesign
+- transition animation work
+- skeleton loaders
+- removing features
+- speculative performance refactors
+- fixing lag not measurable through instrumentation
+
+--------------------------------------------------
+STEP 1 — Add shared debug flag
+--------------------------------------------------
+
+Introduce:
+
+BL_NAV_DEBUG
+
+Requirements:
+
+Server side:
+- env variable or app.config
+
+Client side:
+Inject into:
+
+window.__BL_NAV_DEBUG__
+
+through:
+
+templates/components/analytics_head.html
+
+When disabled:
+
+- no console logs
+- no Flask timing logs
+- near-zero overhead
+
+When enabled:
+
+- server timing visible
+- browser timing visible
+
+This flag should control everything below.
+
+--------------------------------------------------
+STEP 2 — Add server-side route timing
+--------------------------------------------------
+
+Using:
+
+before_request
+after_request
+
+or a lightweight decorator
+
+Record:
+
+- endpoint name
+- route start time
+- DB query duration if practical
+- DB query count if practical
+- template render duration
+- total request duration
+
+Apply to logged-in rendered routes:
+
+Home
+Trips
+Friends
+Mountains
+Mountain Detail
+Trip Detail
+Friend Profile
+Profile
+Notifications
+Settings
+Settings subpages
+Add Trip
+Edit Trip
+Mountains Visited
+Onboarding
+
+API routes lower priority.
+
+Example output:
+
+[BL-NAV]
+home
+queries=14
+db=112ms
+render=49ms
+total=171ms
+
+--------------------------------------------------
+STEP 3 — Add client-side navigation timing
+--------------------------------------------------
+
+Add a tiny inline script to:
+
+templates/base_app.html
+
+No dependencies.
+Keep ≤30 lines if possible.
+
+Only active when:
+
+window.__BL_NAV_DEBUG__
+
+Record:
+
+navigationStart
+
+DOMContentLoaded
+
+current path
+
+document.referrer
+
+Navigation Timing API timing if available
+
+Also attach a global click listener:
+
+Capture:
+
+clicked href
+
+timestamp
+
+source type inferred from DOM:
+
+bottom-nav
+topbar
+back-link
+card
+CTA
+form
+modal
+friend-card
+trip-card
+mountain-card
+
+Example:
+
+[BL-NAV]
+click=/trip/123
+source=trip-card
+t=174ms
+
+and
+
+[BL-NAV]
+page=/friends
+dom=281ms
+total=342ms
+
+--------------------------------------------------
+STEP 4 — Audit all globally loaded scripts
+--------------------------------------------------
+
+Read carefully:
+
+templates/components/analytics_head.html
+
+Document:
+
+every script loaded
+every DOMContentLoaded listener
+execution order
+
+Investigate:
+
+PostHog
+
+OneSignal
+
+push registration
+
+badge clearing
+
+Capacitor checks
+
+Specifically:
+
+_waitForCapacitor(2000)
+
+_waitCap(2000)
+
+These polling loops appear in analytics logic.
+
+Confirm:
+
+web users immediately bypass them
+
+and that browser users never enter a 2-second polling cycle.
+
+If gating is weak:
+
+tighten it safely.
+
+Also confirm:
+
+PostHog CDN defer behavior
+
+does not block page rendering.
+
+Report exact listener count.
+
+--------------------------------------------------
+STEP 5 — Profile likely heavy routes
+--------------------------------------------------
+
+Focus on:
+
+app.py
+
+Home route
+~6820
+
+Friends
+~5643
+
+Mountains
+~3076
+
+Mountain detail
+~7828
+
+Trip detail
+~8817
+
+Friend profile
+~5861
+
+Profile/settings routes
+~7469
+
+Inspect:
+
+services/ideas_engine.py
+
+services/open_dates.py
+
+Specific checks:
+
+HOME
+
+Measure:
+
+build_destination_feed
+
+Activity queries
+
+DismissedInsightCard
+
+happening feed
+
+open date logic
+
+Determine:
+
+query count
+
+duplicated work
+
+serial execution
+
+--------------------------------------------------
+
+MOUNTAINS
+
+Measure:
+
+all active resorts
+
+ResortPass query
+
+friend counts
+
+inline JSON payload
+
+Determine:
+
+payload size
+
+serialization cost
+
+--------------------------------------------------
+
+FRIENDS
+
+Measure:
+
+Python iteration of open dates
+
+Determine whether SQL filtering would help
+
+--------------------------------------------------
+
+TRIP DETAIL
+
+Check:
+
+participant loading
+
+friend invite list
+
+trip.get_accepted_participants()
+
+for N+1
+
+--------------------------------------------------
+
+MOUNTAIN DETAIL
+
+Check:
+
+trip.get_accepted_participants()
+
+inside loops
+
+for N+1
+
+--------------------------------------------------
+
+Only apply fixes if:
+
+A)
+timing proves issue
+
+AND
+
+B)
+fix is narrow and safe
+
+Examples:
+
+batch query
+
+request cache
+
+index
+
+remove duplicate query
+
+Do not refactor architecture.
+
+--------------------------------------------------
+STEP 6 — Audit CSS/layout shift
+--------------------------------------------------
+
+Inspect:
+
+static/styles.css
+
+Look for:
+
+safe-area inset recalculation
+
+fixed headers
+
+bottom nav repaint
+
+body transitions
+
+app-shell transitions
+
+topbar transitions
+
+FOIT/FOUT
+
+font-face settings
+
+white flash between screens
+
+Verify:
+
+html background
+
+body background
+
+native shell background
+
+all match:
+
+#F5F1E8
+
+Determine whether page flashes are visual-only.
+
+--------------------------------------------------
+STEP 7 — Test navigation paths
+--------------------------------------------------
+
+Enable:
+
+BL_NAV_DEBUG=1
+
+Test:
+
+Home
+Trips
+Friends
+Mountains
+
+Trip detail
+
+Friend profile
+
+Mountain detail
+
+Profile
+
+Notifications
+
+Settings
+
+Add Trip
+
+Edit Trip
+
+Back button
+
+browser back
+
+topbar back
+
+trip invite modal
+
+management modal
+
+form submit redirect
+
+bottom sheets
+
+Capacitor native app
+
+Record:
+
+server timing
+
+client timing
+
+compare:
+
+server vs perceived delay
+
+Determine:
+
+actual lag
+
+vs
+
+visual lag
+
+vs
+
+script lag
+
+--------------------------------------------------
+STEP 8 — Final findings report
+--------------------------------------------------
+
+Provide concise findings:
+
+Slowest screens by server timing
+
+Slowest screens by perceived timing
+
+Root causes identified
+
+Fixes applied
+
+Remaining concerns
+
+Recommended next steps
+
+Relevant files
+
+templates/base_app.html
+
+templates/components/analytics_head.html
+
+static/analytics.js
+
+static/styles.css
+
+app.py
+
+services/ideas_engine.py
+
+services/open_dates.py
+
+Use checkpoints sparingly.
+
+Do not finish until you have fully tested this and confirmed the lag source is measurable or fixed.

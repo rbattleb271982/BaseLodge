@@ -53,7 +53,7 @@ def get_available_dates_for_user(user):
     }
 
 
-def get_open_date_matches(current_user):
+def get_open_date_matches(current_user, cached_my_dates=None):
     """
     Returns a list of open-date overlaps between current_user and their friends.
 
@@ -75,10 +75,15 @@ def get_open_date_matches(current_user):
     - No scoring or filtering by pass
     - Skip friends with no/empty available dates
     - Uses UserAvailability table first; falls back to legacy open_dates JSON per user
+
+    Args:
+        cached_my_dates: Optional pre-fetched set of date strings for current_user.
+                         Pass this when the caller already has the data to avoid a
+                         redundant UserAvailability query (saves ~60ms on Supabase).
     """
 
-    # Step 1: Get current user's available dates
-    my_dates = get_available_dates_for_user(current_user)
+    # Step 1: Get current user's available dates (use caller's cache when provided)
+    my_dates = cached_my_dates if cached_my_dates is not None else get_available_dates_for_user(current_user)
     if not my_dates:
         return []
 

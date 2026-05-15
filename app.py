@@ -217,6 +217,12 @@ app.config.update(
     REMEMBER_COOKIE_HTTPONLY=True,
 )
 
+# Navigation debug flag — set BL_NAV_DEBUG=1 in environment to enable.
+# Server: prints [BL-NAV] timing lines per route to stdout.
+# Client: window.__BL_NAV_DEBUG__ controls browser console timing output.
+# When disabled: zero overhead — no logs, no JS cost.
+app.config["BL_NAV_DEBUG"] = os.environ.get("BL_NAV_DEBUG", "0").strip() == "1"
+
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "auth"
@@ -643,6 +649,22 @@ def resolve_navigation(path, user_state, pending_intent=None):
 
 
 @app.after_request
+def bl_nav_timing_log(response):
+    """Log per-request server timing when BL_NAV_DEBUG is enabled."""
+    if not app.config.get("BL_NAV_DEBUG"):
+        return response
+    t0 = getattr(g, '_bl_nav_t0', None)
+    if t0 is None:
+        return response
+    total_ms = int((time.monotonic() - t0) * 1000)
+    qcount = getattr(g, '_bl_nav_qcount', '?')
+    endpoint = request.endpoint or request.path
+    print(f"[BL-NAV] {endpoint} queries={qcount} total={total_ms}ms status={response.status_code}")
+    response.headers["X-BL-Nav-Ms"] = str(total_ms)
+    return response
+
+
+@app.after_request
 def set_security_headers(response):
     """Apply baseline security headers to every response."""
     # Allow same-origin framing only in the Replit dev preview (REPLIT_DEV_DOMAIN
@@ -660,6 +682,24 @@ def set_security_headers(response):
 @app.before_request
 def before_request_handlers():
     import sys
+
+    # ── Navigation timing (BL_NAV_DEBUG) ─────────────────────────────────────
+    # Records wall-clock start and initialises a per-request query counter.
+    # The SQLAlchemy event listener is registered lazily on the first debug
+    # request so it has no cost whatsoever when the flag is off.
+    if app.config.get("BL_NAV_DEBUG"):
+        g._bl_nav_t0 = time.monotonic()
+        g._bl_nav_qcount = 0
+        if not getattr(app, '_bl_qc_registered', False):
+            try:
+                from sqlalchemy import event as _sa_event
+                def _bl_count_q(conn, cursor, statement, parameters, context, executemany):
+                    if hasattr(g, '_bl_nav_qcount'):
+                        g._bl_nav_qcount += 1
+                _sa_event.listen(db.engine, 'before_cursor_execute', _bl_count_q)
+                app._bl_qc_registered = True
+            except Exception:
+                pass
 
     # Make sessions permanent for Replit iframe compatibility
     session.permanent = True
@@ -2073,6 +2113,7 @@ app.jinja_env.globals['is_internal_user'] = ph_analytics.is_internal
 app.jinja_env.globals['POSTHOG_KEY'] = ph_analytics.POSTHOG_KEY
 app.jinja_env.globals['POSTHOG_HOST'] = ph_analytics.POSTHOG_HOST
 app.jinja_env.globals['ONESIGNAL_APP_ID'] = os.environ.get("ONESIGNAL_APP_ID", "")
+app.jinja_env.globals['BL_NAV_DEBUG'] = app.config.get("BL_NAV_DEBUG", False)
 
 
 def group_trips_by_month(trips):
@@ -6991,13 +7032,20 @@ def home():
     _diag_hap_candidates = 0
     _diag_hap_opp_suppressed = 0
 
+    # Fetch user availability once here — reused by build_destination_feed (avoids
+    # two extra Supabase round-trips: one inside the engine, one at show_add_dates).
+    from services.open_dates import get_available_dates_for_user as _get_avail_home
+    _user_avail_home = _get_avail_home(user)
+
     # --- Coordination feed (Home opportunities stream) ---
     dest_feed = []
     _ideas_engine_diag = {}
     try:
         from services.ideas_engine import build_destination_feed as _build_home_feed
         if all_friends:
-            _raw_feed, _ideas_engine_diag = _build_home_feed(user, all_friends)
+            _raw_feed, _ideas_engine_diag = _build_home_feed(
+                user, all_friends, user_avail_dates=_user_avail_home
+            )
             _diag_opp_engine_count = len(_raw_feed)
             _dismissed_opp_keys = set()
             try:
@@ -7105,10 +7153,7 @@ def home():
     ideas_count = len(dest_feed)
     requests_count = banner_invite_count + (1 if secondary_card else 0)
 
-    # Fix BUG-5: check UserAvailability table via the active service,
-    # not the legacy user.open_dates JSON field.
-    from services.open_dates import get_available_dates_for_user as _get_avail_home
-    _user_avail_home = _get_avail_home(user)
+    # _user_avail_home was fetched once before the coordination feed above.
     show_add_dates = not bool(_user_avail_home)
 
     # Admin flag for Ideas diagnostic block

@@ -43,6 +43,44 @@
     {% include 'components/bottom_nav.html' %}
 </div>
 <script>
+/* ── BL-NAV client-side navigation timing ───────────────────────────────────
+   Active only when window.__BL_NAV_DEBUG__ is true (BL_NAV_DEBUG=1 server flag).
+   Records: click source + href, DOMContentLoaded duration, total perceived time.
+   Zero cost when disabled — the outer guard exits immediately.              */
+(function() {
+  if (!window.__BL_NAV_DEBUG__) return;
+  var _pt = window.performance && window.performance.timing;
+  var _navStart = (_pt && _pt.navigationStart) ? _pt.navigationStart : Date.now();
+  var _t0 = Date.now();
+
+  document.addEventListener('click', function(e) {
+    var el = e.target.closest('a[href],button[type="submit"]');
+    if (!el) return;
+    var href = el.getAttribute('href') || el.getAttribute('data-href') || '(submit)';
+    var src = 'unknown';
+    if      (el.closest('.bl-bottom-nav'))                         src = 'bottom-nav';
+    else if (el.closest('.bl-top-bar'))                            src = 'topbar';
+    else if (el.closest('[data-back]') || el.closest('.bl-back'))  src = 'back-link';
+    else if (el.closest('.bl-trip-card,.trip-card'))               src = 'trip-card';
+    else if (el.closest('.bl-friend-card,.friend-card'))           src = 'friend-card';
+    else if (el.closest('.mountain-row,.resort-row'))              src = 'mountain-card';
+    else if (el.closest('.bl-modal,.modal-overlay'))               src = 'modal';
+    else if (el.closest('form'))                                   src = 'form';
+    else if (el.closest('.bl-pill,.bl-cta,.bl-action'))            src = 'cta';
+    console.log('[BL-NAV] click=' + href + ' source=' + src + ' t=' + (Date.now() - _navStart) + 'ms');
+  }, true);
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var dom = (_pt && _pt.domContentLoadedEventEnd && _pt.navigationStart)
+      ? (_pt.domContentLoadedEventEnd - _pt.navigationStart)
+      : (Date.now() - _t0);
+    var total = Date.now() - _navStart;
+    var ref = document.referrer ? (document.referrer.split('/').slice(-2).join('/') || 'direct') : 'direct';
+    console.log('[BL-NAV] page=' + location.pathname + ' dom=' + dom + 'ms total=' + total + 'ms ref=' + ref);
+  });
+})();
+</script>
+<script>
 /* ── blToast — shared inline notification utility (FINAL-MOBILE-QA-V1)
    Replaces browser alert() dialogs with a native-feeling overlay toast.
    Usage: blToast('Message here')  — auto-dismisses after 3 s.         */

@@ -1,0 +1,95 @@
+Update the lag investigation to cover ALL BaseLodge screen navigation, not only the main bottom-tab screens.
+
+Goal:
+Investigate why switching between any screens in BaseLodge can feel delayed, jumpy, or visually laggy in the web app and native Capacitor app.
+
+Scope includes:
+- Bottom tab screens: Home, Trips, Friends, Mountains
+- Secondary screens: trip detail, add/edit trip, profile, notifications, equipment, friend detail, mountain detail, onboarding, login/signup, settings, admin-safe screens if relevant
+- Back navigation
+- Header/topbar transitions
+- Modal/bottom-sheet openings
+- Any screen reached from cards, CTAs, tabs, profile links, friend links, trip links, or mountain links
+
+Do not limit this investigation to bottom tab navigation.
+
+Please inspect:
+- Global app shell/base template
+- Topbar partials
+- Bottom nav partials
+- All route handlers that render user-facing screens
+- Shared JS files
+- Inline page scripts
+- PostHog scripts
+- OneSignal/push scripts
+- Badge-clearing scripts
+- CSS that affects page transitions, fixed headers, safe areas, bottom nav, modals, and body scrolling
+- Any heavy database queries used by detail pages or secondary screens
+
+What to do:
+1. Add lightweight server-side timing logs to every user-facing route:
+   - route name / endpoint
+   - route start
+   - database query duration where practical
+   - render/template duration
+   - total request duration
+
+2. Add lightweight client-side navigation timing logs globally:
+   - clicked link/button href
+   - tap/click timestamp
+   - pagehide / beforeunload timing
+   - DOMContentLoaded timing
+   - first visible content timing
+   - total perceived navigation time
+   - whether the navigation came from bottom nav, topbar, back link, card, CTA, modal, or form submit
+
+3. Add a simple debug flag so these logs can be enabled without permanently noisy production logging.
+
+4. Identify whether the lag is caused by:
+   - slow Flask route execution
+   - slow database queries
+   - heavy template rendering
+   - global JavaScript running on every page
+   - duplicated event listeners
+   - PostHog / OneSignal / push logic blocking navigation
+   - CSS layout shifts or repaint issues
+   - fixed header/bottom nav safe-area recalculation
+   - Capacitor WebView navigation behavior
+   - image/font/asset loading
+   - forms, redirects, or flash-message rendering
+
+5. Look for patterns across all screens:
+   - Does every screen lag, or only certain screens?
+   - Are detail pages slower than list pages?
+   - Are screens with friend/trip/mountain data slower?
+   - Are screens with inline scripts slower?
+   - Does back navigation feel faster or slower than forward navigation?
+   - Is the lag visual only, or is the server response actually slow?
+
+6. Do not redesign the UI yet.
+7. Do not add spinners/skeletons yet unless the root cause cannot be fixed.
+8. Do not remove features unless clearly safe.
+9. Use checkpoints sparingly.
+
+Deliverables:
+- Instrumentation covering all user-facing screen changes.
+- A clear summary of which screens are slow and why.
+- Small safe fixes only where the cause is obvious.
+- If the cause is not obvious, stop after instrumentation and report the findings clearly.
+
+Testing:
+- Test bottom-tab navigation.
+- Test secondary screen navigation.
+- Test detail pages.
+- Test profile/settings-style screens.
+- Test modals/bottom sheets.
+- Test back navigation.
+- Test form-submit redirects.
+- Test mobile viewport.
+- Test native Capacitor behavior if possible.
+- Confirm no console errors.
+- Confirm no broken links.
+- Confirm active nav/topbar behavior still works.
+- Confirm timing logs are readable and not permanently noisy.
+
+Do not finish until you have fully tested this and confirmed the lag source is measurable or fixed.
