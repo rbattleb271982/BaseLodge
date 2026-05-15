@@ -2864,6 +2864,7 @@ def my_trips():
     user = current_user
     today = date.today()
     active_tab = request.args.get("tab", "my_trips")
+    _rp_t0 = time.perf_counter()
 
     # Trip queries (wrapped for production safety)
     try:
@@ -2939,6 +2940,7 @@ def my_trips():
         friends = []
 
     # Friends' upcoming trips (wrapped for production safety)
+    _t = time.perf_counter()
     friend_trips = []
     try:
         if friend_ids:
@@ -2949,8 +2951,11 @@ def my_trips():
             ).order_by(SkiTrip.start_date.asc()).all() or []
     except Exception:
         friend_trips = []
+    if app.debug:
+        print(f"[ROUTE_PERF] my_trips.friend_trips={time.perf_counter()-_t:.4f}s count={len(friend_trips)}")
 
     # Build friends_trips_tab: month + destination grouped rows
+    _t = time.perf_counter()
     seven_days_ago_mt = datetime.now() - timedelta(days=7)
     friends_trips_tab = []
     try:
@@ -3030,15 +3035,22 @@ def my_trips():
         ]
     except Exception:
         friends_trips_tab = []
+    if app.debug:
+        print(f"[ROUTE_PERF] my_trips.tab_build={time.perf_counter()-_t:.4f}s friend_trip_count={len(friend_trips)}")
 
     # Build overlaps list — include both owned trips and accepted guest trips
     # so a user who is a guest on a friend's trip at Vail also triggers an overlap
     # with any other friend going to Vail at the same time.
+    _t = time.perf_counter()
     try:
         overlaps = compute_trip_overlaps(upcoming_trips + accepted_guest_trips, friend_trips)
     except Exception:
         overlaps = []
+    if app.debug:
+        print(f"[ROUTE_PERF] my_trips.overlaps={time.perf_counter()-_t:.4f}s count={len(overlaps)}")
 
+    if app.debug:
+        print(f"[ROUTE_PERF] route=my_trips total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template(
         "my_trips.html",
         user=user,
@@ -3174,12 +3186,17 @@ def overlap_detail():
 def mountains_tab():
     """Mountains discovery page — search and filter all active resorts."""
     user = current_user
+    _rp_t0 = time.perf_counter()
 
+    _t = time.perf_counter()
     all_resorts = Resort.query.filter_by(is_active=True, is_region=False).order_by(
         Resort.country_code, Resort.state_code, Resort.name
     ).all()
+    if app.debug:
+        print(f"[ROUTE_PERF] mountains.all_resorts={time.perf_counter()-_t:.4f}s count={len(all_resorts)}")
 
     # ── Friend counts per resort (one batch query — no N+1) ───────────────────
+    _t = time.perf_counter()
     friend_links = Friend.query.filter_by(user_id=user.id).all()
     friend_ids = [f.friend_id for f in friend_links]
     friend_resort_counts = {}
@@ -3193,8 +3210,11 @@ def mountains_tab():
             SkiTrip.resort_id.isnot(None)
         ).group_by(SkiTrip.resort_id).all()
         friend_resort_counts = {rid: cnt for rid, cnt in _counts}
+    if app.debug:
+        print(f"[ROUTE_PERF] mountains.friend_resort_counts={time.perf_counter()-_t:.4f}s")
 
     # ── Batch-load all ResortPass rows (1 query instead of N) ─────────────────
+    _t = time.perf_counter()
     from models import ResortPass as _ResortPass
     _all_rp = _ResortPass.query.all()
     _rp_by_resort = {}
@@ -3202,6 +3222,8 @@ def mountains_tab():
         _rp_by_resort.setdefault(_rp.resort_id, []).append(
             {'pass_name': _rp.pass_name, 'is_primary': _rp.is_primary}
         )
+    if app.debug:
+        print(f"[ROUTE_PERF] mountains.all_passes={time.perf_counter()-_t:.4f}s count={len(_all_rp)}")
 
     # ── Pass extraction helper ─────────────────────────────────────────────────
     _PASS_SKIP = frozenset({'no_pass', 'no_pass_yet'})
@@ -3238,6 +3260,7 @@ def mountains_tab():
                     keys.append(norm)
         return ' · '.join(labels), keys
 
+    _t = time.perf_counter()
     resorts_data = []
     for r in all_resorts:
         cc = r.country_code or r.country or ""
@@ -3258,6 +3281,8 @@ def mountains_tab():
             "pass_keys": pass_keys,
             "friend_count": friend_resort_counts.get(r.id, 0),
         })
+    if app.debug:
+        print(f"[ROUTE_PERF] mountains.data_build={time.perf_counter()-_t:.4f}s resort_count={len(resorts_data)}")
 
     # ── Countries (US and CA sorted first) ────────────────────────────────────
     seen_countries = {}
@@ -3309,6 +3334,8 @@ def mountains_tab():
                 default_country = cc
                 break
 
+    if app.debug:
+        print(f"[ROUTE_PERF] route=mountains total={time.perf_counter()-_rp_t0:.4f}s resort_count={len(resorts_data)}")
     return render_template(
         "mountains_tab.html",
         resorts_data=resorts_data,
@@ -5743,6 +5770,7 @@ def friends():
     today = date.today()
     today_str = today.strftime('%Y-%m-%d')
     from sqlalchemy.orm import joinedload
+    _rp_t0 = time.perf_counter()
 
     _fp_t0 = time.perf_counter()
 
@@ -6059,6 +6087,7 @@ def friends():
     # ── [FRIENDS_PERF] Summary ─────────────────────────────────────────────────
     if app.debug:
         print(f"[FRIENDS_PERF] total={time.perf_counter()-_fp_t0:.4f}s friend_count={friend_count}")
+        print(f"[ROUTE_PERF] route=friends total={time.perf_counter()-_rp_t0:.4f}s")
 
     return render_template(
         "friends.html",
@@ -6072,6 +6101,7 @@ def friends():
 @app.route("/friends/<int:friend_id>")
 @login_required
 def friend_profile(friend_id):
+    _rp_t0 = time.perf_counter()
     friend = User.query.get_or_404(friend_id)
     user = current_user
 
@@ -6137,6 +6167,7 @@ def friend_profile(friend_id):
     friend_secondary_equipment = None  # deprecated — kept for template compat
     
     # Get friend's trips
+    _t = time.perf_counter()
     trips = (
         SkiTrip.query
         .filter_by(user_id=friend.id, is_public=True)
@@ -6144,7 +6175,7 @@ def friend_profile(friend_id):
         .order_by(SkiTrip.start_date.asc())
         .all()
     )
-    
+
     # Get current user's trips for overlap detection: owned + accepted guest
     user_trips = (
         SkiTrip.query
@@ -6168,9 +6199,14 @@ def friend_profile(friend_id):
             user_trips = user_trips + _fp_guest_trips
     except Exception:
         pass
+    if app.debug:
+        print(f"[ROUTE_PERF] friend_profile.trips_queries={time.perf_counter()-_t:.4f}s friend_trips={len(trips)} user_trips={len(user_trips)}")
 
     # Build trip overlaps using the canonical helper
+    _t = time.perf_counter()
     _raw_overlaps = compute_trip_overlaps(user_trips, trips)
+    if app.debug:
+        print(f"[ROUTE_PERF] friend_profile.compute_overlaps={time.perf_counter()-_t:.4f}s overlaps={len(_raw_overlaps)}")
 
     # Flatten to the shape the template expects + mark each friend trip
     _overlapped_trip_ids = {ov['friend_trip_id'] for ov in _raw_overlaps}
@@ -6243,6 +6279,8 @@ def friend_profile(friend_id):
     # Whether the current user has upcoming trips they could invite this friend to
     has_user_upcoming_trips = len(user_trips) > 0
 
+    if app.debug:
+        print(f"[ROUTE_PERF] route=friend_profile total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template(
         "friend_profile.html",
         friend=friend,
@@ -7033,6 +7071,7 @@ def build_friend_at_mountain_card(user, today, friend_ids):
 def home():
     user = current_user
     today = date.today()
+    _rp_t0 = time.perf_counter()
 
     # One-time connection success message (set by accept_invitation, consumed here)
     new_connection_name = session.pop('new_connection_name', None)
@@ -7378,6 +7417,8 @@ def home():
         'engine_total': _diag_opp_engine_count,
     }
 
+    if app.debug:
+        print(f"[ROUTE_PERF] route=home total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template(
         'home.html',
         user=user,
@@ -7712,6 +7753,7 @@ def more():
 @app.route("/profile")
 @login_required
 def profile():
+    _rp_t0 = time.perf_counter()
     mountains_visited_count = current_user.visited_resorts_count
 
     # Get primary setup: prefer is_primary=True, fallback to first saved
@@ -7744,6 +7786,8 @@ def profile():
     # Total trips (all, not just upcoming) — owned by user
     all_trips_count = SkiTrip.query.filter_by(user_id=current_user.id).count()
 
+    if app.debug:
+        print(f"[ROUTE_PERF] route=profile total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template("profile.html",
                            page_title="Profile",
                            mountains_visited_count=mountains_visited_count,
@@ -7757,7 +7801,9 @@ def profile():
 @login_required
 def notifications():
     """Lightweight in-app notification center using Activity records + pending connect invites."""
+    _rp_t0 = time.perf_counter()
     # --- Pending incoming connection requests (not Activity — from Invitation model) ---
+    _t = time.perf_counter()
     pending_connects = []
     try:
         connects = Invitation.query.filter_by(
@@ -7775,8 +7821,11 @@ def notifications():
                 })
     except Exception:
         db.session.rollback()
+    if app.debug:
+        print(f"[ROUTE_PERF] notifications.pending_connects={time.perf_counter()-_t:.4f}s invite_count={len(pending_connects)}")
 
     # --- Activity-based notifications ---
+    _t = time.perf_counter()
     raw_activities = []
     try:
         raw_activities = Activity.query.filter(
@@ -7785,7 +7834,10 @@ def notifications():
         ).order_by(Activity.created_at.desc()).limit(50).all()
     except Exception:
         db.session.rollback()
+    if app.debug:
+        print(f"[ROUTE_PERF] notifications.raw_activities={time.perf_counter()-_t:.4f}s count={len(raw_activities)}")
 
+    _t = time.perf_counter()
     notifs = []
     today = datetime.utcnow()
     for act in raw_activities:
@@ -7860,9 +7912,13 @@ def notifications():
             'type': act.type,
         })
 
+    if app.debug:
+        print(f"[ROUTE_PERF] notifications.activity_loop={time.perf_counter()-_t:.4f}s activity_count={len(raw_activities)}")
     # Mark all as viewed
     session['notif_last_viewed_at'] = datetime.utcnow().isoformat()
 
+    if app.debug:
+        print(f"[ROUTE_PERF] route=notifications total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template('notifications.html',
                            pending_connects=pending_connects,
                            notifs=notifs)
@@ -8076,6 +8132,7 @@ def mountain_detail(slug):
     - Hero: state, name, primary pass pill
     - Body: upcoming trips grouped by date window, showing current user + friends
     """
+    _rp_t0 = time.perf_counter()
     resort = Resort.query.filter_by(slug=slug, is_active=True).first_or_404()
     today = date.today()
 
@@ -8100,6 +8157,8 @@ def mountain_detail(slug):
 
     # Accumulate rows per date window.
     # Key: (start_date, end_date); value: dict of uid -> row_dict (deduped within window)
+    _t = time.perf_counter()
+    _t_people_looked_up = 0
     rows_by_window = {}
 
     for trip in raw_trips:
@@ -8130,7 +8189,9 @@ def mountain_detail(slug):
                     rows_by_window[window][uid]['status_label'] = 'Going'
                 continue
 
+            _tp = time.perf_counter()
             person = db.session.get(User, uid)
+            _t_people_looked_up += time.perf_counter() - _tp
             if not person:
                 continue
 
@@ -8147,6 +8208,8 @@ def mountain_detail(slug):
                 'status_label': status_label,
             }
 
+    if app.debug:
+        print(f"[ROUTE_PERF] mountain_detail.window_loop={time.perf_counter()-_t:.4f}s trip_count={len(raw_trips)} user_lookups={_t_people_looked_up:.4f}s")
     # Build flat sorted rows: chronological by start_date, then alphabetical within same window.
     # "You" sorts as 'You' (Y) — no special priority in the flat layout.
     flat_rows = []
@@ -8196,6 +8259,8 @@ def mountain_detail(slug):
             break
     is_on_wishlist = resort.id in (current_user.wish_list_resorts or [])
 
+    if app.debug:
+        print(f"[ROUTE_PERF] route=mountain_detail total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template(
         'mountain_detail.html',
         resort=resort,
@@ -8540,7 +8605,10 @@ def add_open_dates():
 @login_required
 def add_trip():
     # Single source of truth: Resort table
+    _rp_t0 = time.perf_counter()
+    _t = time.perf_counter()
     resorts = get_resorts_for_trip_form()
+    _t_resorts = time.perf_counter() - _t
     
     countries_map = COUNTRIES
     states_map = STATE_ABBR_MAP
@@ -8882,6 +8950,8 @@ def add_trip():
     # GET - render the add trip form
     # ⚠️ CONTRACT LOCK: countries_map must ALWAYS be passed to template.
     # The country dropdown is server-rendered from COUNTRIES (not derived from resorts).
+    if app.debug:
+        print(f"[ROUTE_PERF] route=add_trip total={time.perf_counter()-_rp_t0:.4f}s resorts={_t_resorts:.4f}s resort_count={len(resorts)}")
     return render_template(
         "add_trip.html",
         trip=None,
@@ -9061,8 +9131,9 @@ def edit_trip_form(trip_id):
 @login_required
 def trip_detail(trip_id):
     """Trip Detail page - primary hub for viewing and managing a trip."""
+    _rp_t0 = time.perf_counter()
     trip = SkiTrip.query.get_or_404(trip_id)
-    
+
     # Check if user is owner or a participant
     is_owner = trip.user_id == current_user.id
     participant = SkiTripParticipant.query.filter_by(
@@ -9131,6 +9202,7 @@ def trip_detail(trip_id):
         ).first()
     
     # Calculate participant overlaps (for "You and X overlap for Y days" display)
+    _t = time.perf_counter()
     participant_overlaps = []
     today = date.today()
     if trip.start_date and trip.end_date and (is_owner or is_guest):
@@ -9207,6 +9279,8 @@ def trip_detail(trip_id):
                             'days': len(overlap_day_set)
                         })
     
+    if app.debug:
+        print(f"[ROUTE_PERF] trip_detail.participant_overlap_loop={time.perf_counter()-_t:.4f}s participant_count={len(all_participants)}")
     # Count how many of the user's friends have this resort on their wishlist
     friends_wishlist_count = 0
     if trip.resort_id:
@@ -9220,6 +9294,8 @@ def trip_detail(trip_id):
 
     resorts_json = get_resorts_for_trip_form() if is_owner else []
 
+    if app.debug:
+        print(f"[ROUTE_PERF] route=trip_detail total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template(
         "trip_detail.html",
         trip=trip,
