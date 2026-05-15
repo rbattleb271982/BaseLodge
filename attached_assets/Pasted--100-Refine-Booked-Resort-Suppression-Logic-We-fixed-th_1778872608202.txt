@@ -1,0 +1,152 @@
+#100 — Refine Booked Resort Suppression Logic
+
+We fixed the Ideas pipeline and now need to refine one remaining issue.
+
+GOAL:
+Do not suppress all ideas for a resort simply because the user already has a future trip there.
+
+Current behavior is too aggressive.
+
+Example:
+
+User has a Vail trip in February
+Friend plans a Vail trip in March
+
+Current behavior:
+All Vail ideas suppressed
+
+Desired behavior:
+Still surface meaningful opportunities when they add value.
+
+Do not redesign the UI.
+Do not create new card types.
+Do not change visual layout.
+
+Audit and patch the suppression logic only.
+
+CURRENT ISSUE
+
+There is currently a booked-resort suppression filter that removes all signals if the user already has a future trip at that resort.
+
+This likely suppresses:
+
+- different date windows
+- different friend groups
+- overlapping opportunities
+- potential merge opportunities
+- stronger social opportunities
+
+IMPLEMENT:
+
+1. Audit suppression logic
+
+Find:
+
+- where booked resort suppression occurs
+- where booked_suppressed count increments
+- where future trip checks happen
+
+Document current behavior.
+
+2. Change suppression behavior
+
+Do NOT suppress based solely on:
+
+same resort
+
+Instead suppress only when:
+
+same resort
+AND
+same approximate date window
+
+Examples:
+
+User Vail Feb 1–5
+Friend Vail March 20–24
+
+SHOW card
+
+User Vail Feb 1–5
+Friend Vail Feb 2–6
+
+SUPPRESS card
+
+Use a reasonable overlap window:
+
+trip date overlap
+or
+within ~7 days
+
+Use existing overlap utilities if available.
+
+3. Preserve stronger social opportunities
+
+Even if user already has a trip:
+
+Allow ideas through when:
+
+- multiple friends involved
+- availability overlap exists
+- higher friend_count
+- stronger signal score
+
+Do not suppress high-value opportunities.
+
+4. Update diagnostics
+
+Extend [Ideas] logs:
+
+When suppressed:
+
+print(
+"[Ideas] suppressed resort=%s reason=existing_trip_overlap user_dates=%s friend_dates=%s"
+)
+
+When allowed:
+
+print(
+"[Ideas] allowed_existing_resort resort=%s reason=non_overlapping_dates"
+)
+
+5. Update admin diagnostics block
+
+Add:
+
+Suppressed same-trip overlaps: X
+Allowed existing resort opportunities: X
+
+6. QA
+
+Test:
+
+User Vail Feb
+Friend Vail Mar
+→ SHOW
+
+User Vail Feb
+Friend Vail Feb overlap
+→ SUPPRESS
+
+User Vail Feb
+Three friends Vail Apr
+→ SHOW
+
+User Vail future trip
+Availability overlap different dates
+→ SHOW
+
+Confirm:
+
+diagnostics count correctly
+Ideas cap still works
+dismissal still works
+dedupe still works
+
+FINAL RESPONSE:
+
+A. files changed
+B. old behavior
+C. new behavior
+D. QA results
+E. remaining risks

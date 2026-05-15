@@ -744,8 +744,9 @@ def build_destination_feed(user, all_friends):
     _OVERLAP     = 2
     _WISHLIST    = 3
 
-    # Resorts the user already has upcoming trips booked — exclude from feed
-    _booked_resort_ids = set()
+    # _booked_windows: resort_id → list of (start_date, end_date) tuples
+    # Used for date-aware suppression instead of blunt resort-level blocking.
+    _booked_windows: dict = {}
     try:
         _user_booked = (
             SkiTrip.query
@@ -754,12 +755,26 @@ def build_destination_feed(user, all_friends):
                 SkiTrip.resort_id.isnot(None),
                 SkiTrip.end_date >= today,
             )
-            .with_entities(SkiTrip.resort_id)
+            .with_entities(SkiTrip.resort_id, SkiTrip.start_date, SkiTrip.end_date)
             .all()
         )
-        _booked_resort_ids = {r.resort_id for r in _user_booked}
+        for row in _user_booked:
+            rid = row.resort_id
+            if rid not in _booked_windows:
+                _booked_windows[rid] = []
+            _booked_windows[rid].append((row.start_date, row.end_date))
     except Exception:
         pass
+
+    _BOOKED_BUFFER_DAYS = timedelta(days=7)
+
+    def _date_window_overlaps(c_start, c_end, u_start, u_end):
+        """Return True if candidate window [c_start, c_end] overlaps user window
+        [u_start, u_end] within a 7-day proximity buffer. Either u_* may be None
+        (treat as today if u_start is None, or c_end + buffer if u_end is None)."""
+        effective_u_start = u_start if u_start is not None else today
+        effective_u_end   = u_end   if u_end   is not None else (effective_u_start + _BOOKED_BUFFER_DAYS)
+        return c_start <= effective_u_end + _BOOKED_BUFFER_DAYS and c_end >= effective_u_start - _BOOKED_BUFFER_DAYS
 
     _diag = {
         'raw_friend_trip': 0,
@@ -767,7 +782,8 @@ def build_destination_feed(user, all_friends):
         'raw_overlap_no_resort': 0,
         'raw_wishlist': 0,
         'total_attempted': 0,
-        'booked_suppressed': 0,
+        'booked_overlap_suppressed': 0,
+        'booked_allowed_existing': 0,
     }
 
     by_resort = {}  # resort_id -> best candidate dict
@@ -789,9 +805,41 @@ def build_destination_feed(user, all_friends):
     def _try_add(candidate):
         _diag['total_attempted'] += 1
         rid = candidate["resort_id"]
-        if rid is not None and rid in _booked_resort_ids:
-            _diag['booked_suppressed'] += 1
-            return
+        if rid is not None and rid in _booked_windows:
+            c_start = candidate.get("start_date")
+            c_end   = candidate.get("end_date")
+            friend_count = candidate.get("friend_count", 0)
+
+            if c_start is None:
+                # No candidate dates — cannot compare windows, always allow through
+                print(f"[Ideas] allowed_existing_resort resort={rid} reason=missing_candidate_dates")
+                _diag['booked_allowed_existing'] += 1
+            else:
+                if c_end is None:
+                    c_end = c_start  # treat single-day window
+                # Check if any user booking window overlaps the candidate window
+                overlapping_booking = None
+                for (u_start, u_end) in _booked_windows[rid]:
+                    if _date_window_overlaps(c_start, c_end, u_start, u_end):
+                        overlapping_booking = (u_start, u_end)
+                        break
+
+                if overlapping_booking is not None:
+                    if friend_count >= 3:
+                        # High social value — surface even with overlapping dates
+                        u_s, u_e = overlapping_booking
+                        print(f"[Ideas] allowed_existing_resort resort={rid} reason=high_friend_count friend_count={friend_count} user_dates={u_s}–{u_e} friend_dates={c_start}–{c_end}")
+                        _diag['booked_allowed_existing'] += 1
+                    else:
+                        u_s, u_e = overlapping_booking
+                        print(f"[Ideas] suppressed resort={rid} reason=existing_trip_overlap user_dates={u_s}–{u_e} friend_dates={c_start}–{c_end}")
+                        _diag['booked_overlap_suppressed'] += 1
+                        return
+                else:
+                    # Same resort but non-overlapping date window — allow through
+                    print(f"[Ideas] allowed_existing_resort resort={rid} reason=non_overlapping_dates friend_dates={c_start}–{c_end}")
+                    _diag['booked_allowed_existing'] += 1
+
         key = rid if rid is not None else ("no_resort", candidate.get("start_date"))
         if key not in by_resort or _prefer(candidate, by_resort[key]):
             by_resort[key] = candidate
@@ -869,7 +917,7 @@ def build_destination_feed(user, all_friends):
             "has_user_date_overlap": _has_user_date_overlap,
         })
 
-    print(f"[Ideas] source=friend_trips raw={_diag['raw_friend_trip']} booked_suppressed={_diag['booked_suppressed']}")
+    print(f"[Ideas] source=friend_trips raw={_diag['raw_friend_trip']} booked_overlap_suppressed={_diag['booked_overlap_suppressed']} booked_allowed_existing={_diag['booked_allowed_existing']}")
 
     # ── 2. Overlap windows (availability_overlap) ────────────────────────────
     # Surfaces when user and friend(s) share open dates.
@@ -1003,7 +1051,7 @@ def build_destination_feed(user, all_friends):
     rows.sort(key=_sort_key)
 
     # ── Diagnostics ──────────────────────────────────────────────────────────
-    _diag_after_booked = _diag['total_attempted'] - _diag['booked_suppressed']
+    _diag_after_booked = _diag['total_attempted'] - _diag['booked_overlap_suppressed']
     _diag_resort_dedupe_lost = _diag_after_booked - len(rows)
     _stype_map = {1: 'friend_trip', 2: 'availability_overlap', 3: 'wishlist_overlap'}
     print(
@@ -1013,7 +1061,8 @@ def build_destination_feed(user, all_friends):
         f" wishlist={_diag['raw_wishlist']}"
     )
     print(
-        f"[HOME_DIAGNOSTICS] opp_booked_suppressed={_diag['booked_suppressed']}"
+        f"[HOME_DIAGNOSTICS] opp_booked_overlap_suppressed={_diag['booked_overlap_suppressed']}"
+        f" opp_booked_allowed_existing={_diag['booked_allowed_existing']}"
         f" opp_after_booked={_diag_after_booked}"
         f" opp_resort_dedupe_lost={_diag_resort_dedupe_lost}"
         f" opp_after_resort_dedupe={len(rows)}"
