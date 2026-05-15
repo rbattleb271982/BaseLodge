@@ -7120,7 +7120,8 @@ def home():
         if all_friends:
             _hp_t0 = time.perf_counter()
             _raw_feed, _ideas_engine_diag = _build_home_feed(
-                user, all_friends, user_avail_dates=_user_avail_home
+                user, all_friends, user_avail_dates=_user_avail_home,
+                user_trips=my_trips
             )
             if app.debug:
                 print(f"[HOME_PERF] build_destination_feed={time.perf_counter() - _hp_t0:.4f}s raw_count={len(_raw_feed)}")

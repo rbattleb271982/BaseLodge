@@ -695,7 +695,7 @@ def _fmt_wishlist_names(friend_names, suffix):
     return f"{s} {suffix}"
 
 
-def build_destination_feed(user, all_friends, user_avail_dates=None):
+def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=None):
     """
     Builds the Ideas feed: one card per destination (resort_id), best signal wins.
 
@@ -762,25 +762,35 @@ def build_destination_feed(user, all_friends, user_avail_dates=None):
 
     # _booked_windows: resort_id → list of (start_date, end_date) tuples
     # Used for date-aware suppression instead of blunt resort-level blocking.
+    # When the caller (home()) passes user_trips, build this in Python to avoid
+    # a duplicate SkiTrip query for the current user.
     _booked_windows: dict = {}
-    try:
-        _user_booked = (
-            SkiTrip.query
-            .filter(
-                SkiTrip.user_id == user.id,
-                SkiTrip.resort_id.isnot(None),
-                SkiTrip.end_date >= today,
+    if user_trips is not None:
+        for t in user_trips:
+            if t.resort_id is None or t.end_date < today:
+                continue
+            if t.resort_id not in _booked_windows:
+                _booked_windows[t.resort_id] = []
+            _booked_windows[t.resort_id].append((t.start_date, t.end_date))
+    else:
+        try:
+            _user_booked = (
+                SkiTrip.query
+                .filter(
+                    SkiTrip.user_id == user.id,
+                    SkiTrip.resort_id.isnot(None),
+                    SkiTrip.end_date >= today,
+                )
+                .with_entities(SkiTrip.resort_id, SkiTrip.start_date, SkiTrip.end_date)
+                .all()
             )
-            .with_entities(SkiTrip.resort_id, SkiTrip.start_date, SkiTrip.end_date)
-            .all()
-        )
-        for row in _user_booked:
-            rid = row.resort_id
-            if rid not in _booked_windows:
-                _booked_windows[rid] = []
-            _booked_windows[rid].append((row.start_date, row.end_date))
-    except Exception:
-        pass
+            for row in _user_booked:
+                rid = row.resort_id
+                if rid not in _booked_windows:
+                    _booked_windows[rid] = []
+                _booked_windows[rid].append((row.start_date, row.end_date))
+        except Exception:
+            pass
 
     _BOOKED_BUFFER_DAYS = timedelta(days=7)
 
