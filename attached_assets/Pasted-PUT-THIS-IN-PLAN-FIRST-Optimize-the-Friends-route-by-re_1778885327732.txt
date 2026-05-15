@@ -1,0 +1,72 @@
+PUT THIS IN PLAN FIRST.
+
+Optimize the Friends route by removing the per-friend trip query loop.
+
+Context:
+[FRIENDS_PERF] instrumentation showed:
+
+per_friend_loop=0.3600s friend_count=6
+owner_trips_query=0.1440s
+participant_trips_query=0.1440s
+
+The Friends route currently runs two trip queries per friend:
+1. owned upcoming public SkiTrip query
+2. participant accepted SkiTrip query
+
+Goal:
+Replace those per-friend queries with batch queries while preserving identical Friends page behavior.
+
+Scope:
+app.py friends() route only unless a tiny helper is absolutely necessary.
+
+Do not change:
+- templates
+- schema
+- friend relationship logic
+- invite logic
+- trip invite semantics
+- open-date overlap logic
+- native iOS/Android/Capacitor files
+- notifications
+- Ideas engine
+
+Implementation requirements:
+1. Keep the existing [FRIENDS_PERF] logs.
+2. Add/broaden batch queries before the per-friend loop:
+   - Fetch all relevant owned upcoming public trips for all friend_ids in one query.
+   - Fetch all relevant accepted participant trips for all friend_ids in one query.
+3. Group both result sets by friend_id in Python.
+4. Inside the per-friend loop:
+   - Replace per-friend owner_trips_query with lookup from grouped owned trips.
+   - Replace per-friend participant_trips_query with lookup from grouped participant trips.
+5. Preserve the exact logic currently used to build:
+   - trip counts
+   - next trip labels
+   - trip overlap labels
+   - public/private visibility behavior
+   - sorting behavior
+   - alpha groups
+6. Eager-load SkiTrip.resort and any needed User relation if currently accessed during loop rendering.
+7. Do not change output shape passed to friends.html.
+
+Testing:
+- /friends loads for user with friends
+- /friends loads for user with no friends
+- Friend List tab renders
+- Upcoming Feed tab renders
+- trip counts remain correct
+- next trip labels remain correct
+- overlap labels remain correct
+- invite section still renders
+- no template errors
+- no startup errors
+
+Return:
+1. Files changed
+2. Exact batching changes
+3. Before/after [FRIENDS_PERF] output
+4. Query count reduction estimate
+5. Test results
+6. Remaining risks
+
+Only use checkpoints if I say so.

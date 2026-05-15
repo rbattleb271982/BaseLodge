@@ -5851,6 +5851,59 @@ def friends():
     if app.debug:
         print(f"[FRIENDS_PERF] lookup_build={time.perf_counter()-_t:.4f}s")
 
+    # ── [FRIENDS_PERF] Block 8b: batch owned upcoming trips for all friends ────
+    _t = time.perf_counter()
+    _batch_owner_trips: list = []
+    if friend_ids:
+        from sqlalchemy.orm import joinedload
+        _batch_owner_trips = (
+            SkiTrip.query
+            .options(joinedload(SkiTrip.resort))
+            .filter(
+                SkiTrip.user_id.in_(friend_ids),
+                SkiTrip.end_date >= today,
+            )
+            .all()
+        )
+    _owner_trips_by_friend: dict = {}
+    for _t2 in _batch_owner_trips:
+        _owner_trips_by_friend.setdefault(_t2.user_id, []).append(_t2)
+    if app.debug:
+        print(f"[FRIENDS_PERF] batch_owner_trips={time.perf_counter()-_t:.4f}s rows={len(_batch_owner_trips)}")
+
+    # ── [FRIENDS_PERF] Block 8c: batch accepted participant trips for all friends
+    _t = time.perf_counter()
+    _batch_part_trips: list = []
+    if friend_ids:
+        _batch_part_trips = (
+            db.session.query(SkiTrip)
+            .options(joinedload(SkiTrip.resort))
+            .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
+            .filter(
+                SkiTripParticipant.user_id.in_(friend_ids),
+                SkiTripParticipant.status == GuestStatus.ACCEPTED,
+                SkiTrip.end_date >= today,
+            )
+            .all()
+        )
+    # Group by the participant's user_id (stored on the join row), not trip owner
+    _part_trips_by_friend: dict = {}
+    if friend_ids and _batch_part_trips:
+        # Re-query the participant rows to map trip_id → participant user_id
+        _part_trip_ids = [t.id for t in _batch_part_trips]
+        _part_rows = SkiTripParticipant.query.filter(
+            SkiTripParticipant.trip_id.in_(_part_trip_ids),
+            SkiTripParticipant.user_id.in_(friend_ids),
+            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+        ).all()
+        _trip_id_to_obj = {t.id: t for t in _batch_part_trips}
+        for _pr in _part_rows:
+            _trip_obj = _trip_id_to_obj.get(_pr.trip_id)
+            if _trip_obj:
+                _part_trips_by_friend.setdefault(_pr.user_id, []).append(_trip_obj)
+    if app.debug:
+        print(f"[FRIENDS_PERF] batch_participant_trips={time.perf_counter()-_t:.4f}s rows={len(_batch_part_trips)}")
+
     # ── [FRIENDS_PERF] Block 9: per-friend loop ───────────────────────────────
     _loop_t0 = time.perf_counter()
     _acc_trip_count   = 0.0
@@ -5870,26 +5923,14 @@ def friends():
         friend._has_upcoming_trip = friend._upcoming_trip_count > 0
         _acc_trip_count += time.perf_counter() - _ti
 
-        # [inner] upcoming owner trips query
+        # [inner] owned upcoming trips — batch lookup (no DB call)
         _ti = time.perf_counter()
-        upcoming_owner_trips = SkiTrip.query.filter(
-            SkiTrip.user_id == friend.id,
-            SkiTrip.end_date >= today
-        ).all()
+        upcoming_owner_trips = _owner_trips_by_friend.get(friend.id, [])
         _acc_owner_trips += time.perf_counter() - _ti
 
-        # [inner] upcoming participant trips query
+        # [inner] accepted participant trips — batch lookup (no DB call)
         _ti = time.perf_counter()
-        upcoming_participant_trips = (
-            db.session.query(SkiTrip)
-            .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
-            .filter(
-                SkiTripParticipant.user_id == friend.id,
-                SkiTripParticipant.status == GuestStatus.ACCEPTED,
-                SkiTrip.end_date >= today
-            )
-            .all()
-        )
+        upcoming_participant_trips = _part_trips_by_friend.get(friend.id, [])
         _acc_part_trips += time.perf_counter() - _ti
 
         all_upcoming_trips_dict = {t.id: t for t in upcoming_owner_trips}
@@ -5954,8 +5995,8 @@ def friends():
         print(
             f"[FRIENDS_PERF] per_friend_loop={_loop_total:.4f}s friend_count={len(all_friends)} "
             f"| trip_count_helper={_acc_trip_count:.4f}s "
-            f"| owner_trips_query={_acc_owner_trips:.4f}s "
-            f"| participant_trips_query={_acc_part_trips:.4f}s "
+            f"| owner_trips_lookup={_acc_owner_trips:.4f}s "
+            f"| participant_trips_lookup={_acc_part_trips:.4f}s "
             f"| overlap_prep={_acc_overlap_prep:.4f}s"
         )
 
