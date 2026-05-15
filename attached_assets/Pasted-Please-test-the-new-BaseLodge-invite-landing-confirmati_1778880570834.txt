@@ -1,0 +1,69 @@
+Please test the new BaseLodge invite landing / confirmation flow.
+
+Context:
+A new standalone invite holding page was added at:
+
+templates/invite_landing.html
+
+The invite route was changed so /invite/<token> now renders the landing page first instead of silently accepting or immediately redirecting.
+
+A new POST route was added:
+
+/invite/<token>/confirm
+
+Please verify the implementation without changing code unless you find a clear bug.
+
+Test these cases:
+
+1. Logged-out recipient opens a valid invite link
+Expected:
+- /invite/<token> renders invite_landing.html
+- page shows inviter context
+- no friendship is created on page load
+- clicking Accept Invite stores the token in session
+- user is redirected to auth
+- after login/signup, existing pending invite logic still applies
+
+2. Logged-in recipient opens a valid invite link
+Expected:
+- /invite/<token> renders invite_landing.html
+- page shows “Connect with [Name]” or equivalent
+- no friendship is created on page load
+- clicking confirm POSTs to /invite/<token>/confirm
+- friendship is created only after POST
+- user lands on Friends page
+
+3. Existing edge cases still work
+Verify:
+- expired token
+- invalid token
+- already-used token
+- self-invite
+- already-friends
+
+Expected:
+These should behave the same as before and should not render a broken page.
+
+4. CSRF handling
+Expected:
+- invite_landing.html includes the same CSRF token pattern used by other POST forms
+- POST /invite/<token>/confirm does not fail due to missing CSRF token
+
+5. Native/WebView safety
+Expected:
+- invite_landing.html should not extend base_app.html
+- it should not load OneSignal registration, push scripts, or app-shell-only behavior
+- the holding page should work in both browser and Capacitor WebView
+
+6. Trip invite safety
+Expected:
+- trip invite routes and trip participant logic are not affected by this change
+
+Return:
+1. Pass/fail checklist
+2. Any bugs found
+3. Exact file/line references for any issue
+4. Whether fixes are needed in Assistant or Agent
+
+Do not make unrelated changes.
+Only use checkpoints if I say so.
