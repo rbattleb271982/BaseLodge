@@ -1,0 +1,141 @@
+Review and implement a safer invite flow for BaseLodge.
+
+Context:
+
+BaseLodge uses Capacitor remote URL mode:
+
+server.url = https://app.baselodgeapp.com
+
+This means the native app and website share the same routing behavior. Currently invite links can route directly into the app experience, creating confusing behavior during TestFlight.
+
+We do NOT want to remove Capacitor remote URL mode.
+
+Goal:
+
+Introduce a proper invite landing / holding page before invite acceptance occurs.
+
+Current problem:
+
+Users who receive an invite and already have BaseLodge installed can be routed directly into the app experience.
+
+Invite acceptance can happen too abruptly:
+
+- user lands in app
+- user is redirected
+- friendship happens silently
+- no context
+
+Desired behavior:
+
+When someone opens:
+
+/invite/<token>
+
+show a standalone landing page first.
+
+Landing page should display:
+
+- inviter name
+- inviter profile photo if available
+- headline:
+  "[Name] invited you to connect on BaseLodge"
+
+Short copy:
+
+"See trips, coordinate ski weekends, and connect with friends heading to the mountains."
+
+Buttons:
+
+Primary:
+Accept Invite
+
+Secondary:
+Continue in Browser
+
+Behavior:
+
+Unauthenticated:
+- clicking Accept stores invite token in session
+- routes through existing auth flow
+- preserves current logic
+
+Authenticated:
+- show:
+"Connect with [Name]"
+- require explicit confirmation
+- do NOT silently create friendship
+
+Requirements:
+
+Keep existing logic untouched:
+
+_apply_invite_token()
+
+_connect_pending_inviter()
+
+token validation
+
+expired handling
+
+already-friends handling
+
+self-invite protection
+
+Do not break:
+
+friend invites
+
+trip invites
+
+pending invite flow
+
+notification behavior
+
+Do not modify:
+
+Capacitor configuration
+
+native iOS files
+
+Android files
+
+database schema
+
+Implementation:
+
+1. Create:
+templates/invite_landing.html
+
+Use standalone page style similar to auth pages.
+
+Do NOT extend base_app.html
+
+Avoid loading:
+
+OneSignal
+
+push registration
+
+native analytics behaviors
+
+2. Modify:
+
+invite_token_landing()
+
+Render landing page rather than immediately redirecting.
+
+3. Add:
+
+POST:
+
+/invite/<token>/confirm
+
+This route should execute the current acceptance behavior.
+
+Return:
+
+1. files modified
+2. implementation summary
+3. edge cases tested
+
+Only use checkpoints if I say so.

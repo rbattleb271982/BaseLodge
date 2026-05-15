@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="light">
+    <style>html { background: #F5F1E8; }</style>
+    <title>BaseLodge — Invite</title>
+
+    <meta property="og:title" content="Join me on BaseLodge">
+    <meta property="og:description" content="See trips, coordinate ski weekends, and connect with friends heading to the mountains.">
+    <meta property="og:type" content="website">
+
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
+    <link rel="shortcut icon" href="/static/icons/favicon.ico">
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            height: auto;
+            overflow-y: auto;
+        }
+
+        body {
+            background: #F5F1E8;
+            color: #1A1A1A;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100dvh;
+            padding: calc(env(safe-area-inset-top, 0px) + 48px) 24px
+                     calc(env(safe-area-inset-bottom, 0px) + 48px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .il-wrap {
+            width: 100%;
+            max-width: 380px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* ── Wordmark ─────────────────────────────────────────────────────── */
+        .il-wordmark {
+            display: block;
+            width: 180px;
+            max-width: 70%;
+            height: auto;
+            margin: 0 auto 40px;
+        }
+
+        /* ── Avatar ───────────────────────────────────────────────────────── */
+        .il-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: #5C1219;
+            color: #F5F1E8;
+            font-size: 26px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            flex-shrink: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+        }
+
+        /* ── Headline ─────────────────────────────────────────────────────── */
+        .il-headline {
+            font-family: Georgia, "Times New Roman", Times, serif;
+            font-size: 24px;
+            font-weight: 400;
+            line-height: 1.3;
+            color: #1A1A1A;
+            text-align: center;
+            margin-bottom: 14px;
+        }
+
+        /* ── Body copy ────────────────────────────────────────────────────── */
+        .il-body {
+            font-size: 15px;
+            line-height: 1.55;
+            color: #555;
+            text-align: center;
+            margin-bottom: 36px;
+        }
+
+        /* ── Divider ──────────────────────────────────────────────────────── */
+        .il-divider {
+            width: 40px;
+            height: 1px;
+            background: #D5CEBE;
+            margin: 0 auto 32px;
+        }
+
+        /* ── Buttons ──────────────────────────────────────────────────────── */
+        .il-btn-primary {
+            display: block;
+            width: 100%;
+            padding: 14px 20px;
+            background: #5C1219;
+            color: #F5F1E8;
+            font-size: 15px;
+            font-weight: 500;
+            font-family: inherit;
+            text-align: center;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-bottom: 16px;
+            -webkit-tap-highlight-color: transparent;
+            transition: opacity 0.15s ease;
+        }
+        .il-btn-primary:active { opacity: 0.82; }
+
+        .il-btn-secondary {
+            display: block;
+            width: 100%;
+            padding: 12px 20px;
+            background: transparent;
+            color: #5C1219;
+            font-size: 14px;
+            font-weight: 400;
+            font-family: inherit;
+            text-align: center;
+            border: 1px solid #C9BFB0;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: border-color 0.15s ease, opacity 0.15s ease;
+        }
+        .il-btn-secondary:active { opacity: 0.72; }
+
+        /* ── Footer note ──────────────────────────────────────────────────── */
+        .il-footer {
+            margin-top: 40px;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            line-height: 1.5;
+        }
+        .il-footer a {
+            color: #5C1219;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+<div class="il-wrap">
+
+    <img class="il-wordmark"
+         src="/static/images/baselodge-wordmark.png"
+         alt="BaseLodge">
+
+    <div class="il-avatar" aria-hidden="true">{{ initials }}</div>
+
+    {% if current_user.is_authenticated %}
+        <h1 class="il-headline">Connect with {{ inviter.first_name }}?</h1>
+        <p class="il-body">
+            {{ inviter.first_name }} invited you to connect on BaseLodge —
+            see their trips, plan ski weekends together, and coordinate who's going where.
+        </p>
+    {% else %}
+        <h1 class="il-headline">{{ inviter.first_name }} invited you to connect on BaseLodge</h1>
+        <p class="il-body">
+            See trips, coordinate ski weekends, and connect with friends heading to the mountains.
+        </p>
+    {% endif %}
+
+    <div class="il-divider"></div>
+
+    <form id="acceptForm" method="POST" action="/invite/{{ token }}/confirm" style="width:100%;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+        {% if current_user.is_authenticated %}
+            <button type="submit" class="il-btn-primary">
+                Connect with {{ inviter.first_name }}
+            </button>
+        {% else %}
+            <button type="submit" class="il-btn-primary">
+                Accept Invite
+            </button>
+        {% endif %}
+    </form>
+
+    <button id="openBrowser" class="il-btn-secondary" type="button">
+        Continue in Browser
+    </button>
+
+    <p class="il-footer">
+        BaseLodge &mdash; plan ski trips with friends.<br>
+        <a href="/auth">Sign in</a> or <a href="/auth">create an account</a>.
+    </p>
+
+</div>
+
+<script>
+(function() {
+    var btn = document.getElementById('openBrowser');
+    if (!btn) return;
+
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        // In native Capacitor shell: open the current URL in the system browser (Safari).
+        // In a real browser: just submit the accept form — they're already on the web.
+        var inNative = window.Capacitor
+            && typeof window.Capacitor.isNativePlatform === 'function'
+            && window.Capacitor.isNativePlatform();
+
+        if (inNative) {
+            // _system target tells Capacitor to open in the OS browser, not the WKWebView.
+            window.open(window.location.href, '_system');
+        } else {
+            // Already in a browser — proceed with the normal accept flow.
+            document.getElementById('acceptForm').submit();
+        }
+    });
+})();
+</script>
+</body>
+</html>

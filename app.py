@@ -2570,9 +2570,20 @@ def _connect_pending_inviter(user):
     return connected
 
 
+def _invite_landing_initials(user):
+    """Return up to 2 uppercase initials for the avatar, e.g. 'JS' or 'A'."""
+    first = (user.first_name or "").strip()
+    last  = (user.last_name  or "").strip()
+    if first and last:
+        return (first[0] + last[0]).upper()
+    if first:
+        return first[:2].upper()
+    return "?"
+
+
 @app.route("/invite/<token>")
 def invite_token_landing(token):
-    """Invite landing page — handles both authenticated and unauthenticated visitors."""
+    """Invite landing page — shows a holding page before any acceptance occurs."""
     invite = InviteToken.query.filter_by(token=token).first()
 
     # 1. Token not found
@@ -2605,9 +2616,8 @@ def invite_token_landing(token):
         flash("That's your own invite link.", "info")
         return redirect(url_for("friends"))
 
-    # ── Authenticated visitor with a valid unused token ──────────────────────
+    # 5. Already friends (unused token) — mark used and redirect cleanly
     if current_user.is_authenticated:
-        # Already friends (with an unused token) — mark used, redirect cleanly
         existing = Friend.query.filter_by(
             user_id=current_user.id, friend_id=inviter.id
         ).first()
@@ -2617,12 +2627,57 @@ def invite_token_landing(token):
             flash(f"You're already connected with {inviter.first_name}.", "info")
             return redirect(url_for("friends"))
 
-        # Valid, unused, not yet connected — create the friendship
+    # ── Show the holding page — no automatic acceptance ───────────────────────
+    # Authenticated users see "Connect with [Name]?" and must confirm explicitly.
+    # Unauthenticated users see "Accept Invite" and are routed to auth on confirm.
+    initials = _invite_landing_initials(inviter)
+    return render_template(
+        "invite_landing.html",
+        inviter=inviter,
+        token=token,
+        initials=initials,
+    )
+
+
+@app.route("/invite/<token>/confirm", methods=["POST"])
+def invite_token_confirm(token):
+    """
+    Executes invite acceptance after the user explicitly clicks Accept on the
+    landing page. Re-validates the token on every POST (guards against replays,
+    expiry races, and double-submits).
+    """
+    validate_csrf_request()
+    invite = InviteToken.query.filter_by(token=token).first()
+
+    if not invite or invite.is_expired() or invite.is_used():
+        return render_template("invite_expired.html")
+
+    inviter = db.session.get(User, invite.inviter_id)
+    if not inviter:
+        return render_template("invite_expired.html")
+
+    # Self-invite guard (user may have signed in on the landing page in another tab)
+    if current_user.is_authenticated and current_user.id == inviter.id:
+        flash("That's your own invite link.", "info")
+        return redirect(url_for("friends"))
+
+    # ── Authenticated: create the friendship now ──────────────────────────────
+    if current_user.is_authenticated:
+        existing = Friend.query.filter_by(
+            user_id=current_user.id, friend_id=inviter.id
+        ).first()
+        if existing:
+            # Already connected — mark token used and redirect cleanly
+            invite.used_at = datetime.utcnow()
+            db.session.commit()
+            flash(f"You're already connected with {inviter.first_name}.", "info")
+            return redirect(url_for("friends"))
+
         _apply_invite_token(invite, current_user)
         flash(f"You're now connected with {inviter.first_name}!", "success")
         return redirect(url_for("friends"))
 
-    # ── Unauthenticated visitor — store token, redirect to auth ──────────────
+    # ── Unauthenticated: store token and route through auth ───────────────────
     session["invite_token"] = token
     return redirect(url_for("auth"))
 
