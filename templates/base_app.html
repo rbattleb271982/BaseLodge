@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="color-scheme" content="light">
-    <style>html{background:#F5F1E8}</style>
+    <style>html{background:#F5F1E8}
+#bl-page-loader{position:fixed;top:env(safe-area-inset-top,0px);left:0;width:0;height:2px;background:#5C1219;z-index:99998;opacity:0;pointer-events:none;}
+</style>
     <title>{% block title %}BaseLodge{% endblock %}</title>
     <meta property="og:image" content="https://app.baselodgeapp.com/static/images/og/BaseLodge-logo-primary-1200x630.png">
     <meta property="og:image:width" content="1200">
@@ -21,6 +23,7 @@
 </head>
 <body>
 <div class="app-shell">
+    <div id="bl-page-loader" aria-hidden="true"></div>
     <div class="bl-top-bar">
       <div class="bl-top-bar-left">{% block topbar_left %}{% endblock %}</div>
       <span class="bl-top-bar-title">{% block topbar_title %}{%- set _tb_fn = current_user.first_name or '' -%}{% if _tb_fn %}Hi, {{ _tb_fn }}{% else %}BaseLodge{% endif %}{% endblock %}</span>
@@ -156,6 +159,59 @@ document.addEventListener('DOMContentLoaded', function() {
     }, { passive: true });
   });
 })();
+</script>
+<script>
+/* ── bl-page-loader — 2px bordeaux progress bar for internal navigation.
+   Shows immediately on tap of any internal <a> link; cleans up on pageshow.
+   Excluded: mailto/tel/sms, external http(s), _blank, #-only, forms,
+             data-no-loader, data-bs-toggle / data-toggle (JS-only controls). */
+(function () {
+  var bar = document.getElementById('bl-page-loader');
+  if (!bar) return;
+  var _hideTimer = null;
+
+  function _show() {
+    clearTimeout(_hideTimer);
+    bar.style.transition = 'none';
+    bar.style.width = '0';
+    bar.style.opacity = '1';
+    bar.offsetWidth; /* force reflow so reset is instant */
+    bar.style.transition = 'width .20s ease';
+    bar.style.width = '70%';
+  }
+
+  function _hide() {
+    clearTimeout(_hideTimer);
+    bar.style.transition = 'width .06s ease';
+    bar.style.width = '100%';
+    _hideTimer = setTimeout(function () {
+      bar.style.transition = 'opacity .22s ease';
+      bar.style.opacity = '0';
+      setTimeout(function () {
+        bar.style.transition = 'none';
+        bar.style.width = '0';
+      }, 240);
+    }, 60);
+  }
+
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('a');
+    if (!el) return;
+    var href = (el.getAttribute('href') || '').trim();
+    /* exclusions */
+    if (!href || href === '#' || href.charAt(0) === '#') return;
+    if (/^(mailto:|tel:|sms:)/i.test(href)) return;
+    if (/^https?:\/\//i.test(href)) return;
+    if (el.target === '_blank') return;
+    if (el.closest('form')) return;
+    if (el.hasAttribute('data-no-loader')) return;
+    if (el.hasAttribute('data-bs-toggle') || el.hasAttribute('data-toggle')) return;
+    _show();
+  }, true);
+
+  /* pageshow covers initial load + back-forward cache restore */
+  window.addEventListener('pageshow', function () { _hide(); });
+}());
 </script>
 </body>
 </html>

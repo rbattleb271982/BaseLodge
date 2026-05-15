@@ -95,11 +95,41 @@ def get_open_date_matches(current_user, cached_my_dates=None):
         .all()
     )
 
+    # Step 2b: Batch-fetch all friend availability in one query.
+    # Replaces the previous per-friend get_available_dates_for_user() call
+    # that fired one UserAvailability query per friend (N+1).
+    # Friends with no UserAvailability rows fall back to legacy open_dates JSON below.
+    today_str = date_cls.today().isoformat()
+    _friend_ids = [f.id for f in friends]
+    _avail_by_friend: dict = {}
+    if _friend_ids:
+        _batch_rows = (
+            UserAvailability.query
+            .filter(
+                UserAvailability.user_id.in_(_friend_ids),
+                UserAvailability.is_available == True,
+            )
+            .all()
+        )
+        for _row in _batch_rows:
+            _ds = _row.date.isoformat()
+            if _ds >= today_str:
+                _avail_by_friend.setdefault(_row.user_id, set()).add(_ds)
+
     # Step 3: Compute overlaps in Python (intentional — explicit and debuggable)
     matches = []
 
     for friend in friends:
-        friend_dates = get_available_dates_for_user(friend)
+        if friend.id in _avail_by_friend:
+            # UserAvailability rows exist — use them exclusively (same priority as before)
+            friend_dates = _avail_by_friend[friend.id]
+        else:
+            # No UserAvailability rows — fall back to legacy open_dates JSON
+            legacy = friend.open_dates or []
+            friend_dates = {
+                d for d in legacy
+                if isinstance(d, str) and len(d) == 10 and d >= today_str
+            }
 
         if not friend_dates:
             continue

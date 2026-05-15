@@ -1,0 +1,85 @@
+PUT THIS IN PLAN FIRST.
+
+Implement two safe performance improvements for BaseLodge.
+
+Goal:
+Improve perceived screen speed globally and prevent future Home Ideas slowdown from friend availability N+1 queries.
+
+Scope:
+1. Global tap/loading feedback for navigation
+2. Option B: batch friend availability lookup
+
+Do not touch:
+- native iOS files
+- Android files
+- Capacitor config
+- database schema
+- Ideas ranking/scoring behavior
+- dismissal logic
+- notification/push logic
+
+Part 1 — Global tap/loading feedback
+
+Add lightweight mobile-friendly navigation feedback for normal internal page navigation.
+
+Behavior:
+- When a user taps an internal navigation link, show immediate feedback.
+- This can be a subtle top loading bar, small spinner, or pressed/loading state.
+- It should work across Home, Trips, Friends, Mountains, Profile, Notifications, and detail pages.
+- It should not interfere with:
+  - forms
+  - external links
+  - mailto:
+  - tel:
+  - sms:
+  - links opening in a new tab
+  - buttons that already submit forms
+  - JavaScript-only controls
+  - back buttons if custom behavior exists
+- Keep it lightweight and accessible.
+- Prefer a shared app-shell/template implementation rather than page-by-page changes.
+
+Part 2 — Batch friend availability lookup
+
+Implement Option B from the build_destination_feed audit.
+
+Problem:
+get_open_date_matches() currently has a latent N+1 pattern:
+
+for friend in friends:
+    friend_dates = get_available_dates_for_user(friend)
+
+Goal:
+Replace this with one batch query for all friend availability rows, grouped in Python.
+
+Requirements:
+- Preserve identical output shape and behavior.
+- Preserve date filtering behavior.
+- Preserve current matching logic.
+- Do not change ranking/scoring.
+- Do not change card keys.
+- Do not change templates.
+- If there are no friends or no user availability dates, keep the existing early returns.
+
+Testing:
+- Home loads
+- Ideas render
+- Availability overlap cards still render when applicable
+- Friend trip cards still render
+- Wishlist cards still render
+- Requests render
+- Happening Now renders
+- No template errors
+- No app startup errors
+- Confirm get_open_date_matches() no longer queries once per friend
+
+Return:
+1. Files changed
+2. Exact implementation summary
+3. How tap/loading feedback works
+4. Confirmation that mailto/tel/sms/external/form links are excluded
+5. Confirmation that friend availability N+1 was removed
+6. Test results
+7. Any remaining risks
+
+Only use checkpoints if I say so.
