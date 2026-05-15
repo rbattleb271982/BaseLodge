@@ -5742,6 +5742,7 @@ def friends():
     user = current_user
     today = date.today()
     today_str = today.strftime('%Y-%m-%d')
+    from sqlalchemy.orm import joinedload
 
     _fp_t0 = time.perf_counter()
 
@@ -5762,20 +5763,31 @@ def friends():
     _t = time.perf_counter()
     friend_trips = []
     if friend_ids:
-        friend_trips = SkiTrip.query.filter(
-            SkiTrip.user_id.in_(friend_ids),
-            SkiTrip.end_date >= today,
-            SkiTrip.is_public == True
-        ).order_by(SkiTrip.start_date.asc()).all()
+        friend_trips = (
+            SkiTrip.query
+            .options(joinedload(SkiTrip.user), joinedload(SkiTrip.resort))
+            .filter(
+                SkiTrip.user_id.in_(friend_ids),
+                SkiTrip.end_date >= today,
+                SkiTrip.is_public == True
+            )
+            .order_by(SkiTrip.start_date.asc())
+            .all()
+        )
     if app.debug:
         print(f"[FRIENDS_PERF] friend_trips={time.perf_counter()-_t:.4f}s count={len(friend_trips)}")
 
     # ── [FRIENDS_PERF] Block 4: user_trips (owned) ────────────────────────────
     _t = time.perf_counter()
-    user_trips = SkiTrip.query.filter(
-        SkiTrip.user_id == user.id,
-        SkiTrip.end_date >= today
-    ).all()
+    user_trips = (
+        SkiTrip.query
+        .options(joinedload(SkiTrip.resort))
+        .filter(
+            SkiTrip.user_id == user.id,
+            SkiTrip.end_date >= today
+        )
+        .all()
+    )
     if app.debug:
         print(f"[FRIENDS_PERF] user_trips_owned={time.perf_counter()-_t:.4f}s count={len(user_trips)}")
 
