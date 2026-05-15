@@ -1,0 +1,149 @@
+The Ideas tab logic appears incomplete or inconsistent. I need a full audit and fix of the Ideas pipeline end-to-end so all intended ideas surface correctly and consistently.
+
+GOAL:
+Trace the entire Ideas system from backend query → business logic → filtering → template rendering and determine why expected ideas are not appearing.
+
+Please audit:
+
+1. DATA SOURCES
+
+* Identify every model/table/query contributing to Ideas
+* Trips
+* Friend activity
+* Opportunity generation
+* Suggested mountains
+* Overlap logic
+* Availability logic
+* Invite logic
+* Any recommendation services
+* Any hidden filters
+
+Document where each Ideas card type originates.
+
+2. TRACE FULL PIPELINE
+   For each Ideas card:
+
+Backend query
+↓
+Filters applied
+↓
+Deduping
+↓
+Sorting
+↓
+Template render
+↓
+Visibility conditions
+
+I want a map of exactly how Ideas are generated.
+
+3. LOGIC AUDIT
+
+Find issues like:
+
+* hardcoded limits
+* date windows excluding valid records
+* "future only" filtering problems
+* accidental dedupe removing cards
+* cards suppressed after friend joins
+* cards requiring fields users may not have filled out
+* cards hidden because of pass filters
+* trip status mismatches
+* friend status mismatches
+* visibility logic errors
+* ideas disappearing because one condition fails
+* ideas only evaluating one side of a friendship
+* ideas not considering solo planners
+* mountain overlap logic failing
+* missing OR conditions
+
+4. ADD DEBUG LOGGING
+
+Temporarily add logs:
+
+[Ideas]
+Users evaluated:
+Trips evaluated:
+Friend overlaps:
+Mountain overlaps:
+Cards generated:
+Cards filtered:
+Cards removed:
+Final card count:
+
+If a card is excluded:
+
+log exactly WHY.
+
+Example:
+
+[Ideas] Removed Aspen overlap card — friend missing pass
+[Ideas] Removed Whistler card — duplicate key
+[Ideas] Removed Vail suggestion — trip date expired
+
+5. VERIFY SORTING
+
+Ideas should have deterministic ranking.
+
+Audit:
+
+* recency
+* overlap score
+* friend count
+* mountain popularity
+* upcoming trip proximity
+* invitations
+* social opportunities
+
+No random ordering.
+
+6. VERIFY DEDUPING
+
+Current dedupe may be over-aggressive.
+
+Audit:
+
+Friend only
+Friend + mountain
+Friend + trip
+Friend + opportunity type
+
+Ensure one card type does not unintentionally remove another.
+
+7. QA TEST DATA
+
+Create test scenarios:
+
+* user with no trips
+* solo trip planner
+* invited user
+* accepted invite
+* overlapping mountain
+* overlapping dates
+* Epic user
+* Ikon user
+* Other pass user
+* multiple friends
+* multiple upcoming trips
+
+Verify Ideas populate correctly in every scenario.
+
+8. OUTPUT
+
+Give me:
+
+A. Existing Ideas architecture map
+
+B. What was broken
+
+C. Fixes implemented
+
+D. Remaining risks
+
+E. Exact files changed
+
+Do not redesign the UI.
+
+Do not rewrite the system.
+
+Fix the logic so all intended Ideas flow through consistently and predictably.

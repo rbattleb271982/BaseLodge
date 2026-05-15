@@ -1,12 +1,13 @@
 <!--
 Component: Opportunities Section
 Purpose: Ranked coordination opportunities from the Ideas engine. Up to 5 rows,
-         each tappable to the mountain detail page, with a dismiss control.
+         each tappable to the mountain detail page (or /add_trip for no-resort cards),
+         with a dismiss control.
 Used on: Home screen (always rendered; shows empty nudge when dest_feed is empty)
 
 Inputs:
   dest_feed      list of dicts (pre-filtered, pre-capped at 5)
-    [].resort        Resort ORM object
+    [].resort        Resort ORM object or None
     [].idea_type     "friend_trip" | "availability_overlap" | "wishlist_overlap"
     [].line2         string — pre-formatted coordination sentence
     [].date_range    string | None — e.g. "Apr 20–24"
@@ -28,8 +29,19 @@ Inputs:
     {% if dest_feed %}
 
         {% for row in dest_feed %}
-        {%- set _slug = row.resort.slug if row.resort and row.resort.slug else '' -%}
-        {%- set _detail_url = url_for('mountain_detail', slug=_slug) if _slug else '#' -%}
+        {#
+            For resort-pinned cards: link to mountain detail page.
+            For availability_overlap cards with no resort (resort=None): link to /add_trip.
+        #}
+        {%- if row.resort and row.resort.slug -%}
+            {%- set _detail_url = url_for('mountain_detail', slug=row.resort.slug) -%}
+            {%- set _primary_text = row.resort.name -%}
+            {%- set _state_str = row.resort|state_abbrev -%}
+        {%- else -%}
+            {%- set _detail_url = url_for('add_trip') -%}
+            {%- set _primary_text = 'Pick a mountain' -%}
+            {%- set _state_str = '' -%}
+        {%- endif -%}
         {%- set _card_key = row._card_key -%}
         {%- set _elem_id = 'opp-row-' + loop.index | string -%}
 
@@ -46,7 +58,7 @@ Inputs:
             <a href="{{ _detail_url }}" class="bl-opp-link">
                 <div class="bl-opp-body">
                     <span class="bl-opp-signal">{{ _signal_lbl }}</span>
-                    <p class="bl-opp-primary">{{ row.resort.name }}{% if row.resort|state_abbrev %}, {{ row.resort|state_abbrev }}{% endif %}</p>
+                    <p class="bl-opp-primary">{{ _primary_text }}{% if _state_str %}, {{ _state_str }}{% endif %}</p>
                     {% if row.line2 %}
                     <p class="bl-opp-secondary">{{ row.line2 }}{% if row.date_range %} · {{ row.date_range }}{% endif %}</p>
                     {% elif row.date_range %}

@@ -1,0 +1,333 @@
+BaseLodge Analytics + Admin Dashboard Data Plan
+
+Goal:
+Build a phased analytics foundation for BaseLodge so the admin dashboard can show real data for user growth, activation, mountain demand, messaging performance, platform health, and future investor reporting.
+
+This should be implemented in phases. Do not try to build the entire dashboard at once.
+
+Use checkpoints sparingly. Do not create a checkpoint unless necessary.
+
+PHASE 1 — Sitewide Analytics Foundation
+
+Goal:
+Make sure every meaningful page visit and core user action is tracked consistently.
+
+Requirements:
+1. Audit current PostHog setup.
+2. Confirm where PostHog is initialized, likely in the shared analytics/head template.
+3. Add or standardize global pageview tracking across all pages.
+4. Every pageview should include:
+   - page_url
+   - page_path
+   - page_title or page_type
+   - logged_in true/false
+   - user_id when logged in
+   - anonymous/session id when available
+   - platform: web, ios_native, android_native
+   - referrer
+   - timestamp
+5. Make sure tracking works for:
+   - public web
+   - logged-in web
+   - iOS Capacitor app
+   - Android Capacitor app
+6. Do not expose analytics data publicly.
+7. Do not break existing PostHog, OneSignal, or push notification scripts.
+
+Done when:
+- Every major page sends a clean PostHog pageview.
+- Logged-in users are identified.
+- Anonymous users still generate pageview data.
+- Native platform is included where detectable.
+- Flask boots cleanly.
+
+PHASE 2 — Core Product Event Tracking
+
+Goal:
+Track the key product actions that explain activation, retention, and network coordination.
+
+Add structured PostHog events for:
+1. signup_started
+2. signup_completed
+3. onboarding_started
+4. onboarding_completed
+5. pass_selected
+6. trip_created
+7. trip_updated
+8. trip_deleted
+9. trip_invite_sent
+10. trip_invite_accepted
+11. trip_invite_declined
+12. friend_request_sent
+13. friend_request_accepted
+14. friend_removed
+15. push_notification_opened if not already tracked
+16. email_link_clicked if available later
+
+Each event should include relevant properties:
+- user_id when available
+- platform
+- page_path
+- source_page
+- trip_id when relevant
+- resort_id when relevant
+- mountain_slug when relevant
+- invite_id when relevant
+- timestamp
+
+Done when:
+- Key actions produce PostHog events.
+- Events use consistent naming.
+- No duplicate events fire from the same single action.
+- Flask boots cleanly.
+
+PHASE 3 — Mountain Detail Analytics
+
+Goal:
+Track mountain detail pages as BaseLodge’s future monetization surface.
+
+Requirements:
+1. Add a dedicated event called mountain_detail_viewed.
+2. Fire it whenever a user visits an individual mountain detail page.
+3. Track both logged-in and anonymous users.
+4. Include:
+   - mountain_id
+   - mountain_slug
+   - mountain_name
+   - state
+   - country
+   - pass_types
+   - logged_in
+   - user_id when logged in
+   - anonymous/session id when available
+   - platform
+   - referrer
+   - timestamp
+5. Add source context when possible:
+   - from mountain list
+   - from home
+   - from trip flow
+   - from external/referral
+
+Optional but recommended:
+Create a durable database table called MountainPageView.
+
+Suggested fields:
+- id
+- resort_id / mountain_id
+- mountain_slug
+- user_id nullable
+- anonymous_id nullable
+- session_id nullable
+- page_path
+- referrer
+- platform
+- user_agent
+- ip_hash if safe/legal
+- created_at
+
+Done when:
+- Mountain page views are visible in PostHog.
+- Database logging works if MountainPageView is added.
+- Logged-in and anonymous traffic can be separated.
+- Flask boots cleanly.
+
+PHASE 4 — Admin Dashboard: Mountain Demand Tab
+
+Goal:
+Create a dedicated admin-only Mountain Demand tab because mountain detail pages are the monetization surface.
+
+Requirements:
+Add an admin dashboard tab showing:
+1. Total mountain detail page views
+2. Unique visitors
+3. Logged-in vs anonymous visitors
+4. Views by mountain
+5. Top mountains by 7-day views
+6. Top mountains by 30-day views
+7. Repeat visitor rate
+8. Page → trip created conversion
+9. Mountain page → invite sent conversion
+10. Future trips tied to each mountain
+11. Partner-ready mountains
+
+Partner-ready score can be a simple calculated score using:
+- views
+- unique visitors
+- repeat visitors
+- future trips
+- invite activity
+- conversion rate
+
+Done when:
+- Admin-only tab exists.
+- Metrics are populated from real data.
+- Routes remain protected by existing admin gating.
+- No user-level private analytics are shown publicly.
+- Flask boots cleanly.
+
+PHASE 5 — Admin Dashboard: Activation + Network Health
+
+Goal:
+Populate the dashboard with real user, trip, friend, and activation metrics.
+
+Metrics to support:
+1. Total users
+2. Accounts created today / this week / month-to-date
+3. Active planners
+4. Users with future trips
+5. DAU / WAU / MAU, preferably from PostHog
+6. Users with at least one friend
+7. Group trips
+8. Future trip density
+9. Recurring crews
+10. Overlap windows
+11. Invite acceptance rate
+12. Activation tiers:
+   - Passive
+   - Socially active
+   - Coordination active
+   - Power organizer
+
+Data sources:
+- Supabase/Postgres via SQLAlchemy for product truth
+- PostHog for behavioral activity and funnels
+
+Done when:
+- Metrics reflect real database data where possible.
+- PostHog-derived metrics are clearly separated from database-derived metrics.
+- Admin dashboard explains the data source where useful.
+- Flask boots cleanly.
+
+PHASE 6 — Messaging Analytics
+
+Goal:
+Separate transactional messaging from marketing/lifecycle messaging and show delivery/open performance.
+
+Transactional messaging includes:
+- friend requests
+- friend acceptances
+- trip invites
+- trip invite acceptances
+- account/password/security messages
+- coordination reminders
+
+Marketing/lifecycle messaging includes:
+- storm alerts
+- destination inspiration
+- reactivation
+- referral campaigns
+- seasonal campaigns
+
+Data sources:
+- MessageEventLog
+- OneSignal
+- APNs
+- FCM
+- SendGrid
+- EmailLog if present
+
+Metrics:
+1. Push sent
+2. Push delivered
+3. Push opened
+4. Push failed
+5. Email sent
+6. Email delivered
+7. Email opened
+8. Email clicked
+9. Bounce rate
+10. Opt-out rate
+11. Notification → trip action conversion
+12. Notification → invite action conversion
+
+Important:
+If delivered/opened/clicked data is not currently available, identify whether we need:
+- OneSignal API pulls
+- OneSignal webhooks
+- SendGrid Event Webhook
+- additional MessageEventLog fields
+
+Done when:
+- Admin can see sent counts now.
+- Delivered/opened/clicked gaps are clearly marked if not yet wired.
+- Transactional and marketing messages are separated.
+- Flask boots cleanly.
+
+PHASE 7 — Platform Health
+
+Goal:
+Give admin a calm operational view of app health.
+
+Metrics:
+1. Active push tokens
+2. iOS token count
+3. Android token count
+4. Push opt-out count
+5. APNs failure rate
+6. FCM failure rate
+7. OneSignal failure rate
+8. SendGrid bounce rate
+9. API errors if available
+10. Onboarding failure rate
+11. Recent deploy markers if available
+
+Data sources:
+- PushDeviceToken
+- MessageEventLog
+- SendGrid data
+- PostHog funnel dropoff
+- app/server logs if available
+
+Done when:
+- Admin can quickly see whether messaging and onboarding are healthy.
+- Any unavailable metric is labeled as pending instrumentation rather than faked.
+- Flask boots cleanly.
+
+PHASE 8 — Founder Brief + Investor Metrics
+
+Goal:
+Turn the dashboard into a founder operating system, not just a reporting page.
+
+Founder brief should summarize:
+1. What changed this week
+2. What is growing
+3. What is leaking
+4. Which mountains are heating up
+5. Which organizers are driving network effects
+6. Which messaging channels are working
+7. What needs attention
+
+Investor metrics should include:
+1. Total users
+2. Active planners
+3. Future trips
+4. Graph density
+5. Average friends per user
+6. Repeat coordination rate
+7. Organizer concentration
+8. Mountain demand
+9. Page → trip conversion
+10. Network effects narrative
+
+Important:
+This phase should use real metrics from earlier phases.
+Do not generate AI insights from fake data.
+If AI summary is added, keep it admin-only.
+
+Done when:
+- Founder brief is generated from real dashboard metrics.
+- Investor export uses real metrics.
+- No fake dashboard values remain.
+- Flask boots cleanly.
+
+Implementation rules:
+- Keep all admin analytics routes protected by existing admin gating.
+- Do not expose user emails or private user behavior publicly.
+- Prefer PostHog for behavioral analytics and funnels.
+- Prefer Supabase/Postgres for operational truth.
+- Prefer OneSignal and SendGrid for delivery/open/click reporting.
+- Clearly label any metric that is estimated, pending, or unavailable.
+- Do not fake metrics in production.
+- Use checkpoints sparingly.
+- Do not create a checkpoint unless necessary.

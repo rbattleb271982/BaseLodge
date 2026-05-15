@@ -1,0 +1,252 @@
+#99 — Fix Ideas Pipeline Logic
+
+We completed the read-only Ideas audit. Now implement the fixes below.
+
+GOAL:
+Fix the active Ideas pipeline so all intended Ideas cards flow through consistently, without redesigning the UI or rewriting the system.
+
+Do not change the visual design.
+Do not create a new recommendation system.
+Patch the existing logic, add diagnostics, and preserve the current Home/Ideas experience.
+
+FILES TO UPDATE:
+- services/ideas_engine.py
+- services/skills/trip_overlap.py
+- services/ideas_ranking.py
+- app.py
+- templates/home.html, only if needed for resort_id=None availability cards
+
+IMPLEMENT THESE FIXES:
+
+1. Fix missing db import in services/ideas_engine.py
+
+Problem:
+build_wishlist_overlaps() calls db.session.get(...), but db is not imported.
+This causes wishlist cards to fail silently because the active pipeline swallows the exception.
+
+Fix:
+Add db to the imports.
+
+Use:
+from models import db, Resort, SkiTrip
+
+or the correct existing import style in the file.
+
+2. Fix undefined trip_pass in services/skills/trip_overlap.py
+
+Problem:
+trip_pass is referenced but never assigned.
+
+Fix:
+Before the pass alignment check, define:
+
+trip_pass = _normalize_pass_name(trip.pass_type)
+
+Then use that value in the existing logic.
+
+3. Fix availability overlap cards being suppressed when no shared wishlist resort exists
+
+Problem:
+Availability overlaps only show if the user and friend share a wishlist resort.
+That is too strict.
+
+Expected behavior:
+If user and friend are both free on the same dates, surface an availability_overlap idea even if there is no shared resort.
+
+Implementation:
+- Remove the hard continue when no shared resort is found.
+- If no shared resort exists, set:
+  shared_resort_id = None
+  shared_resort = None
+- Create a valid availability_overlap candidate with:
+  resort_id = None
+  resort = None
+  idea_type = "availability_overlap"
+  line2 = "You and {friends} are free — pick a mountain"
+- Make sure templates/home.html handles resort_id=None gracefully.
+- For resort_id=None cards, CTA should go to /add_trip, not a resort detail page.
+
+4. Fix deduping for resort_id=None cards
+
+Problem:
+Current dedupe is one row per resort_id.
+If resort_id is None, all no-resort availability cards collide into one key.
+
+Fix:
+In _try_add(candidate), use:
+
+rid = candidate["resort_id"]
+key = rid if rid is not None else ("no_resort", candidate.get("start_date"))
+
+Then store candidates by this key.
+
+This allows multiple no-resort availability overlap cards on different dates.
+
+5. Improve sorting without changing the card model
+
+Current sort:
+friend_count desc, then earliest start_date.
+
+Keep that primary behavior, but make it more deterministic and useful.
+
+Use:
+def _sort_key(r):
+    days_away = (r["start_date"] - date.today()).days if r.get("start_date") else 999
+    signal_rank = {
+        "friend_trip": 1,
+        "availability_overlap": 2,
+        "wishlist_overlap": 3,
+    }.get(r.get("idea_type"), 9)
+    return (-r["friend_count"], days_away, signal_rank)
+
+rows.sort(key=_sort_key)
+
+6. Add date-overlap scoring to friend trip candidates
+
+Problem:
+Source 1 surfaces friend trips, but it does not prioritize trips where the current user is also available.
+
+Fix:
+When building Source 1 candidates, check whether the current user has availability overlapping the friend trip dates.
+If yes, add a stronger signal field or scoring hint so those friend_trip cards rank above normal friend_trip cards within the same friend_count/date tier.
+
+Do not redesign the card.
+Do not add a new card type.
+Just make matching availability influence ranking.
+
+7. Fix show_add_dates in app.py
+
+Problem:
+show_add_dates currently checks user.open_dates, the legacy JSON field.
+The active system uses UserAvailability via get_available_dates_for_user().
+
+Fix:
+Use:
+
+from services.open_dates import get_available_dates_for_user as _get_avail_dates
+_user_avail = _get_avail_dates(user)
+show_add_dates = not bool(_user_avail)
+
+Use the correct import location based on current app structure.
+
+8. Fix BAD_PASSES inconsistency
+
+Problem:
+services/ideas_ranking.py uses human-readable bad pass values.
+services/ideas_engine.py uses normalized bad pass slugs.
+
+Fix:
+Align ideas_ranking.py with the normalized values:
+
+BAD_PASSES = {None, "", "no_pass", "no_pass_yet", "other"}
+
+If there is already a shared pass utility or normalization helper, use that instead of duplicating constants.
+
+9. Fix dismissal key collision for resort_id=None cards in app.py
+
+Problem:
+Current dismissal key:
+
+f"{idea_type}:{resort_id}"
+
+will make every no-resort card collide as "availability_overlap:None".
+
+Fix:
+Use:
+
+if _row.get("resort_id"):
+    _ck = f"{_row['idea_type']}:{_row['resort_id']}"
+else:
+    _fids = "_".join(str(f) for f in sorted(_row.get("friend_ids") or []))
+    _ck = f"{_row['idea_type']}:{_fids}:{_row.get('start_date', 'nodate')}"
+
+Make sure dismissal persists correctly for both resort and no-resort cards.
+
+10. Add structured Ideas debug logging
+
+Add INFO-level print logs using the existing [HOME_DIAGNOSTICS] style.
+
+In build_destination_feed(), add:
+
+At start:
+print(f"[Ideas] start user_id={user.id} friends={len(friend_ids)} wishlist={len(user_wishlist)} pass={user.pass_type!r}")
+
+After friend trips:
+print(f"[Ideas] source=friend_trips raw={_diag['raw_friend_trip']} booked_suppressed={_diag['booked_suppressed']}")
+
+After overlap windows:
+Log each added or skipped overlap:
+print(f"[Ideas] overlap_window start={w['start_date']} friends={n} resort={shared_resort_id} ADDED")
+print(f"[Ideas] overlap_window start={w['start_date']} friends={n} SKIPPED reason={reason}")
+
+After wishlist:
+print(f"[Ideas] source=wishlist raw={_diag['raw_wishlist']}")
+
+Before return:
+print(f"[Ideas] final_feed count={len(rows)}")
+for r in rows:
+    rname = getattr(r.get("resort"), "name", None) or str(r.get("resort_id", "?"))
+    print(f"[Ideas] card type={r['idea_type']} resort={rname!r} friends={r['friend_count']} date={r.get('start_date') or 'none'}")
+
+In the home route after dismissal filtering:
+print(f"[Ideas] dismissed_keys={_diag_dismissed_count} after_dismissal={_diag_opp_after_dismissal} after_cap={len(dest_feed)}")
+
+11. Add temporary admin-only Ideas diagnostic summary on /home
+
+Only visible to admins.
+
+Show a small diagnostic block/card with:
+
+Raw friend trips: X
+Raw wishlist overlaps: X
+Raw availability overlaps: X
+
+Suppressed:
+Booked: X
+Dismissed: X
+No shared resort: X
+Deduped: X
+Cap removed: X
+
+Final cards shown: X
+
+Important:
+- Keep it visually simple.
+- Admin-only.
+- Do not show this to normal users.
+- This is temporary diagnostic support and can be removed later.
+
+12. Clarify active vs legacy pipeline
+
+Before finalizing, document in the response:
+
+- build_destination_feed() is the active Home Ideas pipeline.
+- build_ranked_idea_feed() is legacy or inactive.
+- Do not route /home through build_ranked_idea_feed() unless absolutely necessary.
+- Do not create two competing active pipelines.
+
+13. QA required
+
+Test these scenarios manually or with shell-created test records:
+
+- User with no trips and no friends: no Ideas section or empty state behaves correctly
+- User with friends but no open dates: no availability_overlap, but friend_trip/wishlist can show
+- User and friend both free same dates, no shared wishlist: availability_overlap appears with /add_trip CTA
+- User and friend both free same dates, shared wishlist resort: availability_overlap appears with resort pinned
+- Friend has upcoming public trip: friend_trip appears
+- User already has a trip at that resort: idea suppressed
+- Wishlist overlap appears when two friends share a resort
+- Dismissed card disappears and stays gone
+- No-resort availability card dismissal does not suppress unrelated future no-resort cards
+- Up to 5 cards show after sorting/capping
+- Admin-only diagnostic summary does not show for non-admin users
+
+FINAL RESPONSE:
+After implementing, report:
+
+A. Files changed
+B. Bugs fixed
+C. What the Ideas pipeline does now
+D. Whether build_ranked_idea_feed is still inactive
+E. QA results
+F. Any remaining risks

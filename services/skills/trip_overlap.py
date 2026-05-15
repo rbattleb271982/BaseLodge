@@ -176,9 +176,10 @@ def trip_overlap_skill(user, all_friends):
             title = f"{anchor_name} is considering {resort_name}"
 
         # Pass phrase — spec-exact strings only
+        trip_pass = _normalize_pass_name(trip.pass_type)
         subtitle = None
         if pass_aligns and trip_pass:
-            norm_pass = _normalize_pass_name(trip.pass_type) or _normalize_pass_name(user.pass_type)
+            norm_pass = trip_pass or _normalize_pass_name(user.pass_type)
             subtitle = f"You both have {norm_pass}" if norm_pass else None
         elif user_pass and trip_pass:
             subtitle = "Different passes"

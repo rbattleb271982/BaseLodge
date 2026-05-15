@@ -6993,10 +6993,11 @@ def home():
 
     # --- Coordination feed (Home opportunities stream) ---
     dest_feed = []
+    _ideas_engine_diag = {}
     try:
         from services.ideas_engine import build_destination_feed as _build_home_feed
         if all_friends:
-            _raw_feed = _build_home_feed(user, all_friends)
+            _raw_feed, _ideas_engine_diag = _build_home_feed(user, all_friends)
             _diag_opp_engine_count = len(_raw_feed)
             _dismissed_opp_keys = set()
             try:
@@ -7009,12 +7010,19 @@ def home():
                 db.session.rollback()
             _diag_dismissed_count = len(_dismissed_opp_keys)
             for _row in _raw_feed:
-                _ck = f"{_row['idea_type']}:{_row['resort_id']}"
+                # Dismissal key: resort-pinned cards use type:resort_id;
+                # no-resort cards use type:friend_ids:start_date (BUG-9 fix)
+                if _row.get('resort_id'):
+                    _ck = f"{_row['idea_type']}:{_row['resort_id']}"
+                else:
+                    _fids = "_".join(str(f) for f in sorted(_row.get('friend_ids') or []))
+                    _ck = f"{_row['idea_type']}:{_fids}:{_row.get('start_date', 'nodate')}"
                 if _ck not in _dismissed_opp_keys:
                     _row['_card_key'] = _ck
                     dest_feed.append(_row)
             _diag_opp_after_dismissal = len(dest_feed)
             dest_feed = dest_feed[:5]
+            print(f"[Ideas] dismissed_keys={_diag_dismissed_count} after_dismissal={_diag_opp_after_dismissal} after_cap={len(dest_feed)}")
     except Exception:
         db.session.rollback()
         dest_feed = []
@@ -7096,8 +7104,33 @@ def home():
 
     ideas_count = len(dest_feed)
     requests_count = banner_invite_count + (1 if secondary_card else 0)
-    _today_str = today.isoformat()
-    show_add_dates = not any(d >= _today_str for d in (user.open_dates or []))
+
+    # Fix BUG-5: check UserAvailability table via the active service,
+    # not the legacy user.open_dates JSON field.
+    from services.open_dates import get_available_dates_for_user as _get_avail_home
+    _user_avail_home = _get_avail_home(user)
+    show_add_dates = not bool(_user_avail_home)
+
+    # Admin flag for Ideas diagnostic block
+    _admin_emails_home = set(
+        e.strip().lower()
+        for e in os.environ.get("ALLOWED_ADMIN_EMAILS", "").split(",")
+        if e.strip()
+    )
+    is_admin = current_user.is_authenticated and current_user.email.lower() in _admin_emails_home
+
+    # Build Ideas diagnostic summary for admin view
+    ideas_diag = {
+        'raw_friend_trips': _ideas_engine_diag.get('raw_friend_trip', 0),
+        'raw_overlap': _ideas_engine_diag.get('raw_overlap', 0),
+        'raw_overlap_no_resort': _ideas_engine_diag.get('raw_overlap_no_resort', 0),
+        'raw_wishlist': _ideas_engine_diag.get('raw_wishlist', 0),
+        'booked_suppressed': _ideas_engine_diag.get('booked_suppressed', 0),
+        'dismissed': _diag_dismissed_count,
+        'after_dismissal': _diag_opp_after_dismissal,
+        'final_shown': len(dest_feed),
+        'engine_total': _diag_opp_engine_count,
+    }
 
     return render_template(
         'home.html',
@@ -7120,6 +7153,8 @@ def home():
         friend_count=len(friend_ids),
         new_connection_name=new_connection_name,
         sender_connection_card=sender_connection_card,
+        is_admin=is_admin,
+        ideas_diag=ideas_diag,
     )
 
 

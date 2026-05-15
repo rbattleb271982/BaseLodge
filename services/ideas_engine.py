@@ -15,7 +15,7 @@ from collections import Counter
 from datetime import date, timedelta
 from flask import url_for
 from utils.formatting import format_name
-from models import Resort, SkiTrip
+from models import db, Resort, SkiTrip
 
 from services.pass_utils import normalize_pass as _norm_pass_val, display_pass_label, passes_match as _passes_match
 
@@ -729,7 +729,15 @@ def build_destination_feed(user, all_friends):
     friend_by_id = {f.id: f for f in all_friends}
 
     if not friend_ids:
-        return []
+        return [], {}
+
+    user_wishlist = set(user.wish_list_resorts or [])
+
+    # User's available dates — for date-overlap scoring of friend trip candidates
+    from services.open_dates import get_available_dates_for_user as _get_avail_engine
+    _user_avail_dates = _get_avail_engine(user)
+
+    print(f"[Ideas] start user_id={user.id} friends={len(friend_ids)} wishlist={len(user_wishlist)} pass={user.pass_type!r}")
 
     # Signal type constants — lower value = stronger signal
     _FRIEND_TRIP = 1
@@ -756,6 +764,7 @@ def build_destination_feed(user, all_friends):
     _diag = {
         'raw_friend_trip': 0,
         'raw_overlap': 0,
+        'raw_overlap_no_resort': 0,
         'raw_wishlist': 0,
         'total_attempted': 0,
         'booked_suppressed': 0,
@@ -780,11 +789,12 @@ def build_destination_feed(user, all_friends):
     def _try_add(candidate):
         _diag['total_attempted'] += 1
         rid = candidate["resort_id"]
-        if rid in _booked_resort_ids:
+        if rid is not None and rid in _booked_resort_ids:
             _diag['booked_suppressed'] += 1
             return
-        if rid not in by_resort or _prefer(candidate, by_resort[rid]):
-            by_resort[rid] = candidate
+        key = rid if rid is not None else ("no_resort", candidate.get("start_date"))
+        if key not in by_resort or _prefer(candidate, by_resort[key]):
+            by_resort[key] = candidate
 
     # ── 1. Friend trips ──────────────────────────────────────────────────────
     friend_trips = (
@@ -832,6 +842,15 @@ def build_destination_feed(user, all_friends):
             parts.append(_fmt_social_names(g["going_names"], "going"))
         if g["considering"] > 0:
             parts.append(_fmt_social_names(g["considering_names"], "considering"))
+
+        # Date-overlap bonus: does the current user have availability during this trip?
+        _trip_days = set()
+        _cur_d = start_d
+        while _cur_d <= end_d:
+            _trip_days.add(_cur_d.isoformat())
+            _cur_d += timedelta(days=1)
+        _has_user_date_overlap = bool(_user_avail_dates & _trip_days)
+
         _diag['raw_friend_trip'] += 1
         _try_add({
             "resort": rdata["resort"],
@@ -847,14 +866,19 @@ def build_destination_feed(user, all_friends):
             "idea_type": "friend_trip",
             "trip_id": g["trip_id"],
             "friend_ids": sorted(set(g["friend_ids_in_window"])),
+            "has_user_date_overlap": _has_user_date_overlap,
         })
 
-    # ── 2. Overlap windows with a shared wishlist resort ─────────────────────
+    print(f"[Ideas] source=friend_trips raw={_diag['raw_friend_trip']} booked_suppressed={_diag['booked_suppressed']}")
+
+    # ── 2. Overlap windows (availability_overlap) ────────────────────────────
+    # Surfaces when user and friend(s) share open dates.
+    # If a shared wishlist resort exists, the card is pinned to it.
+    # If not, the card still surfaces with resort_id=None so the user can
+    # pick a mountain themselves (BUG-3 fix — previously suppressed).
     try:
         matches = get_open_date_matches(user)
         if matches:
-            user_wishlist = set(user.wish_list_resorts or [])
-            friend_by_id = {f.id: f for f in all_friends}
             windows = build_overlap_windows(matches, user.pass_type)
 
             for w in windows:
@@ -873,6 +897,7 @@ def build_destination_feed(user, all_friends):
 
                 window_friend_ids = {f["friend_id"] for f in friends_in_window}
 
+                # Try to find a shared wishlist resort between user and any window friend
                 shared_resort_id = None
                 shared_resort    = None
                 for fid in window_friend_ids:
@@ -887,21 +912,20 @@ def build_destination_feed(user, all_friends):
                             shared_resort_id = rid
                             shared_resort    = r
                             break
-
-                if not shared_resort_id:
-                    if user_wishlist:
-                        fallback_resort_id = next(iter(user_wishlist))
-                        shared_resort = db.session.get(Resort, fallback_resort_id)
-                        if shared_resort:
-                            shared_resort_id = fallback_resort_id
-                    if not shared_resort_id:
-                        continue
+                # No fallback to arbitrary wishlist resort — allow resort_id=None (BUG-3 fix)
 
                 first_names = []
                 for fw in friends_in_window:
                     raw = fw.get("friend_name") or ""
                     first_names.append(raw.split()[0] if raw.strip() else "Friend")
-                line2 = _fmt_wishlist_names(first_names, "— free this window")
+
+                if shared_resort_id:
+                    line2 = _fmt_wishlist_names(first_names, "— free this window")
+                    print(f"[Ideas] overlap_window start={w['start_date']} friends={n} resort={shared_resort_id} ADDED")
+                else:
+                    line2 = _fmt_wishlist_names(first_names, "— pick a mountain")
+                    print(f"[Ideas] overlap_window start={w['start_date']} friends={n} resort=None ADDED (no shared resort)")
+                    _diag['raw_overlap_no_resort'] += 1
 
                 _diag['raw_overlap'] += 1
                 _try_add({
@@ -917,9 +941,12 @@ def build_destination_feed(user, all_friends):
                     "signal_type": _OVERLAP,
                     "idea_type": "availability_overlap",
                     "friend_ids": sorted(window_friend_ids),
+                    "has_user_date_overlap": True,
                 })
-    except Exception:
-        pass
+    except Exception as _exc:
+        print(f"[Ideas] overlap_window ERROR: {_exc}")
+
+    print(f"[Ideas] source=overlap raw={_diag['raw_overlap']} no_resort={_diag['raw_overlap_no_resort']}")
 
     # ── 3. Wishlist overlaps ─────────────────────────────────────────────────
     try:
@@ -940,6 +967,7 @@ def build_destination_feed(user, all_friends):
             suffix = "— both on your wishlists" if n == 1 else "— all on your wishlists"
             line2 = _fmt_wishlist_names(friend_first_names, suffix)
             _diag['raw_wishlist'] += 1
+            print(f"[Ideas] source=wishlist resort_id={rid} friends={n}")
             _try_add({
                 "resort": resort_obj,
                 "resort_id": rid,
@@ -954,15 +982,25 @@ def build_destination_feed(user, all_friends):
                 "idea_type": "wishlist_overlap",
                 "friend_ids": [p["id"] for p in overlapping],
             })
-    except Exception:
-        pass
+    except Exception as _exc:
+        print(f"[Ideas] wishlist ERROR: {_exc}")
 
-    # ── Sort: friend_count desc, then closest date first, no-date rows last ──
+    print(f"[Ideas] source=wishlist raw={_diag['raw_wishlist']}")
+
+    # ── Sort: friend_count desc, user date-overlap first, then closest date, then signal ──
     rows = list(by_resort.values())
-    rows.sort(key=lambda r: (
-        -r["friend_count"],
-        (r["start_date"] or date.max).toordinal(),
-    ))
+
+    def _sort_key(r):
+        days_away = (r["start_date"] - date.today()).days if r.get("start_date") else 999
+        signal_rank = {
+            "friend_trip": 1,
+            "availability_overlap": 2,
+            "wishlist_overlap": 3,
+        }.get(r.get("idea_type"), 9)
+        user_overlap_bonus = 0 if r.get("has_user_date_overlap") else 1
+        return (-r["friend_count"], user_overlap_bonus, days_away, signal_rank)
+
+    rows.sort(key=_sort_key)
 
     # ── Diagnostics ──────────────────────────────────────────────────────────
     _diag_after_booked = _diag['total_attempted'] - _diag['booked_suppressed']
@@ -980,6 +1018,7 @@ def build_destination_feed(user, all_friends):
         f" opp_resort_dedupe_lost={_diag_resort_dedupe_lost}"
         f" opp_after_resort_dedupe={len(rows)}"
     )
+    print(f"[Ideas] final_feed count={len(rows)}")
     for _r in rows:
         _rname = getattr(_r.get('resort'), 'name', None) or str(_r.get('resort_id', '?'))
         print(
@@ -988,8 +1027,13 @@ def build_destination_feed(user, all_friends):
             f" friends={_r.get('friend_count', 0)}"
             f" start={_r.get('start_date') or 'none'}"
         )
+        print(
+            f"[Ideas]   card type={_r['idea_type']} resort={_rname!r}"
+            f" friends={_r['friend_count']} date={_r.get('start_date') or 'none'}"
+            f" user_overlap={_r.get('has_user_date_overlap', False)}"
+        )
 
-    return rows
+    return rows, _diag
 
 
 def build_ranked_idea_feed(user, all_friends):

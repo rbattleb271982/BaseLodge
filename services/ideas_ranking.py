@@ -20,7 +20,7 @@ Architecture:
 
 from datetime import date as date_cls, timedelta
 
-BAD_PASSES = {None, "", "I don't have a pass", "Other"}
+BAD_PASSES = {None, "", "no_pass", "no_pass_yet", "other"}
 
 
 def score_overlap_windows(windows, user, shared_wishlist_friend_ids=None):

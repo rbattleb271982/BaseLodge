@@ -1,0 +1,36 @@
+<!--
+Admin-only Ideas pipeline diagnostic block.
+Visible only when is_admin=True. Temporary diagnostic support.
+Remove when no longer needed.
+-->
+{% if is_admin and ideas_diag %}
+<div style="
+    margin: 12px 16px;
+    padding: 12px 14px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 11px;
+    color: #aaa;
+    line-height: 1.7;
+">
+    <div style="color:#e87c3e;font-weight:bold;margin-bottom:6px;font-size:12px;">⚙ Ideas Diagnostic (admin only)</div>
+
+    <div style="color:#6c9;margin-bottom:2px;">Sources (raw)</div>
+    <div>Friend trips: <span style="color:#fff">{{ ideas_diag.raw_friend_trips }}</span></div>
+    <div>Availability overlaps: <span style="color:#fff">{{ ideas_diag.raw_overlap }}</span>
+        {% if ideas_diag.raw_overlap_no_resort %}<span style="color:#aaa"> ({{ ideas_diag.raw_overlap_no_resort }} no resort)</span>{% endif %}
+    </div>
+    <div>Wishlist overlaps: <span style="color:#fff">{{ ideas_diag.raw_wishlist }}</span></div>
+
+    <div style="color:#6c9;margin-top:8px;margin-bottom:2px;">Suppressed</div>
+    <div>Booked at resort: <span style="color:#fff">{{ ideas_diag.booked_suppressed }}</span></div>
+    <div>Dismissed by user: <span style="color:#fff">{{ ideas_diag.dismissed }}</span></div>
+    <div>After dedup → engine total: <span style="color:#fff">{{ ideas_diag.engine_total }}</span></div>
+
+    <div style="color:#6c9;margin-top:8px;margin-bottom:2px;">Output</div>
+    <div>After dismissal filter: <span style="color:#fff">{{ ideas_diag.after_dismissal }}</span></div>
+    <div>Final shown (cap 5): <span style="color:#f4d03f;font-weight:bold">{{ ideas_diag.final_shown }}</span></div>
+</div>
+{% endif %}
