@@ -1,0 +1,76 @@
+PUT THIS IN PLAN FIRST.
+
+Optimize Friends route trip count computation.
+
+Context:
+The get_upcoming_trip_count(friend) audit found that the Friends route calls get_upcoming_trip_count(friend) once per friend inside the loop.
+
+That function runs two DB queries per call:
+1. owned upcoming trips
+2. accepted participant trips
+
+But the Friends route now already has both datasets batched in:
+- _owner_trips_by_friend
+- _part_trips_by_friend
+
+Goal:
+Remove the per-friend get_upcoming_trip_count(friend) DB calls from the Friends route only.
+
+Scope:
+app.py Friends route only.
+
+Do not modify:
+- get_upcoming_trip_count() function itself
+- templates
+- schema
+- friend logic
+- invite logic
+- trip invite logic
+- notifications
+- Ideas engine
+- native iOS/Android/Capacitor files
+- any other route
+
+Implementation:
+Inside the Friends route per-friend loop, replace:
+
+friend._upcoming_trip_count = get_upcoming_trip_count(friend)
+
+with an inline Python count based on the already-batched trip dicts:
+
+owner_trip_ids = {t.id for t in _owner_trips_by_friend.get(friend.id, [])}
+participant_trip_ids = {t.id for t in _part_trips_by_friend.get(friend.id, [])}
+friend._upcoming_trip_count = len(owner_trip_ids | participant_trip_ids)
+
+Keep the output identical:
+- same owned trips
+- same accepted participant trips
+- same end_date >= today behavior
+- same dedupe by trip.id
+- same integer assigned to friend._upcoming_trip_count
+- friend._trip_count should remain correct
+
+Update [FRIENDS_PERF]:
+- Rename trip_count_helper to trip_count_compute
+- It should now measure Python set-union time, not DB time
+
+Testing:
+- /friends loads
+- Friend List tab renders
+- Upcoming Feed tab renders
+- trip counts remain correct
+- next-trip labels remain correct
+- overlap labels remain correct
+- invite section renders
+- no startup errors
+- no template errors
+
+Return:
+1. files changed
+2. exact change made
+3. before/after [FRIENDS_PERF] output
+4. query reduction estimate
+5. test results
+6. remaining risks
+
+Only use checkpoints if I say so.

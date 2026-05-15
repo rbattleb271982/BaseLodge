@@ -5917,9 +5917,11 @@ def friends():
         friend._trip_invites_allowed = friendship.trip_invites_allowed if friendship else False
         friend._is_new_friend = bool(friendship and not friendship.has_viewed_profile)
 
-        # [inner] get_upcoming_trip_count
+        # [inner] trip count — inline set-union from batched data (no DB call)
         _ti = time.perf_counter()
-        friend._upcoming_trip_count = get_upcoming_trip_count(friend)
+        _owner_ids = {t.id for t in _owner_trips_by_friend.get(friend.id, [])}
+        _part_ids  = {t.id for t in _part_trips_by_friend.get(friend.id, [])}
+        friend._upcoming_trip_count = len(_owner_ids | _part_ids)
         friend._has_upcoming_trip = friend._upcoming_trip_count > 0
         _acc_trip_count += time.perf_counter() - _ti
 
@@ -5994,7 +5996,7 @@ def friends():
     if app.debug:
         print(
             f"[FRIENDS_PERF] per_friend_loop={_loop_total:.4f}s friend_count={len(all_friends)} "
-            f"| trip_count_helper={_acc_trip_count:.4f}s "
+            f"| trip_count_compute={_acc_trip_count:.4f}s "
             f"| owner_trips_lookup={_acc_owner_trips:.4f}s "
             f"| participant_trips_lookup={_acc_part_trips:.4f}s "
             f"| overlap_prep={_acc_overlap_prep:.4f}s"
