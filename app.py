@@ -5742,12 +5742,24 @@ def friends():
     user = current_user
     today = date.today()
     today_str = today.strftime('%Y-%m-%d')
-    # Load friend relationships
+
+    _fp_t0 = time.perf_counter()
+
+    # ── [FRIENDS_PERF] Block 1: friend_links ──────────────────────────────────
+    _t = time.perf_counter()
     friend_links = Friend.query.filter_by(user_id=user.id).all()
     friend_ids = [f.friend_id for f in friend_links]
+    if app.debug:
+        print(f"[FRIENDS_PERF] friend_links={time.perf_counter()-_t:.4f}s count={len(friend_ids)}")
+
+    # ── [FRIENDS_PERF] Block 2: all_friends ───────────────────────────────────
+    _t = time.perf_counter()
     all_friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
-    
-    # Friends' Trips - upcoming trips from friends (for trips tab)
+    if app.debug:
+        print(f"[FRIENDS_PERF] all_friends={time.perf_counter()-_t:.4f}s count={len(all_friends)}")
+
+    # ── [FRIENDS_PERF] Block 3: friend_trips ──────────────────────────────────
+    _t = time.perf_counter()
     friend_trips = []
     if friend_ids:
         friend_trips = SkiTrip.query.filter(
@@ -5755,12 +5767,20 @@ def friends():
             SkiTrip.end_date >= today,
             SkiTrip.is_public == True
         ).order_by(SkiTrip.start_date.asc()).all()
-    
-    # User's upcoming trips for overlap detection (owned + accepted guest)
+    if app.debug:
+        print(f"[FRIENDS_PERF] friend_trips={time.perf_counter()-_t:.4f}s count={len(friend_trips)}")
+
+    # ── [FRIENDS_PERF] Block 4: user_trips (owned) ────────────────────────────
+    _t = time.perf_counter()
     user_trips = SkiTrip.query.filter(
         SkiTrip.user_id == user.id,
         SkiTrip.end_date >= today
     ).all()
+    if app.debug:
+        print(f"[FRIENDS_PERF] user_trips_owned={time.perf_counter()-_t:.4f}s count={len(user_trips)}")
+
+    # ── [FRIENDS_PERF] Block 5: accepted guest trips ───────────────────────────
+    _t = time.perf_counter()
     try:
         _user_accepted_ids = [
             p.trip_id for p in SkiTripParticipant.query.filter(
@@ -5777,14 +5797,19 @@ def friends():
             user_trips = user_trips + _user_guest_trips
     except Exception:
         pass
+    if app.debug:
+        print(f"[FRIENDS_PERF] accepted_guest_trips={time.perf_counter()-_t:.4f}s user_trips_total={len(user_trips)}")
 
-    # Build trip overlaps list using canonical helper
+    # ── [FRIENDS_PERF] Block 6: compute_trip_overlaps ─────────────────────────
+    _t = time.perf_counter()
     trip_overlaps = compute_trip_overlaps(user_trips, friend_trips)
-    
-    # Build open date overlaps (user open dates vs friend open dates)
+    if app.debug:
+        print(f"[FRIENDS_PERF] compute_trip_overlaps={time.perf_counter()-_t:.4f}s overlaps={len(trip_overlaps)}")
+
+    # ── [FRIENDS_PERF] Block 7: open_date_overlaps ────────────────────────────
+    _t = time.perf_counter()
     open_date_overlaps = []
     user_open_dates = set(d for d in (user.open_dates or []) if d >= today_str)
-    
     if user_open_dates and friend_ids:
         for friend in all_friends:
             friend_open_dates = set(d for d in (friend.open_dates or []) if d >= today_str)
@@ -5796,11 +5821,13 @@ def friends():
                     "friend_id": friend.id,
                     "friend_first_name": friend.first_name
                 })
-    
-    # Build a lookup for friendship data (including trip_invites_allowed and created_at)
+    if app.debug:
+        print(f"[FRIENDS_PERF] open_date_overlaps={time.perf_counter()-_t:.4f}s overlaps={len(open_date_overlaps)}")
+
+    # ── [FRIENDS_PERF] Block 8: lookup build ──────────────────────────────────
+    _t = time.perf_counter()
     friendship_lookup = {f.friend_id: f for f in friend_links}
 
-    # Build per-friend label lookups
     trip_overlap_by_friend = {}
     for ov in trip_overlaps:
         fid = ov['friend_id']
@@ -5821,27 +5848,38 @@ def friends():
         if fid not in friend_trips_by_id:
             friend_trips_by_id[fid] = []
         friend_trips_by_id[fid].append(ft)
-    
-    # Calculate sorting data for each friend
+    if app.debug:
+        print(f"[FRIENDS_PERF] lookup_build={time.perf_counter()-_t:.4f}s")
+
+    # ── [FRIENDS_PERF] Block 9: per-friend loop ───────────────────────────────
+    _loop_t0 = time.perf_counter()
+    _acc_trip_count   = 0.0
+    _acc_owner_trips  = 0.0
+    _acc_part_trips   = 0.0
+    _acc_overlap_prep = 0.0
+
     for friend in all_friends:
         friendship = friendship_lookup.get(friend.id)
-        
-        # Attach friendship permission
+
         friend._trip_invites_allowed = friendship.trip_invites_allowed if friendship else False
-        
-        # NEW badge: show until the current user has clicked into this friend's profile
         friend._is_new_friend = bool(friendship and not friendship.has_viewed_profile)
-        
-        # Get upcoming trips count using centralized helper
+
+        # [inner] get_upcoming_trip_count
+        _ti = time.perf_counter()
         friend._upcoming_trip_count = get_upcoming_trip_count(friend)
         friend._has_upcoming_trip = friend._upcoming_trip_count > 0
-        
-        # Find most recent upcoming trip created_at (for sorting)
-        # We still need the actual trip objects for sorting metadata
+        _acc_trip_count += time.perf_counter() - _ti
+
+        # [inner] upcoming owner trips query
+        _ti = time.perf_counter()
         upcoming_owner_trips = SkiTrip.query.filter(
             SkiTrip.user_id == friend.id,
             SkiTrip.end_date >= today
         ).all()
+        _acc_owner_trips += time.perf_counter() - _ti
+
+        # [inner] upcoming participant trips query
+        _ti = time.perf_counter()
         upcoming_participant_trips = (
             db.session.query(SkiTrip)
             .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
@@ -5852,6 +5890,8 @@ def friends():
             )
             .all()
         )
+        _acc_part_trips += time.perf_counter() - _ti
+
         all_upcoming_trips_dict = {t.id: t for t in upcoming_owner_trips}
         for t in upcoming_participant_trips:
             all_upcoming_trips_dict[t.id] = t
@@ -5862,14 +5902,14 @@ def friends():
         else:
             friend._latest_upcoming_trip_created_at = None
 
-        # Directory tab: trip count + going count
         friend._trip_count = friend._upcoming_trip_count
         friend._going_count = sum(
             1 for t in friend_trips_by_id.get(friend.id, [])
             if (t.trip_status or 'planning') == 'going'
         )
 
-        # Compute display labels for friend list row
+        # [inner] overlap label + next trip label
+        _ti = time.perf_counter()
         friend._overlap_label = None
         friend._next_trip_label = None
 
@@ -5907,36 +5947,50 @@ def friends():
             else:
                 label = f"Planning {dest}"
             friend._next_trip_label = label
+        _acc_overlap_prep += time.perf_counter() - _ti
 
-    # Sort friends by:
-    # 1. New friends first (is_new_friend DESC)
-    # 2. Has upcoming trip (DESC)
-    # 3. Latest upcoming trip created_at (DESC)
-    # 4. First name alphabetically (ASC)
+    _loop_total = time.perf_counter() - _loop_t0
+    if app.debug:
+        print(
+            f"[FRIENDS_PERF] per_friend_loop={_loop_total:.4f}s friend_count={len(all_friends)} "
+            f"| trip_count_helper={_acc_trip_count:.4f}s "
+            f"| owner_trips_query={_acc_owner_trips:.4f}s "
+            f"| participant_trips_query={_acc_part_trips:.4f}s "
+            f"| overlap_prep={_acc_overlap_prep:.4f}s"
+        )
+
+    # ── [FRIENDS_PERF] Block 10: sort + invite token + alpha_groups ───────────
+    _t = time.perf_counter()
     def friend_sort_key(f):
-        is_new = 0 if f._is_new_friend else 1  # 0 sorts before 1
+        is_new = 0 if f._is_new_friend else 1
         has_trip = 0 if f._has_upcoming_trip else 1
-        # Use negative timestamp for DESC sort (more recent = smaller negative = earlier)
         latest_ts = 0
         if f._latest_upcoming_trip_created_at:
             latest_ts = -f._latest_upcoming_trip_created_at.timestamp()
         else:
-            latest_ts = float('inf')  # No trips sorts last
+            latest_ts = float('inf')
         first_name = (f.first_name or '').lower()
         return (is_new, has_trip, latest_ts, first_name)
-    
-    all_friends_sorted = sorted(all_friends, key=friend_sort_key)
 
+    all_friends_sorted = sorted(all_friends, key=friend_sort_key)
+    if app.debug:
+        print(f"[FRIENDS_PERF] sort={time.perf_counter()-_t:.4f}s")
+
+    # ── [FRIENDS_PERF] Block 11: invite token ─────────────────────────────────
+    _t = time.perf_counter()
     invite_token_obj = get_or_create_invite_token(user)
     invite_url = (
         f"{BASE_URL}{url_for('invite_token_landing', token=invite_token_obj.token)}"
         if invite_token_obj else None
     )
+    if app.debug:
+        print(f"[FRIENDS_PERF] invite_token={time.perf_counter()-_t:.4f}s")
 
     # ── friend_count for empty vs populated state switch ──────────────────────
     friend_count = len(all_friends)
 
-    # ── alpha_groups: alphabetically grouped friends for directory tab ─────────
+    # ── [FRIENDS_PERF] Block 12: alpha_groups ─────────────────────────────────
+    _t = time.perf_counter()
     alpha_sorted = sorted(all_friends, key=lambda f: (f.first_name or '').lower())
     alpha_groups = []
     for _f in alpha_sorted:
@@ -5944,6 +5998,12 @@ def friends():
         if not alpha_groups or alpha_groups[-1]['letter'] != _letter:
             alpha_groups.append({'letter': _letter, 'friends': []})
         alpha_groups[-1]['friends'].append(_f)
+    if app.debug:
+        print(f"[FRIENDS_PERF] alpha_groups={time.perf_counter()-_t:.4f}s groups={len(alpha_groups)}")
+
+    # ── [FRIENDS_PERF] Summary ─────────────────────────────────────────────────
+    if app.debug:
+        print(f"[FRIENDS_PERF] total={time.perf_counter()-_fp_t0:.4f}s friend_count={friend_count}")
 
     return render_template(
         "friends.html",
