@@ -1,0 +1,225 @@
+COMPREHENSIVE BASELODGE APP PERFORMANCE AUDIT — DO NOT IMPLEMENT FIXES YET
+
+Goal:
+Audit why the BaseLodge app still feels slow or laggy between screens, especially in the mobile app experience. Do not make code changes yet. I want a comprehensive diagnosis with findings ranked by expected speed/performance impact.
+
+Important:
+- Do not implement fixes.
+- Do not refactor anything yet.
+- Do not remove code yet.
+- Do not create unnecessary checkpoints.
+- This is an audit only.
+- Use checkpoints sparingly.
+
+Context:
+BaseLodge is a Flask + Jinja + SQLAlchemy app running in Replit, wrapped with Capacitor for iOS and Android. The app has a mobile-first UI with tabs such as Home, Trips, Friends, and Mountains. The app has had recent performance work, but there are still noticeable lags between screens.
+
+Audit Scope:
+
+1. Route-Level Speed Audit
+Review the main user-facing routes and identify which are likely slowest:
+- Home
+- Trips
+- Trip detail
+- Add trip / edit trip
+- Friends
+- Friends trip feed
+- Mountains
+- Mountain detail
+- Profile
+- Notifications
+- Any onboarding/profile setup routes
+
+For each route, report:
+- Route path
+- Files/functions involved
+- Main database queries
+- Potential N+1 query issues
+- Heavy loops or repeated queries
+- Template rendering complexity
+- External service calls
+- Estimated performance risk: High / Medium / Low
+- Expected user-visible impact
+
+2. Database Query Audit
+Review SQLAlchemy usage across app.py, routes, services, and helpers.
+
+Look for:
+- N+1 queries
+- Queries inside loops
+- Missing eager loading
+- Repeated lookups of the same user, trips, resorts, passes, friends, or participants
+- Missing indexes
+- Expensive joins
+- Queries that load too much data
+- Queries that should be limited or paginated
+- Queries that should use counts instead of loading full rows
+- Queries that run on every page but could be cached or deferred
+
+Output a table with:
+- Issue
+- File/function
+- Current query pattern
+- Why it is slow
+- Suggested fix
+- Expected speed impact
+
+3. Screen Transition / Mobile WebView Audit
+Because this is wrapped in Capacitor, audit anything that may cause screen-to-screen lag in the iOS/Android WebView.
+
+Look for:
+- Large CSS files or expensive selectors
+- Heavy JavaScript on every page
+- JS event listeners initialized globally
+- DOM queries running too often
+- Layout thrashing
+- Large HTML payloads
+- Images or assets blocking render
+- Topbar/bottom nav re-render issues
+- Full page reload patterns that could be optimized
+- Excessive analytics or logging on page load
+- PostHog scripts or OneSignal scripts affecting perceived speed
+
+Output:
+- What may be causing lag
+- Where it lives
+- Whether it affects all screens or specific screens
+- Suggested fix
+- Expected impact
+
+4. Asset / Frontend Payload Audit
+Review static assets:
+- CSS
+- JavaScript
+- Images
+- Fonts
+- Analytics scripts
+- Push notification scripts
+- Any duplicate or unused files
+
+Look for:
+- Files loaded globally but only needed on one page
+- Large unused CSS
+- Duplicate JS logic
+- Blocking scripts
+- Non-deferred scripts
+- Heavy font loading
+- Images without sizing/compression
+- Cache headers or static asset caching issues
+
+Output:
+- Asset/file
+- Problem
+- Current load behavior
+- Suggested optimization
+- Expected speed impact
+
+5. Template Complexity Audit
+Review templates for:
+- Heavy nested loops
+- Repeated relationship access inside templates
+- Filters/functions that trigger DB work
+- Large rendered lists
+- Hidden DOM bloat
+- Conditional rendering that could be simplified
+- Any duplicated partials or expensive includes
+
+Output:
+- Template
+- Issue
+- Why it may slow rendering
+- Suggested fix
+- Expected impact
+
+6. Middleware / Before Request / Global Context Audit
+Check whether anything runs on every request that may slow screen transitions:
+- before_request handlers
+- context processors
+- user loading
+- auth checks
+- notification counts
+- unread counts
+- friend request counts
+- analytics/event logging
+- app shell/topbar variables
+- resort/pass preload logic
+- push/device token logic
+
+Output:
+- Global process
+- Where it runs
+- What it does
+- Whether it is necessary on every page
+- Suggested optimization
+- Expected impact
+
+7. Logging / Debug / Admin Code Audit
+Look for anything that may still be running in production paths:
+- Debug print statements
+- Excessive logging
+- admin diagnostics leaking into normal routes
+- push diagnostics
+- message event diagnostics
+- old instrumentation
+- duplicate route blocks
+- old test helpers
+
+Output:
+- File/function
+- Issue
+- Whether it affects users
+- Suggested cleanup
+- Expected impact
+
+8. Ranking by Speed Impact
+After the audit, rank all findings in this format:
+
+Priority 1 — Biggest Speed Wins
+These should be the fixes most likely to make the app feel faster immediately.
+
+Priority 2 — Meaningful Improvements
+These should improve performance but may not be the root cause of the screen lag.
+
+Priority 3 — Cleanup / Maintenance
+These may not dramatically change speed but will reduce technical debt or prevent future slowdown.
+
+For every item, include:
+- Rank number
+- Issue
+- Screen(s) affected
+- File(s) affected
+- Why it matters
+- Estimated impact: Very High / High / Medium / Low
+- Implementation complexity: Easy / Medium / Hard
+- Risk level: Low / Medium / High
+- Recommended next action
+
+9. Measurement Plan
+Add a measurement plan so we can verify improvements later.
+
+Include:
+- What timing logs to add
+- Which routes to benchmark
+- How to measure server response time
+- How to measure perceived mobile screen transition lag
+- What acceptable performance targets should be
+- What before/after data should be captured
+- Whether PostHog can help track slow screens
+
+10. Final Output Format
+Return the audit as:
+
+A. Executive Summary
+B. Top 10 Likely Causes of Lag
+C. Full Ranked Performance Findings Table
+D. Route-by-Route Audit
+E. Database Query Audit
+F. Frontend/WebView Audit
+G. Asset Audit
+H. Template Audit
+I. Global Middleware/Context Audit
+J. Recommended Fix Phases
+K. Measurement Plan
+L. Files to Touch Later
+
+Do not implement anything yet. Only audit and report.
