@@ -1,0 +1,949 @@
+/* ── BaseLodge native shell JS ─────────────────────────────────────────────
+   Extracted from analytics_head.html so WKWebView can cache this file.
+   All server values are read from window.__* globals set by the inline
+   config block in analytics_head.html, which runs synchronously before
+   this defer script executes.
+
+   Execution order guaranteed by the browser/WKWebView spec:
+     1. Inline <script> blocks run during HTML head parsing
+        (sets window.__USER__, window.__POSTHOG_KEY__, etc.)
+     2. <script defer> files execute after full HTML parsing, in document order
+        (analytics.js first, then this file)
+     3. DOMContentLoaded fires after all defer scripts have executed
+
+   No Jinja2 syntax in this file — plain static JS, fully cacheable.        */
+
+/* ── Form submit loader ──────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('submit', function(e) {
+    var form = e.target;
+    if (form.tagName !== 'FORM') return;
+    var btn = form.querySelector('button[type="submit"], input[type="submit"]');
+    if (!btn || btn.dataset.noLoader === 'true') return;
+    btn.disabled = true;
+    if (!btn.dataset.loadingText) return;
+    btn._origText = btn.textContent;
+    btn.textContent = btn.dataset.loadingText;
+  });
+});
+
+/* ── Keyboard-safe scroll ────────────────────────────────────────────────── */
+/* When an input is focused on mobile, scroll it into view after a short
+   delay so the iOS keyboard doesn't cover it. */
+document.addEventListener('focusin', function(e) {
+  var el = e.target;
+  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+    setTimeout(function() {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 320);
+  }
+});
+
+/* ── Push notification token capture ── native Capacitor shell (iOS + Android) ──
+   DEBUG BEACONS ACTIVE: every step POSTs to /api/push/beacon so the
+   server log shows exactly how far the script reaches inside TestFlight's
+   WKWebView (where console.log is invisible without a tethered Mac).
+
+   Dedup strategy: window.__pushSetupDone only.
+     - Cleared on every full page navigation (server-side rendered app → each
+       page is a fresh window context, so the flag resets automatically).
+     - NO sessionStorage: WKWebView can keep the OS process alive across app
+       relaunches, causing sessionStorage keys to persist and block future
+       registration attempts.
+
+   Plugin retry: if PushNotifications is absent at DOMContentLoaded, we
+   wait 500 ms and try once more (Capacitor v8 + remote server URL can be
+   slightly late populating window.Capacitor.Plugins).
+
+   NOTE: The _pushBeacon IIFE below previously fired at HTML-parse time
+   (inline script). It now fires when this defer file executes — after HTML
+   parsing, before DOMContentLoaded. Timing is functionally equivalent for
+   TestFlight push debugging. */
+
+// ── Beacon helper ─────────────────────────────────────────────────────────
+// Available when this defer script runs: the CSRF fetch-wrapper inline
+// <script> has already patched window.fetch during head parsing.
+function _pushBeacon(step, data) {
+  try {
+    window.fetch('/api/push/beacon', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ step: step, data: data || {} })
+    });
+  } catch(e) { /* never let beacon errors disrupt the main flow */ }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function _capSnapshot() {
+  /* Capture every native-detection signal in one object for beacon payloads. */
+  var cap = window.Capacitor;
+  var wk  = window.webkit;
+  return {
+    has_capacitor:      !!(cap),
+    cap_type:           typeof cap,
+    is_native_fn:       !!(cap && typeof cap.isNativePlatform === 'function'),
+    is_native:          !!(cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform()),
+    cap_platform:       (cap && typeof cap.getPlatform === 'function') ? cap.getPlatform() : 'n/a',
+    cap_keys:           cap ? Object.keys(cap).join(',').slice(0, 200) : 'none',
+    has_webkit_handler: !!(wk && wk.messageHandlers && wk.messageHandlers.capacitor),
+    has_webkit:         !!(wk),
+    ua:                 navigator.userAgent.slice(0, 180)
+  };
+}
+
+// ── Pre-check: fires when defer script executes (before DOMContentLoaded) ─
+// Confirms this static file was loaded and executed. Native-only guard so
+// mobile-web and desktop users don't fire unnecessary beacon POSTs.
+(function() {
+  var userId = window.__USER__ && window.__USER__.id;
+  if (!userId) return;
+  var _cap0sp = window.Capacitor;
+  var _wk0sp  = window.webkit;
+  var _isNativeSP = !!(_cap0sp && typeof _cap0sp.isNativePlatform === 'function' && _cap0sp.isNativePlatform());
+  var _hasWkSP    = !!(_wk0sp && _wk0sp.messageHandlers && _wk0sp.messageHandlers.capacitor);
+  if (!_isNativeSP && !_hasWkSP) return;
+  var capExists = !!_cap0sp;
+  _pushBeacon('script_parsed', {
+    user_id: userId,
+    capacitor_exists: capExists,
+    is_native: _isNativeSP,
+    ua: navigator.userAgent.slice(0, 120)
+  });
+})();
+
+// ── DOMContentLoaded: full registration flow ──────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+
+  // Native pre-check — same guard pattern as OneSignal and BadgeClear blocks.
+  // On non-native platforms (mobile web, desktop browser) exit immediately:
+  // no beacon POSTs, no _waitForCapacitor timers, no diagnostic overhead.
+  // Diagnostics are preserved for native builds (iOS TestFlight, Android APK).
+  var _cap0ps = window.Capacitor;
+  var _wk0ps  = window.webkit;
+  var _isNativePS = !!(_cap0ps && typeof _cap0ps.isNativePlatform === 'function' && _cap0ps.isNativePlatform());
+  var _hasWkPS    = !!(_wk0ps && _wk0ps.messageHandlers && _wk0ps.messageHandlers.capacitor);
+  if (!_isNativePS && !_hasWkPS) return;
+
+  // Environment snapshot — native builds only from this point forward.
+  var userId = window.__USER__ && window.__USER__.id;
+  if (userId) {
+    _pushBeacon('dcl_environment', Object.assign({ user_id: userId }, _capSnapshot()));
+  }
+
+  (async function() {
+
+    // Gate 1: must be an authenticated user
+    if (!userId) {
+      console.log('[Push] No authenticated user — push setup skipped');
+      return;
+    }
+
+    // Gate 2: window-level dedup (reset every full page navigation)
+    if (window.__pushSetupDone) {
+      console.log('[Push] Already ran on this page load — skipping');
+      return;
+    }
+    window.__pushSetupDone = true;
+
+    // Wait for window.Capacitor to appear (up to 2 s in 100 ms steps).
+    // Capacitor v8 + remote server URL can inject the bridge slightly
+    // after DOMContentLoaded in some build configurations.
+    async function _waitForCapacitor(maxMs) {
+      var deadline = Date.now() + maxMs;
+      while (Date.now() < deadline) {
+        if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function') {
+          return window.Capacitor;
+        }
+        await new Promise(function(r) { setTimeout(r, 100); });
+      }
+      return null;
+    }
+
+    var Cap = await _waitForCapacitor(2000);
+    var snap = _capSnapshot();
+    console.log('[Push] after wait — is_native:', snap.is_native,
+                'has_webkit_handler:', snap.has_webkit_handler);
+
+    _pushBeacon('cap_wait_result', Object.assign({ user_id: userId, waited_ms: 2000 }, snap));
+
+    // Not native AND no webkit bridge message handler → definitely not a
+    // native Capacitor WKWebView (could be Safari or a regular browser).
+    if (!snap.is_native && !snap.has_webkit_handler) {
+      console.log('[Push] Not native WKWebView — push setup skipped');
+      _pushBeacon('not_native', { user_id: userId, ua: snap.ua });
+      return;
+    }
+
+    // If window.Capacitor is missing but webkit handler exists, we ARE in a
+    // native WKWebView — the bridge JS injection failed or is still pending.
+    // Report it so we know exactly what happened.
+    if (!Cap) {
+      _pushBeacon('capacitor_missing_in_native', {
+        user_id: userId,
+        has_webkit_handler: snap.has_webkit_handler,
+        ua: snap.ua
+      });
+      console.warn('[Push] In native WKWebView but window.Capacitor never appeared — cannot register');
+      return;
+    }
+
+    _pushBeacon('capacitor_ready', { user_id: userId, cap_keys: snap.cap_keys });
+
+    // Plugin resolution: try window.Capacitor.Plugins first,
+    // then Capacitor v8 registerPlugin() as fallback.
+    async function _getPlugin() {
+      var p = Cap.Plugins && Cap.Plugins.PushNotifications;
+      if (p) return { push: p, via: 'Plugins' };
+
+      // Capacitor v6+ alternative: registerPlugin()
+      if (typeof Cap.registerPlugin === 'function') {
+        try {
+          var rp = Cap.registerPlugin('PushNotifications');
+          if (rp) return { push: rp, via: 'registerPlugin' };
+        } catch(e) {}
+      }
+
+      // Wait 500 ms then retry both paths
+      await new Promise(function(r) { setTimeout(r, 500); });
+      p = Cap.Plugins && Cap.Plugins.PushNotifications;
+      if (p) return { push: p, via: 'Plugins-retry' };
+      if (typeof Cap.registerPlugin === 'function') {
+        try {
+          var rp2 = Cap.registerPlugin('PushNotifications');
+          if (rp2) return { push: rp2, via: 'registerPlugin-retry' };
+        } catch(e) {}
+      }
+      return { push: null, via: 'none' };
+    }
+
+    var pluginKeys = Cap.Plugins ? Object.keys(Cap.Plugins).join(',') : '(Plugins missing)';
+    var pluginResult = await _getPlugin();
+    var Push = pluginResult.push;
+    console.log('[Push] PushNotifications:', !!Push, 'via:', pluginResult.via);
+
+    _pushBeacon('plugin_check', {
+      user_id: userId,
+      plugin_found: !!Push,
+      plugin_via: pluginResult.via,
+      plugin_keys: pluginKeys,
+      cap_platform: snap.cap_platform
+    });
+
+    if (!Push) {
+      console.warn('[Push] PushNotifications plugin not found — aborting');
+      return;
+    }
+
+    // Determine native platform so the correct token type is sent to the server.
+    // iOS tokens go to APNs; Android tokens go to FCM.
+    var nativePlatform = (snap.cap_platform === 'android') ? 'android' : 'ios';
+    console.log('[Push] nativePlatform:', nativePlatform);
+
+    // Android only: create a high-importance notification channel so that
+    // incoming FCM notifications display as heads-up banners rather than
+    // silently landing in the shade. Must be called before register().
+    if (nativePlatform === 'android' && typeof Push.createChannel === 'function') {
+      try {
+        await Push.createChannel({
+          id:          'baselodge_default',
+          name:        'BaseLodge notifications',
+          description: 'Trip updates and BaseLodge notifications',
+          importance:  5,
+          visibility:  1,
+          sound:       'default',
+          vibration:   true,
+        });
+        console.log('[Push] Android channel created: baselodge_default');
+        _pushBeacon('android_channel_created', { channel_id: 'baselodge_default' });
+      } catch (_chanErr) {
+        console.warn('[Push] createChannel error:', _chanErr);
+        _pushBeacon('android_channel_error', { error: String(_chanErr).slice(0, 128) });
+      }
+    }
+
+    // Attach listeners BEFORE calling requestPermissions / register
+    await Push.addListener('registration', function(evt) {
+      var tokVal = evt && evt.value ? evt.value : '';
+      var tokLen = tokVal.length;
+      var tokPreview = tokLen > 14
+        ? tokVal.slice(0, 8) + '\u2026' + tokVal.slice(-6)
+        : tokVal.slice(0, 8) + '\u2026';
+      console.log('[Push] registration event — len:', tokLen, 'preview:', tokPreview);
+      _pushBeacon('token_received', { token_preview: tokPreview, token_length: tokLen });
+
+      if (!tokVal) {
+        console.warn('[Push] token.value empty — aborting POST');
+        return;
+      }
+
+      // Build platform-appropriate registration body.
+      // iOS: include APNs environment hint (sandbox vs production).
+      // Android: FCM token — no APNs fields needed.
+      var regBody;
+      if (nativePlatform === 'android') {
+        regBody = { token: tokVal, platform: 'android' };
+        _pushBeacon('token_env_hint', { hint: 'fcm', platform: 'android' });
+      } else {
+        // Detect APNs environment from Capacitor.DEBUG when available.
+        // DEBUG=false means release/distribution build → production APNs tokens.
+        // DEBUG=true means development/debug build → sandbox APNs tokens.
+        // If DEBUG is unavailable, send 'unknown' and the server infers from APNS_USE_SANDBOX.
+        var apnsEnvHint = 'unknown';
+        if (typeof Cap.DEBUG === 'boolean') {
+          apnsEnvHint = Cap.DEBUG ? 'sandbox' : 'production';
+        }
+        _pushBeacon('token_env_hint', { hint: apnsEnvHint, cap_debug_available: typeof Cap.DEBUG === 'boolean' });
+        regBody = { token: tokVal, platform: 'ios', apns_environment: apnsEnvHint };
+      }
+
+      window.fetch('/api/push/register-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(regBody)
+      }).then(function(res) {
+        if (res.ok) {
+          res.json().then(function(d) {
+            console.log('[Push] register-token → OK action:', d.action);
+            _pushBeacon('post_success', { status: res.status, action: d.action, token_preview: tokPreview });
+          }).catch(function() {
+            _pushBeacon('post_success', { status: res.status, action: 'non-json-ok' });
+          });
+        } else {
+          res.text().then(function(body) {
+            console.warn('[Push] register-token → FAILED', res.status, body.slice(0, 200));
+            _pushBeacon('post_failed', { status: res.status, body: body.slice(0, 200) });
+          }).catch(function() {
+            _pushBeacon('post_failed', { status: res.status, body: 'unreadable' });
+          });
+        }
+      }).catch(function(err) {
+        console.warn('[Push] fetch error:', err);
+        _pushBeacon('post_error', { error: String(err).slice(0, 128) });
+      });
+    });
+
+    await Push.addListener('registrationError', function(err) {
+      var msg = err && err.error ? String(err.error) : JSON.stringify(err);
+      console.error('[Push] registrationError:', msg);
+      _pushBeacon('registration_error', { error: msg.slice(0, 128) });
+    });
+
+    await Push.addListener('pushNotificationReceived', function(n) {
+      console.log('[Push] foreground notification:', JSON.stringify(n).slice(0, 128));
+    });
+
+    console.log('[Push] listeners attached — calling requestPermissions()');
+    _pushBeacon('listeners_attached', { user_id: userId });
+
+    try {
+      var permResult = await Push.requestPermissions();
+      var permStatus = permResult ? permResult.receive : 'null-result';
+      console.log('[Push] requestPermissions:', permStatus);
+      _pushBeacon('permission_result', { receive: permStatus });
+
+      if (permResult && permResult.receive === 'granted') {
+        console.log('[Push] Permission granted — calling register()');
+        try {
+          await Push.register();
+          console.log('[Push] register() called — waiting for APNs token');
+          _pushBeacon('register_called', { user_id: userId });
+        } catch (regErr) {
+          console.warn('[Push] register() threw:', regErr);
+          _pushBeacon('register_error', { error: String(regErr).slice(0, 128) });
+        }
+      } else {
+        console.log('[Push] Permission NOT granted:', permStatus);
+        _pushBeacon('permission_denied', { receive: permStatus });
+      }
+    } catch (permErr) {
+      console.warn('[Push] requestPermissions() error:', permErr);
+      _pushBeacon('permission_error', { error: String(permErr).slice(0, 128) });
+    }
+
+  })();
+});
+
+/* ── OneSignal Capacitor SDK init ── native shell only ─────────────────────
+   Runs ONLY inside the native Capacitor app (same guard pattern as the APNs
+   push registration block above). The App ID is read from window.__ONESIGNAL_APP_ID__
+   set by the inline config block in analytics_head.html.
+
+   Existing APNs direct push code is untouched; OneSignal runs alongside it.
+
+   Logging prefix: [OneSignal] — grep server logs for [PushBeacon] for APNs,
+   and browser/native console for [OneSignal] for this flow.
+
+   SDK version strategy: tries SDK 5.x API first (initialize / login /
+   requestPermission), falls back to SDK 4.x equivalents so the same script
+   works across minor version upgrades.                                       */
+(function() {
+  'use strict';
+
+  var _osAppId = window.__ONESIGNAL_APP_ID__;
+  if (!_osAppId) {
+    console.log('[OneSignal] No App ID configured — init skipped');
+    return;
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    (async function() {
+
+      var userId = window.__USER__ && window.__USER__.id;
+      console.log('[OneSignal] DOMContentLoaded userId=' + userId + ' appId=' + _osAppId);
+
+      // ── Gate: native platform only ────────────────────────────────────
+      var _cap0 = window.Capacitor;
+      var _wk0  = window.webkit;
+      var _isNative  = !!(_cap0 && typeof _cap0.isNativePlatform === 'function' && _cap0.isNativePlatform());
+      var _hasWk     = !!(_wk0 && _wk0.messageHandlers && _wk0.messageHandlers.capacitor);
+      console.log('[OneSignal] native_check is_native=' + _isNative + ' has_webkit=' + _hasWk);
+
+      if (!_isNative && !_hasWk) {
+        console.log('[OneSignal] Not in native shell — init skipped (no browser errors expected)');
+        return;
+      }
+
+      // ── Wait for Capacitor bridge (up to 2 s, 100 ms steps) ──────────
+      async function _waitCap(maxMs) {
+        var deadline = Date.now() + maxMs;
+        while (Date.now() < deadline) {
+          if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function') {
+            return window.Capacitor;
+          }
+          await new Promise(function(r) { setTimeout(r, 100); });
+        }
+        return null;
+      }
+
+      var Cap = await _waitCap(2000);
+      if (!Cap) {
+        console.warn('[OneSignal] Capacitor bridge not available after 2 s — init skipped');
+        return;
+      }
+      console.log('[OneSignal] Capacitor bridge ready');
+
+      // ── Locate OneSignal plugin via bridge ────────────────────────────
+      // Priority order:
+      //   1. Cap.Plugins.OneSignal  — registered Capacitor-native plugin
+      //   2. Cap.registerPlugin()   — Capacitor v6+ lazy-registration
+      //   3. window.plugins.OneSignal — Cordova bridge (onesignal-cordova-plugin)
+      //
+      // _osVia tracks the bridge type so the init block can pass the right
+      // argument shape: Cordova expects plain strings; Capacitor native
+      // expects objects ({ appId, externalId, … }).
+      var OS = null;
+      var _osVia = null;
+      try {
+        if (Cap.Plugins && Cap.Plugins.OneSignal) {
+          OS = Cap.Plugins.OneSignal;
+          _osVia = 'Cap.Plugins';
+          console.log('[OneSignal] plugin found via Cap.Plugins');
+        } else if (typeof Cap.registerPlugin === 'function') {
+          OS = Cap.registerPlugin('OneSignal');
+          _osVia = 'registerPlugin';
+          console.log('[OneSignal] plugin obtained via registerPlugin()');
+        } else if (window.plugins && window.plugins.OneSignal) {
+          OS = window.plugins.OneSignal;
+          _osVia = 'window.plugins';
+          console.log('[OneSignal] plugin found via window.plugins (Cordova bridge)');
+        }
+      } catch (_pe) {
+        console.warn('[OneSignal] plugin access error:', _pe);
+      }
+      // Cordova bridge may initialise asynchronously — retry once after brief delay
+      if (!OS && window.plugins && window.plugins.OneSignal) {
+        OS = window.plugins.OneSignal;
+        _osVia = 'window.plugins';
+        console.log('[OneSignal] plugin found via window.plugins (delayed)');
+      }
+
+      if (!OS) {
+        console.warn('[OneSignal] OneSignal plugin not available — ensure onesignal-cordova-plugin is installed and `npx cap sync` has been run');
+        return;
+      }
+
+      // ── Bridge introspection (safe: no tokens/IDs logged) ────────────
+      // Logs which properties exist on the located plugin object so we can
+      // confirm the correct opt-in/out method path at runtime.
+      try {
+        var _osMethods = [];
+        ['initialize','login','logout','setConsentRequired','setConsentGiven',
+         'disablePush','setSubscription','setNotificationPermission',
+         'requestPermission','setAppId'].forEach(function(k) {
+          if (typeof OS[k] === 'function') _osMethods.push(k);
+        });
+        console.log('[OneSignal] bridge=' + _osVia + ' top-level fns:', _osMethods.join(', ') || '(none)');
+        console.log('[OneSignal] has User=' + !!(OS.User)
+          + ' User.pushSubscription=' + !!(OS.User && OS.User.pushSubscription)
+          + ' User.PushSubscription=' + !!(OS.User && OS.User.PushSubscription)
+          + ' Notifications=' + !!(OS.Notifications));
+        if (OS.User && OS.User.pushSubscription) {
+          var _sub = OS.User.pushSubscription;
+          console.log('[OneSignal] pushSubscription fns: optIn=' + (typeof _sub.optIn)
+            + ' optOut=' + (typeof _sub.optOut)
+            + ' getOptedInAsync=' + (typeof _sub.getOptedInAsync));
+        }
+      } catch (_ie) {
+        console.warn('[OneSignal] introspection error:', _ie);
+      }
+
+      // ── Initialize ────────────────────────────────────────────────────
+      // Argument shape differs by bridge:
+      //   Cordova (window.plugins): initialize(appId) — plain string
+      //   Capacitor native (Cap.Plugins / registerPlugin): initialize({ appId }) — object
+      var _isCordovaBridge = (_osVia === 'window.plugins');
+      try {
+        if (typeof OS.initialize === 'function') {
+          if (_isCordovaBridge) {
+            console.log('[OneSignal] calling initialize() — Cordova string init, appId=' + _osAppId);
+            await OS.initialize(_osAppId);
+          } else {
+            console.log('[OneSignal] calling initialize() — Capacitor object init');
+            await OS.initialize({ appId: _osAppId });
+          }
+          console.log('[OneSignal] initialize() complete');
+        } else if (typeof OS.setAppId === 'function') {
+          if (_isCordovaBridge) {
+            console.log('[OneSignal] calling setAppId() — Cordova string init (SDK 4.x fallback)');
+            await OS.setAppId(_osAppId);
+          } else {
+            console.log('[OneSignal] calling setAppId() — Capacitor object init (SDK 4.x fallback)');
+            await OS.setAppId({ appId: _osAppId });
+          }
+          console.log('[OneSignal] setAppId() complete');
+        } else {
+          console.warn('[OneSignal] no initialize / setAppId method found — unknown SDK version, aborting');
+          return;
+        }
+      } catch (_initErr) {
+        console.warn('[OneSignal] initialization error:', _initErr);
+        return;
+      }
+
+      // ── Associate logged-in user via stable external ID ───────────────
+      // Uses the BaseLodge integer user ID as a string, matching what
+      // the backend send_onesignal_push() helper uses for targeting.
+      // Same plain-string vs object split applies here.
+      if (userId) {
+        try {
+          if (typeof OS.login === 'function') {
+            if (_isCordovaBridge) {
+              console.log('[OneSignal] calling login() — Cordova string, externalId=' + userId);
+              await OS.login(String(userId));
+            } else {
+              console.log('[OneSignal] calling login() — Capacitor object, externalId=' + userId);
+              await OS.login({ externalId: String(userId) });
+            }
+            console.log('[OneSignal] login() complete');
+          } else if (typeof OS.setExternalUserId === 'function') {
+            if (_isCordovaBridge) {
+              console.log('[OneSignal] calling setExternalUserId() — Cordova string, id=' + userId);
+              await OS.setExternalUserId(String(userId));
+            } else {
+              console.log('[OneSignal] calling setExternalUserId() — Capacitor object, id=' + userId);
+              await OS.setExternalUserId({ externalUserId: String(userId) });
+            }
+            console.log('[OneSignal] setExternalUserId() complete');
+          } else {
+            console.log('[OneSignal] no login / setExternalUserId method — user association skipped');
+          }
+        } catch (_loginErr) {
+          console.warn('[OneSignal] user association error:', _loginErr);
+        }
+      } else {
+        console.log('[OneSignal] no authenticated user — login() skipped');
+      }
+
+      // ── Request push permission ───────────────────────────────────────
+      try {
+        var _permResult;
+        if (typeof OS.requestPermission === 'function') {
+          console.log('[OneSignal] calling requestPermission()');
+          _permResult = await OS.requestPermission({ fallbackToSettings: true });
+        } else if (typeof OS.requestPermissionAsync === 'function') {
+          console.log('[OneSignal] calling requestPermissionAsync()');
+          _permResult = await OS.requestPermissionAsync({ fallbackToSettings: true });
+        } else if (typeof OS.promptForPushNotificationsWithUserResponse === 'function') {
+          console.log('[OneSignal] calling promptForPushNotificationsWithUserResponse() (SDK 4.x)');
+          _permResult = await OS.promptForPushNotificationsWithUserResponse({ fallbackToSettings: true });
+        } else {
+          console.log('[OneSignal] no permission-request method found on plugin — skipping');
+        }
+        if (_permResult !== undefined) {
+          console.log('[OneSignal] permission result:', JSON.stringify(_permResult));
+        }
+      } catch (_permErr) {
+        console.warn('[OneSignal] permission request error:', _permErr);
+      }
+
+      console.log('[OneSignal] init sequence complete');
+
+      // ── OS permission state — check once after init ───────────────────────
+      // Resolves to 'granted', 'denied', 'not_determined', or null (unknown).
+      // Stored in closure-scoped var; blOnOSPermReady / blGetOSPermStatus exposed.
+      var _blOSPerm  = null;   // { status: 'granted'|'denied'|'not_determined'|null }
+      var _blPermCbs = [];
+
+      window.blOnOSPermReady = function(cb) {
+        if (_blOSPerm !== null) { try { cb(_blOSPerm); } catch(_) {} return; }
+        _blPermCbs.push(cb);
+      };
+      window.blGetOSPermStatus = function() {
+        return _blOSPerm ? _blOSPerm.status : null;
+      };
+
+      async function _blCheckOSPerm() {
+        try {
+          if (OS.Notifications && typeof OS.Notifications.getPermissionAsync === 'function') {
+            var _p = await OS.Notifications.getPermissionAsync();
+            if (!_p) return 'not_determined';
+            var _v = _p.value !== undefined ? _p.value : _p.permission;
+            if (_v === 'granted' || _v === true)  return 'granted';
+            if (_v === 'denied')                   return 'denied';
+            return 'not_determined';
+          }
+          if (typeof OS.getDeviceState === 'function') {
+            var _s = await OS.getDeviceState();
+            return (_s && _s.hasNotificationPermission) ? 'granted' : 'not_determined';
+          }
+        } catch (_ce) {
+          console.warn('[OneSignal] OS perm check error:', _ce);
+        }
+        return null;
+      }
+
+      _blCheckOSPerm().then(function(status) {
+        _blOSPerm = { status: status };
+        console.log('[OneSignal] OS permission status=' + status);
+        _blPermCbs.forEach(function(cb) { try { cb(_blOSPerm); } catch(_) {} });
+        _blPermCbs = [];
+      });
+
+      // ── Re-prompt OS permission (only called when user explicitly enables) ─
+      async function _blRequestPermIfNeeded() {
+        // Wait for the initial check to finish (may still be in-flight)
+        if (_blOSPerm === null) {
+          await new Promise(function(r) { _blPermCbs.push(function() { r(); }); });
+        }
+        var curStatus = _blOSPerm && _blOSPerm.status;
+        if (curStatus === 'granted') {
+          console.log('[OneSignal] OS permission already granted — no re-prompt');
+          return;
+        }
+        console.log('[OneSignal] OS permission status=' + curStatus + ' — requesting permission');
+        try {
+          var _rr;
+          if (typeof OS.requestPermission === 'function') {
+            _rr = await OS.requestPermission({ fallbackToSettings: true });
+          } else if (typeof OS.promptForPushNotificationsWithUserResponse === 'function') {
+            _rr = await OS.promptForPushNotificationsWithUserResponse({ fallbackToSettings: true });
+          } else {
+            console.warn('[OneSignal] no permission-request method available for re-prompt');
+            return;
+          }
+          if (_rr !== undefined) console.log('[OneSignal] re-prompt result:', JSON.stringify(_rr));
+          // Re-check and update cached status so blGetOSPermStatus() returns fresh value
+          var newStatus = await _blCheckOSPerm();
+          _blOSPerm = { status: newStatus };
+          console.log('[OneSignal] post-prompt OS permission status=' + newStatus);
+        } catch (_rpe) {
+          console.warn('[OneSignal] _blRequestPermIfNeeded error:', _rpe);
+        }
+      }
+
+      // ── Expose opt-in/out helper for the push preference toggle ──────────
+      // Called by blTogglePushPref() in push_settings.html after the server
+      // preference is saved. No-op in browser (this code only runs natively).
+      // When enabling, also re-prompts OS permission if not yet granted.
+      //
+      // KEY: onesignal-cordova-plugin optIn()/optOut() return void (not a
+      // Promise). Chaining .then() directly on void throws a TypeError that
+      // the outer try/catch swallows — making it look like nothing happened.
+      // We use Promise.resolve(result) so void returns resolve immediately
+      // while a real Promise (Capacitor native) also works correctly.
+      window.blSetPushEnabled = function(enabled) {
+        try {
+          // Cordova plugin exposes pushSubscription (lowercase p).
+          // Capacitor SDK may use PushSubscription (uppercase P) — check both.
+          var _pushSub = (OS.User && (OS.User.pushSubscription || OS.User.PushSubscription)) || null;
+          if (_pushSub && typeof _pushSub.optIn === 'function') {
+            // SDK 5.x — Cordova returns void; Capacitor may return a Promise.
+            // Promise.resolve() handles both without TypeError.
+            var _subResult;
+            if (enabled) {
+              console.log('[OneSignal] blSetPushEnabled: calling optIn() — bridge=' + _osVia);
+              _subResult = _pushSub.optIn();
+              Promise.resolve(_subResult).then(function() {
+                console.log('[OneSignal] blSetPushEnabled: optIn() complete');
+                _blRequestPermIfNeeded();
+              }).catch(function(e) {
+                console.warn('[OneSignal] blSetPushEnabled: optIn() error:', e);
+              });
+            } else {
+              console.log('[OneSignal] blSetPushEnabled: calling optOut() — bridge=' + _osVia);
+              _subResult = _pushSub.optOut();
+              Promise.resolve(_subResult).then(function() {
+                console.log('[OneSignal] blSetPushEnabled: optOut() complete');
+              }).catch(function(e) {
+                console.warn('[OneSignal] blSetPushEnabled: optOut() error:', e);
+              });
+            }
+          } else if (typeof OS.disablePush === 'function') {
+            // SDK 4.x fallback.
+            // Cordova: disablePush(bool) — plain boolean argument.
+            // Capacitor: disablePush({ disabled: bool }) — object argument.
+            var _dpArg   = _isCordovaBridge ? !enabled : { disabled: !enabled };
+            var _dpLabel = _isCordovaBridge ? 'Cordova bool' : 'Capacitor object';
+            console.log('[OneSignal] blSetPushEnabled: calling disablePush(' + !enabled + ') SDK 4.x ' + _dpLabel);
+            var _dpResult = OS.disablePush(_dpArg);
+            Promise.resolve(_dpResult).then(function() {
+              console.log('[OneSignal] blSetPushEnabled: disablePush(' + !enabled + ') complete');
+              if (enabled) _blRequestPermIfNeeded();
+            }).catch(function(e) {
+              console.warn('[OneSignal] blSetPushEnabled: disablePush error:', e);
+            });
+          } else {
+            console.warn('[OneSignal] blSetPushEnabled: no supported opt-in/out method found on bridge=' + _osVia);
+          }
+        } catch (_opte) {
+          console.warn('[OneSignal] blSetPushEnabled error:', _opte);
+        }
+      };
+      console.log('[OneSignal] blSetPushEnabled helper registered (bridge=' + _osVia + ')');
+
+      // ── Expose identity-logout helper for the sign-out flow ──────────
+      // Called by the logout link handler in profile.html before navigating
+      // away. Clears the OneSignal external_id so the device subscription is
+      // not left tied to the departing user's identity.
+      // SDK 5.x: OS.logout() — returns void or a Promise; handled uniformly
+      //   via Promise.resolve() to avoid TypeError on void returns.
+      // Older SDKs have no equivalent — skipped silently.
+      // No-op in the browser; this entire block only runs in the native shell.
+      window.blOSLogout = function() {
+        return new Promise(function(resolve) {
+          try {
+            if (typeof OS.logout === 'function') {
+              console.log('[OneSignal] blOSLogout: calling logout()');
+              Promise.resolve(OS.logout()).then(function() {
+                console.log('[OneSignal] blOSLogout: logout() complete');
+                resolve();
+              }).catch(function(_le) {
+                console.warn('[OneSignal] blOSLogout: logout() error:', _le);
+                resolve();
+              });
+            } else {
+              console.log('[OneSignal] blOSLogout: no logout() method — skip');
+              resolve();
+            }
+          } catch (_le2) {
+            console.warn('[OneSignal] blOSLogout error:', _le2);
+            resolve();
+          }
+        });
+      };
+      console.log('[OneSignal] blOSLogout helper registered');
+
+    })();
+  });
+})();
+
+/* ── Badge clear + delivered-notification sweep ── native shell only ─────
+   Clears the iOS app badge count and removes delivered notifications from
+   the system tray whenever the app launches, resumes (foreground), or when
+   the user taps a notification to open it.
+
+   Guard pattern: identical to the OneSignal init block above — only runs
+   inside the Capacitor native shell. Browser users see no errors.
+
+   Plugins used:
+     - Capacitor App plugin  (appStateChange event for foreground)
+     - Capacitor PushNotifications plugin (removeAllDeliveredNotifications)
+     - OneSignal plugin (Notifications.clearAll / clearOneSignalNotifications)
+   All via the same Cap bridge already waited for in the OneSignal init.   */
+(function() {
+  'use strict';
+
+  var _cap0b = window.Capacitor;
+  var _wk0b  = window.webkit;
+  var _isNativeB = !!(_cap0b && typeof _cap0b.isNativePlatform === 'function' && _cap0b.isNativePlatform());
+  var _hasWkB    = !!(_wk0b && _wk0b.messageHandlers && _wk0b.messageHandlers.capacitor);
+
+  if (!_isNativeB && !_hasWkB) {
+    return;
+  }
+
+  async function _waitCapB(maxMs) {
+    var deadline = Date.now() + maxMs;
+    while (Date.now() < deadline) {
+      if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function') {
+        return window.Capacitor;
+      }
+      await new Promise(function(r) { setTimeout(r, 100); });
+    }
+    return null;
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    (async function() {
+
+      var Cap = await _waitCapB(3000);
+      if (!Cap) {
+        console.warn('[BadgeClear] Capacitor bridge not ready after 3 s — badge clear skipped');
+        return;
+      }
+      console.log('[BadgeClear] bridge ready');
+
+      // ── Locate Capacitor plugins ──────────────────────────────────────
+      var AppPlugin  = null;
+      var PushPlugin = null;
+      var OSPlugin   = null;
+
+      try {
+        if (Cap.Plugins) {
+          AppPlugin  = Cap.Plugins.App  || null;
+          PushPlugin = Cap.Plugins.PushNotifications || null;
+          OSPlugin   = Cap.Plugins.OneSignal || null;
+        }
+        if (!AppPlugin  && typeof Cap.registerPlugin === 'function') AppPlugin  = Cap.registerPlugin('App');
+        if (!PushPlugin && typeof Cap.registerPlugin === 'function') PushPlugin = Cap.registerPlugin('PushNotifications');
+        if (!OSPlugin   && typeof Cap.registerPlugin === 'function') OSPlugin   = Cap.registerPlugin('OneSignal');
+      } catch (_pe) {
+        console.warn('[BadgeClear] plugin lookup error:', _pe);
+      }
+
+      // ── Core clear function ───────────────────────────────────────────
+      async function _clearBadgeAndNotifs(reason) {
+        console.log('[BadgeClear] clearing badge, reason=' + reason);
+        try {
+          if (PushPlugin && typeof PushPlugin.removeAllDeliveredNotifications === 'function') {
+            await PushPlugin.removeAllDeliveredNotifications();
+            console.log('[BadgeClear] removeAllDeliveredNotifications done');
+          }
+        } catch (_e1) {
+          console.warn('[BadgeClear] removeAllDeliveredNotifications error:', _e1);
+        }
+        try {
+          if (OSPlugin) {
+            if (OSPlugin.Notifications && typeof OSPlugin.Notifications.clearAll === 'function') {
+              await OSPlugin.Notifications.clearAll();
+              console.log('[BadgeClear] OS.Notifications.clearAll() done (SDK 5.x)');
+            } else if (typeof OSPlugin.clearOneSignalNotifications === 'function') {
+              await OSPlugin.clearOneSignalNotifications();
+              console.log('[BadgeClear] clearOneSignalNotifications() done (SDK 4.x)');
+            }
+          }
+        } catch (_e2) {
+          console.warn('[BadgeClear] OneSignal clear error:', _e2);
+        }
+      }
+
+      // ── Run once on load (covers cold launch) ─────────────────────────
+      await _clearBadgeAndNotifs('launch');
+
+      // ── Listen for app foregrounding ──────────────────────────────────
+      if (AppPlugin && typeof AppPlugin.addListener === 'function') {
+        try {
+          await AppPlugin.addListener('appStateChange', async function(state) {
+            if (state && state.isActive) {
+              await _clearBadgeAndNotifs('foreground');
+            }
+          });
+          console.log('[BadgeClear] appStateChange listener registered');
+        } catch (_ae) {
+          console.warn('[BadgeClear] appStateChange listener error:', _ae);
+        }
+      }
+
+      // ── Push-tap URL extractor ────────────────────────────────────────
+      // Reads the push payload from either OneSignal notificationOpened
+      // or Capacitor pushNotificationActionPerformed events and returns a
+      // validated same-origin relative path, or null if absent/invalid.
+      function _extractPushUrl(payload) {
+        try {
+          if (!payload) return null;
+          var raw = null;
+          var n = payload.notification || payload;
+          // OneSignal SDK 5: openedResult.notification.additionalData.url
+          // OneSignal SDK 4: openedResult.notification.additionalData.url
+          // Capacitor PushNotifications: action.notification.data.url
+          raw = (n.additionalData && n.additionalData.url)
+             || (n.data        && n.data.url)
+             || (payload.additionalData && payload.additionalData.url)
+             || (payload.data        && payload.data.url)
+             || null;
+          if (!raw || typeof raw !== 'string') return null;
+          raw = raw.trim();
+          // Safety: must be a relative path starting with a single "/"
+          if (!raw.startsWith('/') || raw.startsWith('//')) {
+            console.log('[PushRoute] invalid url ignored (not relative): ' + raw);
+            return null;
+          }
+          // Block embedded dangerous content
+          if (/javascript:/i.test(raw) || /data:/i.test(raw)) {
+            console.log('[PushRoute] invalid url ignored (dangerous scheme): ' + raw);
+            return null;
+          }
+          return raw;
+        } catch (_ue) {
+          console.warn('[PushRoute] url extraction error:', _ue);
+          return null;
+        }
+      }
+
+      // ── Listen for notification opened (tap to open) ──────────────────
+      if (OSPlugin && typeof OSPlugin.addListener === 'function') {
+        try {
+          await OSPlugin.addListener('notificationOpened', async function(openedResult) {
+            await _clearBadgeAndNotifs('notification_opened');
+            var url = _extractPushUrl(openedResult);
+            if (url) {
+              console.log('[PushRoute] navigating to ' + url);
+              window.location.href = url;
+            }
+          });
+          console.log('[BadgeClear] OneSignal notificationOpened listener registered');
+        } catch (_oe) {
+          console.warn('[BadgeClear] notificationOpened listener error:', _oe);
+        }
+      } else if (PushPlugin && typeof PushPlugin.addListener === 'function') {
+        try {
+          await PushPlugin.addListener('pushNotificationActionPerformed', async function(action) {
+            await _clearBadgeAndNotifs('push_action');
+            var url = _extractPushUrl(action);
+            if (url) {
+              console.log('[PushRoute] navigating to ' + url);
+              window.location.href = url;
+            }
+          });
+          console.log('[BadgeClear] PushNotifications pushNotificationActionPerformed listener registered');
+        } catch (_pae) {
+          console.warn('[BadgeClear] pushNotificationActionPerformed listener error:', _pae);
+        }
+      }
+
+      // ── Android back button handler ───────────────────────────────────
+      // Priority 1: close any open modal/overlay.
+      // Priority 2: go back in browser history if available.
+      // Priority 3: already at root — the Capacitor App plugin default
+      //             exits the app, which is the correct behaviour.
+      if (AppPlugin && typeof AppPlugin.addListener === 'function') {
+        try {
+          await AppPlugin.addListener('backButton', function(info) {
+            var modal = document.querySelector(
+              '.modal-overlay[style*="flex"], .modal-overlay[style*="block"], ' +
+              '[id$="-modal"][style*="flex"], [id$="-modal"][style*="block"]'
+            );
+            if (modal) { modal.style.display = 'none'; return; }
+            if (info && info.canGoBack) { window.history.back(); return; }
+          });
+          console.log('[BackButton] handler registered');
+        } catch (_be) {
+          console.warn('[BackButton] handler error:', _be);
+        }
+      }
+
+      console.log('[BadgeClear] init complete');
+
+    })();
+  });
+})();
