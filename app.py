@@ -2876,9 +2876,11 @@ def my_trips():
     _rp_t0 = time.perf_counter()
 
     # Trip queries (wrapped for production safety)
+    _t = time.perf_counter()
     try:
         upcoming_trips = (
             SkiTrip.query
+            .options(db.joinedload(SkiTrip.resort))
             .filter(SkiTrip.user_id == current_user.id)
             .filter(SkiTrip.end_date >= today)
             .order_by(SkiTrip.start_date.asc())
@@ -2886,10 +2888,14 @@ def my_trips():
         ) or []
     except Exception:
         upcoming_trips = []
+    if app.debug:
+        print(f"[ROUTE_PERF] my_trips.upcoming={time.perf_counter()-_t:.4f}s count={len(upcoming_trips)}")
 
+    _t = time.perf_counter()
     try:
         past_trips = (
             SkiTrip.query
+            .options(db.joinedload(SkiTrip.resort))
             .filter(SkiTrip.user_id == current_user.id)
             .filter(SkiTrip.end_date < today)
             .order_by(SkiTrip.start_date.desc())
@@ -2897,6 +2903,8 @@ def my_trips():
         ) or []
     except Exception:
         past_trips = []
+    if app.debug:
+        print(f"[ROUTE_PERF] my_trips.past={time.perf_counter()-_t:.4f}s count={len(past_trips)}")
 
     # Get trips where user is INVITED (pending invites)
     invited_trips = []
@@ -2908,7 +2916,9 @@ def my_trips():
         ).all()
         invited_trip_ids = [p.trip_id for p in invited_participations]
         if invited_trip_ids:
-            invited_trips = SkiTrip.query.filter(
+            invited_trips = SkiTrip.query.options(
+                db.joinedload(SkiTrip.resort)
+            ).filter(
                 SkiTrip.id.in_(invited_trip_ids),
                 SkiTrip.end_date >= today
             ).order_by(SkiTrip.start_date.asc()).all() or []
@@ -2932,7 +2942,9 @@ def my_trips():
         accepted_trip_ids = [p.trip_id for p in accepted_participations]
         if accepted_trip_ids:
             # Exclude trips the user owns (they're already in upcoming_trips)
-            accepted_guest_trips = SkiTrip.query.filter(
+            accepted_guest_trips = SkiTrip.query.options(
+                db.joinedload(SkiTrip.resort)
+            ).filter(
                 SkiTrip.id.in_(accepted_trip_ids),
                 SkiTrip.user_id != current_user.id,
                 SkiTrip.end_date >= today
@@ -2940,20 +2952,30 @@ def my_trips():
     except Exception:
         accepted_guest_trips = []
 
-    # Get friends (wrapped for production safety)
+    # Get friends — single join query (replaces get_friend_ids + User.query, saves 1 round trip)
+    _t = time.perf_counter()
     try:
-        friend_ids = get_friend_ids(user.id)
-        friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
+        friends = (
+            User.query
+            .join(Friend, Friend.friend_id == User.id)
+            .filter(Friend.user_id == user.id)
+            .all()
+        )
+        friend_ids = [f.id for f in friends]
     except Exception:
         friend_ids = []
         friends = []
+    if app.debug:
+        print(f"[ROUTE_PERF] my_trips.friends={time.perf_counter()-_t:.4f}s count={len(friends)}")
 
     # Friends' upcoming trips (wrapped for production safety)
     _t = time.perf_counter()
     friend_trips = []
     try:
         if friend_ids:
-            friend_trips = SkiTrip.query.filter(
+            friend_trips = SkiTrip.query.options(
+                db.joinedload(SkiTrip.resort)
+            ).filter(
                 SkiTrip.user_id.in_(friend_ids),
                 SkiTrip.end_date >= today,
                 SkiTrip.is_public == True
@@ -7091,11 +7113,14 @@ def home():
     sender_connection_card = None
     try:
         cutoff = datetime.utcnow() - timedelta(hours=48)
+        _hp_t0 = time.perf_counter()
         recent_connections = Activity.query.filter(
             Activity.recipient_user_id == user.id,
             Activity.type == ActivityType.CONNECTION_ACCEPTED.value,
             Activity.created_at >= cutoff,
         ).order_by(Activity.created_at.desc()).all()
+        if app.debug:
+            print(f"[HOME_PERF] connection_activity={time.perf_counter()-_hp_t0:.4f}s count={len(recent_connections)}")
 
         # Batch-fetch dismissed keys and actor users before looping — avoids N+1.
         _conn_card_keys = [
@@ -7151,10 +7176,13 @@ def home():
 
     # --- Next Trip (created or accepted) ---
     try:
+        _hp_t0 = time.perf_counter()
         my_trips = SkiTrip.query.filter(
             SkiTrip.user_id == user.id,
             SkiTrip.end_date >= today
         ).order_by(SkiTrip.start_date.asc()).all()
+        if app.debug:
+            print(f"[HOME_PERF] my_trips_query={time.perf_counter()-_hp_t0:.4f}s count={len(my_trips)}")
     except Exception:
         db.session.rollback()
         my_trips = []
@@ -7185,15 +7213,22 @@ def home():
 
     all_upcoming = sorted(my_trips + accepted_guest_trips, key=lambda t: t.start_date)
     next_trip = all_upcoming[0] if all_upcoming else None
-    # --- Friend IDs ---
+    # --- Friends (single join query: IDs + objects in one round trip) ---
     try:
         _hp_t0 = time.perf_counter()
-        friend_ids = get_friend_ids(user.id)
+        all_friends = (
+            User.query
+            .join(Friend, Friend.friend_id == User.id)
+            .filter(Friend.user_id == user.id)
+            .all()
+        )
+        friend_ids = [f.id for f in all_friends]
         if app.debug:
-            print(f"[HOME_PERF] friend_ids={time.perf_counter() - _hp_t0:.4f}s count={len(friend_ids)}")
+            print(f"[HOME_PERF] friends_load={time.perf_counter() - _hp_t0:.4f}s count={len(friend_ids)}")
     except Exception:
         db.session.rollback()
         friend_ids = []
+        all_friends = []
 
     # --- Trip Invite Banner (soonest active pending trip invite) ---
     banner_invite = None
@@ -7233,22 +7268,18 @@ def home():
     except Exception:
         db.session.rollback()
 
-    # Bulk-load all friends once — reused by dest_feed and happening_signals
-    all_friends = []
-    if friend_ids:
-        try:
-            all_friends = User.query.filter(User.id.in_(friend_ids)).all()
-        except Exception:
-            db.session.rollback()
-            all_friends = []
+    # all_friends already populated above via single join query
 
     # --- Secondary Card (priority: connect_invite > overlap > friend_trip) ---
     secondary_card = None
     try:
+        _hp_t0 = time.perf_counter()
         connect_inv = Invitation.query.filter_by(
             receiver_id=user.id,
             status='pending'
         ).filter(Invitation.trip_id == None).first()
+        if app.debug:
+            print(f"[HOME_PERF] invitation_query={time.perf_counter()-_hp_t0:.4f}s")
         if connect_inv:
             sender = db.session.get(User, connect_inv.sender_id)
             secondary_card = {
@@ -7426,9 +7457,15 @@ def home():
         'engine_total': _diag_opp_engine_count,
     }
 
+    _hp_t0 = time.perf_counter()
+    home_eq = user.get_active_equipment()
+    if app.debug:
+        print(f"[HOME_PERF] active_equipment={time.perf_counter()-_hp_t0:.4f}s")
+
     if app.debug:
         print(f"[ROUTE_PERF] route=home total={time.perf_counter()-_rp_t0:.4f}s")
-    return render_template(
+    _hp_t0 = time.perf_counter()
+    _resp = render_template(
         'home.html',
         user=user,
         next_trip=next_trip,
@@ -7445,13 +7482,16 @@ def home():
         stat_trips_url=url_for('my_trips'),
         stat_mountains_url=url_for('profile') + '#section-mountains-visited',
         stat_wishlist_url=url_for('profile') + '#section-wishlist',
-        home_eq=user.get_active_equipment(),
+        home_eq=home_eq,
         friend_count=len(friend_ids),
         new_connection_name=new_connection_name,
         sender_connection_card=sender_connection_card,
         is_admin=is_admin,
         ideas_diag=ideas_diag,
     )
+    if app.debug:
+        print(f"[HOME_PERF] render_template={time.perf_counter()-_hp_t0:.4f}s")
+    return _resp
 
 
 @app.route("/onboarding/equipment", methods=["POST"])

@@ -952,7 +952,7 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
     # If not, the card still surfaces with resort_id=None so the user can
     # pick a mountain themselves (BUG-3 fix — previously suppressed).
     try:
-        matches = get_open_date_matches(user, cached_my_dates=_user_avail_dates)
+        matches = get_open_date_matches(user, cached_my_dates=_user_avail_dates, cached_friends=all_friends)
         if matches:
             windows = build_overlap_windows(matches, user.pass_type)
 

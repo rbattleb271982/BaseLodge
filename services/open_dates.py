@@ -53,7 +53,7 @@ def get_available_dates_for_user(user):
     }
 
 
-def get_open_date_matches(current_user, cached_my_dates=None):
+def get_open_date_matches(current_user, cached_my_dates=None, cached_friends=None):
     """
     Returns a list of open-date overlaps between current_user and their friends.
 
@@ -80,6 +80,9 @@ def get_open_date_matches(current_user, cached_my_dates=None):
         cached_my_dates: Optional pre-fetched set of date strings for current_user.
                          Pass this when the caller already has the data to avoid a
                          redundant UserAvailability query (saves ~60ms on Supabase).
+        cached_friends:  Optional pre-fetched list of User objects for current_user's
+                         friends. Pass this when the caller already has all_friends in
+                         memory to skip the User JOIN Friend round-trip (saves ~60ms).
     """
 
     # Step 1: Get current user's available dates (use caller's cache when provided)
@@ -87,13 +90,17 @@ def get_open_date_matches(current_user, cached_my_dates=None):
     if not my_dates:
         return []
 
-    # Step 2: Fetch friends (single query)
-    friends = (
-        db.session.query(User)
-        .join(Friend, Friend.friend_id == User.id)
-        .filter(Friend.user_id == current_user.id)
-        .all()
-    )
+    # Step 2: Get friends — use caller's pre-fetched list when provided (avoids a
+    # redundant User JOIN Friend query when caller already has all_friends in memory).
+    if cached_friends is not None:
+        friends = cached_friends
+    else:
+        friends = (
+            db.session.query(User)
+            .join(Friend, Friend.friend_id == User.id)
+            .filter(Friend.user_id == current_user.id)
+            .all()
+        )
 
     # Step 2b: Batch-fetch all friend availability in one query.
     # Replaces the previous per-friend get_available_dates_for_user() call

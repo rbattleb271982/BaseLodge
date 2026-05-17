@@ -1,0 +1,178 @@
+BASELODGE SPEED PHASE 1C — IMPLEMENT ROUTE DB BOTTLENECK FIXES
+
+Goal:
+Reduce /home (~0.894s) and /trips (~0.916s) by eliminating redundant DB round-trips and hidden lazy-load patterns.
+
+Important:
+- Implement only the fixes below.
+- Do not touch analytics_head.html
+- Do not touch bl-native.js
+- Do not touch schema/models
+- Do not touch push systems
+- Do not refactor unrelated routes
+- Use checkpoints sparingly
+- Fully test before finishing
+
+--------------------------------------------------
+FIX 1 — VERY HIGH IMPACT
+
+File:
+app.py
+
+Function:
+my_trips()
+
+Add:
+
+.options(db.joinedload(SkiTrip.resort))
+
+to:
+
+- friend_trips query
+- upcoming_trips query
+- accepted_guest_trips query
+- past_trips query if applicable
+
+Reason:
+trip.resort.name is accessed later and currently lazy-loads resort rows.
+
+--------------------------------------------------
+FIX 2 — HIGH IMPACT
+
+Files:
+app.py
+
+Functions:
+home()
+my_trips()
+
+Replace:
+
+friend_ids = get_friend_ids(user.id)
+all_friends = User.query.filter(
+    User.id.in_(friend_ids)
+).all()
+
+with:
+
+all_friends = (
+    User.query
+      .join(Friend, Friend.friend_id == User.id)
+      .filter(Friend.user_id == user.id)
+      .all()
+)
+
+friend_ids = [f.id for f in all_friends]
+
+Do NOT modify get_friend_ids globally.
+
+Only replace these local call sites.
+
+--------------------------------------------------
+FIX 3 — HIGH IMPACT
+
+File:
+services/open_dates.py
+
+Function:
+get_open_date_matches()
+
+Add:
+
+cached_friends=None
+
+parameter.
+
+When cached_friends exists:
+
+skip:
+
+db.session.query(User)
+.join(Friend...)
+
+Use cached_friends instead.
+
+Update:
+
+services/ideas_engine.py
+
+to pass:
+
+cached_friends=all_friends
+
+Reason:
+friend list already exists in memory.
+
+--------------------------------------------------
+FIX 4 — MEDIUM IMPACT
+
+File:
+app.py
+
+Function:
+home()
+
+Move:
+
+home_eq=user.get_active_equipment()
+
+into explicit timed block before render_template.
+
+Add:
+
+[HOME_PERF]
+
+timing output.
+
+--------------------------------------------------
+FIX 5 — INSTRUMENTATION
+
+Add missing timing around:
+
+home():
+- connection activity query
+- all_friends load
+- Invitation query
+- get_active_equipment()
+- render_template()
+
+my_trips():
+- upcoming query
+- past query
+- invited query
+- accepted_guest query
+
+ideas_engine:
+- friend trips query
+- get_open_date_matches()
+- wishlist query
+
+--------------------------------------------------
+
+Testing:
+
+- Home feed
+- Opportunities
+- Happening
+- My Trips
+- Friend Trips
+- Overlaps
+- Empty states
+
+Capture before/after:
+
+/home
+/trips
+
+Baseline:
+
+/home = .894s
+/trips = .916s
+
+Output:
+
+1. files modified
+2. before/after route timings
+3. biggest improvements
+4. regressions
+5. skipped items
