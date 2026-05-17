@@ -7308,12 +7308,13 @@ def home():
 
     # --- Coordination feed (Home opportunities stream) ---
     dest_feed = []
+    _engine_friend_trips = []
     _ideas_engine_diag = {}
     try:
         from services.ideas_engine import build_destination_feed as _build_home_feed
         if all_friends:
             _hp_t0 = time.perf_counter()
-            _raw_feed, _ideas_engine_diag = _build_home_feed(
+            _raw_feed, _ideas_engine_diag, _engine_friend_trips = _build_home_feed(
                 user, all_friends, user_avail_dates=_user_avail_home,
                 user_trips=my_trips
             )
@@ -7362,22 +7363,17 @@ def home():
 
     HOME_HAPPENING_RENDER_CAP = 5
     # --- Happening signals (one row per friend, editorial format, max 5) ---
+    # Reuses friend_trips already fetched by build_destination_feed — no second DB query.
     happening_signals = []
     if friend_ids:
         try:
-            _hp_t0 = time.perf_counter()
-            _hap_trips = SkiTrip.query.filter(
-                SkiTrip.user_id.in_(friend_ids),
-                SkiTrip.is_public == True,
-                SkiTrip.end_date >= today
-            ).options(db.joinedload(SkiTrip.resort)).order_by(SkiTrip.start_date.asc()).limit(50).all()
             if app.debug:
-                print(f"[HOME_PERF] happening_trips={time.perf_counter() - _hp_t0:.4f}s count={len(_hap_trips)}")
+                print(f"[HOME_PERF] happening_trips=reused count={len(_engine_friend_trips)}")
             _ft_users_map = {u.id: u for u in all_friends}
-            _diag_hap_raw_trips = len(_hap_trips)
+            _diag_hap_raw_trips = len(_engine_friend_trips)
             _hap_seen_users = set()
             _now = datetime.utcnow()
-            for ft in _hap_trips:
+            for ft in _engine_friend_trips:
                 ft_user = _ft_users_map.get(ft.user_id)
                 if not ft_user:
                     continue
@@ -7461,6 +7457,12 @@ def home():
     home_eq = user.get_active_equipment()
     if app.debug:
         print(f"[HOME_PERF] active_equipment={time.perf_counter()-_hp_t0:.4f}s")
+
+    for _row in dest_feed:
+        if _row.get('resort') and _row['resort'].slug:
+            _row['_url'] = url_for('mountain_detail', slug=_row['resort'].slug)
+        else:
+            _row['_url'] = url_for('add_trip')
 
     if app.debug:
         print(f"[ROUTE_PERF] route=home total={time.perf_counter()-_rp_t0:.4f}s")

@@ -33,12 +33,11 @@ Inputs:
             For resort-pinned cards: link to mountain detail page.
             For availability_overlap cards with no resort (resort=None): link to /add_trip.
         #}
+        {%- set _detail_url = row._url -%}
         {%- if row.resort and row.resort.slug -%}
-            {%- set _detail_url = url_for('mountain_detail', slug=row.resort.slug) -%}
             {%- set _primary_text = row.resort.name -%}
             {%- set _state_str = row.resort|state_abbrev -%}
         {%- else -%}
-            {%- set _detail_url = url_for('add_trip') -%}
             {%- set _primary_text = 'Pick a mountain' -%}
             {%- set _state_str = '' -%}
         {%- endif -%}

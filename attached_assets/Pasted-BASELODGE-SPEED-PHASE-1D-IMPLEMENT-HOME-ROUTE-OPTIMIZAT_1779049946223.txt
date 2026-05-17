@@ -1,0 +1,141 @@
+BASELODGE SPEED PHASE 1D — IMPLEMENT HOME ROUTE OPTIMIZATIONS
+
+Goal:
+Reduce /home from ~0.859s server time by eliminating duplicate work and improving render efficiency.
+
+Important:
+- Home route only
+- Do not touch /trips
+- Do not touch analytics_head.html
+- Do not touch bl-native.js
+- Do not touch push systems
+- Do not touch schema/models
+- Do not touch trip_detail
+- Use checkpoints sparingly
+- Fully test before finishing
+
+--------------------------------------------------
+FIX 1 — Remove duplicate happening_trips query
+
+File:
+services/ideas_engine.py
+
+Function:
+build_destination_feed()
+
+Change:
+
+return rows, _diag
+
+to:
+
+return rows, _diag, friend_trips
+
+File:
+app.py
+
+Function:
+home()
+
+Update unpacking:
+
+_raw_feed, _ideas_engine_diag, _engine_friend_trips = _build_home_feed(...)
+
+Delete the existing:
+
+_hap_trips = SkiTrip.query(...)
+
+block completely.
+
+Reuse:
+
+_engine_friend_trips
+
+for Happening logic.
+
+Keep:
+- dedupe logic
+- suppression logic
+- caps
+- signal assembly
+
+unchanged.
+
+Update timing log:
+
+[HOME_PERF] happening_trips=reused count=X
+
+--------------------------------------------------
+FIX 2 — Add IDEAS_PERF instrumentation
+
+File:
+services/ideas_engine.py
+
+Function:
+build_destination_feed()
+
+Add timing around:
+
+- cache setup
+- friend_trips query
+- get_open_date_matches()
+- wishlist overlap build
+
+Print only in debug mode.
+
+Goal:
+Find unexplained ~62ms.
+
+--------------------------------------------------
+FIX 3 — Precompute opportunity URLs
+
+File:
+app.py
+
+Before render_template:
+
+for _row in dest_feed:
+    if _row.get('resort') and _row['resort'].slug:
+        _row['_url'] = url_for(
+            'mountain_detail',
+            slug=_row['resort'].slug
+        )
+    else:
+        _row['_url'] = url_for('add_trip')
+
+File:
+templates/partials/home/_section_opportunities.html
+
+Replace url_for() generation inside loop:
+
+set _detail_url = row._url
+
+Keep all display logic unchanged.
+
+--------------------------------------------------
+
+Testing:
+
+- Home page
+- Opportunities
+- Happening
+- Empty states
+- Friend trip scenarios
+
+Capture:
+
+[HOME_PERF]
+[IDEAS_PERF]
+[ROUTE_PERF]
+
+Before:
+/home = .859s
+
+Output:
+
+1. Files modified
+2. Before/after timings
+3. Biggest improvements
+4. IDEAS_PERF breakdown
+5. Regressions
+6. Skipped items

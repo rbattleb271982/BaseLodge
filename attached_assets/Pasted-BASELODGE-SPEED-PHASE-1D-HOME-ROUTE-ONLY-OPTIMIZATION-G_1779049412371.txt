@@ -1,0 +1,118 @@
+BASELODGE SPEED PHASE 1D — HOME ROUTE ONLY OPTIMIZATION
+
+Goal:
+Reduce /home route time further by eliminating duplicate work and addressing the remaining measurable bottlenecks.
+
+Current state:
+
+/trips:
+0.916s → 0.426s ✓
+
+/home:
+0.894s → 0.859s
+
+Known findings:
+- build_destination_feed() already fetches friend trip data
+- home() later fires a second happening_trips query that appears substantially redundant
+- render_template(home.html) now measures ~102ms
+- get_active_equipment() still incurs a DB round trip
+- home.html is large (~1236 lines)
+
+Important:
+- Home route only
+- Do not touch /trips
+- Do not touch analytics_head.html
+- Do not touch bl-native.js
+- Do not touch push systems
+- Do not touch schema/models
+- Do not touch trip_detail
+- Use checkpoints sparingly
+
+Plan only.
+Do not implement yet.
+
+Audit and produce implementation recommendations for:
+
+1. Duplicate happening_trips query
+Review:
+home()
+build_destination_feed()
+
+Determine whether the existing friend trip result set can safely power Happening without a second DB query.
+
+Return:
+- exact files/functions
+- implementation approach
+- estimated savings
+- regression risk
+
+2. home_eq query
+Review:
+get_active_equipment()
+
+Determine:
+
+- whether it should be eager-loaded
+- request cached
+- session cached
+- loaded alongside user
+- or left alone
+
+Return:
+- recommendation
+- complexity
+- estimated impact
+
+3. render_template(home.html)
+Review:
+home.html
+
+Audit:
+- heavy loops
+- nested loops
+- large hidden DOM sections
+- repeated filters
+- repeated helper calls
+- expensive includes
+- ORM access inside templates
+- giant sections that could be conditional
+
+Return:
+- top rendering bottlenecks
+- estimated ms cost
+- implementation risk
+
+4. Instrumentation gaps
+
+Determine if additional timing should exist around:
+
+- feed generation
+- home template sections
+- helper functions
+- render stages
+
+5. Rank findings:
+
+Very High
+High
+Medium
+Low
+
+For each:
+
+- file
+- function
+- estimated savings
+- complexity
+- risk
+
+Final output:
+
+A. Executive summary
+B. Home route bottleneck map
+C. Rendering bottleneck map
+D. Ranked recommendations
+E. Final implementation prompt
+F. What not to touch
+
+Do not implement anything yet.

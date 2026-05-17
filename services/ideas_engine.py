@@ -11,6 +11,7 @@ Do not duplicate this logic in routes.
 """
 
 import re
+import time
 from collections import Counter
 from datetime import date, timedelta
 from flask import url_for
@@ -729,7 +730,7 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
     friend_by_id = {f.id: f for f in all_friends}
 
     if not friend_ids:
-        return [], {}
+        return [], {}, []
 
     user_wishlist = set(user.wish_list_resorts or [])
 
@@ -748,8 +749,10 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
     _resort_cache: dict = {}
     if _all_wishlist_ids:
         try:
+            _ip_t0 = time.perf_counter()
             _resort_rows = Resort.query.filter(Resort.id.in_(_all_wishlist_ids)).all()
             _resort_cache = {r.id: r for r in _resort_rows}
+            print(f"[IDEAS_PERF] wishlist_resort_cache={time.perf_counter()-_ip_t0:.4f}s ids={len(_all_wishlist_ids)} loaded={len(_resort_cache)}")
         except Exception:
             pass
 
@@ -871,6 +874,7 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
             by_resort[key] = candidate
 
     # ── 1. Friend trips ──────────────────────────────────────────────────────
+    _ip_t0 = time.perf_counter()
     friend_trips = (
         SkiTrip.query
         .filter(
@@ -879,10 +883,11 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
             SkiTrip.is_public == True,
             SkiTrip.resort_id.isnot(None),
         )
-        .options(db.joinedload(SkiTrip.resort))  # eager-load resort — eliminates N+1 lazy SELECTs at line 881
+        .options(db.joinedload(SkiTrip.resort))
         .order_by(SkiTrip.start_date.asc())
         .all()
     )
+    print(f"[IDEAS_PERF] friend_trips_query={time.perf_counter()-_ip_t0:.4f}s count={len(friend_trips)}")
 
     # Group by resort, then find best date window per resort
     resort_trip_data = {}
@@ -952,7 +957,9 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
     # If not, the card still surfaces with resort_id=None so the user can
     # pick a mountain themselves (BUG-3 fix — previously suppressed).
     try:
+        _ip_t0 = time.perf_counter()
         matches = get_open_date_matches(user, cached_my_dates=_user_avail_dates, cached_friends=all_friends)
+        print(f"[IDEAS_PERF] open_date_matches={time.perf_counter()-_ip_t0:.4f}s matches={len(matches) if matches else 0}")
         if matches:
             windows = build_overlap_windows(matches, user.pass_type)
 
@@ -1025,7 +1032,9 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
 
     # ── 3. Wishlist overlaps ─────────────────────────────────────────────────
     try:
+        _ip_t0 = time.perf_counter()
         wishlist_data = build_wishlist_overlaps(user, all_friends)
+        print(f"[IDEAS_PERF] wishlist_overlaps={time.perf_counter()-_ip_t0:.4f}s results={len(wishlist_data)}")
         for rd in wishlist_data:
             rid        = rd["resort_id"]
             overlapping = rd.get("overlapping_people", [])
@@ -1109,7 +1118,7 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
             f" user_overlap={_r.get('has_user_date_overlap', False)}"
         )
 
-    return rows, _diag
+    return rows, _diag, friend_trips
 
 
 def build_ranked_idea_feed(user, all_friends):
