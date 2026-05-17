@@ -696,7 +696,7 @@ def _fmt_wishlist_names(friend_names, suffix):
     return f"{s} {suffix}"
 
 
-def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=None):
+def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=None, resort_map=None):
     """
     Builds the Ideas feed: one card per destination (resort_id), best signal wins.
 
@@ -748,13 +748,18 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
     }
     _resort_cache: dict = {}
     if _all_wishlist_ids:
-        try:
-            _ip_t0 = time.perf_counter()
-            _resort_rows = Resort.query.filter(Resort.id.in_(_all_wishlist_ids)).all()
-            _resort_cache = {r.id: r for r in _resort_rows}
-            print(f"[IDEAS_PERF] wishlist_resort_cache={time.perf_counter()-_ip_t0:.4f}s ids={len(_all_wishlist_ids)} loaded={len(_resort_cache)}")
-        except Exception:
-            pass
+        _ip_t0 = time.perf_counter()
+        if resort_map is not None:
+            # Use caller-provided map — no DB query needed
+            _resort_cache = {rid: resort_map[rid] for rid in _all_wishlist_ids if rid in resort_map}
+            print(f"[IDEAS_PERF] wishlist_resort_cache={time.perf_counter()-_ip_t0:.4f}s ids={len(_all_wishlist_ids)} loaded={len(_resort_cache)} (map_hit)")
+        else:
+            try:
+                _resort_rows = Resort.query.filter(Resort.id.in_(_all_wishlist_ids)).all()
+                _resort_cache = {r.id: r for r in _resort_rows}
+                print(f"[IDEAS_PERF] wishlist_resort_cache={time.perf_counter()-_ip_t0:.4f}s ids={len(_all_wishlist_ids)} loaded={len(_resort_cache)}")
+            except Exception:
+                pass
 
     print(f"[Ideas] start user_id={user.id} friends={len(friend_ids)} wishlist={len(user_wishlist)} pass={user.pass_type!r}")
 

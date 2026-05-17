@@ -1,0 +1,94 @@
+BASELODGE PHASE 1G — RESORT DATA CACHE + REUSE PLAN
+
+Goal:
+Plan two related performance fixes together:
+
+1. Speed up /mountains by caching static resort/pass data.
+2. Reduce /home load time by reusing already-loaded/cached resort data instead of firing the wishlist_resort_cache query.
+
+Important:
+- Plan only.
+- Do not implement yet.
+- Do not touch schema/models.
+- Do not touch push systems.
+- Do not touch analytics_head.html or bl-native.js.
+- Do not touch /trips.
+- Use checkpoints sparingly.
+
+Current findings:
+
+/mountains:
+- route total = 0.4585s
+- all_resorts = 0.2417s
+- friend_resort_counts = 0.1203s
+- all_passes = 0.0931s
+- 702 active resorts
+- 215 ResortPass rows
+- all_resorts and all_passes are mostly static
+
+/home:
+- wishlist_resort_cache inside build_destination_feed = 0.063s
+- this query loads Resort rows for wishlist resort IDs
+- likely replaceable with existing resort cache or a shared cached resort map
+
+Audit:
+
+1. Existing resort cache
+Review:
+- utils/resort_utils.py
+- services/ideas_engine.py
+- app.py mountains_tab()
+- app startup preload logic
+
+Determine:
+- whether an active resort cache already exists
+- what shape it has
+- whether it includes id, slug, name, state, country, pass data
+- whether it can safely be reused in /mountains and /home
+
+2. Mountains route caching
+Review:
+- app.py mountains_tab()
+
+Identify:
+- exact all_resorts query
+- exact all_passes query
+- data transformation logic
+- whether friend_resort_counts must remain per-user dynamic
+
+Recommend:
+- what should be cached
+- what must remain dynamic
+- cache invalidation strategy
+- expected timing savings
+
+3. Home wishlist resort cache reuse
+Review:
+- services/ideas_engine.py build_destination_feed()
+
+Identify:
+- current wishlist_resort_cache query
+- required Resort fields
+- whether cached resort map can replace the query safely
+- fallback behavior if resort ID missing
+
+4. Risk assessment
+Cover:
+- stale resort/pass data
+- admin updates
+- Replit deployment/restart behavior
+- multi-worker behavior
+- memory usage
+
+5. Final output
+Return:
+
+A. Executive summary
+B. Shared cache strategy
+C. /mountains implementation plan
+D. /home implementation plan
+E. Expected timing impact
+F. Rollback plan
+G. Final Build-mode prompt
+
+Do not implement anything yet.

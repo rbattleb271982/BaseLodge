@@ -1952,6 +1952,87 @@ def get_resorts_for_trip_form():
         for r in resorts
     )
 
+
+@lru_cache(maxsize=1)
+def get_all_active_resorts_map():
+    """Process-wide {resort_id: SimpleNamespace} for all active non-region resorts.
+
+    Covers every field needed by /mountains (filter UI) and build_destination_feed
+    (wishlist resort lookup). Uses SimpleNamespace — not ORM objects — so cached
+    values are safe to hold across requests without SQLAlchemy session concerns.
+
+    Cached via lru_cache(maxsize=1) — cleared on app restart (Replit deploy).
+    After any admin resort mutation call both:
+      get_all_active_resorts_map.cache_clear()
+      get_resorts_for_trip_form.cache_clear()
+    """
+    from types import SimpleNamespace
+    from models import ResortPass as _ResortPass
+
+    _PASS_SKIP = frozenset({'no_pass', 'no_pass_yet'})
+
+    # Batch-load all ResortPass rows (1 query)
+    _all_rp = _ResortPass.query.all()
+    _rp_by_resort = {}
+    for _rp in _all_rp:
+        _rp_by_resort.setdefault(_rp.resort_id, []).append(_rp.pass_name)
+
+    def _pass_data(resort_id, pass_brands_raw):
+        rp_rows = _rp_by_resort.get(resort_id, [])
+        labels, keys = [], []
+        if rp_rows:
+            for pname in rp_rows:
+                if not pname or str(pname).lower() in ('none', ''):
+                    continue
+                norm = normalize_pass(pname)
+                if norm and norm not in _PASS_SKIP:
+                    label = display_pass_label(norm)
+                    if label:
+                        labels.append(label)
+                        keys.append(norm)
+        if keys:
+            return ' · '.join(labels), keys
+        # Legacy fallback — resort_pass table empty
+        raw = pass_brands_raw or ""
+        if not raw or str(raw).lower() in ('none', ''):
+            return "", []
+        for _b in [_b.strip() for _b in str(raw).split(',') if _b.strip()]:
+            norm = normalize_pass(_b)
+            if norm and norm not in _PASS_SKIP:
+                label = display_pass_label(norm)
+                if label:
+                    labels.append(label)
+                    keys.append(norm)
+        return ' · '.join(labels), keys
+
+    _resorts = Resort.query.filter_by(is_active=True, is_region=False).order_by(
+        Resort.country_code, Resort.state_code, Resort.name
+    ).all()
+
+    result = {}
+    for r in _resorts:
+        cc = r.country_code or r.country or ""
+        sc = r.state_code or r.state or ""
+        sn = r.state_name or r.state_full or ""
+        cn = r.country_name or COUNTRY_NAMES.get(cc, cc) or ""
+        pl, pk = _pass_data(r.id, r.pass_brands or r.brand or "")
+        result[r.id] = SimpleNamespace(
+            id=r.id,
+            name=r.name,
+            display_name=_resort_display_name(r, AMBIGUOUS_RESORT_NAMES),
+            slug=r.slug or "",
+            country_code=cc,
+            country_name=cn,
+            state_code=sc,
+            state_name=sn or sc,
+            state=sc,
+            pass_labels=pl,
+            pass_keys=pk,
+            pass_brands=r.pass_brands or r.brand or "",
+        )
+    return result
+
+
 RIDER_TYPES = ["Skier", "Snowboarder", "Telemark", "Cross-Country", "Adaptive", "Social"]
 
 def normalize_rider_type(rider_type):
@@ -3219,14 +3300,13 @@ def mountains_tab():
     user = current_user
     _rp_t0 = time.perf_counter()
 
-    _t = time.perf_counter()
-    all_resorts = Resort.query.filter_by(is_active=True, is_region=False).order_by(
-        Resort.country_code, Resort.state_code, Resort.name
-    ).all()
+    # ── Cached resort + pass data (zero DB queries on repeat requests) ─────────
+    _resort_map = get_all_active_resorts_map()
     if app.debug:
-        print(f"[ROUTE_PERF] mountains.all_resorts={time.perf_counter()-_t:.4f}s count={len(all_resorts)}")
+        print(f"[ROUTE_PERF] mountains.all_resorts=0.0000s count={len(_resort_map)} (cached)")
+        print(f"[ROUTE_PERF] mountains.all_passes=0.0000s (cached)")
 
-    # ── Friend counts per resort (one batch query — no N+1) ───────────────────
+    # ── Friend counts per resort (per-user — must remain dynamic) ─────────────
     _t = time.perf_counter()
     friend_links = Friend.query.filter_by(user_id=user.id).all()
     friend_ids = [f.friend_id for f in friend_links]
@@ -3244,74 +3324,23 @@ def mountains_tab():
     if app.debug:
         print(f"[ROUTE_PERF] mountains.friend_resort_counts={time.perf_counter()-_t:.4f}s")
 
-    # ── Batch-load all ResortPass rows (1 query instead of N) ─────────────────
     _t = time.perf_counter()
-    from models import ResortPass as _ResortPass
-    _all_rp = _ResortPass.query.all()
-    _rp_by_resort = {}
-    for _rp in _all_rp:
-        _rp_by_resort.setdefault(_rp.resort_id, []).append(
-            {'pass_name': _rp.pass_name, 'is_primary': _rp.is_primary}
-        )
-    if app.debug:
-        print(f"[ROUTE_PERF] mountains.all_passes={time.perf_counter()-_t:.4f}s count={len(_all_rp)}")
-
-    # ── Pass extraction helper ─────────────────────────────────────────────────
-    _PASS_SKIP = frozenset({'no_pass', 'no_pass_yet'})
-
-    def _resort_passes(r):
-        # Use pre-fetched pass data — avoids one DB query per resort (N+1)
-        rp_rows = _rp_by_resort.get(r.id, [])
-        if rp_rows:
-            labels, keys = [], []
-            for p in rp_rows:
-                pname = p.get('pass_name', '') if isinstance(p, dict) else getattr(p, 'pass_name', '')
-                if not pname or str(pname).lower() in ('none', ''):
-                    continue
-                norm = normalize_pass(pname)
-                if norm and norm not in _PASS_SKIP:
-                    label = display_pass_label(norm)
-                    if label:
-                        labels.append(label)
-                        keys.append(norm)
-            if keys:
-                return ' · '.join(labels), keys
-        # Legacy fallback — resort_pass table empty
-        raw = r.pass_brands or r.brand or ""
-        if not raw or str(raw).lower() in ('none', ''):
-            return "", []
-        brands = [b.strip() for b in str(raw).split(',') if b.strip()]
-        labels, keys = [], []
-        for b in brands:
-            norm = normalize_pass(b)
-            if norm and norm not in _PASS_SKIP:
-                label = display_pass_label(norm)
-                if label:
-                    labels.append(label)
-                    keys.append(norm)
-        return ' · '.join(labels), keys
-
-    _t = time.perf_counter()
-    resorts_data = []
-    for r in all_resorts:
-        cc = r.country_code or r.country or ""
-        sc = r.state_code or r.state or ""
-        sn = r.state_name or r.state_full or ""
-        cn = r.country_name or COUNTRY_NAMES.get(cc, cc) or ""
-        pass_labels, pass_keys = _resort_passes(r)
-        resorts_data.append({
+    resorts_data = [
+        {
             "id": r.id,
             "name": r.name,
-            "display_name": _resort_display_name(r, AMBIGUOUS_RESORT_NAMES),
-            "slug": r.slug or "",
-            "country_code": cc,
-            "country_name": cn,
-            "state_code": sc,
-            "state_name": sn or sc,
-            "pass_labels": pass_labels,
-            "pass_keys": pass_keys,
+            "display_name": r.display_name,
+            "slug": r.slug,
+            "country_code": r.country_code,
+            "country_name": r.country_name,
+            "state_code": r.state_code,
+            "state_name": r.state_name,
+            "pass_labels": r.pass_labels,
+            "pass_keys": r.pass_keys,
             "friend_count": friend_resort_counts.get(r.id, 0),
-        })
+        }
+        for r in _resort_map.values()
+    ]
     if app.debug:
         print(f"[ROUTE_PERF] mountains.data_build={time.perf_counter()-_t:.4f}s resort_count={len(resorts_data)}")
 
@@ -7314,9 +7343,10 @@ def home():
         from services.ideas_engine import build_destination_feed as _build_home_feed
         if all_friends:
             _hp_t0 = time.perf_counter()
+            _resort_map = get_all_active_resorts_map()
             _raw_feed, _ideas_engine_diag, _engine_friend_trips = _build_home_feed(
                 user, all_friends, user_avail_dates=_user_avail_home,
-                user_trips=my_trips
+                user_trips=my_trips, resort_map=_resort_map
             )
             if app.debug:
                 print(f"[HOME_PERF] build_destination_feed={time.perf_counter() - _hp_t0:.4f}s raw_count={len(_raw_feed)}")
