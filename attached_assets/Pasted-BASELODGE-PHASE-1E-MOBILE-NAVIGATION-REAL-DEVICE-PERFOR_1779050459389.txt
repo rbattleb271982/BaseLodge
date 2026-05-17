@@ -1,0 +1,109 @@
+BASELODGE PHASE 1E — MOBILE NAVIGATION + REAL DEVICE PERFORMANCE AUDIT
+
+Goal:
+Determine whether remaining lag is server-side, WebView rendering, navigation behavior, or perceived transition delay on actual iOS/Android devices.
+
+Important:
+- Audit only.
+- Do not implement code yet.
+- Do not refactor anything.
+- Do not change routes.
+- Do not change templates.
+- Use checkpoints sparingly.
+
+Context:
+
+Completed:
+- Session refresh optimization
+- compute_user_state caching
+- notification and mountain N+1 fixes
+- analytics_head extraction → bl-native.js
+- /trips optimization: 0.916s → 0.414s
+- /home optimization: 0.961s → 0.887s
+
+Now determine why the app may still feel slow between screens.
+
+Audit these areas:
+
+1. Navigation UX audit
+Review:
+- tab navigation flow
+- full-page navigation behavior
+- loading states
+- topbar
+- bottom nav
+- browser history usage
+- redirect patterns
+
+Identify:
+- screens that reload too much
+- duplicate work during navigation
+- avoidable page refreshes
+- unnecessary redirects
+- blank/white screen periods
+
+2. WebView rendering audit
+
+Review:
+
+- WKWebView behavior
+- Capacitor app shell
+- DOM size
+- repaint/reflow risk
+- CSS payload
+- template payload size
+- image loading
+- JS initialization
+
+Determine:
+- where render blocking still exists
+- pages with large DOM cost
+- screens likely causing white flashes
+
+3. Perceived speed opportunities
+
+Identify:
+- prefetch opportunities
+- preload opportunities
+- route warmup
+- optimistic rendering
+- skeleton screens
+- tab caching possibilities
+- background data loading
+
+4. Device instrumentation plan
+
+Recommend:
+- Safari Web Inspector setup
+- Android inspection setup
+- metrics to capture
+- route transition timing
+- DOMContentLoaded timing
+- paint timing
+- WebView timing
+
+5. Ranked findings
+
+Very High
+High
+Medium
+Low
+
+For each:
+
+- issue
+- file
+- expected user impact
+- implementation complexity
+- regression risk
+
+Final output:
+
+A. Executive summary
+B. Navigation bottleneck map
+C. WebView bottleneck map
+D. Ranked recommendations
+E. Suggested implementation order
+F. Final implementation prompt
+
+Do not implement anything yet.
