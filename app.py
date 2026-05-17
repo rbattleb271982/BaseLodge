@@ -685,6 +685,10 @@ def set_security_headers(response):
         response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "no-referrer-when-downgrade"
+    # Long-cache versioned static assets — HTML responses are unaffected
+    # (they are never served from /static/).
+    if request.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
 
 
@@ -1621,6 +1625,27 @@ except Exception as _rdu_err:
 
 
 # ============================================================================
+# STATIC ASSET VERSIONING — computed once at startup from mtime+size
+# Injected into Jinja2 globals so templates can append ?v=<hash> to
+# fingerprinted URLs, enabling safe long-cache (max-age=31536000).
+# ============================================================================
+import hashlib as _hashlib
+
+def _asset_version(path):
+    """Return 8-char MD5 hex of file mtime+size. Fast — no full file read."""
+    try:
+        _st = os.stat(path)
+        return _hashlib.md5(f"{_st.st_mtime}:{_st.st_size}".encode()).hexdigest()[:8]
+    except OSError:
+        return "00000000"
+
+STYLES_VERSION    = _asset_version("static/styles.css")
+BL_NATIVE_VERSION = _asset_version("static/js/bl-native.js")
+ANALYTICS_VERSION = _asset_version("static/analytics.js")
+ICONS_VERSION     = _asset_version("static/icons/favicon-32x32.png")
+
+
+# ============================================================================
 # PRODUCTION DIAGNOSTICS - Print on startup
 # ============================================================================
 def log_startup_diagnostics():
@@ -2206,6 +2231,10 @@ app.jinja_env.globals['POSTHOG_KEY'] = ph_analytics.POSTHOG_KEY
 app.jinja_env.globals['POSTHOG_HOST'] = ph_analytics.POSTHOG_HOST
 app.jinja_env.globals['ONESIGNAL_APP_ID'] = os.environ.get("ONESIGNAL_APP_ID", "")
 app.jinja_env.globals['BL_NAV_DEBUG'] = app.config.get("BL_NAV_DEBUG", False)
+app.jinja_env.globals['STYLES_VERSION']    = STYLES_VERSION
+app.jinja_env.globals['BL_NATIVE_VERSION'] = BL_NATIVE_VERSION
+app.jinja_env.globals['ANALYTICS_VERSION'] = ANALYTICS_VERSION
+app.jinja_env.globals['ICONS_VERSION']     = ICONS_VERSION
 
 
 def group_trips_by_month(trips):
@@ -13518,12 +13547,12 @@ def terms_and_conditions():
 
 @app.route("/robots.txt")
 def robots_txt():
-    return send_file("static/robots.txt", mimetype="text/plain")
+    return send_file("static/robots.txt", mimetype="text/plain", max_age=86400)
 
 
 @app.route("/sitemap.xml")
 def sitemap_xml():
-    return send_file("static/sitemap.xml", mimetype="application/xml")
+    return send_file("static/sitemap.xml", mimetype="application/xml", max_age=86400)
 
 
 @app.route("/admin/test-onesignal-push", methods=["GET", "POST"])
