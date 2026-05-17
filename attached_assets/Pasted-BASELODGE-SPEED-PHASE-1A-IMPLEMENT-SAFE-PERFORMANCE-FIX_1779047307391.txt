@@ -1,0 +1,189 @@
+BASELODGE SPEED PHASE 1A — IMPLEMENT SAFE PERFORMANCE FIXES ONLY
+
+Goal:
+Implement only the lowest-risk, highest-confidence performance improvements identified in the performance audit.
+
+Important:
+- Implement only the items below.
+- Do NOT touch analytics_head.html yet.
+- Do NOT touch trip_detail template structure.
+- Do NOT add schema changes.
+- Do NOT refactor unrelated code.
+- Do NOT modify app architecture.
+- Use checkpoints sparingly.
+- Fully test before finishing.
+
+Implement ONLY these changes:
+
+1) Disable unnecessary session refresh
+
+File:
+app.py
+
+Change:
+
+SESSION_REFRESH_EACH_REQUEST=False
+
+Reason:
+Session writes already explicitly modify session state. Rewriting cookies on every response is unnecessary overhead.
+
+Test:
+- login
+- logout
+- onboarding
+- profile setup
+- navigation across multiple pages
+- session persistence
+
+--------------------------------------------------
+
+2) Add request-level caching to compute_user_state()
+
+File:
+app.py
+
+Function:
+compute_user_state()
+
+Add near top:
+
+if hasattr(g, "_computed_user_state"):
+    return g._computed_user_state
+
+Cache before return:
+
+g._computed_user_state = state_dict
+
+Requirements:
+- Preserve all business logic
+- Preserve onboarding/profile gates
+- Preserve return format
+- Do not change existing behavior
+- Do not change DB logic beyond request-level caching
+
+Test:
+- new user onboarding
+- existing users
+- profile flows
+- route protection
+- page navigation
+
+--------------------------------------------------
+
+3) Fix mountain_detail() N+1 query issue
+
+File:
+app.py
+
+Function:
+mountain_detail()
+
+Replace per-loop:
+
+db.session.get(User, uid)
+
+with:
+
+Pass 1:
+Collect all needed user IDs
+
+Pass 2:
+Bulk query:
+
+User.query.filter(User.id.in_(all_needed_uids)).all()
+
+Build:
+
+users_by_id = {u.id: u}
+
+Replace lookups with:
+
+users_by_id.get(uid)
+
+Requirements:
+- Preserve ordering
+- Preserve display output
+- Preserve all guards and filters
+- Preserve behavior for no trips and empty states
+
+Test:
+- mountain with many trips
+- mountain with no trips
+- friend trips
+- trip windows
+
+--------------------------------------------------
+
+4) Fix notifications() N+1 queries
+
+File:
+app.py
+
+Function:
+notifications()
+
+Part A:
+Replace:
+
+db.session.get(User, inv.sender_id)
+
+with bulk sender loading.
+
+Part B:
+Add:
+
+joinedload(Activity.actor)
+
+to the Activity query.
+
+Requirements:
+- Preserve ordering
+- Preserve actor display
+- Preserve notification rendering
+- Preserve empty states
+
+Test:
+- friend requests
+- trip invites
+- activity feed
+- no notifications state
+
+--------------------------------------------------
+
+Performance Verification:
+
+Use existing:
+
+[ROUTE_PERF]
+
+Capture before/after timings for:
+
+/mountains/<slug>
+/notifications
+
+Compare:
+
+total=
+
+Confirm route timing improvements.
+
+Final output required:
+
+A. Files modified
+
+B. Exact changes made
+
+C. Before/after route timings
+
+D. Any regressions found
+
+E. Anything intentionally skipped
+
+Do not implement:
+- analytics_head extraction
+- notification TTL cache
+- trip_detail changes
+- schema changes
+- architecture changes
+
+Stop after these four items only.

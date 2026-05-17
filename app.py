@@ -22,6 +22,7 @@ import json
 import jwt
 import httpx
 from datetime import datetime, date, timedelta
+from sqlalchemy.orm import joinedload
 from services.pass_utils import (
     normalize_pass, display_pass_label, normalize_passes_string,
     format_passes_for_display, passes_match, is_real_pass,
@@ -55,7 +56,7 @@ BASE_URL = _resolve_base_url()
 import sqlalchemy as sa
 from sqlalchemy import func
 from urllib.parse import urlparse
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file, current_app
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file, current_app, g
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps, lru_cache
 from flask_migrate import Migrate
@@ -212,7 +213,7 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE=os.environ.get("SESSION_COOKIE_SAMESITE", "Lax"),
     PERMANENT_SESSION_LIFETIME=timedelta(days=7),
-    SESSION_REFRESH_EACH_REQUEST=True,
+    SESSION_REFRESH_EACH_REQUEST=False,
     REMEMBER_COOKIE_SECURE=is_production,
     REMEMBER_COOKIE_HTTPONLY=True,
 )
@@ -604,20 +605,28 @@ def compute_user_state(user):
       ACTIVE_FULL           — onboarded, ≥1 trip (friend count irrelevant)
 
     This is the single source of truth for all navigation decisions.
+    Result is cached in flask.g for the duration of the request so that
+    multiple callers within the same request pay the DB cost at most once.
     """
+    if hasattr(g, "_computed_user_state"):
+        return g._computed_user_state
+
     if not user.is_authenticated:
-        return "ANONYMOUS"
-    if not user.is_verified:
-        return "PENDING_VERIFICATION"
-    if not user.is_core_profile_complete:
-        return "ONBOARDING"
-    trip_count = SkiTrip.query.filter_by(user_id=user.id).count()
-    if trip_count > 0:
-        return "ACTIVE_FULL"
-    friend_count = Friend.query.filter_by(user_id=user.id).count()
-    if friend_count > 0:
-        return "ACTIVE_SOCIAL"
-    return "ACTIVE_EMPTY"
+        state = "ANONYMOUS"
+    elif not user.is_verified:
+        state = "PENDING_VERIFICATION"
+    elif not user.is_core_profile_complete:
+        state = "ONBOARDING"
+    else:
+        trip_count = SkiTrip.query.filter_by(user_id=user.id).count()
+        if trip_count > 0:
+            state = "ACTIVE_FULL"
+        else:
+            friend_count = Friend.query.filter_by(user_id=user.id).count()
+            state = "ACTIVE_SOCIAL" if friend_count > 0 else "ACTIVE_EMPTY"
+
+    g._computed_user_state = state
+    return state
 
 
 def resolve_navigation(path, user_state, pending_intent=None):
@@ -7810,15 +7819,22 @@ def notifications():
             receiver_id=current_user.id,
             status='pending'
         ).filter(Invitation.trip_id == None).order_by(Invitation.created_at.desc()).all()
-        for inv in connects:
-            sender = db.session.get(User, inv.sender_id)
-            if sender:
-                sender_name = f"{sender.first_name or ''} {sender.last_name or ''}".strip() or 'Someone'
-                pending_connects.append({
-                    'invitation_id': inv.id,
-                    'sender_name': sender_name,
-                    'sender_id': sender.id,
-                })
+        if connects:
+            # Bulk-load all sender Users in one query instead of one per invite.
+            sender_ids = list({inv.sender_id for inv in connects})
+            senders_map = {
+                u.id: u
+                for u in User.query.filter(User.id.in_(sender_ids)).all()
+            }
+            for inv in connects:
+                sender = senders_map.get(inv.sender_id)
+                if sender:
+                    sender_name = f"{sender.first_name or ''} {sender.last_name or ''}".strip() or 'Someone'
+                    pending_connects.append({
+                        'invitation_id': inv.id,
+                        'sender_name': sender_name,
+                        'sender_id': sender.id,
+                    })
     except Exception:
         db.session.rollback()
     if app.debug:
@@ -7828,9 +7844,13 @@ def notifications():
     _t = time.perf_counter()
     raw_activities = []
     try:
+        # joinedload(Activity.actor) fetches all actor Users in a single JOIN,
+        # replacing the previous lazy per-activity SELECT when act.actor is accessed.
         raw_activities = Activity.query.filter(
             Activity.recipient_user_id == current_user.id,
             Activity.type.in_(_NOTIF_TYPES)
+        ).options(
+            joinedload(Activity.actor)
         ).order_by(Activity.created_at.desc()).limit(50).all()
     except Exception:
         db.session.rollback()
@@ -8158,9 +8178,28 @@ def mountain_detail(slug):
     # Accumulate rows per date window.
     # Key: (start_date, end_date); value: dict of uid -> row_dict (deduped within window)
     _t = time.perf_counter()
-    _t_people_looked_up = 0
     rows_by_window = {}
 
+    # Pass 1: collect every user ID that will be needed across all trip windows.
+    # This lets us do one bulk User query instead of one query per person.
+    all_needed_uids = set()
+    for trip in raw_trips:
+        if get_trip_status(trip, today=today) == 'past':
+            continue
+        people_ids = {trip.user_id}
+        for p in trip.get_accepted_participants():
+            people_ids.add(p.user_id)
+        all_needed_uids.update(people_ids & allowed_ids)
+
+    # One bulk query replacing the previous per-uid db.session.get() calls.
+    users_by_id = {}
+    if all_needed_uids:
+        users_by_id = {
+            u.id: u
+            for u in User.query.filter(User.id.in_(all_needed_uids)).all()
+        }
+
+    # Pass 2: build the window rows using the pre-loaded users_by_id dict.
     for trip in raw_trips:
         # Canonical validation: skip any trip get_trip_status classifies as past
         if get_trip_status(trip, today=today) == 'past':
@@ -8189,9 +8228,7 @@ def mountain_detail(slug):
                     rows_by_window[window][uid]['status_label'] = 'Going'
                 continue
 
-            _tp = time.perf_counter()
-            person = db.session.get(User, uid)
-            _t_people_looked_up += time.perf_counter() - _tp
+            person = users_by_id.get(uid)
             if not person:
                 continue
 
@@ -8209,7 +8246,7 @@ def mountain_detail(slug):
             }
 
     if app.debug:
-        print(f"[ROUTE_PERF] mountain_detail.window_loop={time.perf_counter()-_t:.4f}s trip_count={len(raw_trips)} user_lookups={_t_people_looked_up:.4f}s")
+        print(f"[ROUTE_PERF] mountain_detail.window_loop={time.perf_counter()-_t:.4f}s trip_count={len(raw_trips)} users_prefetched={len(users_by_id)}")
     # Build flat sorted rows: chronological by start_date, then alphabetical within same window.
     # "You" sorts as 'You' (Y) — no special priority in the flat layout.
     flat_rows = []

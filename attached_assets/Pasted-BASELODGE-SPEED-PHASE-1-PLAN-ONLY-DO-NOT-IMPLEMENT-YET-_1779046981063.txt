@@ -1,0 +1,77 @@
+BASELODGE SPEED PHASE 1 — PLAN ONLY, DO NOT IMPLEMENT YET
+
+Goal:
+Create a focused implementation plan to fix the highest-impact performance issues causing slow screen transitions in BaseLodge.
+
+Important:
+- Do not implement code yet.
+- Do not refactor unrelated files.
+- Do not create unnecessary checkpoints.
+- Use checkpoints sparingly.
+- Rank fixes by expected speed impact.
+- Identify exact files/functions to modify.
+- Confirm risk level before implementation.
+
+Context:
+The performance audit identified several app-wide and route-level causes of lag:
+1. analytics_head.html is a 46KB inline script parsed on every page load.
+2. compute_user_state() runs 1–2 DB queries on every request.
+3. inject_notif_count() runs a notification count query on every template render.
+4. mountain_detail has an N+1 user lookup loop.
+5. notifications has N+1 user/activity actor lookups.
+6. SESSION_REFRESH_EACH_REQUEST=True rewrites the session cookie on every response.
+
+Plan Scope:
+Create an implementation plan for these Phase 1 fixes only:
+
+A. Extract analytics_head.html JavaScript
+- Review templates/components/analytics_head.html.
+- Identify what can safely move into one or more static JS files.
+- Preserve PostHog, OneSignal, push beacon, badge clear, safe URL routing, and Capacitor behavior.
+- Keep any truly template-dependent variables inline if needed.
+- Make static JS cacheable.
+- Avoid breaking iOS/Android push behavior.
+
+B. Optimize compute_user_state()
+- Review app.py before_request logic.
+- Reduce or eliminate repeated DB queries per request.
+- Prefer request-level caching with flask.g as the first safe step.
+- Do not introduce schema changes yet unless clearly necessary.
+- Preserve all onboarding/profile gate behavior.
+
+C. Optimize notification count
+- Review inject_notif_count().
+- Replace the every-render DB query with a short TTL cache, request-level cache, or lightweight endpoint.
+- Preserve notification badge behavior.
+- Avoid stale counts that would confuse users for too long.
+
+D. Fix mountain_detail N+1
+- Review mountain_detail route.
+- Replace per-user db.session.get(User, uid) lookups with one bulk query.
+- Preserve existing display behavior and ordering.
+
+E. Fix notifications N+1
+- Review notifications route.
+- Replace per-invite sender lookups with a bulk sender query.
+- Add joinedload(Activity.actor) or equivalent eager loading for activity actors.
+- Preserve current notification display format.
+
+F. Disable unnecessary session refresh
+- Review SESSION_REFRESH_EACH_REQUEST=True.
+- Determine whether it can safely be set to False.
+- Confirm any routes that intentionally modify session still work.
+
+Output Required:
+Return a concise but complete implementation plan with:
+
+1. Executive summary
+2. Files/functions to modify
+3. Exact change plan for each Phase 1 item
+4. Risk level for each change
+5. Test plan for web, iOS, and Android
+6. Rollback plan
+7. Expected before/after performance impact
+8. Recommended order of implementation
+9. Anything that should NOT be touched yet
+
+Do not implement yet. This is planning only.
