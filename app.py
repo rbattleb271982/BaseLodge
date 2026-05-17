@@ -3325,15 +3325,46 @@ def overlap_detail():
 @app.route("/mountains")
 @login_required
 def mountains_tab():
-    """Mountains discovery page — search and filter all active resorts."""
+    """Mountains discovery page — shell only. Resort data served via /api/mountains-data
+    to keep this HTML response small (~20 KB vs the previous ~210 KB with inline JSON).
+    """
     user = current_user
     _rp_t0 = time.perf_counter()
 
-    # ── Cached resort + pass data (zero DB queries on repeat requests) ─────────
+    # ── Warm the resort cache (data itself served via /api/mountains-data) ─────
     _resort_map = get_all_active_resorts_map()
     if app.debug:
         print(f"[ROUTE_PERF] mountains.all_resorts=0.0000s count={len(_resort_map)} (cached)")
-        print(f"[ROUTE_PERF] mountains.all_passes=0.0000s (cached)")
+
+    # ── Default filter derived from onboarding state (pure Python, ~0 ms) ──────
+    default_state = user.home_state or ""
+    default_country = ""
+    if default_state:
+        for r in _resort_map.values():
+            if r.state_code == default_state:
+                default_country = r.country_code or ""
+                break
+
+    if app.debug:
+        print(f"[ROUTE_PERF] route=mountains total={time.perf_counter()-_rp_t0:.4f}s (shell only)")
+    return render_template(
+        "mountains_tab.html",
+        default_country=default_country,
+        default_state=default_state,
+    )
+
+
+@app.route("/api/mountains-data")
+@login_required
+def api_mountains_data():
+    """JSON feed for the Mountains tab. Called client-side on DOMContentLoaded.
+    Reuses get_all_active_resorts_map() (Phase 1G lru_cache, ~0 ms) plus the
+    per-user friend_resort_counts query. Response is authenticated — not cached.
+    """
+    user = current_user
+    _rp_t0 = time.perf_counter()
+
+    _resort_map = get_all_active_resorts_map()
 
     # ── Friend counts per resort (per-user — must remain dynamic) ─────────────
     _t = time.perf_counter()
@@ -3351,7 +3382,7 @@ def mountains_tab():
         ).group_by(SkiTrip.resort_id).all()
         friend_resort_counts = {rid: cnt for rid, cnt in _counts}
     if app.debug:
-        print(f"[ROUTE_PERF] mountains.friend_resort_counts={time.perf_counter()-_t:.4f}s")
+        print(f"[ROUTE_PERF] api_mountains.friend_resort_counts={time.perf_counter()-_t:.4f}s")
 
     _t = time.perf_counter()
     resorts_data = [
@@ -3370,8 +3401,6 @@ def mountains_tab():
         }
         for r in _resort_map.values()
     ]
-    if app.debug:
-        print(f"[ROUTE_PERF] mountains.data_build={time.perf_counter()-_t:.4f}s resort_count={len(resorts_data)}")
 
     # ── Countries (US and CA sorted first) ────────────────────────────────────
     seen_countries = {}
@@ -3386,7 +3415,7 @@ def mountains_tab():
 
     countries = sorted(seen_countries.items(), key=_country_sort)
 
-    # ── States/regions per country (from actual data) ─────────────────────────
+    # ── States/regions per country ─────────────────────────────────────────────
     _sbcmap = {}
     for rd in resorts_data:
         cc, sc, sn = rd["country_code"], rd["state_code"], rd["state_name"]
@@ -3398,7 +3427,7 @@ def mountains_tab():
         for cc, sd in _sbcmap.items()
     }
 
-    # ── Pass filter options (canonical order, from actual data) ───────────────
+    # ── Pass filter options (canonical order) ─────────────────────────────────
     _PASS_ORDER = ['epic', 'ikon', 'other']
     seen_pass_keys = set()
     for rd in resorts_data:
@@ -3414,26 +3443,16 @@ def mountains_tab():
     for k in sorted(seen_pass_keys - seen_in_order):
         all_passes.append((k, display_pass_label(k)))
 
-    # ── Default filter from onboarding state ──────────────────────────────────
-    default_state = user.home_state or ""
-    default_country = ""
-    if default_state:
-        for cc, state_list in states_by_country.items():
-            if any(sc == default_state for sc, _ in state_list):
-                default_country = cc
-                break
-
     if app.debug:
-        print(f"[ROUTE_PERF] route=mountains total={time.perf_counter()-_rp_t0:.4f}s resort_count={len(resorts_data)}")
-    return render_template(
-        "mountains_tab.html",
-        resorts_data=resorts_data,
-        countries=countries,
-        states_by_country=states_by_country,
-        all_passes=all_passes,
-        default_country=default_country,
-        default_state=default_state,
-    )
+        print(f"[ROUTE_PERF] api_mountains.data_build={time.perf_counter()-_t:.4f}s resort_count={len(resorts_data)}")
+        print(f"[ROUTE_PERF] route=api_mountains_data total={time.perf_counter()-_rp_t0:.4f}s resort_count={len(resorts_data)}")
+
+    return jsonify({
+        "resorts": resorts_data,
+        "states_by_country": states_by_country,
+        "all_passes": all_passes,
+        "countries": countries,
+    })
 
 
 @app.route("/trip-ideas")

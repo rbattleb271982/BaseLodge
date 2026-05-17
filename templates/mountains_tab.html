@@ -247,9 +247,6 @@
         <div class="md-select-wrap">
             <select class="md-select" id="md-country">
                 <option value="">All countries</option>
-                {% for code, name in countries %}
-                <option value="{{ code }}">{{ name }}</option>
-                {% endfor %}
             </select>
         </div>
         <div class="md-select-wrap">
@@ -257,16 +254,11 @@
                 <option value="">All regions</option>
             </select>
         </div>
-        {% if all_passes %}
-        <div class="md-select-wrap">
+        <div class="md-select-wrap" id="md-pass-wrap" style="display:none;">
             <select class="md-select" id="md-pass">
                 <option value="">All passes</option>
-                {% for key, label in all_passes %}
-                <option value="{{ key }}">{{ label }}</option>
-                {% endfor %}
             </select>
         </div>
-        {% endif %}
     </div>
 
     <div class="md-meta-row">
@@ -276,6 +268,10 @@
     </div>
 
     <div class="md-results" id="md-results"></div>
+
+    <div class="md-loading" id="md-loading" style="display:none;">
+        <p class="md-sub" style="margin:32px 0 0; text-align:center; color:var(--bl-color-text-muted);">Loading mountains…</p>
+    </div>
 
     <div class="md-empty" id="md-empty" style="display:none;">
         <p class="md-empty-heading">No mountains found.</p>
@@ -288,20 +284,48 @@
 {% block scripts %}
 <script>
 (function () {
-    var RESORTS = {{ resorts_data | tojson }};
-    var STATES_BY_COUNTRY = {{ states_by_country | tojson }};
+    var RESORTS = [];
+    var STATES_BY_COUNTRY = {};
+    var _mdLoaded = false;
+
     var DEFAULT_COUNTRY = {{ default_country | tojson }};
     var DEFAULT_STATE   = {{ default_state   | tojson }};
-    var HAS_PASS_FILTER = {{ (all_passes | length > 0) | tojson }};
 
     var elSearch   = document.getElementById('md-search');
-    var elPass     = HAS_PASS_FILTER ? document.getElementById('md-pass') : null;
+    var elPass     = document.getElementById('md-pass');
+    var elPassWrap = document.getElementById('md-pass-wrap');
     var elCountry  = document.getElementById('md-country');
     var elState    = document.getElementById('md-state');
     var elResults  = document.getElementById('md-results');
     var elEmpty    = document.getElementById('md-empty');
     var elCount    = document.getElementById('md-count');
     var elClearBtn = document.getElementById('md-clear-btn');
+    var elLoading  = document.getElementById('md-loading');
+
+    /* ── Populate selects from JSON data ───────────────────────── */
+    function populateCountrySelect(countries) {
+        var html = '<option value="">All countries</option>';
+        countries.forEach(function (pair) {
+            var cc = pair[0], cn = pair[1];
+            html += '<option value="' + esc(cc) + '">' + esc(cn) + '</option>';
+        });
+        elCountry.innerHTML = html;
+        if (DEFAULT_COUNTRY) elCountry.value = DEFAULT_COUNTRY;
+    }
+
+    function populatePassSelect(all_passes) {
+        if (!all_passes || all_passes.length === 0) {
+            elPassWrap.style.display = 'none';
+            return;
+        }
+        var html = '<option value="">All passes</option>';
+        all_passes.forEach(function (pair) {
+            var k = pair[0], label = pair[1];
+            html += '<option value="' + esc(k) + '">' + esc(label) + '</option>';
+        });
+        elPass.innerHTML = html;
+        elPassWrap.style.display = '';
+    }
 
     /* ── State options ─────────────────────────────────────────── */
     function renderStateOptions(countryCode, selectedState) {
@@ -347,7 +371,7 @@
     /* ── Filter + render ───────────────────────────────────────── */
     function filterAndRender() {
         var query   = elSearch.value.trim().toLowerCase();
-        var pass    = elPass ? elPass.value : '';
+        var pass    = (elPassWrap.style.display !== 'none') ? elPass.value : '';
         var country = elCountry.value;
         var state   = elState.value;
 
@@ -397,13 +421,14 @@
         var hasFilter = query || pass || country || state;
         elClearBtn.style.display = hasFilter ? '' : 'none';
 
-        if (elPass) markActive(elPass);
+        markActive(elPass);
         markActive(elCountry);
         markActive(elState);
     }
 
     /* ── Helpers ───────────────────────────────────────────────── */
     function markActive(el) {
+        if (!el) return;
         if (el.value) {
             el.classList.add('md-select--active');
         } else {
@@ -423,7 +448,7 @@
     /* ── Clear all filters ─────────────────────────────────────── */
     function mdClearFilters() {
         elSearch.value = '';
-        if (elPass) elPass.value = '';
+        elPass.value = '';
         elCountry.value = 'US';
         renderStateOptions('US', '');
         filterAndRender();
@@ -432,17 +457,51 @@
 
     /* ── Event listeners ───────────────────────────────────────── */
     elSearch.addEventListener('input', filterAndRender);
-    if (elPass) elPass.addEventListener('change', filterAndRender);
+    elPass.addEventListener('change', filterAndRender);
     elCountry.addEventListener('change', function () {
         renderStateOptions(elCountry.value, '');
         filterAndRender();
     });
     elState.addEventListener('change', filterAndRender);
 
-    /* ── Initial render: United States, all states ─────────────── */
-    elCountry.value = 'US';
-    renderStateOptions('US', '');
-    filterAndRender();
+    /* ── Fetch resort data from API ────────────────────────────── */
+    function loadMountainsData() {
+        elLoading.style.display = '';
+        elResults.innerHTML = '';
+        elEmpty.style.display = 'none';
+
+        fetch('/api/mountains-data')
+            .then(function (res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            })
+            .then(function (data) {
+                RESORTS = data.resorts || [];
+                STATES_BY_COUNTRY = data.states_by_country || {};
+                populateCountrySelect(data.countries || []);
+                populatePassSelect(data.all_passes || []);
+                renderStateOptions(DEFAULT_COUNTRY || 'US', DEFAULT_STATE || '');
+                filterAndRender();
+                _mdLoaded = true;
+                elLoading.style.display = 'none';
+            })
+            .catch(function () {
+                elLoading.style.display = 'none';
+                elCount.textContent = '';
+                elResults.innerHTML = '';
+                elEmpty.style.display = '';
+                var h = elEmpty.querySelector('.md-empty-heading');
+                var s = elEmpty.querySelector('.md-empty-sub');
+                if (h) h.textContent = 'Couldn\'t load mountains.';
+                if (s) s.textContent = 'Pull to refresh or try again in a moment.';
+            });
+    }
+
+    /* ── bfcache guard: skip re-fetch on back navigation ──────── */
+    window.addEventListener('pageshow', function (e) {
+        if (e.persisted && _mdLoaded) return;
+        loadMountainsData();
+    });
 
 }());
 </script>
