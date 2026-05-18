@@ -9369,6 +9369,15 @@ def trip_detail(trip_id):
                     'label': 'Already on trip' if status == GuestStatus.ACCEPTED else ('Invite sent' if status == GuestStatus.INVITED else None)
                 })
     
+    # Generate invite URL for external sharing (owner only)
+    invite_url = None
+    if is_owner:
+        try:
+            _itok = get_or_create_invite_token(current_user)
+            invite_url = f"{BASE_URL}{url_for('invite_token_landing', token=_itok.token)}" if _itok else None
+        except Exception:
+            invite_url = None
+
     # Get trip owner info
     owner = db.session.get(User, trip.user_id)
     
@@ -9502,6 +9511,7 @@ def trip_detail(trip_id):
         accepted_participants=accepted_participants,
         friends_for_invite=friends_for_invite,
         invite_count=len(invited_participants),
+        invite_url=invite_url,
         group_signals=group_signals,
         all_participants=all_participants,
         current_user_participant=current_user_participant,

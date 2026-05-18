@@ -618,6 +618,41 @@
             text-align: center;
         }
 
+        /* ── Invite modal section labels ── */
+        .td-invite-section-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.0px;
+            text-transform: uppercase;
+            color: #A8152B;
+            padding: 0 20px;
+            margin: 14px 0 8px;
+        }
+        /* ── External invite section ── */
+        .td-invite-external {
+            border-top: 1px solid var(--bl-color-border);
+            padding-bottom: 16px;
+        }
+        .td-invite-external-btns {
+            display: flex;
+            gap: 10px;
+            padding: 0 20px;
+        }
+        .td-invite-ext-btn {
+            flex: 1;
+            padding: 11px 0;
+            background: transparent;
+            border: 1px solid #5C1219;
+            border-radius: 10px;
+            color: #5C1219;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .td-invite-ext-btn:active { opacity: 0.55; }
+
         /* ── Section labels ── */
         .td-section-label {
             font-size: 11px;
@@ -1208,6 +1243,20 @@
         {% endif %}
 
         {% if is_owner %}
+        <div class="td-swg-card">
+            <button type="button" class="td-swg-row" onclick="handleInviteClick()">
+                <span class="td-swg-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
+                </span>
+                <div class="td-swg-text">
+                    <p class="td-swg-title" style="color:#5C1219;">Invite friends to this trip</p>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+        </div>
+        {% endif %}
+
+        {% if is_owner %}
         <div class="td-cancel-trip-wrap">
             <button type="button" class="td-cancel-trip-link" onclick="openCancelTripSheet()">Cancel trip</button>
         </div>
@@ -1317,6 +1366,7 @@
                 <button class="modal-close" onclick="closeInviteModal()">&times;</button>
             </div>
             <form method="POST" action="{{ url_for('send_trip_invites', trip_id=trip.id) }}" id="inviteForm">
+                <p class="td-invite-section-label">Friends on BaseLodge</p>
                 <div class="modal-search">
                     <input type="text" id="friendSearchInput" placeholder="Search friends..." class="bl-search-input">
                 </div>
@@ -1335,6 +1385,17 @@
                     <button type="button" class="bl-btn-primary" id="sendInvitesBtn" disabled onclick="showConfirmModal()">Send invites</button>
                 </div>
             </form>
+            {% if invite_url %}
+            {% set _share_mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'a trip') %}
+            {% set _share_text = "Hey! I planned a trip to " ~ _share_mtn ~ " on BaseLodge. Join me here: " ~ invite_url %}
+            <div class="td-invite-external">
+                <p class="td-invite-section-label">Invite someone not on BaseLodge</p>
+                <div class="td-invite-external-btns">
+                    <button type="button" class="td-invite-ext-btn" onclick="blShareTrip({{ _share_text | tojson }}, {{ invite_url | tojson }})">Share via text</button>
+                    <button type="button" class="td-invite-ext-btn" id="copyInviteBtn" onclick="blCopyInviteLink({{ invite_url | tojson }})">Copy invite link</button>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -1564,6 +1625,25 @@
 
         function handleInviteClick() { document.getElementById('inviteModal').classList.add('active'); document.body.classList.add('modal-open'); }
         function closeInviteModal() { document.getElementById('inviteModal').classList.remove('active'); document.body.classList.remove('modal-open'); }
+        function blShareTrip(text, url) {
+            if (navigator.share) {
+                navigator.share({ text: text, url: url }).catch(function() {});
+            } else {
+                navigator.clipboard.writeText(url).then(function() {
+                    blToast('Link copied!');
+                }).catch(function() {
+                    blToast('Could not copy. Link: ' + url);
+                });
+            }
+        }
+        function blCopyInviteLink(url) {
+            var btn = document.getElementById('copyInviteBtn');
+            navigator.clipboard.writeText(url).then(function() {
+                if (btn) { var orig = btn.textContent; btn.textContent = 'Copied \u2713'; setTimeout(function() { btn.textContent = orig; }, 2000); }
+            }).catch(function() {
+                blToast('Could not copy. Link: ' + url);
+            });
+        }
 
         function respondToJoinRequest(requestId, action) {
             fetch(`/trips/requests/${requestId}/respond`, {
