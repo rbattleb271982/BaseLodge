@@ -7507,7 +7507,8 @@ def home():
     requests_count = banner_invite_count + (1 if secondary_card else 0)
 
     # _user_avail_home was fetched once before the coordination feed above.
-    show_add_dates = not bool(_user_avail_home)
+    has_availability = bool(_user_avail_home)
+    show_add_dates = not has_availability
 
     # Admin flag for Ideas diagnostic block
     _admin_emails_home = set(
@@ -7556,6 +7557,7 @@ def home():
         ideas_count=ideas_count,
         requests_count=requests_count,
         show_add_dates=show_add_dates,
+        has_availability=has_availability,
         stat_mountains=user.visited_resorts_count,
         stat_trips_total=len(my_trips),
         stat_wishlist=len(user.wish_list_resorts or []),
