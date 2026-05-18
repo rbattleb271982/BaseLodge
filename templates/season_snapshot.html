@@ -18,26 +18,19 @@
         padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 88px);
     }
 
-    /* ── Back navigation ── */
-    .ss-back {
-        width: 100%;
-        max-width: 460px;
-        padding: 6px 14px 6px;
+    /* ── Editorial tagline above card ── */
+    .ss-tagline {
+        width: calc(100% - 32px);
+        max-width: 440px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+        font-size: 12px;
+        font-style: italic;
+        font-weight: 400;
+        color: rgba(58, 53, 48, 0.52);
+        line-height: 1.5;
+        text-align: center;
+        margin-bottom: 12px;
     }
-    .ss-back-btn {
-        color: #5C1219;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        border-radius: 8px;
-        -webkit-tap-highlight-color: transparent;
-        margin-left: -8px;
-        touch-action: manipulation;
-    }
-    .ss-back-btn:active { opacity: 0.45; }
 
     /* ── 1:1 poster card ── */
     .ss-card {
@@ -102,7 +95,7 @@
         flex-direction: column;
     }
 
-    /* Attribution — "on BaseLodge" near top of cream section */
+    /* "THIS WINTER" label */
     .ss-attribution {
         font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
         font-size: 10px;
@@ -114,14 +107,24 @@
         flex-shrink: 0;
     }
 
-    /* Trip list container */
-    .ss-trips {
+    /* ── 2-column month grid ── */
+    .ss-months-grid {
         flex: 1;
         min-height: 0;
         overflow: hidden;
         display: flex;
         flex-direction: column;
-        gap: 13px;
+        gap: 16px;
+    }
+    .ss-pair-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 20px;
+        align-items: start;
+        flex-shrink: 0;
+    }
+    .ss-pair-col {
+        min-width: 0;
     }
 
     /* Month block */
@@ -145,7 +148,7 @@
     .ss-trip-row {
         display: flex;
         align-items: flex-start;
-        gap: 10px;
+        gap: 8px;
     }
     .ss-trip-bar {
         width: 3px;
@@ -157,24 +160,13 @@
     }
     .ss-trip-dest {
         font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-        font-size: clamp(15px, 4vw, 18px);
+        font-size: clamp(13px, 3.6vw, 16px);
         font-weight: 500;
         color: #1A1A1A;
         line-height: 1.25;
         word-break: break-word;
         overflow-wrap: break-word;
-        /* no white-space: nowrap, no overflow: hidden, no text-overflow: ellipsis */
-    }
-
-    /* + X more indicator */
-    .ss-more {
-        font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-        font-size: 12px;
-        font-weight: 400;
-        color: #A8152B;
-        font-style: italic;
-        margin-top: 10px;
-        flex-shrink: 0;
+        min-width: 0;
     }
 
     /* Empty state */
@@ -206,6 +198,8 @@
 {% block content %}
 <div class="ss-page">
 
+    <!-- Editorial tagline -->
+    <p class="ss-tagline">A snapshot of your winter — the mountains, destinations, and adventures ahead.</p>
 
     <!-- 1:1 poster card -->
     <div class="ss-card">
@@ -218,13 +212,11 @@
             {% if id_line %}
                 {% set id_parts = id_line.split(' · ') %}
 
-                {# Rider · Skill on one line #}
                 <p class="ss-meta">
                     {{- id_parts[0] -}}
                     {%- if id_parts|length > 1 %} &middot; {{ id_parts[1] }}{% endif -%}
                 </p>
 
-                {# Pass on a softer line below #}
                 {% if id_parts|length > 2 %}
                     {% set raw_pass = id_parts[2:] | join(' · ') %}
                     {% if raw_pass | lower in ['not sure', 'not_sure', 'other', 'unsure', 'undecided'] %}
@@ -239,41 +231,138 @@
         <!-- Cream body -->
         <div class="ss-body">
 
-            <!-- Attribution — near top of cream section -->
-            <p class="ss-attribution">on BaseLodge</p>
+            <p class="ss-attribution">This Winter</p>
 
             {% if all_upcoming %}
-                {# Cap visible trips to prevent overflow — show "+ X more" for the rest #}
-                {% set trip_cap = 6 %}
-                {% set total = all_upcoming | length %}
-                {% set grouped = group_trips_by_month(all_upcoming) %}
+                {# Build per-month trip lists — only the 6 season months #}
+                {% set ns = namespace(NOV=[], DEC=[], JAN=[], FEB=[], MAR=[], APR=[]) %}
+                {% for full_name, trips in group_trips_by_month(all_upcoming) %}
+                    {% if full_name == "November" %}{% set ns.NOV = trips %}
+                    {% elif full_name == "December" %}{% set ns.DEC = trips %}
+                    {% elif full_name == "January" %}{% set ns.JAN = trips %}
+                    {% elif full_name == "February" %}{% set ns.FEB = trips %}
+                    {% elif full_name == "March" %}{% set ns.MAR = trips %}
+                    {% elif full_name == "April" %}{% set ns.APR = trips %}
+                    {% endif %}
+                {% endfor %}
 
-                <div class="ss-trips">
-                    {% set ns = namespace(shown=0) %}
-                    {% for month_label, trips in grouped %}
-                        {% if ns.shown < trip_cap %}
+                <div class="ss-months-grid">
+
+                    {# ── Pair 1: NOV | FEB ── #}
+                    {% if ns.NOV or ns.FEB %}
+                    <div class="ss-pair-row">
+                        <div class="ss-pair-col">
+                            {% if ns.NOV %}
                             <div class="ss-month">
-                                <p class="ss-month-label">{{ month_label }}</p>
+                                <p class="ss-month-label">NOV</p>
                                 <div class="ss-trip-rows">
-                                    {% for trip in trips %}
-                                        {% if ns.shown < trip_cap %}
-                                            {% set mountain_name = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'Mountain TBD') %}
-                                            <div class="ss-trip-row">
-                                                <div class="ss-trip-bar"></div>
-                                                <p class="ss-trip-dest">{{ mountain_name }}</p>
-                                            </div>
-                                            {% set ns.shown = ns.shown + 1 %}
-                                        {% endif %}
+                                    {% for trip in ns.NOV %}
+                                    {% set mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'TBD') %}
+                                    <div class="ss-trip-row">
+                                        <div class="ss-trip-bar"></div>
+                                        <p class="ss-trip-dest">{{ mtn }}</p>
+                                    </div>
                                     {% endfor %}
                                 </div>
                             </div>
-                        {% endif %}
-                    {% endfor %}
-                </div>
+                            {% endif %}
+                        </div>
+                        <div class="ss-pair-col">
+                            {% if ns.FEB %}
+                            <div class="ss-month">
+                                <p class="ss-month-label">FEB</p>
+                                <div class="ss-trip-rows">
+                                    {% for trip in ns.FEB %}
+                                    {% set mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'TBD') %}
+                                    <div class="ss-trip-row">
+                                        <div class="ss-trip-bar"></div>
+                                        <p class="ss-trip-dest">{{ mtn }}</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
 
-                {% if total > trip_cap %}
-                    <p class="ss-more">+ {{ total - trip_cap }} more</p>
-                {% endif %}
+                    {# ── Pair 2: DEC | MAR ── #}
+                    {% if ns.DEC or ns.MAR %}
+                    <div class="ss-pair-row">
+                        <div class="ss-pair-col">
+                            {% if ns.DEC %}
+                            <div class="ss-month">
+                                <p class="ss-month-label">DEC</p>
+                                <div class="ss-trip-rows">
+                                    {% for trip in ns.DEC %}
+                                    {% set mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'TBD') %}
+                                    <div class="ss-trip-row">
+                                        <div class="ss-trip-bar"></div>
+                                        <p class="ss-trip-dest">{{ mtn }}</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="ss-pair-col">
+                            {% if ns.MAR %}
+                            <div class="ss-month">
+                                <p class="ss-month-label">MAR</p>
+                                <div class="ss-trip-rows">
+                                    {% for trip in ns.MAR %}
+                                    {% set mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'TBD') %}
+                                    <div class="ss-trip-row">
+                                        <div class="ss-trip-bar"></div>
+                                        <p class="ss-trip-dest">{{ mtn }}</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {# ── Pair 3: JAN | APR ── #}
+                    {% if ns.JAN or ns.APR %}
+                    <div class="ss-pair-row">
+                        <div class="ss-pair-col">
+                            {% if ns.JAN %}
+                            <div class="ss-month">
+                                <p class="ss-month-label">JAN</p>
+                                <div class="ss-trip-rows">
+                                    {% for trip in ns.JAN %}
+                                    {% set mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'TBD') %}
+                                    <div class="ss-trip-row">
+                                        <div class="ss-trip-bar"></div>
+                                        <p class="ss-trip-dest">{{ mtn }}</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="ss-pair-col">
+                            {% if ns.APR %}
+                            <div class="ss-month">
+                                <p class="ss-month-label">APR</p>
+                                <div class="ss-trip-rows">
+                                    {% for trip in ns.APR %}
+                                    {% set mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'TBD') %}
+                                    <div class="ss-trip-row">
+                                        <div class="ss-trip-bar"></div>
+                                        <p class="ss-trip-dest">{{ mtn }}</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
 
             {% else %}
                 <div class="ss-empty">
