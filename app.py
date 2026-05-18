@@ -63,7 +63,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog
 from services.open_dates import get_open_date_matches
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
 from services.message_events import create_message_event, is_duplicate_event, should_retry
@@ -1631,6 +1631,40 @@ def run_ski_trip_updated_at_migration():
 run_ski_trip_updated_at_migration()
 
 
+def run_trip_invite_token_migration():
+    try:
+        with app.app_context():
+            conn = db.engine.connect()
+            trans = conn.begin()
+            try:
+                conn.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS trip_invite_token (
+                        id              SERIAL PRIMARY KEY,
+                        token           VARCHAR(64) UNIQUE NOT NULL,
+                        trip_id         INTEGER NOT NULL REFERENCES ski_trip(id) ON DELETE CASCADE,
+                        inviter_user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                        created_at      TIMESTAMP DEFAULT NOW(),
+                        used_at         TIMESTAMP,
+                        expires_at      TIMESTAMP,
+                        is_active       BOOLEAN NOT NULL DEFAULT TRUE
+                    )
+                """))
+                conn.execute(db.text(
+                    "CREATE INDEX IF NOT EXISTS idx_trip_invite_token_token ON trip_invite_token(token)"
+                ))
+                trans.commit()
+                print("trip_invite_token_migration: table ready.")
+            except Exception as inner_e:
+                trans.rollback()
+                print(f"trip_invite_token_migration inner error (rolled back): {inner_e}")
+            finally:
+                conn.close()
+    except Exception as e:
+        print(f"trip_invite_token_migration: skipped ({e})")
+
+run_trip_invite_token_migration()
+
+
 # ============================================================================
 # RESORT DISAMBIGUATION — compute once at startup, no N+1 in requests
 # ============================================================================
@@ -1794,6 +1828,26 @@ def get_or_create_invite_token(user):
     db.session.add(invite)
     db.session.commit()
     return invite
+
+
+def get_or_create_trip_invite_token(trip_id, inviter_user_id):
+    """Get or create a reusable TripInviteToken for this trip+inviter pair."""
+    existing = TripInviteToken.query.filter_by(
+        trip_id=trip_id,
+        inviter_user_id=inviter_user_id,
+        is_active=True,
+    ).first()
+    if existing:
+        return existing
+    tok = TripInviteToken(
+        token=secrets.token_urlsafe(32),
+        trip_id=trip_id,
+        inviter_user_id=inviter_user_id,
+    )
+    db.session.add(tok)
+    db.session.commit()
+    return tok
+
 
 def can_sender_accept_more_invites(user):
     """Check if sender can accept more invites. Always returns True since invite limits are removed."""
@@ -2510,12 +2564,17 @@ def auth():
                 'signup_source': 'invite' if "invite_token" in session else 'organic',
             })
 
-            # Connect with inviter if coming from invite link
+            # Connect with inviter if coming from friend invite link
             if "invite_token" in session:
                 # Pre-set post-onboarding redirect to friends before token is consumed
                 session["post_onboarding_redirect"] = url_for("friends")
                 _connect_pending_inviter(new_user)
-            
+            elif "trip_invite_token" in session:
+                # Pre-set post-onboarding redirect back to trip invite landing
+                session["post_onboarding_redirect"] = url_for(
+                    "trip_invite_token_landing", token=session["trip_invite_token"]
+                )
+
             return redirect(url_for("onboarding"))
         
         elif form_type == "login":
@@ -2535,13 +2594,18 @@ def auth():
                 )
                 ph_analytics.track(user.id, 'login_completed', {'method': 'email'})
 
-                # Connect with inviter if coming from invite link
+                # Connect with inviter if coming from friend invite link
                 if "invite_token" in session:
                     connected = _connect_pending_inviter(user)
                     if connected:
                         # Redirect to friends page to show the new connection
                         return redirect(url_for("friends"))
-                
+
+                # Return to trip invite landing if coming from trip invite link
+                if "trip_invite_token" in session:
+                    _ttok = session["trip_invite_token"]
+                    return redirect(url_for("trip_invite_token_landing", token=_ttok))
+
                 return redirect(url_for("home"))
             
             flash("Invalid email or password.", "error")
@@ -9369,14 +9433,14 @@ def trip_detail(trip_id):
                     'label': 'Already on trip' if status == GuestStatus.ACCEPTED else ('Invite sent' if status == GuestStatus.INVITED else None)
                 })
     
-    # Generate invite URL for external sharing (owner only)
-    invite_url = None
+    # Generate trip-specific invite URL for external sharing (owner only)
+    trip_invite_url = None
     if is_owner:
         try:
-            _itok = get_or_create_invite_token(current_user)
-            invite_url = f"{BASE_URL}{url_for('invite_token_landing', token=_itok.token)}" if _itok else None
+            _titok = get_or_create_trip_invite_token(trip.id, current_user.id)
+            trip_invite_url = f"{BASE_URL}{url_for('trip_invite_token_landing', token=_titok.token)}" if _titok else None
         except Exception:
-            invite_url = None
+            trip_invite_url = None
 
     # Get trip owner info
     owner = db.session.get(User, trip.user_id)
@@ -9511,7 +9575,7 @@ def trip_detail(trip_id):
         accepted_participants=accepted_participants,
         friends_for_invite=friends_for_invite,
         invite_count=len(invited_participants),
-        invite_url=invite_url,
+        trip_invite_url=trip_invite_url,
         group_signals=group_signals,
         all_participants=all_participants,
         current_user_participant=current_user_participant,
@@ -9654,6 +9718,119 @@ def update_trip_equipment_override(trip_id):
         db.session.commit()
 
     return jsonify({"status": "success"})
+
+
+@app.route("/trip-invite/<token>")
+def trip_invite_token_landing(token):
+    """External trip invite landing — validates token and shows accept screen."""
+    tit = TripInviteToken.query.filter_by(token=token).first()
+    if not tit or not tit.is_active:
+        return render_template("invite_invalid.html",
+                               message="This trip invite link is no longer valid.")
+    trip = db.session.get(SkiTrip, tit.trip_id)
+    if not trip:
+        return render_template("invite_invalid.html",
+                               message="This trip invite link is no longer valid.")
+    inviter = db.session.get(User, tit.inviter_user_id)
+    if not inviter:
+        return render_template("invite_invalid.html",
+                               message="This trip invite link is no longer valid.")
+
+    # Unauthenticated — store token and send through auth
+    if not current_user.is_authenticated:
+        session["trip_invite_token"] = token
+        return redirect(url_for("auth"))
+
+    # Owner visiting their own trip invite link
+    if current_user.id == trip.user_id:
+        flash("That's your own trip invite link.", "info")
+        return redirect(url_for("trip_detail", trip_id=trip.id))
+
+    # Already accepted — skip the landing and go straight to the trip
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip.id, user_id=current_user.id
+    ).first()
+    if participant and participant.status == GuestStatus.ACCEPTED:
+        return redirect(url_for("trip_detail", trip_id=trip.id))
+
+    mountain_name = (trip.resort.name if trip.resort else None) or trip.mountain or "the mountain"
+    return render_template(
+        "trip_invite_token_landing.html",
+        trip=trip,
+        inviter=inviter,
+        token=token,
+        participant=participant,
+        mountain_name=mountain_name,
+    )
+
+
+@app.route("/trip-invite/<token>/accept", methods=["POST"])
+@login_required
+def trip_invite_token_accept(token):
+    """Accept a trip invite via external token."""
+    tit = TripInviteToken.query.filter_by(token=token).first()
+    if not tit or not tit.is_active:
+        return render_template("invite_invalid.html",
+                               message="This trip invite link is no longer valid.")
+    trip = db.session.get(SkiTrip, tit.trip_id)
+    if not trip:
+        return render_template("invite_invalid.html",
+                               message="This trip invite link is no longer valid.")
+
+    # Owner guard
+    if current_user.id == trip.user_id:
+        flash("That's your own trip.", "info")
+        return redirect(url_for("trip_detail", trip_id=trip.id))
+
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip.id, user_id=current_user.id
+    ).first()
+
+    if participant:
+        if participant.status == GuestStatus.ACCEPTED:
+            flash("You're already on this trip.", "info")
+            return redirect(url_for("trip_detail", trip_id=trip.id))
+        # INVITED or DECLINED — upgrade to ACCEPTED
+        participant.status = GuestStatus.ACCEPTED
+    else:
+        participant = SkiTripParticipant(
+            trip_id=trip.id,
+            user_id=current_user.id,
+            status=GuestStatus.ACCEPTED,
+            role=ParticipantRole.GUEST,
+        )
+        db.session.add(participant)
+
+    if not trip.is_group_trip:
+        trip.is_group_trip = True
+
+    # Stamp first-use timestamp (informational only — token remains reusable)
+    if tit.used_at is None:
+        tit.used_at = datetime.utcnow()
+
+    db.session.commit()
+
+    emit_trip_invite_accepted_activity(trip, current_user.id, trip.user_id)
+    emit_friend_joined_trip_activities(trip, current_user.id)
+    emit_messaging_event(
+        event_name=EventName.TRIP_INVITE_ACCEPTED,
+        actor_user_id=current_user.id,
+        recipient_user_id=trip.user_id,
+        entity_type="trip",
+        entity_id=trip.id,
+        metadata={
+            "actor_name": current_user.first_name or current_user.username,
+            "resort":     trip.mountain or "your trip",
+            "trip_id":    trip.id,
+        },
+        source_route="trip_invite_token_accept",
+    )
+
+    # Clean up session key if present
+    session.pop("trip_invite_token", None)
+
+    flash("You're going!", "success")
+    return redirect(url_for("trip_detail", trip_id=trip.id))
 
 
 @app.route("/trips/<int:trip_id>/invite/cancel", methods=["POST"])

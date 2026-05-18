@@ -1385,14 +1385,14 @@
                     <button type="button" class="bl-btn-primary" id="sendInvitesBtn" disabled onclick="showConfirmModal()">Send invites</button>
                 </div>
             </form>
-            {% if invite_url %}
+            {% if trip_invite_url %}
             {% set _share_mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'a trip') %}
-            {% set _share_text = "Hey! I planned a trip to " ~ _share_mtn ~ " on BaseLodge. Join me here: " ~ invite_url %}
+            {% set _share_text = "Hey! I planned a trip to " ~ _share_mtn ~ " on BaseLodge. Join me here: " ~ trip_invite_url %}
             <div class="td-invite-external">
                 <p class="td-invite-section-label">Invite someone not on BaseLodge</p>
                 <div class="td-invite-external-btns">
-                    <button type="button" class="td-invite-ext-btn" onclick="blShareTrip({{ _share_text | tojson }}, {{ invite_url | tojson }})">Share via text</button>
-                    <button type="button" class="td-invite-ext-btn" id="copyInviteBtn" onclick="blCopyInviteLink({{ invite_url | tojson }})">Copy invite link</button>
+                    <button type="button" class="td-invite-ext-btn" onclick="blShareTrip({{ _share_text | tojson }}, {{ trip_invite_url | tojson }})">Share via text</button>
+                    <button type="button" class="td-invite-ext-btn" id="copyInviteBtn" onclick="blCopyInviteLink({{ trip_invite_url | tojson }})">Copy invite link</button>
                 </div>
             </div>
             {% endif %}

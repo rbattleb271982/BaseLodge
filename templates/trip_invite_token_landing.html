@@ -1,0 +1,115 @@
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — Trip Invite{% endblock %}
+{% block topbar_left %}<a href="{{ url_for('home') }}" class="bl-top-bar-back" aria-label="Back">‹</a>{% endblock %}
+{% block topbar_title %}Trip Invite{% endblock %}
+{% block head %}
+<style>
+    .ti-page {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 24px 20px 0;
+        max-width: 480px;
+        margin: 0 auto;
+    }
+    .ti-card {
+        width: 100%;
+        background: var(--bl-color-surface-blush);
+        border: 0.5px solid var(--bl-color-primary);
+        border-radius: var(--bl-radius-md);
+        padding: 24px 20px;
+        margin-bottom: 20px;
+    }
+    .ti-inviter {
+        font-size: 13px;
+        color: var(--bl-color-text-muted);
+        margin-bottom: 12px;
+    }
+    .ti-inviter strong {
+        color: var(--bl-color-text);
+        font-weight: 600;
+    }
+    .ti-mountain {
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 26px;
+        font-weight: 400;
+        color: var(--bl-color-text);
+        margin-bottom: 6px;
+        line-height: 1.2;
+    }
+    .ti-dates {
+        font-size: 14px;
+        color: var(--bl-color-text-muted);
+    }
+    .ti-actions {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .ti-accept-btn {
+        display: block;
+        width: 100%;
+        padding: 15px 0;
+        background: #5C1219;
+        color: #F5F1E8;
+        border: none;
+        border-radius: var(--bl-radius-md);
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        text-align: center;
+        -webkit-tap-highlight-color: transparent;
+        box-sizing: border-box;
+    }
+    .ti-accept-btn:active { opacity: 0.82; }
+    .ti-back {
+        display: block;
+        text-align: center;
+        font-size: 14px;
+        color: var(--bl-color-text-muted);
+        text-decoration: none;
+        padding: 10px 0;
+    }
+    .ti-back:active { opacity: 0.5; }
+    .ti-status-note {
+        font-size: 13px;
+        color: var(--bl-color-text-muted);
+        text-align: center;
+        margin: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+<div class="ti-page">
+
+    <div class="ti-card">
+        <p class="ti-inviter">
+            <strong>{{ inviter.first_name }}{% if inviter.last_name %} {{ inviter.last_name }}{% endif %}</strong>
+            invited you to join their trip
+        </p>
+        <p class="ti-mountain">{{ mountain_name }}</p>
+        {% if trip.start_date %}
+        <p class="ti-dates">{{ format_trip_dates(trip) }}{% if trip.end_date %}, {{ trip.end_date.year }}{% endif %}</p>
+        {% endif %}
+    </div>
+
+    <div class="ti-actions">
+        {% if participant and participant.status.value == 'invited' %}
+        <p class="ti-status-note">You have a pending invite for this trip.</p>
+        {% elif participant and participant.status.value == 'declined' %}
+        <p class="ti-status-note">You previously declined — you can still accept.</p>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('trip_invite_token_accept', token=token) }}">
+            <button type="submit" class="ti-accept-btn">Accept trip invite</button>
+        </form>
+        <a href="{{ url_for('home') }}" class="ti-back">Not now</a>
+    </div>
+
+</div>
+</div>
+{% endblock %}

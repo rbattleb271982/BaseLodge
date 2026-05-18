@@ -1014,6 +1014,26 @@ class InviteToken(db.Model):
         return f'<InviteToken {self.token[:8]}... by user {self.inviter_id}>'
 
 
+class TripInviteToken(db.Model):
+    """Trip-specific external invite token. Reusable — multiple recipients can accept via the same link."""
+    __tablename__ = "trip_invite_token"
+
+    id               = db.Column(db.Integer, primary_key=True)
+    token            = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    trip_id          = db.Column(db.Integer, db.ForeignKey("ski_trip.id",  ondelete="CASCADE"), nullable=False)
+    inviter_user_id  = db.Column(db.Integer, db.ForeignKey("user.id",      ondelete="CASCADE"), nullable=False)
+    created_at       = db.Column(db.DateTime, default=datetime.utcnow)
+    used_at          = db.Column(db.DateTime, nullable=True)   # first-use timestamp, informational only
+    expires_at       = db.Column(db.DateTime, nullable=True)
+    is_active        = db.Column(db.Boolean,  default=True, nullable=False)
+
+    trip    = db.relationship("SkiTrip", backref="trip_invite_tokens")
+    inviter = db.relationship("User",    backref="trip_invite_tokens_sent")
+
+    def __repr__(self):
+        return f'<TripInviteToken {self.token[:8]}... trip={self.trip_id}>'
+
+
 class GroupTrip(db.Model):
     """Shared/social trip with host and guests."""
     __tablename__ = 'group_trip'
