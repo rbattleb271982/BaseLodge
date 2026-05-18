@@ -9743,7 +9743,7 @@ def trip_invite_token_landing(token):
 
     # Owner visiting their own trip invite link
     if current_user.id == trip.user_id:
-        flash("That's your own trip invite link.", "info")
+        flash("That's your own trip invite link.", "trip")
         return redirect(url_for("trip_detail", trip_id=trip.id))
 
     # Already accepted — skip the landing and go straight to the trip
@@ -9788,7 +9788,7 @@ def trip_invite_token_accept(token):
 
     if participant:
         if participant.status == GuestStatus.ACCEPTED:
-            flash("You're already on this trip.", "info")
+            flash("You're already on this trip.", "trip")
             return redirect(url_for("trip_detail", trip_id=trip.id))
         # INVITED or DECLINED — upgrade to ACCEPTED
         participant.status = GuestStatus.ACCEPTED
@@ -9829,7 +9829,7 @@ def trip_invite_token_accept(token):
     # Clean up session key if present
     session.pop("trip_invite_token", None)
 
-    flash("You're going!", "success")
+    flash("You're going!", "trip")
     return redirect(url_for("trip_detail", trip_id=trip.id))
 
 
