@@ -1,0 +1,222 @@
+PUT THIS IN AGENT
+
+PLAN FIRST.
+
+We need to upgrade external trip invites from generic friend-invite links to true trip-specific invite links.
+
+IMPORTANT:
+
+Do NOT redesign the trip detail page.
+
+Do NOT change existing connected-friend invite behavior.
+
+Do NOT remove the existing generic friend invite system.
+
+Do NOT create referral/reward logic.
+
+Do NOT use checkpoints unless truly necessary.
+
+==================================================
+GOAL
+==================================================
+
+When a user taps:
+
+“Invite friends to this trip”
+
+and chooses:
+
+“Share via text” or “Copy invite link”
+
+the shared link should point to that specific trip, not just the inviter’s generic friend invite link.
+
+Current issue:
+
+External share currently uses:
+
+/invite/<token>
+
+That creates a friend connection first, but does not route the recipient directly into the trip invite flow.
+
+Desired behavior:
+
+User receives:
+
+“Hey! I planned a trip to Vail on BaseLodge. Join me here: [trip invite link]”
+
+They tap the link.
+
+If logged in:
+- show trip invite/accept screen
+- accept adds them to the trip
+
+If not logged in:
+- send them through signup/login
+- preserve invite token
+- after auth/onboarding, return them to the trip invite/accept screen
+- accept adds them to the trip
+
+==================================================
+AUDIT FIRST
+==================================================
+
+Before coding, audit and report:
+
+1. Existing InviteToken model and flow
+2. Existing SkiTripParticipant invite logic
+3. Existing /trips/<id>/invite route
+4. Existing auth redirect / next URL handling
+5. Existing onboarding redirect handling
+6. Existing deep link handling, if relevant
+7. Existing Activity / messaging events that should fire when a trip invite is accepted
+8. Whether a new TripInviteToken model/table is needed or whether InviteToken can safely support trip_id
+
+Do not modify code until plan is approved.
+
+==================================================
+IMPLEMENTATION DIRECTION
+==================================================
+
+Create a true trip-specific external invite system.
+
+Preferred simple approach:
+
+Add a new TripInviteToken model/table.
+
+Suggested fields:
+
+- id
+- token
+- trip_id
+- inviter_user_id
+- created_at
+- used_at nullable
+- expires_at nullable
+- is_active boolean default true
+
+Token should be random, unguessable, and URL-safe.
+
+Route:
+
+GET /trip-invite/<token>
+
+Behavior:
+
+- validate token
+- validate trip exists
+- validate inviter owns or can invite to trip
+- if user is not logged in:
+  - store invite token in session
+  - redirect to login/signup with return path
+- if user is logged in:
+  - show a simple trip invite landing/accept screen
+
+Accept action:
+
+POST /trip-invite/<token>/accept
+
+Behavior:
+
+- validate token
+- validate logged-in user
+- prevent owner from accepting their own invite
+- prevent duplicate participant records
+- if existing SkiTripParticipant exists:
+  - update appropriately if invited/declined
+- else:
+  - create SkiTripParticipant for current user with accepted status
+- optionally create friend connection if appropriate and existing friend-connection logic supports it safely
+- mark token used only if token should be one-time use; otherwise leave active if this link can invite multiple people
+
+IMPORTANT DECISION:
+
+Recommend whether external trip invite links should be:
+
+A. reusable link for multiple invitees
+or
+B. one-time link
+
+For this product, reusable is probably better for “share via text” and “copy link,” but audit and recommend.
+
+==================================================
+UPDATE TRIP DETAIL SHARE SECTION
+==================================================
+
+Update the existing “Invite someone not on BaseLodge” section so:
+
+Share via text and Copy invite link use:
+
+/trip-invite/<token>
+
+not:
+
+/invite/<token>
+
+Keep share copy:
+
+“Hey! I planned a trip to [Mountain] on BaseLodge. Join me here: [link]”
+
+Do not change the connected-friend invite section.
+
+==================================================
+SCREEN / TEMPLATE
+==================================================
+
+Create a lightweight trip invite landing screen.
+
+It should show:
+
+- inviter name
+- mountain / destination
+- trip dates if available
+- simple CTA: Accept trip invite
+- secondary CTA: Not now / Back to BaseLodge
+
+Do not overdesign.
+
+Use existing BaseLodge visual system.
+
+==================================================
+EDGE CASES
+==================================================
+
+Handle:
+
+- invalid token
+- inactive token
+- deleted trip
+- private trip
+- current user is trip owner
+- current user already participant
+- current user already accepted
+- current user previously declined
+- user not logged in
+- user signs up then returns
+- token reused by multiple people, if reusable is chosen
+
+==================================================
+DO NOT TOUCH
+==================================================
+
+- existing /invite/<token> friend invite behavior
+- existing connected-friend TripInvite modal behavior
+- trip creation
+- trip edit
+- navigation
+- bottom tabs
+- unrelated onboarding logic unless needed for preserving the invite return path
+
+==================================================
+RETURN
+==================================================
+
+1. Files involved
+2. Existing invite infrastructure found
+3. Recommended token model
+4. Reusable vs one-time recommendation
+5. Auth/onboarding return-path plan
+6. Data flow
+7. Risks
+8. QA checklist
+
+Do not code until PLAN is approved.
