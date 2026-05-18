@@ -3139,7 +3139,7 @@ def my_trips():
                 _mlabel = 'Dates TBD'
             _raw_rows_mt.append({
                 'destination': _dest,
-                'friend_name': _owner.first_name or '',
+                'friend_name': f"{_owner.first_name or ''} {_owner.last_name or ''}".strip() or 'Friend',
                 'friend_id': _owner.id,
                 'status': _status,
                 'is_new': _is_new,
