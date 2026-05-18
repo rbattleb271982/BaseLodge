@@ -1611,6 +1611,26 @@ def run_ghost_user_cleanup_migration():
 run_ghost_user_cleanup_migration()
 
 
+def run_ski_trip_updated_at_migration():
+    """
+    Startup migration: add updated_at column to ski_trip.
+    Null means the trip was never edited after this feature launched — correct
+    fallback; these rows use created_at in Happening label logic.
+    """
+    try:
+        with app.app_context():
+            db.session.execute(db.text(
+                "ALTER TABLE ski_trip ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP"
+            ))
+            db.session.commit()
+            print("ski_trip_updated_at_migration: updated_at column ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"ski_trip_updated_at_migration: skipped ({e})")
+
+run_ski_trip_updated_at_migration()
+
+
 # ============================================================================
 # RESORT DISAMBIGUATION — compute once at startup, no N+1 in requests
 # ============================================================================
@@ -3878,6 +3898,7 @@ def edit_trip(trip_id):
     if overlapping:
         return jsonify({"success": False, "error": "You already have a trip during these dates."}), 409
     
+    trip.updated_at = datetime.utcnow()
     db.session.commit()
     
     return jsonify({
@@ -3925,6 +3946,7 @@ def update_trip_dates(trip_id):
     trip.start_date = start_date
     trip.end_date = end_date
     trip.trip_duration = SkiTrip.calculate_duration(start_date, end_date)
+    trip.updated_at = datetime.utcnow()
     try:
         emit_trip_updated_activities(trip, current_user.id, dates_changed=True)
         db.session.commit()
@@ -3953,6 +3975,7 @@ def update_trip_resort(trip_id):
     trip.resort_id = resort.id
     trip.mountain = resort.name
     trip.state = resort.state_code or resort.state
+    trip.updated_at = datetime.utcnow()
     try:
         db.session.commit()
     except Exception as e:
@@ -7442,6 +7465,11 @@ def home():
     HOME_HAPPENING_RENDER_CAP = 5
     # --- Happening signals (one row per friend, editorial format, max 5) ---
     # Reuses friend_trips already fetched by build_destination_feed — no second DB query.
+    # Re-sorted here by activity_timestamp DESC (most-recent edit/creation first).
+    # This sort is Happening-only; Opportunities continues using start_date ASC from the engine.
+    #
+    # Note: _opp_friend_resort_pairs suppression is intentionally deferred — the two
+    # sections serve different purposes (action vs ambient) and the user benefit is low.
     happening_signals = []
     if friend_ids:
         try:
@@ -7451,7 +7479,13 @@ def home():
             _diag_hap_raw_trips = len(_engine_friend_trips)
             _hap_seen_users = set()
             _now = datetime.utcnow()
-            for ft in _engine_friend_trips:
+            # Re-sort by most-recent activity first (updated_at preferred, else created_at)
+            _sorted_friend_trips = sorted(
+                _engine_friend_trips,
+                key=lambda t: (t.updated_at or t.created_at or datetime.min),
+                reverse=True,
+            )
+            for ft in _sorted_friend_trips:
                 ft_user = _ft_users_map.get(ft.user_id)
                 if not ft_user:
                     continue
@@ -7469,18 +7503,19 @@ def home():
                     text = f"{full_name} · {ft_mountain}"
                 else:
                     text = f"{full_name} · planning {ft_mountain}"
-                # Recency label derived from trip.created_at
-                _age = (_now - ft.created_at).total_seconds() if ft.created_at else None
+                # Accurate activity label: uses updated_at if present, else created_at.
+                # Labels only imply activity that actually happened.
+                _activity_ts = ft.updated_at if ft.updated_at else ft.created_at
+                _was_updated = ft.updated_at is not None
+                _age = (_now - _activity_ts).total_seconds() if _activity_ts else None
                 if _age is None:
-                    recency_label = "Planned recently"
+                    recency_label = "Upcoming trip"
                 elif _age < 86400:
-                    recency_label = "Updated today"
+                    recency_label = "Trip updated today" if _was_updated else "Trip added today"
                 elif _age < 7 * 86400:
-                    recency_label = "Added this week"
-                elif _age < 21 * 86400:
-                    recency_label = "Recently updated"
+                    recency_label = "Trip updated this week" if _was_updated else "Trip added this week"
                 else:
-                    recency_label = "Planned recently"
+                    recency_label = "Upcoming trip"
                 happening_signals.append({
                     'text': text,
                     'friend_id': ft.user_id,
@@ -9241,6 +9276,7 @@ def edit_trip_form(trip_id):
         trip.trip_status = trip_status
         trip.trip_equipment_status = trip_equipment_status if trip_equipment_status != 'use_default' else None
         trip.trip_duration = SkiTrip.calculate_duration(start_date, end_date)
+        trip.updated_at = datetime.utcnow()
         
         # Update current user's transportation_status on their participant record
         if my_participant and transportation_status:

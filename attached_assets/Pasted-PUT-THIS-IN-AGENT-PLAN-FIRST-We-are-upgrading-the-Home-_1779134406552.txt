@@ -1,0 +1,205 @@
+PUT THIS IN AGENT
+
+PLAN FIRST.
+
+We are upgrading the Home → Happening section from a created_at-based trip list into a lightweight real activity feed.
+
+IMPORTANT:
+
+Do NOT redesign the screen.
+
+Do NOT change navigation.
+
+Do NOT rewrite the Ideas engine.
+
+Do NOT change the card layout.
+
+Do NOT use checkpoints unless truly necessary.
+
+Keep this as a minimal architecture change that improves trust and accuracy.
+
+==================================================
+GOAL
+==================================================
+
+The Home Happening section currently shows labels like:
+
+- Updated today
+- Recently updated
+
+But these are powered entirely by SkiTrip.created_at.
+
+SkiTrip has no updated_at column, so labels imply edits that never happened.
+
+We want Happening to reflect actual activity:
+
+- trip created
+- trip edited
+- meaningful trip changes
+
+without introducing a full activity system.
+
+==================================================
+PHASE 1 — updated_at SUPPORT
+==================================================
+
+Add:
+
+updated_at = db.Column(db.DateTime, nullable=True)
+
+to SkiTrip.
+
+Add a safe startup migration following the existing migration pattern:
+
+ALTER TABLE ski_trip
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP
+
+Do NOT backfill old rows.
+
+Null updated_at correctly means:
+
+"never edited since this feature launched"
+
+==================================================
+STAMP updated_at ONLY ON MEANINGFUL USER ACTIVITY
+==================================================
+
+Home should reflect visible user behavior.
+
+Update updated_at only when users make meaningful trip changes.
+
+INCLUDE:
+
+- trip dates changed
+- resort changed
+- trip_status changed
+- visibility changed
+- major trip edits through edit forms
+
+EXCLUDE:
+
+- accommodation updates
+- equipment overrides
+- participant-only writes
+- carpool
+- lesson intent
+- hidden/internal metadata
+- background system updates
+
+Goal:
+
+Happening should reflect real activity, not system churn.
+
+Audit ALL trip write routes and return route inventory before modifying code.
+
+==================================================
+HAPPENING LOGIC
+==================================================
+
+Replace current logic:
+
+activity_ts =
+updated_at if present
+else created_at
+
+activity_type =
+"updated" if updated_at exists
+else "created"
+
+==================================================
+LABELS
+==================================================
+
+Remove:
+
+- Updated today
+- Recently updated
+- Planned recently
+
+Replace with:
+
+created <1 day:
+"Trip added today"
+
+updated <1 day:
+"Trip updated today"
+
+created 1–7 days:
+"Trip added this week"
+
+updated 1–7 days:
+"Trip updated this week"
+
+older:
+"Upcoming trip"
+
+Never imply activity that did not happen.
+
+==================================================
+SORTING
+==================================================
+
+Current Happening indirectly inherits:
+
+start_date ASC
+
+Do NOT modify Ideas engine behavior.
+
+Only inside Happening:
+
+re-sort using:
+
+activity_timestamp =
+updated_at if present
+else created_at
+
+Sort DESC
+
+Most recent activity first.
+
+Only affect Happening.
+
+Do not affect Opportunities.
+
+==================================================
+DEDUPE
+==================================================
+
+Keep:
+
+- one card per friend
+- render cap = 5
+
+Preserve current behavior.
+
+==================================================
+SUPPRESSION LOGIC
+==================================================
+
+Audit:
+
+_opp_friend_resort_pairs
+
+Determine whether duplicate friend+resort combinations between Ideas and Happening were intentionally meant to be suppressed.
+
+Recommendation only.
+
+Do not implement unless extremely low risk.
+
+==================================================
+RETURN
+==================================================
+
+1. Files to modify
+
+2. Route inventory
+
+3. Migration needed
+
+4. Logic plan
+
+5. Risks
+
+6. QA checklist
+
+Do not write code until PLAN is approved.

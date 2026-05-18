@@ -676,6 +676,7 @@ class SkiTrip(db.Model):
     accommodation_link = db.Column(db.String(500), nullable=True)  # URL to accommodation booking
     max_participants = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=True)
     is_group_trip = db.Column(db.Boolean, default=False)  # True if trip has participants
     created_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Organizer (null = legacy, use user_id)
     created_in_batch_id = db.Column(db.String(36), nullable=True)  # Analytics: UUID shared across batch-created trips; never used for grouping logic
