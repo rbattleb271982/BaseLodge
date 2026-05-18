@@ -1,0 +1,162 @@
+PUT THIS IN AGENT
+
+PLAN FIRST.
+
+We are adding a trip invite entry point on the Trip Detail page.
+
+IMPORTANT:
+
+Do NOT redesign the page.
+
+Do NOT remove or rename the existing “Friends heading to [Mountain]” card.
+
+Do NOT change trip creation logic.
+
+Do NOT change navigation architecture.
+
+Do NOT use checkpoints unless truly necessary.
+
+==================================================
+GOAL
+==================================================
+
+On the Trip Detail page, users should be able to invite people to a trip.
+
+Keep the existing informational card:
+
+“Friends heading to [Mountain]”
+
+Then add a separate action directly beneath it:
+
+“Invite friends to this trip →”
+
+This keeps:
+
+- “Friends heading to [Mountain]” = who else is going
+- “Invite friends to this trip” = bring someone to this trip
+
+==================================================
+UI PLACEMENT
+==================================================
+
+On Trip Detail, directly below the existing:
+
+Friends heading to [Mountain]
+
+card, add a new card/button:
+
+Invite friends to this trip →
+
+Style:
+
+- same width as existing cards
+- rounded card style
+- lightweight, not huge
+- maroon text/accent
+- right chevron
+- consistent with BaseLodge card/list design
+
+Do not make it a floating button.
+
+Do not put it in the hero.
+
+Do not put it inside Trip Setup.
+
+==================================================
+FLOW A — EXISTING BASELODGE FRIENDS
+==================================================
+
+When tapped, open an invite modal or bottom sheet.
+
+Section:
+
+Friends on BaseLodge
+
+Show connected friends only.
+
+Exclude:
+
+- current trip owner
+- friends already participating in the trip
+- friends already invited to this trip
+
+User can select one or more friends.
+
+On submit:
+
+- create TripInvite record(s), using existing TripInvite system if present
+- require recipient acceptance before they are added to the trip
+- do not auto-add people to the trip
+- avoid duplicate invites
+- show success feedback
+
+==================================================
+FLOW B — PEOPLE NOT ON BASELODGE
+==================================================
+
+In the same modal/bottom sheet, add section:
+
+Invite someone else
+
+Options:
+
+1. Share via text
+2. Copy invite link
+
+Use existing invite/share/invite-token infrastructure if present.
+
+Generate a trip invite link/token that can be shared externally.
+
+Expected behavior:
+
+- if recipient already has BaseLodge, link should route them to the trip invite/accept flow
+- if recipient does not have BaseLodge, link should take them through signup/onboarding first, then preserve the invite context if existing infrastructure supports it
+
+If full external invite-token handling does not already exist, do NOT overbuild it.
+
+Instead:
+- identify what exists
+- implement the smallest safe version
+- clearly note any follow-up work needed
+
+Suggested share copy:
+
+“Hey! I planned a trip to [Mountain] on BaseLodge. Join me here: [invite link]”
+
+==================================================
+AUDIT FIRST
+==================================================
+
+Before coding, audit and report:
+
+1. Is there an existing TripInvite model?
+2. Are there existing invite routes?
+3. Are there existing invite-token routes?
+4. Is there an existing native share helper?
+5. Is there an existing copy-link helper?
+6. How are connected friends queried?
+7. How are trip participants represented?
+
+==================================================
+DO NOT TOUCH
+==================================================
+
+- Trip setup fields
+- pass/equipment/transportation/accommodations/lessons logic
+- trip creation
+- trip edit flow
+- bottom nav
+- Friends heading to [Mountain] behavior, except spacing if needed
+
+==================================================
+RETURN
+==================================================
+
+1. Files involved
+2. Existing invite infrastructure found
+3. Proposed UI placement
+4. Proposed data flow
+5. Risks
+6. QA checklist
+
+Do not modify code until PLAN is approved.
