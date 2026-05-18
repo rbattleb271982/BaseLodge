@@ -1,0 +1,452 @@
+PUT THIS IN AGENT
+
+PLAN FIRST.
+
+We are at the tail end of BaseLodge development.
+
+I need a full pre-publish QA pass across the entire app.
+
+IMPORTANT:
+
+Do NOT redesign anything.
+
+Do NOT add new features.
+
+Do NOT refactor unless a bug requires it.
+
+Do NOT make speculative changes.
+
+Do NOT publish.
+
+Do NOT push to GitHub.
+
+Test first. Report findings first.
+
+==================================================
+GOAL
+==================================================
+
+Run a full app QA pass before I publish/deploy and push to GitHub.
+
+Focus especially on:
+
+- auth screens
+- signup/login/logout
+- onboarding
+- trip creation
+- trip detail
+- connected-friend invites
+- external trip invite links
+- friend invite links
+- notifications/push-related flows
+- Home screen
+- Trips
+- Friends
+- Mountains
+- Profile
+- Season page
+- mobile layout
+- screen lag/performance issues
+
+==================================================
+TESTING RULES
+==================================================
+
+Use existing test/admin accounts if available.
+
+Do not delete production-like data unless explicitly safe.
+
+Do not make broad code changes.
+
+If you find a bug:
+
+1. identify the issue
+2. identify the file/route/template
+3. explain user impact
+4. recommend the smallest fix
+5. wait for approval before making changes, unless it is a tiny obvious template typo
+
+==================================================
+AUTH + ACCOUNT FLOWS
+==================================================
+
+Test:
+
+1. Logged-out homepage loads
+2. Login screen loads
+3. Signup screen loads
+4. Signup creates account successfully
+5. Duplicate email is blocked cleanly
+6. Wrong login password shows friendly error
+7. Correct login works
+8. Logout works
+9. Password reset flow loads
+10. Password reset does not crash
+11. Onboarding starts after signup
+12. Onboarding completion redirects correctly
+13. User remains logged in after onboarding
+14. Existing user login does not trigger onboarding unnecessarily
+15. Auth pages are mobile-friendly
+16. Auth errors do not expose stack traces
+17. Protected pages redirect to auth when logged out
+
+==================================================
+TRIP CREATION + TRIP DETAIL
+==================================================
+
+Test:
+
+1. Create a new trip
+2. Required fields validate correctly
+3. Resort/mountain selection works
+4. Dates save correctly
+5. Trip appears in Trips tab
+6. Trip detail page loads
+7. Trip hero shows correct mountain and dates
+8. Trip setup cards display correctly
+9. Edit trip works
+10. Update dates works
+11. Update resort works
+12. Update pass works
+13. Visibility toggle works
+14. Cancel/delete trip works if present
+15. Private/public trip behavior is correct
+16. Guest cannot edit owner-only fields
+17. Owner can edit owner fields
+18. No server errors in logs
+
+==================================================
+TRIP INVITES — CONNECTED BASELODGE FRIENDS
+==================================================
+
+Test the new visible entry point:
+
+1. On owner trip detail page, “Invite friends to this trip” appears directly below “Friends heading to [Mountain]”
+2. It only appears for the trip owner
+3. It does not appear for guests/invited users
+4. Tapping opens invite modal
+5. “Friends on BaseLodge” section appears
+6. Connected friends appear
+7. Already invited friends are excluded or disabled correctly
+8. Already participating friends are excluded or disabled correctly
+9. Selecting one friend works
+10. Selecting multiple friends works if supported
+11. Submitting creates invite records
+12. Duplicate invite is blocked
+13. Recipient sees trip invite
+14. Recipient can accept
+15. Recipient can decline if supported
+16. Accept adds recipient as participant/guest
+17. Owner receives expected activity/notification
+18. Trip detail updates after acceptance
+19. Existing connected-friend invite route still works
+
+==================================================
+EXTERNAL TRIP INVITES — NEW TRIP-SPECIFIC LINKS
+==================================================
+
+Test the new TripInviteToken system thoroughly.
+
+Owner flow:
+
+1. Open owner trip detail
+2. Open invite modal
+3. “Invite someone not on BaseLodge” appears
+4. Share via text uses /trip-invite/<token>
+5. Copy invite link uses /trip-invite/<token>
+6. Link is trip-specific, not /invite/<token>
+7. Different trips generate different trip invite links
+8. Same trip reuses active token safely
+
+Logged-in recipient flow:
+
+1. Logged-in user opens /trip-invite/<token>
+2. Landing page shows inviter name
+3. Landing page shows mountain/destination
+4. Landing page shows dates if available
+5. Accept CTA works
+6. Accept creates or updates SkiTripParticipant to ACCEPTED
+7. Accepted user can view trip detail
+8. Same user cannot create duplicate participant record
+9. Already accepted user is handled gracefully
+10. Previously declined user can accept cleanly if allowed
+
+Logged-out existing user flow:
+
+1. Logged-out user opens /trip-invite/<token>
+2. Token is stored in session
+3. User is sent to auth
+4. User logs in
+5. User returns to trip invite landing
+6. User accepts
+7. User lands on trip detail
+
+New user flow:
+
+1. Logged-out new user opens /trip-invite/<token>
+2. User signs up
+3. User completes onboarding
+4. User returns to trip invite landing
+5. User accepts
+6. User lands on trip detail
+
+Edge cases:
+
+1. Owner opens own trip invite link
+2. Invalid token
+3. Inactive token
+4. Deleted trip
+5. Private trip via token
+6. Multiple different users accept same reusable link
+7. Existing generic friend invite /invite/<token> still works
+8. trip_invite_token session key does not interfere with invite_token friend flow
+
+==================================================
+FRIEND INVITES / FRIENDS
+==================================================
+
+Test:
+
+1. Friends tab loads
+2. Existing friends show correctly
+3. Friend requests show correctly
+4. Accept friend request works
+5. Decline friend request works if present
+6. Invite/copy friend link still works
+7. /invite/<token> still creates friend connection
+8. Friend profile/detail page loads
+9. Friends’ Trips tab loads
+10. Friends’ Trips shows first + last names
+11. Mountain filter still works
+12. Empty states look correct
+
+==================================================
+HOME SCREEN
+==================================================
+
+Test:
+
+1. Home loads quickly
+2. No obvious screen lag
+3. Happening section loads
+4. Happening labels are accurate:
+   - Trip added today
+   - Trip added this week
+   - Trip updated today
+   - Trip updated this week
+   - Upcoming trip
+5. Recently updated / Updated today old misleading labels are gone
+6. Happening sorts by activity timestamp
+7. One card per friend still enforced
+8. Cap of 5 still enforced
+9. Ideas/Opportunities section loads
+10. Add availability entry point works
+11. Requests pill behavior works
+12. Empty/sparse states do not look broken
+13. No duplicate obvious signals unless expected
+
+==================================================
+EDIT AVAILABILITY
+==================================================
+
+Test:
+
+1. Page loads
+2. New shorter intro copy appears
+3. “Learn how it works →” appears left-aligned
+4. Link opens correctly
+5. Calendar renders correctly
+6. Month navigation works
+7. Selecting dates works
+8. Saving availability works
+9. Clearing availability works if present
+10. Mobile layout has less empty space
+11. Bottom nav does not cover save actions
+
+==================================================
+TRIPS TAB
+==================================================
+
+Test:
+
+1. Trips tab loads
+2. User’s trips display
+3. Friends’ Trips tab displays
+4. Trip cards are tappable
+5. Empty state works
+6. Grouped trips display correctly
+7. Friend names show first + last
+8. Long names do not break layout
+9. Long mountain names do not break layout
+10. Filters/tabs still work
+11. No lag on loading
+
+==================================================
+SEASON PAGE
+==================================================
+
+Test:
+
+1. Season page loads
+2. Tagline appears above card:
+   “A snapshot of your winter — the mountains, destinations, and adventures ahead.”
+3. “THIS WINTER” appears
+4. “ON BASELODGE” is gone
+5. Richard’s Winter / user’s winter headline appears
+6. Skier/Snowboarder · Skill · Pass metadata appears
+7. Only NOV–APR months render
+8. Empty months do not render
+9. Destinations render in 2-column layout
+10. Maroon vertical bars remain
+11. Dates do not display
+12. +X more is gone
+13. Heavy destination test does not break card badly
+14. Screenshot composition looks good on mobile
+
+==================================================
+MOUNTAINS
+==================================================
+
+Test:
+
+1. Mountains tab loads
+2. Initial load is not laggy
+3. Resort list loads correctly
+4. Search works
+5. Country/state filters work
+6. Pass filters work
+7. Duplicate resort display names are disambiguated correctly
+8. “None” or “null” pass badges do not appear
+9. Resort detail opens if applicable
+10. Back navigation works
+11. API data endpoint works
+12. No console/server errors
+
+==================================================
+PROFILE
+==================================================
+
+Test:
+
+1. Profile loads
+2. Name displays correctly
+3. Rider type displays correctly
+4. Skill level displays correctly
+5. Pass displays correctly
+6. Edit profile works
+7. Logout works
+8. Delete account screen still works but do not actually delete unless using safe test account
+9. Notification preferences display correctly if present
+10. Push opt-out state does not crash page
+
+==================================================
+NOTIFICATIONS / PUSH
+==================================================
+
+Test web-visible behavior:
+
+1. Notifications page loads
+2. Empty state works
+3. Friend request notification appears if generated
+4. Trip invite notification appears if generated
+5. Trip invite accepted notification appears if generated
+6. Notification links route correctly
+7. MessageEventLog records expected events
+8. Push opt-out users are skipped correctly if testable
+9. No errors from OneSignal/APNs/FCM code paths
+
+Do not require actual App Store/TestFlight push testing in this pass unless already available.
+
+==================================================
+MOBILE UI / RESPONSIVE QA
+==================================================
+
+Check on mobile-width viewport:
+
+1. Bottom nav does not cover primary CTAs
+2. Topbar spacing is correct
+3. Back buttons work
+4. No horizontal scrolling
+5. Modals/bottom sheets fit screen
+6. Keyboard does not hide critical fields
+7. Long names wrap or truncate gracefully
+8. Long resort names do not break cards
+9. Buttons are tappable
+10. Screens do not feel unusually laggy
+
+==================================================
+PERFORMANCE / LAG CHECK
+==================================================
+
+For major screens, report obvious performance concerns:
+
+- Home
+- Trips
+- Friends
+- Mountains
+- Trip Detail
+- Season
+- Profile
+
+Check:
+
+1. slow route logs
+2. repeated database queries
+3. giant inline JSON
+4. unnecessary template loops
+5. console errors
+6. large payloads
+7. blocking JavaScript
+8. duplicate fetches
+9. slow first render
+
+Do not optimize yet unless there is an obvious bug.
+
+Return findings first.
+
+==================================================
+ADMIN / SAFETY
+==================================================
+
+Verify:
+
+1. Admin routes require admin access
+2. Non-admin cannot access admin dashboard
+3. Debug/test routes are gated
+4. Sensitive pages do not expose data to logged-out users
+5. Private trips are not visible except via valid accepted participant or valid invite token flow
+
+==================================================
+OUTPUT FORMAT
+==================================================
+
+Return a QA report with:
+
+1. PASS summary
+
+2. FAIL summary
+
+3. Critical launch blockers
+
+4. Medium issues
+
+5. Low-priority polish
+
+6. Screens tested
+
+7. Auth/invite flow results
+
+8. Console/server errors found
+
+9. Recommended fixes, grouped by:
+   - must fix before publish
+   - can fix after publish
+   - post-launch backlog
+
+10. Exact files/routes involved for each issue
+
+Do not publish.
+
+Do not push to GitHub.
+
+Do not make broad changes without approval.
