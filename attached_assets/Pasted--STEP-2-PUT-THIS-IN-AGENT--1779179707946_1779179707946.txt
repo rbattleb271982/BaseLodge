@@ -1,0 +1,88 @@
+╔══════════════════════════════════════════════════════╗
+║ STEP 2: PUT THIS IN AGENT                           ║
+╚══════════════════════════════════════════════════════╝
+
+Implement ticket #114 exactly as planned.
+
+Issue:
+Cancel Trip still does not complete because TripInviteToken rows are blocking SkiTrip deletion.
+
+Confirmed error:
+
+psycopg2.errors.NotNullViolation:
+null value in column "trip_id" of relation "trip_invite_token"
+
+Cause:
+SQLAlchemy tries to set TripInviteToken.trip_id to NULL before deleting the SkiTrip, but trip_id is nullable=False.
+
+Do not modify the TripInviteToken model.
+
+Do not change FK definitions.
+
+Do not redesign UI.
+
+Do not change unrelated routes.
+
+--------------------------------------------------
+IMPLEMENTATION
+--------------------------------------------------
+
+In app.py, inside delete_trip_form, before:
+
+db.session.delete(trip)
+
+add explicit cleanup for TripInviteToken rows:
+
+TripInviteToken.query.filter_by(trip_id=trip.id).delete()
+
+Keep the existing Invitation cleanup.
+
+Keep the existing Activity cleanup.
+
+All cleanup must happen before db.session.delete(trip).
+
+Expected order inside try block:
+
+1. delete Invitation rows for this trip
+2. delete TripInviteToken rows for this trip
+3. delete Activity rows for this trip
+4. db.session.delete(trip)
+5. db.session.commit()
+6. log success
+7. redirect to /my-trips
+
+--------------------------------------------------
+VERIFY DEPENDENCIES
+--------------------------------------------------
+
+Check for any other model with:
+
+- trip_id FK to ski_trip
+- nullable=False
+- no SQLAlchemy cascade
+- no explicit delete cleanup
+
+Do not make broad changes.
+
+Only fix directly related deletion blockers.
+
+--------------------------------------------------
+QA
+--------------------------------------------------
+
+Cancel a trip that has TripInviteToken rows.
+
+Verify:
+
+- success log appears
+- no error log appears
+- user redirects to /my-trips
+- trip no longer appears on /my-trips
+- no generic error page
+- no silent rollback
+
+Use checkpoints sparingly.
+
+Do not finish until fully tested.
+
+╚══════════════════════════════════════════════════════╝

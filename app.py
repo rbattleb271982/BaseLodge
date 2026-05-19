@@ -10284,8 +10284,10 @@ def delete_trip_form(trip_id):
         abort(403)
 
     try:
-        # Clean up Invitation rows that reference this trip (no cascade on FK)
+        # Clean up Invitation rows (bare FK, no cascade)
         Invitation.query.filter(Invitation.trip_id == trip.id).delete()
+        # Clean up TripInviteToken rows (nullable=False FK, SQLAlchemy would try to null it)
+        TripInviteToken.query.filter_by(trip_id=trip.id).delete()
         # Clean up Activity rows
         delete_activities_for_trip(trip_id)
         db.session.delete(trip)

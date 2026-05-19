@@ -1,0 +1,95 @@
+╔══════════════════════════════════════════════════════╗
+║ STEP 1: PUT THIS IN PLAN                            ║
+║ STEP 2: THEN PUT THIS SAME BOX IN AGENT             ║
+╚══════════════════════════════════════════════════════╝
+
+Ticket #113 is not fully fixed.
+
+Current behavior:
+After tapping “Cancel trip,” the app no longer crashes, but the trip is not actually cancelled/deleted. The user is redirected back to the same trip detail page.
+
+This likely means the try/except fallback is catching an exception, rolling back, flashing an error, and redirecting back to trip detail — but the visible UI is not making that obvious.
+
+Goal:
+Find the new exception and complete the delete flow.
+
+Do not guess.
+
+--------------------------------------------------
+PART 1 — INSPECT LOGS FIRST
+--------------------------------------------------
+
+Check the Replit logs immediately after reproducing Cancel Trip.
+
+Find the error logged by the delete_trip_form exception handler.
+
+Look for:
+
+- route name
+- trip_id
+- user_id
+- exception details
+- traceback if present
+
+Use the actual logged exception as the source of truth.
+
+--------------------------------------------------
+PART 2 — VERIFY DELETE CODE ORDER
+--------------------------------------------------
+
+In app.py delete_trip_form, confirm the order is:
+
+1. authorize owner
+2. try block begins
+3. delete Activity rows
+4. delete Invitation rows for trip_id
+5. delete or handle any other FK-dependent rows shown by logs
+6. db.session.delete(trip)
+7. db.session.commit()
+8. flash success
+9. redirect to my trips
+
+Do not redirect back to trip detail on success.
+
+--------------------------------------------------
+PART 3 — FIX THE REMAINING DEPENDENCY
+--------------------------------------------------
+
+If logs show another FK constraint:
+
+- identify the exact model/table
+- delete or safely detach those rows before db.session.delete(trip)
+- only touch dependencies directly related to SkiTrip deletion
+
+Do not make broad unrelated cleanup changes.
+
+--------------------------------------------------
+PART 4 — MAKE FAILURE VISIBLE DURING QA
+--------------------------------------------------
+
+If the delete fails, flash a clear friendly message like:
+
+“We couldn’t cancel this trip yet. Please try again.”
+
+Also ensure the logs include the technical reason.
+
+Do not expose raw DB errors to users.
+
+--------------------------------------------------
+PART 5 — QA AGAIN
+--------------------------------------------------
+
+Re-test the exact trip cancellation flow.
+
+Verify:
+
+- trip is actually removed from Trips
+- user lands on /my-trips
+- trip detail URL no longer loads as an active trip
+- no generic error screen
+- no silent rollback
+- logs show success path, not exception path
+
+Use checkpoints sparingly.
+
+Do not finish until the trip is actually deleted and verified.
