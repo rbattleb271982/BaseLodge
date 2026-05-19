@@ -14,6 +14,7 @@ Inputs:
                        "Trip updated this week" (updated_at 1–7 days)
                        "Upcoming trip"          (older or no timestamp)
     [].friend_id     int | None — user_id; when present the row links to their profile
+    []._card_key     string — stable key for dismissal (format: "happening:{trip_id}")
 -->
 
 <div class="bl-section" id="section-happening">
@@ -22,26 +23,31 @@ Inputs:
     </div>
     <div class="bl-happening-rows">
         {% for signal in happening_signals %}
-        {% if signal.friend_id %}
-        <a href="/friends/{{ signal.friend_id }}" class="bl-happening-row bl-happening-row--link">
-            <div class="bl-happening-body">
-                <p class="bl-happening-text">{{ signal.text }}</p>
-                {% if signal.recency_label %}
-                <p class="bl-happening-recency">{{ signal.recency_label }}</p>
-                {% endif %}
+        {%- set _hap_id = 'hap-row-' ~ loop.index -%}
+        <div class="bl-happening-row" id="{{ _hap_id }}">
+            {% if signal.friend_id %}
+            <a href="/friends/{{ signal.friend_id }}" class="bl-happening-link">
+                <div class="bl-happening-body">
+                    <p class="bl-happening-text">{{ signal.text }}</p>
+                    {% if signal.recency_label %}
+                    <p class="bl-happening-recency">{{ signal.recency_label }}</p>
+                    {% endif %}
+                </div>
+                <span class="bl-happening-chevron">›</span>
+            </a>
+            {% else %}
+            <div class="bl-happening-link bl-happening-link--static">
+                <div class="bl-happening-body">
+                    <p class="bl-happening-text">{{ signal.text }}</p>
+                    {% if signal.recency_label %}
+                    <p class="bl-happening-recency">{{ signal.recency_label }}</p>
+                    {% endif %}
+                </div>
             </div>
-            <span class="bl-happening-chevron">›</span>
-        </a>
-        {% else %}
-        <div class="bl-happening-row">
-            <div class="bl-happening-body">
-                <p class="bl-happening-text">{{ signal.text }}</p>
-                {% if signal.recency_label %}
-                <p class="bl-happening-recency">{{ signal.recency_label }}</p>
-                {% endif %}
-            </div>
+            {% endif %}
+            <button class="bl-happening-dismiss" type="button" aria-label="Dismiss"
+                    onclick="dismissInsightCard('happening','{{ signal._card_key }}','{{ _hap_id }}')">×</button>
         </div>
-        {% endif %}
         {% endfor %}
     </div>
 </div>

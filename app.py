@@ -7584,10 +7584,27 @@ def home():
                     'text': text,
                     'friend_id': ft.user_id,
                     'recency_label': recency_label,
+                    'trip_id': ft.id,
+                    '_card_key': f"happening:{ft.id}",
                 })
                 if len(happening_signals) >= HOME_HAPPENING_RENDER_CAP:
                     break
             _diag_hap_candidates = len(happening_signals)
+        except Exception:
+            db.session.rollback()
+
+    if happening_signals:
+        try:
+            _dismissed_hap_cards = DismissedInsightCard.query.filter_by(
+                user_id=user.id,
+                card_type='happening',
+            ).all()
+            _dismissed_hap_keys = {d.card_key for d in _dismissed_hap_cards}
+            if _dismissed_hap_keys:
+                happening_signals = [
+                    s for s in happening_signals
+                    if s['_card_key'] not in _dismissed_hap_keys
+                ]
         except Exception:
             db.session.rollback()
 
