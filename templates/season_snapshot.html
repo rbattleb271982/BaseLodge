@@ -32,13 +32,12 @@
         margin-bottom: 12px;
     }
 
-    /* ── 1:1 poster card ── */
+    /* ── Poster card — grows with content ── */
     .ss-card {
         width: calc(100% - 32px);
         max-width: 440px;
-        aspect-ratio: 1 / 1;
         border-radius: 18px;
-        overflow: hidden;
+        overflow: visible;
         box-shadow: 0 10px 44px rgba(36, 20, 12, 0.20);
         display: flex;
         flex-direction: column;
@@ -47,6 +46,7 @@
     /* ── Maroon header band ── */
     .ss-header {
         background: #5C1219;
+        border-radius: 18px 18px 0 0;
         padding: 22px 24px 18px;
         flex-shrink: 0;
     }
@@ -87,10 +87,8 @@
     /* ── Cream body ── */
     .ss-body {
         background: #F5F1E8;
-        flex: 1;
-        min-height: 0;
-        overflow: hidden;
-        padding: 14px 22px 14px;
+        border-radius: 0 0 18px 18px;
+        padding: 14px 22px calc(28px + env(safe-area-inset-bottom, 0px));
         display: flex;
         flex-direction: column;
     }
@@ -107,24 +105,28 @@
         flex-shrink: 0;
     }
 
-    /* ── 2-column month grid ── */
+    /* ── Month grid — mobile-first, single column ── */
     .ss-months-grid {
-        flex: 1;
-        min-height: 0;
-        overflow: hidden;
         display: flex;
         flex-direction: column;
         gap: 16px;
     }
+    /* Mobile-first: one column */
     .ss-pair-row {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0 20px;
+        grid-template-columns: 1fr;
+        gap: 16px 20px;
         align-items: start;
-        flex-shrink: 0;
     }
     .ss-pair-col {
         min-width: 0;
+    }
+    /* Two-column on wider screens */
+    @media (min-width: 480px) {
+        .ss-pair-row {
+            grid-template-columns: 1fr 1fr;
+            gap: 0 20px;
+        }
     }
 
     /* Month block */
@@ -133,17 +135,17 @@
     }
     .ss-month-label {
         font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-        font-size: 10px;
+        font-size: 14px;
         font-weight: 700;
-        letter-spacing: 1.1px;
+        letter-spacing: 1.4px;
         text-transform: uppercase;
         color: #A8152B;
-        margin-bottom: 7px;
+        margin-bottom: 9px;
     }
     .ss-trip-rows {
         display: flex;
         flex-direction: column;
-        gap: 7px;
+        gap: 9px;
     }
     .ss-trip-row {
         display: flex;
@@ -160,7 +162,7 @@
     }
     .ss-trip-dest {
         font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-        font-size: clamp(13px, 3.6vw, 16px);
+        font-size: clamp(15px, 4vw, 18px);
         font-weight: 500;
         color: #1A1A1A;
         line-height: 1.25;

@@ -1,0 +1,118 @@
+╔══════════════════════════════════════════════════════╗
+║ FIX SEASON PAGE CARD — MOBILE CLIPPING + LAYOUT    ║
+╚══════════════════════════════════════════════════════╝
+
+The Season page is broken on mobile.
+
+Issues:
+
+- January and April content are cut off
+- Lower rows disappear
+- Card height is constrained
+- Content is likely clipped by overflow:hidden
+- Two-column month layout collapses poorly
+- Empty months create awkward gaps
+
+Do NOT redesign the visual style.
+
+Keep existing:
+
+- colors
+- fonts
+- Season card aesthetic
+- data structure
+
+Only fix layout and responsiveness.
+
+--------------------------------------------------
+PART 1 — REMOVE HEIGHT CONSTRAINTS
+--------------------------------------------------
+
+Find the main Season card wrapper and internal month containers.
+
+Audit for:
+
+height:
+max-height:
+overflow:hidden
+
+Remove hardcoded heights.
+
+Use:
+
+height:auto;
+
+The card should grow naturally based on content.
+
+--------------------------------------------------
+PART 2 — MAKE MONTH GRID RESPONSIVE
+--------------------------------------------------
+
+Desktop can remain two-column:
+
+grid-template-columns: repeat(2, 1fr);
+
+Mobile:
+
+@media (max-width: 768px) {
+  grid-template-columns: 1fr;
+}
+
+Months should stack vertically on phones.
+
+--------------------------------------------------
+PART 3 — HIDE EMPTY MONTHS
+--------------------------------------------------
+
+If a month has zero trips/destinations, do not render that month block.
+
+No blank placeholders.
+
+--------------------------------------------------
+PART 4 — FIX SPACING + TYPOGRAPHY
+--------------------------------------------------
+
+Month labels:
+
+font-size: 13px to 14px;
+letter-spacing: .14em;
+
+Destination names:
+
+font-size: 16px to 18px;
+font-weight: 500 or higher;
+
+Increase row gap, line height, and destination spacing.
+
+--------------------------------------------------
+PART 5 — SAFE AREA
+--------------------------------------------------
+
+Add mobile-safe bottom padding:
+
+padding-bottom: calc(28px + env(safe-area-inset-bottom));
+
+--------------------------------------------------
+PART 6 — QA
+--------------------------------------------------
+
+Test:
+
+- iPhone
+- Android
+- Mobile browser
+- Desktop browser
+- Capacitor shell
+
+Verify:
+
+- no clipping
+- no hidden months
+- card expands naturally
+- all destinations visible
+- scrolling works
+- no desktop regressions
+
+Use checkpoints sparingly.
+
+Do not finish until fully tested.
