@@ -1,0 +1,136 @@
+╔══════════════════════════════════════════════════════╗
+║ STEP 2: PUT THIS IN AGENT                           ║
+╚══════════════════════════════════════════════════════╝
+
+Implement ticket #115 exactly as planned.
+
+Primary file:
+templates/trip_detail.html
+
+Goal:
+Clean up the bottom action area of Trip Detail without redesigning the page.
+
+Do not change:
+
+- overall visual design language
+- cancel sheet modal/form behavior
+- Who’s Going section
+- Pending Invites section
+- non-owner view behavior
+
+--------------------------------------------------
+IMPLEMENTATION
+--------------------------------------------------
+
+1. Reorder the bottom cards:
+
+New order:
+
+- Trip Actions label
+- Invite friends to this trip card
+- People label
+- See your friends going to [Resort] card
+- Cancel Trip destructive area
+
+2. Add section labels:
+
+Use class:
+
+td-section-label
+
+Trip Actions label:
+Only render when Invite card renders.
+
+People label:
+Only render when Friends/Resort discovery card renders.
+
+3. Invite card copy:
+
+Title:
+Invite friends to this trip
+
+Subtext:
+Send invites to people you know
+
+4. Friends card copy:
+
+Title:
+See your friends going to [Resort]
+
+Subtext:
+See who else is planning a trip
+
+Keep the existing conditional:
+
+trip.resort and trip.resort.slug
+
+5. Enable subtext styling:
+
+Update .td-swg-sub from display:none to:
+
+display:block;
+font-size:13px;
+color:var(--bl-color-text-muted, #8A857A);
+margin:0;
+
+6. Card consistency:
+
+Remove inline style:
+
+style="color:#5C1219;"
+
+from Invite card title.
+
+Both cards should use identical:
+
+- padding
+- height
+- icon size
+- arrow alignment
+- background
+- border treatment
+
+7. Cancel Trip area:
+
+Keep it owner-only.
+
+Move .td-cancel-trip-wrap after both cards.
+
+Update CSS:
+
+border-top: 1px solid rgba(92,18,25,0.08);
+padding: 24px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+
+Do not change button text.
+
+Do not change onclick behavior.
+
+--------------------------------------------------
+QA
+--------------------------------------------------
+
+Test:
+
+- owner with resort
+- owner without resort
+- non-owner invited-state view
+- trip with friends
+- trip without friends
+- mobile
+- desktop
+- native shell
+
+Verify:
+
+- Invite appears before People
+- labels only appear when their card appears
+- both cards look consistent
+- no duplicate spacing
+- Cancel Trip feels anchored
+- cancel still opens the existing cancel sheet
+
+Use checkpoints sparingly.
+
+Do not finish until fully tested.
+
+╚══════════════════════════════════════════════════════╝

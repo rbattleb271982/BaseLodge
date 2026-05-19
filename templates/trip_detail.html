@@ -208,10 +208,11 @@
         }
         .td-swg-text { flex: 1; }
         .td-swg-title { font-size: 17px; font-weight: 600; color: #1A1A1A; margin: 0 0 2px; }
-        .td-swg-sub { display: none; }
+        .td-swg-sub { display: block; font-size: 13px; color: var(--bl-color-text-muted, #8A857A); margin: 0; }
         .td-swg-wishlist { font-size: 12px; color: #5C1219; margin: 0; font-weight: 500; }
         .td-cancel-trip-wrap {
-            padding: 30px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+            border-top: 1px solid rgba(92,18,25,0.08);
+            padding: 24px 0 calc(12px + env(safe-area-inset-bottom, 0px));
             text-align: center;
         }
         .td-cancel-trip-link {
@@ -1226,33 +1227,37 @@
         </div><!-- /your-trip-details-section -->
         </div><!-- /td-setup-card -->
 
-        <!-- What's next -->
-        {% if trip.resort and trip.resort.slug %}
-        <div class="td-swg-card">
-            <a href="{{ url_for('mountain_detail', slug=trip.resort.slug) }}" class="td-swg-row">
-                <span class="td-swg-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                </span>
-                <div class="td-swg-text">
-                    <p class="td-swg-title">Friends heading to {{ mountain_name }}</p>
-                    {% if friends_wishlist_count > 0 %}<p class="td-swg-wishlist">{{ friends_wishlist_count }} on wishlist</p>{% endif %}
-                </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </a>
-        </div>
-        {% endif %}
-
+        <!-- Trip Actions -->
         {% if is_owner %}
+        <p class="td-section-label">Trip Actions</p>
         <div class="td-swg-card">
             <button type="button" class="td-swg-row" onclick="handleInviteClick()">
                 <span class="td-swg-icon">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
                 </span>
                 <div class="td-swg-text">
-                    <p class="td-swg-title" style="color:#5C1219;">Invite friends to this trip</p>
+                    <p class="td-swg-title">Invite friends to this trip</p>
+                    <p class="td-swg-sub">Send invites to people you know</p>
                 </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </button>
+        </div>
+        {% endif %}
+
+        <!-- People -->
+        {% if trip.resort and trip.resort.slug %}
+        <p class="td-section-label">People</p>
+        <div class="td-swg-card">
+            <a href="{{ url_for('mountain_detail', slug=trip.resort.slug) }}" class="td-swg-row">
+                <span class="td-swg-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                </span>
+                <div class="td-swg-text">
+                    <p class="td-swg-title">See your friends going to {{ mountain_name }}</p>
+                    <p class="td-swg-sub">See who else is planning a trip</p>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </a>
         </div>
         {% endif %}
 
