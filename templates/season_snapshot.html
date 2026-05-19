@@ -107,31 +107,20 @@
 
     /* ── Month grid — mobile-first, single column ── */
     .ss-months-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-    /* Mobile-first: one column */
-    .ss-pair-row {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 16px 20px;
+        gap: 16px;
         align-items: start;
     }
-    .ss-pair-col {
-        min-width: 0;
-    }
-    /* Two-column on desktop only — large phones still stack */
     @media (min-width: 769px) {
-        .ss-pair-row {
+        .ss-months-grid {
             grid-template-columns: 1fr 1fr;
-            gap: 0 20px;
         }
     }
 
     /* Month block */
     .ss-month {
-        flex-shrink: 0;
+        min-width: 0;
     }
     .ss-month-label {
         font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
@@ -250,119 +239,23 @@
 
                 <div class="ss-months-grid">
 
-                    {# ── Pair 1: NOV | FEB ── #}
-                    {% if ns.NOV or ns.FEB %}
-                    <div class="ss-pair-row">
-                        <div class="ss-pair-col">
-                            {% if ns.NOV %}
-                            <div class="ss-month">
-                                <p class="ss-month-label">NOV</p>
-                                <div class="ss-trip-rows">
-                                    {% for trip in ns.NOV %}
-                                    {% set mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'TBD') %}
-                                    <div class="ss-trip-row">
-                                        <div class="ss-trip-bar"></div>
-                                        <p class="ss-trip-dest">{{ mtn }}</p>
-                                    </div>
-                                    {% endfor %}
-                                </div>
+                    {% for month_key, month_label in [('NOV','NOV'),('DEC','DEC'),('JAN','JAN'),('FEB','FEB'),('MAR','MAR'),('APR','APR')] %}
+                    {% set month_trips = ns | attr(month_key) %}
+                    {% if month_trips %}
+                    <div class="ss-month">
+                        <p class="ss-month-label">{{ month_label }}</p>
+                        <div class="ss-trip-rows">
+                            {% for trip in month_trips %}
+                            {% set mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'TBD') %}
+                            <div class="ss-trip-row">
+                                <div class="ss-trip-bar"></div>
+                                <p class="ss-trip-dest">{{ mtn }}</p>
                             </div>
-                            {% endif %}
-                        </div>
-                        <div class="ss-pair-col">
-                            {% if ns.FEB %}
-                            <div class="ss-month">
-                                <p class="ss-month-label">FEB</p>
-                                <div class="ss-trip-rows">
-                                    {% for trip in ns.FEB %}
-                                    {% set mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'TBD') %}
-                                    <div class="ss-trip-row">
-                                        <div class="ss-trip-bar"></div>
-                                        <p class="ss-trip-dest">{{ mtn }}</p>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            {% endif %}
+                            {% endfor %}
                         </div>
                     </div>
                     {% endif %}
-
-                    {# ── Pair 2: DEC | MAR ── #}
-                    {% if ns.DEC or ns.MAR %}
-                    <div class="ss-pair-row">
-                        <div class="ss-pair-col">
-                            {% if ns.DEC %}
-                            <div class="ss-month">
-                                <p class="ss-month-label">DEC</p>
-                                <div class="ss-trip-rows">
-                                    {% for trip in ns.DEC %}
-                                    {% set mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'TBD') %}
-                                    <div class="ss-trip-row">
-                                        <div class="ss-trip-bar"></div>
-                                        <p class="ss-trip-dest">{{ mtn }}</p>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            {% endif %}
-                        </div>
-                        <div class="ss-pair-col">
-                            {% if ns.MAR %}
-                            <div class="ss-month">
-                                <p class="ss-month-label">MAR</p>
-                                <div class="ss-trip-rows">
-                                    {% for trip in ns.MAR %}
-                                    {% set mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'TBD') %}
-                                    <div class="ss-trip-row">
-                                        <div class="ss-trip-bar"></div>
-                                        <p class="ss-trip-dest">{{ mtn }}</p>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {# ── Pair 3: JAN | APR ── #}
-                    {% if ns.JAN or ns.APR %}
-                    <div class="ss-pair-row">
-                        <div class="ss-pair-col">
-                            {% if ns.JAN %}
-                            <div class="ss-month">
-                                <p class="ss-month-label">JAN</p>
-                                <div class="ss-trip-rows">
-                                    {% for trip in ns.JAN %}
-                                    {% set mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'TBD') %}
-                                    <div class="ss-trip-row">
-                                        <div class="ss-trip-bar"></div>
-                                        <p class="ss-trip-dest">{{ mtn }}</p>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            {% endif %}
-                        </div>
-                        <div class="ss-pair-col">
-                            {% if ns.APR %}
-                            <div class="ss-month">
-                                <p class="ss-month-label">APR</p>
-                                <div class="ss-trip-rows">
-                                    {% for trip in ns.APR %}
-                                    {% set mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'TBD') %}
-                                    <div class="ss-trip-row">
-                                        <div class="ss-trip-bar"></div>
-                                        <p class="ss-trip-dest">{{ mtn }}</p>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endif %}
+                    {% endfor %}
 
                 </div>
 
