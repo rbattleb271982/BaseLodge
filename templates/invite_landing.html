@@ -216,7 +216,10 @@
             && window.Capacitor.isNativePlatform();
 
         if (inNative) {
-            // _system target tells Capacitor to open in the OS browser, not the WKWebView.
+            // INTENTIONAL: opens this invite URL in Safari so a new user can sign up
+            // via the web, complete onboarding, and return to the app.
+            // This is the ONLY intentional app-shell escape in BaseLodge.
+            // Do NOT replicate this pattern for internal navigation.
             window.open(window.location.href, '_system');
         } else {
             // Already in a browser — proceed with the normal accept flow.

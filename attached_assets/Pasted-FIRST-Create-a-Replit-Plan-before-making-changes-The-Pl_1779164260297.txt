@@ -1,0 +1,156 @@
+FIRST: Create a Replit Plan before making changes.
+
+The Plan must include:
+
+Phase 1:
+- Investigate app-shell escape behavior
+- Audit all navigation patterns
+- Identify iOS-only behavior differences
+
+Phase 2:
+- Fix navigation escaping issues
+- Replace absolute/internal URL usage
+- Fix iOS-specific routing problems
+
+Phase 3:
+- Add temporary diagnostics and validate all navigation paths
+
+Do not begin implementation until the plan is created.
+
+==================================================
+
+Investigate and fix any BaseLodge native app navigation paths that escape the Capacitor app shell into the mobile website/Safari-style browser.
+
+Observed issue:
+
+iOS ONLY (important):
+
+Steps:
+1. Launch BaseLodge
+2. Land on Home
+3. Tap Trips tab
+
+Observed:
+
+- app shell appears to disappear
+- blank white screen appears
+- Safari/mobile-web controls appear
+- app behaves like website/browser
+- navigation later sometimes recovers
+
+Android note:
+
+- This does NOT appear to happen on Android
+- Android appears normal
+- Prioritize iOS-specific investigation
+- Focus on WKWebView / Capacitor behavior
+
+Scope:
+
+Audit ALL in-app navigation, not just Trips.
+
+BOTTOM TABS
+- Home
+- Trips
+- Friends
+- Mountains
+
+TOP NAV / CONTROLS
+- profile avatar
+- Invite
+- Requests
+- Ideas
+- Edit availability
+- Add trip
+- Notifications
+- Equipment
+- back buttons
+
+TRIP ROUTES
+- /trips
+- /trips/<id>
+- /add-trip
+- /edit-trip/<id>
+- trip invite flows
+
+FRIEND ROUTES
+- /friends
+- /friends/<id>
+- /friend-requests
+
+MOUNTAIN ROUTES
+- /mountains
+- mountain detail
+- wishlist actions
+
+Search repo for:
+
+href="https://app.baselodgeapp.com
+href="http://
+window.open(
+target="_blank"
+window.location=
+window.location.href=
+location.href=
+_external=True
+external=True
+redirect(request.url)
+app.baselodgeapp.com
+baselodgeapp.com
+
+Also inspect:
+
+capacitor.config.*
+App plugin handlers
+AppDelegate.swift
+WKWebView behavior
+deep link handling
+universal links
+custom URL handling
+
+Rules:
+
+Internal app navigation must remain relative:
+
+/home
+/trips
+/friends
+/mountains
+/profile
+
+Never:
+
+https://app.baselodgeapp.com/trips
+
+Do not use:
+- target="_blank"
+- window.open()
+
+for internal navigation.
+
+External links may still open externally.
+
+Add temporary diagnostics:
+
+console.log("[APP NAV DEBUG]", destination)
+
+console.log("[iOS APP SHELL]", window.location.href)
+
+Verify:
+
+Home → Trips
+Home → Friends
+Home → Mountains
+Trips → Home
+Trips → Trip Detail
+Friends → Friend Detail
+Mountains → Mountain Detail
+Avatar → Profile
+
+All should remain inside native app shell.
+
+Do not redesign navigation.
+Do not redesign app shell.
+Fix only navigation escaping behavior.
+
+Use checkpoints sparingly.
