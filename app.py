@@ -7616,6 +7616,10 @@ def home():
         if e.strip()
     )
     is_admin = current_user.is_authenticated and current_user.email.lower() in _admin_emails_home
+    show_ideas_diagnostic = (
+        is_admin
+        and os.environ.get("SHOW_IDEAS_DIAGNOSTIC", "").strip().lower() in {"1", "true", "yes", "on"}
+    )
 
     # Build Ideas diagnostic summary for admin view
     ideas_diag = {
@@ -7668,6 +7672,7 @@ def home():
         new_connection_name=new_connection_name,
         sender_connection_card=sender_connection_card,
         is_admin=is_admin,
+        show_ideas_diagnostic=show_ideas_diagnostic,
         ideas_diag=ideas_diag,
     )
     if app.debug:
