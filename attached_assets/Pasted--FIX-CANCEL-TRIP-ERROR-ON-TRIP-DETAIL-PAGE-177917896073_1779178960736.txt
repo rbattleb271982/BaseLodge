@@ -1,0 +1,83 @@
+╔══════════════════════════════════════════════════════╗
+║ FIX CANCEL TRIP ERROR ON TRIP DETAIL PAGE          ║
+╚══════════════════════════════════════════════════════╝
+
+Bug:
+On the trip detail page, tapping “Cancel trip” sends the user to the generic error page:
+“Something went wrong.”
+
+This happens from the bottom of the trip detail screen.
+
+Goal:
+Fix the Cancel trip flow so it works safely and predictably.
+
+Do not redesign the page.
+
+--------------------------------------------------
+PART 1 — TRACE THE CURRENT FLOW
+--------------------------------------------------
+
+Inspect:
+
+- trip detail template
+- cancel trip button/form/link
+- route handling trip cancellation/deletion
+- HTTP method being used
+- CSRF handling if applicable
+- redirects after cancel
+- ownership/permission checks
+
+Find why the action is throwing a server error.
+
+--------------------------------------------------
+PART 2 — FIX THE ROUTE OR TEMPLATE
+--------------------------------------------------
+
+The Cancel trip action should:
+
+- only allow the trip owner to cancel/delete
+- use the correct method expected by the route
+- not throw if related records exist
+- clean up dependent records safely if needed
+- redirect back to Trips after success
+- show a success flash/message if available
+- fail gracefully if unauthorized or trip not found
+
+--------------------------------------------------
+PART 3 — LOG THE ACTUAL ERROR
+--------------------------------------------------
+
+Add or improve server-side logging around the cancel trip route so future failures show:
+
+- trip id
+- current user id
+- route name
+- exception message
+
+Do not expose technical errors to the user.
+
+--------------------------------------------------
+PART 4 — QA
+--------------------------------------------------
+
+Test:
+
+- canceling your own trip
+- trying to cancel a trip you do not own
+- canceling a trip with invited friends
+- canceling a trip with friends already attached
+- canceling a trip with equipment/transportation/accommodations/lesson values set
+- mobile native shell
+- web preview
+
+Verify:
+
+- no generic error page
+- trip disappears from active trips if canceled/deleted
+- related rows do not cause database errors
+- user lands back on Trips
+- no regressions to trip creation or trip editing
+
+Use checkpoints sparingly.
+
+Do not finish until fully tested.

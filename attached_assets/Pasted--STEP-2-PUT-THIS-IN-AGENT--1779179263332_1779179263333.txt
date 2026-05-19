@@ -1,0 +1,161 @@
+╔══════════════════════════════════════════════════════╗
+║ STEP 2: PUT THIS IN AGENT                           ║
+╚══════════════════════════════════════════════════════╝
+
+Implement ticket #113 exactly as planned.
+
+Primary issue:
+
+Cancel Trip crashes because Invitation rows still reference
+ski_trip.id when delete_trip_form calls:
+
+db.session.delete(trip)
+
+This causes a Postgres FK constraint failure.
+
+Primary files:
+
+- app.py
+- models.py (only if needed)
+- templates/trip_detail.html (only if needed)
+
+Do not redesign UI.
+
+Do not modify unrelated delete paths.
+
+Do not add soft delete / undo.
+
+--------------------------------------------------
+PART 1 — FIX PRE-DELETE CLEANUP
+--------------------------------------------------
+
+In:
+
+app.py
+
+Route:
+
+delete_trip_form
+
+Before:
+
+db.session.delete(trip)
+
+explicitly clean up:
+
+Invitation.query.filter(
+    Invitation.trip_id == trip.id
+)
+
+Delete those rows before trip deletion.
+
+Keep existing:
+
+delete_activities_for_trip(trip.id)
+
+behavior intact.
+
+This Invitation cleanup is the missing step causing the FK crash.
+
+--------------------------------------------------
+PART 2 — ADD SAFE ERROR HANDLING
+--------------------------------------------------
+
+Wrap delete + commit flow:
+
+try:
+    ...
+except Exception:
+
+On exception:
+
+- db.session.rollback()
+- log trip_id
+- log current_user.id
+- log route name
+- log exception details
+- flash friendly error
+- redirect back to trip detail page
+
+Do NOT allow Flask generic error page.
+
+Do NOT expose technical details.
+
+--------------------------------------------------
+PART 3 — ADD STRUCTURED LOGGING
+--------------------------------------------------
+
+Success path:
+
+app.logger.info(...)
+
+Include:
+
+- route name
+- trip id
+- current user id
+
+Failure path:
+
+app.logger.error(...)
+
+Include:
+
+- route name
+- trip id
+- current user id
+- exception
+
+Make future production failures diagnosable.
+
+--------------------------------------------------
+PART 4 — KEEP PERMISSIONS INTACT
+--------------------------------------------------
+
+Only trip owners may cancel.
+
+Unauthorized users:
+
+return 403
+
+No crashes.
+
+--------------------------------------------------
+PART 5 — QA
+--------------------------------------------------
+
+Test:
+
+✓ trip with no participants
+
+✓ trip with accepted participants
+
+✓ trip with pending Invitation rows
+
+✓ trip with TripInviteToken rows
+
+✓ trip with lesson data
+
+✓ trip with transportation data
+
+✓ trip with accommodations data
+
+✓ unauthorized cancellation
+
+Verify:
+
+✓ no generic error screen
+
+✓ trip disappears correctly
+
+✓ Trips redirect works
+
+✓ DB commits cleanly
+
+✓ no regressions
+
+Use checkpoints sparingly.
+
+Do not finish until fully tested.
+
+╚══════════════════════════════════════════════════════╝

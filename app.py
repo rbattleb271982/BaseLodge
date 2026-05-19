@@ -10283,11 +10283,27 @@ def delete_trip_form(trip_id):
     if trip.user_id != current_user.id:
         abort(403)
 
-    delete_activities_for_trip(trip_id)
-    db.session.delete(trip)
-    db.session.commit()
-    flash("Trip deleted.", "trip")
-    return redirect(url_for("my_trips"))
+    try:
+        # Clean up Invitation rows that reference this trip (no cascade on FK)
+        Invitation.query.filter(Invitation.trip_id == trip.id).delete()
+        # Clean up Activity rows
+        delete_activities_for_trip(trip_id)
+        db.session.delete(trip)
+        db.session.commit()
+        app.logger.info(
+            "[delete_trip_form] success route=delete_trip_form trip_id=%s user_id=%s",
+            trip_id, current_user.id
+        )
+        flash("Trip deleted.", "trip")
+        return redirect(url_for("my_trips"))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(
+            "[delete_trip_form] error route=delete_trip_form trip_id=%s user_id=%s exc=%s",
+            trip_id, current_user.id, e
+        )
+        flash("Something went wrong while cancelling the trip. Please try again.", "error")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
 
 @app.route("/mountains-visited", methods=["GET", "POST"])
 @login_required
