@@ -1,0 +1,99 @@
+FIRST: Create a Replit Plan before making changes.
+
+Goal:
+Run full Replit-side app testing for login and post-login routing before any more native rebuilds.
+
+Current issue:
+- User still cannot log in.
+- Earlier assumption was that login succeeded and /home failed, but user reports login still does not work.
+- We need to test the actual deployed/web app behavior inside Replit and identify the exact failing point.
+
+Do not rebuild native apps yet.
+Do not reset passwords yet.
+Do not undo the Capacitor app-shell fix.
+Do not guess.
+
+Phase 1 — Reproduce
+Test in Replit/deployed web app:
+1. GET /login
+2. Submit login with a known existing test/admin account
+3. Confirm whether failure occurs at:
+   - POST /login auth check
+   - session creation
+   - redirect to /home
+   - rendering /home
+   - rendering base_app.html
+   - another downstream route/template
+
+Phase 2 — Logs
+Check server logs during login.
+Capture exact traceback if any.
+Confirm:
+- route
+- status code
+- exception
+- template involved
+- redirect target
+
+Phase 3 — Auth inspection
+Inspect:
+- routes/auth.py
+- login template
+- password verification logic
+- email normalization
+- session creation
+- redirect after login
+- flash/error behavior
+
+Confirm whether:
+- user email is found
+- password hash check passes
+- login_user/session logic succeeds
+- redirect target is correct
+
+Do not expose passwords or password hashes.
+
+Phase 4 — Template inspection
+Inspect:
+- templates/base_app.html
+- templates/base.html
+- templates/login.html
+- templates/home.html
+- any template extended after login
+
+Check for:
+- Jinja block mismatch
+- missing endblock
+- duplicated block names
+- undefined variables
+- malformed url_for
+- syntax errors that only appear after login
+
+Phase 5 — Add temporary safe test route if helpful
+If needed, add an admin-only or local-only diagnostic route to confirm:
+- current_user.is_authenticated
+- session is being set
+- /home can render
+- base_app.html can render
+
+Remove or gate diagnostics before completion.
+
+Phase 6 — Fix
+Apply the smallest fix only.
+Then restart Flask and retest:
+1. Login page loads
+2. Login succeeds
+3. Redirect reaches /home
+4. Home renders
+5. Home → Trips works in web app
+6. No generic “Something went wrong” page
+
+Final output:
+Report exactly:
+- what was failing
+- what file caused it
+- what was changed
+- how it was tested in Replit
+- whether native rebuild is still required afterward
+
+Use checkpoints sparingly.

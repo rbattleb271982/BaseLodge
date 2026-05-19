@@ -1,45 +1,52 @@
-{% extends "base.html" %}
-{% block body %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light">
+    <style>html{background:#F5F1E8}
+#bl-page-loader{position:fixed;top:env(safe-area-inset-top,0px);left:0;width:0;height:2px;background:#5C1219;z-index:99998;opacity:0;pointer-events:none;}
+</style>
+    <title>{% block title %}BaseLodge{% endblock %}</title>
+    <meta property="og:image" content="https://app.baselodgeapp.com/static/images/og/BaseLodge-logo-primary-1200x630.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:title" content="BaseLodge">
+    <meta property="og:description" content="The best days on the mountain don't just happen. They're made.">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png?v={{ ICONS_VERSION }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png?v={{ ICONS_VERSION }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png?v={{ ICONS_VERSION }}">
+    <link rel="shortcut icon" href="/static/icons/favicon.ico?v={{ ICONS_VERSION }}">
+    {% include 'components/analytics_head.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v={{ STYLES_VERSION }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
 <div class="app-shell">
-  {% include 'components/top_bar.html' %}
-  {% block content %}{% endblock %}
-  {% include 'components/bottom_nav.html' %}
+    <div id="bl-page-loader" aria-hidden="true"></div>
+    <div class="bl-top-bar">
+      <div class="bl-top-bar-left">{% block topbar_left %}{% endblock %}</div>
+      <span class="bl-top-bar-title">{% block topbar_title %}{%- set _tb_fn = current_user.first_name or '' -%}{% if _tb_fn %}Hi, {{ _tb_fn }}{% else %}BaseLodge{% endif %}{% endblock %}</span>
+      {% block topbar_right %}{%- set _tba_fn = current_user.first_name or '' -%}{%- set _tba1 = (_tba_fn[0] | upper) if _tba_fn else '?' -%}{%- set _tba2 = (current_user.last_name[0] | upper) if current_user.last_name else '' -%}<a href="{{ url_for('profile') }}" class="bl-top-bar-avatar" aria-label="Go to profile">{{ _tba1 }}{{ _tba2 }}</a>{% endblock %}
+    </div>
+    {% block flash %}
+    {% with _flash_messages = get_flashed_messages(with_categories=true) %}
+    {% if _flash_messages %}
+    <div class="bl-flash-wrap">
+        {% for _flash_cat, _flash_msg in _flash_messages %}
+        <div class="bl-flash-message" style="background:#F0DDD8;border:0.5px solid #5C1219;border-radius:8px;padding:12px 16px;margin-bottom:8px;font-size:14px;line-height:1.45;color:#1A1A1A;font-family:inherit;">
+            {{ _flash_msg }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+    {% endblock %}
+    {% block content %}{% endblock %}
+    {% include 'components/bottom_nav.html' %}
 </div>
 <script>
-(function() {
-  var _pt = window.performance && window.performance.timing;
-  var _navStart = (_pt && _pt.navigationStart) ? _pt.navigationStart : Date.now();
-  var _t0 = Date.now();
-
-  document.addEventListener('click', function(e) {
-    var el = e.target.closest('a[href],button[type="submit"]');
-    if (!el) return;
-    var href = el.getAttribute('href') || el.getAttribute('data-href') || '(submit)';
-    var src = 'unknown';
-    if      (el.closest('.bl-bottom-nav'))                         src = 'bottom-nav';
-    else if (el.closest('.bl-top-bar'))                            src = 'topbar';
-    else if (el.closest('[data-back]') || el.closest('.bl-back'))  src = 'back-link';
-    else if (el.closest('.bl-trip-card,.trip-card'))               src = 'trip-card';
-    else if (el.closest('.bl-friend-card,.friend-card'))           src = 'friend-card';
-    else if (el.closest('.mountain-row,.resort-row'))              src = 'mountain-card';
-    else if (el.closest('.bl-modal,.modal-overlay'))               src = 'modal';
-    else if (el.closest('form'))                                   src = 'form';
-    else if (el.closest('.bl-pill,.bl-cta,.bl-action'))            src = 'cta';
-    console.log('[BL-NAV] click=' + href + ' source=' + src + ' t=' + (Date.now() - _navStart) + 'ms');
-  }, true);
-
-  document.addEventListener('DOMContentLoaded', function() {
-    var dom = (_pt && _pt.domContentLoadedEventEnd && _pt.navigationStart)
-      ? (_pt.domContentLoadedEventEnd - _pt.navigationStart)
-      : (Date.now() - _t0);
-    var total = Date.now() - _navStart;
-    var ref = document.referrer ? (document.referrer.split('/').slice(-2).join('/') || 'direct') : 'direct';
-    console.log('[BL-NAV] page=' + location.pathname + ' dom=' + dom + 'ms total=' + total + 'ms ref=' + ref);
-  });
-})();
-</script>
-<script>
-/* ── blToast — shared inline notification utility (FINAL-MOBILE-QA-V1)
+/* ── blToast — shared inline notification utility
    Replaces browser alert() dialogs with a native-feeling overlay toast.
    Usage: blToast('Message here')  — auto-dismisses after 3 s.         */
 function blToast(msg) {
@@ -84,7 +91,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% block scripts %}{% endblock %}
-{% endblock %}
 <script>
 /* ── Bottom-nav tap feedback — immediate visual response to navigation taps.
    When the user taps a nav item that triggers a full-page navigation, the MPA
@@ -106,13 +112,50 @@ document.addEventListener('DOMContentLoaded', function() {
       this.style.transition = 'opacity 80ms ease';
     });
   });
-  /* touchstart fires before click — gives haptic-matching visual on iOS */
   nav.querySelectorAll('.bl-nav-item').forEach(function(link) {
     link.addEventListener('touchstart', function() {
       if (this.classList.contains('active')) return;
       this.style.opacity = '0.6';
       this.style.transition = 'opacity 60ms ease';
     }, { passive: true });
+  });
+})();
+</script>
+<script>
+/* ── BL-NAV client-side navigation timing ───────────────────────────────────
+   Active only when window.__BL_NAV_DEBUG__ is true (BL_NAV_DEBUG=1 server flag).
+   Records: click source + href, DOMContentLoaded duration, total perceived time.
+   Zero cost when disabled — the outer guard exits immediately.              */
+(function() {
+  if (!window.__BL_NAV_DEBUG__) return;
+  var _pt = window.performance && window.performance.timing;
+  var _navStart = (_pt && _pt.navigationStart) ? _pt.navigationStart : Date.now();
+  var _t0 = Date.now();
+
+  document.addEventListener('click', function(e) {
+    var el = e.target.closest('a[href],button[type="submit"]');
+    if (!el) return;
+    var href = el.getAttribute('href') || el.getAttribute('data-href') || '(submit)';
+    var src = 'unknown';
+    if      (el.closest('.bl-bottom-nav'))                         src = 'bottom-nav';
+    else if (el.closest('.bl-top-bar'))                            src = 'topbar';
+    else if (el.closest('[data-back]') || el.closest('.bl-back'))  src = 'back-link';
+    else if (el.closest('.bl-trip-card,.trip-card'))               src = 'trip-card';
+    else if (el.closest('.bl-friend-card,.friend-card'))           src = 'friend-card';
+    else if (el.closest('.mountain-row,.resort-row'))              src = 'mountain-card';
+    else if (el.closest('.bl-modal,.modal-overlay'))               src = 'modal';
+    else if (el.closest('form'))                                   src = 'form';
+    else if (el.closest('.bl-pill,.bl-cta,.bl-action'))            src = 'cta';
+    console.log('[BL-NAV] click=' + href + ' source=' + src + ' t=' + (Date.now() - _navStart) + 'ms');
+  }, true);
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var dom = (_pt && _pt.domContentLoadedEventEnd && _pt.navigationStart)
+      ? (_pt.domContentLoadedEventEnd - _pt.navigationStart)
+      : (Date.now() - _t0);
+    var total = Date.now() - _navStart;
+    var ref = document.referrer ? (document.referrer.split('/').slice(-2).join('/') || 'direct') : 'direct';
+    console.log('[BL-NAV] page=' + location.pathname + ' dom=' + dom + 'ms total=' + total + 'ms ref=' + ref);
   });
 })();
 </script>
