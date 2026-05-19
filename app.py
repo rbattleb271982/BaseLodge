@@ -2451,6 +2451,13 @@ def reset_password(token=None):
 
         login_user(user)
         flash("Your password has been reset.", "success")
+
+        # Consume pending invite if user arrived via an invite link
+        if "invite_token" in session:
+            connected = _connect_pending_inviter(user)
+            if connected:
+                return redirect(url_for("friends"))
+
         return redirect("/")
 
     return render_template("reset_password.html", token=token)

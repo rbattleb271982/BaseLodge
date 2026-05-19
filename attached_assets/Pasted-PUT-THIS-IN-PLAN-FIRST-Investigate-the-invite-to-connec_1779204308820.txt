@@ -1,0 +1,52 @@
+PUT THIS IN PLAN FIRST
+
+Investigate the invite-to-connect password/login flow without making any changes first.
+
+Context:
+A user received an invite to connect with someone. When he reached the connect screen, his existing password would not work. He was able to reset his password successfully afterward, but we need to check whether there is a bug in the invite/connect login flow, token handling, redirect logic, or password authentication.
+
+Goal:
+Determine whether this was a one-off user password issue or a product bug.
+
+Please audit the full flow:
+
+1. Invite link / connect route
+- Find the route that handles friend/connect invite links.
+- Confirm what happens when a logged-out user opens an invite link.
+- Confirm whether the invite token is preserved through login.
+- Confirm whether the user is redirected back to the correct connect screen after login.
+- Confirm whether expired, used, malformed, or missing invite tokens are handled cleanly.
+
+2. Login from invite context
+- Check whether the login form/action used from the invite/connect screen is the same as normal login.
+- Check whether any hidden `next`, `token`, `invite`, or redirect parameter could be lost.
+- Check whether the login route treats invite-related redirects differently.
+- Confirm password verification uses the normal User password hash flow.
+
+3. Password reset interaction
+- Confirm password reset does not accidentally mask a deeper issue.
+- Check whether users who reset their password from an invite context are returned somewhere confusing or invalid.
+- Confirm reset success does not invalidate the invite token unexpectedly.
+
+4. User/account edge cases
+Check for:
+- Email mismatch between invited email and logged-in/reset account
+- Existing user vs new user behavior
+- Case sensitivity or whitespace in email handling
+- Old invite tokens tied to a different user/email
+- Token expiration logic
+- Invite already accepted or already connected state
+
+5. Logging and diagnostics
+- Identify what logs currently exist for invite open, login failure, password reset, and invite acceptance.
+- If logging is insufficient, propose minimal safe logging only. Do not log passwords, password hashes, reset tokens, or sensitive invite token values.
+
+Deliverables:
+- Explain the likely root cause candidates.
+- List exact files/routes/templates involved.
+- Identify whether this is likely a bug or normal failed-login behavior.
+- Recommend the smallest safe fix, if needed.
+- Do not modify code yet.
+- Do not redesign the invite system.
+- Do not change authentication architecture.
+- Use checkpoints sparingly.
