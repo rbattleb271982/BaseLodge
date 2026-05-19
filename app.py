@@ -7587,8 +7587,6 @@ def home():
                     'trip_id': ft.id,
                     '_card_key': f"happening:{ft.id}",
                 })
-                if len(happening_signals) >= HOME_HAPPENING_RENDER_CAP:
-                    break
             _diag_hap_candidates = len(happening_signals)
         except Exception:
             db.session.rollback()
@@ -7607,6 +7605,9 @@ def home():
                 ]
         except Exception:
             db.session.rollback()
+
+    if len(happening_signals) > HOME_HAPPENING_RENDER_CAP:
+        happening_signals = happening_signals[:HOME_HAPPENING_RENDER_CAP]
 
     print(
         f"[HOME_DIAGNOSTICS] happening_friend_ids_count={len(friend_ids)}"

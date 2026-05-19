@@ -24,7 +24,7 @@ Inputs:
     <div class="bl-happening-rows">
         {% for signal in happening_signals %}
         {%- set _hap_id = 'hap-row-' ~ loop.index -%}
-        <div class="bl-happening-row" id="{{ _hap_id }}">
+        <div class="bl-happening-card" id="{{ _hap_id }}">
             {% if signal.friend_id %}
             <a href="/friends/{{ signal.friend_id }}" class="bl-happening-link">
                 <div class="bl-happening-body">
@@ -33,7 +33,6 @@ Inputs:
                     <p class="bl-happening-recency">{{ signal.recency_label }}</p>
                     {% endif %}
                 </div>
-                <span class="bl-happening-chevron">›</span>
             </a>
             {% else %}
             <div class="bl-happening-link bl-happening-link--static">
@@ -46,7 +45,7 @@ Inputs:
             </div>
             {% endif %}
             <button class="bl-happening-dismiss" type="button" aria-label="Dismiss"
-                    onclick="dismissInsightCard('happening','{{ signal._card_key }}','{{ _hap_id }}')">×</button>
+                    onclick="event.preventDefault();event.stopPropagation();dismissInsightCard('happening','{{ signal._card_key }}','{{ _hap_id }}')">×</button>
         </div>
         {% endfor %}
     </div>
