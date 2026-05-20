@@ -1,7 +1,7 @@
 <!--
 Component: Happening Section
 Purpose: Quiet ambient awareness of friend ski activity. One row per friend,
-         3-line editorial format: person / action+mountain / recency.
+         2-line compact format: [Name bold] - [action+mountain] / recency muted.
 Used on: Home screen (only when happening_signals is non-empty)
 
 Inputs:
@@ -31,8 +31,7 @@ Inputs:
             {% if signal.friend_id %}
             <a href="/friends/{{ signal.friend_id }}" class="bl-happening-link">
                 <div class="bl-happening-body">
-                    <p class="bl-happening-name">{{ signal.person }}</p>
-                    <p class="bl-happening-action">{{ signal.action_line }}</p>
+                    <p class="bl-happening-main"><strong>{{ signal.person }}</strong> - {{ signal.action_line }}</p>
                     {% if signal.recency_label %}
                     <p class="bl-happening-recency">{{ signal.recency_label }}</p>
                     {% endif %}
@@ -41,8 +40,7 @@ Inputs:
             {% else %}
             <div class="bl-happening-link bl-happening-link--static">
                 <div class="bl-happening-body">
-                    <p class="bl-happening-name">{{ signal.person }}</p>
-                    <p class="bl-happening-action">{{ signal.action_line }}</p>
+                    <p class="bl-happening-main"><strong>{{ signal.person }}</strong> - {{ signal.action_line }}</p>
                     {% if signal.recency_label %}
                     <p class="bl-happening-recency">{{ signal.recency_label }}</p>
                     {% endif %}
