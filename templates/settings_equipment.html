@@ -483,21 +483,9 @@
                     <label class="eq-field-label">Brand</label>
                     <select id="form-boot-brand" onchange="onBootBrandChange()">
                         <option value="">Select</option>
-                        <option value="Atomic">Atomic</option>
-                        <option value="Dalbello">Dalbello</option>
-                        <option value="Fischer">Fischer</option>
-                        <option value="Head">Head</option>
-                        <option value="Lange">Lange</option>
-                        <option value="Nordica">Nordica</option>
-                        <option value="Rossignol">Rossignol</option>
-                        <option value="Salomon">Salomon</option>
-                        <option value="Tecnica">Tecnica</option>
-                        <option value="Burton">Burton</option>
-                        <option value="ThirtyTwo">ThirtyTwo</option>
-                        <option value="Vans">Vans</option>
-                        <option value="K2">K2</option>
-                        <option value="Ride">Ride</option>
-                        <option value="Other">Other</option>
+                        {% for brand in boot_brands %}
+                        <option value="{{ brand }}">{{ brand }}</option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div id="form-boot-other-wrap" style="display:none;">
@@ -524,8 +512,8 @@
 </div>
 
 <script>
-var SKI_BRANDS = ['Atomic','Blizzard','Dynastar','Elan','Fischer','Head','K2','Line','Nordica','Rossignol','Salomon','Stöckli','Völkl','Other'];
-var BOARD_BRANDS = ['Burton','Capita','Jones','K2','Lib Tech','Never Summer','Nitro','Ride','Rome','Salomon','GNU','Arbor','Other'];
+var SKI_BRANDS = {{ ski_brands | tojson }};
+var BOARD_BRANDS = {{ board_brands | tojson }};
 
 function showToast(msg) {
     var t = document.getElementById('eq-toast');
@@ -646,7 +634,7 @@ function openEditForm(setupId) {
                 document.getElementById('form-brand-other-wrap').style.display = 'block';
             }
             var bootSel = document.getElementById('form-boot-brand');
-            var bootBrands = ['Atomic','Dalbello','Fischer','Head','Lange','Nordica','Rossignol','Salomon','Tecnica','Burton','ThirtyTwo','Vans','K2','Ride','Other'];
+            var bootBrands = {{ boot_brands | tojson }};
             var bootMatch = bootBrands.indexOf(d.boot_brand) !== -1 ? d.boot_brand : (d.boot_brand ? 'Other' : '');
             bootSel.value = bootMatch;
             if (bootMatch === 'Other') {

@@ -1,0 +1,144 @@
+PUT THIS IN AGENT
+
+Implement #118 — Ski Brand Single Source of Truth.
+
+Use the completed audit below as the source of truth. Do not re-audit unless needed to verify file locations.
+
+Goal:
+Create one canonical equipment brand source and remove duplicated hardcoded brand arrays from the live equipment page and demo seeding constants.
+
+DO NOT redesign the UI.
+DO NOT change behavior.
+DO NOT change onboarding/profile pages.
+DO NOT add brands beyond the supplied expanded SKI_BRANDS list.
+DO NOT use checkpoints unless I explicitly ask.
+
+Create a new file:
+
+constants/equipment.py
+
+Add these canonical lists:
+
+SKI_BRANDS = [
+    "Atomic",
+    "Armada",
+    "Augment",
+    "Black Crows",
+    "Black Diamond",
+    "Blizzard",
+    "Bomber",
+    "Coalition Snow",
+    "DPS",
+    "Dynastar",
+    "Elan",
+    "Faction",
+    "Fischer",
+    "Folsom",
+    "Head",
+    "Icelantic",
+    "J Skis",
+    "K2",
+    "Kästle",
+    "Liberty",
+    "Line",
+    "Majesty",
+    "Meier Skis",
+    "Moment",
+    "Movement",
+    "Nordica",
+    "ON3P",
+    "Parlor",
+    "Peak Skis",
+    "Praxis",
+    "Prior",
+    "Renoun",
+    "RMU",
+    "Rossignol",
+    "Salomon",
+    "Scott",
+    "Season Eqpt",
+    "Stöckli",
+    "Van Deer",
+    "Voilé",
+    "Volkl",
+    "Völkl",
+    "WNDR Alpine",
+    "Zag",
+    "Other"
+]
+
+SNOWBOARD_BRANDS should use the current existing BOARD_BRANDS content from templates/settings_equipment.html unchanged.
+
+BOOT_BRANDS should use the current existing 15-brand boot list from templates/settings_equipment.html unchanged.
+
+Include:
+
+__all__ = ["SKI_BRANDS", "SNOWBOARD_BRANDS", "BOOT_BRANDS"]
+
+Then update:
+
+1. app.py
+
+Import the brand lists from constants/equipment.py.
+
+Replace the inline demo seeding arrays at app.py:11757-11758:
+
+SKIER_BRANDS
+SNOWBOARDER_BRANDS
+
+with imports or aliases from constants/equipment.py so demo seeding does not maintain its own separate lists.
+
+2. settings_equipment route in app.py around app.py:8212-8231
+
+Pass these variables into render_template:
+
+ski_brands=SKI_BRANDS
+board_brands=SNOWBOARD_BRANDS
+boot_brands=BOOT_BRANDS
+
+3. templates/settings_equipment.html
+
+Replace hardcoded inline JS arrays:
+
+SKI_BRANDS
+BOARD_BRANDS
+bootBrands
+
+with Jinja-rendered JSON:
+
+var SKI_BRANDS = {{ ski_brands | tojson }};
+var BOARD_BRANDS = {{ board_brands | tojson }};
+var bootBrands = {{ boot_brands | tojson }};
+
+4. templates/settings_equipment.html boot brand HTML
+
+Replace the static boot brand <option> list around lines 484-501 with a Jinja loop over boot_brands.
+
+Preserve the empty “Select” option.
+
+Example structure:
+
+<option value="">Select</option>
+{% for brand in boot_brands %}
+  <option value="{{ brand }}">{{ brand }}</option>
+{% endfor %}
+
+Make sure this still works with the existing “Other” free-text reveal logic.
+
+Testing required before stopping:
+
+- Add a new ski setup
+- Add a new snowboard setup
+- Edit each saved setup
+- Confirm brand pre-selects correctly on edit
+- Confirm boot brand pre-selects correctly on edit
+- Confirm “Other” still reveals the free-text input for gear brand
+- Confirm “Other” still reveals the free-text input for boot brand
+- Confirm saving still works
+- Test in mobile viewport
+
+Report back with:
+1. Files changed
+2. Exact source of truth created
+3. Confirmation that no hardcoded live equipment brand arrays remain in settings_equipment.html
+4. Test results

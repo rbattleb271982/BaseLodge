@@ -29,6 +29,7 @@ from services.pass_utils import (
     normalize_pass_selection, count_real_passes,
     PASS_NORM_MAP, PASS_DISPLAY_MAP,
 )
+from constants.equipment import SKI_BRANDS, SNOWBOARD_BRANDS, BOOT_BRANDS
 
 def _resolve_base_url():
     """Resolve the base URL for invite links and other absolute URLs.
@@ -8228,7 +8229,10 @@ def settings_equipment():
 
     return render_template("settings_equipment.html",
                            all_setups=all_setups,
-                           user=current_user)
+                           user=current_user,
+                           ski_brands=SKI_BRANDS,
+                           board_brands=SNOWBOARD_BRANDS,
+                           boot_brands=BOOT_BRANDS)
 
 
 @app.route("/settings/equipment/save", methods=["POST"])
@@ -11754,8 +11758,8 @@ def backfill_pass_brands(force):
 # DEMO DATA SEEDING (FULL WORLD)
 # ============================================================================
 
-SKIER_BRANDS = ['Atomic', 'Black Crows', 'Blizzard', 'Dynastar', 'Elan', 'Faction', 'Fischer', 'Head', 'K2', 'Line', 'Nordica', 'Rossignol', 'Salomon', 'Scott', 'Volkl']
-SNOWBOARDER_BRANDS = ['Arbor', 'Bataleon', 'Burton', 'Capita', 'DC', 'GNU', 'Jones', 'K2', 'Lib Tech', 'Nitro', 'Ride', 'Rome', 'Salomon', 'Yes']
+SKIER_BRANDS = SKI_BRANDS
+SNOWBOARDER_BRANDS = SNOWBOARD_BRANDS
 PASS_OPTIONS_SEEDING = ["Epic", "Ikon", "MountainCollective", "Indy", "PowderAlliance", "Freedom", "SkiCalifornia", "Other", "None"]
 
 FIRST_NAMES = ["Alex", "Jordan", "Sam", "Casey", "Riley", "Morgan", "Jamie", "Taylor", "Jesse", "Charlie", "Skylar", "Quinn", "Dakota", "Avery", "Blake", "Parker", "Rowan", "Drew", "Phoenix", "River", "Jade", "Connor", "Reese", "Emerson", "Sage", "Justice", "Scout", "Lex", "Hayden", "Aspen", "Storm", "Finley", "Devyn", "Canyon", "Sierra", "Teton", "Range", "Peak", "Boulder", "Summit", "Ridge", "Trail", "Alpine", "Powder", "Mogul", "Gnar", "Shred", "Carve", "Slate", "Blake", "Bailey", "Cameron"]
