@@ -106,6 +106,18 @@ body {
   line-height: 1.6;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body {
+    background: #F5F1E8;
+    color: #1A1A1A;
+  }
+}
+
 /* ── Font utility classes ──────────────────────────── */
 .bl-ui-font  { font-family: var(--bl-font-ui); }
 .bl-serif    { font-family: var(--bl-font-serif); }
@@ -1029,12 +1041,23 @@ body {
 
 /* ── Page layout ───────────────────────────────────── */
 
+@keyframes bl-page-enter {
+  from {
+    opacity: 0.95;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
 .page-container {
   max-width: 900px;
   margin: 0 auto;
   padding: var(--bl-space-8);
   /* Clear the fixed bottom nav (64px) + safe area + extra buffer */
   padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  animation: bl-page-enter 120ms ease-out;
 }
 
 .bl-header {

@@ -1,0 +1,90 @@
+PUT THIS IN AGENT
+
+Implement #120 — App Shell Flash & Transition Polish.
+
+Use the completed audit below. Do not re-audit unless needed to verify exact placement.
+
+Goal:
+Remove white/dark flashes during navigation and make screen changes feel smoother without redesigning the app or introducing SPA behavior.
+
+DO NOT add dark mode.
+DO NOT add a dark mode toggle.
+DO NOT build a client-side router.
+DO NOT redesign pages.
+DO NOT change brand colors, labels, layouts, or page structure.
+DO NOT animate the fixed top bar or bottom nav.
+DO NOT use checkpoints unless I explicitly ask.
+
+Make exactly these changes:
+
+1. capacitor.config.json
+
+Add this at the top level of the config object:
+
+"backgroundColor": "#F5F1E8"
+
+This should sit alongside the existing top-level Capacitor config fields, not inside plugins.
+
+2. static/styles.css — dark-mode light-lock
+
+Near the existing global html/body rules around lines 98-107, add an active dark-mode override.
+
+Add:
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body {
+    background: #F5F1E8;
+    color: #1A1A1A;
+  }
+}
+
+This is not a dark palette. It is only a light-mode lock so iOS/Android WebViews never paint dark chrome/backgrounds during navigation.
+
+3. static/styles.css — page-enter polish
+
+Near the existing .page-container rules around lines 1032-1038, add:
+
+@keyframes bl-page-enter {
+  from {
+    opacity: 0.95;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+Then add to .page-container:
+
+animation: bl-page-enter 120ms ease-out;
+
+Important:
+- Only animate .page-container.
+- Do not animate top bar.
+- Do not animate bottom nav.
+- Keep the animation at 120ms.
+- Do not change layout or spacing.
+
+Testing required:
+- Desktop browser, system light mode: Home → Trips → Friends → Mountains → Profile.
+- Desktop browser, system dark mode: Home → Trips → Friends → Mountains → Profile.
+- Mobile viewport: same navigation flow.
+- Capacitor app shell if available.
+- Tap Home stat bar deep links for Mountains Visited and Wishlist Mountains and confirm #119 still works.
+- Confirm no dark flash.
+- Confirm no white flash.
+- Confirm cream background #F5F1E8 is continuous across transitions.
+- Confirm top bar and bottom nav do not animate.
+- Confirm the page transition does not feel slow or obvious.
+
+Report back with:
+1. Files changed
+2. Exact changes made
+3. Whether capacitor.config.json received the top-level backgroundColor
+4. Whether top/bottom nav were left unanimated
+5. Test results

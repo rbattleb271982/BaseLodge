@@ -1,0 +1,138 @@
+PUT THIS IN PLAN FIRST
+
+We need to fix two related app-shell polish issues:
+
+1. Dark-mode flash / wrong-theme flash during navigation.
+2. Very apparent screen switching even in light mode, where the app feels like a website doing full page loads instead of a smoother native-style app transition.
+
+This should be treated as a global app-shell polish pass, not a page-specific fix.
+
+Goal:
+Make navigation between BaseLodge screens feel smoother and more consistent in the web app and Capacitor app shell.
+
+Current issues:
+- When switching screens, the app can briefly flash into dark mode or the wrong theme.
+- Even in light mode, screen transitions are visually obvious because each route appears to unload/repaint with a blank or mismatched background.
+- This makes the app feel less native.
+
+Audit first:
+Search for all theme, app shell, background, transition, and navigation handling.
+
+Check:
+- templates/base.html
+- templates/partials/analytics_head.html
+- templates/partials/*
+- static/css/style.css
+- static/css/*
+- any app shell wrapper classes
+- bottom nav/top bar templates
+- prefers-color-scheme
+- color-scheme
+- data-theme
+- dark-mode
+- body background
+- html background
+- page wrapper backgrounds
+- transitions/animations
+- Capacitor config
+- iOS status/nav bar settings
+- Android status/nav bar settings
+
+Find:
+1. Where light/dark theme is being set or inherited.
+2. Whether system dark mode is applying before CSS loads.
+3. Whether html/body/app wrappers have mismatched backgrounds.
+4. Whether route changes briefly expose the browser/WebView default background.
+5. Whether CSS loads late or page wrappers paint after the blank background.
+6. Whether the app has a persistent shell wrapper that can be used to stabilize transitions.
+
+Preferred fix:
+Implement a global “stable app shell” approach.
+
+Part A — Force light mode early:
+- Add an early inline head script before CSS loads:
+  document.documentElement.dataset.theme = "light";
+  document.documentElement.style.colorScheme = "light";
+- Add global CSS:
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body {
+    background: [current BaseLodge app background color];
+    color: [current BaseLodge default text color];
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: light;
+    }
+
+    html,
+    body {
+      background: [same BaseLodge app background color];
+      color: [same BaseLodge default text color];
+    }
+  }
+
+Part B — Prevent route-load flash:
+- Make sure the same background color is applied to:
+  - html
+  - body
+  - main app shell wrapper
+  - page content wrapper
+  - any app container used around logged-in screens
+- Avoid leaving any route with transparent body/page backgrounds that briefly show white/black WebView defaults.
+- If there is a global logged-in layout wrapper, apply a min-height: 100vh background to it.
+
+Part C — Add subtle page transition polish:
+If safe and not disruptive, add a lightweight global fade-in for the main content area only.
+
+Example:
+.app-page,
+.page-shell,
+main {
+  animation: bl-page-enter 120ms ease-out;
+}
+
+@keyframes bl-page-enter {
+  from {
+    opacity: 0.96;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+Important:
+- Keep this subtle. Do not create a slow animation.
+- Do not animate the bottom nav or fixed top bar if they are shared shell elements.
+- Do not animate form inputs in a way that feels laggy.
+- Do not redesign any page.
+- Do not change brand colors beyond stabilizing the background.
+- Do not add a dark mode toggle.
+- Do not build a SPA/router.
+- Do not use checkpoints unless I explicitly ask.
+
+Native shell guidance:
+If Capacitor/native status bar or navigation bar colors are configured, make sure they match the light app background and do not follow system dark mode.
+
+Testing required:
+- System light mode ON: navigate Home → Trips → Friends → Mountains → Profile and confirm transitions feel less jarring.
+- System dark mode ON: repeat the same flow and confirm no dark flash.
+- Tap cards/deep links from Home and confirm no flash.
+- Test Profile hash links after #119 still scroll correctly.
+- Test mobile viewport.
+- Test iOS app shell if available.
+- Test Android app shell if available.
+- Confirm normal page backgrounds, text colors, top bar, and bottom nav are unchanged.
+- Confirm there is no slow or annoying animation.
+
+Report back with:
+1. Root cause found
+2. Files changed
+3. Exact global background/theme fix applied
+4. Whether subtle content transition was added
+5. Whether Capacitor/native settings were changed
+6. Test results
