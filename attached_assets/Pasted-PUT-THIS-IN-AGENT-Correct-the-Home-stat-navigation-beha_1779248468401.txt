@@ -1,0 +1,63 @@
+PUT THIS IN AGENT
+
+Correct the Home stat navigation behavior again.
+
+The previous fix was based on the wrong interpretation.
+
+Actual desired behavior:
+When tapping Home stat bar items:
+
+- Mountains Visited should deep-link directly to the dedicated Mountains Visited management page.
+- Wishlist Mountains should deep-link directly to the dedicated Wishlist Mountains management page.
+
+It should NOT land on the main Profile page.
+It should NOT scroll to the Profile stat card.
+
+Current wrong behavior:
+Home → Mountains Visited opens /profile or /profile#profile-mountains-stat.
+Home → Wishlist Mountains opens /profile or /profile#profile-wishlist-stat.
+
+Desired behavior:
+Home → Mountains Visited opens the dedicated “Mountains visited” page.
+Home → Wishlist Mountains opens the dedicated “Wishlist Mountains” page.
+
+Audit first:
+Find the actual route names/URLs for the management pages.
+
+From current app behavior/screenshots, likely:
+- Mountains Visited page may be /settings/mountains or similar
+- Wishlist Mountains page may be /settings/wishlist or similar
+
+Do not guess. Find the actual existing routes and use url_for where possible.
+
+Update the Home stat URLs so:
+
+stat_mountains_url = url_for(correct_mountains_visited_management_route)
+stat_wishlist_url = url_for(correct_wishlist_management_route)
+
+Do not use hash anchors for these two stats anymore.
+
+Important:
+- Leave Upcoming Trips behavior unchanged unless it already has its own intended destination.
+- Do not change the Profile stat card links unless they are also wrong.
+- Do not change management page templates.
+- Do not change the #119 hash-scroll JS.
+- Do not redesign anything.
+- Do not use checkpoints unless I explicitly ask.
+
+Testing:
+- Tap Mountains Visited on Home.
+- Confirm it opens the dedicated Mountains visited page with the “Mountains visited” title and add/remove list.
+- Tap Wishlist Mountains on Home.
+- Confirm it opens the dedicated Wishlist Mountains page.
+- Confirm bottom nav remains stable.
+- Confirm back returns to Home.
+- Confirm Profile page still works normally.
+- Test mobile viewport/app shell.
+
+Report back with:
+1. Files changed
+2. Previous Home stat URLs
+3. New Home stat URLs
+4. Exact route names used
+5. Test results
