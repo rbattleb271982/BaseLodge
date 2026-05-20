@@ -1,18 +1,19 @@
 <!--
 Component: Happening Section
 Purpose: Quiet ambient awareness of friend ski activity. One row per friend,
-         editorial text format with subtle recency label beneath each row.
+         3-line editorial format: person / action+mountain / recency.
 Used on: Home screen (only when happening_signals is non-empty)
 
 Inputs:
   happening_signals  list of dicts
-    [].text          string — editorial signal, e.g. "Mia Chen · Whistler"
+    [].person        string — full name only, e.g. "Mia Chen"
+    [].action_line   string — verb + mountain, e.g. "Planning Whistler"
     [].recency_label string — one of:
-                       "Trip added today"    (created < 1 day)
-                       "Trip updated today"  (updated_at < 1 day)
-                       "Trip added this week"   (created 1–7 days)
-                       "Trip updated this week" (updated_at 1–7 days)
-                       "Upcoming trip"          (older or no timestamp)
+                       "Added today"        (created < 1 day)
+                       "Updated today"      (updated_at < 1 day)
+                       "Added this week"    (created 1–7 days)
+                       "Updated this week"  (updated_at 1–7 days)
+                       "Recently updated"   (older or no timestamp)
     [].friend_id     int | None — user_id; when present the row links to their profile
     []._card_key     string — stable key for dismissal (format: "happening:{trip_id}")
 -->
@@ -30,7 +31,8 @@ Inputs:
             {% if signal.friend_id %}
             <a href="/friends/{{ signal.friend_id }}" class="bl-happening-link">
                 <div class="bl-happening-body">
-                    <p class="bl-happening-text">{{ signal.text }}</p>
+                    <p class="bl-happening-name">{{ signal.person }}</p>
+                    <p class="bl-happening-action">{{ signal.action_line }}</p>
                     {% if signal.recency_label %}
                     <p class="bl-happening-recency">{{ signal.recency_label }}</p>
                     {% endif %}
@@ -39,7 +41,8 @@ Inputs:
             {% else %}
             <div class="bl-happening-link bl-happening-link--static">
                 <div class="bl-happening-body">
-                    <p class="bl-happening-text">{{ signal.text }}</p>
+                    <p class="bl-happening-name">{{ signal.person }}</p>
+                    <p class="bl-happening-action">{{ signal.action_line }}</p>
                     {% if signal.recency_label %}
                     <p class="bl-happening-recency">{{ signal.recency_label }}</p>
                     {% endif %}

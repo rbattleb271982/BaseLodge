@@ -1,0 +1,93 @@
+#121 - Happening Feed — Consistent 3-Line Content Model
+What & Why
+Every Happening card currently puts name + action into a single text field ("Taylor Morgan · planning Telluride") and uses "Upcoming trip" as the recency fallback — a state label, not a time label. The result is cards that mix state and recency signals on the wrong lines, produce redundant wording ("planning…" + "Upcoming trip"), or render with no action verb ("Zach · Breckenridge" + "Upcoming trip").
+
+The fix makes every card follow a strict 3-line model: Person → Action+Mountain → Recency. No redesign, no layout change, no dismiss or cap logic change.
+
+Audit findings (complete — no code written yet)
+app.py:7569–7596 builds two dict keys per signal:
+
+Key	Current logic	Problem
+text	"Name · Mountain" (going) or "Name · planning Mountain" (other)	Name and action merged into one line
+recency_label	"Trip updated/added today/this week" if fresh; else "Upcoming trip"	Fallback is a state word, not recency
+templates/partials/home/_section_happening.html: renders signal.text (.bl-happening-text, 17px 500) and signal.recency_label (.bl-happening-recency, 14px muted). Two lines only.
+
+templates/home.html CSS: .bl-happening-text (17px, 500, full text color), .bl-happening-recency (14px, muted, 400). No action-line class exists yet.
+
+New content model
+Data (app.py)
+Replace text with two separate keys:
+
+person — full name only, e.g. "Zach Kissinger"
+
+action_line — verb + mountain, derived from trip_status:
+
+'going' → "Going to {mountain}"
+'planning' (or default) → "Planning {mountain}"
+any other confirmed/booked status → "Heading to {mountain}"
+fallback (no status, no mountain) → "Trip to {mountain}" or "Trip upcoming"
+recency_label — time only, never a state word:
+
+age < 24 h, was updated → "Updated today"
+age < 24 h, was added → "Added today"
+age < 7 d, was updated → "Updated this week"
+age < 7 d, was added → "Added this week"
+else (old or no timestamp) → "Recently updated" ← replaces "Upcoming trip"
+Remove "Trip " prefix from all labels (old: "Trip added today" → new: "Added today").
+
+Template (_section_happening.html)
+Replace the single <p class="bl-happening-text">{{ signal.text }}</p> with:
+
+<p class="bl-happening-name">{{ signal.person }}</p>
+<p class="bl-happening-action">{{ signal.action_line }}</p>
+
+Keep <p class="bl-happening-recency">{{ signal.recency_label }}</p> unchanged.
+
+Rename .bl-happening-text → .bl-happening-name in the template only (CSS class added in home.html).
+
+CSS (home.html)
+Rename .bl-happening-text to .bl-happening-name (same 17px 500 styles — strongest line).
+
+Add .bl-happening-action: 15px, 400, var(--bl-color-text-muted) — secondary line between name and recency. Slightly quieter than name but not as muted as recency.
+
+.bl-happening-recency unchanged — 14px, muted, 400.
+
+Done looks like
+Cards render as:
+
+Zach Kissinger          ← 17px 500
+Planning Breckenridge   ← 15px 400 muted-ish
+Updated today           ← 14px muted
+
+Taylor Morgan
+Going to Telluride
+Added this week
+
+Sam Rivera
+Heading to Jackson Hole
+Recently updated
+
+No card shows "Upcoming trip" in the recency slot
+No card mixes state and recency on the same line
+"planning Telluride" + "Upcoming trip" combination no longer possible
+Dismiss still works — signal._card_key is unchanged
+Feed cap, dedupe, and refill logic untouched
+signal.text key is removed; backward compat not needed (rendered only in _section_happening.html)
+Out of scope
+Card layout, spacing, sizes, dismiss button
+Feed cap (5), dedupe, dismissal DB logic
+Opportunities section
+Any other home section
+Steps
+app.py:7569–7596 — Replace the text = block with person = and action_line = using the new verb mapping. Update all five recency_label assignments to use the new labels (drop "Trip " prefix, replace "Upcoming trip" fallback with "Recently updated"). Add person and action_line to the happening_signals.append(...) dict; remove text.
+
+templates/partials/home/_section_happening.html — Replace the single signal.text paragraph with two paragraphs: signal.person (class bl-happening-name) and signal.action_line (class bl-happening-action). Update comment block at top to reflect the new keys.
+
+templates/home.html CSS — Rename .bl-happening-text to .bl-happening-name (keep existing 17px 500 styles). Add .bl-happening-action rule: font-size: 15px; font-weight: 400; color: var(--bl-color-text-muted); margin: 2px 0 0; line-height: 1.3;.
+
+Test — confirm all trip states render correctly, no state words in recency slot, dismiss works, feed refill works, mobile viewport correct.
+
+Relevant files
+app.py:7569-7596
+templates/partials/home/_section_happening.html
+templates/home.html:842-903 (happening CSS block)

@@ -1,0 +1,161 @@
+PUT THIS IN AGENT
+
+Implement #122 — Happening Feed Consistent 3-Line Content Model.
+
+Use the completed audit below. Do not re-audit unless needed to verify exact line locations.
+
+Goal:
+Make every Home “Happening” card follow one consistent content model:
+
+Person
+Action + Mountain
+Recency
+
+DO NOT redesign the card layout.
+DO NOT change card spacing or card sizes.
+DO NOT change dismiss logic.
+DO NOT change feed cap logic.
+DO NOT change dedupe logic.
+DO NOT change refill logic.
+DO NOT change Opportunities or any other Home section.
+DO NOT use checkpoints unless I explicitly ask.
+
+Current issue:
+Happening cards currently mix name, action, mountain, state, and recency inconsistently.
+
+Examples of the bad current model:
+“Taylor Morgan · planning Telluride”
+“Upcoming trip”
+
+“Zach Kissinger · Breckenridge”
+“Trip added today”
+
+This mixes state and recency, creates duplicate wording, and makes the feed feel disconnected.
+
+Make these exact changes:
+
+1. app.py around lines 7569-7596
+
+Replace the current `text` construction with two fields:
+
+person
+action_line
+
+Rules:
+
+person:
+- Full name only.
+
+action_line:
+- Must always be action + mountain when mountain exists.
+- Use trip_status if available.
+
+Mapping:
+- trip_status == "going" → "Going to {mountain}"
+- trip_status == "planning" or missing/default → "Planning {mountain}"
+- any other confirmed/booked/future status → "Heading to {mountain}"
+- fallback with mountain but unclear status → "Trip to {mountain}"
+- fallback without mountain → "Trip upcoming"
+
+recency_label:
+Use time-only labels. Recency must never contain state words like “Upcoming trip.”
+
+Replace the current recency labels with:
+
+- age < 24 hours and updated → "Updated today"
+- age < 24 hours and added → "Added today"
+- age < 7 days and updated → "Updated this week"
+- age < 7 days and added → "Added this week"
+- else → "Recently updated"
+
+Important:
+- Remove the “Trip ” prefix from recency labels.
+- Remove “Upcoming trip” entirely.
+- Add `person` and `action_line` to the `happening_signals.append(...)` dict.
+- Remove the `text` key from the dict.
+- Keep `_card_key` unchanged.
+
+2. templates/partials/home/_section_happening.html
+
+Replace:
+
+<p class="bl-happening-text">{{ signal.text }}</p>
+
+with:
+
+<p class="bl-happening-name">{{ signal.person }}</p>
+<p class="bl-happening-action">{{ signal.action_line }}</p>
+
+Keep the existing recency paragraph:
+
+<p class="bl-happening-recency">{{ signal.recency_label }}</p>
+
+Update any nearby comment block to reflect the new keys:
+- signal.person
+- signal.action_line
+- signal.recency_label
+- signal._card_key
+
+Do not alter dismiss button logic or card link behavior.
+
+3. templates/home.html CSS around the Happening section
+
+Rename the existing `.bl-happening-text` CSS rule to `.bl-happening-name`.
+
+Keep the same style:
+- font-size: 17px
+- font-weight: 500
+- color: current full text color
+- existing margin/line-height behavior
+
+Add:
+
+.bl-happening-action {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--bl-color-text-muted);
+  margin: 2px 0 0;
+  line-height: 1.3;
+}
+
+Leave `.bl-happening-recency` unchanged.
+
+Expected final cards:
+
+Zach Kissinger
+Planning Breckenridge
+Updated today
+
+Taylor Morgan
+Going to Telluride
+Added this week
+
+Sam Rivera
+Heading to Jackson Hole
+Recently updated
+
+Requirements:
+- No card should show “Upcoming trip.”
+- No card should show “Trip added today” or “Trip updated today.”
+- No card should mix planning/upcoming state into the recency slot.
+- No card should combine person + mountain into one line.
+- Mountain should always appear in the action line when available.
+- Dismiss still works.
+- Feed cap, dedupe, and refill logic are untouched.
+
+Testing required:
+- Confirm planning trips render as “Planning {mountain}.”
+- Confirm going trips render as “Going to {mountain}.”
+- Confirm other future/confirmed statuses render as “Heading to {mountain}.”
+- Confirm unclear fallback renders safely.
+- Confirm no “Upcoming trip” remains.
+- Confirm dismiss still works.
+- Confirm feed refill still works.
+- Confirm mobile viewport looks correct.
+
+Report back with:
+1. Files changed
+2. Previous content model
+3. New content model
+4. Exact mapping rules implemented
+5. Test results

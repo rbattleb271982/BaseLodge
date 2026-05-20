@@ -7570,26 +7570,34 @@ def home():
                 full_name = (
                     f"{ft_user.first_name or ''} {ft_user.last_name or ''}".strip()
                 ) if ft_user else 'A friend'
-                # Editorial text: "Name · Resort" or "Name · planning Resort"
-                if status == 'going':
-                    text = f"{full_name} · {ft_mountain}"
+                # Line 1: person name only
+                person = full_name
+                # Line 2: action + mountain (state-based verb, never recency)
+                _mtn = ft_mountain or None
+                if _mtn:
+                    if status == 'going':
+                        action_line = f"Going to {_mtn}"
+                    elif status in ('confirmed', 'booked'):
+                        action_line = f"Heading to {_mtn}"
+                    else:
+                        action_line = f"Planning {_mtn}"
                 else:
-                    text = f"{full_name} · planning {ft_mountain}"
-                # Accurate activity label: uses updated_at if present, else created_at.
-                # Labels only imply activity that actually happened.
+                    action_line = "Trip upcoming"
+                # Line 3: recency only — no state words
                 _activity_ts = ft.updated_at if ft.updated_at else ft.created_at
                 _was_updated = ft.updated_at is not None
                 _age = (_now - _activity_ts).total_seconds() if _activity_ts else None
                 if _age is None:
-                    recency_label = "Upcoming trip"
+                    recency_label = "Recently updated"
                 elif _age < 86400:
-                    recency_label = "Trip updated today" if _was_updated else "Trip added today"
+                    recency_label = "Updated today" if _was_updated else "Added today"
                 elif _age < 7 * 86400:
-                    recency_label = "Trip updated this week" if _was_updated else "Trip added this week"
+                    recency_label = "Updated this week" if _was_updated else "Added this week"
                 else:
-                    recency_label = "Upcoming trip"
+                    recency_label = "Recently updated"
                 happening_signals.append({
-                    'text': text,
+                    'person': person,
+                    'action_line': action_line,
                     'friend_id': ft.user_id,
                     'recency_label': recency_label,
                     'trip_id': ft.id,

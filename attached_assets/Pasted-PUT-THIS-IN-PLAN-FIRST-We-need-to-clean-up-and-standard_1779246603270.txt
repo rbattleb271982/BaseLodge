@@ -1,0 +1,150 @@
+PUT THIS IN PLAN FIRST
+
+We need to clean up and standardize the Home "Happening" feed.
+
+Current issue:
+The feed feels inconsistent and disconnected because cards mix different concepts:
+
+Examples today:
+"Zach Kissinger · Breckenridge"
+"Trip added today"
+
+"Taylor Morgan · planning Telluride"
+"Upcoming trip"
+
+Some cards include:
+- planning status
+- trip state
+- mountain
+- recency
+- metadata
+
+...but not in a consistent structure.
+
+Goal:
+Make every Happening card follow one predictable content model so the feed feels alive and easier to scan.
+
+Do NOT redesign the card layout.
+Do NOT change spacing.
+Do NOT change card sizes.
+Do NOT change dismiss logic.
+Do NOT change the feed cap logic.
+Do NOT change dedupe logic.
+Do NOT use checkpoints unless I explicitly ask.
+
+Audit first:
+
+Find:
+- where Happening card text is generated
+- where trip state / planning state is determined
+- where recency labels are created
+
+Likely files:
+- app.py
+- templates/partials/home/*
+- templates/home.html
+
+Current card structure should be mapped before changing.
+
+New required content model:
+
+Line 1:
+Person name only
+
+Examples:
+Zach Kissinger
+Taylor Morgan
+Sam Rivera
+
+Line 2:
+Action + mountain
+
+Use trip state if available:
+
+Planning:
+"Planning Breckenridge"
+
+Confirmed/booked:
+"Going to Telluride"
+
+Future trip:
+"Heading to Jackson Hole"
+
+Fallback:
+"Trip to Aspen Mountain"
+
+Line 3:
+Recency only
+
+Examples:
+Updated today
+Added this week
+Recently updated
+Planned recently
+
+Rules:
+
+- Recency metadata should NEVER appear in line 2
+- Planning/upcoming should NEVER appear in line 3
+- Do not mix state and recency
+- Mountain should always appear in line 2
+- Every card should follow identical structure
+- Avoid duplicate wording
+- No:
+    "planning Telluride" + "upcoming trip"
+- No:
+    "Breckenridge" + "trip added today"
+
+Desired structure:
+
+[Person]
+
+[Action + Mountain]
+
+[Recency]
+
+Examples:
+
+Zach Kissinger
+Planning Breckenridge
+Updated today
+
+Taylor Morgan
+Going to Telluride
+Added this week
+
+Sam Rivera
+Heading to Jackson Hole
+Recently updated
+
+Jordan Ellis
+Trip to Aspen Mountain
+Planned recently
+
+Visual guidance:
+Keep hierarchy cleaner:
+
+- Person line strongest
+- Action/mountain secondary
+- Recency smallest and muted
+
+No redesign.
+Only adjust text structure if hierarchy already exists.
+
+Testing:
+
+- Confirm planning trips render correctly
+- Confirm confirmed trips render correctly
+- Confirm future trips render correctly
+- Confirm cards with missing states gracefully fallback
+- Confirm no duplicate language
+- Confirm dismiss still works
+- Confirm feed refill still works
+- Confirm mobile appearance
+
+Report back with:
+1. Files changed
+2. Previous content model
+3. New content model
+4. Mapping rules used
+5. Test results
