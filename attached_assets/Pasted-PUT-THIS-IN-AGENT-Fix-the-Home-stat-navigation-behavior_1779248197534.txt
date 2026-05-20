@@ -1,0 +1,97 @@
+PUT THIS IN AGENT
+
+Fix the Home stat navigation behavior.
+
+Current issue:
+The Home stat bar links for:
+
+- Mountains Visited
+- Wishlist Mountains
+
+are currently routing too deep into the management/edit pages.
+
+The intended behavior is different:
+
+Home stat taps should navigate to the main Profile screen and scroll to the relevant section inside Profile.
+
+Example:
+
+Current (wrong):
+
+Home
+→ Mountains Visited
+→ opens full "Mountains visited" management screen
+
+Desired:
+
+Home
+→ Mountains Visited
+→ Profile
+→ scroll to the profile stats/section area that contains Mountains Visited
+
+Same for:
+
+Home
+→ Wishlist Mountains
+→ Profile
+→ scroll to the profile section containing Wishlist Mountains
+
+The user should land on the Profile page shown in the profile-card screenshot, NOT on the dedicated management page.
+
+Audit first:
+
+Find where these links are generated.
+
+Likely:
+- app.py stat_mountains_url
+- app.py stat_wishlist_url
+- Home stat card partials
+- profile routes
+- current anchor targets
+
+Current issue:
+The existing hash targets appear to point at management pages or the wrong anchors.
+
+Implementation:
+
+Create stable IDs on the Profile screen itself.
+
+Examples:
+
+id="profile-mountains-stat"
+id="profile-wishlist-stat"
+
+Update Home stat links:
+
+/profile#profile-mountains-stat
+/profile#profile-wishlist-stat
+
+Use the existing Profile hash scroll logic from #119.
+
+Do NOT create new routes.
+Do NOT route into management pages.
+Do NOT redesign Profile.
+Do NOT change the stat card layout.
+Do NOT alter the Mountains Visited management page.
+Do NOT use checkpoints unless I explicitly ask.
+
+Testing:
+
+- Tap Mountains Visited on Home
+- Confirm Profile opens
+- Confirm screen scrolls to the Profile stat area
+
+- Tap Wishlist Mountains on Home
+- Confirm Profile opens
+- Confirm screen scrolls to the correct Profile section
+
+- Confirm user can still navigate manually into management pages afterward
+
+- Test mobile viewport
+- Test app shell if available
+
+Report back with:
+1. Files changed
+2. Previous link targets
+3. New hash targets
+4. Test results
