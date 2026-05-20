@@ -1,0 +1,64 @@
+PUT THIS IN PLAN FIRST
+
+We need to fix Home stat bar deep links.
+
+Current issue:
+On the Home screen stat bar, tapping “Wishlist Mountains” or “Mountains Visited” routes to the Profile tab/screen, but it does not scroll or open the correct section inside the Profile screen.
+
+Goal:
+Make each Home stat card link directly to the relevant section on the Profile page.
+
+Expected behavior:
+- Tapping “Wishlist Mountains” should open Profile and take the user directly to the Wishlist Mountains section.
+- Tapping “Mountains Visited” should open Profile and take the user directly to the Mountains Visited section.
+- If the Profile page uses tabs, accordions, collapsible sections, or edit/view sections, the correct section should be visible/open after navigation.
+- This should work from the web app and inside the iOS/Android Capacitor app shell.
+
+Audit first:
+Find where the Home stat bar is rendered and where the links are defined.
+Likely files to check:
+- templates/home.html
+- templates/partials/home/*
+- templates/profile.html
+- templates/settings_profile.html
+- templates/profile_setup.html
+- app.py routes for home/profile
+- any JS that controls Profile section tabs, accordions, or scroll behavior
+
+Implementation guidance:
+Use stable anchor links or query params.
+
+Preferred approach if the Profile page has visible sections:
+- Add stable IDs to the profile sections:
+  - id="wishlist-mountains"
+  - id="mountains-visited"
+- Update Home stat bar links:
+  - /profile#wishlist-mountains
+  - /profile#mountains-visited
+- Add a small JS helper on the Profile page if needed to account for the fixed top bar/bottom nav offset and smooth-scroll to the anchor after load.
+
+If Profile uses collapsible/toggle sections:
+- Support query params instead:
+  - /profile?section=wishlist-mountains
+  - /profile?section=mountains-visited
+- On page load, read the section param, open the matching section, then scroll it into view.
+
+Do not redesign the Profile page.
+Do not change the stat bar layout.
+Do not rename the labels.
+Do not alter unrelated profile behavior.
+Do not use checkpoints unless I explicitly ask.
+
+Testing required:
+- Tap Wishlist Mountains from Home and confirm Profile opens at the Wishlist Mountains section.
+- Tap Mountains Visited from Home and confirm Profile opens at the Mountains Visited section.
+- Test mobile viewport.
+- Test inside app shell if possible.
+- Confirm normal Profile tab navigation still lands at the default Profile view.
+- Confirm browser back behavior still works cleanly.
+
+Report back with:
+1. Files changed
+2. Whether anchors or query params were used
+3. Exact links added
+4. Test results

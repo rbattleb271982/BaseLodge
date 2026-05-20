@@ -1,0 +1,76 @@
+PUT THIS IN AGENT
+
+Implement #119 — Home Stat Bar Deep Link Scroll Fix.
+
+The audit is complete. Do not rework routes or anchors.
+
+Current issue:
+Home stat bar links already navigate correctly to:
+
+/profile#section-mountains-visited
+/profile#section-wishlist
+
+The Profile page already has matching anchor IDs.
+
+The bug is only the Profile page scroll behavior. The existing JS uses an 80ms timeout and scrollIntoView({ block: "center" }), which is unreliable in the Capacitor app shell and can leave the target row obscured by the fixed bottom nav.
+
+File to change:
+templates/profile.html around lines 347-357
+
+Goal:
+Replace the existing hash-scroll IIFE with a more reliable handler.
+
+Requirements:
+- Keep normal /profile navigation unchanged when there is no hash.
+- If window.location.hash exists, wait 300ms.
+- Inside the timeout, use requestAnimationFrame before measuring layout.
+- Find the target element with document.querySelector(window.location.hash).
+- If no target exists, do nothing.
+- Replace scrollIntoView with explicit window.scrollTo.
+- Use target.getBoundingClientRect().top + window.pageYOffset to calculate the absolute target position.
+- Subtract a fixed offset so the row lands clearly visible above the fixed nav and safe-area spacing.
+- Use an offset of 140px.
+- Use smooth behavior.
+
+Suggested replacement:
+
+(function () {
+  if (!window.location.hash) return;
+
+  window.setTimeout(function () {
+    window.requestAnimationFrame(function () {
+      var target = document.querySelector(window.location.hash);
+      if (!target) return;
+
+      var offset = 140;
+      var targetTop = target.getBoundingClientRect().top + window.pageYOffset;
+      var scrollToY = Math.max(targetTop - offset, 0);
+
+      window.scrollTo({
+        top: scrollToY,
+        behavior: "smooth"
+      });
+    });
+  }, 300);
+})();
+
+Do not redesign the Profile page.
+Do not change stat bar labels.
+Do not change route URLs.
+Do not change anchor IDs.
+Do not alter unrelated profile behavior.
+Do not use checkpoints unless I explicitly ask.
+
+Testing required:
+- From Home, tap “Mountains Visited” and confirm Profile scrolls to the Mountains Visited row.
+- From Home, tap “Wishlist Mountains” and confirm Profile scrolls to the Wishlist row.
+- Confirm both rows are fully visible above the bottom nav.
+- Confirm normal Profile tab navigation without a hash still lands at the top.
+- Confirm browser/app back returns to Home cleanly.
+- Test desktop browser, mobile viewport, and app shell if available.
+
+Report back with:
+1. File changed
+2. Exact JS handler replaced
+3. Confirmation no route or anchor changes were made
+4. Test results

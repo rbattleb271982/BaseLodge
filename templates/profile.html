@@ -344,16 +344,24 @@
 
 {% block scripts %}
     <script>
-    (function() {
-        var hash = window.location.hash;
-        if (hash) {
-            var target = document.querySelector(hash);
-            if (target) {
-                setTimeout(function() {
-                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 80);
-            }
-        }
+    (function () {
+        if (!window.location.hash) return;
+
+        window.setTimeout(function () {
+            window.requestAnimationFrame(function () {
+                var target = document.querySelector(window.location.hash);
+                if (!target) return;
+
+                var offset = 140;
+                var targetTop = target.getBoundingClientRect().top + window.pageYOffset;
+                var scrollToY = Math.max(targetTop - offset, 0);
+
+                window.scrollTo({
+                    top: scrollToY,
+                    behavior: "smooth"
+                });
+            });
+        }, 300);
     })();
 
     // ── Delete account: submit-gate ───────────────────────────────────
