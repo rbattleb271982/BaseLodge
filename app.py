@@ -8247,6 +8247,7 @@ def settings_equipment():
     return render_template("settings_equipment.html",
                            all_setups=all_setups,
                            user=current_user,
+                           rider_types=current_user.rider_types or [],
                            ski_brands=SKI_BRANDS,
                            board_brands=SNOWBOARD_BRANDS,
                            boot_brands=BOOT_BRANDS,

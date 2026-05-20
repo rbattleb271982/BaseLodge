@@ -1,0 +1,179 @@
+PUT THIS IN AGENT
+
+Implement #124 — Equipment / Onboarding Cohesion.
+
+Use the completed plan below. Do not re-audit unless needed to verify exact line locations.
+
+Goal:
+Make Equipment setup language and binding behavior consistent with onboarding rider_type data.
+
+Do NOT add new EquipmentDiscipline enum values.
+Do NOT change DB enum values.
+Do NOT run a DB migration.
+Do NOT redesign the Equipment form.
+Do NOT change onboarding flow.
+Do NOT change save_onboarding_equipment behavior.
+Do NOT use checkpoints unless I explicitly ask.
+
+==================================================
+1. Rename user-facing “Board” to “Snowboard”
+==================================================
+
+Update visible labels only.
+
+Change user-facing display:
+
+Board → Snowboard
+
+Apply anywhere equipment discipline is rendered to users, including:
+
+- templates/settings_equipment.html discipline toggle button
+- saved setup card display text
+- templates/partials/home/_header.html equipment line
+- templates/partials/home/_header_empty.html equipment line
+- templates/friend_profile.html equipment block
+- any template line rendering Board for snowboarder discipline
+
+Important:
+Do NOT change form hidden values.
+Do NOT change server enum values.
+Do NOT change stored values.
+
+Existing values remain:
+- skier
+- snowboarder
+- Skier
+- Snowboarder
+
+==================================================
+2. Pass rider_types into Equipment template
+==================================================
+
+In the settings_equipment route, ensure the template receives:
+
+rider_types=current_user.rider_types or []
+
+If current_user.rider_types is already readable from the template, still pass an explicit variable for clarity.
+
+==================================================
+3. Preselect discipline for new setups only
+==================================================
+
+In templates/settings_equipment.html JS:
+
+When opening the form in create mode only:
+
+Use rider_types to determine default discipline.
+
+Rules:
+
+["Skier"] → preselect Skis
+
+["Snowboarder"] → preselect Snowboard
+
+["Telemark"] → preselect Skis
+
+Everything else → no default
+
+No default examples:
+- ["Skier", "Snowboarder"]
+- ["Adaptive"]
+- ["Cross-Country"]
+- ["Social"]
+- any multi-select combo
+- blank/missing rider_types
+
+Important:
+Edit mode must remain unchanged and use saved setup discipline.
+
+If no default:
+- leave both discipline buttons unselected
+- avoid silently defaulting to Skis
+
+==================================================
+4. Filter Binding Type by selected discipline
+==================================================
+
+In templates/settings_equipment.html JS:
+
+Add a function to filter the Binding Type <select> based on the currently selected discipline.
+
+For Skis discipline, show only:
+
+- Alpine / Downhill
+- Touring / Backcountry
+- Hybrid
+- Telemark
+- Other
+
+For Snowboard discipline, show only:
+
+- Snowboard
+- Other
+
+Hide all non-applicable binding types.
+
+When discipline changes:
+- reset Binding Type to empty/default
+- reset Binding Brand to empty/default
+- disable Binding Brand select until Binding Type is chosen
+- clear any binding brand Other/free-text value if applicable
+
+Call the binding type filter when:
+- setDiscipline() runs
+- create form opens
+- edit form prefills
+- initial load if needed
+
+Existing saved setup edit behavior:
+- If saved discipline is snowboarder and saved binding type is Snowboard, prefill correctly.
+- If saved discipline is skier and saved binding type is Alpine/Touring/Hybrid/Telemark/Other, prefill correctly.
+- If old saved data has an incompatible binding type, preserve safely if possible but do not show impossible options for new selections.
+
+==================================================
+5. Backward compatibility
+==================================================
+
+Existing saved setups with:
+- discipline = "skier"
+- discipline = "snowboarder"
+
+must continue to:
+- display correctly
+- edit correctly
+- save correctly
+
+No migration is needed.
+
+==================================================
+Testing
+==================================================
+
+Test:
+
+- Equipment toggle reads Skis / Snowboard
+- Saved setup card reads Snowboard, not Board
+- Home header reads Snowboard where applicable
+- Friend profile reads Snowboard where applicable
+- Single Skier rider_type opens create form with Skis preselected
+- Single Snowboarder rider_type opens create form with Snowboard preselected
+- Single Telemark rider_type opens create form with Skis preselected
+- Skier + Snowboarder combo opens create form with no default
+- Adaptive opens create form with no default
+- Cross-Country opens create form with no default
+- Social opens create form with no default
+- Editing existing setup still uses saved discipline
+- Skis discipline shows binding types: Alpine / Downhill, Touring / Backcountry, Hybrid, Telemark, Other
+- Skis discipline does not show Snowboard binding type
+- Snowboard discipline shows only Snowboard and Other
+- Switching discipline resets binding type and brand
+- Existing saved skier/snowboarder setups still edit and save correctly
+- Mobile viewport
+
+Report back with:
+1. Files changed
+2. User-facing label updates
+3. Discipline preselection logic
+4. Binding type filter behavior
+5. Backward compatibility confirmation
+6. Test results

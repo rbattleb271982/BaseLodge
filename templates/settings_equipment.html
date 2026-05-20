@@ -373,7 +373,7 @@
                                 {{ setup.label if setup.label else (setup.brand ~ ' ' ~ setup.model if setup.brand or setup.model else 'Unnamed setup') }}
                             </p>
                             <p class="eq-card-discipline">
-                                {{ 'Board' if setup.discipline and setup.discipline.value == 'snowboarder' else 'Skis' }}
+                                {{ 'Snowboard' if setup.discipline and setup.discipline.value == 'snowboarder' else 'Skis' }}
                             </p>
                         </div>
                     </div>
@@ -442,7 +442,7 @@
                         <button type="button" class="eq-gear-type-btn active" id="gear-btn-skis"
                                 onclick="setDiscipline('Skier')">Skis</button>
                         <button type="button" class="eq-gear-type-btn" id="gear-btn-board"
-                                onclick="setDiscipline('Snowboarder')">Board</button>
+                                onclick="setDiscipline('Snowboarder')">Snowboard</button>
                     </div>
                     <input type="hidden" id="form-discipline" value="Skier">
                 </div>
@@ -506,9 +506,6 @@
                     <label class="eq-field-label">Binding Type</label>
                     <select id="form-binding-type" onchange="onBindingTypeChange()">
                         <option value="">Select</option>
-                        {% for bt in binding_types %}
-                        <option value="{{ bt }}">{{ bt }}</option>
-                        {% endfor %}
                     </select>
                 </div>
                 <div>
@@ -540,6 +537,8 @@
 var SKI_BRANDS = {{ ski_brands | tojson }};
 var BOARD_BRANDS = {{ board_brands | tojson }};
 var BINDING_BRANDS_BY_TYPE = {{ binding_brands_by_type | tojson }};
+var BINDING_TYPES_ALL = {{ binding_types | tojson }};
+var RIDER_TYPES_DATA = {{ rider_types | tojson }};
 
 function onBindingTypeChange() {
     var typeSel = document.getElementById('form-binding-type');
@@ -601,8 +600,59 @@ function setDiscipline(disc) {
     document.getElementById('form-discipline').value = disc;
     document.getElementById('gear-btn-skis').classList.toggle('active', disc === 'Skier');
     document.getElementById('gear-btn-board').classList.toggle('active', disc === 'Snowboarder');
-    document.getElementById('form-gear-label').textContent = disc === 'Snowboarder' ? 'Board' : 'Skis';
+    document.getElementById('form-gear-label').textContent = disc === 'Snowboarder' ? 'Snowboard' : 'Skis';
     populateBrandOptions(disc);
+    filterBindingTypes(disc);
+}
+
+function clearDiscipline() {
+    document.getElementById('form-discipline').value = '';
+    document.getElementById('gear-btn-skis').classList.remove('active');
+    document.getElementById('gear-btn-board').classList.remove('active');
+    document.getElementById('form-gear-label').textContent = '';
+    populateBrandOptions('Skier');
+    filterBindingTypes('');
+}
+
+function filterBindingTypes(disc) {
+    var skisAllowed = ['Alpine / Downhill', 'Touring / Backcountry', 'Hybrid', 'Telemark', 'Other'];
+    var boardAllowed = ['Snowboard', 'Other'];
+    var allowed = disc === 'Snowboarder' ? boardAllowed : (disc === 'Skier' ? skisAllowed : []);
+    var typeSel = document.getElementById('form-binding-type');
+    var currentVal = typeSel.value;
+    typeSel.innerHTML = '<option value="">Select</option>';
+    BINDING_TYPES_ALL.forEach(function(t) {
+        if (!allowed.length || allowed.indexOf(t) !== -1) {
+            var opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = t;
+            if (t === currentVal) opt.selected = true;
+            typeSel.appendChild(opt);
+        }
+    });
+    if (allowed.length && allowed.indexOf(currentVal) === -1 && currentVal !== '') {
+        typeSel.value = '';
+        document.getElementById('form-binding-brand').innerHTML = '<option value="">Select</option>';
+        document.getElementById('form-binding-brand').disabled = true;
+        document.getElementById('form-binding-brand-other-wrap').style.display = 'none';
+        document.getElementById('form-binding-brand-other').value = '';
+    }
+}
+
+function applyRiderTypeDefault() {
+    var types = RIDER_TYPES_DATA || [];
+    if (types.length === 1) {
+        var t = types[0];
+        if (t === 'Skier' || t === 'Telemark') {
+            setDiscipline('Skier');
+            return;
+        }
+        if (t === 'Snowboarder') {
+            setDiscipline('Snowboarder');
+            return;
+        }
+    }
+    filterBindingTypes('');
 }
 
 function populateBrandOptions(disc) {
@@ -645,11 +695,12 @@ function clearForm() {
     document.getElementById('form-brand-other').value = '';
     document.getElementById('form-error').style.display = 'none';
     document.getElementById('form-error').textContent = '';
-    setDiscipline('Skier');
+    clearDiscipline();
 }
 
 function openNewForm() {
     clearForm();
+    applyRiderTypeDefault();
     document.getElementById('eq-form-title').textContent = 'Add setup';
     document.getElementById('eq-form-panel').style.display = 'block';
     document.getElementById('eq-form-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -664,7 +715,7 @@ function openEditForm(setupId) {
     var card = document.getElementById('eq-card-' + setupId);
     if (card) {
         var disc = card.querySelector('.eq-card-discipline');
-        var discVal = disc ? (disc.textContent.trim() === 'Board' ? 'Snowboarder' : 'Skier') : 'Skier';
+        var discVal = disc ? (disc.textContent.trim() === 'Snowboard' ? 'Snowboarder' : 'Skier') : 'Skier';
         setDiscipline(discVal);
     }
     document.getElementById('eq-form-panel').style.display = 'block';
@@ -683,6 +734,9 @@ function openEditForm(setupId) {
             document.getElementById('form-boot-model').value = d.boot_model || '';
             document.getElementById('form-boot-flex').value = d.boot_flex || '';
             document.getElementById('form-binding-model').value = d.binding_model || '';
+            // Set discipline first — this filters binding type options for this discipline
+            setDiscipline(d.discipline === 'snowboarder' ? 'Snowboarder' : 'Skier');
+            // Set binding type after options are filtered, then populate brand
             var bindingTypeSel = document.getElementById('form-binding-type');
             bindingTypeSel.value = d.binding_type || '';
             onBindingTypeChange();
@@ -696,7 +750,6 @@ function openEditForm(setupId) {
                     document.getElementById('form-binding-brand-other-wrap').style.display = 'block';
                 }
             }
-            setDiscipline(d.discipline === 'snowboarder' ? 'Snowboarder' : 'Skier');
             var brandSel = document.getElementById('form-brand');
             var brandList = d.discipline === 'snowboarder' ? BOARD_BRANDS : SKI_BRANDS;
             var brandMatch = brandList.indexOf(d.brand) !== -1 ? d.brand : (d.brand ? 'Other' : '');
@@ -734,7 +787,7 @@ function saveSetup(btn) {
     errEl.style.display = 'none';
     var discipline = document.getElementById('form-discipline').value;
     if (!discipline) {
-        errEl.textContent = 'Please select Skis or Board.';
+        errEl.textContent = 'Please select Skis or Snowboard.';
         errEl.style.display = 'block';
         return;
     }
@@ -824,7 +877,8 @@ function deleteSetup(setupId, btn) {
         });
 }
 
-// Init brand options on load
+// Init on load — populate brand list, filter binding types (no discipline set yet on load)
 populateBrandOptions('Skier');
+filterBindingTypes('');
 </script>
 {% endblock %}

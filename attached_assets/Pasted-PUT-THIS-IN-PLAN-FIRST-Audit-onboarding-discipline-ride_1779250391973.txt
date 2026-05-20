@@ -1,0 +1,117 @@
+PUT THIS IN PLAN FIRST
+
+Audit onboarding discipline / rider-type options before changing Equipment.
+
+Current concern:
+The Equipment setup form uses “Skis” and “Board,” but onboarding may ask users what they do using a different set of options.
+
+Before we change Equipment, we need to know exactly what options exist in onboarding and how they are saved.
+
+Goal:
+Identify every onboarding option for what the user does / rider type / discipline, including labels and stored database values, then compare those to Equipment setup options.
+
+Do NOT write code yet.
+Do NOT change Equipment yet.
+Do NOT change onboarding yet.
+Do NOT use checkpoints unless I explicitly ask.
+
+Audit all onboarding “what do you do?” / rider-type / discipline options.
+
+Search for:
+
+- skier
+- ski
+- snowboarder
+- snowboard
+- board
+- both
+- apres
+- après
+- social
+- rider_type
+- discipline
+- skill_level
+- onboarding
+- profile_setup
+- equipment_type
+- gear_type
+
+Likely files:
+- app.py
+- models.py
+- templates/onboarding*
+- templates/profile_setup*
+- templates/signup*
+- templates/settings_equipment.html
+- templates/profile.html
+- templates/home.html
+- constants/*
+- static/js/*
+
+Report:
+
+1. Onboarding question text
+   - Exact user-facing wording
+   - Template/file where it appears
+
+2. Onboarding options
+   For each option:
+   - Display label
+   - Stored value
+   - Where it is saved
+   - Model/User field name
+
+3. Existing user profile display
+   - Where rider type/discipline appears after onboarding
+   - Display labels used
+
+4. Equipment setup options
+   - Current labels shown in Equipment
+   - Stored values used by Equipment
+   - Where those values are saved
+   - Whether “Board” or “Snowboard” is used
+
+5. Mismatches
+   Identify inconsistencies like:
+   - Skier vs Skis
+   - Snowboarder vs Board
+   - Snowboard vs Board
+   - Both vs separate setup-level choice
+   - Après/social-only being offered or not offered in Equipment
+   - Any saved values that differ from display labels
+
+6. Recommended canonical mapping
+   Propose how onboarding values should map to Equipment values.
+
+Expected direction, but verify before implementing:
+
+Onboarding:
+- Skier
+- Snowboarder
+- Both
+- Après / social-only, if present
+
+Equipment setup:
+- Skis
+- Snowboard
+
+Mapping:
+- Skier → default Equipment type = Skis
+- Snowboarder → default Equipment type = Snowboard
+- Both → allow user to choose Skis or Snowboard per setup
+- Après / social-only → no default Equipment type / not forced into Equipment
+
+Important:
+Equipment should be based on what the user actually does from onboarding, but should not copy Après/social-only into the equipment setup options.
+
+Also audit whether binding options should adapt:
+- Skis → Alpine / Downhill, Touring / Backcountry, Hybrid, Telemark, Other
+- Snowboard → Snowboard, Other
+
+Report back with:
+1. Exact onboarding options and stored values
+2. Exact Equipment options and stored values
+3. All mismatches
+4. Recommended canonical mapping
+5. Files that would need implementation changes
+6. Whether a migration is needed
