@@ -1,0 +1,365 @@
+PUT THIS IN PLAN FIRST
+
+Implement Equipment → Profile Rider-Type Alignment Nudge.
+
+Use completed planning + audit findings. Do not re-audit unless exact line locations are needed.
+
+Goal:
+If a user adds equipment for a riding discipline that does not exist on their profile, gently offer to add that rider type to their profile.
+
+This makes Equipment a profile-correction moment.
+
+Examples:
+
+User profile:
+["Skier"]
+
+User creates:
+Snowboard setup
+
+Show:
+
+Looks like you ride both. Add Snowboarder to your profile too?
+
+[Yes] [No thanks]
+
+If yes:
+append Snowboarder to rider_types
+
+If no:
+save equipment normally
+
+Do NOT block saving.
+Do NOT use a modal.
+Do NOT force profile updates.
+Do NOT create a migration.
+Do NOT change onboarding.
+Do NOT change EquipmentDiscipline enum.
+Do NOT use checkpoints unless I explicitly ask.
+
+Important:
+
+Keep EquipmentDiscipline:
+
+- skier
+- snowboarder
+
+unchanged.
+
+This feature is a profile alignment helper only.
+
+==================================================
+1. Rider type mapping
+==================================================
+
+Equipment discipline selected → profile rider type
+
+Skis (skier)
+→ Skier
+
+Snowboard (snowboarder)
+→ Snowboarder
+
+No other mappings.
+
+Telemark users:
+Telemark is treated as ski-equivalent.
+
+If rider_types contains:
+
+Telemark
+
+and user selects:
+
+Skis
+
+Suppress prompt.
+
+Social / après:
+Ignore entirely.
+
+Cross-Country:
+Ignore entirely.
+
+Adaptive:
+Ignore entirely.
+
+==================================================
+2. Prompt trigger rules
+==================================================
+
+Show prompt ONLY IF:
+
+- user is creating a NEW setup
+- selected rider type missing from profile
+- user has not already dismissed this prompt this session
+- user has not already accepted this prompt this session
+- not editing an existing setup
+
+Suppress prompt if:
+
+- rider type already exists
+- editing existing setup
+- prompt dismissed for that discipline this session
+- prompt accepted already
+- discipline = Skis AND rider_types includes Telemark
+
+Do NOT suppress based on rider-type count.
+
+Even if profile already has:
+
+Skier + Social
+
+and user creates Snowboard setup:
+
+show prompt.
+
+No max-two logic.
+
+==================================================
+3. Prompt UI
+==================================================
+
+Add a lightweight inline nudge beneath the discipline toggle.
+
+No modal.
+
+No full-screen interruption.
+
+Visual direction:
+
+small cream card
+soft border
+same BaseLodge styling
+dismisses cleanly
+
+Example:
+
+-----------------------------------
+Looks like you ride both.
+Add Snowboarder to your profile too?
+
+[Yes]     [No thanks]
+-----------------------------------
+
+Dynamic copy:
+
+If Skis:
+
+Looks like you ski too.
+Add Skier to your profile?
+
+If Snowboard:
+
+Looks like you ride both.
+Add Snowboarder to your profile?
+
+Keep copy friendly and lightweight.
+
+Hidden by default.
+
+==================================================
+4. Backend route
+==================================================
+
+Add:
+
+POST /settings/profile/add-rider-type
+
+Input:
+
+rider_type
+
+Validate:
+
+must exist in:
+
+RIDER_TYPES
+
+Behavior:
+
+- read current_user.rider_types
+- append rider_type only if missing
+- no duplicates
+- preserve ordering if possible
+- save user
+
+No max cap.
+
+Return:
+
+{
+ success: true,
+ rider_types: [...]
+}
+
+Must be idempotent.
+
+==================================================
+5. Template behavior
+==================================================
+
+settings_equipment.html
+
+RIDER_TYPES_DATA should already exist from #124.
+
+Add:
+
+checkRiderTypeAlignment(discipline)
+
+Call from:
+
+- setDiscipline()
+- openNewForm()
+- discipline toggle click
+- initial create setup load
+
+Do NOT call in edit mode.
+
+Function should:
+
+1. determine expected rider type
+2. compare against rider_types
+3. apply suppression logic
+4. show/hide prompt
+
+==================================================
+6. Yes button behavior
+==================================================
+
+When Yes clicked:
+
+AJAX POST:
+
+/settings/profile/add-rider-type
+
+On success:
+
+- update local RIDER_TYPES_DATA
+- hide prompt
+- mark accepted for session
+- prevent re-prompt
+
+Equipment form continues normally.
+
+No page refresh.
+
+==================================================
+7. No thanks behavior
+==================================================
+
+Hide prompt.
+
+Mark dismissed:
+
+dismissedPrompts[discipline]=true
+
+Prevent re-prompt during current page session.
+
+No DB persistence needed.
+
+Reloading page resets.
+
+==================================================
+8. Session behavior
+==================================================
+
+Use local JS session flags only.
+
+Example:
+
+acceptedPrompts = {}
+dismissedPrompts = {}
+
+Prevent repeated nudges while user is working in form.
+
+==================================================
+9. Backward compatibility
+==================================================
+
+Existing users:
+
+- rider_types blank
+- Skier only
+- Snowboarder only
+- Telemark
+- Social
+- Cross-Country
+- Adaptive
+- existing setups
+
+must all continue functioning.
+
+No migration.
+
+No onboarding changes.
+
+==================================================
+Testing
+==================================================
+
+Test:
+
+Profile:
+["Skier"]
+
+Create Snowboard setup
+
+→ prompt appears
+
+Press Yes
+
+→ Snowboarder added
+→ prompt disappears
+→ no repeat prompt
+
+Profile:
+["Skier"]
+
+Create Snowboard setup
+
+Press No thanks
+
+→ prompt disappears
+→ equipment still saves
+
+Profile:
+["Telemark"]
+
+Create Skis setup
+
+→ no prompt
+
+Profile:
+["Skier","Social"]
+
+Create Snowboard setup
+
+→ prompt appears
+
+Edit existing Snowboard setup
+
+→ no prompt
+
+Reload page
+
+→ session suppression resets
+
+Repeat after accepting
+
+→ no prompt
+
+Verify profile rider_types updates correctly.
+
+Verify no duplicates.
+
+Verify mobile appearance.
+
+Report back with:
+
+1. Files changed
+2. New route added
+3. Prompt logic implemented
+4. Suppression rules implemented
+5. Session behavior
+6. Test results

@@ -1,0 +1,92 @@
+PUT THIS IN PLAN FIRST
+
+Plan Equipment discipline + profile rider-type alignment.
+
+New product rule:
+If a user adds equipment for a rider type that is not currently on their profile, prompt them to add that rider type to their profile.
+
+Example:
+User currently has rider_types = ["Skier"].
+They add a Snowboard setup.
+After selecting Snowboard/Snowboarder in Equipment, prompt:
+"Looks like you’re adding snowboard gear. Add Snowboarder to your profile too?"
+
+If yes:
+- append "Snowboarder" to User.rider_types
+- preserve existing rider_types
+- do not duplicate values
+
+If no:
+- allow the equipment setup to continue saving anyway
+
+Goal:
+Equipment should remain flexible, while helping keep profile identity accurate.
+
+Do NOT implement yet.
+Do NOT migrate yet.
+Do NOT block saving.
+Do NOT force profile updates.
+Do NOT use checkpoints unless I explicitly ask.
+
+Plan should answer:
+
+1. Data model recommendation
+Should Equipment keep:
+- gear discipline: skier/snowboarder
+or expand to:
+- Skier
+- Snowboarder
+- Telemark
+- Cross-Country
+- Adaptive
+
+2. Profile alignment rule
+Map equipment selection to rider_types:
+
+Skis / Skier → "Skier"
+Snowboard / Snowboarder → "Snowboarder"
+Telemark → "Telemark"
+Cross-Country → "Cross-Country"
+Adaptive → "Adaptive"
+
+Social should not be triggered by equipment.
+
+3. Prompt UX
+Where should the prompt happen?
+Options:
+- immediately after selecting discipline
+- before save
+- after save as a confirmation banner/modal
+
+Recommend the safest, simplest approach.
+
+4. Save behavior
+If user accepts:
+- save equipment
+- update User.rider_types
+
+If user declines:
+- save equipment only
+
+5. Edge cases
+- user already has the rider type
+- user has max 2 rider_types from onboarding
+- user selected Social + Skier and adds Snowboarder
+- user has Cross-Country and adds downhill Skis
+- user has blank rider_types
+- existing saved equipment
+
+6. Files likely involved
+- app.py
+- models.py
+- templates/settings_equipment.html
+- templates/identity_setup.html
+- constants/equipment.py
+
+Report back with:
+1. Recommended model
+2. Recommended prompt behavior
+3. Rider type mapping
+4. Edge case handling
+5. Whether the onboarding max-2 rule should still apply after onboarding
+6. Implementation plan

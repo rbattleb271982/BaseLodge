@@ -8423,6 +8423,21 @@ def settings_equipment_status():
     return jsonify({"success": True})
 
 
+@app.route("/settings/profile/add-rider-type", methods=["POST"])
+@login_required
+def settings_profile_add_rider_type():
+    """Append a single rider type to the current user's profile (idempotent, no duplicates)."""
+    rider_type = request.form.get("rider_type", "").strip()
+    if not rider_type or rider_type not in RIDER_TYPES:
+        return jsonify({"success": False, "error": "Invalid rider type"}), 400
+    existing = list(current_user.rider_types or [])
+    if rider_type not in existing:
+        existing.append(rider_type)
+        current_user.rider_types = existing
+        db.session.commit()
+    return jsonify({"success": True, "rider_types": list(current_user.rider_types)})
+
+
 # ── Mountain Detail Page ─────────────────────────────────────────────────────
 
 @app.route("/mountain/<slug>")

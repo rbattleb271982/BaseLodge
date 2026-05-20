@@ -1,0 +1,242 @@
+PUT THIS IN AGENT
+
+Implement #125 — Equipment → Profile Rider-Type Nudge.
+
+Use the completed plan below. Do not re-audit unless needed to verify exact line locations.
+
+Goal:
+When a user creates a new equipment setup for a discipline that is missing from their profile rider_types, show a small inline prompt offering to add that rider type.
+
+Example:
+Profile has ["Skier"]
+User creates Snowboard setup
+Show:
+“Looks like you ride both. Add Snowboarder to your profile too?”
+[Yes] [No thanks]
+
+Do NOT change EquipmentDiscipline enum.
+Do NOT run a DB migration.
+Do NOT change onboarding.
+Do NOT use a modal.
+Do NOT block saving.
+Do NOT add max-rider-type cap.
+Do NOT use checkpoints unless I explicitly ask.
+
+==================================================
+1. Backend route
+==================================================
+
+Add route:
+
+POST /settings/profile/add-rider-type
+
+Requirements:
+- @login_required
+- Accept form field: rider_type
+- Validate rider_type exists in RIDER_TYPES
+- Read current_user.rider_types
+- Append rider_type only if missing
+- No duplicates
+- Preserve existing order
+- No max cap
+- Commit user
+- Return JSON:
+
+Success:
+{ "success": true, "rider_types": [...] }
+
+Invalid:
+{ "success": false, "error": "..." } with 400
+
+Must be idempotent.
+
+==================================================
+2. Add inline nudge HTML
+==================================================
+
+In templates/settings_equipment.html:
+
+Insert hidden inline nudge beneath the Skis/Snowboard discipline toggle.
+
+Hidden by default.
+
+Style:
+- cream card
+- soft border
+- no modal
+- no shadow
+- text buttons: Yes / No thanks
+- consistent with BaseLodge visual style
+
+Copy variants:
+
+For Skis:
+Looks like you ski too.
+Add Skier to your profile?
+
+For Snowboard:
+Looks like you ride both.
+Add Snowboarder to your profile too?
+
+Buttons:
+Yes
+No thanks
+
+==================================================
+3. JS state
+==================================================
+
+In templates/settings_equipment.html JS, define session-only state:
+
+acceptedPrompts = {}
+dismissedPrompts = {}
+
+Use existing RIDER_TYPES_DATA from #124.
+
+No localStorage.
+No DB persistence for dismissals.
+
+==================================================
+4. checkRiderTypeAlignment(disc)
+==================================================
+
+Implement function:
+
+checkRiderTypeAlignment(disc)
+
+Call from:
+- setDiscipline()
+- openNewForm()
+
+Do NOT call in edit mode.
+
+Use existing form setup ID guard:
+If form-setup-id is non-empty, return and hide nudge.
+
+Mapping:
+- "Skier" → "Skier"
+- "Snowboarder" → "Snowboarder"
+- anything else → hide nudge and return
+
+Suppression rules:
+Hide and return if:
+- edit mode
+- expected rider type already exists in RIDER_TYPES_DATA
+- acceptedPrompts[disc] is true
+- dismissedPrompts[disc] is true
+- disc is "Skier" and RIDER_TYPES_DATA includes "Telemark"
+
+Do NOT suppress because rider_types already has 2 values.
+There is no max-two rule here.
+
+If prompt should show:
+- set nudge copy based on discipline
+- show nudge
+
+==================================================
+5. Yes button handler
+==================================================
+
+When Yes clicked:
+
+POST via fetch/AJAX to:
+
+/settings/profile/add-rider-type
+
+Send:
+rider_type=<expected rider type>
+
+On success:
+- update local RIDER_TYPES_DATA from response
+- set acceptedPrompts[disc] = true
+- hide nudge
+- leave equipment form untouched
+- no page reload
+
+On error:
+- keep equipment form usable
+- optionally show a small inline failure message or console.warn
+- do not block save
+
+==================================================
+6. No thanks button handler
+==================================================
+
+When No thanks clicked:
+
+- set dismissedPrompts[disc] = true
+- hide nudge
+- leave equipment form untouched
+- no page reload
+
+==================================================
+7. Behavior rules
+==================================================
+
+Prompt appears:
+- Create new setup only
+- Profile ["Skier"], create Snowboard setup
+- Profile ["Snowboarder"], create Skis setup
+- Profile ["Skier", "Social"], create Snowboard setup
+- Blank rider_types, create Skis or Snowboard setup
+
+Prompt does NOT appear:
+- Edit existing setup
+- Rider type already exists
+- Profile has ["Telemark"] and user selects Skis
+- User dismissed prompt for that discipline during current session
+- User accepted prompt for that discipline during current session
+
+==================================================
+8. Testing
+==================================================
+
+Test:
+
+Profile ["Skier"]:
+- Create Snowboard setup
+- Prompt appears
+- Click Yes
+- Snowboarder added
+- Prompt disappears
+- No page reload
+- No duplicate if clicked again
+
+Profile ["Skier"]:
+- Create Snowboard setup
+- Click No thanks
+- Prompt disappears
+- Equipment still saves
+
+Profile ["Telemark"]:
+- Create Skis setup
+- No prompt
+
+Profile ["Skier", "Social"]:
+- Create Snowboard setup
+- Prompt appears
+
+Edit existing Snowboard setup:
+- No prompt
+
+Blank rider_types:
+- Create Skis setup
+- Prompt appears for Skier
+
+Reload page:
+- Session dismissal resets
+
+Verify:
+- current_user.rider_types updates correctly
+- no duplicates
+- no max cap
+- mobile appearance
+- equipment save unaffected
+
+Report back with:
+1. Files changed
+2. New route added
+3. Prompt logic implemented
+4. Suppression rules implemented
+5. Session behavior
+6. Test results
