@@ -1,4 +1,4 @@
-__all__ = ["SKI_BRANDS", "SNOWBOARD_BRANDS", "BOOT_BRANDS"]
+__all__ = ["SKI_BRANDS", "SNOWBOARD_BRANDS", "BOOT_BRANDS", "BINDING_TYPES", "BINDING_BRANDS_BY_TYPE"]
 
 SKI_BRANDS = [
     "Atomic",
@@ -81,3 +81,88 @@ BOOT_BRANDS = [
     "Ride",
     "Other",
 ]
+
+BINDING_TYPES = [
+    "Alpine / Downhill",
+    "Touring / Backcountry",
+    "Hybrid",
+    "Telemark",
+    "Snowboard",
+    "Other",
+]
+
+BINDING_BRANDS_BY_TYPE = {
+    "Alpine / Downhill": [
+        "Marker",
+        "Look",
+        "Salomon",
+        "Tyrolia",
+        "Atomic",
+        "Head",
+        "Rossignol",
+        "VIST",
+        "Kästle",
+        "Elan",
+        "Fischer",
+        "Nordica",
+        "Armada",
+        "Black Diamond",
+        "Other",
+    ],
+    "Touring / Backcountry": [
+        "Dynafit",
+        "ATK",
+        "Fritschi",
+        "Plum",
+        "Marker",
+        "Salomon",
+        "Atomic",
+        "Black Diamond",
+        "G3",
+        "Kreuzspitze",
+        "Ski Trab",
+        "Movement",
+        "Other",
+    ],
+    "Hybrid": [
+        "Marker",
+        "Salomon",
+        "Atomic",
+        "Look",
+        "CAST",
+        "Fritschi",
+        "Tyrolia",
+        "Other",
+    ],
+    "Telemark": [
+        "22 Designs",
+        "Rottefella",
+        "Voilé",
+        "Bishop",
+        "Meidjo",
+        "The M Equipment",
+        "Other",
+    ],
+    "Snowboard": [
+        "Burton",
+        "Union",
+        "NOW",
+        "Rome",
+        "Bent Metal",
+        "Flux",
+        "Ride",
+        "Jones",
+        "Nitro",
+        "Salomon",
+        "K2",
+        "Arbor",
+        "Spark R&D",
+        "Nidecker",
+        "Flow",
+        "Bataleon",
+        "Other",
+    ],
+    "Other": [
+        "Other",
+    ],
+}

@@ -29,7 +29,7 @@ from services.pass_utils import (
     normalize_pass_selection, count_real_passes,
     PASS_NORM_MAP, PASS_DISPLAY_MAP,
 )
-from constants.equipment import SKI_BRANDS, SNOWBOARD_BRANDS, BOOT_BRANDS
+from constants.equipment import SKI_BRANDS, SNOWBOARD_BRANDS, BOOT_BRANDS, BINDING_TYPES, BINDING_BRANDS_BY_TYPE
 
 def _resolve_base_url():
     """Resolve the base URL for invite links and other absolute URLs.
@@ -1303,6 +1303,12 @@ def run_equipment_migration():
                 ))
                 conn.execute(db.text(
                     "ALTER TABLE equipment_setup ADD COLUMN IF NOT EXISTS created_at TIMESTAMP"
+                ))
+                conn.execute(db.text(
+                    "ALTER TABLE equipment_setup ADD COLUMN IF NOT EXISTS binding_brand VARCHAR(100)"
+                ))
+                conn.execute(db.text(
+                    "ALTER TABLE equipment_setup ADD COLUMN IF NOT EXISTS binding_model VARCHAR(100)"
                 ))
                 # Backfill: existing slot='primary' rows become is_primary=TRUE
                 conn.execute(db.text(
@@ -8045,6 +8051,9 @@ def profile():
             parts.append(primary_equipment.brand)
         if primary_equipment.model:
             parts.append(primary_equipment.model)
+        binding_parts = [x for x in [primary_equipment.binding_brand, primary_equipment.binding_model] if x]
+        if binding_parts:
+            parts.append("Bindings: " + " ".join(binding_parts))
         equipment_summary = " · ".join(parts) if parts else "Setup saved"
 
     # Wish list data
@@ -8240,7 +8249,9 @@ def settings_equipment():
                            user=current_user,
                            ski_brands=SKI_BRANDS,
                            board_brands=SNOWBOARD_BRANDS,
-                           boot_brands=BOOT_BRANDS)
+                           boot_brands=BOOT_BRANDS,
+                           binding_types=BINDING_TYPES,
+                           binding_brands_by_type=BINDING_BRANDS_BY_TYPE)
 
 
 @app.route("/settings/equipment/save", methods=["POST"])
@@ -8255,6 +8266,8 @@ def settings_equipment_save():
     length_cm = request.form.get("length_cm", "").strip()
     width_mm = request.form.get("width_mm", "").strip()
     binding_type = request.form.get("binding_type", "").strip()
+    binding_brand = request.form.get("binding_brand", "").strip()
+    binding_model = request.form.get("binding_model", "").strip()
     boot_brand = request.form.get("boot_brand", "").strip()
     boot_model = request.form.get("boot_model", "").strip()
     boot_flex = request.form.get("boot_flex", "").strip()
@@ -8297,6 +8310,8 @@ def settings_equipment_save():
     equipment.length_cm = int(length_cm) if length_cm else None
     equipment.width_mm = int(width_mm) if width_mm else None
     equipment.binding_type = binding_type if binding_type else None
+    equipment.binding_brand = binding_brand if binding_brand else None
+    equipment.binding_model = binding_model if binding_model else None
     equipment.boot_brand = boot_brand if boot_brand else None
     equipment.boot_model = boot_model if boot_model else None
     equipment.boot_flex = int(boot_flex) if boot_flex and boot_flex.isdigit() and int(boot_flex) > 0 else None
@@ -8332,6 +8347,8 @@ def settings_equipment_get(setup_id):
         "length_cm": equipment.length_cm,
         "width_mm": equipment.width_mm,
         "binding_type": equipment.binding_type,
+        "binding_brand": equipment.binding_brand,
+        "binding_model": equipment.binding_model,
         "boot_brand": equipment.boot_brand,
         "boot_model": equipment.boot_model,
         "boot_flex": equipment.boot_flex,

@@ -500,6 +500,31 @@
                     <label class="eq-field-label">Boot flex</label>
                     <input type="number" id="form-boot-flex" placeholder="120" inputmode="numeric">
                 </div>
+
+                <p class="eq-section-label">Bindings</p>
+                <div>
+                    <label class="eq-field-label">Binding Type</label>
+                    <select id="form-binding-type" onchange="onBindingTypeChange()">
+                        <option value="">Select</option>
+                        {% for bt in binding_types %}
+                        <option value="{{ bt }}">{{ bt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="eq-field-label">Binding Brand</label>
+                    <select id="form-binding-brand" onchange="onBindingBrandChange()" disabled>
+                        <option value="">Select</option>
+                    </select>
+                </div>
+                <div id="form-binding-brand-other-wrap" style="display:none;">
+                    <label class="eq-field-label">Binding brand name</label>
+                    <input type="text" id="form-binding-brand-other" placeholder="Enter brand" autocomplete="off" autocorrect="off" spellcheck="false">
+                </div>
+                <div>
+                    <label class="eq-field-label">Binding Model</label>
+                    <input type="text" id="form-binding-model" placeholder="e.g. Pivot 15, Shift MNC, Kingpin 13, Union Atlas" autocomplete="off" autocorrect="off" spellcheck="false">
+                </div>
             </div>
 
             <div class="eq-form-btns">
@@ -514,6 +539,39 @@
 <script>
 var SKI_BRANDS = {{ ski_brands | tojson }};
 var BOARD_BRANDS = {{ board_brands | tojson }};
+var BINDING_BRANDS_BY_TYPE = {{ binding_brands_by_type | tojson }};
+
+function onBindingTypeChange() {
+    var typeSel = document.getElementById('form-binding-type');
+    var brandSel = document.getElementById('form-binding-brand');
+    var otherWrap = document.getElementById('form-binding-brand-other-wrap');
+    var otherInput = document.getElementById('form-binding-brand-other');
+    var selectedType = typeSel.value;
+    brandSel.innerHTML = '<option value="">Select</option>';
+    otherWrap.style.display = 'none';
+    if (otherInput) otherInput.value = '';
+    if (!selectedType) {
+        brandSel.disabled = true;
+        return;
+    }
+    brandSel.disabled = false;
+    var brands = BINDING_BRANDS_BY_TYPE[selectedType] || [];
+    brands.forEach(function(b) {
+        var opt = document.createElement('option');
+        opt.value = b;
+        opt.textContent = b;
+        brandSel.appendChild(opt);
+    });
+}
+
+function onBindingBrandChange() {
+    var brandSel = document.getElementById('form-binding-brand');
+    var otherWrap = document.getElementById('form-binding-brand-other-wrap');
+    otherWrap.style.display = brandSel.value === 'Other' ? 'block' : 'none';
+    if (brandSel.value !== 'Other') {
+        document.getElementById('form-binding-brand-other').value = '';
+    }
+}
 
 function showToast(msg) {
     var t = document.getElementById('eq-toast');
@@ -624,6 +682,20 @@ function openEditForm(setupId) {
             document.getElementById('form-purchase-year').value = d.purchase_year || '';
             document.getElementById('form-boot-model').value = d.boot_model || '';
             document.getElementById('form-boot-flex').value = d.boot_flex || '';
+            document.getElementById('form-binding-model').value = d.binding_model || '';
+            var bindingTypeSel = document.getElementById('form-binding-type');
+            bindingTypeSel.value = d.binding_type || '';
+            onBindingTypeChange();
+            if (d.binding_type) {
+                var bindingBrandSel = document.getElementById('form-binding-brand');
+                var bindingBrands = BINDING_BRANDS_BY_TYPE[d.binding_type] || [];
+                var bindingBrandMatch = bindingBrands.indexOf(d.binding_brand) !== -1 ? d.binding_brand : (d.binding_brand ? 'Other' : '');
+                bindingBrandSel.value = bindingBrandMatch;
+                if (bindingBrandMatch === 'Other') {
+                    document.getElementById('form-binding-brand-other').value = d.binding_brand || '';
+                    document.getElementById('form-binding-brand-other-wrap').style.display = 'block';
+                }
+            }
             setDiscipline(d.discipline === 'snowboarder' ? 'Snowboarder' : 'Skier');
             var brandSel = document.getElementById('form-brand');
             var brandList = d.discipline === 'snowboarder' ? BOARD_BRANDS : SKI_BRANDS;
@@ -647,6 +719,12 @@ function openEditForm(setupId) {
 
 function cancelForm() {
     document.getElementById('eq-form-panel').style.display = 'none';
+    document.getElementById('form-binding-type').value = '';
+    document.getElementById('form-binding-brand').innerHTML = '<option value="">Select</option>';
+    document.getElementById('form-binding-brand').disabled = true;
+    document.getElementById('form-binding-brand-other-wrap').style.display = 'none';
+    document.getElementById('form-binding-brand-other').value = '';
+    document.getElementById('form-binding-model').value = '';
     var addBtn = document.getElementById('eq-add-another-btn');
     if (addBtn) addBtn.style.display = 'flex';
 }
@@ -672,7 +750,12 @@ function saveSetup(btn) {
     fd.append('model', document.getElementById('form-model').value.trim());
     fd.append('length_cm', document.getElementById('form-length').value);
     fd.append('width_mm', document.getElementById('form-width').value);
-    fd.append('binding_type', '');
+    var bindingType = document.getElementById('form-binding-type').value;
+    var bindingBrand = document.getElementById('form-binding-brand').value;
+    if (bindingBrand === 'Other') bindingBrand = document.getElementById('form-binding-brand-other').value.trim();
+    fd.append('binding_type', bindingType);
+    fd.append('binding_brand', bindingBrand);
+    fd.append('binding_model', document.getElementById('form-binding-model').value.trim());
     fd.append('boot_brand', bootBrand);
     fd.append('boot_model', document.getElementById('form-boot-model').value.trim());
     fd.append('boot_flex', document.getElementById('form-boot-flex').value);

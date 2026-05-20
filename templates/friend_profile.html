@@ -312,6 +312,7 @@
         {%- set eq = friend_primary_equipment if (friend_primary_equipment and (friend_primary_equipment.brand or friend_primary_equipment.model or friend_primary_equipment.boot_brand or friend_primary_equipment.boot_model)) else (friend_secondary_equipment if (friend_secondary_equipment and (friend_secondary_equipment.brand or friend_secondary_equipment.model or friend_secondary_equipment.boot_brand or friend_secondary_equipment.boot_model)) else none) -%}
         {%- set _has_gear = eq and (eq.brand or eq.model) -%}
         {%- set _has_boots = eq and (eq.boot_brand or eq.boot_model) -%}
+        {%- set _has_bindings = eq and (eq.binding_brand or eq.binding_model) -%}
         {%- set _gear_label = 'Board' if (friend.display_rider_type or '') == 'Snowboarder' else ('Skis' if (friend.display_rider_type or '') in ['Skier', 'Both'] else 'Equipment') -%}
 
         <!-- ① Profile summary card -->
@@ -333,6 +334,10 @@
                 {% if _has_boots %}
                 {%- set _boot_val = ([eq.boot_brand, eq.boot_model] | select | join(' ')) %}
                 <div>Boots: <span style="color:var(--bl-color-text);font-weight:500;">{{ _boot_val }}</span></div>
+                {% endif %}
+                {% if _has_bindings %}
+                {%- set _binding_val = ([eq.binding_brand, eq.binding_model] | select | join(' ')) %}
+                <div>Bindings: <span style="color:var(--bl-color-text);font-weight:500;">{{ _binding_val }}</span></div>
                 {% endif %}
             </div>
             {% endif %}

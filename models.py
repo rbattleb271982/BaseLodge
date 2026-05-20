@@ -1104,6 +1104,8 @@ class EquipmentSetup(db.Model):
     length_cm = db.Column(db.Integer, nullable=True)
     width_mm = db.Column(db.Integer, nullable=True)
     binding_type = db.Column(db.String(50), nullable=True)
+    binding_brand = db.Column(db.String(100), nullable=True)
+    binding_model = db.Column(db.String(100), nullable=True)
     boot_brand = db.Column(db.String(50), nullable=True)
     boot_model = db.Column(db.String(100), nullable=True)
     boot_flex = db.Column(db.Integer, nullable=True)

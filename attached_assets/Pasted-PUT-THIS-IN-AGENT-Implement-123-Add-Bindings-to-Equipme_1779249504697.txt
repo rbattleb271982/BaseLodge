@@ -1,0 +1,276 @@
+PUT THIS IN AGENT
+
+Implement #123 — Add Bindings to Equipment Setups.
+
+Use the completed plan below. Do not re-audit unless needed to verify exact line locations.
+
+Goal:
+Users can save bindings with an equipment setup. Bindings should display anywhere skis/boots already appear.
+
+Do NOT add DIN.
+Do NOT redesign the Equipment page.
+Do NOT change unrelated equipment behavior.
+Do NOT change onboarding equipment flow.
+Do NOT change Friends list compact meta line.
+Do NOT change Trip detail participant equipment_status.
+Do NOT use checkpoints unless I explicitly ask.
+
+Important:
+binding_type already exists.
+Only add binding_brand and binding_model as new nullable fields.
+
+==================================================
+1. Schema patch
+==================================================
+
+Use the existing run_equipment_migration() pattern.
+
+Add nullable columns to equipment_setup:
+
+binding_brand VARCHAR(100)
+binding_model VARCHAR(100)
+
+Use ALTER TABLE IF NOT EXISTS / safe idempotent pattern consistent with existing code.
+
+==================================================
+2. SQLAlchemy model
+==================================================
+
+In models.py EquipmentSetup, add:
+
+binding_brand = db.Column(db.String(100), nullable=True)
+binding_model = db.Column(db.String(100), nullable=True)
+
+Do not remove or change existing binding_type.
+
+==================================================
+3. constants/equipment.py
+==================================================
+
+Add:
+
+BINDING_TYPES = [
+    "Alpine / Downhill",
+    "Touring / Backcountry",
+    "Hybrid",
+    "Telemark",
+    "Snowboard",
+    "Other"
+]
+
+Add:
+
+BINDING_BRANDS_BY_TYPE = {
+    "Alpine / Downhill": [
+        "Marker",
+        "Look",
+        "Salomon",
+        "Tyrolia",
+        "Atomic",
+        "Head",
+        "Rossignol",
+        "VIST",
+        "Kästle",
+        "Elan",
+        "Fischer",
+        "Nordica",
+        "Armada",
+        "Black Diamond",
+        "Other"
+    ],
+    "Touring / Backcountry": [
+        "Dynafit",
+        "ATK",
+        "Fritschi",
+        "Plum",
+        "Marker",
+        "Salomon",
+        "Atomic",
+        "Black Diamond",
+        "G3",
+        "Kreuzspitze",
+        "Ski Trab",
+        "Movement",
+        "Other"
+    ],
+    "Hybrid": [
+        "Marker",
+        "Salomon",
+        "Atomic",
+        "Look",
+        "CAST",
+        "Fritschi",
+        "Tyrolia",
+        "Other"
+    ],
+    "Telemark": [
+        "22 Designs",
+        "Rottefella",
+        "Voilé",
+        "Bishop",
+        "Meidjo",
+        "The M Equipment",
+        "Other"
+    ],
+    "Snowboard": [
+        "Burton",
+        "Union",
+        "NOW",
+        "Rome",
+        "Bent Metal",
+        "Flux",
+        "Ride",
+        "Jones",
+        "Nitro",
+        "Salomon",
+        "K2",
+        "Arbor",
+        "Spark R&D",
+        "Nidecker",
+        "Flow",
+        "Bataleon",
+        "Other"
+    ],
+    "Other": [
+        "Other"
+    ]
+}
+
+Update __all__ to include:
+- BINDING_TYPES
+- BINDING_BRANDS_BY_TYPE
+
+==================================================
+4. settings_equipment route context
+==================================================
+
+Import BINDING_TYPES and BINDING_BRANDS_BY_TYPE.
+
+Pass to templates/settings_equipment.html:
+
+binding_types=BINDING_TYPES
+binding_brands_by_type=BINDING_BRANDS_BY_TYPE
+
+Match existing pattern used for ski/board/boot brand constants.
+
+==================================================
+5. Save/edit route
+==================================================
+
+In /settings/equipment/save:
+
+Read from form data:
+- binding_type
+- binding_brand
+- binding_model
+
+Persist all three.
+
+Include binding_brand and binding_model in the edit-prefill JSON returned to settings_equipment.html.
+
+Existing records with blank/null binding values must still edit correctly.
+
+==================================================
+6. Equipment form UI
+==================================================
+
+In templates/settings_equipment.html:
+
+Add BINDINGS section below Boots.
+
+Fields:
+
+Binding Type:
+- select dropdown from binding_types
+
+Binding Brand:
+- dynamic select populated from binding_brands_by_type based on selected Binding Type
+- disabled until type is selected
+- includes blank Select option
+- supports “Other” free-text matching existing boot-brand Other pattern
+
+Binding Model:
+- text input
+- placeholder:
+  e.g. Pivot 15, Shift MNC, Kingpin 13, Union Atlas
+
+Edit behavior:
+- saved binding_type preselects
+- saved binding_brand preselects
+- saved binding_model prefills
+- changing binding_type updates brand options
+- if the saved brand does not belong to the selected type, preserve safely only if it was an Other/free-text value; otherwise reset blank
+
+==================================================
+7. Display surfaces
+==================================================
+
+Surface bindings anywhere skis/boots already appear.
+
+Display format:
+Bindings: {brand} {model}
+
+Rules:
+- If brand + model exist: show "{brand} {model}"
+- If only brand exists: show "{brand}"
+- If only model exists: show "{model}"
+- If both empty: hide Bindings row entirely
+- Never show None
+- Never show null
+- Never show blank placeholders
+- Never show binding_type publicly
+
+Update these surfaces:
+
+A. Home header:
+templates/partials/home/_header.html
+templates/partials/home/_header_empty.html
+
+Add _has_bindings check and display inline span matching existing Boots span.
+
+B. Profile route equipment_summary string builder:
+app.py profile route
+
+Append binding label when binding_brand or binding_model exists.
+
+C. Friend profile:
+templates/friend_profile.html
+
+Add binding row matching existing boot row pattern.
+
+Do not update Friends list compact meta line.
+Do not update Trip detail participant equipment_status.
+
+==================================================
+8. Testing
+==================================================
+
+Test:
+
+- Add ski setup with bindings
+- Add snowboard setup with bindings
+- Save setup with bindings blank
+- Edit existing setup and add bindings
+- Edit setup with saved bindings and confirm:
+  - type prefilled
+  - brand prefilled
+  - model prefilled
+- Change type and verify brand options update
+- Confirm Snowboard brands show snowboard list
+- Confirm Touring / Backcountry brands show touring list
+- Confirm Other brand works
+- Confirm Home header shows Bindings under Boots
+- Confirm Profile equipment_summary shows Bindings under Boots
+- Confirm friend_profile.html shows Bindings under Boots
+- Confirm bindings hidden when blank
+- Confirm binding_type is never displayed publicly
+- Confirm existing equipment records still render
+- Test mobile viewport
+
+Report back with:
+1. Files changed
+2. Database fields added
+3. Schema patch/migration used
+4. Binding form behavior
+5. Display surfaces updated
+6. Test results
