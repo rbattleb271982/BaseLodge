@@ -612,6 +612,11 @@ function riderNudgeYes() {
     var disc = nudgeCurrentDisc;
     var expectedType = disc === 'Skier' ? 'Skier' : (disc === 'Snowboarder' ? 'Snowboarder' : null);
     if (!expectedType) { riderNudgeHide(); return; }
+    var errorEl = document.getElementById('eq-rider-nudge-error');
+    if (errorEl) {
+        errorEl.style.display = 'none';
+        errorEl.textContent = '';
+    }
     var fd = new FormData();
     fd.append('rider_type', expectedType);
     fetch('/settings/profile/add-rider-type', { method: 'POST', body: fd })
@@ -620,14 +625,21 @@ function riderNudgeYes() {
             if (data.success) {
                 RIDER_TYPES_DATA = data.rider_types;
                 acceptedPrompts[disc] = true;
+                riderNudgeHide();
             } else {
                 console.warn('[nudge] add-rider-type failed:', data.error);
+                if (errorEl) {
+                    errorEl.textContent = "Couldn't update profile. Try again.";
+                    errorEl.style.display = 'block';
+                }
             }
-            riderNudgeHide();
         })
         .catch(function(e) {
             console.warn('[nudge] add-rider-type error:', e);
-            riderNudgeHide();
+            if (errorEl) {
+                errorEl.textContent = "Couldn't update profile. Try again.";
+                errorEl.style.display = 'block';
+            }
         });
 }
 
