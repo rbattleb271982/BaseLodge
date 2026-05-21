@@ -20,13 +20,19 @@ Canonical return shape (Phase D-1):
             "success":             bool,
             "provider_message_id": str | None,
             "skipped":             bool,
+            "skipped_reason":      str | None,   # present only when skipped=True
             "error":               str | None,
         }
 
-    success=True + skipped=True  → recipient opted out or no eligible recipients;
-                                   no delivery attempted, no error.
+    success=True + skipped=True  → recipient opted out, no eligible recipients,
+                                   or no OneSignal identity registered (channel_unavailable).
+                                   skipped_reason distinguishes these cases:
+                                     "channel_unavailable" — external_id unknown to OneSignal
+                                                             (user never opened native app or
+                                                             OneSignal.login() was not called)
+                                     None                  — user opted out or no recipients
     success=True + skipped=False → delivery accepted by the provider.
-    success=False                → provider error or configuration failure;
+    success=False                → transient provider error or configuration failure;
                                    error field contains detail.
     provider_message_id          → OneSignal notification ID on SENT rows;
                                    None on all other outcomes.
@@ -141,13 +147,32 @@ def send_onesignal_push(user_ids, title, body, data=None):
         )
         if resp.status_code in (200, 202) and not errors:
             return {"success": True, "provider_message_id": notification_id,
-                    "skipped": False, "error": None}
+                    "skipped": False, "skipped_reason": None, "error": None}
+
+        # invalid_aliases means the recipient's external_id is not registered
+        # in OneSignal — they have never opened the native app or their
+        # OneSignal.login() call did not complete. This is a permanent channel
+        # gap, not a transient provider error, so treat it as SKIPPED rather
+        # than FAILED. The dispatch layer maps skipped_reason="channel_unavailable"
+        # to SuppressionReason.CHANNEL_UNAVAILABLE in the MEL audit row.
+        if (isinstance(errors, dict)
+                and set(errors.keys()) == {"invalid_aliases"}):
+            current_app.logger.warning(
+                "[OneSignal] send_push: invalid_aliases for external_ids=%s — "
+                "recipient(s) not registered with OneSignal (channel_unavailable)",
+                external_ids,
+            )
+            return {"success": True, "provider_message_id": None,
+                    "skipped": True, "skipped_reason": "channel_unavailable",
+                    "error": None}
+
         return {"success": False, "provider_message_id": notification_id,
-                "skipped": False, "error": str(errors or result)}
+                "skipped": False, "skipped_reason": None,
+                "error": str(errors or result)}
     except Exception as _exc:
         current_app.logger.exception("[OneSignal] request failed: %s", _exc)
         return {"success": False, "provider_message_id": None,
-                "skipped": False, "error": str(_exc)}
+                "skipped": False, "skipped_reason": None, "error": str(_exc)}
 
 
 def send_onesignal_custom_event(user_ids, event_name, properties=None):

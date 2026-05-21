@@ -1,5 +1,5 @@
 """
-test_push_lifecycle.py — APNs push token lifecycle tests.
+test_push_lifecycle.py — APNs push token lifecycle tests + OneSignal dispatch unit tests.
 
 Each test creates its own PushDeviceToken rows using a distinct fake token
 value and cleans them up in tearDown. Tests do not rely on existing DB state.
@@ -9,9 +9,13 @@ Coverage:
   2. /admin/list-tokens returns token diagnostics without sending APNs notifications
   3. /api/push/register-token refresh path reactivates an existing inactive token
   4. /api/push/register-token does not create duplicate rows for the same token
+  5. send_onesignal_push: invalid_aliases → skipped / channel_unavailable
+  6. send_onesignal_push: mixed errors (not only invalid_aliases) → failed
+  7. send_onesignal_push: success response → sent
 """
 import json
 import unittest
+import unittest.mock
 import uuid
 
 import app as app_module
@@ -228,6 +232,91 @@ class PushTokenLifecycleTests(unittest.TestCase):
             ).count()
             self.assertEqual(count, 1,
                              f"Expected exactly 1 row, found {count} — duplicate rows created")
+
+
+class OneSignalInvalidAliasTests(unittest.TestCase):
+    """Unit tests for send_onesignal_push OneSignal error-classification logic.
+
+    httpx.post is patched so no real network calls are made.
+    ONESIGNAL_APP_ID and ONESIGNAL_REST_API_KEY are set to non-empty sentinel
+    values so the config-missing guard does not short-circuit the function.
+    """
+
+    _ENV_PATCH = {
+        "ONESIGNAL_APP_ID":       "test-app-id",
+        "ONESIGNAL_REST_API_KEY": "test-rest-key",
+    }
+
+    def _make_response(self, status_code, body):
+        """Build a minimal mock httpx.Response."""
+        mock_resp = unittest.mock.MagicMock()
+        mock_resp.status_code = status_code
+        mock_resp.json.return_value = body
+        return mock_resp
+
+    def _call(self, mock_body, status_code=200):
+        """Invoke send_onesignal_push inside app context with a mocked HTTP response."""
+        from services.push_providers import send_onesignal_push
+        mock_resp = self._make_response(status_code, mock_body)
+        with app.app_context():
+            with unittest.mock.patch.dict("os.environ", self._ENV_PATCH):
+                with unittest.mock.patch("httpx.post", return_value=mock_resp):
+                    return send_onesignal_push(
+                        user_ids=[31],
+                        title="Test title",
+                        body="Test body",
+                    )
+
+    # ── Test 5: invalid_aliases only → channel_unavailable skip ───────────────
+
+    def test_invalid_aliases_returns_channel_unavailable_skip(self):
+        """OneSignal invalid_aliases → skipped=True, skipped_reason=channel_unavailable."""
+        result = self._call({
+            "errors": {"invalid_aliases": {"external_id": ["31"]}},
+        })
+        self.assertTrue(result["skipped"],
+                        "skipped must be True for invalid_aliases")
+        self.assertTrue(result["success"],
+                        "success must be True (not a provider error)")
+        self.assertEqual(result.get("skipped_reason"), "channel_unavailable",
+                         f"skipped_reason must be 'channel_unavailable', got: {result.get('skipped_reason')}")
+        self.assertIsNone(result["error"],
+                          "error must be None for channel_unavailable skip")
+        self.assertIsNone(result["provider_message_id"],
+                          "provider_message_id must be None on skip")
+
+    # ── Test 6: mixed errors (not solely invalid_aliases) → FAILED ─────────────
+
+    def test_mixed_errors_returns_failed(self):
+        """Errors dict with keys beyond invalid_aliases → success=False (provider error)."""
+        result = self._call({
+            "errors": {
+                "invalid_aliases": {"external_id": ["31"]},
+                "bad_request":     ["some other error"],
+            },
+        })
+        self.assertFalse(result["success"],
+                         "success must be False when errors contain non-alias keys")
+        self.assertFalse(result["skipped"],
+                         "skipped must be False for a real provider error")
+        self.assertIsNotNone(result["error"],
+                             "error must be populated for a provider error")
+
+    # ── Test 7: success response → sent ───────────────────────────────────────
+
+    def test_success_response_returns_sent(self):
+        """A clean OneSignal 200 with no errors → success=True, skipped=False."""
+        result = self._call({
+            "id": "abc-123-notification-id",
+        })
+        self.assertTrue(result["success"],
+                        "success must be True on clean OneSignal response")
+        self.assertFalse(result["skipped"],
+                         "skipped must be False on successful send")
+        self.assertEqual(result.get("provider_message_id"), "abc-123-notification-id",
+                         "provider_message_id must match the OneSignal notification id")
+        self.assertIsNone(result["error"],
+                          "error must be None on successful send")
 
 
 if __name__ == "__main__":

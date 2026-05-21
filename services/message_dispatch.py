@@ -398,7 +398,15 @@ def _dispatch_immediate_push(spec, actor_user_id, recipient_user_id,
         _sent_at             = datetime.utcnow()
     elif _skipped:
         _status              = DeliveryStatus.SKIPPED
-        _suppression         = SuppressionReason.USER_OPTED_OUT
+        # Distinguish permanent channel gap (external_id not in OneSignal)
+        # from a user preference opt-out.  send_onesignal_push sets
+        # skipped_reason="channel_unavailable" when OneSignal returns
+        # invalid_aliases; everything else keeps USER_OPTED_OUT.
+        _suppression = (
+            SuppressionReason.CHANNEL_UNAVAILABLE
+            if result.get("skipped_reason") == "channel_unavailable"
+            else SuppressionReason.USER_OPTED_OUT
+        )
         _error               = None
         _provider_message_id = None
         _sent_at             = None
