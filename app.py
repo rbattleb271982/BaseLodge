@@ -14406,5 +14406,101 @@ def admin_retry_failed_events():
     return jsonify({"status": "ok", **results})
 
 
+# ============================================================================
+# ADMIN CONSOLE — V1
+# ============================================================================
+
+@app.route("/admin")
+@login_required
+@admin_required
+def admin_console():
+    """Entry point — redirect to dashboard tab."""
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/admin/dashboard")
+@login_required
+@admin_required
+def admin_dashboard():
+    """V1 Admin Dashboard — operational KPIs from existing models, no new tables."""
+    from datetime import timedelta
+
+    now          = datetime.utcnow()
+    thirty_ago   = now - timedelta(days=30)
+    first_of_mo  = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_label  = now.strftime("%B %Y")
+
+    # ── User counts ──
+    total_users      = User.query.count()
+    mau              = User.query.filter(User.last_active_at >= thirty_ago).count()
+    new_users_month  = User.query.filter(User.created_at >= first_of_mo).count()
+
+    # ── Trip counts ──
+    total_trips  = SkiTrip.query.count()
+    trips_month  = SkiTrip.query.filter(SkiTrip.created_at >= first_of_mo).count()
+
+    # ── Opt-in rates ──
+    push_opt_in  = User.query.filter_by(push_notifications_enabled=True).count()
+    email_opt_in = User.query.filter_by(email_opt_in=True).count()
+    push_rate    = round(push_opt_in  / total_users * 100) if total_users else 0
+    email_rate   = round(email_opt_in / total_users * 100) if total_users else 0
+
+    # ── Invite acceptance rate ──
+    total_inv    = Invitation.query.count()
+    accepted_inv = Invitation.query.filter_by(status="accepted").count()
+    invite_rate  = round(accepted_inv / total_inv * 100) if total_inv else 0
+
+    # ── Pass distribution — normalize case at query time ──
+    pass_dist_raw = (
+        db.session.query(
+            func.lower(User.pass_type),
+            func.count(User.id),
+        )
+        .group_by(func.lower(User.pass_type))
+        .order_by(func.count(User.id).desc())
+        .all()
+    )
+    pass_distribution = [(pt or "none", cnt) for pt, cnt in pass_dist_raw]
+
+    # ── MEL delivery totals ──
+    mel_raw = (
+        db.session.query(
+            MessageEventLog.delivery_status,
+            func.count(MessageEventLog.id),
+        )
+        .group_by(MessageEventLog.delivery_status)
+        .all()
+    )
+    mel_map     = {str(status): cnt for status, cnt in mel_raw}
+    mel_sent    = mel_map.get("sent",    0)
+    mel_failed  = mel_map.get("failed",  0)
+    mel_skipped = mel_map.get("skipped", 0)
+    mel_total   = sum(mel_map.values())
+
+    return render_template(
+        "admin_dashboard.html",
+        active_tab        = "dashboard",
+        now               = now.strftime("%Y-%m-%d %H:%M UTC"),
+        month_label       = month_label,
+        total_users       = total_users,
+        mau               = mau,
+        new_users_month   = new_users_month,
+        total_trips       = total_trips,
+        trips_month       = trips_month,
+        push_opt_in       = push_opt_in,
+        email_opt_in      = email_opt_in,
+        push_rate         = push_rate,
+        email_rate        = email_rate,
+        total_inv         = total_inv,
+        accepted_inv      = accepted_inv,
+        invite_rate       = invite_rate,
+        pass_distribution = pass_distribution,
+        mel_sent          = mel_sent,
+        mel_failed        = mel_failed,
+        mel_skipped       = mel_skipped,
+        mel_total         = mel_total,
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

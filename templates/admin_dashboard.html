@@ -1,0 +1,291 @@
+{% extends "admin_console.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block head_styles %}
+  /* ── Dashboard grid ── */
+  .ad-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #9E958A;
+    margin: 0 0 14px;
+  }
+  .ad-section { margin-bottom: 36px; }
+
+  .ad-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 0;
+  }
+  @media (max-width: 1100px) {
+    .ad-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .ad-kpi-grid { grid-template-columns: 1fr; }
+  }
+
+  .ad-card {
+    background: #FFFFFF;
+    border: 1px solid #E4DDD2;
+    border-radius: 10px;
+    padding: 18px 20px 16px;
+  }
+  .ad-card-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9E958A;
+    margin-bottom: 8px;
+  }
+  .ad-card-value {
+    font-size: 34px;
+    font-weight: 700;
+    color: #5C1219;
+    line-height: 1;
+    font-family: Georgia, serif;
+    letter-spacing: -0.02em;
+  }
+  .ad-card-sub {
+    font-size: 12px;
+    color: #9E958A;
+    margin-top: 5px;
+  }
+
+  /* Rate cards show a mini bar */
+  .ad-rate-bar-wrap {
+    margin-top: 10px;
+    background: #F0EAE0;
+    border-radius: 4px;
+    height: 4px;
+    overflow: hidden;
+  }
+  .ad-rate-bar {
+    height: 100%;
+    background: #5C1219;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+  }
+
+  /* ── MEL delivery ── */
+  .ad-mel-row {
+    display: flex;
+    gap: 14px;
+  }
+  .ad-mel-card {
+    flex: 1;
+    background: #FFFFFF;
+    border: 1px solid #E4DDD2;
+    border-radius: 10px;
+    padding: 16px 18px;
+    text-align: center;
+  }
+  .ad-mel-card-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .ad-mel-sent   { color: #16A34A; }
+  .ad-mel-failed { color: #DC2626; }
+  .ad-mel-skip   { color: #D97706; }
+  .ad-mel-total  { color: #5C1219; }
+  .ad-mel-value  {
+    font-size: 28px;
+    font-weight: 700;
+    font-family: Georgia, serif;
+    color: #1C1917;
+  }
+  @media (max-width: 640px) {
+    .ad-mel-row { flex-wrap: wrap; }
+    .ad-mel-card { min-width: calc(50% - 7px); }
+  }
+
+  /* ── Pass distribution ── */
+  .ad-pass-table {
+    background: #FFFFFF;
+    border: 1px solid #E4DDD2;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .ad-pass-row {
+    display: flex;
+    align-items: center;
+    padding: 11px 18px;
+    border-bottom: 1px solid #F0EAE0;
+    gap: 14px;
+  }
+  .ad-pass-row:last-child { border-bottom: none; }
+  .ad-pass-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1C1917;
+    width: 120px;
+    flex-shrink: 0;
+    text-transform: capitalize;
+  }
+  .ad-pass-bar-wrap {
+    flex: 1;
+    background: #F0EAE0;
+    border-radius: 4px;
+    height: 6px;
+    overflow: hidden;
+  }
+  .ad-pass-bar {
+    height: 100%;
+    background: #5C1219;
+    border-radius: 4px;
+  }
+  .ad-pass-count {
+    font-size: 13px;
+    font-weight: 700;
+    color: #5C1219;
+    width: 32px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* ── Updated timestamp ── */
+  .ad-updated {
+    font-size: 11px;
+    color: #B0A99F;
+    margin-bottom: 20px;
+  }
+{% endblock %}
+
+{% block content %}
+<div class="ad-updated">
+  Live data — refreshed on page load &nbsp;·&nbsp; {{ now }}
+</div>
+
+<!-- ── Acquisition ── -->
+<div class="ad-section">
+  <div class="ad-section-label">Acquisition</div>
+  <div class="ad-kpi-grid">
+
+    <div class="ad-card">
+      <div class="ad-card-label">Total Users</div>
+      <div class="ad-card-value">{{ total_users }}</div>
+      <div class="ad-card-sub">all-time signups</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">MAU</div>
+      <div class="ad-card-value">{{ mau }}</div>
+      <div class="ad-card-sub">active in last 30 days</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">New Users This Month</div>
+      <div class="ad-card-value">{{ new_users_month }}</div>
+      <div class="ad-card-sub">{{ month_label }}</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Trips ── -->
+<div class="ad-section">
+  <div class="ad-section-label">Trips</div>
+  <div class="ad-kpi-grid">
+
+    <div class="ad-card">
+      <div class="ad-card-label">Total Trips</div>
+      <div class="ad-card-value">{{ total_trips }}</div>
+      <div class="ad-card-sub">all-time</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Trips This Month</div>
+      <div class="ad-card-value">{{ trips_month }}</div>
+      <div class="ad-card-sub">{{ month_label }}</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Invite Accept Rate</div>
+      <div class="ad-card-value">{{ invite_rate }}%</div>
+      <div class="ad-card-sub">{{ accepted_inv }} of {{ total_inv }} invites</div>
+      <div class="ad-rate-bar-wrap">
+        <div class="ad-rate-bar" style="width: {{ invite_rate }}%"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Engagement ── -->
+<div class="ad-section">
+  <div class="ad-section-label">Engagement</div>
+  <div class="ad-kpi-grid">
+
+    <div class="ad-card">
+      <div class="ad-card-label">Push Opt-in</div>
+      <div class="ad-card-value">{{ push_rate }}%</div>
+      <div class="ad-card-sub">{{ push_opt_in }} of {{ total_users }} users</div>
+      <div class="ad-rate-bar-wrap">
+        <div class="ad-rate-bar" style="width: {{ push_rate }}%"></div>
+      </div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Email Opt-in</div>
+      <div class="ad-card-value">{{ email_rate }}%</div>
+      <div class="ad-card-sub">{{ email_opt_in }} of {{ total_users }} users</div>
+      <div class="ad-rate-bar-wrap">
+        <div class="ad-rate-bar" style="width: {{ email_rate }}%"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Push / Messaging ── -->
+<div class="ad-section">
+  <div class="ad-section-label">Push Delivery (all-time MEL)</div>
+  <div class="ad-mel-row">
+    <div class="ad-mel-card">
+      <div class="ad-mel-card-label ad-mel-total">Total</div>
+      <div class="ad-mel-value">{{ mel_total }}</div>
+    </div>
+    <div class="ad-mel-card">
+      <div class="ad-mel-card-label ad-mel-sent">Sent</div>
+      <div class="ad-mel-value">{{ mel_sent }}</div>
+    </div>
+    <div class="ad-mel-card">
+      <div class="ad-mel-card-label ad-mel-skip">Skipped</div>
+      <div class="ad-mel-value">{{ mel_skipped }}</div>
+    </div>
+    <div class="ad-mel-card">
+      <div class="ad-mel-card-label ad-mel-failed">Failed</div>
+      <div class="ad-mel-value">{{ mel_failed }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Pass Distribution ── -->
+<div class="ad-section">
+  <div class="ad-section-label">Pass Distribution</div>
+  {% if pass_distribution %}
+  <div class="ad-pass-table">
+    {% set max_count = pass_distribution[0][1] %}
+    {% for pass_name, count in pass_distribution %}
+    <div class="ad-pass-row">
+      <div class="ad-pass-name">{{ pass_name if pass_name else 'none' }}</div>
+      <div class="ad-pass-bar-wrap">
+        <div class="ad-pass-bar"
+             style="width: {{ ((count / max_count) * 100)|int }}%"></div>
+      </div>
+      <div class="ad-pass-count">{{ count }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="ad-card"><div class="ad-card-sub">No pass data yet.</div></div>
+  {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,111 @@
+PUT THIS IN PLAN FIRST
+
+We are starting the BaseLodge V1 Admin Console.
+
+Goal:
+Create a practical V1 admin console for founder-only use. This should be desktop-first with a lightweight responsive mobile view for monitoring.
+
+Do not build the full long-term Founder Command Center yet.
+
+V1 admin tabs:
+1. Dashboard
+2. Users
+3. Trips
+4. Mountains
+5. Messaging
+6. Growth
+
+Core priorities:
+- Basic operational visibility
+- Foundational analytics
+- Push/email visibility
+- SEO/blog/growth visibility
+- Mountain editing
+- Correct event instrumentation for later expansion
+
+Admin access:
+- Admin-only area at /admin for now
+- Use existing login/auth
+- Restrict all admin routes to users with is_admin=True
+- Do not create a separate admin subdomain yet
+- Build in a way that can later move to admin.baselodgeapp.com
+
+Desktop/mobile:
+- Desktop-first layout
+- Mobile view should show stacked KPI cards, alerts, and basic lookup only
+- Do not attempt full mobile analytics tables or complex charting
+
+V1 Dashboard should include:
+- Total users
+- MAUs
+- New users
+- Total trips
+- Trips created recently
+- Trips joined if available
+- Invite acceptance rate if available
+- Push opt-in rate
+- Epic / Ikon / Other / None pass distribution
+- Marketing emails sent
+- Transactional emails sent
+
+Users tab:
+- Search users by name/email
+- Show user list with email, name, pass type, trip count, friend count if available, push opt-in, email opt-in, last active
+- User detail page with trips, invites/messages if available, push/email status
+
+Trips tab:
+- List trips
+- Show trip owner, mountain, dates, participant count, invite count if available, status
+- Include filters for upcoming/past/mountain
+
+Mountains tab:
+- List mountains
+- Allow editing mountain details/content
+- Allow editing pass relationships if supported
+- Show basic mountain analytics if available: page views, trips associated
+
+Messaging tab:
+- Show push opt-ins
+- Push sends/opens if available
+- Marketing emails sent
+- Transactional emails sent
+- Basic delivery/failure counts if available
+
+Growth tab:
+- Show basic SEO/content metrics if available
+- Top landing pages
+- Top blog posts
+- Organic traffic
+- Signup conversion from organic/blog if available
+
+Analytics/instrumentation:
+- Add or confirm PostHog event tracking for:
+  - page_viewed
+  - account_signed_up
+  - onboarding_completed
+  - trip_created
+  - trip_joined
+  - trip_invite_sent
+  - trip_invite_accepted
+  - friend_request_sent
+  - friend_request_accepted
+  - mountain_page_viewed
+  - blog_post_viewed
+  - push_opened if applicable
+  - email_clicked if applicable
+
+Important constraints:
+- Use checkpoints sparingly.
+- Do not overbuild AI, predictive analytics, graph science, investor dashboards, CRM journey builders, or revenue dashboards yet.
+- Do not create complex graph visualizations.
+- Do not create natural-language analytics.
+- Do not create a separate mobile app.
+- Keep V1 stable, useful, and extensible.
+
+Before implementing:
+1. Inspect existing models, routes, admin routes, templates, PostHog setup, SendGrid/message event logs, OneSignal/push fields, trip/invite/friend models, and mountain/blog models.
+2. Identify which requested metrics are already available and which require new tables/events.
+3. Propose the smallest safe implementation plan.
+4. Do not proceed to Agent implementation until the plan clearly lists files to change and confirms what will be built in Phase 1.
+
+Do not finish until you have fully reviewed the existing structure and identified implementation risks.

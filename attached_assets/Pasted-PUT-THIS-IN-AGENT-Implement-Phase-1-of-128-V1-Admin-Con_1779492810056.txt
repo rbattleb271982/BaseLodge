@@ -1,0 +1,63 @@
+PUT THIS IN AGENT
+
+Implement Phase 1 of #128 - V1 Admin Console.
+
+Build only:
+1. /admin index redirect or landing
+2. Shared admin console layout/nav
+3. Dashboard tab
+4. Mountains tab link to existing /admin/resorts
+
+Do not build Users, Trips, Messaging, Growth, or PostHog instrumentation yet.
+
+Requirements:
+- Use existing admin_required decorator.
+- Keep /admin as the admin console entry point.
+- Desktop-first layout with persistent left sidebar.
+- Mobile view should stack KPI cards and simplify navigation.
+- Do not create a separate admin subdomain.
+- Do not add migrations or new tables.
+- Do not rebuild /admin/resorts.
+- Use checkpoints sparingly.
+
+Dashboard metrics:
+- Total Users
+- MAU using last_active_at within last 30 days
+- New Users this month
+- Total Trips
+- Trips this month
+- Push Opt-in Rate
+- Email Opt-in Rate
+- Invite Acceptance Rate
+- Pass Distribution grouped by LOWER(pass_type)
+- MessageEventLog delivery totals: sent / failed / skipped
+
+Files likely involved:
+- app.py
+- templates/admin_console.html
+- templates/admin_dashboard.html
+- static/css/style.css if needed
+
+Implementation details:
+- Add /admin route that redirects to /admin/dashboard or renders the dashboard directly.
+- Add /admin/dashboard route protected by admin_required.
+- Create a shared admin layout with left sidebar navigation:
+  Dashboard
+  Users
+  Trips
+  Mountains
+  Messaging
+  Growth
+- For tabs not built yet, show disabled or placeholder links except Mountains should link to /admin/resorts.
+- Keep styling aligned with BaseLodge: cream/bordeaux/dark green, clean desktop dashboard cards.
+- Make sure non-admin users receive 403.
+
+Testing:
+- Confirm /admin works for admin.
+- Confirm /admin/dashboard works for admin.
+- Confirm Mountains nav links to /admin/resorts.
+- Confirm non-admin access is blocked.
+- Confirm dashboard does not error if some counts are zero or missing.
+- Confirm mobile layout stacks KPI cards.
+
+Do not finish until you have fully tested the new admin entry point, dashboard route, admin guard, and mobile responsive behavior.

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Admin{% endblock %} — BaseLodge</title>
+  {% include 'components/analytics_head.html' %}
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bordeaux:  #5C1219;
+      --bordeaux2: #7A1A24;
+      --cream:     #F5F1E8;
+      --sidebar-bg:#18131E;
+      --sidebar-w: 220px;
+      --topbar-h:  56px;
+      --text:      #1C1917;
+      --muted:     #6B6560;
+      --border:    #E4DDD2;
+      --card-bg:   #FFFFFF;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--cream);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Layout ── */
+    .ac-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    .ac-sidebar {
+      width: var(--sidebar-w);
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 100;
+      overflow-y: auto;
+    }
+
+    .ac-sidebar-logo {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    .ac-sidebar-logo .ac-logo-eyebrow {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 3px;
+    }
+    .ac-sidebar-logo .ac-logo-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: #FFFFFF;
+      font-family: Georgia, serif;
+      letter-spacing: -0.02em;
+    }
+    .ac-sidebar-logo .ac-logo-tag {
+      font-size: 11px;
+      color: var(--bordeaux2);
+      background: rgba(92,18,25,0.18);
+      border-radius: 4px;
+      padding: 2px 6px;
+      display: inline-block;
+      margin-top: 5px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    .ac-nav {
+      list-style: none;
+      padding: 16px 0;
+      flex: 1;
+    }
+    .ac-nav li {
+      margin: 2px 12px;
+    }
+    .ac-nav a, .ac-nav-disabled {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.65);
+      text-decoration: none;
+      transition: background 0.15s, color 0.15s;
+      cursor: pointer;
+    }
+    .ac-nav a:hover {
+      background: rgba(255,255,255,0.07);
+      color: rgba(255,255,255,0.9);
+    }
+    .ac-nav li.ac-active a {
+      background: var(--bordeaux);
+      color: #FFFFFF;
+      font-weight: 600;
+    }
+    .ac-nav-disabled {
+      color: rgba(255,255,255,0.28);
+      cursor: default;
+      font-style: normal;
+    }
+    .ac-soon {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.07);
+      color: rgba(255,255,255,0.3);
+      border-radius: 4px;
+      padding: 2px 5px;
+    }
+
+    .ac-nav-section {
+      padding: 16px 20px 6px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.25);
+    }
+
+    .ac-sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      font-size: 12px;
+      color: rgba(255,255,255,0.25);
+    }
+
+    /* ── Main content ── */
+    .ac-main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .ac-topbar {
+      height: var(--topbar-h);
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .ac-page-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      font-family: Georgia, serif;
+    }
+    .ac-admin-user {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .ac-admin-dot {
+      width: 8px; height: 8px;
+      background: #22C55E;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    .ac-content {
+      padding: 28px;
+      flex: 1;
+    }
+
+    /* ── Mobile hamburger toggle ── */
+    .ac-mobile-topbar {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 52px;
+      background: var(--sidebar-bg);
+      z-index: 200;
+      align-items: center;
+      padding: 0 16px;
+      justify-content: space-between;
+    }
+    .ac-mobile-logo {
+      font-size: 16px;
+      font-weight: 700;
+      color: #FFF;
+      font-family: Georgia, serif;
+    }
+    .ac-hamburger {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.7);
+      cursor: pointer;
+      font-size: 22px;
+      padding: 4px;
+      line-height: 1;
+    }
+
+    /* ── Mobile sidebar drawer ── */
+    @media (max-width: 768px) {
+      .ac-mobile-topbar { display: flex; }
+
+      .ac-sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.22s ease;
+        top: 52px;
+      }
+      .ac-sidebar.ac-open { transform: translateX(0); }
+
+      .ac-main {
+        margin-left: 0;
+        padding-top: 52px;
+      }
+      .ac-topbar { display: none; }
+
+      .ac-content { padding: 16px; }
+    }
+
+    {% block head_styles %}{% endblock %}
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+  <!-- Mobile top bar -->
+  <div class="ac-mobile-topbar">
+    <span class="ac-mobile-logo">BaseLodge Admin</span>
+    <button class="ac-hamburger" onclick="acToggleSidebar()" aria-label="Menu">&#9776;</button>
+  </div>
+
+  <div class="ac-layout">
+
+    <!-- Sidebar -->
+    <nav class="ac-sidebar" id="ac-sidebar">
+      <div class="ac-sidebar-logo">
+        <div class="ac-logo-eyebrow">Founder Console</div>
+        <div class="ac-logo-name">BaseLodge</div>
+        <div class="ac-logo-tag">Admin V1</div>
+      </div>
+
+      <div class="ac-nav-section">Console</div>
+      <ul class="ac-nav">
+        <li class="{{ 'ac-active' if active_tab == 'dashboard' else '' }}">
+          <a href="/admin/dashboard">Dashboard</a>
+        </li>
+        <li>
+          <span class="ac-nav-disabled">Users <span class="ac-soon">Soon</span></span>
+        </li>
+        <li>
+          <span class="ac-nav-disabled">Trips <span class="ac-soon">Soon</span></span>
+        </li>
+        <li class="{{ 'ac-active' if active_tab == 'mountains' else '' }}">
+          <a href="/admin/resorts">Mountains</a>
+        </li>
+        <li>
+          <span class="ac-nav-disabled">Messaging <span class="ac-soon">Soon</span></span>
+        </li>
+        <li>
+          <span class="ac-nav-disabled">Growth <span class="ac-soon">Soon</span></span>
+        </li>
+      </ul>
+
+      <div class="ac-nav-section">Tools</div>
+      <ul class="ac-nav">
+        <li>
+          <a href="/admin/message-events">Message Log</a>
+        </li>
+        <li>
+          <a href="/admin/push-diagnostics">Push Diag</a>
+        </li>
+        <li>
+          <a href="/admin/resorts-audit">Resort Audit</a>
+        </li>
+      </ul>
+
+      <div class="ac-sidebar-footer">
+        Logged in as {{ current_user.email if current_user else '' }}
+      </div>
+    </nav>
+
+    <!-- Main -->
+    <div class="ac-main">
+      <div class="ac-topbar">
+        <span class="ac-page-title">{% block page_title %}{% endblock %}</span>
+        <span class="ac-admin-user">
+          <span class="ac-admin-dot"></span>{{ current_user.email if current_user else '' }}
+        </span>
+      </div>
+      <div class="ac-content">
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function acToggleSidebar() {
+      document.getElementById('ac-sidebar').classList.toggle('ac-open');
+    }
+    document.addEventListener('click', function(e) {
+      const sidebar = document.getElementById('ac-sidebar');
+      const hamburger = document.querySelector('.ac-hamburger');
+      if (sidebar && sidebar.classList.contains('ac-open') &&
+          !sidebar.contains(e.target) && e.target !== hamburger) {
+        sidebar.classList.remove('ac-open');
+      }
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
