@@ -14478,6 +14478,9 @@ def admin_dashboard():
     wau              = User.query.filter(User.last_active_at >= seven_ago).count()
     mau              = User.query.filter(User.last_active_at >= thirty_ago).count()
     new_users_month  = User.query.filter(User.created_at >= first_of_mo).count()
+    users_with_trips = db.session.query(
+        db.func.count(db.func.distinct(SkiTrip.user_id))
+    ).scalar() or 0
 
     # ── Daily active series — last 30 days (1 query, Python bucketing) ───────
     from collections import defaultdict as _dd
@@ -14690,6 +14693,7 @@ def admin_dashboard():
         wau                  = wau,
         mau                  = mau,
         new_users_month      = new_users_month,
+        users_with_trips     = users_with_trips,
         daily_active_series  = daily_active_series,
         total_trips       = total_trips,
         trips_month       = trips_month,
