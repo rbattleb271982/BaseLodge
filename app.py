@@ -14425,32 +14425,72 @@ def admin_dashboard():
     """V1 Admin Dashboard — operational KPIs from existing models, no new tables."""
     from datetime import timedelta
 
+    # ── Helpers ──────────────────────────────────────────────────────────────
+    def _trend(current, prior, unit="pct", invert=False, label="prior period",
+               min_prior=1):
+        """Return (display_text, css_class) or None if insufficient data.
+        unit: 'pct' for % change, 'pts' for percentage-point difference.
+        invert: True when higher is worse (e.g. failure counts).
+        """
+        if prior is None or current is None:
+            return None
+        if unit == "pct":
+            if prior < min_prior:
+                return None
+            pct = round((current - prior) / prior * 100)
+            if pct == 0:
+                return f"flat vs {label}", "ad-trend--flat"
+            text = f"{'+' if pct > 0 else ''}{pct}% vs {label}"
+            going_up = pct > 0
+        else:  # pts
+            pts = round(current - prior)
+            if pts == 0:
+                return f"flat vs {label}", "ad-trend--flat"
+            text = f"{'+' if pts > 0 else ''}{pts} pts vs {label}"
+            going_up = pts > 0
+        good = (going_up and not invert) or (not going_up and invert)
+        return text, ("ad-trend--pos" if good else "ad-trend--neg")
+
+    # ── Base date ranges ──────────────────────────────────────────────────────
     now          = datetime.utcnow()
     thirty_ago   = now - timedelta(days=30)
+    sixty_ago    = now - timedelta(days=60)
+    seven_ago    = now - timedelta(days=7)
+    fourteen_ago = now - timedelta(days=14)
     first_of_mo  = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     month_label  = now.strftime("%B %Y")
 
-    # ── User counts ──
+    # Prior month — same calendar-day window ("MTD" parity)
+    days_elapsed   = now.day               # days into current month (1-indexed)
+    prior_mo       = (now.month - 2) % 12 + 1
+    prior_yr       = now.year if now.month > 1 else now.year - 1
+    first_of_prior = now.replace(
+        year=prior_yr, month=prior_mo, day=1,
+        hour=0, minute=0, second=0, microsecond=0,
+    )
+    prior_mtd_end  = first_of_prior + timedelta(days=days_elapsed)
+
+    # ── User counts ──────────────────────────────────────────────────────────
     total_users      = User.query.count()
     mau              = User.query.filter(User.last_active_at >= thirty_ago).count()
     new_users_month  = User.query.filter(User.created_at >= first_of_mo).count()
 
-    # ── Trip counts ──
+    # ── Trip counts ──────────────────────────────────────────────────────────
     total_trips  = SkiTrip.query.count()
     trips_month  = SkiTrip.query.filter(SkiTrip.created_at >= first_of_mo).count()
 
-    # ── Opt-in rates ──
+    # ── Opt-in rates ─────────────────────────────────────────────────────────
     push_opt_in  = User.query.filter_by(push_notifications_enabled=True).count()
     email_opt_in = User.query.filter_by(email_opt_in=True).count()
     push_rate    = round(push_opt_in  / total_users * 100) if total_users else 0
     email_rate   = round(email_opt_in / total_users * 100) if total_users else 0
 
-    # ── Invite acceptance rate ──
+    # ── Invite acceptance rate ────────────────────────────────────────────────
     total_inv    = Invitation.query.count()
     accepted_inv = Invitation.query.filter_by(status="accepted").count()
     invite_rate  = round(accepted_inv / total_inv * 100) if total_inv else 0
 
-    # ── Pass distribution — normalize case at query time ──
+    # ── Pass distribution — normalize case at query time ─────────────────────
     pass_dist_raw = (
         db.session.query(
             func.lower(User.pass_type),
@@ -14462,7 +14502,7 @@ def admin_dashboard():
     )
     pass_distribution = [(pt or "none", cnt) for pt, cnt in pass_dist_raw]
 
-    # ── MEL delivery totals ──
+    # ── MEL delivery totals ───────────────────────────────────────────────────
     mel_raw = (
         db.session.query(
             MessageEventLog.delivery_status,
@@ -14476,6 +14516,108 @@ def admin_dashboard():
     mel_failed  = mel_map.get("failed",  0)
     mel_skipped = mel_map.get("skipped", 0)
     mel_total   = sum(mel_map.values())
+
+    # ── Trend calculations ────────────────────────────────────────────────────
+
+    # 1. Total Users — new signups this MTD vs prior MTD
+    prior_new_users = User.query.filter(
+        User.created_at >= first_of_prior,
+        User.created_at <  prior_mtd_end,
+    ).count()
+    trend_total_users = _trend(
+        new_users_month, prior_new_users,
+        unit="pct", label="prior MTD",
+    )
+
+    # 2. MAU — rolling 30d vs prior 30d
+    prior_mau = User.query.filter(
+        User.last_active_at >= sixty_ago,
+        User.last_active_at <  thirty_ago,
+    ).count()
+    trend_mau = _trend(mau, prior_mau, unit="pct", label="prior 30d")
+
+    # 3. New Users This Month — MTD vs prior MTD (same window as #1)
+    trend_new_users = _trend(
+        new_users_month, prior_new_users,
+        unit="pct", label="prior MTD",
+    )
+
+    # 4. Trips This Month — MTD vs prior MTD
+    prior_trips = SkiTrip.query.filter(
+        SkiTrip.created_at >= first_of_prior,
+        SkiTrip.created_at <  prior_mtd_end,
+    ).count()
+    trend_trips_month = _trend(
+        trips_month, prior_trips,
+        unit="pct", label="prior MTD",
+    )
+
+    # 5. Invite Acceptance Rate — rolling 30d vs prior 30d (pts)
+    inv_curr_total    = Invitation.query.filter(
+        Invitation.created_at >= thirty_ago
+    ).count()
+    inv_curr_accepted = Invitation.query.filter(
+        Invitation.created_at >= thirty_ago,
+        Invitation.status      == "accepted",
+    ).count()
+    inv_prev_total    = Invitation.query.filter(
+        Invitation.created_at >= sixty_ago,
+        Invitation.created_at <  thirty_ago,
+    ).count()
+    inv_prev_accepted = Invitation.query.filter(
+        Invitation.created_at >= sixty_ago,
+        Invitation.created_at <  thirty_ago,
+        Invitation.status      == "accepted",
+    ).count()
+    curr_inv_rate = (round(inv_curr_accepted / inv_curr_total  * 100)
+                     if inv_curr_total  >= 3 else None)
+    prev_inv_rate = (round(inv_prev_accepted / inv_prev_total  * 100)
+                     if inv_prev_total  >= 3 else None)
+    trend_invite_rate = (
+        _trend(curr_inv_rate, prev_inv_rate, unit="pts", label="prior 30d")
+        if curr_inv_rate is not None and prev_inv_rate is not None
+        else None
+    )
+
+    # 6. Push Opt-in Rate — rate excl. this month's users vs current rate (pts)
+    users_pre_mo     = User.query.filter(User.created_at < first_of_mo).count()
+    push_pre_mo      = User.query.filter(
+        User.created_at < first_of_mo,
+        User.push_notifications_enabled == True,
+    ).count()
+    prior_push_rate  = (round(push_pre_mo / users_pre_mo * 100)
+                        if users_pre_mo else None)
+    trend_push_rate  = (
+        _trend(push_rate, prior_push_rate, unit="pts", label="prior mo.")
+        if prior_push_rate is not None else None
+    )
+
+    # 7. Email Opt-in Rate — same approach (pts)
+    email_pre_mo     = User.query.filter(
+        User.created_at < first_of_mo,
+        User.email_opt_in == True,
+    ).count()
+    prior_email_rate = (round(email_pre_mo / users_pre_mo * 100)
+                        if users_pre_mo else None)
+    trend_email_rate = (
+        _trend(email_rate, prior_email_rate, unit="pts", label="prior mo.")
+        if prior_email_rate is not None else None
+    )
+
+    # 8. MEL Failed — rolling 7d vs prior 7d (invert: fewer failures = good)
+    mel_failed_7d      = MessageEventLog.query.filter(
+        MessageEventLog.delivery_status == "failed",
+        MessageEventLog.created_at      >= seven_ago,
+    ).count()
+    mel_failed_prev_7d = MessageEventLog.query.filter(
+        MessageEventLog.delivery_status == "failed",
+        MessageEventLog.created_at      >= fourteen_ago,
+        MessageEventLog.created_at      <  seven_ago,
+    ).count()
+    trend_mel_failed = _trend(
+        mel_failed_7d, mel_failed_prev_7d,
+        unit="pct", invert=True, label="prior week",
+    )
 
     return render_template(
         "admin_dashboard.html",
@@ -14499,6 +14641,15 @@ def admin_dashboard():
         mel_failed        = mel_failed,
         mel_skipped       = mel_skipped,
         mel_total         = mel_total,
+        # Trend indicators
+        trend_total_users  = trend_total_users,
+        trend_mau          = trend_mau,
+        trend_new_users    = trend_new_users,
+        trend_trips_month  = trend_trips_month,
+        trend_invite_rate  = trend_invite_rate,
+        trend_push_rate    = trend_push_rate,
+        trend_email_rate   = trend_email_rate,
+        trend_mel_failed   = trend_mel_failed,
     )
 
 

@@ -1,0 +1,119 @@
+PUT THIS IN AGENT
+
+Add lightweight trend indicators to the BaseLodge Admin Console dashboard cards.
+
+Goal:
+Introduce subtle operational trend context (WoW / MoM) without turning the dashboard into a full analytics platform.
+
+This is intentionally lightweight V1 trend reporting.
+Do not build drill-down pages, advanced analytics, charts, or historical exploration yet.
+
+Core principle:
+- Small contextual deltas only
+- Founder/operator monitoring
+- Keep dashboard visually calm and premium
+- Preserve current spacing and hierarchy
+
+Trend display style:
+Use small muted helper text beneath the main KPI.
+
+Examples:
+- +12% vs prior 30d
+- +4 pts vs last month
+- −8% vs prior week
+
+Use:
+- percentages (%) for count growth
+- percentage points (pts) for rate changes
+
+Examples:
+- Invite acceptance: +6 pts
+- Push opt-in: +2 pts
+
+Do NOT use flashy arrows, badges, or aggressive colors yet.
+Subtle green/red/neutral text is acceptable.
+
+Add trends ONLY where meaningful:
+
+1. Total Users
+- Compare current month-to-date vs prior month-to-date
+
+2. MAU
+- Compare rolling 30d vs previous rolling 30d
+
+3. New Users This Month
+- Compare current MTD vs prior MTD
+
+4. Trips This Month
+- Compare current MTD vs prior MTD
+
+5. Invite Acceptance Rate
+- Compare rolling 30d vs previous rolling 30d
+- Use percentage points (pts)
+
+6. Push Opt-In Rate
+- Compare current vs previous month
+- Use percentage points (pts)
+
+7. Email Opt-In Rate
+- Compare current vs previous month
+- Use percentage points (pts)
+
+8. MEL Failed
+- Compare rolling 7d vs previous rolling 7d
+- Operational alert-style metric
+
+Do NOT add trends yet for:
+- Pass Distribution
+- Total Trips (all-time number)
+- MEL Total
+- MEL Sent
+- MEL Skipped
+
+Implementation guidance:
+- Keep calculations server-side.
+- Use existing models/timestamps only.
+- Do not add new tables or migrations.
+- If sample sizes are too small or prior period is zero, gracefully show:
+  - "No prior comparison"
+  - or omit the trend line entirely
+
+Visual requirements:
+- Trend text should remain secondary to KPI value
+- Do not visually overpower the dashboard
+- Preserve editorial/premium feel
+- Keep mobile layouts clean
+- Ensure trends wrap gracefully on smaller screens
+
+Mobile:
+- Trend text should fit cleanly inside compact KPI cards
+- Avoid increasing card height significantly
+- Maintain current mobile density improvements
+
+Files likely involved:
+- templates/admin_dashboard.html
+- routes/admin_routes.py or equivalent admin dashboard route
+- static/css/style.css
+
+Testing:
+- Confirm trends calculate correctly
+- Confirm zero-denominator safety
+- Confirm mobile wrapping works
+- Confirm cards remain visually balanced
+- Confirm no layout regressions on desktop or mobile
+
+Important:
+Do not build:
+- tap-through detail screens
+- charts
+- date pickers
+- drilldowns
+- historical tables
+- sparkline graphs
+- analytics pages
+
+This is intentionally lightweight founder monitoring context only.
+
+Use checkpoints sparingly.
+
+Do not finish until all trend indicators are visually tested on both desktop and mobile.

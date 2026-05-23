@@ -20,7 +20,6 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
   }
-  /* Engagement (2 cards): stays 2-col down to mobile */
   .ad-kpi-grid--2col {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -60,6 +59,18 @@
     color: #9E958A;
     margin-top: 4px;
   }
+
+  /* ── Trend indicators ── */
+  .ad-trend {
+    font-size: 10.5px;
+    font-weight: 500;
+    margin-top: 5px;
+    line-height: 1.3;
+    color: #B0A99F;
+  }
+  .ad-trend--pos  { color: #16A34A; }
+  .ad-trend--neg  { color: #DC2626; }
+  .ad-trend--flat { color: #B0A99F; }
 
   /* Rate bar */
   .ad-rate-bar-wrap {
@@ -107,6 +118,16 @@
     color: #1C1917;
     line-height: 1;
   }
+  .ad-mel-trend {
+    font-size: 10px;
+    font-weight: 500;
+    margin-top: 5px;
+    line-height: 1.3;
+    color: #B0A99F;
+  }
+  .ad-mel-trend--pos  { color: #16A34A; }
+  .ad-mel-trend--neg  { color: #DC2626; }
+  .ad-mel-trend--flat { color: #B0A99F; }
   @media (max-width: 640px) {
     .ad-mel-row   { flex-wrap: wrap; gap: 8px; }
     .ad-mel-card  { min-width: calc(50% - 4px); flex: none; padding: 10px 10px; }
@@ -163,6 +184,7 @@
     .ad-card          { padding: 11px 14px 9px; }
     .ad-card-value    { font-size: 24px; }
     .ad-card-sub      { font-size: 11px; }
+    .ad-trend         { font-size: 10px; margin-top: 4px; }
     .ad-pass-name     { width: 90px; font-size: 11px; }
     .ad-pass-count    { font-size: 11px; }
   }
@@ -176,6 +198,11 @@
 {% endblock %}
 
 {% block content %}
+
+{# ── Macro: render one trend line (or nothing if None) ── #}
+{%- macro trend(t, extra_class='') -%}
+{%- if t -%}<div class="ad-trend {{ t[1] }} {{ extra_class }}">{{ t[0] }}</div>{%- endif -%}
+{%- endmacro -%}
 
 {# ── Display-layer pass label normalization (no DB changes) ── #}
 {% set pass_label_map = {
@@ -204,18 +231,21 @@
       <div class="ad-card-label">Total Users</div>
       <div class="ad-card-value">{{ total_users }}</div>
       <div class="ad-card-sub">all-time signups</div>
+      {{ trend(trend_total_users) }}
     </div>
 
     <div class="ad-card">
       <div class="ad-card-label">MAU</div>
       <div class="ad-card-value">{{ mau }}</div>
       <div class="ad-card-sub">active in last 30 days</div>
+      {{ trend(trend_mau) }}
     </div>
 
     <div class="ad-card">
       <div class="ad-card-label">New This Month</div>
       <div class="ad-card-value">{{ new_users_month }}</div>
       <div class="ad-card-sub">{{ month_label }}</div>
+      {{ trend(trend_new_users) }}
     </div>
 
   </div>
@@ -236,6 +266,7 @@
       <div class="ad-card-label">Trips This Month</div>
       <div class="ad-card-value">{{ trips_month }}</div>
       <div class="ad-card-sub">{{ month_label }}</div>
+      {{ trend(trend_trips_month) }}
     </div>
 
     <div class="ad-card">
@@ -245,6 +276,7 @@
       <div class="ad-rate-bar-wrap">
         <div class="ad-rate-bar" style="width: {{ invite_rate }}%"></div>
       </div>
+      {{ trend(trend_invite_rate) }}
     </div>
 
   </div>
@@ -262,6 +294,7 @@
       <div class="ad-rate-bar-wrap">
         <div class="ad-rate-bar" style="width: {{ push_rate }}%"></div>
       </div>
+      {{ trend(trend_push_rate) }}
     </div>
 
     <div class="ad-card">
@@ -271,6 +304,7 @@
       <div class="ad-rate-bar-wrap">
         <div class="ad-rate-bar" style="width: {{ email_rate }}%"></div>
       </div>
+      {{ trend(trend_email_rate) }}
     </div>
 
   </div>
@@ -295,6 +329,9 @@
     <div class="ad-mel-card">
       <div class="ad-mel-card-label ad-mel-failed">Failed</div>
       <div class="ad-mel-value">{{ mel_failed }}</div>
+      {%- if trend_mel_failed -%}
+      <div class="ad-mel-trend {{ trend_mel_failed[1] | replace('ad-trend', 'ad-mel-trend') }}">{{ trend_mel_failed[0] }}</div>
+      {%- endif -%}
     </div>
   </div>
 </div>
