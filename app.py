@@ -1635,8 +1635,8 @@ def run_ski_trip_updated_at_migration():
             except Exception as e:
                 db.session.rollback()
                 print(f"ski_trip_updated_at_migration: skipped ({e})")
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"ski_trip_updated_at_migration: context error ({e})")
 
 run_ski_trip_updated_at_migration()
 

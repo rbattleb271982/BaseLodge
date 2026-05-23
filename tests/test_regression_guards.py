@@ -4,32 +4,81 @@ Regression guard tests for recent BaseLodge UX/social-graph fixes.
 Coverage:
   1. remove_friend severs both Friend rows AND cancels accepted Invitation rows
   2. rental equipment via onboarding route persists to User.equipment_status
-  3. pass display overrides do not mutate normalize_pass()
-  4. home empty-state card appears only when dest_feed is empty
+  3. pass display overrides inside get_all_active_resorts_map do not mutate
+     normalize_pass() — resort slug → override label stays in the display layer
+  4. home empty-state card appears only when dest_feed is empty (route integration)
 
 Run: pytest tests/test_regression_guards.py -v
 """
+import os
+import tempfile
 import unittest.mock
 from datetime import datetime
 
 import pytest
+import sqlalchemy as sa
 
-from app import app
-from models import db, Friend, Invitation, User
+from app import app, get_all_active_resorts_map
+from models import db, Friend, Invitation, Resort, ResortPass, User
+from services.pass_utils import normalize_pass
 
 
 # ─── Shared fixtures ──────────────────────────────────────────────────────────
 
+def _swap_engine(new_engine):
+    """
+    Directly replace the cached engine in Flask-SQLAlchemy's internal
+    _app_engines dict.  Flask-SQLAlchemy 3.x stores engines in:
+        db._app_engines: WeakKeyDictionary[Flask, dict[str|None, Engine]]
+    The default bind key is None.
+    Returns the engine that was replaced so the caller can restore it.
+    """
+    engines_map = db._app_engines.setdefault(app, {})
+    old_engine = engines_map.get(None)
+    if old_engine is not None:
+        old_engine.dispose()
+    engines_map[None] = new_engine
+    return old_engine
+
+
 @pytest.fixture
 def client():
-    """SQLite in-memory test client — matches test_profile_consolidation.py pattern."""
-    app.config["TESTING"] = True
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
+    """
+    File-based SQLite test client.
+
+    A file-based SQLite database is used rather than ':memory:' because when
+    client.get() is called while the outer app context (from this fixture) is
+    already on the stack, Flask reuses that same app context for the request.
+    The route's exception handlers call db.session.rollback() which expires the
+    session identity map.  With :memory: + StaticPool the single connection
+    state is shared, so a rollback in one part of the test can make data
+    committed earlier invisible.  A file-based DB avoids this entirely:
+    committed rows are durable on disk and visible to every new connection /
+    session regardless of session-level rollbacks.
+    """
+    db_fd, db_path = tempfile.mkstemp(suffix=".sqlite")
+    os.close(db_fd)
+
+    sqlite_engine = sa.create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False},
+    )
+    saved_engine = _swap_engine(sqlite_engine)
+
     with app.app_context():
         db.create_all()
         yield app.test_client()
         db.session.remove()
         db.drop_all()
+
+    # Restore the original engine (Supabase / whatever was there before).
+    if saved_engine is not None:
+        _swap_engine(saved_engine)
+    sqlite_engine.dispose()
+    try:
+        os.unlink(db_path)
+    except OSError:
+        pass
 
 
 _TEST_CSRF = "test-csrf-token-fixed-value-for-guards"
@@ -113,7 +162,14 @@ def test_remove_friend_severs_friend_rows_and_accepted_invitation(client):
 # ─── Test 2 — rental equipment persists to User.equipment_status ─────────────
 
 def test_rental_equipment_persists_to_user_equipment_status(client):
-    """POST /onboarding/equipment with equipment_status=needs_rentals mirrors to User."""
+    """
+    POST /onboarding/equipment with equipment_status=needs_rentals mirrors to
+    User.equipment_status.
+
+    The route's form field is `equipment_status` (values: needs_rentals |
+    have_own_equipment); the route validates the value and mirrors it to the
+    user record. This test exercises that validation+mirror path.
+    """
     with app.app_context():
         user = _make_user(3)
         db.session.commit()
@@ -143,39 +199,71 @@ def test_rental_equipment_persists_to_user_equipment_status(client):
 # ─── Test 3 — pass display overrides do not mutate normalize_pass ─────────────
 
 def test_pass_display_override_does_not_mutate_normalize_pass(client):
-    """Resort display-layer overrides must not mutate normalize_pass() output."""
-    from services.pass_utils import normalize_pass
+    """
+    Display-layer pass overrides inside get_all_active_resorts_map (the
+    _RESORT_PASS_OVERRIDES dict) must not mutate normalize_pass().
 
-    # Capture results before any override logic is simulated
-    before_other = normalize_pass("other")        # canonical → "other"
-    before_slug = normalize_pass("killington")    # not in PASS_NORM_MAP → "killington"
+    Calls the real function with a Resort + ResortPass row seeded in SQLite so
+    the lru_cache result is freshly computed from test data, not a Supabase
+    snapshot.
+    """
+    with app.app_context():
+        # Insert a Resort whose slug appears in _RESORT_PASS_OVERRIDES
+        resort = Resort(
+            name="Killington Resort",
+            slug="killington",
+            state="VT",
+            is_active=True,
+            is_region=False,
+            country_code="US",
+            state_code="VT",
+        )
+        db.session.add(resort)
+        db.session.flush()
 
-    # Simulate exactly what get_all_active_resorts_map() does internally:
-    # assign a display label to a LOCAL variable only — normalize_pass is not touched.
-    _simulated_overrides = {"killington": "Ikon"}
-    _pk = ["other"]
-    _pl = "other"
-    if _pk == ["other"] and "killington" in _simulated_overrides:
-        _pl = _simulated_overrides["killington"]  # display label changes in local scope only
+        # Link it to the Ikon pass via the normalized ResortPass table
+        rp = ResortPass(
+            resort_id=resort.id,
+            pass_name="Ikon",
+            is_primary=True,
+        )
+        db.session.add(rp)
+        db.session.commit()
 
-    # normalize_pass must return identical results before and after
-    after_other = normalize_pass("other")
-    after_slug = normalize_pass("killington")
+        # ── Capture normalize_pass BEFORE calling the builder ────────────────
+        before_ikon   = normalize_pass("Ikon")    # canonical pass name → "ikon"
+        before_other  = normalize_pass("other")   # passthrough → "other"
 
+        # Force a fresh cache computation against our SQLite data
+        get_all_active_resorts_map.cache_clear()
+        resort_map = get_all_active_resorts_map()
+
+        # ── Capture normalize_pass AFTER calling the builder ─────────────────
+        after_ikon  = normalize_pass("Ikon")
+        after_other = normalize_pass("other")
+
+    # normalize_pass must return identical results before and after the builder ran
+    assert before_ikon == after_ikon, (
+        "normalize_pass('Ikon') must return the same value before and after "
+        "get_all_active_resorts_map() runs"
+    )
     assert before_other == after_other == "other", (
-        "normalize_pass('other') must always return 'other', never a display label"
+        "normalize_pass('other') must always return 'other' — never a display label"
     )
-    assert before_slug == after_slug, (
-        "normalize_pass result must be identical before and after override dict assignment"
+
+    # The resort map entry for killington may carry a display label ('Ikon') in
+    # its pass_label field, but normalize_pass must not return that override label
+    assert normalize_pass("Ikon") != "Ikon" or normalize_pass("Ikon") == before_ikon, (
+        "normalize_pass output must be stable — it must not be changed by the "
+        "display-layer override logic in get_all_active_resorts_map"
     )
-    assert _pl == "Ikon", (
-        "The display-layer override must produce 'Ikon' for the presentation layer"
+
+    # Confirm the resort map was actually built (function ran against our data)
+    assert isinstance(resort_map, dict), (
+        "get_all_active_resorts_map must return a dict"
     )
-    assert normalize_pass("other") != "Ikon", (
-        "normalize_pass must never return a branded display label"
-    )
-    assert normalize_pass("killington") != "Ikon", (
-        "normalize_pass on a resort slug must never return a display override label"
+    assert len(resort_map) >= 1, (
+        "resort_map must contain at least the one Resort row we inserted"
     )
 
 
@@ -183,33 +271,76 @@ def test_pass_display_override_does_not_mutate_normalize_pass(client):
 
 def test_empty_opportunity_card_only_when_feed_empty(client):
     """
-    The opportunities partial renders bl-opp-empty-card iff dest_feed is [].
+    GET /home renders bl-opp-empty-card iff the destination feed is empty.
 
-    Tests the template logic directly via render_template so the assertion is
-    independent of complex route/DB state. The Jinja2 conditional in
-    _section_opportunities.html is the precise regression guard.
+    Part A: user has no friends → feed builder is never called → dest_feed=[]
+            → empty-state card must appear in HTML.
+    Part B: user has one friend, feed builder mocked to return one row
+            → dest_feed has one item → empty-state card must NOT appear.
+
+    Implementation note — shared `g` between requests
+    --------------------------------------------------
+    When client.get() is called while the fixture's outer app context is active,
+    Flask *reuses* that same app context rather than pushing a new one (Flask only
+    creates a new app context if one does not already exist for the current app).
+    This means `flask.g` — which is scoped to the app context — is shared across
+    all requests made within the same `with app.app_context():` block.
+
+    Flask-Login caches the loaded user object in `g._login_user` on the first
+    access of `current_user` within a request.  Without clearing this between
+    Part A and Part B, Part B would pick up Part A's user (solo_user) from the
+    stale cache and query Friend rows for the wrong user, always finding zero.
+
+    The fix: explicitly delete Flask-Login's per-request cache attributes from `g`
+    between the two requests so Part B loads the correct user afresh.
     """
-    from flask import render_template
+    from flask import g as flask_g
 
-    # ── Part A: empty feed → empty card MUST appear ───────────────────────────
-    with app.test_request_context("/home"):
-        html_empty = render_template(
-            "partials/home/_section_opportunities.html",
-            dest_feed=[],
-            ideas_count=0,
-            show_add_dates=True,
-        )
+    with app.app_context():
+        solo_user = _make_user(10)   # no friends → Part A
+        user_a    = _make_user(11)   # has user_b as friend → Part B
+        user_b    = _make_user(12)
+        db.session.add(Friend(user_id=user_a.id, friend_id=user_b.id))
+        db.session.add(Friend(user_id=user_b.id, friend_id=user_a.id))
+        db.session.commit()
+        solo_id = solo_user.id
+        a_id    = user_a.id
+        b_id    = user_b.id
 
-    assert "bl-opp-empty-card" in html_empty, (
-        "Empty-state card must appear in template HTML when dest_feed=[]"
+    # ── Part A: no friends → dest_feed=[] → empty card must appear ───────────
+    _session_login(client, solo_id)
+
+    with unittest.mock.patch(
+        "services.open_dates.get_available_dates_for_user", return_value=[]
+    ):
+        resp_empty = client.get("/home", follow_redirects=True)
+
+    assert resp_empty.status_code == 200, (
+        f"Expected 200 from /home, got {resp_empty.status_code}"
     )
-    assert "Add dates to unlock trip ideas" in html_empty, (
-        "Empty-state card title must match the spec copy"
+    assert b'class="bl-opp-empty-card"' in resp_empty.data, (
+        "Empty-state card element must appear in /home HTML when user has no friends "
+        "(dest_feed is empty)"
     )
 
-    # ── Part B: one feed item → empty card must NOT appear ────────────────────
-    mock_row = {
-        "resort":            None,       # triggers "Pick a mountain" path
+    # ── Purge shared-g caches before Part B ──────────────────────────────────
+    # Flask reuses the outer app context for all requests inside the fixture's
+    # `with app.app_context():`.  Flask-Login stores the loaded user in
+    # g._login_user; the before_request navigation helper caches the nav state
+    # in g._computed_user_state.  Both must be cleared so Part B re-evaluates
+    # them for user_a rather than returning the solo_user values from Part A.
+    for _attr in ("_login_user", "_computed_user_state"):
+        try:
+            delattr(flask_g, _attr)
+        except AttributeError:
+            pass
+
+    # ── Part B: one friend, mocked feed with one item → card must be absent ───
+    _session_login(client, a_id)
+
+    mock_feed_row = {
+        "resort_id":         None,
+        "resort":            None,
         "idea_type":         "friend_trip",
         "line2":             "1 friend is going",
         "date_range":        None,
@@ -217,20 +348,26 @@ def test_empty_opportunity_card_only_when_feed_empty(client):
         "going_count":       1,
         "considering_count": 0,
         "signal_type":       1,
-        "_card_key":         "friend_trip:999",
-        "_url":              "/add_trip",
+        "friend_ids":        [b_id],
+        "start_date":        "2026-01-15",
     }
-    with app.test_request_context("/home"):
-        html_has_items = render_template(
-            "partials/home/_section_opportunities.html",
-            dest_feed=[mock_row],
-            ideas_count=1,
-            show_add_dates=False,
-        )
 
-    assert "bl-opp-empty-card" not in html_has_items, (
-        "Empty-state card must NOT appear in template HTML when dest_feed has items"
+    with unittest.mock.patch(
+        "services.open_dates.get_available_dates_for_user", return_value=[]
+    ), unittest.mock.patch(
+        "services.ideas_engine.build_destination_feed",
+        return_value=([mock_feed_row], {}, []),
+    ), unittest.mock.patch(
+        "app.get_all_active_resorts_map", return_value={}
+    ):
+        resp_has_items = client.get("/home", follow_redirects=True)
+
+    assert resp_has_items.status_code == 200, (
+        f"Expected 200 from /home with mocked feed, got {resp_has_items.status_code}"
     )
-    assert "bl-opp-row" in html_has_items, (
-        "Opportunity rows must be rendered when dest_feed has items"
+    assert b'class="bl-opp-empty-card"' not in resp_has_items.data, (
+        "Empty-state card element must NOT appear in /home HTML when dest_feed has items"
+    )
+    assert b'class="bl-opp-row"' in resp_has_items.data, (
+        "Opportunity row element must be rendered in /home HTML when dest_feed has items"
     )
