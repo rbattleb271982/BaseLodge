@@ -251,11 +251,15 @@ def test_pass_display_override_does_not_mutate_normalize_pass(client):
         "not mutate the pass normalizer"
     )
 
-    # The canonical form must differ from the display label: if the override
-    # had polluted normalize_pass it would return "Ikon" (title-case), not the
-    # canonical lowercase key.
-    assert normalize_pass(killington_override_label) == before, (
-        "normalize_pass output must be stable across map-builder executions"
+    # The canonical key must NOT be the display label.  If the override
+    # had polluted normalize_pass it would return "Ikon" (title-case display)
+    # instead of the canonical lowercase key "ikon".
+    assert normalize_pass(killington_override_label) != killington_override_label, (
+        f"normalize_pass({killington_override_label!r}) must return a canonical "
+        f"key, not the display label {killington_override_label!r}"
+    )
+    assert normalize_pass(killington_override_label) == "ikon", (
+        "normalize_pass('Ikon') must always return canonical key 'ikon'"
     )
 
     # The resort map entry for killington must carry the display override so
