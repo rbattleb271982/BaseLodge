@@ -3,46 +3,52 @@
 {% block page_title %}Dashboard{% endblock %}
 
 {% block head_styles %}
-  /* ── Dashboard grid ── */
+  /* ── Section headers ── */
   .ad-section-label {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.11em;
     text-transform: uppercase;
-    color: #9E958A;
-    margin: 0 0 14px;
+    color: #6B6157;
+    margin: 0 0 10px;
   }
-  .ad-section { margin-bottom: 36px; }
+  .ad-section { margin-bottom: 24px; }
 
+  /* ── KPI grid ── */
   .ad-kpi-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-    margin-bottom: 0;
+    gap: 10px;
+  }
+  /* Engagement (2 cards): stays 2-col down to mobile */
+  .ad-kpi-grid--2col {
+    grid-template-columns: repeat(2, 1fr);
   }
   @media (max-width: 1100px) {
     .ad-kpi-grid { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 640px) {
-    .ad-kpi-grid { grid-template-columns: 1fr; }
+    .ad-kpi-grid       { grid-template-columns: 1fr; gap: 8px; }
+    .ad-kpi-grid--2col { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   }
 
+  /* ── KPI cards ── */
   .ad-card {
     background: #FFFFFF;
     border: 1px solid #E4DDD2;
-    border-radius: 10px;
-    padding: 18px 20px 16px;
+    border-radius: 9px;
+    padding: 14px 16px 12px;
   }
   .ad-card-label {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #9E958A;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
   .ad-card-value {
-    font-size: 34px;
+    font-size: 28px;
     font-weight: 700;
     color: #5C1219;
     line-height: 1;
@@ -50,37 +56,37 @@
     letter-spacing: -0.02em;
   }
   .ad-card-sub {
-    font-size: 12px;
+    font-size: 11px;
     color: #9E958A;
-    margin-top: 5px;
+    margin-top: 4px;
   }
 
-  /* Rate cards show a mini bar */
+  /* Rate bar */
   .ad-rate-bar-wrap {
-    margin-top: 10px;
+    margin-top: 8px;
     background: #F0EAE0;
     border-radius: 4px;
-    height: 4px;
+    height: 3px;
     overflow: hidden;
   }
   .ad-rate-bar {
     height: 100%;
     background: #5C1219;
     border-radius: 4px;
-    transition: width 0.6s ease;
+    transition: width 0.5s ease;
   }
 
-  /* ── MEL delivery ── */
+  /* ── MEL delivery row ── */
   .ad-mel-row {
     display: flex;
-    gap: 14px;
+    gap: 10px;
   }
   .ad-mel-card {
     flex: 1;
     background: #FFFFFF;
     border: 1px solid #E4DDD2;
-    border-radius: 10px;
-    padding: 16px 18px;
+    border-radius: 9px;
+    padding: 12px 14px;
     text-align: center;
   }
   .ad-mel-card-label {
@@ -88,51 +94,52 @@
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
   .ad-mel-sent   { color: #16A34A; }
   .ad-mel-failed { color: #DC2626; }
   .ad-mel-skip   { color: #D97706; }
   .ad-mel-total  { color: #5C1219; }
   .ad-mel-value  {
-    font-size: 28px;
+    font-size: 22px;
     font-weight: 700;
     font-family: Georgia, serif;
     color: #1C1917;
+    line-height: 1;
   }
   @media (max-width: 640px) {
-    .ad-mel-row { flex-wrap: wrap; }
-    .ad-mel-card { min-width: calc(50% - 7px); }
+    .ad-mel-row   { flex-wrap: wrap; gap: 8px; }
+    .ad-mel-card  { min-width: calc(50% - 4px); flex: none; padding: 10px 10px; }
+    .ad-mel-value { font-size: 20px; }
   }
 
   /* ── Pass distribution ── */
   .ad-pass-table {
     background: #FFFFFF;
     border: 1px solid #E4DDD2;
-    border-radius: 10px;
+    border-radius: 9px;
     overflow: hidden;
   }
   .ad-pass-row {
     display: flex;
     align-items: center;
-    padding: 11px 18px;
+    padding: 9px 14px;
     border-bottom: 1px solid #F0EAE0;
-    gap: 14px;
+    gap: 12px;
   }
   .ad-pass-row:last-child { border-bottom: none; }
   .ad-pass-name {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     color: #1C1917;
-    width: 120px;
+    width: 110px;
     flex-shrink: 0;
-    text-transform: capitalize;
   }
   .ad-pass-bar-wrap {
     flex: 1;
     background: #F0EAE0;
     border-radius: 4px;
-    height: 6px;
+    height: 5px;
     overflow: hidden;
   }
   .ad-pass-bar {
@@ -141,23 +148,49 @@
     border-radius: 4px;
   }
   .ad-pass-count {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     color: #5C1219;
-    width: 32px;
+    width: 28px;
     text-align: right;
     flex-shrink: 0;
   }
 
-  /* ── Updated timestamp ── */
+  /* ── Mobile card overrides ── */
+  @media (max-width: 640px) {
+    .ad-section       { margin-bottom: 18px; }
+    .ad-section-label { margin-bottom: 8px; }
+    .ad-card          { padding: 11px 14px 9px; }
+    .ad-card-value    { font-size: 24px; }
+    .ad-card-sub      { font-size: 11px; }
+    .ad-pass-name     { width: 90px; font-size: 11px; }
+    .ad-pass-count    { font-size: 11px; }
+  }
+
+  /* ── Timestamp ── */
   .ad-updated {
     font-size: 11px;
     color: #B0A99F;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
   }
 {% endblock %}
 
 {% block content %}
+
+{# ── Display-layer pass label normalization (no DB changes) ── #}
+{% set pass_label_map = {
+  'epic':        'Epic',
+  'ikon':        'Ikon',
+  'mountain_collective': 'Mountain Collective',
+  'indy':        'Indy Pass',
+  'freedom':     'Freedom Pass',
+  'no_pass':     'No Pass',
+  'no_pass_yet': 'No Pass Yet',
+  'not_sure':    'Not Sure',
+  'other':       'Other',
+  'none':        'None',
+} %}
+
 <div class="ad-updated">
   Live data — refreshed on page load &nbsp;·&nbsp; {{ now }}
 </div>
@@ -180,7 +213,7 @@
     </div>
 
     <div class="ad-card">
-      <div class="ad-card-label">New Users This Month</div>
+      <div class="ad-card-label">New This Month</div>
       <div class="ad-card-value">{{ new_users_month }}</div>
       <div class="ad-card-sub">{{ month_label }}</div>
     </div>
@@ -217,15 +250,15 @@
   </div>
 </div>
 
-<!-- ── Engagement ── -->
+<!-- ── Engagement — 2 cards, 2-col on all widths ── -->
 <div class="ad-section">
   <div class="ad-section-label">Engagement</div>
-  <div class="ad-kpi-grid">
+  <div class="ad-kpi-grid ad-kpi-grid--2col">
 
     <div class="ad-card">
       <div class="ad-card-label">Push Opt-in</div>
       <div class="ad-card-value">{{ push_rate }}%</div>
-      <div class="ad-card-sub">{{ push_opt_in }} of {{ total_users }} users</div>
+      <div class="ad-card-sub">{{ push_opt_in }} of {{ total_users }}</div>
       <div class="ad-rate-bar-wrap">
         <div class="ad-rate-bar" style="width: {{ push_rate }}%"></div>
       </div>
@@ -234,7 +267,7 @@
     <div class="ad-card">
       <div class="ad-card-label">Email Opt-in</div>
       <div class="ad-card-value">{{ email_rate }}%</div>
-      <div class="ad-card-sub">{{ email_opt_in }} of {{ total_users }} users</div>
+      <div class="ad-card-sub">{{ email_opt_in }} of {{ total_users }}</div>
       <div class="ad-rate-bar-wrap">
         <div class="ad-rate-bar" style="width: {{ email_rate }}%"></div>
       </div>
@@ -243,7 +276,7 @@
   </div>
 </div>
 
-<!-- ── Push / Messaging ── -->
+<!-- ── Push Delivery ── -->
 <div class="ad-section">
   <div class="ad-section-label">Push Delivery (all-time MEL)</div>
   <div class="ad-mel-row">
@@ -272,9 +305,10 @@
   {% if pass_distribution %}
   <div class="ad-pass-table">
     {% set max_count = pass_distribution[0][1] %}
-    {% for pass_name, count in pass_distribution %}
+    {% for pass_key, count in pass_distribution %}
+    {% set display_name = pass_label_map[pass_key] if pass_key in pass_label_map else pass_key | replace('_', ' ') | title %}
     <div class="ad-pass-row">
-      <div class="ad-pass-name">{{ pass_name if pass_name else 'none' }}</div>
+      <div class="ad-pass-name">{{ display_name }}</div>
       <div class="ad-pass-bar-wrap">
         <div class="ad-pass-bar"
              style="width: {{ ((count / max_count) * 100)|int }}%"></div>
