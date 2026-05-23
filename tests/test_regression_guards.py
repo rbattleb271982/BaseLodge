@@ -10,13 +10,12 @@ Coverage:
 
 Run: pytest tests/test_regression_guards.py -v
 """
-import os
-import tempfile
 import unittest.mock
 from datetime import datetime
 
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.pool import StaticPool
 
 from app import app, get_all_active_resorts_map
 from models import db, Friend, Invitation, Resort, ResortPass, User
@@ -44,24 +43,20 @@ def _swap_engine(new_engine):
 @pytest.fixture
 def client():
     """
-    File-based SQLite test client.
+    SQLite in-memory test client.
 
-    A file-based SQLite database is used rather than ':memory:' because when
-    client.get() is called while the outer app context (from this fixture) is
-    already on the stack, Flask reuses that same app context for the request.
-    The route's exception handlers call db.session.rollback() which expires the
-    session identity map.  With :memory: + StaticPool the single connection
-    state is shared, so a rollback in one part of the test can make data
-    committed earlier invisible.  A file-based DB avoids this entirely:
-    committed rows are durable on disk and visible to every new connection /
-    session regardless of session-level rollbacks.
+    StaticPool ensures every SQLAlchemy connection checkout (outer fixture
+    context, nested contexts, Flask test-client request contexts) shares the
+    exact same in-memory database, so committed rows are visible across all
+    session and context boundaries.
+
+    Flask-SQLAlchemy 3.x guards init_app() from being called twice, so we
+    swap the engine directly in db._app_engines instead.
     """
-    db_fd, db_path = tempfile.mkstemp(suffix=".sqlite")
-    os.close(db_fd)
-
     sqlite_engine = sa.create_engine(
-        f"sqlite:///{db_path}",
+        "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
     )
     saved_engine = _swap_engine(sqlite_engine)
 
@@ -75,10 +70,6 @@ def client():
     if saved_engine is not None:
         _swap_engine(saved_engine)
     sqlite_engine.dispose()
-    try:
-        os.unlink(db_path)
-    except OSError:
-        pass
 
 
 _TEST_CSRF = "test-csrf-token-fixed-value-for-guards"
@@ -203,12 +194,21 @@ def test_pass_display_override_does_not_mutate_normalize_pass(client):
     Display-layer pass overrides inside get_all_active_resorts_map (the
     _RESORT_PASS_OVERRIDES dict) must not mutate normalize_pass().
 
-    Calls the real function with a Resort + ResortPass row seeded in SQLite so
-    the lru_cache result is freshly computed from test data, not a Supabase
+    Killington is a canonical example: its slug maps to the display label
+    "Ikon" in _RESORT_PASS_OVERRIDES, which is applied to the resort's
+    pass_label when the resort otherwise resolves to the generic "other" key.
+    The guard verifies that executing this override path (via
+    get_all_active_resorts_map) does not change what normalize_pass("Ikon")
+    returns — the display override must stay in the display layer only.
+
+    Calls the real function with a Resort row seeded in SQLite so the
+    lru_cache result is freshly computed from test data, not a Supabase
     snapshot.
     """
     with app.app_context():
-        # Insert a Resort whose slug appears in _RESORT_PASS_OVERRIDES
+        # Insert Killington — slug is in _RESORT_PASS_OVERRIDES → "Ikon" display label.
+        # No ResortPass row means pass_brands resolves to "other"; the override
+        # then sets pass_label = "Ikon" in the display layer only.
         resort = Resort(
             name="Killington Resort",
             slug="killington",
@@ -221,49 +221,52 @@ def test_pass_display_override_does_not_mutate_normalize_pass(client):
         db.session.add(resort)
         db.session.flush()
 
-        # Link it to the Ikon pass via the normalized ResortPass table
-        rp = ResortPass(
-            resort_id=resort.id,
-            pass_name="Ikon",
-            is_primary=True,
-        )
+        # A ResortPass row that resolves to the generic "other" key is required
+        # so that _pass_data returns pk=["other"].  With pk==["other"] and the
+        # "killington" slug present in _RESORT_PASS_OVERRIDES, the builder then
+        # sets pass_labels = "Ikon" — the code path the guard is exercising.
+        rp = ResortPass(resort_id=resort.id, pass_name="other", is_primary=True)
         db.session.add(rp)
         db.session.commit()
+        resort_id = resort.id
 
-        # ── Capture normalize_pass BEFORE calling the builder ────────────────
-        before_ikon   = normalize_pass("Ikon")    # canonical pass name → "ikon"
-        before_other  = normalize_pass("other")   # passthrough → "other"
+        # The override label that _RESORT_PASS_OVERRIDES["killington"] carries.
+        # normalize_pass must not be changed to return this display string.
+        killington_override_label = "Ikon"
+
+        # ── Capture normalize_pass BEFORE running the map builder ────────────
+        before = normalize_pass(killington_override_label)
 
         # Force a fresh cache computation against our SQLite data
         get_all_active_resorts_map.cache_clear()
         resort_map = get_all_active_resorts_map()
 
-        # ── Capture normalize_pass AFTER calling the builder ─────────────────
-        after_ikon  = normalize_pass("Ikon")
-        after_other = normalize_pass("other")
+        # ── Capture normalize_pass AFTER running the map builder ─────────────
+        after = normalize_pass(killington_override_label)
 
-    # normalize_pass must return identical results before and after the builder ran
-    assert before_ikon == after_ikon, (
-        "normalize_pass('Ikon') must return the same value before and after "
-        "get_all_active_resorts_map() runs"
-    )
-    assert before_other == after_other == "other", (
-        "normalize_pass('other') must always return 'other' — never a display label"
+    # normalize_pass must return identical results before and after
+    assert before == after, (
+        f"normalize_pass({killington_override_label!r}) changed after "
+        "get_all_active_resorts_map() ran — the display-layer override must "
+        "not mutate the pass normalizer"
     )
 
-    # The resort map entry for killington may carry a display label ('Ikon') in
-    # its pass_label field, but normalize_pass must not return that override label
-    assert normalize_pass("Ikon") != "Ikon" or normalize_pass("Ikon") == before_ikon, (
-        "normalize_pass output must be stable — it must not be changed by the "
-        "display-layer override logic in get_all_active_resorts_map"
+    # The canonical form must differ from the display label: if the override
+    # had polluted normalize_pass it would return "Ikon" (title-case), not the
+    # canonical lowercase key.
+    assert normalize_pass(killington_override_label) == before, (
+        "normalize_pass output must be stable across map-builder executions"
     )
 
-    # Confirm the resort map was actually built (function ran against our data)
-    assert isinstance(resort_map, dict), (
-        "get_all_active_resorts_map must return a dict"
+    # The resort map entry for killington must carry the display override so
+    # we confirm the code path that risks mutation actually ran.
+    assert resort_id in resort_map, (
+        "Killington must be present in the resort map after get_all_active_resorts_map()"
     )
-    assert len(resort_map) >= 1, (
-        "resort_map must contain at least the one Resort row we inserted"
+    killington_entry = resort_map[resort_id]
+    assert killington_entry.pass_labels == killington_override_label, (
+        f"Killington's pass_labels must be the display override "
+        f"{killington_override_label!r}; got {killington_entry.pass_labels!r}"
     )
 
 
