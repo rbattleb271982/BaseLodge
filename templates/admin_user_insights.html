@@ -1,0 +1,348 @@
+{% extends "admin_console.html" %}
+{% block title %}User Insights{% endblock %}
+{% block page_title %}User Insights{% endblock %}
+
+{% block head_styles %}
+  /* ── Section headers ── */
+  .ad-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: #6B6157;
+    margin: 0 0 10px;
+  }
+  .ad-section { margin-bottom: 28px; }
+
+  /* ── Updated timestamp ── */
+  .ad-updated {
+    font-size: 11px;
+    color: #9E958A;
+    margin-bottom: 20px;
+  }
+
+  /* ── KPI grid ── */
+  .ad-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 700px) {
+    .ad-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ── KPI card ── */
+  .ad-card {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 14px 16px 12px;
+  }
+  .ad-card-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #9E958A;
+    margin-bottom: 6px;
+  }
+  .ad-card-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1C1917;
+    line-height: 1;
+  }
+  .ad-card-sub {
+    font-size: 12px;
+    color: #9E958A;
+    margin-top: 4px;
+  }
+
+  /* ── Data tables ── */
+  .ui-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .ui-table th {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #9E958A;
+    text-align: left;
+    padding: 0 8px 8px 0;
+    border-bottom: 1px solid #E4DDD2;
+  }
+  .ui-table th:last-child { text-align: right; padding-right: 0; }
+  .ui-table td {
+    padding: 9px 8px 9px 0;
+    border-bottom: 1px solid #F0EBE3;
+    color: #1C1917;
+    vertical-align: middle;
+  }
+  .ui-table td:last-child { text-align: right; padding-right: 0; color: #9E958A; }
+  .ui-table tr:last-child td { border-bottom: none; }
+
+  /* ── Inline bar ── */
+  .ui-bar-wrap {
+    background: #F5F1E8;
+    border-radius: 4px;
+    height: 6px;
+    flex: 1;
+    margin: 0 10px 0 0;
+    overflow: hidden;
+    min-width: 40px;
+  }
+  .ui-bar {
+    height: 100%;
+    background: #5C1219;
+    border-radius: 4px;
+    transition: width .3s ease;
+  }
+  .ui-bar--pass { background: #9B7EBD; }
+  .ui-bar--eq   { background: #4A7C59; }
+  .ui-td-bar {
+    display: flex;
+    align-items: center;
+    min-width: 80px;
+  }
+  .ui-pct {
+    font-size: 12px;
+    color: #9E958A;
+    white-space: nowrap;
+    width: 32px;
+    text-align: right;
+  }
+
+  /* ── Two-col brand grid ── */
+  .ui-brand-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 24px;
+  }
+  @media (max-width: 700px) {
+    .ui-brand-grid { grid-template-columns: 1fr; }
+  }
+  .ui-brand-panel {}
+  .ui-brand-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #9E958A;
+    margin-bottom: 8px;
+  }
+  .ui-brand-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid #F0EBE3;
+    font-size: 13px;
+  }
+  .ui-brand-row:last-child { border-bottom: none; }
+  .ui-brand-name { flex: 1; color: #1C1917; }
+  .ui-brand-cnt  { color: #6B6560; font-size: 12px; white-space: nowrap; }
+  .ui-brand-empty {
+    font-size: 12px;
+    color: #C4B8A8;
+    padding: 10px 0;
+  }
+{% endblock %}
+
+{% block content %}
+<div class="ad-updated">Loaded {{ now }}</div>
+
+<!-- ── Overview ── -->
+<div class="ad-section">
+  <div class="ad-section-label">Overview</div>
+  <div class="ad-kpi-grid">
+    <div class="ad-card">
+      <div class="ad-card-label">Total Users</div>
+      <div class="ad-card-value">{{ overview.total }}</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Rider Type Set</div>
+      <div class="ad-card-value">{{ overview.with_rider[0] }}</div>
+      <div class="ad-card-sub">{{ overview.with_rider[1] }}% of users</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Pass On File</div>
+      <div class="ad-card-value">{{ overview.with_pass[0] }}</div>
+      <div class="ad-card-sub">{{ overview.with_pass[1] }}% have a real pass</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Equipment Set Up</div>
+      <div class="ad-card-value">{{ overview.with_equipment[0] }}</div>
+      <div class="ad-card-sub">{{ overview.with_equipment[1] }}% of users</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Wish List Used</div>
+      <div class="ad-card-value">{{ overview.with_wishlist[0] }}</div>
+      <div class="ad-card-sub">{{ overview.with_wishlist[1] }}% of users</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Mountains Logged</div>
+      <div class="ad-card-value">{{ overview.with_visited[0] }}</div>
+      <div class="ad-card-sub">{{ overview.with_visited[1] }}% of users</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Rider Mix ── -->
+<div class="ad-section">
+  <div class="ad-section-label">Rider Mix</div>
+  <div class="ad-card" style="padding: 0 16px;">
+    {% set rt_max = [rider_mix | map(attribute=1) | max, 1] | max %}
+    <table class="ui-table">
+      <thead>
+        <tr>
+          <th>Rider Type</th>
+          <th></th>
+          <th>Users</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for label, cnt, p in rider_mix %}
+        <tr>
+          <td style="width: 120px; font-weight: 500;">{{ label }}</td>
+          <td>
+            <div class="ui-td-bar">
+              <div class="ui-bar-wrap">
+                <div class="ui-bar" style="width: {{ ((cnt / rt_max) * 100)|int }}%"></div>
+              </div>
+              <div class="ui-pct">{{ p }}%</div>
+            </div>
+          </td>
+          <td>{{ cnt }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" style="color:#9E958A; font-size:12px; padding:12px 0;">No rider type data.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Pass Ownership ── -->
+<div class="ad-section">
+  <div class="ad-section-label">Pass Ownership</div>
+  <div class="ad-card" style="padding: 0 16px;">
+    {% set pass_max = [pass_rows | map(attribute=2) | max, 1] | max %}
+    <table class="ui-table">
+      <thead>
+        <tr>
+          <th>Pass</th>
+          <th></th>
+          <th>Users</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for slug, label, cnt, p in pass_rows %}
+        <tr>
+          <td style="width: 120px; font-weight: 500;">{{ label }}</td>
+          <td>
+            <div class="ui-td-bar">
+              <div class="ui-bar-wrap">
+                <div class="ui-bar ui-bar--pass{% if cnt == 0 %}" style="width:0{% else %}" style="width: {{ ((cnt / pass_max) * 100)|int }}%{% endif %}"></div>
+              </div>
+              <div class="ui-pct">{{ p }}%</div>
+            </div>
+          </td>
+          <td>{{ cnt }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div style="font-size:11px;color:#9E958A;margin-top:8px;">
+    Indy, Freedom, Powder Alliance, etc. are normalized to Other pass.
+    {{ users_with_any_pass }} user{{ 's' if users_with_any_pass != 1 else '' }} hold at least one real pass.
+  </div>
+</div>
+
+<!-- ── Equipment ── -->
+<div class="ad-section">
+  <div class="ad-section-label">Equipment</div>
+  <div class="ad-kpi-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 14px;">
+    <div class="ad-card">
+      <div class="ad-card-label">Users w/ Gear</div>
+      <div class="ad-card-value">{{ eq_summary.users_with_eq }}</div>
+      <div class="ad-card-sub">avg {{ eq_summary.avg_setups }} setup{{ 's' if eq_summary.avg_setups != 1 else '' }}/user</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Skier Setups</div>
+      <div class="ad-card-value">{{ eq_summary.ski[0] }}</div>
+      <div class="ad-card-sub">{{ eq_summary.ski[1] }}% of gear users</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Snowboard Setups</div>
+      <div class="ad-card-value">{{ eq_summary.snowboard[0] }}</div>
+      <div class="ad-card-sub">{{ eq_summary.snowboard[1] }}% of gear users</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Boot Brand</div>
+      <div class="ad-card-value">{{ eq_summary.boots[0] }}</div>
+      <div class="ad-card-sub">{{ eq_summary.boots[1] }}% completed boots</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Binding Brand</div>
+      <div class="ad-card-value">{{ eq_summary.bindings[0] }}</div>
+      <div class="ad-card-sub">{{ eq_summary.bindings[1] }}% completed bindings</div>
+    </div>
+  </div>
+
+  <!-- Brand breakdowns -->
+  <div class="ui-brand-grid">
+    <div class="ui-brand-panel">
+      <div class="ui-brand-label">Ski Brands</div>
+      {% for brand, cnt, p in ski_brands %}
+      <div class="ui-brand-row">
+        <span class="ui-brand-name">{{ brand }}</span>
+        <span class="ui-brand-cnt">{{ cnt }} ({{ p }}%)</span>
+      </div>
+      {% else %}
+      <div class="ui-brand-empty">No ski brands on file.</div>
+      {% endfor %}
+    </div>
+
+    <div class="ui-brand-panel">
+      <div class="ui-brand-label">Snowboard Brands</div>
+      {% for brand, cnt, p in sb_brands %}
+      <div class="ui-brand-row">
+        <span class="ui-brand-name">{{ brand }}</span>
+        <span class="ui-brand-cnt">{{ cnt }} ({{ p }}%)</span>
+      </div>
+      {% else %}
+      <div class="ui-brand-empty">No snowboard brands on file.</div>
+      {% endfor %}
+    </div>
+
+    <div class="ui-brand-panel">
+      <div class="ui-brand-label">Boot Brands</div>
+      {% for brand, cnt, p in boot_brands %}
+      <div class="ui-brand-row">
+        <span class="ui-brand-name">{{ brand }}</span>
+        <span class="ui-brand-cnt">{{ cnt }} ({{ p }}%)</span>
+      </div>
+      {% else %}
+      <div class="ui-brand-empty">No boot brands on file.</div>
+      {% endfor %}
+    </div>
+
+    <div class="ui-brand-panel">
+      <div class="ui-brand-label">Binding Brands</div>
+      {% for brand, cnt, p in binding_brands %}
+      <div class="ui-brand-row">
+        <span class="ui-brand-name">{{ brand }}</span>
+        <span class="ui-brand-cnt">{{ cnt }} ({{ p }}%)</span>
+      </div>
+      {% else %}
+      <div class="ui-brand-empty">No binding brands on file.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}

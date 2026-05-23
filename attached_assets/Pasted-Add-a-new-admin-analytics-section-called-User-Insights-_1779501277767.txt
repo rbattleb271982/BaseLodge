@@ -1,0 +1,191 @@
+Add a new admin analytics section called “User Insights.”
+
+Important:
+Do not place this at the top of the existing admin dashboard. Create a separate admin page and link to it from the dashboard.
+
+Create:
+- Admin route: /admin/user-insights
+- Admin page title: User Insights
+- Dashboard link/card/button labeled “User Insights”
+
+Goal:
+Give admin visibility into user composition, profile completion, equipment adoption, pass ownership, wishlist usage, and equipment brand trends.
+
+This is a read-only analytics/admin page.
+
+==================================================
+1. ROUTE + ACCESS CONTROL
+==================================================
+
+Create a new admin-only route:
+- /admin/user-insights
+
+Requirements:
+- Must require admin access
+- Non-admin users should be blocked/redirected
+- Use the existing admin auth pattern already used elsewhere in the app
+
+==================================================
+2. PAGE STRUCTURE
+==================================================
+
+Use the existing BaseLodge admin styling.
+
+Layout:
+- KPI summary cards at the top
+- Data tables below
+- Mobile-friendly but desktop-first is fine for admin
+
+Suggested sections:
+1. Overview
+2. Rider Mix
+3. Pass Insights
+4. Equipment Completion
+5. Equipment Brand Insights
+
+==================================================
+3. OVERVIEW KPI CARDS
+==================================================
+
+Display both counts and percentages where appropriate.
+
+Show:
+- Total users
+- Users with at least one rider type selected
+- Users with equipment added
+- Users with at least 1 wishlist mountain
+- Users with at least 1 mountain in their profile / mountains skied
+- Users with at least 1 pass selected (if pass data exists)
+
+Percentages should use:
+(total matching users / total users)
+
+==================================================
+4. RIDER MIX
+==================================================
+
+Show counts + percentages for:
+- Skier
+- Snowboarder
+- Telemark
+- Any other rider types currently supported
+
+Important:
+- If rider_types is stored as JSON/list/text, properly count users in each category
+- A user may belong to multiple rider type buckets
+- Do not force mutual exclusivity
+
+Display:
+- Rider Type
+- User Count
+- Percentage of Users
+
+Sort descending by user count.
+
+==================================================
+5. PASS INSIGHTS
+==================================================
+
+Inspect the existing pass schema and use the current source of truth.
+
+Show:
+- Users with at least one pass selected
+- Count by pass type/brand
+
+Examples may include:
+- Epic
+- Ikon
+- Indy
+- Mountain Collective
+- Regional passes
+- Other
+
+Requirements:
+- Exclude blank/null values
+- Sort descending by count
+- If no pass data exists yet, show a graceful empty state
+
+==================================================
+6. EQUIPMENT COMPLETION
+==================================================
+
+Show:
+- Users with at least one equipment setup
+- Average number of setups per equipped user (if easy)
+- Users with ski equipment
+- Users with snowboard equipment
+- Users with boots filled out
+- Users with bindings filled out (if binding fields exist)
+
+Use the current equipment models/source of truth.
+Do not invent new fields.
+
+==================================================
+7. EQUIPMENT BRAND INSIGHTS
+==================================================
+
+Create separate tables for:
+- Ski brands
+- Snowboard brands
+- Boot brands
+- Binding brands (if binding_brand exists)
+
+Requirements:
+- Use current equipment/setup models
+- Exclude blank/null values
+- Group “Other” separately if it exists
+- Sort descending by count
+
+Display:
+- Brand
+- User Count
+- Percentage of Equipped Users
+
+==================================================
+8. UI / UX
+==================================================
+
+Keep the page clean and readable.
+
+Use:
+- Existing admin card styling
+- Existing typography/colors
+- Responsive tables
+- Empty states where needed
+
+Do not:
+- Add charts yet
+- Add filtering yet
+- Add CSV export yet
+- Add tracking events yet
+
+==================================================
+9. DATABASE SAFETY
+==================================================
+
+This is analytics only.
+
+Do not:
+- Modify user data
+- Change schemas unless absolutely necessary
+- Remove or overwrite existing profile fields
+
+==================================================
+10. TESTING
+==================================================
+
+Use checkpoints sparingly. Only create a checkpoint if needed.
+
+Do not finish until you have tested:
+
+- Non-admin users cannot access /admin/user-insights
+- Admin users can access the page
+- Total user count displays correctly
+- Rider type counts work for multi-select users
+- Wishlist mountain counts work correctly
+- Mountains skied/profile mountain counts work correctly
+- Equipment completion counts work correctly
+- Brand tables exclude blanks/nulls
+- Brand tables sort descending by count
+- Pass section works correctly OR shows a graceful empty state
+- The admin dashboard link to User Insights works

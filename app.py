@@ -14723,5 +14723,154 @@ def admin_dashboard():
     )
 
 
+@app.route("/admin/user-insights")
+@login_required
+@admin_required
+def admin_user_insights():
+    """Admin User Insights — read-only analytics on user composition and equipment."""
+    from collections import Counter
+    from sqlalchemy import func
+    from services.pass_utils import normalize_pass, PASS_DISPLAY_MAP, CANONICAL_PASS_ORDER
+
+    all_users = User.query.all()
+    total = len(all_users)
+
+    def pct(n):
+        return round(n / total * 100) if total else 0
+
+    # ── Overview KPIs ─────────────────────────────────────────────────────────
+    users_with_rider = sum(
+        1 for u in all_users
+        if (u.rider_types and len(u.rider_types) > 0)
+        or u.primary_rider_type or u.rider_type
+    )
+    users_with_equipment = db.session.query(
+        EquipmentSetup.user_id.distinct()
+    ).count()
+    users_with_wishlist = sum(
+        1 for u in all_users
+        if u.wish_list_resorts and len(u.wish_list_resorts) > 0
+    )
+    users_with_visited = sum(
+        1 for u in all_users
+        if u.visited_resort_ids and len(u.visited_resort_ids) > 0
+    )
+    # "has a pass" = has at least one canonical pass that isn't no_pass/no_pass_yet
+    _real_pass = frozenset({"epic", "ikon", "other"})
+    users_with_pass = 0
+    for u in all_users:
+        raw = u.pass_type or ''
+        parts = [p.strip() for p in raw.split(',') if p.strip()]
+        if any(normalize_pass(p) in _real_pass for p in parts):
+            users_with_pass += 1
+
+    overview = {
+        'total':          total,
+        'with_rider':     (users_with_rider,     pct(users_with_rider)),
+        'with_equipment': (users_with_equipment, pct(users_with_equipment)),
+        'with_wishlist':  (users_with_wishlist,  pct(users_with_wishlist)),
+        'with_visited':   (users_with_visited,   pct(users_with_visited)),
+        'with_pass':      (users_with_pass,       pct(users_with_pass)),
+    }
+
+    # ── Rider mix ─────────────────────────────────────────────────────────────
+    rt_ctr = Counter()
+    for u in all_users:
+        rts = u.rider_types or []
+        if not rts:
+            if u.primary_rider_type:
+                rts = [u.primary_rider_type]
+            elif u.rider_type:
+                rts = [u.rider_type]
+        for rt in rts:
+            if rt:
+                rt_ctr[rt] += 1
+    rider_mix = sorted(
+        [(rt, cnt, pct(cnt)) for rt, cnt in rt_ctr.items()],
+        key=lambda x: -x[1]
+    )
+
+    # ── Pass insights ─────────────────────────────────────────────────────────
+    pass_ctr = Counter()
+    users_with_any_pass = 0
+    for u in all_users:
+        raw = u.pass_type or ''
+        parts = [p.strip() for p in raw.split(',') if p.strip()]
+        has_real = False
+        for p in parts:
+            norm = normalize_pass(p)
+            if norm:
+                pass_ctr[norm] += 1
+                if norm in _real_pass:
+                    has_real = True
+        if has_real:
+            users_with_any_pass += 1
+
+    pass_rows = [
+        (slug, PASS_DISPLAY_MAP.get(slug, slug), pass_ctr.get(slug, 0), pct(pass_ctr.get(slug, 0)))
+        for slug in CANONICAL_PASS_ORDER
+    ]
+
+    # ── Equipment completion ───────────────────────────────────────────────────
+    total_setups = EquipmentSetup.query.count()
+    avg_setups = round(total_setups / users_with_equipment, 1) if users_with_equipment else 0
+
+    ski_eq = db.session.query(EquipmentSetup.user_id.distinct()).filter(
+        EquipmentSetup.discipline == EquipmentDiscipline.SKIER
+    ).count()
+    sb_eq = db.session.query(EquipmentSetup.user_id.distinct()).filter(
+        EquipmentSetup.discipline == EquipmentDiscipline.SNOWBOARDER
+    ).count()
+    with_boots = db.session.query(EquipmentSetup.user_id.distinct()).filter(
+        EquipmentSetup.boot_brand.isnot(None),
+        EquipmentSetup.boot_brand != ''
+    ).count()
+    with_bindings = db.session.query(EquipmentSetup.user_id.distinct()).filter(
+        EquipmentSetup.binding_brand.isnot(None),
+        EquipmentSetup.binding_brand != ''
+    ).count()
+
+    eq_summary = {
+        'users_with_eq': users_with_equipment,
+        'avg_setups':    avg_setups,
+        'ski':           (ski_eq,        pct(ski_eq)),
+        'snowboard':     (sb_eq,         pct(sb_eq)),
+        'boots':         (with_boots,    pct(with_boots)),
+        'bindings':      (with_bindings, pct(with_bindings)),
+    }
+
+    # ── Equipment brand tables ─────────────────────────────────────────────────
+    def _brand_table(col, disc_filter=None):
+        q = db.session.query(col, func.count()).filter(
+            col.isnot(None), col != ''
+        )
+        if disc_filter is not None:
+            q = q.filter(disc_filter)
+        rows = q.group_by(col).order_by(func.count().desc()).all()
+        eq_base = users_with_equipment or 1
+        return [(b, cnt, round(cnt / eq_base * 100)) for b, cnt in rows if b]
+
+    ski_brands      = _brand_table(EquipmentSetup.brand,         EquipmentSetup.discipline == EquipmentDiscipline.SKIER)
+    sb_brands       = _brand_table(EquipmentSetup.brand,         EquipmentSetup.discipline == EquipmentDiscipline.SNOWBOARDER)
+    boot_brands     = _brand_table(EquipmentSetup.boot_brand)
+    binding_brands  = _brand_table(EquipmentSetup.binding_brand)
+
+    return render_template(
+        "admin_user_insights.html",
+        active_tab          = "user_insights",
+        now                 = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+        total               = total,
+        overview            = overview,
+        rider_mix           = rider_mix,
+        users_with_any_pass = users_with_any_pass,
+        pass_rows           = pass_rows,
+        eq_summary          = eq_summary,
+        ski_brands          = ski_brands,
+        sb_brands           = sb_brands,
+        boot_brands         = boot_brands,
+        binding_brands      = binding_brands,
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
