@@ -1,0 +1,327 @@
+PUT THIS IN PLAN FIRST
+
+Implement #133 and #134 together as a coordinated mobile UX + native-app polish pass for BaseLodge.
+
+These tasks are intentionally scoped to:
+- improve perceived app quality
+- eliminate confusing mobile/TestFlight behaviors
+- reduce social-graph trust issues
+- improve navigation continuity
+- improve information density
+- preserve all existing backend normalization/storage architecture
+
+Do NOT redesign major layouts or underlying systems.
+
+==================================================
+TASK #133 — MOBILE UX DISPLAY POLISH
+==================================================
+
+WHAT & WHY
+
+Four display-layer improvements making BaseLodge feel more intentional and premium on mobile without touching backend normalization logic or system architecture.
+
+1. Home empty state
+- When dest_feed is empty the Opportunities section shows a plain <p class="bl-opp-empty"> text nudge.
+- Replace with a polished cream/bordeaux card:
+  - Georgia title
+  - one-sentence body
+  - bordered "Add availability" CTA
+  - CTA routes to url_for('add_open_dates')
+
+2. Wishlist overlap density
+- friend_profile.html currently renders one row per shared wishlist resort with no cap.
+- Replace with a single grouped summary row:
+  - full list when ≤ 3 resorts
+  - "+N more" truncation when > 3
+
+3. Mountain pass display layer
+- Resorts whose pass ecosystem is deterministically known (example: Palisades Tahoe → Ikon) currently display "Other pass" because normalize_pass() collapses named passes to other.
+- Add a display-only slug→label override layer.
+- Preserve ALL normalization/storage logic.
+
+4. Plan a Trip navigation + international support copy
+- Back button in add_trip.html hardcodes url_for('home').
+- Replace with history.back() behavior.
+- Add subtle helper copy beneath resort search input:
+  "International trip planning support is expanding — some planning flows show US resorts first."
+
+==================================================
+DONE LOOKS LIKE
+==================================================
+
+- User with no ideas sees polished empty-state card.
+- User with ideas does not.
+- CTA routes correctly.
+
+- Friend with 4 shared wishlist resorts sees:
+  "Wishlist overlap: Resort A, Resort B, Resort C +1 more"
+
+- Palisades Tahoe shows "Ikon"
+- At minimum these additional resorts display branded labels:
+  - Copper
+  - Steamboat
+  - Killington
+  - Tremblant
+  - Deer Valley
+  - Park City
+  - Whiteface
+  - Snowbird
+  - Taos
+  - Big Sky
+
+- Resorts without deterministic mappings still display:
+  "Other pass"
+
+- Backing out of Plan a Trip returns user to previous page, not Home.
+
+- International helper copy renders cleanly.
+
+- No horizontal scroll regressions at 375px.
+
+==================================================
+OUT OF SCOPE
+==================================================
+
+- Redesigning Opportunities/home feed layout
+- Removing international browsing
+- Modifying resort_pass table data
+- Changing:
+  - CANONICAL_PASSES
+  - normalize_pass()
+  - storage/filter logic
+
+==================================================
+IMPLEMENTATION DETAILS
+==================================================
+
+HOME EMPTY STATE
+- Replace the old {% else %} / <p class="bl-opp-empty"> block in:
+  templates/partials/home/_section_opportunities.html
+- Use:
+  - cream background
+  - 1px solid #E5DFD0 border
+  - 12px radius
+  - Georgia title (~17px)
+  - muted system-ui body
+  - full-width bordered CTA button
+- Remove old show_add_dates conditional nudge logic entirely.
+
+WISHLIST OVERLAP DENSITY
+- In friend_profile.html:
+  - remove the per-resort loop
+  - replace with grouped summary rendering
+- Display:
+  - full list when ≤ 3
+  - "+N more" when > 3
+- Preserve:
+  - existing icon
+  - chevron styling
+  - friend_wishlist route behavior
+
+MOUNTAIN PASS DISPLAY OVERRIDES
+- In app.py inside _pass_data / get_all_active_resorts_map:
+  - add centralized RESORT_PASS_DISPLAY_OVERRIDES dict
+- Only apply override when:
+  - resolved pass keys == ["other"]
+  - AND resort slug exists in override map
+- Keep override logic centralized in backend.
+- DO NOT hardcode resort logic in templates.
+
+PLAN A TRIP NAVIGATION
+- In add_trip.html:
+  replace:
+    href="{{ url_for('home') }}"
+  with:
+    onclick="history.length > 1 && (event.preventDefault(), history.back())"
+  while preserving Home href fallback.
+
+- Add muted helper line beneath resort search input:
+  "International trip planning support is expanding — some planning flows show US resorts first."
+
+==================================================
+TASK #134 — INVITE AUTH + REMOVE FRIEND REGRESSION
+==================================================
+
+WHAT & WHY
+
+Two functional fixes for the TestFlight/native-app experience.
+
+1. Invite-link auth persistence
+Authenticated TestFlight users opening friend/trip invite links from:
+- iMessage
+- Gmail
+- Apple Mail
+- email apps
+
+should remain fully inside the app without unnecessary Safari redirects or login prompts.
+
+Current issue:
+- "Continue in Browser" renders unconditionally even for authenticated native users.
+
+2. Remove Friend regression
+Removing a friend may still leave ghost connected states because:
+- Invitation rows with status='accepted' survive removal
+- some surfaces may incorrectly derive connected-state from Invitation.status instead of Friend row existence
+- cached profile/friendship state may persist after redirect
+
+==================================================
+DONE LOOKS LIKE
+==================================================
+
+AUTHENTICATED INVITE FLOW
+- User is logged into TestFlight app
+- Invite opened from iMessage/email
+- App opens directly
+- Confirmation screen appears inside app
+- NO "Continue in Browser" button
+- NO login prompt
+- NO Safari redirect
+- Friendship/trip invite resolves immediately
+
+UNAUTHENTICATED FLOW
+- Existing auth behavior preserved
+- invite token stored in Flask session
+- invite resolves after login/signup
+- "Continue in Browser" remains visible
+
+REMOVE FRIEND
+- User A removes User B
+- Both disappear from each other’s Friends lists
+- No connected-state remains anywhere
+- No shared overlaps remain
+- No ghost friendship state survives
+- Re-friending later works correctly
+
+==================================================
+OUT OF SCOPE
+==================================================
+
+- Universal Links/App Links entitlement work
+- Invite landing page redesign
+- Push-notification invite delivery
+- Parts 1/3/5/6 display-layer work beyond this scoped task
+
+==================================================
+IMPLEMENTATION DETAILS
+==================================================
+
+INVITE LANDING
+- In templates/invite_landing.html:
+  wrap "Continue in Browser" in:
+    {% if not current_user.is_authenticated %}
+- Apply same logic to:
+  templates/trip_invite_token_landing.html
+  if applicable.
+
+Important:
+- Authenticated native users should only see the in-app confirm/connect flow.
+- Do NOT break existing web invite behavior.
+
+SESSION CONTINUITY AUDIT
+- Audit:
+  - SESSION_COOKIE_SAMESITE
+  - SESSION_COOKIE_SECURE
+  - Capacitor WebView session persistence
+  - external-link foregrounding behavior
+
+If:
+- SameSite=Strict
+AND
+- it is confirmed to break session continuity from iMessage/email opens
+
+THEN:
+- change to Lax
+
+Otherwise:
+- leave unchanged.
+
+CONNECTED-STATE AUDIT
+Search entire codebase for:
+- Invitation.status == 'accepted'
+used as a connected-state signal.
+
+Important:
+- Friend rows should be the canonical source of truth for active friendships.
+- Invitation rows should represent invite history/state only.
+
+If accepted Invitations are used as connected-state:
+- update remove_friend_web + remove_friend API
+- set accepted invitations to:
+  - removed
+  - cancelled
+  - or equivalent non-connected state
+- cover BOTH directions:
+  - A→B
+  - B→A
+
+CACHE/UI AUDIT
+Verify:
+- friend lists
+- overlap payloads
+- profile hydration
+- optimistic UI state
+- cached fetches
+
+do NOT preserve stale friendship state after removal.
+
+Ensure:
+- UI refreshes correctly after remove_friend
+- redirects land on fresh state
+- no cached connected-state survives
+
+==================================================
+RELEVANT FILES
+==================================================
+
+#133
+- templates/partials/home/_section_opportunities.html
+- templates/friend_profile.html
+- app.py (_pass_data / get_all_active_resorts_map)
+- templates/add_trip.html
+- services/pass_utils.py
+
+#134
+- templates/invite_landing.html
+- templates/trip_invite_token_landing.html
+- app.py:
+  - _apply_invite_token
+  - invite_token_landing
+  - invite_token_confirm
+  - remove_friend API
+  - remove_friend_web
+  - signup/login post-invite handling
+- static/js/bl-native.js
+- models.py:
+  - Friend
+  - Invitation
+
+==================================================
+GENERAL QA REQUIREMENTS
+==================================================
+
+Test at:
+- 375px mobile viewport
+- TestFlight iOS app
+- mobile Safari
+- desktop web where applicable
+
+Verify:
+- no horizontal scroll regressions
+- no layout clipping
+- no routing loops
+- no session-loss regressions
+- no stale friendship state
+- no broken invite flows
+- no pass-display regressions
+- no overlap-rendering regressions
+
+Specifically test invite links from:
+- iMessage
+- Gmail app
+- Apple Mail
+- Notes pasted links
+
+This is a UX/persistence/presentation polish pass — NOT a redesign of underlying systems.
+
+Use checkpoints sparingly.
+Do not finish until all acceptance criteria are fully tested.

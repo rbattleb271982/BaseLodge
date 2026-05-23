@@ -382,22 +382,25 @@
                 <span class="fp-label-text">Shared with {{ _first }}</span>
             </div>
 
-            <!-- Wishlist overlaps -->
-            {% for resort in wish_list_overlap %}
+            <!-- Wishlist overlaps — grouped summary row -->
+            {% if wish_list_overlap %}
+            {%- set _wl_count = wish_list_overlap | length -%}
+            {%- set _wl_shown = wish_list_overlap[:3] -%}
+            {%- set _wl_extra = _wl_count - 3 -%}
             <a href="{{ url_for('friend_wishlist', user_id=friend.id) }}" class="fp-shared-row">
                 <span class="fp-shared-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="16" height="16">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
                     </svg>
                 </span>
-                <span class="fp-shared-text">You both have <strong>{{ resort | resort_display }}</strong> on your wishlists</span>
+                <span class="fp-shared-text">Wishlist overlap: <strong>{{ _wl_shown | map('resort_display') | join(', ') }}{% if _wl_extra > 0 %} +{{ _wl_extra }} more{% endif %}</strong></span>
                 <span class="fp-shared-chevron">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14">
                         <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                     </svg>
                 </span>
             </a>
-            {% endfor %}
+            {% endif %}
 
             <!-- Trip overlaps -->
             {% for overlap in trip_overlaps %}

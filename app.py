@@ -2126,6 +2126,24 @@ def get_all_active_resorts_map():
         Resort.country_code, Resort.state_code, Resort.name
     ).all()
 
+    # Display-only slug → pass label overrides for resorts that resolve to 'other'
+    # but belong to a deterministically known pass ecosystem.
+    # Do NOT modify normalize_pass(), CANONICAL_PASSES, or any storage logic.
+    _RESORT_PASS_OVERRIDES = {
+        "palisades-tahoe":              "Ikon",
+        "copper-mountain":              "Ikon",
+        "steamboat":                    "Ikon",
+        "killington":                   "Ikon",
+        "mont-tremblant":               "Ikon",
+        "deer-valley":                  "Ikon",
+        "snowbird":                     "Ikon",
+        "big-sky-resort":               "Ikon",
+        "jackson-hole-mountain-resort": "Ikon",
+        "taos-ski-valley":              "Ikon",
+        "park-city-mountain":           "Epic",
+        "whiteface":                    "Epic",
+    }
+
     result = {}
     for r in _resorts:
         cc = r.country_code or r.country or ""
@@ -2133,6 +2151,10 @@ def get_all_active_resorts_map():
         sn = r.state_name or r.state_full or ""
         cn = r.country_name or COUNTRY_NAMES.get(cc, cc) or ""
         pl, pk = _pass_data(r.id, r.pass_brands or r.brand or "")
+        # Apply display-only override when the resort resolves to generic 'other'
+        slug = r.slug or ""
+        if pk == ["other"] and slug in _RESORT_PASS_OVERRIDES:
+            pl = _RESORT_PASS_OVERRIDES[slug]
         result[r.id] = SimpleNamespace(
             id=r.id,
             name=r.name,
@@ -4374,19 +4396,20 @@ def remove_friend(friend_id):
     if friend2:
         db.session.delete(friend2)
 
-    # Cancel any pending friend invitations between the two users in either direction
-    # so stale requests cannot survive after the friendship is removed.
+    # Cancel pending AND accepted friend invitations between the two users in
+    # either direction so no invitation row can produce a ghost connected-state
+    # after the Friend rows are removed.
     Invitation.query.filter(
         db.or_(
             db.and_(
                 Invitation.sender_id == current_user.id,
                 Invitation.receiver_id == friend_id,
-                Invitation.status == 'pending',
+                Invitation.status.in_(['pending', 'accepted']),
             ),
             db.and_(
                 Invitation.sender_id == friend_id,
                 Invitation.receiver_id == current_user.id,
-                Invitation.status == 'pending',
+                Invitation.status.in_(['pending', 'accepted']),
             ),
         )
     ).update({'status': 'cancelled'}, synchronize_session=False)
@@ -6548,19 +6571,20 @@ def remove_friend_web(friend_id):
     if row_b:
         db.session.delete(row_b)
 
-    # Cancel any pending friend invitations between the two users in either direction
-    # so stale requests cannot survive after the friendship is removed.
+    # Cancel pending AND accepted friend invitations between the two users in
+    # either direction so no invitation row can produce a ghost connected-state
+    # after the Friend rows are removed.
     Invitation.query.filter(
         db.or_(
             db.and_(
                 Invitation.sender_id == current_user.id,
                 Invitation.receiver_id == friend_id,
-                Invitation.status == 'pending',
+                Invitation.status.in_(['pending', 'accepted']),
             ),
             db.and_(
                 Invitation.sender_id == friend_id,
                 Invitation.receiver_id == current_user.id,
-                Invitation.status == 'pending',
+                Invitation.status.in_(['pending', 'accepted']),
             ),
         )
     ).update({'status': 'cancelled'}, synchronize_session=False)

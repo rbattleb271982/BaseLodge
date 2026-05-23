@@ -1,0 +1,399 @@
+PUT THIS IN PLAN FIRST
+
+Implement a mobile UX + native-app polish pass focused on:
+1. Home empty-state guidance
+2. Invite-link authentication persistence and native flow continuity
+3. Shared-overlap card density improvements on friend profiles
+4. Remove Friend regression fix
+5. Mountain-list pass display clarity improvements
+6. Mountains tab / Plan Trip consistency and navigation fixes
+
+The goal is to make BaseLodge feel significantly more native, intentional, premium, and frictionless on mobile/TestFlight while preserving existing backend architecture and normalization logic.
+
+==================================================
+PART 1 — HOME EMPTY STATE
+==================================================
+
+Context:
+Right now, if a user has no ideas/suggestions yet, the Home screen can appear blank or unfinished.
+
+Instead of empty space, the app should guide the user toward the next meaningful action: adding availability dates.
+
+Required behavior:
+- If the ideas/suggestions section has no content, render a polished empty-state card instead of leaving the section blank.
+- This should feel intentional and premium, not like missing data or an error state.
+
+Required copy:
+
+Title:
+“Add dates to unlock trip ideas”
+
+Body:
+“Enter dates so BaseLodge can surface better mountain suggestions and friend overlaps.”
+
+CTA:
+“Add availability”
+
+CTA behavior:
+- CTA routes to url_for('add_open_dates')
+
+Implementation requirements:
+- Replace the old plain-text nudge in _section_opportunities.html
+- Show the empty-state card whenever dest_feed is empty
+- Remove the old two-branch conditional nudge logic
+- Use:
+  - cream/bordeaux palette
+  - Georgia display title
+  - bordered CTA button
+- Ensure clean mobile rendering at 375px
+
+Relevant files:
+- templates/partials/home/_section_opportunities.html
+
+Acceptance criteria:
+- User with no ideas sees the polished card.
+- User with ideas does not.
+- CTA routes correctly.
+- No overflow or layout regressions.
+
+==================================================
+PART 2 — INVITE LINK AUTH PERSISTENCE + NATIVE FLOW
+==================================================
+
+Context:
+Authenticated TestFlight users should never be forced through unnecessary browser/login flows when opening invite links from iMessage/email.
+
+Currently:
+- invite landing pages may show “Continue in Browser” even for authenticated native users
+- Safari redirects fragment the session
+- the flow feels webby instead of native
+
+Goal:
+If the app is installed AND the user is already authenticated:
+- invite links should resolve directly inside the app
+- preserve the authenticated session
+- avoid unnecessary auth prompts
+- complete the invite flow seamlessly
+
+==================================================
+AUTHENTICATED NATIVE USER FLOW
+==================================================
+
+Desired behavior:
+- User taps invite link from iMessage/email
+- BaseLodge app opens directly
+- Existing authenticated session is reused
+- Invite confirmation screen appears inside the app
+- “Continue in Browser” is hidden
+- User taps Connect/Accept
+- Friendship/trip invite resolves immediately
+- User routes to Friends tab or Trip Detail
+
+No:
+- login prompts
+- Safari detours
+- session loss
+- redundant auth redirects
+
+==================================================
+UNAUTHENTICATED FLOW
+==================================================
+
+Existing behavior should remain:
+- token stored in Flask session
+- user routed through auth
+- invite resolved after login/signup/reset-password
+
+“Continue in Browser” should remain visible for unauthenticated users only.
+
+==================================================
+IMPLEMENTATION REQUIREMENTS
+==================================================
+
+Audit:
+- templates/invite_landing.html
+- templates/trip_invite_token_landing.html
+- invite token/session handling
+- Capacitor deep-link handling
+- Flask session continuity
+- SameSite/Secure cookie behavior
+- login redirect logic
+- existing invite_token session storage
+- app-open detection logic
+
+Important:
+- Do NOT break existing web invite flows.
+- Native authenticated flow should be additive, not a replacement.
+
+Potential fixes:
+- hide “Continue in Browser” for authenticated native users
+- preserve in-app session continuity
+- improve native-shell invite hydration
+- ensure authenticated users are not treated as anonymous
+- avoid unnecessary auth checks before checking current session state
+
+Session audit:
+- Verify whether SESSION_COOKIE_SAMESITE or redirect behavior is causing session loss.
+- If SESSION_COOKIE_SAMESITE=Strict is confirmed problematic, consider Lax.
+- Only change config if regression is confirmed.
+
+Additional QA:
+- Test invite links opened from:
+  - iMessage
+  - Gmail app
+  - Apple Mail
+  - Notes pasted links
+
+==================================================
+PART 3 — SHARED OVERLAP CARD DENSITY
+==================================================
+
+Context:
+Shared wishlist overlaps currently render one row per resort:
+- “You both have Courchevel on your wishlists”
+- etc.
+
+This scales poorly and creates excessively tall cards.
+
+Goal:
+Aggregate overlap summaries into compact grouped rows.
+
+Required behavior:
+- Replace one-row-per-resort rendering with grouped summaries.
+
+Preferred patterns:
+- “Shared wishlist mountains: Courchevel, St. Moritz, Telluride”
+- or:
+  “Wishlist overlap: Courchevel, St. Moritz +2 more”
+
+Implementation requirements:
+- Replace the existing wish_list_overlap loop in friend_profile.html
+- Show:
+  - full list when <= 3
+  - “+ N more” when > 3
+- Preserve existing icon + chevron styling
+- Preserve friend_wishlist link behavior
+- Keep overlap categories intact
+
+Goals:
+- reduce vertical space
+- improve scanability
+- keep below-the-fold content accessible
+
+Relevant files:
+- templates/friend_profile.html
+
+Acceptance criteria:
+- One grouped row replaces repeated rows.
+- Wrapping behaves cleanly on 375px screens.
+- Existing overlap logic still works.
+
+==================================================
+PART 4 — REMOVE FRIEND REGRESSION FIX
+==================================================
+
+Context:
+Removing a friend does not fully sever the friendship across all app surfaces.
+
+Likely causes:
+- Invitation rows with status='accepted' surviving removal
+- stale cached connected-state UI
+- surfaces deriving connected-state incorrectly
+
+==================================================
+REQUIRED BEHAVIOR
+==================================================
+
+Removing a friend must fully disconnect both users.
+
+After removal:
+Users should NOT appear in:
+- Friends lists
+- Connected-state profile UI
+- Shared overlap sections
+- Invite-connected pickers
+- Friend-based recommendation logic
+- Friends-going social logic
+
+Users SHOULD:
+- be able to re-send a friend request later
+
+==================================================
+IMPLEMENTATION REQUIREMENTS
+==================================================
+
+Audit:
+- remove_friend API
+- remove_friend_web
+- all connected-state derivations
+- Invitation.status usage
+- Friend row existence checks
+- client-side friend caches
+- overlap payload hydration
+- stale optimistic UI
+
+If Invitation.status='accepted' is used anywhere as a connected-state signal:
+- update removal flows to set:
+  - removed
+  - cancelled
+  - or equivalent non-connected state
+
+Ensure:
+- both mirrored Friend rows removed/deactivated
+- cached state invalidated
+- UI refreshes after removal
+- redirects land on fresh Friends list state
+
+Additional audit:
+- Verify client-side caches/store objects do not retain stale friendship state.
+
+Relevant files:
+- app.py remove_friend routes
+- models.py Friend/Invitation
+- friend profile routes/templates
+
+Acceptance criteria:
+- User A removes User B
+- Both users disappear from each other’s Friends lists
+- No shared overlap sections remain
+- Profiles no longer show connected state
+- Re-friending works correctly
+- No ghost connected state anywhere
+
+==================================================
+PART 5 — MOUNTAIN PASS DISPLAY LAYER
+==================================================
+
+Context:
+Many resorts display “Other pass” even when their ecosystem is widely recognizable.
+
+Examples:
+- Palisades Tahoe → should display Ikon
+- Copper → Ikon
+- Breckenridge → Epic
+
+Goal:
+Preserve backend normalization while improving frontend display clarity.
+
+==================================================
+IMPLEMENTATION REQUIREMENTS
+==================================================
+
+Do NOT change:
+- CANONICAL_PASSES
+- normalize_pass()
+- storage logic
+
+Instead:
+- add a display-only override layer
+- separate:
+  - internal normalized values
+  - user-facing display labels
+
+Implementation:
+- inside _pass_data / get_all_active_resorts_map
+- add resort-slug → display-pass override mapping
+
+Only override when:
+- resolved pass is generic “other”
+- AND resort ecosystem is deterministically known
+
+Cover:
+- Palisades
+- Copper
+- Steamboat
+- Killington
+- Tremblant
+- Deer Valley
+- and at least ~10 recognizable mappings
+
+Important:
+- Keep mapping centralized in backend logic.
+- Do NOT hardcode resort checks in templates.
+
+Additional QA:
+- Verify multi-ecosystem resorts do not conflict.
+- Resorts without overrides should still gracefully fall back to “Other pass.”
+
+Acceptance criteria:
+- Palisades displays Ikon
+- Known resorts display recognizable ecosystems
+- Existing normalization/filtering logic remains unchanged
+
+==================================================
+PART 6 — PLAN A TRIP / MOUNTAINS TAB CONSISTENCY
+==================================================
+
+Context:
+Users can browse international destinations like France in Mountains, but Plan a Trip primarily surfaces US resorts.
+
+This creates misleading expectations.
+
+There is also a navigation regression:
+- exiting Plan a Trip returns users to Home instead of the originating planning context.
+
+==================================================
+REQUIRED BEHAVIOR — INTERNATIONAL SUPPORT CLARITY
+==================================================
+
+If international planning is incomplete:
+- communicate that clearly without making the app feel broken.
+
+Add helper copy beneath resort search input:
+
+“International trip planning support is expanding — some planning flows show US resorts first.”
+
+Do NOT:
+- redesign Mountains tab
+- remove international browsing
+
+==================================================
+REQUIRED BEHAVIOR — NAVIGATION CONTINUITY
+==================================================
+
+Current issue:
+- Plan a Trip back button hardcodes Home.
+
+Required behavior:
+- back action should return users to prior context/history
+
+Implementation:
+- replace hard href with:
+  onclick="history.back()"
+- keep href Home fallback for no-JS behavior
+
+Audit:
+- tab-routing logic
+- history stack behavior
+- Capacitor navigation continuity
+
+Relevant files:
+- templates/add_trip.html
+
+Acceptance criteria:
+- Exiting Plan a Trip returns users to previous context, not Home
+- International helper copy renders cleanly
+- Existing US planning flow still works
+
+==================================================
+GENERAL MOBILE QA
+==================================================
+
+Test at:
+- 375px viewport
+- TestFlight iOS app
+- mobile Safari
+- desktop web where relevant
+
+Verify:
+- no horizontal scroll regressions
+- no layout clipping
+- no spacing regressions
+- no stale cached relationship state
+- no broken invite flows
+- no routing loops
+
+This is a UX/persistence/presentation polish pass — not a redesign of underlying systems.
+
+Use checkpoints sparingly.
+Do not finish until all acceptance criteria have been fully tested.
