@@ -1,0 +1,245 @@
+PUT THIS IN PLAN FIRST
+
+Implement #135 - Regression Checklist + Automated Guards.
+
+Goal:
+Add durable regression protection for recent BaseLodge UX/social-graph fixes so future merges do not silently re-break onboarding, mountain pass overrides, home empty states, friend removal, invite-landing auth behavior, or Plan-a-Trip navigation.
+
+What to create:
+1. REGRESSION_CHECKLIST.md at the repo root
+2. tests/test_regression_guards.py
+
+Do not change product behavior, UI, routes, models, or feature logic unless absolutely required to make the tests target existing behavior correctly.
+
+==================================================
+PART 1 — REGRESSION_CHECKLIST.md
+==================================================
+
+Create REGRESSION_CHECKLIST.md at the repo root.
+
+At the top, add a clear "Before merge" callout:
+
+Before marking any future Agent task complete:
+- Run the checklist items relevant to the changed surfaces.
+- Report PASS / FAIL / NOT TESTED.
+- If anything is NOT TESTED, explain why.
+- Do not mark the task complete if a related regression check fails.
+
+Then add six labeled sections:
+
+1. Onboarding
+Include checks for:
+- 3+ rider types can be selected and all remain highlighted.
+- Onboarding does not horizontally scroll at 375px.
+- Full ski pass list appears.
+- Rental gear displays as “Rental gear” on Home.
+
+2. Mountains / resort search
+Include checks for:
+- Removing a mountain makes it immediately searchable again.
+- No duplicate visited/wishlist mountain rows.
+- Known resorts show branded pass labels, not generic “Other pass.”
+
+3. Home
+Include checks for:
+- Empty opportunities state shows polished “Add dates to unlock trip ideas” card.
+- CTA routes to Add Availability.
+
+4. Friend / social graph
+Include checks for:
+- Removing a friend fully disconnects both users.
+- Removed friend disappears from lists, profiles, overlaps, invite pickers, and recommendations.
+- Re-friending still works.
+
+5. Invite links
+Include checks for:
+- Authenticated TestFlight user opens invite link without login/browser detour.
+- Unauthenticated invite flow still routes through auth and resolves after login/signup.
+
+6. Plan a Trip navigation
+Include checks for:
+- Entering Plan a Trip from Mountains returns to prior context on back.
+- Direct entry still falls back safely.
+
+Use plain language. Write each item as an imperative check:
+- Verify that...
+- Confirm...
+- Ensure...
+
+==================================================
+PART 2 — AUTOMATED REGRESSION TESTS
+==================================================
+
+Create tests/test_regression_guards.py.
+
+Use the same pytest + SQLite in-memory fixture pattern as:
+- tests/test_profile_consolidation.py
+
+Also reference existing test style from:
+- test_push_lifecycle.py
+
+The test file should run with:
+
+pytest tests/test_regression_guards.py -v
+
+Implement four focused tests.
+
+==================================================
+TEST 1 — REMOVE FRIEND SEVERS FRIEND ROWS AND ACCEPTED INVITATIONS
+==================================================
+
+Test name:
+test_remove_friend_severs_friend_rows_and_accepted_invitation
+
+Setup:
+- Create User A and User B.
+- Create bidirectional Friend rows.
+- Create an Invitation row between the users with status="accepted".
+
+Action:
+- Call the canonical remove-friend logic, or POST to the web/API remove-friend route as authenticated User A.
+
+Assertions:
+- Both Friend rows are gone.
+- The accepted Invitation row is no longer accepted.
+- Expected final Invitation status should be "cancelled" unless the app uses another explicit non-connected status from the recent implementation.
+- The test should cover both directions where applicable.
+
+Purpose:
+Prevent ghost connected-state regressions caused by surviving accepted Invitation rows.
+
+==================================================
+TEST 2 — RENTAL EQUIPMENT PERSISTS TO USER.EQUIPMENT_STATUS
+==================================================
+
+Test name:
+test_rental_equipment_persists_to_user_equipment_status
+
+Setup:
+- Create a test User.
+- Authenticate as that user.
+
+Action:
+- POST to the onboarding equipment route with the equivalent of:
+  equipment_choice=rent
+
+Assertions:
+- user.equipment_status == "needs_rentals"
+- The persisted User row reflects the rental state after the request.
+
+Purpose:
+Prevent regression where rental users are shown as having no equipment.
+
+==================================================
+TEST 3 — PASS DISPLAY OVERRIDE DOES NOT MUTATE NORMALIZE_PASS
+==================================================
+
+Test name:
+test_pass_display_override_does_not_mutate_normalize_pass
+
+Setup:
+- Import normalize_pass from the canonical pass utility/module.
+- Choose one overridden resort/pass ecosystem example, such as Killington or Palisades.
+
+Action:
+- Capture normalize_pass(raw_value) before get_all_active_resorts_map() / _pass_data override path runs.
+- Run the resort map builder path with mocked/minimal data if needed.
+- Capture normalize_pass(raw_value) again.
+
+Assertions:
+- normalize_pass(raw_value) returns the same value before and after the display override code runs.
+- normalize_pass(raw_value) does NOT return a display override label like "Ikon".
+- The display override remains display-only and does not mutate normalization behavior.
+
+Purpose:
+Ensure branded pass labels stay presentation-only and never contaminate pass normalization/storage logic.
+
+==================================================
+TEST 4 — HOME EMPTY OPPORTUNITY CARD ONLY WHEN FEED IS EMPTY
+==================================================
+
+Test name:
+test_empty_opportunity_card_only_when_feed_empty
+
+Setup:
+- Create and authenticate a test User.
+- Use Flask test client.
+
+Action A:
+- GET home with no generated opportunity/destination feed content.
+
+Assertion A:
+- Response HTML contains the empty-state card marker/class:
+  bl-opp-empty-card
+
+Action B:
+- Seed or mock one real opportunity/destination feed item for that user.
+- GET home again.
+
+Assertion B:
+- Response HTML does NOT contain:
+  bl-opp-empty-card
+
+Purpose:
+Prevent regressions where the empty-state card appears when ideas exist, or disappears when the feed is genuinely empty.
+
+If the project does not have an Opportunity model/table:
+- mock or patch the feed builder used by the Home route so dest_feed=[] and dest_feed=[one item] can be tested deterministically.
+- Do not invent a new production model.
+
+==================================================
+IMPLEMENTATION GUARDRAILS
+==================================================
+
+- Keep tests offline and deterministic.
+- Use SQLite in-memory test DB.
+- Do not require external services.
+- Do not require PostHog, SendGrid, OneSignal, network calls, or live app state.
+- Prefer route-level tests where practical.
+- Prefer small helper patches/mocks over broad app rewrites.
+- If a test cannot be implemented because the route/model names differ, inspect the current code and adapt to actual names.
+- Do not skip tests unless truly unavoidable.
+- If skipping, use pytest.mark.skip with a clear reason string.
+
+==================================================
+RELEVANT FILES
+==================================================
+
+Reference:
+- tests/test_profile_consolidation.py
+- test_push_lifecycle.py
+
+Likely affected/inspected:
+- app.py
+- models.py
+- templates/partials/home/_section_opportunities.html
+- templates/home.html
+- services/pass_utils.py
+
+Known app areas:
+- remove_friend API route
+- remove_friend_web route
+- onboarding equipment route
+- get_all_active_resorts_map / _pass_data
+- home opportunities rendering
+
+==================================================
+DONE LOOKS LIKE
+==================================================
+
+- REGRESSION_CHECKLIST.md exists at repo root.
+- tests/test_regression_guards.py exists.
+- All four tests pass with:
+
+pytest tests/test_regression_guards.py -v
+
+- No product behavior changes were introduced beyond what is necessary to make tests target the current implementation.
+- Any unavoidable skipped test has a clear pytest skip reason.
+- Final response includes:
+  - files created
+  - tests added
+  - pytest command run
+  - PASS / FAIL result summary
+
+Use checkpoints sparingly.
+Do not finish until pytest tests/test_regression_guards.py -v has been run and results are reported.
