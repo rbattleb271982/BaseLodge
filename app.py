@@ -2053,6 +2053,17 @@ def get_resorts_for_trip_form():
             "display_name": _resort_display_name(r, AMBIGUOUS_RESORT_NAMES),
             "country_code": r.country_code or r.country,
             "state_code": r.state_code or r.state,
+            "state_name": (
+                STATE_NAMES.get(r.state_code or r.state or '', '')
+                or (r.state_name if r.state_name and r.state_name != (r.state_code or r.state) else '')
+                or (r.state_full if r.state_full and r.state_full != (r.state_code or r.state) else '')
+                or ''
+            ),
+            "country_name": (
+                r.country_name
+                or COUNTRY_NAMES.get(r.country_code or r.country or '', '')
+                or ''
+            ),
             "pass_brands": r.pass_brands or r.brand or ""
         }
         for r in resorts

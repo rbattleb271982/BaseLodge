@@ -783,7 +783,14 @@
             searchResults.classList.remove('visible');
             return;
         }
-        const matches = RESORTS.filter(r => r.name.toLowerCase().includes(q)).slice(0, 10);
+        const matches = RESORTS.filter(r => {
+            const rn = (r.name || '').toLowerCase();
+            const sn = (r.state_name || STATE_NAMES[r.state_code] || '').toLowerCase();
+            const sc = (r.state_code || '').toLowerCase();
+            const cn = (r.country_name || COUNTRY_NAMES[r.country_code] || '').toLowerCase();
+            const cc = (r.country_code || '').toLowerCase();
+            return rn.includes(q) || sn.includes(q) || sc === q || cn.includes(q) || cc === q;
+        }).slice(0, 10);
         if (matches.length === 0) {
             searchResults.innerHTML = '<div class="at-result-item no-match">No mountains found</div>';
         } else {

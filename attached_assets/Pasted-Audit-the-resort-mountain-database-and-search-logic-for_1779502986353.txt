@@ -1,0 +1,116 @@
+Audit the resort/mountain database and search logic for Utah resorts.
+
+Problem:
+A user searched for “Utah” on the Plan a Trip page and received “No mountains found.”
+
+We need to determine:
+1. Whether Utah resorts are missing from the database
+2. Whether Utah resorts exist but search is failing
+3. Whether state normalization/search aliases are broken
+4. Whether resorts are inactive/hidden
+5. Whether resort naming conventions are inconsistent
+
+Tasks:
+
+==================================================
+1. DATABASE AUDIT
+==================================================
+
+Inspect the resort/mountain table and report:
+
+- Total resort count
+- Total US resorts
+- Total Utah resorts
+- All Utah resort names currently in the DB
+
+Specifically verify whether these exist:
+- Park City
+- Deer Valley
+- Alta
+- Snowbird
+- Brighton
+- Solitude
+- Snowbasin
+- Powder Mountain
+- Sundance
+- Brian Head
+
+Also inspect:
+- state
+- state_code
+- country
+- country_code
+- is_active or equivalent visibility fields if they exist
+
+==================================================
+2. SEARCH LOGIC AUDIT
+==================================================
+
+Inspect the Plan a Trip search/autocomplete logic.
+
+Determine:
+- Does search match against state names?
+- Does search match against state abbreviations?
+- Does search only match resort names?
+- Is “Utah” expected to work currently?
+- Does “UT” work?
+- Does “Park” work for Park City?
+
+Inspect:
+- backend query
+- frontend filtering
+- API endpoints if applicable
+
+==================================================
+3. NORMALIZATION CHECK
+==================================================
+
+Check whether resorts use inconsistent values like:
+- UT
+- Utah
+- utah
+- Utah, USA
+
+We should normalize internally but preserve display flexibility.
+
+==================================================
+4. FIXES
+==================================================
+
+If Utah resorts are missing:
+- Add the missing resorts
+- Use existing resort schema conventions
+- Preserve proper country/state fields
+
+If search logic is the issue:
+- Update search so users can search by:
+  - resort name
+  - state name
+  - state abbreviation
+  - country name
+
+Examples that should work:
+- Utah
+- UT
+- Colorado
+- CO
+- France
+- Japan
+- Park
+- Deer
+
+==================================================
+5. TESTING
+==================================================
+
+Use checkpoints sparingly. Only create one if needed.
+
+Do not finish until you have tested:
+- Searching “Utah” returns Utah resorts
+- Searching “UT” returns Utah resorts
+- Searching “Park” returns Park City
+- Searching “Colorado” returns Colorado resorts
+- Searching “France” returns French resorts
+- Searching “Japan” returns Japanese resorts
+- No duplicate resorts were introduced
+- Existing search behavior still works

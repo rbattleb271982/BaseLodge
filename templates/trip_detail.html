@@ -1729,7 +1729,14 @@
                 const list = document.getElementById('td-resort-list');
                 const q = (term || '').toLowerCase().trim();
                 const filtered = q
-                    ? _tdResortData.filter(r => r.name.toLowerCase().includes(q) || (r.state_code || '').toLowerCase().includes(q))
+                    ? _tdResortData.filter(r => {
+                        const rn = (r.name || '').toLowerCase();
+                        const sn = (r.state_name || '').toLowerCase();
+                        const sc = (r.state_code || '').toLowerCase();
+                        const cn = (r.country_name || '').toLowerCase();
+                        const cc = (r.country_code || '').toLowerCase();
+                        return rn.includes(q) || sn.includes(q) || sc === q || cn.includes(q) || cc === q;
+                    })
                     : _tdResortData;
                 if (filtered.length === 0) {
                     list.innerHTML = '<div class="td-resort-empty">No resorts found.</div>';

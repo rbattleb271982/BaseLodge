@@ -379,7 +379,14 @@
             if (country && r.country_code !== country) return false;
             if (state   && r.state_code   !== state)   return false;
             if (pass    && r.pass_keys.indexOf(pass) === -1) return false;
-            if (query   && r.name.toLowerCase().indexOf(query) === -1) return false;
+            if (query) {
+                var rn = r.name.toLowerCase();
+                var sn = (r.state_name || '').toLowerCase();
+                var sc = (r.state_code || '').toLowerCase();
+                var cn = (r.country_name || '').toLowerCase();
+                var cc = (r.country_code || '').toLowerCase();
+                if (!rn.includes(query) && !sn.includes(query) && sc !== query && !cn.includes(query) && cc !== query) return false;
+            }
             return true;
         });
 
