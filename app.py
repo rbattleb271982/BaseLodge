@@ -1626,14 +1626,17 @@ def run_ski_trip_updated_at_migration():
     """
     try:
         with app.app_context():
-            db.session.execute(db.text(
-                "ALTER TABLE ski_trip ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP"
-            ))
-            db.session.commit()
-            print("ski_trip_updated_at_migration: updated_at column ready.")
-    except Exception as e:
-        db.session.rollback()
-        print(f"ski_trip_updated_at_migration: skipped ({e})")
+            try:
+                db.session.execute(db.text(
+                    "ALTER TABLE ski_trip ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP"
+                ))
+                db.session.commit()
+                print("ski_trip_updated_at_migration: updated_at column ready.")
+            except Exception as e:
+                db.session.rollback()
+                print(f"ski_trip_updated_at_migration: skipped ({e})")
+    except Exception:
+        pass
 
 run_ski_trip_updated_at_migration()
 
