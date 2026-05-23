@@ -18,15 +18,18 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow-x: hidden;
         }
 
         .ob-outer {
             width: 100%;
+            max-width: 100%;
             min-height: 100vh;
             min-height: 100svh;
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow-x: hidden;
         }
 
         .ob-frame {
@@ -502,9 +505,15 @@
                             <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass"             data-target="h-pass">No pass</button>
                             <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass_yet"         data-target="h-pass">Not sure yet</button>
                             <div class="ob-divider"></div>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="epic"  data-target="h-pass">Epic</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="ikon"  data-target="h-pass">Ikon</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="other" data-target="h-pass">Other pass</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="epic"               data-target="h-pass">Epic</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="ikon"               data-target="h-pass">Ikon</button>
+                            <div class="ob-divider"></div>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="indy"               data-target="h-pass">Indy Pass</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="freedom"            data-target="h-pass">Freedom Pass</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="mountain_collective" data-target="h-pass">Mountain Collective</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="powder_alliance"    data-target="h-pass">Powder Alliance</button>
+                            <div class="ob-divider"></div>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="other"              data-target="h-pass">Other pass</button>
                         </div>
                         <div class="ob-footer">
                             <button type="button" class="ob-btn" id="cta-3" disabled onclick="goNext(3)">Continue</button>
@@ -583,8 +592,7 @@
     }
     function goBack(from) { slideTo(from - 1); }
 
-    /* rider is multi-select (max 2); pass is multi-select with 3-cap on real passes */
-    var RIDER_MAX = 2;
+    /* rider is multi-select (unlimited); pass is multi-select with 3-cap on real passes */
     var PASS_REAL_MAX = 3;
     var OB_PASS_EXCLUSIVE = ['no_pass', 'no_pass_yet', 'other'];
 
@@ -622,10 +630,7 @@
                 if (alreadySel) {
                     this.classList.remove('sel');
                 } else {
-                    var riderSelCount = document.querySelectorAll('.ob-pill[data-grp="rider"].sel').length;
-                    if (riderSelCount < RIDER_MAX) {
-                        this.classList.add('sel');
-                    }
+                    this.classList.add('sel');
                 }
                 var riderSelected = [];
                 document.querySelectorAll('.ob-pill[data-grp="rider"].sel').forEach(function(p) {

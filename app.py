@@ -7764,7 +7764,11 @@ def save_onboarding_equipment():
     equipment.model = equipment_model
     equipment.boot_brand = boot_brand
     equipment.boot_model = boot_model
-    
+
+    # Mirror status to User so the home header reads it correctly
+    if equipment_status in ('needs_rentals', 'have_own_equipment'):
+        user.equipment_status = equipment_status
+
     db.session.commit()
     return redirect(url_for("home"))
 

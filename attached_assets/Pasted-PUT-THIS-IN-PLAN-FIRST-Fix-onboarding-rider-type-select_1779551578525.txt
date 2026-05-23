@@ -1,0 +1,177 @@
+PUT THIS IN PLAN FIRST
+
+Fix onboarding rider-type selection styling consistency, eliminate accidental onboarding scrolling/overflow issues, restore the full ski pass list on the onboarding ski pass step, and correctly represent rental equipment users throughout the app so the onboarding flow feels fully native and logically consistent on mobile.
+
+Context:
+This is the onboarding flow where users:
+1. Select rider types
+2. Select ski passes
+3. Configure equipment preferences
+
+Current issues:
+
+1. Selected-state inconsistency
+- When 1–2 rider types are selected, selected options correctly appear with:
+  - bordeaux filled background
+  - white text
+  - active selected styling
+- When a 3rd option is selected, it does NOT retain the same highlighted appearance.
+- This creates uncertainty and makes the user think the 3rd selection may not have saved.
+
+2. Onboarding scroll/overflow behavior
+- The onboarding screens can scroll horizontally.
+- The onboarding screens can vertically bounce/scroll even when all content fits on screen.
+- This makes onboarding feel like a web page instead of a native app experience.
+
+3. Ski pass onboarding regression
+- The ski pass onboarding screen currently only shows:
+  - No pass
+  - Not sure yet
+  - Epic
+  - Ikon
+  - Other pass
+- The rest of the ski passes are missing.
+- This appears to be using a shortened onboarding-only list instead of the canonical pass source.
+
+4. Rental equipment status bug
+- If a user selects that they rent skis/equipment during onboarding, the Home tab later shows:
+  “No equipment”
+- This is incorrect.
+- Renting equipment is still a valid equipment state and should not be treated as having no equipment setup.
+
+==================================================
+RIDER TYPE SELECTED STATE FIXES
+==================================================
+
+Required behavior:
+- Every selected rider type must use the exact same active visual state regardless of how many are selected.
+- Selected state should always include:
+  - bordeaux filled background
+  - white text
+  - same border treatment
+  - same font weight
+- Do not visually dim, mute, soften, or downgrade selections after 2.
+- Keep the helper copy:
+  “Choose what fits — most people pick two.”
+- Do not enforce a hard max selection unless backend validation already requires it.
+- If any frontend-only “max 2” logic exists, remove it.
+
+==================================================
+ONBOARDING SCROLL / OVERFLOW FIXES
+==================================================
+
+Required behavior:
+- Disable horizontal scrolling across all onboarding screens.
+- Prevent any element from exceeding viewport width.
+- Audit for:
+  - width: 100vw
+  - negative margins
+  - oversized flex/grid widths
+  - absolute-positioned elements causing overflow
+  - progress bar overflow
+  - fixed-width containers
+- Replace width: 100vw with width: 100% where appropriate.
+- Ensure onboarding wrappers use:
+  box-sizing: border-box
+- Add overflow-x: hidden to onboarding page wrappers/body as a safeguard.
+
+==================================================
+VERTICAL LAYOUT BEHAVIOR
+==================================================
+
+Required behavior:
+- Onboarding should feel fixed and app-native.
+- If content fits within the viewport, the page should not vertically scroll or bounce.
+- Use min-height: 100dvh or height: 100dvh appropriately.
+- Respect iOS safe-area insets.
+- Keep the Continue button visually anchored near the bottom of the screen without creating overflow.
+- Do not introduce clipping on smaller devices.
+
+==================================================
+SKI PASS SCREEN FIXES
+==================================================
+
+Required behavior:
+- Restore the full available ski pass list in onboarding.
+- Keep:
+  - No pass
+  - Not sure yet
+at the top.
+- Keep Epic and Ikon prominently positioned near the top if desired.
+- Include all remaining ski passes below.
+- Keep Other pass as an option, but it should not replace the full list.
+- Confirm onboarding uses the canonical ski pass source/constants used elsewhere in the app.
+- Remove any onboarding-specific shortened array unless intentionally required.
+
+==================================================
+RENTAL EQUIPMENT STATUS FIXES
+==================================================
+
+Current issue:
+- Users who select rental equipment are later shown:
+  “No equipment”
+on the Home tab/profile summary.
+
+Required behavior:
+- Users who indicate they rent equipment should display a rental status instead of “No equipment.”
+- Renting equipment must be treated as a distinct valid equipment state.
+
+Preferred display examples:
+- “Rents skis”
+- “Rents snowboard gear”
+- or equivalent clean UX copy depending on discipline
+
+Logic requirements:
+- Distinguish between:
+  1. No equipment configured
+  2. Rental equipment user
+  3. Owned equipment user
+- Audit onboarding persistence, profile setup persistence, and Home/profile rendering logic.
+- Ensure rental selections save correctly to the canonical profile/equipment model.
+- Ensure downstream UI components correctly interpret rental states.
+
+Likely files/components:
+- onboarding templates
+- rider type selection component
+- ski pass onboarding component
+- onboarding CSS
+- onboarding JS selection logic
+- onboarding layout wrappers/app shell
+- pass constants/configuration files
+- equipment/profile summary rendering logic
+- Home tab/profile cards
+
+==================================================
+ACCEPTANCE CRITERIA
+==================================================
+
+Rider type screen:
+- Select Skier + Social / après + Snowboarder.
+- All three selected options appear visually identical.
+- Unselecting any option returns it to the normal unselected state.
+
+Onboarding behavior:
+- No onboarding screen scrolls horizontally.
+- Onboarding screens that fit within the viewport do not vertically bounce/scroll.
+- Continue button remains fully visible and tappable.
+- Flow works correctly on iPhone/mobile viewport sizes.
+
+Ski pass screen:
+- Full pass list is visible again.
+- Selecting any pass works.
+- Selected pass persists correctly after continuing.
+- No horizontal overflow is introduced.
+
+Rental equipment:
+- User selects rental equipment during onboarding.
+- Home tab no longer shows “No equipment.”
+- Correct rental status is displayed instead.
+- Existing owned-equipment displays still work correctly.
+- No regressions to equipment editing flows.
+
+General:
+- Existing onboarding progression still works.
+- Mobile QA completed on iPhone viewport sizes.
+
+Use checkpoints sparingly.
+Do not finish until you have fully tested this on mobile viewport sizes.
