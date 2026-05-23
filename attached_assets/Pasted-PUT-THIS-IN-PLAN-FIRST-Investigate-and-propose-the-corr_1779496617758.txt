@@ -1,0 +1,73 @@
+PUT THIS IN PLAN FIRST
+
+Investigate and propose the correct long-term logic for the Pass Distribution section in the BaseLodge Admin Console dashboard.
+
+Current issue:
+The dashboard currently groups pass types directly from raw DB values, which is surfacing inconsistent/legacy states and does not properly reflect the intended pass ecosystem.
+
+Important context:
+- BaseLodge already supports MANY ski pass types, not just Epic/Ikon/Indy.
+- Not every user has selected a pass yet.
+- "No Pass Yet" is an intentional and important lifecycle state and MUST remain visible.
+- The founder wants the dashboard to show the CURRENT supported pass ecosystem, even if some pass categories currently have zero users.
+- The dashboard should represent current strategic pass segmentation, not raw historical DB noise.
+
+Investigate:
+1. What pass types currently exist in:
+   - constants
+   - onboarding
+   - profile settings
+   - filters
+   - database values
+   - helper mappings
+2. Which values are:
+   - intentional strategic pass categories
+   - onboarding/lifecycle states
+   - deprecated/legacy/raw DB artifacts
+3. Whether pass types are currently centralized or duplicated across the app.
+4. Whether there is already a canonical pass list available for reuse.
+
+Goal:
+Recommend the correct architecture for dashboard pass distribution going forward.
+
+The desired behavior is likely:
+- Dashboard always renders ALL supported pass categories
+- Categories with no current users still show 0
+- Legacy/raw DB values are normalized into canonical display buckets
+- "No Pass Yet" remains visible as a meaningful lifecycle segment
+- Dashboard reflects CURRENT active segmentation rather than raw inconsistent history
+
+Potential example categories:
+- Epic
+- Ikon
+- Indy Pass
+- Mountain Collective
+- Local / Regional
+- Other Pass
+- No Pass
+- No Pass Yet
+
+But first verify what the app already supports before proposing changes.
+
+Also evaluate:
+- Whether pass distribution should eventually use:
+  - all users
+  - active users only
+  - completed onboarding users only
+- What the cleanest implementation path is without creating duplicated logic.
+
+Deliverable:
+Provide:
+1. Current pass architecture findings
+2. Existing supported pass list
+3. Legacy/inconsistent values discovered
+4. Recommended normalization strategy
+5. Recommended dashboard rendering logic
+6. Recommended future-proof architecture
+7. Smallest/safest implementation approach
+
+Do not implement changes yet unless the solution is extremely low-risk and obvious.
+
+Use checkpoints sparingly.
+
+Do not finish until you have fully traced where pass types originate and how the dashboard should correctly represent them.

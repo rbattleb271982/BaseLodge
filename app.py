@@ -27,7 +27,7 @@ from services.pass_utils import (
     normalize_pass, display_pass_label, normalize_passes_string,
     format_passes_for_display, passes_match, is_real_pass,
     normalize_pass_selection, count_real_passes,
-    PASS_NORM_MAP, PASS_DISPLAY_MAP,
+    PASS_NORM_MAP, PASS_DISPLAY_MAP, CANONICAL_PASS_ORDER,
 )
 from constants.equipment import SKI_BRANDS, SNOWBOARD_BRANDS, BOOT_BRANDS, BINDING_TYPES, BINDING_BRANDS_BY_TYPE
 
@@ -14490,17 +14490,58 @@ def admin_dashboard():
     accepted_inv = Invitation.query.filter_by(status="accepted").count()
     invite_rate  = round(accepted_inv / total_inv * 100) if total_inv else 0
 
-    # ── Pass distribution — normalize case at query time ─────────────────────
-    pass_dist_raw = (
-        db.session.query(
-            func.lower(User.pass_type),
-            func.count(User.id),
-        )
-        .group_by(func.lower(User.pass_type))
-        .order_by(func.count(User.id).desc())
-        .all()
-    )
-    pass_distribution = [(pt or "none", cnt) for pt, cnt in pass_dist_raw]
+    # ── Pass distribution — two-tier: summary (6 strategic) + detail (5 canonical) ──
+    _DASH_SUMMARY_ORDER  = ["epic", "ikon", "indy", "other", "no_pass", "no_pass_yet"]
+    _DASH_SUMMARY_LABELS = {
+        "epic":        "Epic",
+        "ikon":        "Ikon",
+        "indy":        "Indy",
+        "other":       "Other pass",
+        "no_pass":     "No pass",
+        "no_pass_yet": "No pass yet",
+    }
+    _INDY_RAW = frozenset({"indy", "indy_pass"})
+    _DASH_DETAIL_LABELS = {
+        "epic":        "Epic",
+        "ikon":        "Ikon",
+        "other":       "Other pass",
+        "no_pass":     "No pass",
+        "no_pass_yet": "No pass yet",
+    }
+    summary_ct = {s: 0 for s in _DASH_SUMMARY_ORDER}
+    detail_ct  = {s: 0 for s in CANONICAL_PASS_ORDER}
+    for (pt,) in db.session.query(User.pass_type).all():
+        if not pt:
+            summary_ct["no_pass_yet"] += 1
+            detail_ct["no_pass_yet"]  += 1
+            continue
+        for raw in str(pt).split(","):
+            raw = raw.strip()
+            if not raw:
+                continue
+            raw_key = raw.lower().replace(" ", "_").replace("-", "_")
+            if raw_key in _INDY_RAW:
+                summary_ct["indy"] += 1
+            else:
+                norm = normalize_pass(raw)
+                if norm in summary_ct:
+                    summary_ct[norm] += 1
+                elif norm:
+                    summary_ct["other"] += 1
+            norm = normalize_pass(raw)
+            if norm in detail_ct:
+                detail_ct[norm] += 1
+            elif norm:
+                detail_ct["other"] += 1
+    pass_summary = [
+        (slug, _DASH_SUMMARY_LABELS[slug], summary_ct[slug])
+        for slug in _DASH_SUMMARY_ORDER
+    ]
+    pass_detail = [
+        (slug, _DASH_DETAIL_LABELS[slug], detail_ct[slug])
+        for slug in CANONICAL_PASS_ORDER
+    ]
+    pass_distribution = pass_summary
 
     # ── MEL delivery totals ───────────────────────────────────────────────────
     mel_raw = (
@@ -14637,6 +14678,8 @@ def admin_dashboard():
         accepted_inv      = accepted_inv,
         invite_rate       = invite_rate,
         pass_distribution = pass_distribution,
+        pass_summary      = pass_summary,
+        pass_detail       = pass_detail,
         mel_sent          = mel_sent,
         mel_failed        = mel_failed,
         mel_skipped       = mel_skipped,

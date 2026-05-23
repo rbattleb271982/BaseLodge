@@ -1,0 +1,117 @@
+PUT THIS IN AGENT
+
+Refine the Pass Distribution section in the BaseLodge Admin Console dashboard to support:
+1. A clean high-level summary view
+2. A detailed full pass breakdown on demand
+
+Goal:
+Keep the dashboard visually clean and strategically focused while still allowing visibility into the full underlying pass ecosystem.
+
+Important product direction:
+The dashboard should primarily communicate:
+- major pass ecosystem distribution
+- onboarding/lifecycle state
+- high-level market segmentation
+
+NOT a giant raw list of every possible pass.
+
+Source of truth:
+- ONLY User.pass_type
+- Current profile/onboarding state only
+- No trip activity inference
+- No historical behavior
+
+Reuse the existing centralized pass normalization system:
+- normalize_pass()
+- CANONICAL_PASS_ORDER
+- PASS_DISPLAY_MAP
+
+Do not invent new pass logic.
+
+Dashboard summary view:
+The main dashboard should ONLY show these top-level categories:
+
+- Epic
+- Ikon
+- Indy
+- Other Pass
+- No Pass
+- No Pass Yet
+
+Even if count = 0.
+
+Important:
+- Indy should be surfaced separately in the dashboard summary.
+- Other smaller/legacy passes should collapse into Other Pass.
+- No Pass Yet remains an important lifecycle state and must remain visible.
+
+Implementation guidance:
+- Use the current User.pass_type values only.
+- Normalize raw DB values before rendering.
+- Legacy junk values should not appear directly in the dashboard.
+
+Examples:
+- Epic → Epic
+- ikon → Ikon
+- indy → Indy
+- mountain_collective → Other Pass
+- local/regional → Other Pass
+- null/not_sure/empty → No Pass Yet
+
+New behavior:
+Add a:
+“View full pass breakdown”
+interaction below the summary section.
+
+Desktop behavior:
+- Open a lightweight modal.
+
+Mobile behavior:
+- Open a bottom-sheet style drawer/modal.
+
+The expanded view should show:
+- the FULL normalized pass distribution
+- all currently supported normalized pass categories
+- counts for each
+- zero-count categories visible but visually muted
+
+Important:
+The expanded view should remain read-only and lightweight.
+Do NOT create:
+- a separate page
+- drilldown analytics
+- filtering
+- charts
+- historical trends
+- pass editing flows
+
+UI goals:
+- Dashboard stays clean and executive-friendly
+- Full ecosystem remains accessible
+- Mobile experience remains compact
+- Preserve premium/editorial BaseLodge aesthetic
+
+Technical constraints:
+- No migrations
+- No schema changes
+- Do not modify onboarding/profile systems
+- Reuse existing normalization utilities
+- Keep implementation lightweight
+- Use checkpoints sparingly
+
+Files likely involved:
+- app.py
+- templates/admin_dashboard.html
+- static/css/style.css
+- services/pass_utils.py (read-only reference)
+
+Testing:
+- Confirm dashboard summary only shows the 6 top-level categories
+- Confirm zero-count rows still render
+- Confirm modal opens/closes correctly on desktop
+- Confirm bottom-sheet/mobile modal works correctly
+- Confirm normalization works for legacy/raw DB values
+- Confirm mobile layout remains clean and compact
+- Confirm dashboard remains visually uncluttered
+
+Do not finish until both summary and expanded pass views are fully tested on desktop and mobile.

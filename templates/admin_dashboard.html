@@ -176,6 +176,119 @@
     text-align: right;
     flex-shrink: 0;
   }
+  .ad-pass-row--zero .ad-pass-name  { color: #C4BAB0; font-weight: 400; }
+  .ad-pass-row--zero .ad-pass-count { color: #C4BAB0; }
+  .ad-pass-expand-btn {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 0;
+    background: none;
+    border: none;
+    font-size: 12px;
+    color: #9B8D80;
+    text-align: left;
+    cursor: pointer;
+    letter-spacing: 0.01em;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font-family: inherit;
+  }
+  .ad-pass-expand-btn:hover { color: #5C1219; }
+
+  /* ── Pass modal / bottom-sheet ── */
+  .ad-pass-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 1000;
+    backdrop-filter: blur(2px);
+  }
+  .ad-pass-overlay.open { display: block; }
+  .ad-pass-modal {
+    display: none;
+    position: fixed;
+    z-index: 1001;
+    background: #FDFAF6;
+    border: 1px solid #E4DDD2;
+  }
+  .ad-pass-modal.open { display: block; }
+  /* Desktop: centered dialog */
+  @media (min-width: 641px) {
+    .ad-pass-modal {
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 360px;
+      border-radius: 14px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    }
+  }
+  /* Mobile: bottom-sheet */
+  @media (max-width: 640px) {
+    .ad-pass-modal {
+      bottom: 0;
+      left: 0;
+      right: 0;
+      border-radius: 18px 18px 0 0;
+      border-bottom: none;
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.14);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      transition: transform 0.22s cubic-bezier(0.32,0,0.67,0);
+    }
+    .ad-pass-modal:not(.open) { transform: translateY(100%); display: block; pointer-events: none; }
+    .ad-pass-modal.open       { transform: translateY(0);    display: block; pointer-events: auto; }
+  }
+  .ad-pass-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px 10px;
+    border-bottom: 1px solid #EDE8E0;
+  }
+  .ad-pass-modal-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1C1917;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .ad-pass-modal-close {
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: #9B8D80;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    font-family: inherit;
+  }
+  .ad-pass-modal-close:hover { color: #1C1917; }
+  .ad-pass-modal-note {
+    font-size: 11px;
+    color: #B0A99F;
+    padding: 8px 18px 6px;
+    border-bottom: 1px solid #EDE8E0;
+  }
+  .ad-pass-modal-table {
+    padding: 6px 0 4px;
+  }
+  .ad-pass-modal-table .ad-pass-row {
+    padding: 9px 18px;
+  }
+  /* Mobile bottom-sheet drag handle */
+  @media (max-width: 640px) {
+    .ad-pass-modal::before {
+      content: '';
+      display: block;
+      width: 36px;
+      height: 4px;
+      background: #D9D2BF;
+      border-radius: 2px;
+      margin: 10px auto 2px;
+    }
+  }
 
   /* ── Mobile card overrides ── */
   @media (max-width: 640px) {
@@ -204,19 +317,6 @@
 {%- if t -%}<div class="ad-trend {{ t[1] }} {{ extra_class }}">{{ t[0] }}</div>{%- endif -%}
 {%- endmacro -%}
 
-{# ── Display-layer pass label normalization (no DB changes) ── #}
-{% set pass_label_map = {
-  'epic':        'Epic',
-  'ikon':        'Ikon',
-  'mountain_collective': 'Mountain Collective',
-  'indy':        'Indy Pass',
-  'freedom':     'Freedom Pass',
-  'no_pass':     'No Pass',
-  'no_pass_yet': 'No Pass Yet',
-  'not_sure':    'Not Sure',
-  'other':       'Other',
-  'none':        'None',
-} %}
 
 <div class="ad-updated">
   Live data — refreshed on page load &nbsp;·&nbsp; {{ now }}
@@ -339,24 +439,68 @@
 <!-- ── Pass Distribution ── -->
 <div class="ad-section">
   <div class="ad-section-label">Pass Distribution</div>
-  {% if pass_distribution %}
+  {% set max_count = [pass_summary | map(attribute=2) | max, 1] | max %}
   <div class="ad-pass-table">
-    {% set max_count = pass_distribution[0][1] %}
-    {% for pass_key, count in pass_distribution %}
-    {% set display_name = pass_label_map[pass_key] if pass_key in pass_label_map else pass_key | replace('_', ' ') | title %}
-    <div class="ad-pass-row">
-      <div class="ad-pass-name">{{ display_name }}</div>
+    {% for slug, label, count in pass_summary %}
+    <div class="ad-pass-row{% if count == 0 %} ad-pass-row--zero{% endif %}">
+      <div class="ad-pass-name">{{ label }}</div>
       <div class="ad-pass-bar-wrap">
-        <div class="ad-pass-bar"
-             style="width: {{ ((count / max_count) * 100)|int }}%"></div>
+        <div class="ad-pass-bar" style="width: {{ ((count / max_count) * 100)|int }}%"></div>
       </div>
       <div class="ad-pass-count">{{ count }}</div>
     </div>
     {% endfor %}
   </div>
-  {% else %}
-  <div class="ad-card"><div class="ad-card-sub">No pass data yet.</div></div>
-  {% endif %}
+  <button class="ad-pass-expand-btn" onclick="adPassModalOpen()" type="button">
+    View full pass breakdown
+  </button>
 </div>
 
+<!-- ── Pass Detail Modal / Bottom-sheet ── -->
+<div class="ad-pass-overlay" id="adPassOverlay" onclick="adPassModalClose()" aria-hidden="true"></div>
+<div class="ad-pass-modal" id="adPassModal" role="dialog" aria-modal="true" aria-label="Full pass breakdown">
+  <div class="ad-pass-modal-header">
+    <span class="ad-pass-modal-title">Full pass breakdown</span>
+    <button class="ad-pass-modal-close" onclick="adPassModalClose()" aria-label="Close">✕</button>
+  </div>
+  <div class="ad-pass-modal-note">Canonical normalization — Indy counts as Other pass</div>
+  {% set det_max = [pass_detail | map(attribute=2) | max, 1] | max %}
+  <div class="ad-pass-modal-table">
+    {% for slug, label, count in pass_detail %}
+    <div class="ad-pass-row{% if count == 0 %} ad-pass-row--zero{% endif %}">
+      <div class="ad-pass-name">{{ label }}</div>
+      <div class="ad-pass-bar-wrap">
+        <div class="ad-pass-bar" style="width: {{ ((count / det_max) * 100)|int }}%"></div>
+      </div>
+      <div class="ad-pass-count">{{ count }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var overlay = document.getElementById('adPassOverlay');
+  var modal   = document.getElementById('adPassModal');
+
+  window.adPassModalOpen = function () {
+    overlay.classList.add('open');
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  };
+
+  window.adPassModalClose = function () {
+    overlay.classList.remove('open');
+    modal.classList.remove('open');
+    document.body.style.overflow = '';
+  };
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { adPassModalClose(); }
+  });
+})();
+</script>
 {% endblock %}
