@@ -1,0 +1,51 @@
+PUT THIS IN AGENT
+
+Investigate where the current BaseLodge web favicon is defined and propose the safest fix.
+
+Issue:
+The browser tab favicon is still showing the old red “B” icon across the regular desktop app and admin console. We need to identify where this favicon is coming from and how to replace it globally.
+
+Do not make changes yet unless the fix is obvious and low-risk. First investigate and report findings.
+
+Please inspect:
+- static/favicon.ico
+- static/favicon.png or any favicon-related files
+- static/icons/
+- templates/base.html
+- templates/base_app.html
+- templates/admin_console.html
+- any shared head/meta partials
+- manifest files such as site.webmanifest, manifest.json, or capacitor-related web manifest files
+- any `<link rel="icon">`, `<link rel="shortcut icon">`, `<link rel="apple-touch-icon">`, or favicon references
+- any Flask route that serves favicon.ico directly
+
+Find:
+1. Which file is currently producing the red “B” favicon.
+2. Which templates reference it.
+3. Whether the app, admin console, and public/marketing pages share the same favicon source.
+4. Whether browser caching or asset fingerprinting is involved.
+5. What files need to be replaced or added for a proper favicon system.
+
+Recommended target:
+- Replace the old red “B” favicon with the current BaseLodge favicon/app icon.
+- If no current favicon asset exists, recommend the exact assets needed:
+  - favicon.ico
+  - favicon-16x16.png
+  - favicon-32x32.png
+  - apple-touch-icon.png
+  - optional site.webmanifest
+
+Important:
+- Do not modify iOS or Android native app icons in this task.
+- This task is only for the web/app/admin browser favicon.
+- Do not break Capacitor native app icons.
+- Do not remove unrelated manifest/icon assets without confirming their purpose.
+- Use checkpoints sparingly.
+
+Return a clear report with:
+- Current favicon source
+- Files/templates involved
+- Recommended implementation steps
+- Any cache-clearing notes after deployment
+
+Do not finish until you have identified exactly where the favicon is coming from and how to change it safely.
