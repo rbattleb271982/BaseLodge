@@ -14471,9 +14471,29 @@ def admin_dashboard():
     prior_mtd_end  = first_of_prior + timedelta(days=days_elapsed)
 
     # ── User counts ──────────────────────────────────────────────────────────
+    one_day_ago  = now - timedelta(days=1)
+    seven_ago    = now - timedelta(days=7)
     total_users      = User.query.count()
+    dau              = User.query.filter(User.last_active_at >= one_day_ago).count()
+    wau              = User.query.filter(User.last_active_at >= seven_ago).count()
     mau              = User.query.filter(User.last_active_at >= thirty_ago).count()
     new_users_month  = User.query.filter(User.created_at >= first_of_mo).count()
+
+    # ── Daily active series — last 30 days (1 query, Python bucketing) ───────
+    from collections import defaultdict as _dd
+    _thirty_floor = (now - timedelta(days=30)).replace(
+        hour=0, minute=0, second=0, microsecond=0)
+    _active_ts = db.session.query(User.last_active_at).filter(
+        User.last_active_at >= _thirty_floor
+    ).all()
+    _day_ct = _dd(int)
+    for (_ts,) in _active_ts:
+        if _ts:
+            _day_ct[_ts.strftime("%Y-%m-%d")] += 1
+    daily_active_series = [
+        _day_ct.get((now - timedelta(days=i)).strftime("%Y-%m-%d"), 0)
+        for i in range(29, -1, -1)
+    ]
 
     # ── Trip counts ──────────────────────────────────────────────────────────
     total_trips  = SkiTrip.query.count()
@@ -14665,9 +14685,12 @@ def admin_dashboard():
         active_tab        = "dashboard",
         now               = now.strftime("%Y-%m-%d %H:%M UTC"),
         month_label       = month_label,
-        total_users       = total_users,
-        mau               = mau,
-        new_users_month   = new_users_month,
+        total_users          = total_users,
+        dau                  = dau,
+        wau                  = wau,
+        mau                  = mau,
+        new_users_month      = new_users_month,
+        daily_active_series  = daily_active_series,
         total_trips       = total_trips,
         trips_month       = trips_month,
         push_opt_in       = push_opt_in,

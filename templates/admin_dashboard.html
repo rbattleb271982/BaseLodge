@@ -23,12 +23,17 @@
   .ad-kpi-grid--2col {
     grid-template-columns: repeat(2, 1fr);
   }
+  .ad-kpi-grid--5col {
+    grid-template-columns: repeat(5, 1fr);
+  }
   @media (max-width: 1100px) {
-    .ad-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .ad-kpi-grid       { grid-template-columns: repeat(2, 1fr); }
+    .ad-kpi-grid--5col { grid-template-columns: repeat(3, 1fr); }
   }
   @media (max-width: 640px) {
     .ad-kpi-grid       { grid-template-columns: 1fr; gap: 8px; }
     .ad-kpi-grid--2col { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .ad-kpi-grid--5col { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   }
 
   /* ── KPI cards ── */
@@ -176,6 +181,152 @@
     text-align: right;
     flex-shrink: 0;
   }
+  /* ── Clickable cards ── */
+  .ad-card--clickable {
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .ad-card--clickable:hover {
+    border-color: #C4A882;
+    box-shadow: 0 2px 8px rgba(92,18,25,0.08);
+  }
+  .ad-card--clickable:focus-visible {
+    outline: 2px solid #5C1219;
+    outline-offset: 2px;
+  }
+  .ad-card-view-trend {
+    margin-top: 6px;
+    font-size: 10px;
+    color: #9B8D80;
+    letter-spacing: 0.02em;
+  }
+  .ad-card--clickable:hover .ad-card-view-trend { color: #5C1219; }
+
+  /* ── Active users trend modal ── */
+  .ad-au-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.32);
+    z-index: 1000;
+    backdrop-filter: blur(2px);
+  }
+  .ad-au-overlay.open { display: block; }
+  .ad-au-modal {
+    display: none;
+    position: fixed;
+    z-index: 1001;
+    background: #FDFAF6;
+    border: 1px solid #E4DDD2;
+  }
+  .ad-au-modal.open { display: block; }
+  @media (min-width: 641px) {
+    .ad-au-modal {
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 400px;
+      border-radius: 14px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    }
+  }
+  @media (max-width: 640px) {
+    .ad-au-modal {
+      bottom: 0; left: 0; right: 0;
+      border-radius: 18px 18px 0 0;
+      border-bottom: none;
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.14);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      transition: transform 0.22s cubic-bezier(0.32,0,0.67,0);
+    }
+    .ad-au-modal:not(.open) { transform: translateY(100%); display: block; pointer-events: none; }
+    .ad-au-modal.open       { transform: translateY(0);    display: block; pointer-events: auto; }
+    .ad-au-modal::before {
+      content: '';
+      display: block;
+      width: 36px;
+      height: 4px;
+      background: #D9D2BF;
+      border-radius: 2px;
+      margin: 10px auto 2px;
+    }
+  }
+  .ad-au-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid #EDE8E0;
+  }
+  .ad-au-modal-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1C1917;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .ad-au-modal-close {
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: #9B8D80;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    font-family: inherit;
+  }
+  .ad-au-modal-close:hover { color: #1C1917; }
+  .ad-au-summary {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #EDE8E0;
+  }
+  .ad-au-stat {
+    flex: 1;
+    text-align: center;
+    padding: 14px 8px;
+    border-right: 1px solid #EDE8E0;
+  }
+  .ad-au-stat:last-child { border-right: none; }
+  .ad-au-stat-val {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1C1917;
+    line-height: 1;
+  }
+  .ad-au-stat-lbl {
+    font-size: 11px;
+    color: #9B8D80;
+    margin-top: 4px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .ad-au-chart-wrap { padding: 14px 18px 4px; }
+  .ad-au-chart-title {
+    font-size: 11px;
+    color: #9B8D80;
+    margin-bottom: 10px;
+    letter-spacing: 0.02em;
+  }
+  .ad-au-chart {
+    width: 100%;
+    height: 56px;
+    display: block;
+  }
+  .ad-au-chart-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #C4BAB0;
+    margin-top: 4px;
+  }
+  .ad-au-note {
+    font-size: 11px;
+    color: #B0A99F;
+    padding: 10px 18px 16px;
+  }
+
   .ad-pass-row--zero .ad-pass-name  { color: #C4BAB0; font-weight: 400; }
   .ad-pass-row--zero .ad-pass-count { color: #C4BAB0; }
   .ad-pass-expand-btn {
@@ -325,7 +476,7 @@
 <!-- ── Acquisition ── -->
 <div class="ad-section">
   <div class="ad-section-label">Acquisition</div>
-  <div class="ad-kpi-grid">
+  <div class="ad-kpi-grid ad-kpi-grid--5col">
 
     <div class="ad-card">
       <div class="ad-card-label">Total Users</div>
@@ -334,11 +485,29 @@
       {{ trend(trend_total_users) }}
     </div>
 
-    <div class="ad-card">
+    <div class="ad-card ad-card--clickable" onclick="adAuModalOpen()" role="button" tabindex="0"
+         onkeydown="if(event.key==='Enter'||event.key===' ')adAuModalOpen()">
+      <div class="ad-card-label">DAU</div>
+      <div class="ad-card-value">{{ dau }}</div>
+      <div class="ad-card-sub">last 24 hours</div>
+      <div class="ad-card-view-trend">View trend ↗</div>
+    </div>
+
+    <div class="ad-card ad-card--clickable" onclick="adAuModalOpen()" role="button" tabindex="0"
+         onkeydown="if(event.key==='Enter'||event.key===' ')adAuModalOpen()">
+      <div class="ad-card-label">WAU</div>
+      <div class="ad-card-value">{{ wau }}</div>
+      <div class="ad-card-sub">last 7 days</div>
+      <div class="ad-card-view-trend">View trend ↗</div>
+    </div>
+
+    <div class="ad-card ad-card--clickable" onclick="adAuModalOpen()" role="button" tabindex="0"
+         onkeydown="if(event.key==='Enter'||event.key===' ')adAuModalOpen()">
       <div class="ad-card-label">MAU</div>
       <div class="ad-card-value">{{ mau }}</div>
-      <div class="ad-card-sub">active in last 30 days</div>
+      <div class="ad-card-sub">last 30 days</div>
       {{ trend(trend_mau) }}
+      <div class="ad-card-view-trend">View trend ↗</div>
     </div>
 
     <div class="ad-card">
@@ -349,6 +518,47 @@
     </div>
 
   </div>
+</div>
+
+<!-- ── Active Users Trend Modal ── -->
+<div class="ad-au-overlay" id="adAuOverlay" onclick="adAuModalClose()" aria-hidden="true"></div>
+<div class="ad-au-modal" id="adAuModal" role="dialog" aria-modal="true" aria-label="Active users trend">
+  <div class="ad-au-modal-header">
+    <span class="ad-au-modal-title">Active Users Trend</span>
+    <button class="ad-au-modal-close" onclick="adAuModalClose()" aria-label="Close">✕</button>
+  </div>
+  <div class="ad-au-summary">
+    <div class="ad-au-stat">
+      <div class="ad-au-stat-val">{{ dau }}</div>
+      <div class="ad-au-stat-lbl">DAU</div>
+    </div>
+    <div class="ad-au-stat">
+      <div class="ad-au-stat-val">{{ wau }}</div>
+      <div class="ad-au-stat-lbl">WAU</div>
+    </div>
+    <div class="ad-au-stat">
+      <div class="ad-au-stat-val">{{ mau }}</div>
+      <div class="ad-au-stat-lbl">MAU</div>
+    </div>
+  </div>
+  <div class="ad-au-chart-wrap">
+    <div class="ad-au-chart-title">Daily active users — last 30 days</div>
+    {%- set _au_max = [daily_active_series | max, 1] | max -%}
+    <svg class="ad-au-chart" viewBox="0 0 300 56" preserveAspectRatio="none"
+         aria-label="Daily active users bar chart" role="img">
+      {%- for _cnt in daily_active_series -%}
+      {%- set _bh = ((_cnt / _au_max) * 48) | int -%}
+      {%- set _x  = loop.index0 * 10 + 1 -%}
+      <rect x="{{ _x }}" y="{{ 56 - _bh if _bh > 0 else 55 }}"
+            width="8" height="{{ _bh if _bh > 0 else 1 }}"
+            fill="{{ '#5C1219' if _bh > 0 else '#E4DDD2' }}" rx="1"/>
+      {%- endfor -%}
+    </svg>
+    <div class="ad-au-chart-labels">
+      <span>30d ago</span><span>today</span>
+    </div>
+  </div>
+  <div class="ad-au-note">Based on user last_active_at.</div>
 </div>
 
 <!-- ── Trips ── -->
@@ -483,23 +693,41 @@
 {% block scripts %}
 <script>
 (function () {
-  var overlay = document.getElementById('adPassOverlay');
-  var modal   = document.getElementById('adPassModal');
+  /* ── Pass breakdown modal ── */
+  var passOverlay = document.getElementById('adPassOverlay');
+  var passModal   = document.getElementById('adPassModal');
 
   window.adPassModalOpen = function () {
-    overlay.classList.add('open');
-    modal.classList.add('open');
+    passOverlay.classList.add('open');
+    passModal.classList.add('open');
     document.body.style.overflow = 'hidden';
   };
-
   window.adPassModalClose = function () {
-    overlay.classList.remove('open');
-    modal.classList.remove('open');
+    passOverlay.classList.remove('open');
+    passModal.classList.remove('open');
+    document.body.style.overflow = '';
+  };
+
+  /* ── Active users trend modal ── */
+  var auOverlay = document.getElementById('adAuOverlay');
+  var auModal   = document.getElementById('adAuModal');
+
+  window.adAuModalOpen = function () {
+    auOverlay.classList.add('open');
+    auModal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  };
+  window.adAuModalClose = function () {
+    auOverlay.classList.remove('open');
+    auModal.classList.remove('open');
     document.body.style.overflow = '';
   };
 
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') { adPassModalClose(); }
+    if (e.key === 'Escape') {
+      adPassModalClose();
+      adAuModalClose();
+    }
   });
 })();
 </script>

@@ -1,0 +1,99 @@
+PUT THIS IN AGENT
+
+Add DAU and WAU to the Admin Dashboard acquisition/engagement KPI area and add a lightweight activity trend modal for DAU/WAU/MAU.
+
+Goal:
+The founder should be able to see daily, weekly, and monthly active user counts at a glance, then tap/click any active-user card to view a simple recent activity trend.
+
+Scope:
+- Add DAU
+- Add WAU
+- Keep MAU
+- Add click/tap modal for DAU/WAU/MAU
+- Do not build a separate analytics page
+- Do not add new tables or migrations
+- Do not add external chart libraries if avoidable
+
+Metric definitions:
+- DAU = users with last_active_at within the last 24 hours
+- WAU = users with last_active_at within the last 7 days
+- MAU = users with last_active_at within the last 30 days
+
+Dashboard layout:
+- Update the Acquisition section to include:
+  - Total Users
+  - DAU
+  - WAU
+  - MAU
+  - New This Month
+
+Use the existing dashboard card styling.
+If the row becomes too crowded on desktop, use a clean responsive grid that supports 5 cards.
+On mobile, keep compact 2-column behavior where possible.
+
+Activity modal:
+- DAU, WAU, and MAU cards should be clickable/tappable.
+- Clicking any of those opens the same “Active Users Trend” modal.
+- Modal should show:
+  - Current DAU
+  - Current WAU
+  - Current MAU
+  - A simple last-30-days daily active user chart
+  - Short helper text: “Based on user last_active_at.”
+
+Chart:
+- Use lightweight implementation.
+- Prefer simple CSS/SVG bars or line chart.
+- Avoid adding Chart.js or other libraries unless already loaded.
+- Chart should handle days with zero active users.
+- Chart should not break if there is no activity data.
+
+Data:
+- Use existing User.last_active_at only.
+- Server-side compute:
+  - dau_count
+  - wau_count
+  - mau_count
+  - daily_active_series for last 30 days
+- Pass these values into the template.
+
+UX:
+- Add subtle affordance to clickable cards, such as:
+  - cursor pointer
+  - “View trend” small text
+  - hover state on desktop
+- Keep visual style premium/editorial.
+- Do not make the dashboard feel noisy.
+
+Accessibility:
+- Modal should have close button.
+- Modal should close on Escape.
+- Modal should close when clicking outside.
+- Clickable cards should be keyboard accessible where reasonable.
+
+Important constraints:
+- Do not build tap-through detail pages
+- Do not build date filters yet
+- Do not add PostHog API calls
+- Do not change how last_active_at is written
+- Do not add migrations
+- Do not create new admin tabs
+- Use checkpoints sparingly
+
+Files likely involved:
+- app.py
+- templates/admin_dashboard.html
+- static/css/style.css
+
+Testing:
+- Confirm DAU, WAU, MAU counts are correct
+- Confirm modal opens from DAU card
+- Confirm modal opens from WAU card
+- Confirm modal opens from MAU card
+- Confirm modal closes via close button, outside click, and Escape
+- Confirm chart renders with low/zero data
+- Confirm desktop layout still looks clean with 5 cards
+- Confirm mobile layout remains usable with 2-column cards
+- Confirm no horizontal scrolling on mobile
+
+Do not finish until the new DAU/WAU/MAU cards and trend modal are fully tested on desktop and mobile.
