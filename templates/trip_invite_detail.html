@@ -379,8 +379,15 @@
 
             <!-- Hero block -->
             {% set mountain_name = (trip.resort | resort_display) if trip.resort else trip.mountain %}
-            {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
-            {% set state_full = trip.resort|state_fullname if trip.resort else trip.state %}
+            {% if trip.resort %}
+                {% if trip.resort.country_code and trip.resort.country_code != 'US' %}
+                    {% set hero_loc = trip.resort.display_country_name %}
+                {% else %}
+                    {% set hero_loc = trip.resort|state_fullname %}
+                {% endif %}
+            {% else %}
+                {% set hero_loc = trip.state %}
+            {% endif %}
 
             <div class="tid-hero">
                 {% if not is_accepted and participant.status.value != 'declined' %}
@@ -398,8 +405,8 @@
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
                 </p>
-                {% if state_full %}
-                <p class="tid-hero-loc">{{ state_full }}{% if trip.resort and trip.resort.display_country_name %}, {{ trip.resort.display_country_name }}{% endif %}</p>
+                {% if hero_loc %}
+                <p class="tid-hero-loc">{{ hero_loc }}</p>
                 {% endif %}
             </div>
 
@@ -438,10 +445,10 @@
                     <span class="tid-detail-value">{{ pass_display }}</span>
                 </div>
                 {% endif %}
-                {% if trip.duration_display %}
+                {% if trip.exact_duration_display %}
                 <div class="tid-detail-row">
                     <span class="tid-detail-label">Trip Length</span>
-                    <span class="tid-detail-value">{{ trip.duration_display }}</span>
+                    <span class="tid-detail-value">{{ trip.exact_duration_display }}</span>
                 </div>
                 {% endif %}
             </div>

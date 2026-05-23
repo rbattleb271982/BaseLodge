@@ -122,11 +122,19 @@
 
         <!-- Blush hero with mountain + dates -->
         {% set mountain_name = trip.resort.name if trip.resort else trip.mountain %}
-        {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
+        {% if trip.resort %}
+            {% if trip.resort.country_code and trip.resort.country_code != 'US' %}
+                {% set hero_loc = trip.resort.display_country_name %}
+            {% else %}
+                {% set hero_loc = trip.resort|state_abbrev %}
+            {% endif %}
+        {% else %}
+            {% set hero_loc = trip.state %}
+        {% endif %}
 
         <div class="ftd-hero">
             <p class="ftd-hero-eyebrow">Upcoming Trip</p>
-            <p class="ftd-hero-mountain">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+            <p class="ftd-hero-mountain">{{ mountain_name }}{% if hero_loc %}, {{ hero_loc }}{% endif %}</p>
             <p class="ftd-hero-sub">{{ format_trip_dates(trip) }}</p>
         </div>
 
@@ -147,7 +155,7 @@
         {% endif %}
         <div class="ftd-info-row">
             <span class="ftd-info-label">Trip Length</span>
-            <span class="ftd-info-value">{{ trip.duration_display }}</span>
+            <span class="ftd-info-value">{{ trip.exact_duration_display }}</span>
         </div>
         <div class="ftd-info-row">
             <span class="ftd-info-label">Equipment</span>

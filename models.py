@@ -727,6 +727,18 @@ class SkiTrip(db.Model):
             'three_plus_nights': '3+ nights'
         }
         return labels.get(self.trip_duration, '1 night')
+
+    @property
+    def exact_duration_display(self):
+        """Return exact number of nights calculated from start/end dates.
+        Falls back to duration_display if dates are unavailable.
+        """
+        if self.start_date and self.end_date:
+            nights = (self.end_date - self.start_date).days
+            if nights <= 0:
+                return '1 night'
+            return f"{nights} night{'s' if nights != 1 else ''}"
+        return self.duration_display
     
     @property
     def organizer_id(self):
