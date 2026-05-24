@@ -1,0 +1,82 @@
+STOP all #136 regression-test work.
+
+Run a read-only database/environment diagnostic. Do not change code. Do not run migrations. Do not create tables. Do not call db.create_all(). Do not write to the database.
+
+Goal:
+Determine why the app is now connected to a Supabase database that only contains alembic_version and none of the expected BaseLodge tables.
+
+Read-only diagnostic only.
+
+Please report:
+
+1. Current environment variables present by NAME ONLY:
+- SUPABASE_DATABASE_URL
+- DATABASE_URL
+- PGHOST
+- PGPORT
+- PGUSER
+- PGDATABASE
+- PGPASSWORD
+- any POSTGRES / NEON / SUPABASE related vars
+
+Do NOT print secret values or passwords.
+
+2. Which variable app.py actually uses for SQLALCHEMY_DATABASE_URI.
+Show the exact priority/order:
+- does it prefer SUPABASE_DATABASE_URL?
+- DATABASE_URL?
+- something else?
+
+3. Print a sanitized version of the active database host only:
+- hostname
+- port
+- database name
+- username prefix only
+Do NOT print password.
+
+4. Run a read-only SQL inspection against the currently connected DB:
+SELECT current_database();
+SELECT current_schema();
+SELECT schemaname, tablename
+FROM pg_tables
+WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+ORDER BY schemaname, tablename;
+
+5. Check migration/version state:
+SELECT * FROM alembic_version;
+
+6. Search recent repo changes for anything that could have affected DB config:
+- git diff
+- git log --oneline -10
+- grep for SQLALCHEMY_DATABASE_URI
+- grep for SUPABASE_DATABASE_URL
+- grep for DATABASE_URL
+- grep for db.create_all
+- grep for drop_all
+- grep for alembic
+- grep for migrate
+- grep for Neon
+
+7. Confirm whether #136 changed any production files.
+List changed files from:
+git status --short
+
+8. Confirm whether any command was run that could have modified the database:
+- migrations
+- flask db upgrade
+- db.create_all
+- SQL DDL
+- Alembic upgrade
+- table creation/drop
+
+9. Check whether Replit recently added Neon/Postgres env vars and whether the app could have switched database priority.
+
+Final output should include:
+- Findings
+- What is confirmed
+- What is not confirmed
+- Most likely cause
+- Whether data appears deleted vs app pointed at wrong/empty DB
+- Recommended next step
+
+Again: read-only only. No fixes. No schema creation. No migrations.
