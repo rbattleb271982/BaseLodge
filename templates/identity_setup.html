@@ -327,80 +327,45 @@
             color: #5C1219;
         }
 
-        /* ── Welcome modal ── */
-        .ob-welcome-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.45);
-            z-index: 1000;
+        /* ── Welcome step (inline, step 1) ── */
+        .ob-welcome-content {
+            flex: 1;
             display: flex;
-            align-items: flex-end;
+            flex-direction: column;
             justify-content: center;
-            padding-bottom: env(safe-area-inset-bottom, 0px);
-        }
-        .ob-welcome-overlay.hidden { display: none; }
-        .ob-welcome-card {
-            background: #F5F1E8;
-            border-radius: 20px 20px 0 0;
-            width: 100%;
-            max-width: 420px;
-            padding: 28px 28px 36px;
-            position: relative;
-        }
-        .ob-welcome-close {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            width: 30px;
-            height: 30px;
-            border: none;
-            background: rgba(0,0,0,0.07);
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 16px;
-            color: #6B665A;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            line-height: 1;
+            padding: 0 28px 20px;
         }
         .ob-welcome-logo {
             font-family: var(--bl-font-serif);
-            font-size: 22px;
+            font-size: 18px;
             font-weight: 500;
             color: #5C1219;
-            margin-bottom: 16px;
+            margin-bottom: 28px;
         }
         .ob-welcome-title {
             font-family: var(--bl-font-serif);
-            font-size: 26px;
+            font-size: 36px;
             font-weight: 500;
             color: #1A1A1A;
-            line-height: 1.25;
-            margin-bottom: 12px;
+            line-height: 1.15;
+            margin-bottom: 16px;
         }
         .ob-welcome-body {
-            font-size: 15px;
-            color: #6B665A;
+            font-size: 16px;
+            color: #8F8477;
             line-height: 1.6;
-            margin-bottom: 28px;
         }
-        .ob-welcome-cta {
-            width: 100%;
-            padding: 14px;
-            font-size: 15px;
-            font-weight: 500;
-            font-family: inherit;
-            background: #5C1219;
-            color: #fff;
-            border: none;
-            border-radius: 999px;
-            cursor: pointer;
-            letter-spacing: 0.01em;
-            transition: opacity 0.15s;
+
+        /* ── Section label inside options (for merged steps) ── */
+        .ob-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: #9A8F82;
+            padding: 10px 0 2px;
+            flex-shrink: 0;
         }
-        .ob-welcome-cta:hover { opacity: 0.88; }
-        .ob-welcome-cta:active { opacity: 0.75; }
     </style>
 </head>
 <body>
@@ -423,7 +388,7 @@
             <div class="ob-viewport">
                 <div class="ob-slider" id="ob-slider">
 
-                    <!-- Step 1: Ride Type -->
+                    <!-- Step 1: Welcome -->
                     <div class="ob-step">
                         <div class="ob-progress">
                             <div class="ob-seg on"></div>
@@ -436,25 +401,17 @@
                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8L10 3" stroke="#1A1A1A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             </button>
                         </div>
-                        <div class="ob-header">
-                            <p class="ob-step-counter">Step 1 of 4</p>
-                            <h1 class="ob-title">What kind of riding do you do?</h1>
-                            <p class="ob-subtitle">Choose what fits — most people pick two.</p>
-                        </div>
-                        <div class="ob-options">
-                            <button type="button" class="ob-pill" data-grp="rider" data-val="Skier"        data-target="h-rider">Skier</button>
-                            <button type="button" class="ob-pill" data-grp="rider" data-val="Snowboarder"  data-target="h-rider">Snowboarder</button>
-                            <button type="button" class="ob-pill" data-grp="rider" data-val="Telemark"     data-target="h-rider">Telemark</button>
-                            <button type="button" class="ob-pill" data-grp="rider" data-val="Cross-Country" data-target="h-rider">Cross-country</button>
-                            <button type="button" class="ob-pill" data-grp="rider" data-val="Adaptive"     data-target="h-rider">Adaptive</button>
-                            <button type="button" class="ob-pill" data-grp="rider" data-val="Social"       data-target="h-rider">Social / après</button>
+                        <div class="ob-welcome-content">
+                            <p class="ob-welcome-logo">BaseLodge</p>
+                            <h1 class="ob-welcome-title">Welcome aboard.</h1>
+                            <p class="ob-welcome-body">A few quick questions and you'll be on the mountain in no time.</p>
                         </div>
                         <div class="ob-footer">
-                            <button type="button" class="ob-btn" id="cta-1" disabled onclick="goNext(1)">Continue</button>
+                            <button type="button" class="ob-btn" id="cta-1" onclick="goNext(1)">Let's get started</button>
                         </div>
                     </div>
 
-                    <!-- Step 2: Skill Level -->
+                    <!-- Step 2: Rider type + Skill level -->
                     <div class="ob-step">
                         <div class="ob-progress">
                             <div class="ob-seg on"></div>
@@ -469,10 +426,17 @@
                         </div>
                         <div class="ob-header">
                             <p class="ob-step-counter">Step 2 of 4</p>
-                            <h1 class="ob-title">What's your level?</h1>
-                            <p class="ob-subtitle">So you end up on the right runs.</p>
+                            <h1 class="ob-title">Tell us about your riding.</h1>
+                            <p class="ob-subtitle">Choose what fits — most people pick two styles.</p>
                         </div>
                         <div class="ob-options">
+                            <button type="button" class="ob-pill" data-grp="rider" data-val="Skier"         data-target="h-rider">Skier</button>
+                            <button type="button" class="ob-pill" data-grp="rider" data-val="Snowboarder"   data-target="h-rider">Snowboarder</button>
+                            <button type="button" class="ob-pill" data-grp="rider" data-val="Telemark"      data-target="h-rider">Telemark</button>
+                            <button type="button" class="ob-pill" data-grp="rider" data-val="Cross-Country" data-target="h-rider">Cross-country</button>
+                            <button type="button" class="ob-pill" data-grp="rider" data-val="Adaptive"      data-target="h-rider">Adaptive</button>
+                            <button type="button" class="ob-pill" data-grp="rider" data-val="Social"        data-target="h-rider">Social / après</button>
+                            <p class="ob-section-label">Skill level</p>
                             <button type="button" class="ob-pill" data-grp="skill" data-val="Beginner"     data-target="h-skill">Beginner     <span class="ob-hint">Green runs</span></button>
                             <button type="button" class="ob-pill" data-grp="skill" data-val="Intermediate" data-target="h-skill">Intermediate <span class="ob-hint">Blue runs</span></button>
                             <button type="button" class="ob-pill" data-grp="skill" data-val="Advanced"     data-target="h-skill">Advanced     <span class="ob-hint">Black runs</span></button>
@@ -502,18 +466,17 @@
                             <p class="ob-subtitle">Choose what applies — or skip for now.</p>
                         </div>
                         <div class="ob-options">
-                            <p class="ob-pass-cap-hint" id="pass-cap-hint">You can select up to 3 passes.</p>
-                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass"            data-target="h-pass">No pass</button>
-                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass_yet"        data-target="h-pass">Not sure yet</button>
-                            <div class="ob-divider"></div>
+                            <p class="ob-pass-cap-hint" id="pass-cap-hint">You've reached the 3-pass limit.</p>
+                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass_yet"          data-target="h-pass">No pass yet</button>
                             <button type="button" class="ob-pill" data-grp="pass" data-val="epic"              data-target="h-pass">Epic</button>
                             <button type="button" class="ob-pill" data-grp="pass" data-val="ikon"              data-target="h-pass">Ikon</button>
+                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass"              data-target="h-pass">No pass</button>
                             <button type="button" class="ob-pill" data-grp="pass" data-val="indy"              data-target="h-pass">Indy</button>
                             <button type="button" class="ob-pill" data-grp="pass" data-val="mountain_collective" data-target="h-pass">Mountain Collective</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="powder_alliance" data-target="h-pass">Powder Alliance</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="freedom"         data-target="h-pass">Freedom Pass</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="ski_california"  data-target="h-pass">Ski California</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="other"           data-target="h-pass">Other pass</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="powder_alliance"  data-target="h-pass">Powder Alliance</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="freedom"          data-target="h-pass">Freedom Pass</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="ski_california"   data-target="h-pass">Ski California</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="other"            data-target="h-pass">Other pass</button>
                         </div>
                         <div class="ob-footer">
                             <button type="button" class="ob-btn" id="cta-3" disabled onclick="goNext(3)">Continue</button>
@@ -574,7 +537,13 @@
     var slider = document.getElementById('ob-slider');
     var currentStep = 1;
     var lastOnboardingStepFired = 0;
-    var stepNames = { 1: 'ride_type', 2: 'level', 3: 'pass', 4: 'location' };
+    var stepNames = { 1: 'welcome', 2: 'rider_and_skill', 3: 'pass', 4: 'location' };
+
+    function updateCta2() {
+        var hasRider = document.querySelectorAll('.ob-pill[data-grp="rider"].sel').length > 0;
+        var hasSkill = document.querySelectorAll('.ob-pill[data-grp="skill"].sel').length > 0;
+        document.getElementById('cta-2').disabled = !(hasRider && hasSkill);
+    }
 
     function slideTo(n) {
         slider.style.transform = 'translateX(' + (-(n - 1) * 25) + '%)';
@@ -638,8 +607,7 @@
                     riderSelected.push(p.dataset.val);
                 });
                 document.getElementById(targetId).value = riderSelected.join(',');
-                var hasRider = riderSelected.length > 0;
-                document.getElementById('cta-1').disabled = !hasRider;
+                updateCta2();
 
             } else if (grp === 'pass') {
                 var alreadySel = this.classList.contains('sel');
@@ -676,9 +644,7 @@
                 });
                 this.classList.add('sel');
                 document.getElementById(targetId).value = this.dataset.val;
-                var ctaMap = { skill: 'cta-2' };
-                var ctaId = ctaMap[grp];
-                if (ctaId) document.getElementById(ctaId).disabled = false;
+                if (grp === 'skill') { updateCta2(); }
             }
         });
     });
@@ -698,30 +664,6 @@
         }
     }
 
-    // ── Welcome modal: show once per session ──────────────────────────────
-    document.addEventListener('DOMContentLoaded', function() {
-        var STORAGE_KEY = 'bl_ob_welcome_shown';
-        var overlay = document.getElementById('ob-welcome-overlay');
-        if (!overlay) return;
-        if (sessionStorage.getItem(STORAGE_KEY)) return;
-        overlay.classList.remove('hidden');
-        function dismiss() {
-            overlay.classList.add('hidden');
-            sessionStorage.setItem(STORAGE_KEY, '1');
-        }
-        document.getElementById('ob-welcome-close').addEventListener('click', dismiss);
-        document.getElementById('ob-welcome-cta').addEventListener('click', dismiss);
-    });
 </script>
-
-<div id="ob-welcome-overlay" class="ob-welcome-overlay hidden">
-    <div class="ob-welcome-card">
-        <button id="ob-welcome-close" class="ob-welcome-close" aria-label="Close">&times;</button>
-        <div class="ob-welcome-logo">BaseLodge</div>
-        <h2 class="ob-welcome-title">Welcome aboard.</h2>
-        <p class="ob-welcome-body">We've got a couple of questions for you to get you started.</p>
-        <button id="ob-welcome-cta" class="ob-welcome-cta">Get started</button>
-    </div>
-</div>
 </body>
 </html>

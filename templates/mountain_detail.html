@@ -45,17 +45,81 @@
             background: rgba(0, 0, 0, 0.1);
             margin: 14px 0 0 0;
         }
-        .md-plan-link {
-            display: inline-block;
-            margin: 16px 0 2px 0;
+        /* ── Pass row ── */
+        .md-pass-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 13px;
+            color: #8A857A;
+            margin: 5px 0 0;
+        }
+        .md-pass-check { color: #5C1219; font-weight: 600; }
+        .md-pass-name  { color: #5C1219; font-weight: 500; }
+
+        /* ── Social density ── */
+        .md-social {
+            display: flex;
+            gap: 14px;
+            margin: 7px 0 0;
+        }
+        .md-social-line {
+            font-size: 13px;
+            color: #8A857A;
+            margin: 0;
+        }
+
+        /* ── CTAs ── */
+        .md-cta-primary {
+            display: block;
+            width: 100%;
+            margin: 20px 0 0;
+            padding: 14px 20px;
             font-size: 15px;
-            font-weight: 500;
-            color: #5C1219;
+            font-weight: 600;
+            font-family: inherit;
+            text-align: center;
+            background: #5C1219;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
             text-decoration: none;
+            transition: opacity 0.15s;
             -webkit-tap-highlight-color: transparent;
         }
-        .md-plan-link:active {
-            opacity: 0.6;
+        .md-cta-primary:active { opacity: 0.8; }
+        .md-cta-secondary {
+            display: block;
+            width: 100%;
+            margin: 10px 0 0;
+            padding: 13px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: inherit;
+            text-align: center;
+            background: transparent;
+            color: #5C1219;
+            border: 1px solid rgba(92, 18, 25, 0.25);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: opacity 0.15s, background 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .md-cta-secondary:active { opacity: 0.7; }
+        .md-cta-secondary.on-wishlist {
+            background: rgba(92, 18, 25, 0.05);
+            border-color: rgba(92, 18, 25, 0.4);
+        }
+
+        /* ── Trips section label ── */
+        .md-trips-label {
+            margin: 26px 0 8px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #9A8F82;
         }
 
         /* ── Inline trip rows ── */
@@ -150,26 +214,42 @@
 
         <!-- Hero -->
         <div class="md-hero">
-            <h1 class="md-name">{{ resort.name }}{% if resort.state_code %}, {{ resort.state_code }}{% endif %}</h1>
+            <h1 class="md-name">{{ resort.name }}</h1>
             <p class="md-meta">
-                {%- if user_pass_covered -%}
-                    Covered by your {{ user_pass_name }} pass
-                {%- else -%}
-                    Not on your pass
-                {%- endif -%}
-                {%- if is_on_wishlist %} · On your wishlist{% endif -%}
-                {%- if social_going > 0 and social_considering > 0 %} · {{ social_going }} {{ 'friend' if social_going == 1 else 'friends' }} going · {{ social_considering }} considering
-                {%- elif social_going > 0 %} · {{ social_going }} {{ 'friend' if social_going == 1 else 'friends' }} going
-                {%- elif social_considering > 0 %} · {{ social_considering }} considering
-                {%- endif -%}
-                {%- if flat_rows %} · {{ flat_rows | length }} {{ 'trip' if flat_rows | length == 1 else 'trips' }} planned{%- endif -%}
+                {%- if state_full -%}{{ state_full }}{%- elif resort.state_code -%}{{ resort.state_code }}{%- endif -%}
             </p>
+            <div class="md-pass-row">
+                {%- if user_pass_covered -%}
+                <span class="md-pass-check">✓</span>
+                <span class="md-pass-name">On your {{ user_pass_name }} pass</span>
+                {%- else -%}
+                <span>Not on your pass</span>
+                {%- endif -%}
+            </div>
+            {% if social_going > 0 or social_considering > 0 %}
+            <div class="md-social">
+                {% if social_going > 0 %}<p class="md-social-line">{{ social_going }} {{ 'friend' if social_going == 1 else 'friends' }} going</p>{% endif %}
+                {% if social_considering > 0 %}<p class="md-social-line">{{ social_considering }} {{ 'friend' if social_considering == 1 else 'friends' }} planning</p>{% endif %}
+            </div>
+            {% endif %}
         </div>
 
-        <!-- Hairline divider -->
-        <div class="md-hero-divider"></div>
+        <!-- Primary CTA -->
+        <a href="{{ url_for('add_trip', resort_id=resort.id) }}" class="md-cta-primary">Plan a trip here</a>
 
-        <a href="{{ url_for('add_trip', resort_id=resort.id) }}" class="md-plan-link">Plan a trip here →</a>
+        <!-- Wishlist secondary CTA -->
+        <button type="button" id="md-wishlist-btn"
+            class="md-cta-secondary{% if is_on_wishlist %} on-wishlist{% endif %}"
+            data-resort-id="{{ resort.id }}"
+            data-on-wishlist="{{ 'true' if is_on_wishlist else 'false' }}"
+            onclick="mdToggleWishlist(this)">
+            {%- if is_on_wishlist -%}✓ On your wishlist{%- else -%}♡ Add to wishlist{%- endif -%}
+        </button>
+
+        <!-- Trips section label -->
+        {% if flat_rows %}
+        <p class="md-trips-label">Friends going</p>
+        {% endif %}
 
         <!-- Flat trip rows: each row is one person + their date inline -->
         {% if flat_rows %}
@@ -234,5 +314,29 @@
         });
     }
 })();
+
+function mdToggleWishlist(el) {
+    var onWishlist = el.dataset.onWishlist === 'true';
+    var resortId = parseInt(el.dataset.resortId, 10);
+    var url = onWishlist ? '/api/wishlist/remove' : '/api/wishlist/add';
+    el.disabled = true;
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resort_id: resortId })
+    }).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.success || data.ok) {
+            onWishlist = !onWishlist;
+            el.dataset.onWishlist = onWishlist ? 'true' : 'false';
+            el.textContent = onWishlist ? '✓ On your wishlist' : '♡ Add to wishlist';
+            if (onWishlist) {
+                el.classList.add('on-wishlist');
+            } else {
+                el.classList.remove('on-wishlist');
+            }
+        }
+        el.disabled = false;
+    }).catch(function() { el.disabled = false; });
+}
 </script>
 {% endblock %}

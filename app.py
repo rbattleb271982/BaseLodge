@@ -7796,6 +7796,66 @@ def home():
     if len(happening_signals) > HOME_HAPPENING_RENDER_CAP:
         happening_signals = happening_signals[:HOME_HAPPENING_RENDER_CAP]
 
+    # ── Social summary insight card ────────────────────────────────────────
+    social_summary_card = None
+    try:
+        if len(happening_signals) >= 2:
+            from datetime import date as _date_cls
+            _ss_key = f"social_summary:{_date_cls.today().isoformat()}"
+            _ss_dismissed = DismissedInsightCard.query.filter_by(
+                user_id=user.id, card_type='social_summary', card_key=_ss_key,
+            ).first()
+            if not _ss_dismissed:
+                _ss_summaries = []
+                _ss_seen_names = set()
+                for _sig in happening_signals[:5]:
+                    _fname = (_sig.get('person') or '').split()[0]
+                    if not _fname or _fname in _ss_seen_names:
+                        continue
+                    _al = _sig.get('action_line', '')
+                    _mtn = None
+                    for _pfx in ('Going to ', 'Heading to ', 'Planning '):
+                        if _al.startswith(_pfx):
+                            _mtn = _al[len(_pfx):]
+                            break
+                    if _mtn:
+                        _ss_summaries.append((_fname, _mtn))
+                        _ss_seen_names.add(_fname)
+                _ss_unique_mtns = list(dict.fromkeys(m for _, m in _ss_summaries))
+                if len(_ss_summaries) >= 2 and len(_ss_unique_mtns) >= 2:
+                    _ss_mtn_names = {}
+                    for _sn, _sm in _ss_summaries:
+                        _ss_mtn_names.setdefault(_sm, []).append(_sn)
+                    _ss_parts = []
+                    for _sm, _sns in list(_ss_mtn_names.items())[:3]:
+                        if len(_sns) == 1:
+                            _ss_parts.append(f"{_sns[0]} added {_sm}")
+                        else:
+                            _ss_parts.append(f"{' and '.join(_sns)} added {_sm}")
+                    if len(_ss_parts) == 1:
+                        _ss_detail = _ss_parts[0] + "."
+                    elif len(_ss_parts) == 2:
+                        _ss_detail = f"{_ss_parts[0]}, and {_ss_parts[1]}."
+                    else:
+                        _ss_detail = ", ".join(_ss_parts[:-1]) + f", and {_ss_parts[-1]}."
+                    _n = len(happening_signals)
+                    if _n == 2:
+                        _ss_headline = "A couple of trips came together while you were away."
+                    elif _n == 3:
+                        _ss_headline = "Three trips came together while you were away."
+                    elif _n == 4:
+                        _ss_headline = "A few trips came together while you were away."
+                    else:
+                        _ss_headline = "Several trips came together while you were away."
+                    social_summary_card = {
+                        'headline': _ss_headline,
+                        'detail': _ss_detail,
+                        'card_key': _ss_key,
+                    }
+    except Exception:
+        db.session.rollback()
+        social_summary_card = None
+
     print(
         f"[HOME_DIAGNOSTICS] happening_friend_ids_count={len(friend_ids)}"
         f" happening_candidate_trips_before_dedupe={_diag_hap_raw_trips}"
@@ -7862,6 +7922,7 @@ def home():
         trip_invites=trip_invites,
         secondary_card=secondary_card,
         happening_signals=happening_signals,
+        social_summary_card=social_summary_card,
         dest_feed=dest_feed,
         ideas_count=ideas_count,
         requests_count=requests_count,

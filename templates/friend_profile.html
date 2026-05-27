@@ -462,6 +462,43 @@
             {% endif %}
         </div>
 
+        <!-- More about [Name] -->
+        {% set _has_more = friend.home_state or friend.primary_riding_style or friend.skill_level or friend.pass_type %}
+        {% if _has_more %}
+        <div class="fp-card" style="margin-top: 4px;">
+            <div class="fp-label">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="14" height="14" style="color:var(--bl-color-text-tertiary);flex-shrink:0;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                </svg>
+                <span class="fp-label-text">More about {{ _first }}</span>
+            </div>
+            {% if friend.home_state %}
+            <div class="fp-detail-row">
+                <span class="fp-detail-label">Home</span>
+                <span class="fp-detail-value">{{ friend.home_state }}</span>
+            </div>
+            {% endif %}
+            {% if friend.primary_riding_style %}
+            <div class="fp-detail-row">
+                <span class="fp-detail-label">Riding</span>
+                <span class="fp-detail-value">{{ friend.primary_riding_style }}</span>
+            </div>
+            {% endif %}
+            {% if friend.skill_level %}
+            <div class="fp-detail-row">
+                <span class="fp-detail-label">Level</span>
+                <span class="fp-detail-value">{{ friend.skill_level }}</span>
+            </div>
+            {% endif %}
+            {% if friend.pass_type %}
+            <div class="fp-detail-row">
+                <span class="fp-detail-label">Pass</span>
+                <span class="fp-detail-value">{{ friend.pass_type | pass_display }}</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <!-- Connect button (non-friend who shares a group trip) -->
         {% if show_connect_button %}
         <div style="margin-top: 8px;">
