@@ -15544,16 +15544,6 @@ def admin_dashboard():
     for r in top_planned_resorts:
         r["pct"] = round(r["count"] / _tp_max * 100)
 
-    # Trending resorts this month
-    _tr_rows = (
-        db.session.query(Resort.name, func.count(SkiTrip.id).label("cnt"))
-        .join(SkiTrip, SkiTrip.resort_id == Resort.id)
-        .filter(SkiTrip.resort_id.isnot(None), SkiTrip.created_at >= first_of_mo)
-        .group_by(Resort.id, Resort.name)
-        .order_by(func.count(SkiTrip.id).desc())
-        .limit(3).all()
-    )
-    trending_resorts_month = [{"name": r.name, "count": r.cnt} for r in _tr_rows]
 
     # Most wishlisted resorts (Python aggregation from User.wish_list_resorts JSON)
     _wish_ctr = _Counter()
@@ -15577,165 +15567,8 @@ def admin_dashboard():
     for r in top_wishlisted_resorts:
         r["pct"] = round(r["count"] / _tw_max * 100)
 
-    # ── Group Activity ────────────────────────────────────────────────────────
-    _guest_total    = SkiTripParticipant.query.filter(
-        SkiTripParticipant.role == ParticipantRole.GUEST
-    ).count()
-    _guest_accepted = SkiTripParticipant.query.filter(
-        SkiTripParticipant.role   == ParticipantRole.GUEST,
-        SkiTripParticipant.status == GuestStatus.ACCEPTED,
-    ).count()
-    _trips_with_guests = db.session.query(
-        func.count(func.distinct(SkiTripParticipant.trip_id))
-    ).filter(SkiTripParticipant.role == ParticipantRole.GUEST).scalar() or 0
 
-    trips_with_invites      = _trips_with_guests
-    trips_with_accepted     = db.session.query(
-        func.count(func.distinct(SkiTripParticipant.trip_id))
-    ).filter(
-        SkiTripParticipant.role   == ParticipantRole.GUEST,
-        SkiTripParticipant.status == GuestStatus.ACCEPTED,
-    ).scalar() or 0
-    trip_invite_accept_pct  = round(_guest_accepted / _guest_total * 100) if _guest_total else 0
-    avg_invites_per_trip    = round(_guest_total / _trips_with_guests, 1) if _trips_with_guests else 0
 
-    _accepted_total          = SkiTripParticipant.query.filter(
-        SkiTripParticipant.status == GuestStatus.ACCEPTED
-    ).count()
-    _trips_with_any_accepted = db.session.query(
-        func.count(func.distinct(SkiTripParticipant.trip_id))
-    ).filter(SkiTripParticipant.status == GuestStatus.ACCEPTED).scalar() or 0
-    avg_participants_per_trip = (
-        round(_accepted_total / _trips_with_any_accepted, 1)
-        if _trips_with_any_accepted else 0
-    )
-
-    # Most social resorts (highest total non-owner guest participants)
-    _ms_rows = (
-        db.session.query(Resort.name, func.count(SkiTripParticipant.id).label("cnt"))
-        .join(SkiTrip,  SkiTrip.id    == SkiTripParticipant.trip_id)
-        .join(Resort,   Resort.id     == SkiTrip.resort_id)
-        .filter(
-            SkiTripParticipant.role == ParticipantRole.GUEST,
-            SkiTrip.resort_id.isnot(None),
-        )
-        .group_by(Resort.id, Resort.name)
-        .order_by(func.count(SkiTripParticipant.id).desc())
-        .limit(5).all()
-    )
-    most_social_resorts = [{"name": r.name, "count": r.cnt} for r in _ms_rows]
-    _msr_max = max((r["count"] for r in most_social_resorts), default=1)
-    for r in most_social_resorts:
-        r["pct"] = round(r["count"] / _msr_max * 100)
-
-    # ── Planning Patterns (Python-side date arithmetic, cross-DB safe) ────────
-    _trip_dates_q = db.session.query(
-        SkiTrip.start_date, SkiTrip.end_date,
-        SkiTrip.created_at, SkiTrip.trip_duration,
-    ).filter(SkiTrip.start_date.isnot(None)).all()
-
-    _lengths    = []
-    _lead_times = []
-    _month_ctr2 = _Counter()
-    for _sd, _ed, _cat, _dur in _trip_dates_q:
-        if _sd:
-            _month_ctr2[_sd.month] += 1
-        if _sd and _ed and _ed >= _sd:
-            _lengths.append((_ed - _sd).days)
-        if _sd and _cat:
-            _lead = (_sd - _cat.date()).days
-            if _lead >= 0:
-                _lead_times.append(_lead)
-
-    avg_trip_length  = round(sum(_lengths)    / len(_lengths),    1) if _lengths    else 0
-    avg_lead_time    = round(sum(_lead_times) / len(_lead_times)   ) if _lead_times else 0
-    _MONTH_NAMES     = ["Jan","Feb","Mar","Apr","May","Jun",
-                        "Jul","Aug","Sep","Oct","Nov","Dec"]
-    most_common_month = (
-        _MONTH_NAMES[_month_ctr2.most_common(1)[0][0] - 1] if _month_ctr2 else "—"
-    )
-    _dur_q = (
-        db.session.query(SkiTrip.trip_duration, func.count(SkiTrip.id).label("cnt"))
-        .filter(SkiTrip.trip_duration.isnot(None))
-        .group_by(SkiTrip.trip_duration)
-        .order_by(func.count(SkiTrip.id).desc())
-        .limit(1).all()
-    )
-    _DUR_LABELS = {
-        "day_trip": "Day trip", "one_night": "1 night",
-        "two_nights": "2 nights", "three_plus_nights": "3+ nights",
-    }
-    most_common_duration = (
-        _DUR_LABELS.get(_dur_q[0][0], _dur_q[0][0]) if _dur_q else "—"
-    )
-
-    # ── Operational Tables ────────────────────────────────────────────────────
-    def _fmt_date(d):
-        return d.strftime("%b %d") if d else "—"
-
-    # 1. Upcoming trips
-    _upc_q = (
-        db.session.query(
-            SkiTrip.start_date, SkiTrip.end_date,
-            SkiTrip.trip_status, SkiTrip.mountain,
-            Resort.name.label("resort_name"),
-        )
-        .outerjoin(Resort, Resort.id == SkiTrip.resort_id)
-        .filter(SkiTrip.start_date >= today)
-        .order_by(SkiTrip.start_date.asc())
-        .limit(5).all()
-    )
-    upcoming_trips_table = [
-        {
-            "resort": row.resort_name or row.mountain or "—",
-            "start":  _fmt_date(row.start_date),
-            "end":    _fmt_date(row.end_date),
-            "status": row.trip_status or "planning",
-        }
-        for row in _upc_q
-    ]
-
-    # 2. Highest invite activity
-    _hi_q = (
-        db.session.query(
-            SkiTrip.start_date, SkiTrip.mountain,
-            Resort.name.label("resort_name"),
-            func.count(SkiTripParticipant.id).label("guest_count"),
-        )
-        .join(SkiTripParticipant, SkiTripParticipant.trip_id == SkiTrip.id)
-        .outerjoin(Resort, Resort.id == SkiTrip.resort_id)
-        .filter(SkiTripParticipant.role == ParticipantRole.GUEST)
-        .group_by(SkiTrip.id, SkiTrip.start_date, SkiTrip.mountain, Resort.name)
-        .order_by(func.count(SkiTripParticipant.id).desc())
-        .limit(5).all()
-    )
-    high_invite_trips = [
-        {
-            "resort": row.resort_name or row.mountain or "—",
-            "start":  _fmt_date(row.start_date),
-            "guests": row.guest_count,
-        }
-        for row in _hi_q
-    ]
-
-    # 3. Recently created trips
-    _rec_q = (
-        db.session.query(
-            SkiTrip.created_at, SkiTrip.trip_status, SkiTrip.mountain,
-            Resort.name.label("resort_name"),
-        )
-        .outerjoin(Resort, Resort.id == SkiTrip.resort_id)
-        .order_by(SkiTrip.created_at.desc())
-        .limit(5).all()
-    )
-    recent_trips_table = [
-        {
-            "resort":  row.resort_name or row.mountain or "—",
-            "created": _fmt_date(row.created_at),
-            "status":  row.trip_status or "planning",
-        }
-        for row in _rec_q
-    ]
 
     # ── Mountains ─────────────────────────────────────────────────────────────
     from collections import Counter as _ResortCtr
@@ -15829,83 +15662,22 @@ def admin_dashboard():
     push_rate    = round(push_opt_in  / total_users * 100) if total_users else 0
     email_rate   = round(email_opt_in / total_users * 100) if total_users else 0
 
-    # ── Invite acceptance rate ────────────────────────────────────────────────
-    total_inv    = Invitation.query.count()
-    accepted_inv = Invitation.query.filter_by(status="accepted").count()
-    invite_rate  = round(accepted_inv / total_inv * 100) if total_inv else 0
-
-    # ── Pass distribution — two-tier: summary (6 strategic) + detail (5 canonical) ──
-    _DASH_SUMMARY_ORDER  = ["epic", "ikon", "indy", "other", "no_pass", "no_pass_yet"]
-    _DASH_SUMMARY_LABELS = {
-        "epic":        "Epic",
-        "ikon":        "Ikon",
-        "indy":        "Indy",
-        "other":       "Other pass",
-        "no_pass":     "No pass",
-        "no_pass_yet": "No pass yet",
-    }
-    _INDY_RAW = frozenset({"indy", "indy_pass"})
-    _DASH_DETAIL_LABELS = {
-        "epic":               "Epic",
-        "ikon":               "Ikon",
-        "indy":               "Indy",
-        "mountain_collective":"Mountain Collective",
-        "powder_alliance":    "Powder Alliance",
-        "freedom":            "Freedom",
-        "ski_california":     "Ski California",
-        "other":              "Other pass",
-        "no_pass":            "No pass",
-        "no_pass_yet":        "No pass yet",
-    }
-    summary_ct = {s: 0 for s in _DASH_SUMMARY_ORDER}
-    detail_ct  = {s: 0 for s in CANONICAL_PASS_ORDER}
+    # ── Pass on file — single headline KPI ────────────────────────────────────
+    _no_pass_slugs = frozenset({"no_pass", "no_pass_yet"})
+    pass_on_file_count = 0
     for (pt,) in db.session.query(User.pass_type).all():
         if not pt:
-            summary_ct["no_pass_yet"] += 1
-            detail_ct["no_pass_yet"]  += 1
             continue
         for raw in str(pt).split(","):
             raw = raw.strip()
             if not raw:
                 continue
-            raw_key = raw.lower().replace(" ", "_").replace("-", "_")
-            if raw_key in _INDY_RAW:
-                summary_ct["indy"] += 1
-            else:
-                norm = normalize_pass(raw)
-                if norm in summary_ct:
-                    summary_ct[norm] += 1
-                elif norm:
-                    summary_ct["other"] += 1
             norm = normalize_pass(raw)
-            if norm in detail_ct:
-                detail_ct[norm] += 1
-            elif norm:
-                detail_ct["other"] += 1
-    pass_summary = [
-        (slug, _DASH_SUMMARY_LABELS[slug], summary_ct[slug])
-        for slug in _DASH_SUMMARY_ORDER
-    ]
-    pass_detail = [
-        (slug, _DASH_DETAIL_LABELS[slug], detail_ct[slug])
-        for slug in CANONICAL_PASS_ORDER
-    ]
-    pass_distribution = pass_summary
+            if norm and norm not in _no_pass_slugs:
+                pass_on_file_count += 1
+                break
+    pass_on_file_pct = round(pass_on_file_count / total_users * 100) if total_users else 0
 
-    # ── MEL delivery totals ───────────────────────────────────────────────────
-    mel_raw = (
-        db.session.query(
-            MessageEventLog.delivery_status,
-            func.count(MessageEventLog.id),
-        )
-        .group_by(MessageEventLog.delivery_status)
-        .all()
-    )
-    mel_map     = {str(status): cnt for status, cnt in mel_raw}
-    mel_sent    = mel_map.get("sent",    0)
-    mel_failed  = mel_map.get("failed",  0)
-    mel_skipped = mel_map.get("skipped", 0)
-    mel_total   = sum(mel_map.values())
 
     # ── Trend calculations ────────────────────────────────────────────────────
 
@@ -15942,34 +15714,7 @@ def admin_dashboard():
         unit="pct", label="prior MTD",
     )
 
-    # 5. Invite Acceptance Rate — rolling 30d vs prior 30d (pts)
-    inv_curr_total    = Invitation.query.filter(
-        Invitation.created_at >= thirty_ago
-    ).count()
-    inv_curr_accepted = Invitation.query.filter(
-        Invitation.created_at >= thirty_ago,
-        Invitation.status      == "accepted",
-    ).count()
-    inv_prev_total    = Invitation.query.filter(
-        Invitation.created_at >= sixty_ago,
-        Invitation.created_at <  thirty_ago,
-    ).count()
-    inv_prev_accepted = Invitation.query.filter(
-        Invitation.created_at >= sixty_ago,
-        Invitation.created_at <  thirty_ago,
-        Invitation.status      == "accepted",
-    ).count()
-    curr_inv_rate = (round(inv_curr_accepted / inv_curr_total  * 100)
-                     if inv_curr_total  >= 3 else None)
-    prev_inv_rate = (round(inv_prev_accepted / inv_prev_total  * 100)
-                     if inv_prev_total  >= 3 else None)
-    trend_invite_rate = (
-        _trend(curr_inv_rate, prev_inv_rate, unit="pts", label="prior 30d")
-        if curr_inv_rate is not None and prev_inv_rate is not None
-        else None
-    )
-
-    # 6. Push Opt-in Rate — rate excl. this month's users vs current rate (pts)
+    # 5. Push Opt-in Rate — rate excl. this month's users vs current rate (pts)
     users_pre_mo     = User.query.filter(User.created_at < first_of_mo).count()
     push_pre_mo      = User.query.filter(
         User.created_at < first_of_mo,
@@ -15994,20 +15739,6 @@ def admin_dashboard():
         if prior_email_rate is not None else None
     )
 
-    # 8. MEL Failed — rolling 7d vs prior 7d (invert: fewer failures = good)
-    mel_failed_7d      = MessageEventLog.query.filter(
-        MessageEventLog.delivery_status == "failed",
-        MessageEventLog.created_at      >= seven_ago,
-    ).count()
-    mel_failed_prev_7d = MessageEventLog.query.filter(
-        MessageEventLog.delivery_status == "failed",
-        MessageEventLog.created_at      >= fourteen_ago,
-        MessageEventLog.created_at      <  seven_ago,
-    ).count()
-    trend_mel_failed = _trend(
-        mel_failed_7d, mel_failed_prev_7d,
-        unit="pct", invert=True, label="prior week",
-    )
 
     # ── Platform Engagement Metrics ──────────────────────────────────────────
     non_seeded_total = User.query.filter_by(is_seeded=False).count() or 1  # guard /0
@@ -16108,25 +15839,16 @@ def admin_dashboard():
         email_opt_in      = email_opt_in,
         push_rate         = push_rate,
         email_rate        = email_rate,
-        total_inv         = total_inv,
-        accepted_inv      = accepted_inv,
-        invite_rate       = invite_rate,
-        pass_distribution = pass_distribution,
-        pass_summary      = pass_summary,
-        pass_detail       = pass_detail,
-        mel_sent          = mel_sent,
-        mel_failed        = mel_failed,
-        mel_skipped       = mel_skipped,
-        mel_total         = mel_total,
+        # Pass on file
+        pass_on_file_count = pass_on_file_count,
+        pass_on_file_pct   = pass_on_file_pct,
         # Trend indicators
         trend_total_users  = trend_total_users,
         trend_mau          = trend_mau,
         trend_new_users    = trend_new_users,
         trend_trips_month  = trend_trips_month,
-        trend_invite_rate  = trend_invite_rate,
         trend_push_rate    = trend_push_rate,
         trend_email_rate   = trend_email_rate,
-        trend_mel_failed   = trend_mel_failed,
         # Platform Engagement
         avg_connections    = avg_connections,
         avg_trips          = avg_trips,
@@ -16137,29 +15859,9 @@ def admin_dashboard():
         # Geography
         state_breakdown    = state_breakdown,
         total_geo_users    = total_geo_users,
-        # Trips — core extras
+        # Trips — core
         upcoming_trips     = upcoming_trips,
         past_trips         = past_trips,
-        # Trips — Destination Intelligence
-        top_planned_resorts      = top_planned_resorts,
-        trending_resorts_month   = trending_resorts_month,
-        top_wishlisted_resorts   = top_wishlisted_resorts,
-        # Trips — Group Activity
-        trips_with_invites       = trips_with_invites,
-        trips_with_accepted      = trips_with_accepted,
-        trip_invite_accept_pct   = trip_invite_accept_pct,
-        avg_invites_per_trip     = avg_invites_per_trip,
-        avg_participants_per_trip= avg_participants_per_trip,
-        most_social_resorts      = most_social_resorts,
-        # Trips — Planning Patterns
-        avg_trip_length      = avg_trip_length,
-        avg_lead_time        = avg_lead_time,
-        most_common_month    = most_common_month,
-        most_common_duration = most_common_duration,
-        # Trips — Operational Tables
-        upcoming_trips_table = upcoming_trips_table,
-        high_invite_trips    = high_invite_trips,
-        recent_trips_table   = recent_trips_table,
         # Mountains
         total_active_resorts   = total_active_resorts,
         total_inactive_resorts = total_inactive_resorts,
@@ -16170,6 +15872,8 @@ def admin_dashboard():
         mtn_by_pass_brand      = mtn_by_pass_brand,
         mtn_upcoming_count     = mtn_upcoming_count,
         mtn_upcoming_table     = mtn_upcoming_table,
+        top_planned_resorts    = top_planned_resorts,
+        top_wishlisted_resorts = top_wishlisted_resorts,
     )
 
 

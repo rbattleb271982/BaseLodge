@@ -1,0 +1,178 @@
+PUT THIS IN PLAN FIRST
+
+We need to plan a new Admin Growth area and also audit the existing admin dashboard architecture to prevent duplicate information.
+
+Do not implement yet.
+
+First inspect everything that already exists across the admin console, especially:
+- admin dashboard route and template
+- User Insights admin area
+- Mountains admin area
+- Trips admin area
+- Messaging admin area
+- shared admin shell/sidebar
+- existing models and queries used for admin metrics
+- any PostHog or analytics/event tracking code
+- friend/invite/trip/onboarding/user activity models
+- MessageEventLog
+- MountainPageView
+- User, SkiTrip, SkiTripParticipant, Friendship, Invitation, TripInviteToken, Wishlist/availability models if present
+
+Goal:
+Create a clear admin information architecture where each page has a distinct purpose and we avoid unnecessary duplicate information.
+
+Important philosophy:
+The main Dashboard should be minimal and high-level.
+The most important executive summary metrics can live on Dashboard, but deeper analysis should live on the specialized pages.
+
+It is okay if a high-level metric appears on Dashboard and also appears in more detail elsewhere.
+Example:
+- Dashboard can show “Push Opt-In %”
+- Messaging owns the detailed Push Health section
+
+But avoid duplicating full sections, tables, charts, and analysis across multiple admin pages.
+
+Proposed admin page roles:
+
+1. Dashboard
+Purpose:
+Executive snapshot of BaseLodge health.
+Should be minimal, high-level, and cross-functional.
+Should link users to deeper pages instead of duplicating those pages.
+
+2. Growth
+Purpose:
+Is BaseLodge growing into a healthier, denser social network?
+Focus on:
+- acquisition
+- activation
+- retention
+- invite conversion
+- onboarding completion
+- network effects
+- friend graph density
+- social conversion
+
+Do NOT turn Growth into:
+- Messaging diagnostics
+- Trips operations
+- Mountain traffic dashboard
+- CRM/campaign reporting
+- predictive analytics
+- generic vanity metric wall
+
+3. Messaging
+Purpose:
+Communication system health.
+Owns:
+- push health
+- email preferences
+- delivery health
+- suppression/retries
+- lifecycle communication events
+- raw message log link
+
+4. Trips
+Purpose:
+Trip operations and trip planning behavior.
+Owns:
+- trips created
+- upcoming/completed trips
+- party size
+- solo vs group
+- invite behavior tied to trips
+- trip destination patterns
+
+5. Mountains
+Purpose:
+Destination and resort engagement.
+Owns:
+- mountain page views
+- destination popularity
+- wishlist/overlap destination intelligence
+- resort-level engagement
+
+6. User Insights
+Purpose:
+User base composition and profile completeness.
+Owns:
+- user segments
+- onboarding/profile completeness
+- rider type/pass/equipment/preference breakdowns if present
+
+Planning deliverables:
+
+1. Inventory all current admin pages and the metrics/sections they already show.
+2. Identify duplicated or overlapping metrics.
+3. Recommend which page should own each metric or section.
+4. Recommend what should remain on the main Dashboard as high-level summary only.
+5. Recommend what should move off Dashboard into Growth, Messaging, Trips, Mountains, or User Insights.
+6. Identify what Growth can show now using existing data.
+7. Identify what Growth should defer until PostHog or better event tracking exists.
+8. Propose Growth page sections and submenu anchors.
+9. Identify exact models/queries needed for Growth.
+10. Identify exact files/routes/templates affected.
+11. Identify risks, especially expensive queries or misleading metrics.
+12. Propose the safest implementation sequence.
+13. Do not implement until I approve the plan.
+
+Specific Growth metrics to evaluate for feasibility:
+
+Acquisition:
+- New users last 7/30 days
+- Signup trend by month
+- Invite-driven signups if traceable
+- Friend invite acceptance %
+- Trip invite acceptance %
+
+Activation:
+- Onboarding completion %
+- Users with first trip
+- Users with availability
+- Users with wishlist items
+- Users with at least one friend
+- Time to first trip if feasible
+- Time to first friend if feasible
+
+Network Effects:
+- Total friendships
+- Average friends per user
+- Users with 0 friends
+- Users with 2+ friends
+- Trips with 2+ participants
+- Invite acceptance rate
+- Shared trip participation
+- Overlap generation if already computed
+
+Retention / Engagement:
+- Active users last 7/30 days if already defined
+- Returning users
+- Users with upcoming trips
+- Users with trips across multiple months
+- Seasonal planning trend if feasible
+
+Conversion:
+- Signup → onboarding completed
+- Onboarding completed → first trip
+- First trip → invite sent
+- Invite received → accepted
+- User → first friend
+
+Dashboard guidance:
+After the audit, recommend a smaller Dashboard that contains only the most important high-level metrics, likely:
+- Total Users
+- New Users 30d
+- Active Users 30d if reliable
+- Total Trips
+- Upcoming Trips
+- Total Friendships
+- Push Opt-In %
+- Key Alert / System Health indicator if feasible
+
+Everything deeper should live elsewhere.
+
+No migrations unless absolutely required.
+No PostHog integration yet.
+No new tracking events yet unless explicitly approved later.
+No redesign until the information architecture is approved.
+Use checkpoints sparingly.
