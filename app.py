@@ -12853,12 +12853,126 @@ def admin_resorts():
         except Exception:
             pass
     
+    total_count = len(resorts)
+
+    # ── Mountains analytics ─────────────────────────────────────────────────
+    from collections import Counter as _MtnCtr
+    _today = date.today()
+
+    mtn_active_count   = Resort.query.filter_by(is_active=True).count()
+    mtn_inactive_count = total_count - mtn_active_count
+
+    mtn_upcoming_resort_count = db.session.query(
+        func.count(func.distinct(SkiTrip.resort_id))
+    ).filter(SkiTrip.start_date >= _today, SkiTrip.resort_id.isnot(None)).scalar() or 0
+
+    _mtn_pbj = db.session.query(Resort.pass_brands_json).filter(Resort.is_active == True).all()
+    _mtn_pass_ctr = _MtnCtr()
+    _mtn_on_pass = 0
+    for (pbj,) in _mtn_pbj:
+        if pbj and isinstance(pbj, list):
+            real = [b for b in pbj if b and b.lower() not in ('none', '')]
+            if real:
+                _mtn_on_pass += 1
+                for b in real:
+                    _mtn_pass_ctr[b] += 1
+
+    _mp_row = (
+        db.session.query(Resort.name, func.count(SkiTrip.id).label('cnt'))
+        .join(SkiTrip, SkiTrip.resort_id == Resort.id)
+        .filter(SkiTrip.resort_id.isnot(None))
+        .group_by(Resort.id, Resort.name)
+        .order_by(func.count(SkiTrip.id).desc())
+        .first()
+    )
+    mtn_most_planned       = _mp_row.name if _mp_row else None
+    mtn_most_planned_count = _mp_row.cnt  if _mp_row else 0
+
+    _mtn_wl_rows = db.session.query(User.wish_list_resorts).filter(User.wish_list_resorts.isnot(None)).all()
+    _mtn_wish_ctr = _MtnCtr()
+    for (wl,) in _mtn_wl_rows:
+        if wl and isinstance(wl, list):
+            for rid in wl:
+                _mtn_wish_ctr[rid] += 1
+    _top1_wish = _mtn_wish_ctr.most_common(1)
+    mtn_most_wishlisted       = None
+    mtn_most_wishlisted_count = 0
+    if _top1_wish:
+        _mwid = _top1_wish[0][0]
+        _mwr  = db.session.get(Resort, _mwid)
+        if _mwr:
+            mtn_most_wishlisted       = _mwr.name
+            mtn_most_wishlisted_count = _top1_wish[0][1]
+
+    _PASS_ORDER = ['Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other']
+    _pc_max = max(_mtn_pass_ctr.values()) if _mtn_pass_ctr else 1
+    mtn_by_pass_brand = [
+        {"name": p, "count": _mtn_pass_ctr.get(p, 0),
+         "pct": round(_mtn_pass_ctr.get(p, 0) / _pc_max * 100) if _mtn_pass_ctr else 0}
+        for p in _PASS_ORDER
+    ]
+
+    _rbc = (
+        db.session.query(Resort.country_code, Resort.country_name, func.count(Resort.id).label("cnt"))
+        .filter(Resort.is_active == True)
+        .group_by(Resort.country_code, Resort.country_name)
+        .order_by(func.count(Resort.id).desc()).limit(8).all()
+    )
+    _rbc_max = max((r.cnt for r in _rbc), default=1)
+    mtn_by_country = [
+        {"name": r.country_name or r.country_code or "Unknown",
+         "count": r.cnt, "pct": round(r.cnt / _rbc_max * 100)}
+        for r in _rbc
+    ]
+
+    _tp = (
+        db.session.query(Resort.name, func.count(SkiTrip.id).label('cnt'))
+        .join(SkiTrip, SkiTrip.resort_id == Resort.id)
+        .filter(SkiTrip.resort_id.isnot(None))
+        .group_by(Resort.id, Resort.name)
+        .order_by(func.count(SkiTrip.id).desc()).limit(5).all()
+    )
+    _tp_max = max((r.cnt for r in _tp), default=1)
+    mtn_top_planned = [{"name": r.name, "count": r.cnt, "pct": round(r.cnt / _tp_max * 100)} for r in _tp]
+
+    _tw_ids = _mtn_wish_ctr.most_common(5)
+    mtn_top_wishlisted = []
+    if _tw_ids:
+        _tw_map = {r.id: r.name for r in Resort.query.filter(Resort.id.in_([w for w, _ in _tw_ids])).all()}
+        _tw_max = _tw_ids[0][1] if _tw_ids else 1
+        for wid, wcnt in _tw_ids:
+            mtn_top_wishlisted.append({"name": _tw_map.get(wid, f'Resort {wid}'),
+                                       "count": wcnt, "pct": round(wcnt / _tw_max * 100)})
+
+    mtn_no_pass = sum(
+        1 for r in resorts
+        if not r.get_pass_brands_list() or all(b.lower() in ('none', '') for b in r.get_pass_brands_list())
+    )
+    mtn_no_state   = sum(1 for r in resorts if not (r.state_code or r.state))
+    mtn_no_country = sum(1 for r in resorts if not r.country_code)
+
     return render_template('admin_resorts.html',
                          resorts=resorts,
                          countries=countries,
                          dropdown_countries=dropdown_countries,
                          last_export_info=last_export_info,
-                         total_count=len(resorts))
+                         total_count=total_count,
+                         active_tab='mountains',
+                         mtn_active_count=mtn_active_count,
+                         mtn_inactive_count=mtn_inactive_count,
+                         mtn_upcoming_resort_count=mtn_upcoming_resort_count,
+                         mtn_resorts_on_pass=_mtn_on_pass,
+                         mtn_most_planned=mtn_most_planned,
+                         mtn_most_planned_count=mtn_most_planned_count,
+                         mtn_most_wishlisted=mtn_most_wishlisted,
+                         mtn_most_wishlisted_count=mtn_most_wishlisted_count,
+                         mtn_by_pass_brand=mtn_by_pass_brand,
+                         mtn_by_country=mtn_by_country,
+                         mtn_top_planned=mtn_top_planned,
+                         mtn_top_wishlisted=mtn_top_wishlisted,
+                         mtn_no_pass=mtn_no_pass,
+                         mtn_no_state=mtn_no_state,
+                         mtn_no_country=mtn_no_country)
 
 
 @app.route("/admin/resorts/export-excel")

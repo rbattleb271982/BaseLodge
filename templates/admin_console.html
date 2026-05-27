@@ -242,37 +242,28 @@
       .ac-content { padding: 12px; }
     }
 
-    /* ── Page subnav ── */
-    .ac-subnav {
-      display: flex;
-      gap: 4px;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      padding-bottom: 2px;
-      margin-bottom: 20px;
-      flex-wrap: nowrap;
+    /* ── Sidebar nested submenu ── */
+    .ac-subnav-list {
+      list-style: none;
+      margin: 4px 0 6px 12px;
+      padding: 0;
     }
-    .ac-subnav::-webkit-scrollbar { display: none; }
-    .ac-subnav a {
-      display: inline-flex;
-      align-items: center;
-      white-space: nowrap;
-      padding: 5px 12px;
-      border-radius: 20px;
+    .ac-subnav-list li { margin: 1px 0; }
+    .ac-subnav-list a {
+      display: block;
+      padding: 5px 10px 5px 14px;
       font-size: 12px;
-      font-weight: 500;
-      color: #6B6157;
+      font-weight: 400;
+      color: rgba(255,255,255,0.45);
       text-decoration: none;
-      background: #FFFFFF;
-      border: 1px solid #E4DDD2;
-      transition: background 0.12s, border-color 0.12s, color 0.12s;
-      flex-shrink: 0;
+      border-radius: 5px;
+      border-left: 2px solid rgba(255,255,255,0.1);
+      transition: color 0.15s, background 0.15s;
     }
-    .ac-subnav a:hover {
-      background: #FAF6EF;
-      border-color: #C4A882;
-      color: #2D2926;
+    .ac-subnav-list a:hover {
+      color: rgba(255,255,255,0.85);
+      background: rgba(255,255,255,0.05);
+      border-left-color: rgba(255,255,255,0.25);
     }
 
     /* ── Anchor scroll compensation ── */
@@ -309,15 +300,41 @@
       <ul class="ac-nav">
         <li class="{{ 'ac-active' if active_tab == 'dashboard' else '' }}">
           <a href="/admin/dashboard">Dashboard</a>
+          {% if active_tab == 'dashboard' %}
+          <ul class="ac-subnav-list">
+            <li><a href="/admin/dashboard#dash-overview">Overview</a></li>
+            <li><a href="/admin/dashboard#dash-trips">Trips</a></li>
+            <li><a href="/admin/dashboard#dash-mountains">Mountains</a></li>
+            <li><a href="/admin/dashboard#dash-engagement">Engagement</a></li>
+            <li><a href="/admin/dashboard#dash-platform">Platform</a></li>
+            <li><a href="/admin/dashboard#dash-passes">Passes</a></li>
+          </ul>
+          {% endif %}
         </li>
         <li class="{{ 'ac-active' if active_tab == 'user_insights' else '' }}">
           <a href="/admin/user-insights">User Insights</a>
+          {% if active_tab == 'user_insights' %}
+          <ul class="ac-subnav-list">
+            <li><a href="/admin/user-insights#ui-overview">Overview</a></li>
+            <li><a href="/admin/user-insights#ui-riders">Rider Mix</a></li>
+            <li><a href="/admin/user-insights#ui-passes">Pass Ownership</a></li>
+            <li><a href="/admin/user-insights#ui-equipment">Equipment</a></li>
+          </ul>
+          {% endif %}
         </li>
         <li>
           <span class="ac-nav-disabled">Trips <span class="ac-soon">Soon</span></span>
         </li>
         <li class="{{ 'ac-active' if active_tab == 'mountains' else '' }}">
           <a href="/admin/resorts">Mountains</a>
+          {% if active_tab == 'mountains' %}
+          <ul class="ac-subnav-list">
+            <li><a href="/admin/resorts#mtn-overview">Overview</a></li>
+            <li><a href="/admin/resorts#mtn-dest-intel">Dest. Intelligence</a></li>
+            <li><a href="/admin/resorts#mtn-operations">Resort Operations</a></li>
+            <li><a href="/admin/resorts#mtn-data-quality">Data Quality</a></li>
+          </ul>
+          {% endif %}
         </li>
         <li>
           <span class="ac-nav-disabled">Messaging <span class="ac-soon">Soon</span></span>
@@ -354,7 +371,6 @@
         </span>
       </div>
       <div class="ac-content">
-        {% block subnav %}{% endblock %}
         {% block content %}{% endblock %}
       </div>
     </div>
@@ -372,6 +388,12 @@
           !sidebar.contains(e.target) && e.target !== hamburger) {
         sidebar.classList.remove('ac-open');
       }
+    });
+    document.querySelectorAll('.ac-subnav-list a').forEach(function(link) {
+      link.addEventListener('click', function() {
+        var sb = document.getElementById('ac-sidebar');
+        if (sb) sb.classList.remove('ac-open');
+      });
     });
   </script>
   {% block scripts %}{% endblock %}
