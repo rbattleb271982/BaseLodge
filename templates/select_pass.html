@@ -79,23 +79,6 @@
 }
 .sp-check-svg { display: none; }
 .sp-pill.sel .sp-check-svg { display: block; }
-.sp-more-toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: none;
-    border: none;
-    color: var(--bl-color-text-muted);
-    font-size: 13px;
-    font-family: inherit;
-    cursor: pointer;
-    padding: 6px 0 14px;
-}
-.sp-more-toggle:hover { color: var(--bl-color-text); }
-.sp-more-toggle svg { transition: transform 0.2s; }
-.sp-more-toggle.open svg { transform: rotate(180deg); }
-.sp-more-section { display: none; }
-.sp-more-section.open { display: block; }
 .sp-save-wrap {
     margin-top: 28px;
 }
@@ -173,34 +156,26 @@
             <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </button>
 
-        {# More passes toggle #}
-        {% set _has_more = ('powder_alliance' in current_passes or 'freedom' in current_passes or 'ski_california' in current_passes or 'other' in current_passes) %}
-        <button type="button" class="sp-more-toggle {% if _has_more %}open{% endif %}" id="sp-more-toggle" onclick="spToggleMore()">
-            More passes
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <button type="button" class="sp-pill {% if 'powder_alliance' in current_passes %}sel{% endif %}"
+                data-val="powder_alliance" onclick="spToggle(this)">
+            Powder Alliance
+            <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </button>
-        <div class="sp-more-section {% if _has_more %}open{% endif %}" id="sp-more-section">
-            <button type="button" class="sp-pill {% if 'powder_alliance' in current_passes %}sel{% endif %}"
-                    data-val="powder_alliance" onclick="spToggle(this)">
-                Powder Alliance
-                <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            </button>
-            <button type="button" class="sp-pill {% if 'freedom' in current_passes %}sel{% endif %}"
-                    data-val="freedom" onclick="spToggle(this)">
-                Freedom Pass
-                <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            </button>
-            <button type="button" class="sp-pill {% if 'ski_california' in current_passes %}sel{% endif %}"
-                    data-val="ski_california" onclick="spToggle(this)">
-                Ski California
-                <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            </button>
-            <button type="button" class="sp-pill {% if 'other' in current_passes %}sel{% endif %}"
-                    data-val="other" onclick="spToggle(this)">
-                Other pass
-                <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            </button>
-        </div>
+        <button type="button" class="sp-pill {% if 'freedom' in current_passes %}sel{% endif %}"
+                data-val="freedom" onclick="spToggle(this)">
+            Freedom Pass
+            <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <button type="button" class="sp-pill {% if 'ski_california' in current_passes %}sel{% endif %}"
+                data-val="ski_california" onclick="spToggle(this)">
+            Ski California
+            <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <button type="button" class="sp-pill {% if 'other' in current_passes %}sel{% endif %}"
+                data-val="other" onclick="spToggle(this)">
+            Other pass
+            <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
 
         <div class="sp-save-wrap">
             <button type="submit" class="sp-save-btn" id="sp-save" disabled>Save</button>
@@ -264,13 +239,6 @@
         }
         syncHidden();
         updateCap();
-    };
-
-    window.spToggleMore = function() {
-        var toggle = document.getElementById('sp-more-toggle');
-        var section = document.getElementById('sp-more-section');
-        toggle.classList.toggle('open');
-        section.classList.toggle('open');
     };
 
     syncHidden();

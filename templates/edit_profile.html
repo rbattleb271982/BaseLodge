@@ -96,18 +96,6 @@
             color: #fff;
             border-color: #5C1219;
         }
-        .ep-more-toggle {
-            background: none;
-            border: none;
-            color: #9A8F82;
-            font-size: 13px;
-            font-family: inherit;
-            cursor: pointer;
-            padding: 4px 0 2px;
-            width: 100%;
-            text-align: left;
-        }
-        .ep-more-toggle:hover { color: #3A3025; }
         .ep-floating-save {
             position: fixed;
             bottom: calc(64px + env(safe-area-inset-bottom, 0px));
@@ -278,30 +266,22 @@
                         class="ep-pill {% if 'mountain_collective' in user_passes %}selected{% endif %}"
                         data-value="mountain_collective"
                         onclick="togglePassPill(this)">Mountain Collective</button>
-                {# More passes expandable #}
-                {% set _has_more_ep = ('powder_alliance' in user_passes or 'freedom' in user_passes or 'ski_california' in user_passes or 'other' in user_passes) %}
-                <button type="button" class="ep-more-toggle {% if _has_more_ep %}open{% endif %}" id="ep-pass-more-toggle" onclick="epToggleMorePasses()">
-                    More passes
-                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="vertical-align:middle;margin-left:3px;transition:transform 0.2s"><path d="M1.5 3.5L5.5 7.5L9.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
-                <div id="ep-pass-more-section" style="display:{% if _has_more_ep %}block{% else %}none{% endif %}">
-                    <button type="button"
-                            class="ep-pill {% if 'powder_alliance' in user_passes %}selected{% endif %}"
-                            data-value="powder_alliance"
-                            onclick="togglePassPill(this)">Powder Alliance</button>
-                    <button type="button"
-                            class="ep-pill {% if 'freedom' in user_passes %}selected{% endif %}"
-                            data-value="freedom"
-                            onclick="togglePassPill(this)">Freedom Pass</button>
-                    <button type="button"
-                            class="ep-pill {% if 'ski_california' in user_passes %}selected{% endif %}"
-                            data-value="ski_california"
-                            onclick="togglePassPill(this)">Ski California</button>
-                    <button type="button"
-                            class="ep-pill {% if 'other' in user_passes %}selected{% endif %}"
-                            data-value="other"
-                            onclick="togglePassPill(this)">Other pass</button>
-                </div>
+                <button type="button"
+                        class="ep-pill {% if 'powder_alliance' in user_passes %}selected{% endif %}"
+                        data-value="powder_alliance"
+                        onclick="togglePassPill(this)">Powder Alliance</button>
+                <button type="button"
+                        class="ep-pill {% if 'freedom' in user_passes %}selected{% endif %}"
+                        data-value="freedom"
+                        onclick="togglePassPill(this)">Freedom Pass</button>
+                <button type="button"
+                        class="ep-pill {% if 'ski_california' in user_passes %}selected{% endif %}"
+                        data-value="ski_california"
+                        onclick="togglePassPill(this)">Ski California</button>
+                <button type="button"
+                        class="ep-pill {% if 'other' in user_passes %}selected{% endif %}"
+                        data-value="other"
+                        onclick="togglePassPill(this)">Other pass</button>
             </div>
 
             <div class="ep-field" style="margin-top: 20px; border-top: 1px solid #E5DFD0; padding-top: 20px;">
@@ -482,16 +462,6 @@
         document.getElementById('pass_type_hidden').value = Array.from(passSelected).join(',');
         updatePassCap();
         markDirty();
-    }
-
-    function epToggleMorePasses() {
-        const section = document.getElementById('ep-pass-more-section');
-        const toggle  = document.getElementById('ep-pass-more-toggle');
-        const open = section.style.display === 'block';
-        section.style.display = open ? 'none' : 'block';
-        toggle.classList.toggle('open', !open);
-        const svg = toggle.querySelector('svg');
-        if (svg) svg.style.transform = open ? '' : 'rotate(180deg)';
     }
 
     updatePassCap();
