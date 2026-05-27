@@ -14724,11 +14724,16 @@ def admin_dashboard():
     }
     _INDY_RAW = frozenset({"indy", "indy_pass"})
     _DASH_DETAIL_LABELS = {
-        "epic":        "Epic",
-        "ikon":        "Ikon",
-        "other":       "Other pass",
-        "no_pass":     "No pass",
-        "no_pass_yet": "No pass yet",
+        "epic":               "Epic",
+        "ikon":               "Ikon",
+        "indy":               "Indy",
+        "mountain_collective":"Mountain Collective",
+        "powder_alliance":    "Powder Alliance",
+        "freedom":            "Freedom",
+        "ski_california":     "Ski California",
+        "other":              "Other pass",
+        "no_pass":            "No pass",
+        "no_pass_yet":        "No pass yet",
     }
     summary_ct = {s: 0 for s in _DASH_SUMMARY_ORDER}
     detail_ct  = {s: 0 for s in CANONICAL_PASS_ORDER}
