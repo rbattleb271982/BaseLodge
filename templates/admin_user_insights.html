@@ -151,11 +151,20 @@
   }
 {% endblock %}
 
+{% block subnav %}
+<nav class="ac-subnav" aria-label="Page sections">
+  <a href="#ui-overview">Overview</a>
+  <a href="#ui-riders">Rider Mix</a>
+  <a href="#ui-passes">Pass Ownership</a>
+  <a href="#ui-equipment">Equipment</a>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="ad-updated">Loaded {{ now }}</div>
 
 <!-- ── Overview ── -->
-<div class="ad-section">
+<div class="ad-section" id="ui-overview">
   <div class="ad-section-label">Overview</div>
   <div class="ad-kpi-grid">
     <div class="ad-card">
@@ -191,7 +200,7 @@
 </div>
 
 <!-- ── Rider Mix ── -->
-<div class="ad-section">
+<div class="ad-section" id="ui-riders">
   <div class="ad-section-label">Rider Mix</div>
   <div class="ad-card" style="padding: 0 16px;">
     {% set rt_max = [rider_mix | map(attribute=1) | max, 1] | max %}
@@ -226,7 +235,7 @@
 </div>
 
 <!-- ── Pass Ownership ── -->
-<div class="ad-section">
+<div class="ad-section" id="ui-passes">
   <div class="ad-section-label">Pass Ownership</div>
   <div class="ad-card" style="padding: 0 16px;">
     {% set pass_max = [pass_rows | map(attribute=2) | max, 1] | max %}
@@ -263,7 +272,7 @@
 </div>
 
 <!-- ── Equipment ── -->
-<div class="ad-section">
+<div class="ad-section" id="ui-equipment">
   <div class="ad-section-label">Equipment</div>
   <div class="ad-kpi-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 14px;">
     <div class="ad-card">
