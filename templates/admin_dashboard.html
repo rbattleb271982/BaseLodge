@@ -17,23 +17,27 @@
   /* ── KPI grid ── */
   .ad-kpi-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
   }
   .ad-kpi-grid--2col {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ad-kpi-grid--4col {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .ad-kpi-grid--6col {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   @media (max-width: 1100px) {
-    .ad-kpi-grid       { grid-template-columns: repeat(2, 1fr); }
-    .ad-kpi-grid--6col { grid-template-columns: repeat(3, 1fr); }
+    .ad-kpi-grid       { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ad-kpi-grid--6col { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
   @media (max-width: 640px) {
-    .ad-kpi-grid       { grid-template-columns: 1fr; gap: 8px; }
-    .ad-kpi-grid--2col { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-    .ad-kpi-grid--6col { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .ad-kpi-grid       { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+    .ad-kpi-grid--2col { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .ad-kpi-grid--4col { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .ad-kpi-grid--6col { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   }
 
   /* ── KPI cards ── */
@@ -555,6 +559,8 @@
     font-size: 11px;
     color: #B0A99F;
     margin-bottom: 14px;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
 {% endblock %}
 
@@ -752,7 +758,7 @@
 <!-- ── Platform Engagement ── -->
 <div class="ad-section">
   <div class="ad-section-label">Platform Engagement</div>
-  <div class="ad-kpi-grid" style="grid-template-columns: repeat(4,1fr);">
+  <div class="ad-kpi-grid ad-kpi-grid--4col">
 
     <div class="ad-card">
       <div class="ad-card-label">Avg Connections</div>
