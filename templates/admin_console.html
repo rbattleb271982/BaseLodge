@@ -274,6 +274,48 @@
       .ad-section[id] { scroll-margin-top: 60px; }
     }
 
+    /* ── Metric definition pattern (shared across all admin pages) ── */
+    .ad-def-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: none;
+      border: none;
+      padding: 0;
+      margin-top: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #B9AFA6;
+      cursor: pointer;
+      line-height: 1.4;
+      font-family: inherit;
+      transition: color 0.12s;
+    }
+    .ad-def-btn:hover  { color: #5C1219; }
+    .ad-def-btn:focus-visible {
+      outline: 2px solid #5C1219;
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+    .ad-def-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.18s ease;
+    }
+    .ad-def-panel.open { max-height: 200px; }
+    .ad-def-text {
+      background: #F5F1E8;
+      border-left: 2px solid #D4C8B8;
+      border-radius: 0 5px 5px 0;
+      padding: 7px 10px;
+      margin-top: 7px;
+      font-size: 11px;
+      color: #4A4238;
+      line-height: 1.6;
+    }
+
     {% block head_styles %}{% endblock %}
   </style>
   {% block head %}{% endblock %}
@@ -407,6 +449,19 @@
       if (sidebar && sidebar.classList.contains('ac-open') &&
           !sidebar.contains(e.target) && e.target !== hamburger) {
         sidebar.classList.remove('ac-open');
+      }
+
+      /* ── Metric definition toggles ── */
+      const btn = e.target.closest('.ad-def-btn');
+      if (btn) {
+        const panelId = btn.getAttribute('data-def-id');
+        const panel = document.getElementById(panelId);
+        if (!panel) return;
+        const isOpen = panel.classList.contains('open');
+        panel.classList.toggle('open', !isOpen);
+        btn.setAttribute('aria-expanded', String(!isOpen));
+        panel.setAttribute('aria-hidden', String(isOpen));
+        btn.textContent = isOpen ? 'What this means \u25be' : 'Close \u25b4';
       }
     });
     document.querySelectorAll('.ac-subnav-list a').forEach(function(link) {

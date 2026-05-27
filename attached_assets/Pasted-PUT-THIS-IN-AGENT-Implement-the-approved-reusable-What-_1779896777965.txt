@@ -1,0 +1,145 @@
+PUT THIS IN AGENT
+
+Implement the approved reusable “What this means” metric-definition pattern for the admin console.
+
+Scope for this implementation:
+- shared infrastructure in admin_console.html
+- first adoption on /admin/messaging only
+
+Do not redesign the admin pages.
+
+Implementation requirements
+
+1. Shared reusable pattern
+Add a reusable inline expand/collapse definition system in:
+- templates/admin_console.html
+
+Add:
+- shared CSS classes
+- shared delegated click handler JS
+
+Use a shared namespace:
+- .ad-def-btn
+- .ad-def-panel
+- .ad-def-text
+
+No per-page JS.
+
+2. Interaction behavior
+Cards remain visually identical by default.
+
+Each applicable card gets:
+- small “What this means ▾” interaction
+- tap/click expands inline helper text
+- second tap collapses
+- button changes to “Close ▴” when expanded
+
+Requirements:
+- mobile tap support
+- desktop click support
+- keyboard accessible if feasible
+- aria-expanded updates
+- aria-hidden updates
+- no tooltip-only behavior
+- no modal
+- no page navigation
+- no horizontal overflow
+
+3. Styling direction
+The helper panel should feel informational/editorial:
+- soft cream/light neutral background
+- subtle left border or hairline accent
+- smaller muted body copy
+- slightly increased line-height
+- lightweight visual treatment
+
+Do NOT style it like:
+- warning alert
+- error box
+- heavy bordered card
+- code container
+
+Keep it elegant and subtle.
+
+4. Recommended implementation approach
+Use:
+- inline panel expansion
+- max-height transition
+- delegated click handling in admin_console.html
+
+Do NOT use:
+- <details>/<summary>
+- modals
+- tooltips
+- page-specific JS
+
+5. First rollout: /admin/messaging only
+Add definition panels only to the approved ambiguous metrics:
+
+Push Health:
+- Active Tokens
+- Push Opt-In %
+- Skipped %
+
+Audience:
+- Push Only
+- Unreachable
+
+Message Velocity:
+- MEL Events 24h
+- Rows w/ Retries
+
+Email Preferences:
+- Transactional On
+
+Do NOT add explanations to every card.
+
+6. Copy to use
+
+Active Tokens:
+“Push tokens currently marked active in the system. Active does not necessarily mean recently validated.”
+
+Push Opt-In %:
+“Users who have push notifications enabled in app preferences. This may differ from users with valid device tokens.”
+
+Skipped %:
+“Messages intentionally not sent due to suppression rules, missing tokens, or opt-out settings.”
+
+Push Only:
+“Users reachable through push notifications but not opted into email communication.”
+
+Unreachable:
+“Users currently unreachable by both push notifications and email preferences.”
+
+MEL Events 24h:
+“Total MessageEventLog activity recorded in the last 24 hours across supported communication channels.”
+
+Rows w/ Retries:
+“Message events that encountered issues and required one or more retry attempts.”
+
+Transactional On:
+“Users opted into operational and account-related emails such as password reset or critical service communication.”
+
+7. Files affected
+Expected:
+- templates/admin_console.html
+- templates/admin_messaging.html
+
+No backend changes.
+No migrations.
+No route changes.
+
+8. QA requirements
+Confirm:
+- all expand/collapse interactions work on mobile and desktop
+- no horizontal overflow
+- smooth transitions
+- cards remain visually clean when collapsed
+- keyboard accessibility does not regress
+- /admin/messaging still returns 200
+- other admin pages are unaffected
+- no JS console errors
+
+Use checkpoints sparingly.
+
+Do not finish until fully tested.
