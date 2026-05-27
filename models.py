@@ -1376,3 +1376,20 @@ class MessageEventLog(db.Model):
 
     actor     = db.relationship("User", foreign_keys=[actor_user_id],     lazy="select")
     recipient = db.relationship("User", foreign_keys=[recipient_user_id], lazy="select")
+
+
+class MountainPageView(db.Model):
+    """Tracks visits to mountain detail pages for destination traffic analytics.
+    No PII beyond optional user_id FK. session_key is a truncated Flask session ID."""
+    __tablename__ = 'mountain_page_view'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    resort_id   = db.Column(db.Integer, db.ForeignKey('resort.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id     = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    viewed_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    session_key = db.Column(db.String(32), nullable=True)
+
+    resort = db.relationship('Resort', backref=db.backref('page_views', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<MountainPageView resort={self.resort_id} user={self.user_id}>'

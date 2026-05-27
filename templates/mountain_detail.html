@@ -315,6 +315,16 @@
     }
 })();
 
+(function() {
+    try {
+        fetch('/api/mountain/track-view', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({resort_id: {{ resort.id }}})
+        }).catch(function() {});
+    } catch(e) {}
+})();
+
 function mdToggleWishlist(el) {
     var onWishlist = el.dataset.onWishlist === 'true';
     var resortId = parseInt(el.dataset.resortId, 10);

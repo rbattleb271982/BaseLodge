@@ -1,0 +1,132 @@
+PUT THIS IN PLAN FIRST
+
+The next major admin area to improve is the Trips section.
+
+Context:
+User Insights and Mountains now follow the newer BaseLodge admin-console structure:
+- sidebar submenu navigation
+- structured sections
+- destination intelligence
+- operational metrics
+- mobile-safe layouts
+
+Trips now needs to evolve into the same architecture.
+
+Do not implement yet. First inspect:
+- admin_dashboard.html
+- app.py admin_dashboard() queries
+- SkiTrip model
+- SkiTripParticipant model
+- invitation/invite-related models
+- any existing trip metrics already computed
+- any analytics already reused between Mountains and Trips
+
+Goal:
+Turn Trips into a true admin product area focused on:
+- trip coordination
+- destination activity
+- social/group planning behavior
+- operational visibility
+
+Important:
+Do NOT overengineer this into predictive analytics or investor-deck metrics.
+
+Do NOT include:
+- International trip %
+- retention/cohort analytics
+- future predictive metrics
+- “users connected afterward”
+- AI insights
+- heavy charting libraries unless already present
+
+Trips should include these sections:
+
+1. Overview
+Metrics to evaluate:
+- Total Trips
+- Upcoming Trips
+- Trips This Month
+- Users With Trips
+- Invite Accept Rate
+- Avg Trip Length
+- Avg Participants Per Trip
+- Solo Trips vs Group Trips %
+- Trips Created Last 7 Days
+- Trips Created Last 30 Days
+
+2. Destination Intelligence
+Metrics to evaluate:
+- Most Planned Resorts
+- Upcoming Destinations
+- Trips by Month
+- Trips by State/Region
+- Resorts With Upcoming Trips
+- Resorts With No Trips
+- Most Social Resorts
+- Most Revisited Resorts
+
+3. Social / Coordination
+Metrics to evaluate:
+- Invites Sent
+- Invites Accepted
+- Avg Invite Count Per Trip
+- Trips Shared With Friends
+- Group Trips Created
+- Avg Group Size
+- Most Active Organizers
+- Pending vs Accepted Invites
+
+Additionally:
+
+Mountains Monetization Requirement
+This is critical.
+
+The Mountains admin area needs visibility into:
+- how many users visit individual mountain/resort pages
+- page visits by mountain
+- monthly traffic trends to mountain pages
+
+This is essential because destination traffic is a future monetization layer for BaseLodge.
+
+Please investigate:
+1. Whether mountain page visits are currently tracked anywhere.
+2. Whether PostHog or existing analytics events already capture this.
+3. Whether page-level route analytics already exist.
+4. Whether mountain detail page visits can be derived from existing logs/events.
+5. If not currently tracked, propose the safest/lightest-weight implementation plan.
+
+Potential Mountains submenu addition:
+- Traffic & Monetization
+OR
+- Destination Traffic
+
+Possible metrics:
+- Most viewed mountain pages
+- Monthly mountain page visits
+- Unique users per mountain page
+- Most viewed by state/region
+- Wishlist conversion from mountain page
+- Trip creation from mountain page (if feasible later)
+
+Requirements:
+- Preserve current admin architecture
+- Preserve sidebar submenu system
+- Mobile-safe layouts
+- No horizontal overflow
+- Reuse existing admin styles/components
+- Avoid duplicate expensive queries
+- No migrations unless absolutely required
+- Use checkpoints sparingly
+
+Planning deliverables:
+1. Identify which Trips metrics are currently feasible from existing data.
+2. Identify which metrics should be deferred.
+3. Identify exact models/queries needed.
+4. Propose Trips page structure and submenu structure.
+5. Investigate mountain page traffic tracking feasibility.
+6. Explain whether existing analytics infrastructure supports this already.
+7. Propose the safest implementation sequence.
+8. Identify exact files/routes/templates affected.
+9. Do not implement until I approve the plan.
+
+After the investigation, stop and wait for approval.

@@ -1,1 +1,3 @@
 - [Full pass system expansion](pass-system-expansion.md) — canonical slugs now include indy/mountain_collective/powder_alliance/freedom/ski_california; no LEGACY_TO_MVP collapse; resort backfill done.
+- [Startup migration pattern](startup-migration-pattern.md) — use db.text() not text(); define function then call immediately after; wrap in try/except with inner rollback.
+- [Admin console architecture](admin-console-arch.md) — all admin pages extend admin_console.html; active_tab drives sidebar highlight + submenu display; bar chart classes must be defined per-template in {% block head %}.

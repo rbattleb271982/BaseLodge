@@ -64,7 +64,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView
 from services.open_dates import get_open_date_matches, get_available_dates_for_user
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
 from services.message_events import create_message_event, is_duplicate_event, should_retry
@@ -1745,6 +1745,43 @@ def run_pass_system_expansion_migration():
 
 
 run_pass_system_expansion_migration()
+
+
+# ============================================================================
+# MOUNTAIN PAGE VIEW MIGRATION — safe CREATE TABLE IF NOT EXISTS
+# ============================================================================
+def run_mountain_page_view_migration():
+    """Create mountain_page_view table + index if they don't exist."""
+    try:
+        with app.app_context():
+            with db.engine.connect() as conn:
+                trans = conn.begin()
+                try:
+                    conn.execute(db.text("""
+                        CREATE TABLE IF NOT EXISTS mountain_page_view (
+                            id          SERIAL PRIMARY KEY,
+                            resort_id   INTEGER NOT NULL,
+                            user_id     INTEGER,
+                            viewed_at   TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                            session_key VARCHAR(32)
+                        )
+                    """))
+                    conn.execute(db.text("""
+                        CREATE INDEX IF NOT EXISTS idx_mpv_resort_time
+                        ON mountain_page_view (resort_id, viewed_at)
+                    """))
+                    trans.commit()
+                    print("mountain_page_view_migration: table ready.")
+                except Exception as inner_e:
+                    trans.rollback()
+                    print(f"mountain_page_view_migration inner error (rolled back): {inner_e}")
+                finally:
+                    conn.close()
+    except Exception as e:
+        print(f"mountain_page_view_migration: skipped ({e})")
+
+
+run_mountain_page_view_migration()
 
 
 # ============================================================================
@@ -8782,6 +8819,46 @@ def mountain_detail(slug):
     )
 
 
+# ── Mountain page-view tracking ───────────────────────────────────────────────
+@app.route("/api/mountain/track-view", methods=["POST"])
+def track_mountain_view():
+    """Fire-and-forget mountain page-view tracker. Never raises to caller."""
+    try:
+        data      = request.get_json(silent=True) or {}
+        resort_id = data.get("resort_id")
+        if not resort_id:
+            return jsonify({"ok": False, "reason": "missing resort_id"}), 200
+
+        user_id     = current_user.id if current_user.is_authenticated else None
+        raw_sid     = session.get("_id") or ""
+        session_key = str(raw_sid)[:32] or None
+
+        # Dedup: skip if same session viewed this resort within 30 minutes
+        if session_key:
+            thirty_min_ago = datetime.utcnow() - timedelta(minutes=30)
+            already = db.session.query(MountainPageView.id).filter(
+                MountainPageView.resort_id  == resort_id,
+                MountainPageView.session_key == session_key,
+                MountainPageView.viewed_at  >= thirty_min_ago,
+            ).first()
+            if already:
+                return jsonify({"ok": True, "deduped": True})
+
+        db.session.add(MountainPageView(
+            resort_id=resort_id,
+            user_id=user_id,
+            session_key=session_key,
+        ))
+        db.session.commit()
+        return jsonify({"ok": True})
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return jsonify({"ok": False}), 200  # never fail the page load
+
+
 @app.route("/settings/mountains-visited")
 @login_required
 def settings_mountains():
@@ -12807,6 +12884,232 @@ def admin_add_country():
 
 
 # ============================================================================
+# ADMIN TRIPS PAGE
+# ============================================================================
+
+@app.route("/admin/trips")
+@login_required
+@admin_required
+def admin_trips():
+    """Admin page — trip analytics across all three sections."""
+    from collections import Counter as _TrCtr, defaultdict as _TrDD
+    from datetime import datetime as _dtt
+
+    now         = datetime.utcnow()
+    thirty_ago  = now - timedelta(days=30)
+    seven_ago   = now - timedelta(days=7)
+    first_of_mo = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_label = now.strftime("%B %Y")
+    today       = now.date()
+
+    # ── Core counts ───────────────────────────────────────────────────────────
+    total_trips    = SkiTrip.query.count()
+    trips_month    = SkiTrip.query.filter(SkiTrip.created_at >= first_of_mo).count()
+    trips_last_7   = SkiTrip.query.filter(SkiTrip.created_at >= seven_ago).count()
+    trips_last_30  = SkiTrip.query.filter(SkiTrip.created_at >= thirty_ago).count()
+    upcoming_trips = SkiTrip.query.filter(SkiTrip.start_date >= today).count()
+    past_trips     = SkiTrip.query.filter(SkiTrip.end_date < today).count()
+    users_with_trips = db.session.query(
+        func.count(func.distinct(SkiTrip.user_id))
+    ).scalar() or 0
+
+    # Solo vs. group
+    solo_trips_count  = SkiTrip.query.filter(
+        db.or_(SkiTrip.is_group_trip == False, SkiTrip.is_group_trip.is_(None))
+    ).count()
+    group_trips_count = SkiTrip.query.filter(SkiTrip.is_group_trip == True).count()
+    group_pct = round(group_trips_count / total_trips * 100) if total_trips else 0
+
+    # Avg trip length (from date pairs)
+    _len_rows = db.session.query(SkiTrip.start_date, SkiTrip.end_date).filter(
+        SkiTrip.start_date.isnot(None), SkiTrip.end_date.isnot(None)
+    ).all()
+    if _len_rows:
+        _total_days = sum((r.end_date - r.start_date).days for r in _len_rows)
+        avg_trip_length = round(_total_days / len(_len_rows), 1)
+    else:
+        avg_trip_length = 0
+
+    # Distinct resorts in upcoming trips
+    resorts_scheduled = db.session.query(
+        func.count(func.distinct(SkiTrip.resort_id))
+    ).filter(SkiTrip.start_date >= today, SkiTrip.resort_id.isnot(None)).scalar() or 0
+
+    # ── Trips by month — last 12 months (Python bucketing) ───────────────────
+    _twelve_ago = now - timedelta(days=365)
+    _tm_rows = db.session.query(SkiTrip.created_at).filter(
+        SkiTrip.created_at >= _twelve_ago
+    ).all()
+    _tm_buckets = _TrDD(int)
+    for (_ts,) in _tm_rows:
+        if _ts:
+            _tm_buckets[_ts.strftime("%Y-%m")] += 1
+    trips_by_month = []
+    for i in range(11, -1, -1):
+        _mo = (now.month - i - 1) % 12 + 1
+        _yr = now.year if (now.month - i) > 0 else now.year - 1
+        _key = f"{_yr}-{_mo:02d}"
+        trips_by_month.append({"month": _dtt(_yr, _mo, 1).strftime("%b"),
+                                "count": _tm_buckets.get(_key, 0)})
+    _tm_max = max((m["count"] for m in trips_by_month), default=1)
+    for m in trips_by_month:
+        m["pct"] = round(m["count"] / _tm_max * 100) if _tm_max > 0 else 0
+
+    # ── Destination intel ─────────────────────────────────────────────────────
+    _tp_rows = (
+        db.session.query(Resort.name, func.count(SkiTrip.id).label("cnt"))
+        .join(SkiTrip, SkiTrip.resort_id == Resort.id)
+        .filter(SkiTrip.resort_id.isnot(None))
+        .group_by(Resort.id, Resort.name)
+        .order_by(func.count(SkiTrip.id).desc()).limit(5).all()
+    )
+    top_planned_resorts = [{"name": r.name, "count": r.cnt} for r in _tp_rows]
+    _tp_max = max((r["count"] for r in top_planned_resorts), default=1)
+    for r in top_planned_resorts:
+        r["pct"] = round(r["count"] / _tp_max * 100)
+
+    _ud_rows = (
+        db.session.query(Resort.name, func.count(SkiTrip.id).label("cnt"))
+        .join(SkiTrip, SkiTrip.resort_id == Resort.id)
+        .filter(SkiTrip.resort_id.isnot(None), SkiTrip.start_date >= today)
+        .group_by(Resort.id, Resort.name)
+        .order_by(func.count(SkiTrip.id).desc()).limit(5).all()
+    )
+    upcoming_destinations = [{"name": r.name, "count": r.cnt} for r in _ud_rows]
+    _ud_max = max((r["count"] for r in upcoming_destinations), default=1)
+    for r in upcoming_destinations:
+        r["pct"] = round(r["count"] / _ud_max * 100)
+
+    _ts_rows = (
+        db.session.query(Resort.state_code, func.count(SkiTrip.id).label("cnt"))
+        .join(SkiTrip, SkiTrip.resort_id == Resort.id)
+        .filter(SkiTrip.resort_id.isnot(None), Resort.state_code.isnot(None))
+        .group_by(Resort.state_code)
+        .order_by(func.count(SkiTrip.id).desc()).limit(8).all()
+    )
+    trips_by_state = [{"name": r.state_code, "count": r.cnt} for r in _ts_rows]
+    _ts_max = max((r["count"] for r in trips_by_state), default=1)
+    for r in trips_by_state:
+        r["pct"] = round(r["count"] / _ts_max * 100)
+
+    _tr_rows = (
+        db.session.query(Resort.name, func.count(SkiTrip.id).label("cnt"))
+        .join(SkiTrip, SkiTrip.resort_id == Resort.id)
+        .filter(SkiTrip.resort_id.isnot(None), SkiTrip.created_at >= first_of_mo)
+        .group_by(Resort.id, Resort.name)
+        .order_by(func.count(SkiTrip.id).desc()).limit(3).all()
+    )
+    trending_resorts_month = [{"name": r.name, "count": r.cnt} for r in _tr_rows]
+    _tr_max = max((r["count"] for r in trending_resorts_month), default=1)
+    for r in trending_resorts_month:
+        r["pct"] = round(r["count"] / _tr_max * 100)
+
+    # Upcoming trips table (next 5 with resort name)
+    _ut_rows = (
+        db.session.query(
+            SkiTrip.start_date, SkiTrip.end_date, SkiTrip.trip_status, SkiTrip.mountain,
+            Resort.name.label("resort_name")
+        )
+        .outerjoin(Resort, SkiTrip.resort_id == Resort.id)
+        .filter(SkiTrip.start_date >= today)
+        .order_by(SkiTrip.start_date.asc()).limit(5).all()
+    )
+    upcoming_trips_table = [
+        {"resort": r.resort_name or r.mountain or "Unknown resort",
+         "start_date": r.start_date, "end_date": r.end_date,
+         "status": r.trip_status or "planning"}
+        for r in _ut_rows
+    ]
+
+    # ── Social & Coordination ─────────────────────────────────────────────────
+    total_invites    = SkiTripParticipant.query.filter(
+        SkiTripParticipant.role == ParticipantRole.GUEST
+    ).count()
+    accepted_invites = SkiTripParticipant.query.filter(
+        SkiTripParticipant.role == ParticipantRole.GUEST,
+        SkiTripParticipant.status == GuestStatus.ACCEPTED,
+    ).count()
+    pending_invites  = SkiTripParticipant.query.filter(
+        SkiTripParticipant.role == ParticipantRole.GUEST,
+        SkiTripParticipant.status == GuestStatus.INVITED,
+    ).count()
+    invite_accept_pct = round(accepted_invites / total_invites * 100) if total_invites else None
+
+    trips_with_invites = db.session.query(
+        func.count(func.distinct(SkiTripParticipant.trip_id))
+    ).filter(SkiTripParticipant.role == ParticipantRole.GUEST).scalar() or 0
+
+    trips_with_accepted = db.session.query(
+        func.count(func.distinct(SkiTripParticipant.trip_id))
+    ).filter(
+        SkiTripParticipant.role == ParticipantRole.GUEST,
+        SkiTripParticipant.status == GuestStatus.ACCEPTED,
+    ).scalar() or 0
+
+    avg_invites_per_trip = round(total_invites / trips_with_invites, 1) if trips_with_invites else 0
+
+    _org_rows = (
+        db.session.query(User.first_name, func.count(SkiTrip.id).label("cnt"))
+        .join(SkiTrip, SkiTrip.user_id == User.id)
+        .group_by(User.id, User.first_name)
+        .order_by(func.count(SkiTrip.id).desc()).limit(5).all()
+    )
+    most_active_organizers = [{"name": r.first_name or "User", "count": r.cnt}
+                               for r in _org_rows]
+    _org_max = max((o["count"] for o in most_active_organizers), default=1)
+    for o in most_active_organizers:
+        o["pct"] = round(o["count"] / _org_max * 100)
+
+    _hit_rows = (
+        db.session.query(
+            Resort.name.label("resort_name"),
+            func.count(SkiTripParticipant.id).label("cnt")
+        )
+        .join(SkiTrip, SkiTripParticipant.trip_id == SkiTrip.id)
+        .outerjoin(Resort, SkiTrip.resort_id == Resort.id)
+        .filter(SkiTripParticipant.role == ParticipantRole.GUEST)
+        .group_by(SkiTrip.id, Resort.name)
+        .order_by(func.count(SkiTripParticipant.id).desc()).limit(5).all()
+    )
+    high_invite_trips = [{"resort": r.resort_name or "Unknown", "count": r.cnt}
+                         for r in _hit_rows]
+    _hit_max = max((h["count"] for h in high_invite_trips), default=1)
+    for h in high_invite_trips:
+        h["pct"] = round(h["count"] / _hit_max * 100)
+
+    return render_template('admin_trips.html',
+                         active_tab='trips',
+                         month_label=month_label,
+                         total_trips=total_trips,
+                         trips_month=trips_month,
+                         trips_last_7=trips_last_7,
+                         trips_last_30=trips_last_30,
+                         upcoming_trips=upcoming_trips,
+                         past_trips=past_trips,
+                         users_with_trips=users_with_trips,
+                         solo_trips_count=solo_trips_count,
+                         group_trips_count=group_trips_count,
+                         group_pct=group_pct,
+                         avg_trip_length=avg_trip_length,
+                         resorts_scheduled=resorts_scheduled,
+                         trips_by_month=trips_by_month,
+                         top_planned_resorts=top_planned_resorts,
+                         upcoming_destinations=upcoming_destinations,
+                         trips_by_state=trips_by_state,
+                         trending_resorts_month=trending_resorts_month,
+                         upcoming_trips_table=upcoming_trips_table,
+                         total_invites=total_invites,
+                         accepted_invites=accepted_invites,
+                         pending_invites=pending_invites,
+                         invite_accept_pct=invite_accept_pct,
+                         trips_with_invites=trips_with_invites,
+                         trips_with_accepted=trips_with_accepted,
+                         avg_invites_per_trip=avg_invites_per_trip,
+                         most_active_organizers=most_active_organizers,
+                         high_invite_trips=high_invite_trips)
+
+
+# ============================================================================
 # ADMIN RESORTS CURATION PAGE
 # ============================================================================
 
@@ -12951,6 +13254,90 @@ def admin_resorts():
     mtn_no_state   = sum(1 for r in resorts if not (r.state_code or r.state))
     mtn_no_country = sum(1 for r in resorts if not r.country_code)
 
+    # ── Destination Traffic (MountainPageView) — graceful fallback ───────────
+    try:
+        from collections import defaultdict as _mpv_dd
+        _six_months_ago  = datetime.utcnow() - timedelta(days=182)
+        _first_of_mo_mpv = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        mtn_traffic_total    = db.session.query(func.count(MountainPageView.id)).scalar() or 0
+        mtn_traffic_loggedin = db.session.query(func.count(MountainPageView.id)).filter(
+            MountainPageView.user_id.isnot(None)
+        ).scalar() or 0
+        mtn_traffic_anon = mtn_traffic_total - mtn_traffic_loggedin
+
+        # Top 10 most viewed resorts (all-time)
+        _tv_rows = (
+            db.session.query(Resort.name, func.count(MountainPageView.id).label("cnt"))
+            .join(MountainPageView, MountainPageView.resort_id == Resort.id)
+            .group_by(Resort.id, Resort.name)
+            .order_by(func.count(MountainPageView.id).desc()).limit(10).all()
+        )
+        _tv_max = max((r.cnt for r in _tv_rows), default=1)
+        mtn_top_viewed = [{"name": r.name, "count": r.cnt,
+                           "pct": round(r.cnt / _tv_max * 100)} for r in _tv_rows]
+
+        # Monthly visit volume — last 6 months (Python bucketing)
+        _mv_rows = db.session.query(MountainPageView.viewed_at).filter(
+            MountainPageView.viewed_at >= _six_months_ago
+        ).all()
+        _mv_buckets = _mpv_dd(int)
+        for (_vt,) in _mv_rows:
+            if _vt:
+                _mv_buckets[_vt.strftime("%Y-%m")] += 1
+        _mpv_now = datetime.utcnow()
+        mtn_monthly_views = []
+        for i in range(5, -1, -1):
+            _mo = (_mpv_now.month - i - 1) % 12 + 1
+            _yr = _mpv_now.year if (_mpv_now.month - i) > 0 else _mpv_now.year - 1
+            _key = f"{_yr}-{_mo:02d}"
+            from datetime import datetime as _mdtt
+            mtn_monthly_views.append({
+                "month": _mdtt(_yr, _mo, 1).strftime("%b"),
+                "count": _mv_buckets.get(_key, 0),
+            })
+        _mv_max = max((m["count"] for m in mtn_monthly_views), default=1)
+        for m in mtn_monthly_views:
+            m["pct"] = round(m["count"] / _mv_max * 100) if _mv_max > 0 else 0
+
+        # Top 5 resorts table: total views + unique logged-in users
+        _top5_rows = (
+            db.session.query(
+                Resort.name,
+                func.count(MountainPageView.id).label("total"),
+                func.count(func.distinct(MountainPageView.user_id)).label("uniq_users"),
+            )
+            .join(MountainPageView, MountainPageView.resort_id == Resort.id)
+            .group_by(Resort.id, Resort.name)
+            .order_by(func.count(MountainPageView.id).desc()).limit(5).all()
+        )
+        mtn_top5_traffic = [
+            {"name": r.name, "total": r.total, "uniq_users": r.uniq_users}
+            for r in _top5_rows
+        ]
+
+        # Most viewed this month KPI
+        _mvm_row = (
+            db.session.query(Resort.name, func.count(MountainPageView.id).label("cnt"))
+            .join(MountainPageView, MountainPageView.resort_id == Resort.id)
+            .filter(MountainPageView.viewed_at >= _first_of_mo_mpv)
+            .group_by(Resort.id, Resort.name)
+            .order_by(func.count(MountainPageView.id).desc()).first()
+        )
+        mtn_most_viewed_month     = _mvm_row.name if _mvm_row else None
+        mtn_most_viewed_month_cnt = _mvm_row.cnt  if _mvm_row else 0
+        mtn_traffic_ready = True
+    except Exception:
+        mtn_top_viewed            = []
+        mtn_monthly_views         = []
+        mtn_traffic_total         = 0
+        mtn_traffic_loggedin      = 0
+        mtn_traffic_anon          = 0
+        mtn_top5_traffic          = []
+        mtn_most_viewed_month     = None
+        mtn_most_viewed_month_cnt = 0
+        mtn_traffic_ready         = False
+
     return render_template('admin_resorts.html',
                          resorts=resorts,
                          countries=countries,
@@ -12972,7 +13359,16 @@ def admin_resorts():
                          mtn_top_wishlisted=mtn_top_wishlisted,
                          mtn_no_pass=mtn_no_pass,
                          mtn_no_state=mtn_no_state,
-                         mtn_no_country=mtn_no_country)
+                         mtn_no_country=mtn_no_country,
+                         mtn_traffic_ready=mtn_traffic_ready,
+                         mtn_traffic_total=mtn_traffic_total,
+                         mtn_traffic_loggedin=mtn_traffic_loggedin,
+                         mtn_traffic_anon=mtn_traffic_anon,
+                         mtn_top_viewed=mtn_top_viewed,
+                         mtn_monthly_views=mtn_monthly_views,
+                         mtn_top5_traffic=mtn_top5_traffic,
+                         mtn_most_viewed_month=mtn_most_viewed_month,
+                         mtn_most_viewed_month_cnt=mtn_most_viewed_month_cnt)
 
 
 @app.route("/admin/resorts/export-excel")

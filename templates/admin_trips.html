@@ -1,0 +1,322 @@
+{% extends "admin_console.html" %}
+{% block page_title %}Trips{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Trips admin — section + KPI reuse from admin design system ── */
+  .ad-section {
+    background: #FFFFFF;
+    border: 1px solid #E4DDD2;
+    border-radius: 10px;
+    padding: 22px 20px;
+    margin-bottom: 22px;
+  }
+  .ad-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #6B6157;
+    margin-bottom: 16px;
+  }
+  .ad-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .ad-card {
+    background: #FAF7F2;
+    border: 1px solid #EAE4D8;
+    border-radius: 8px;
+    padding: 14px 12px;
+  }
+  .ad-card-label { font-size: 11px; color: #6B6157; margin-bottom: 4px; }
+  .ad-card-value { font-size: 24px; font-weight: 700; color: #1A1008; line-height: 1; }
+  .ad-card-sub   { font-size: 11px; color: #9A9186; margin-top: 4px; }
+  .ad-trend--pos  { color: #22C55E; font-size: 11px; margin-top: 3px; }
+  .ad-trend--neg  { color: #EF4444; font-size: 11px; margin-top: 3px; }
+  .ad-trend--flat { color: #9A9186; font-size: 11px; margin-top: 3px; }
+
+  /* ── stat pill row ── */
+  .tr-stat-row {
+    display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;
+  }
+  .tr-stat-pill {
+    background: #FAF7F2; border: 1px solid #EAE4D8; border-radius: 20px;
+    padding: 6px 14px; font-size: 12px; color: #3A3028;
+  }
+  .tr-stat-pill strong { color: #5C1219; }
+
+  /* ── bar chart ── */
+  .ad-bar-list { list-style: none; padding: 0; margin: 0; }
+  .ad-bar-row  { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; font-size: 13px; }
+  .ad-bar-name { flex: 0 0 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #3A3028; }
+  .ad-bar-track { flex: 1; background: #EAE4D8; border-radius: 3px; height: 8px; min-width: 60px; overflow: hidden; }
+  .ad-bar-fill  { height: 8px; border-radius: 3px; background: #5C1219; transition: width .3s; }
+  .ad-bar-count { flex: 0 0 32px; text-align: right; font-size: 12px; color: #6B6157; }
+
+  /* ── two-col layout for charts ── */
+  .ad-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 700px) { .ad-two-col { grid-template-columns: 1fr; } }
+
+  /* ── month mini bar ── */
+  .tr-month-bars { display: flex; align-items: flex-end; gap: 6px; height: 60px; margin: 10px 0 4px; }
+  .tr-month-col  { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .tr-month-bar  { width: 100%; background: #5C1219; border-radius: 2px 2px 0 0; min-height: 2px; }
+  .tr-month-label { font-size: 9px; color: #9A9186; }
+  .tr-month-val   { font-size: 9px; color: #6B6157; font-weight: 600; }
+
+  /* ── operational table ── */
+  .ad-op-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ad-op-table th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: #6B6157; padding: 6px 8px; border-bottom: 1px solid #EAE4D8; }
+  .ad-op-table td { padding: 8px; color: #3A3028; border-bottom: 1px solid #F0EBE3; vertical-align: top; }
+  .ad-op-table tr:last-child td { border-bottom: none; }
+
+  /* ── split kpi ── */
+  .tr-split { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tr-split-card { flex: 1; min-width: 120px; background: #FAF7F2; border: 1px solid #EAE4D8; border-radius: 8px; padding: 14px 12px; text-align: center; }
+  .tr-split-val  { font-size: 26px; font-weight: 700; color: #5C1219; }
+  .tr-split-lbl  { font-size: 11px; color: #6B6157; margin-top: 2px; }
+
+  .ad-subsection-label { font-size: 12px; font-weight: 600; color: #3A3028; margin: 18px 0 10px; }
+  .ad-empty { font-size: 13px; color: #9A9186; font-style: italic; padding: 8px 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Section: Overview ──────────────────────────────────────────── -->
+<div class="ad-section" id="tr-overview">
+  <div class="ad-section-label">Overview</div>
+
+  <div class="ad-kpi-grid">
+    <div class="ad-card">
+      <div class="ad-card-label">Total Trips</div>
+      <div class="ad-card-value">{{ total_trips }}</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Upcoming</div>
+      <div class="ad-card-value">{{ upcoming_trips }}</div>
+      <div class="ad-card-sub">start date ≥ today</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">This Month</div>
+      <div class="ad-card-value">{{ trips_month }}</div>
+      <div class="ad-card-sub">created {{ month_label }}</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Users w/ Trips</div>
+      <div class="ad-card-value">{{ users_with_trips }}</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Avg Length</div>
+      <div class="ad-card-value">{{ avg_trip_length }}d</div>
+      <div class="ad-card-sub">across all trips</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Resorts Scheduled</div>
+      <div class="ad-card-value">{{ resorts_scheduled }}</div>
+      <div class="ad-card-sub">in upcoming trips</div>
+    </div>
+  </div>
+
+  <div class="tr-stat-row">
+    <div class="tr-stat-pill">Last 7 days: <strong>{{ trips_last_7 }}</strong> new trips</div>
+    <div class="tr-stat-pill">Last 30 days: <strong>{{ trips_last_30 }}</strong> new trips</div>
+    <div class="tr-stat-pill">Past trips: <strong>{{ past_trips }}</strong></div>
+  </div>
+
+  <div class="ad-subsection-label">Solo vs. Group Trips</div>
+  <div class="tr-split">
+    <div class="tr-split-card">
+      <div class="tr-split-val">{{ solo_trips_count }}</div>
+      <div class="tr-split-lbl">Solo Trips</div>
+    </div>
+    <div class="tr-split-card">
+      <div class="tr-split-val">{{ group_trips_count }}</div>
+      <div class="tr-split-lbl">Group Trips</div>
+    </div>
+    <div class="tr-split-card">
+      <div class="tr-split-val">{{ group_pct }}%</div>
+      <div class="tr-split-lbl">Are Group Trips</div>
+    </div>
+  </div>
+
+  <div class="ad-subsection-label">New Trips — Last 12 Months</div>
+  <div class="tr-month-bars">
+    {% for m in trips_by_month %}
+    <div class="tr-month-col">
+      <div class="tr-month-val">{{ m.count }}</div>
+      <div class="tr-month-bar" style="height: {{ [m.pct * 0.5, 2] | max }}px;"></div>
+      <div class="tr-month-label">{{ m.month }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+</div><!-- end #tr-overview -->
+
+
+<!-- ── Section: Destination Intelligence ─────────────────────────── -->
+<div class="ad-section" id="tr-dest-intel">
+  <div class="ad-section-label">Destination Intelligence</div>
+
+  <div class="ad-two-col">
+    <div>
+      <div class="ad-subsection-label">Top Planned Resorts (All-Time)</div>
+      {% if top_planned_resorts %}
+      <ul class="ad-bar-list">
+        {% for r in top_planned_resorts %}
+        <li class="ad-bar-row">
+          <span class="ad-bar-name" title="{{ r.name }}">{{ r.name }}</span>
+          <span class="ad-bar-track"><span class="ad-bar-fill" style="width:{{ r.pct }}%;"></span></span>
+          <span class="ad-bar-count">{{ r.count }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="ad-empty">No resort-linked trips yet.</div>{% endif %}
+    </div>
+    <div>
+      <div class="ad-subsection-label">Upcoming Destinations</div>
+      {% if upcoming_destinations %}
+      <ul class="ad-bar-list">
+        {% for r in upcoming_destinations %}
+        <li class="ad-bar-row">
+          <span class="ad-bar-name" title="{{ r.name }}">{{ r.name }}</span>
+          <span class="ad-bar-track"><span class="ad-bar-fill" style="width:{{ r.pct }}%;"></span></span>
+          <span class="ad-bar-count">{{ r.count }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="ad-empty">No upcoming trips with resort.</div>{% endif %}
+    </div>
+  </div>
+
+  <div class="ad-two-col">
+    <div>
+      <div class="ad-subsection-label">Trips by State / Region (Top 8)</div>
+      {% if trips_by_state %}
+      <ul class="ad-bar-list">
+        {% for s in trips_by_state %}
+        <li class="ad-bar-row">
+          <span class="ad-bar-name">{{ s.name }}</span>
+          <span class="ad-bar-track"><span class="ad-bar-fill" style="width:{{ s.pct }}%;"></span></span>
+          <span class="ad-bar-count">{{ s.count }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="ad-empty">No state data yet.</div>{% endif %}
+    </div>
+    <div>
+      <div class="ad-subsection-label">Trending This Month (Top 3)</div>
+      {% if trending_resorts_month %}
+      <ul class="ad-bar-list">
+        {% for r in trending_resorts_month %}
+        <li class="ad-bar-row">
+          <span class="ad-bar-name" title="{{ r.name }}">{{ r.name }}</span>
+          <span class="ad-bar-track"><span class="ad-bar-fill" style="width:{{ r.pct }}%;"></span></span>
+          <span class="ad-bar-count">{{ r.count }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="ad-empty">No trips this month yet.</div>{% endif %}
+    </div>
+  </div>
+
+  {% if upcoming_trips_table %}
+  <div class="ad-subsection-label">Upcoming Trips</div>
+  <table class="ad-op-table">
+    <thead>
+      <tr>
+        <th>Resort</th>
+        <th>Dates</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in upcoming_trips_table %}
+      <tr>
+        <td>{{ t.resort or '—' }}</td>
+        <td style="white-space:nowrap;">
+          {% if t.start_date %}{{ t.start_date.strftime('%b %d') }}{% if t.end_date %} – {{ t.end_date.strftime('%b %d') }}{% endif %}{% else %}—{% endif %}
+        </td>
+        <td>{{ t.status or 'planning' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+</div><!-- end #tr-dest-intel -->
+
+
+<!-- ── Section: Social & Coordination ───────────────────────────── -->
+<div class="ad-section" id="tr-social">
+  <div class="ad-section-label">Social &amp; Coordination</div>
+
+  <div class="ad-kpi-grid">
+    <div class="ad-card">
+      <div class="ad-card-label">Invites Sent</div>
+      <div class="ad-card-value">{{ total_invites }}</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Accepted</div>
+      <div class="ad-card-value">{{ accepted_invites }}</div>
+      {% if invite_accept_pct is not none %}
+      <div class="ad-card-sub">{{ invite_accept_pct }}% accept rate</div>
+      {% endif %}
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Pending</div>
+      <div class="ad-card-value">{{ pending_invites }}</div>
+      <div class="ad-card-sub">awaiting response</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Trips w/ Invites</div>
+      <div class="ad-card-value">{{ trips_with_invites }}</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Trips w/ Accepted</div>
+      <div class="ad-card-value">{{ trips_with_accepted }}</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Avg Invites/Trip</div>
+      <div class="ad-card-value">{{ avg_invites_per_trip }}</div>
+      <div class="ad-card-sub">for trips w/ invites</div>
+    </div>
+  </div>
+
+  <div class="ad-two-col">
+    <div>
+      <div class="ad-subsection-label">Most Active Organizers (Top 5)</div>
+      {% if most_active_organizers %}
+      <ul class="ad-bar-list">
+        {% for o in most_active_organizers %}
+        <li class="ad-bar-row">
+          <span class="ad-bar-name">{{ o.name }}</span>
+          <span class="ad-bar-track"><span class="ad-bar-fill" style="width:{{ o.pct }}%;"></span></span>
+          <span class="ad-bar-count">{{ o.count }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="ad-empty">No organizer data yet.</div>{% endif %}
+    </div>
+    <div>
+      <div class="ad-subsection-label">High-Invite Trips (Top 5)</div>
+      {% if high_invite_trips %}
+      <ul class="ad-bar-list">
+        {% for t in high_invite_trips %}
+        <li class="ad-bar-row">
+          <span class="ad-bar-name" title="{{ t.resort }}">{{ t.resort or 'Unknown resort' }}</span>
+          <span class="ad-bar-track"><span class="ad-bar-fill" style="width:{{ t.pct }}%;"></span></span>
+          <span class="ad-bar-count">{{ t.count }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="ad-empty">No multi-participant trips yet.</div>{% endif %}
+    </div>
+  </div>
+
+</div><!-- end #tr-social -->
+
+{% endblock %}
