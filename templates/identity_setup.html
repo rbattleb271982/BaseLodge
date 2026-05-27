@@ -366,6 +366,33 @@
             padding: 10px 0 2px;
             flex-shrink: 0;
         }
+
+        /* Step 2: compact wrapping chip layout */
+        .ob-options--wrap {
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-content: flex-start;
+        }
+        .ob-options--wrap .ob-pill {
+            width: auto;
+            min-height: 40px;
+            padding: 8px 14px;
+            font-size: 14px;
+            flex-direction: column;
+            align-items: flex-start;
+            line-height: 1.25;
+        }
+        .ob-options--wrap .ob-hint {
+            margin-left: 0;
+            margin-top: 2px;
+            font-size: 11px;
+        }
+        .ob-options--wrap .ob-section-label {
+            flex-basis: 100%;
+            width: 100%;
+            margin-top: 6px;
+        }
     </style>
 </head>
 <body>
@@ -429,7 +456,7 @@
                             <h1 class="ob-title">Tell us about your riding.</h1>
                             <p class="ob-subtitle">Choose what fits — most people pick two styles.</p>
                         </div>
-                        <div class="ob-options">
+                        <div class="ob-options ob-options--wrap">
                             <button type="button" class="ob-pill" data-grp="rider" data-val="Skier"         data-target="h-rider">Skier</button>
                             <button type="button" class="ob-pill" data-grp="rider" data-val="Snowboarder"   data-target="h-rider">Snowboarder</button>
                             <button type="button" class="ob-pill" data-grp="rider" data-val="Telemark"      data-target="h-rider">Telemark</button>
@@ -437,10 +464,10 @@
                             <button type="button" class="ob-pill" data-grp="rider" data-val="Adaptive"      data-target="h-rider">Adaptive</button>
                             <button type="button" class="ob-pill" data-grp="rider" data-val="Social"        data-target="h-rider">Social / après</button>
                             <p class="ob-section-label">Skill level</p>
-                            <button type="button" class="ob-pill" data-grp="skill" data-val="Beginner"     data-target="h-skill">Beginner     <span class="ob-hint">Green runs</span></button>
-                            <button type="button" class="ob-pill" data-grp="skill" data-val="Intermediate" data-target="h-skill">Intermediate <span class="ob-hint">Blue runs</span></button>
-                            <button type="button" class="ob-pill" data-grp="skill" data-val="Advanced"     data-target="h-skill">Advanced     <span class="ob-hint">Black runs</span></button>
-                            <button type="button" class="ob-pill" data-grp="skill" data-val="Expert"       data-target="h-skill">Expert       <span class="ob-hint">Double black</span></button>
+                            <button type="button" class="ob-pill" data-grp="skill" data-val="Beginner"     data-target="h-skill">Beginner<span class="ob-hint">Green runs</span></button>
+                            <button type="button" class="ob-pill" data-grp="skill" data-val="Intermediate" data-target="h-skill">Intermediate<span class="ob-hint">Blue runs</span></button>
+                            <button type="button" class="ob-pill" data-grp="skill" data-val="Advanced"     data-target="h-skill">Advanced<span class="ob-hint">Black runs</span></button>
+                            <button type="button" class="ob-pill" data-grp="skill" data-val="Expert"       data-target="h-skill">Expert<span class="ob-hint">Double black</span></button>
                         </div>
                         <div class="ob-footer">
                             <button type="button" class="ob-btn" id="cta-2" disabled onclick="goNext(2)">Continue</button>
@@ -467,16 +494,18 @@
                         </div>
                         <div class="ob-options">
                             <p class="ob-pass-cap-hint" id="pass-cap-hint">You've reached the 3-pass limit.</p>
-                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass_yet"          data-target="h-pass">No pass yet</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="epic"              data-target="h-pass">Epic</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="ikon"              data-target="h-pass">Ikon</button>
-                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass"              data-target="h-pass">No pass</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="indy"              data-target="h-pass">Indy</button>
+                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass_yet" data-target="h-pass">No pass yet</button>
+                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass"     data-target="h-pass">No pass</button>
+                            <div class="ob-divider"></div>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="epic" data-target="h-pass">Epic</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="ikon" data-target="h-pass">Ikon</button>
+                            <div class="ob-divider"></div>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="indy"               data-target="h-pass">Indy</button>
                             <button type="button" class="ob-pill" data-grp="pass" data-val="mountain_collective" data-target="h-pass">Mountain Collective</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="powder_alliance"  data-target="h-pass">Powder Alliance</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="freedom"          data-target="h-pass">Freedom Pass</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="ski_california"   data-target="h-pass">Ski California</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="other"            data-target="h-pass">Other pass</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="powder_alliance"    data-target="h-pass">Powder Alliance</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="freedom"            data-target="h-pass">Freedom Pass</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="ski_california"     data-target="h-pass">Ski California</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="other"              data-target="h-pass">Other pass</button>
                         </div>
                         <div class="ob-footer">
                             <button type="button" class="ob-btn" id="cta-3" disabled onclick="goNext(3)">Continue</button>
