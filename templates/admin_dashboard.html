@@ -562,6 +562,185 @@
     overflow-wrap: break-word;
     word-break: break-word;
   }
+
+  /* ── Trips sub-section label ── */
+  .ad-sublabel {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #9E958A;
+    margin: 14px 0 8px;
+    padding-left: 1px;
+  }
+
+  /* ── Destination / social bar-table: truncate long resort names ── */
+  .ad-pass-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ── Trending chips ── */
+  .ad-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .ad-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #F5F0E8;
+    border: 1px solid #E8E1D4;
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #57534A;
+  }
+  .ad-chip-count {
+    font-size: 11px;
+    font-weight: 700;
+    color: #5C1219;
+  }
+
+  /* ── Planning Patterns cards (lighter weight) ── */
+  .ad-plan-card {
+    background: #FDFAF6;
+    border: 1px solid #EDE8E0;
+    border-radius: 9px;
+    padding: 10px 14px 9px;
+  }
+  .ad-plan-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #B0A99F;
+    margin-bottom: 4px;
+  }
+  .ad-plan-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #6B6560;
+    font-family: Georgia, serif;
+    line-height: 1;
+  }
+  .ad-plan-sub {
+    font-size: 11px;
+    color: #B0A99F;
+    margin-top: 3px;
+  }
+  @media (max-width: 640px) {
+    .ad-plan-value { font-size: 20px; }
+  }
+
+  /* ── Operational row table ── */
+  .ad-op-table {
+    background: #FFFFFF;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .ad-op-header {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    background: #FDFAF6;
+    border-bottom: 1px solid #F0EAE0;
+    gap: 8px;
+  }
+  .ad-op-col-name {
+    flex: 1;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9E958A;
+    min-width: 0;
+  }
+  .ad-op-col-date {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9E958A;
+    width: 68px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .ad-op-col-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9E958A;
+    width: 52px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .ad-op-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid #F0EAE0;
+    gap: 8px;
+  }
+  .ad-op-row:last-child { border-bottom: none; }
+  .ad-op-name {
+    flex: 1;
+    font-size: 12px;
+    color: #1C1917;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .ad-op-date {
+    font-size: 11px;
+    color: #9E958A;
+    width: 68px;
+    text-align: right;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .ad-op-badge {
+    font-size: 11px;
+    color: #5C1219;
+    font-weight: 600;
+    width: 52px;
+    text-align: right;
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ad-op-empty {
+    padding: 14px 12px;
+    font-size: 12px;
+    color: #B0A99F;
+    text-align: center;
+  }
+  @media (max-width: 640px) {
+    .ad-op-row     { padding: 7px 10px; }
+    .ad-op-name    { font-size: 11px; }
+    .ad-op-date    { font-size: 10px; width: 60px; }
+    .ad-op-badge   { font-size: 10px; width: 46px; }
+    .ad-op-col-date  { width: 60px; }
+    .ad-op-col-badge { width: 46px; }
+  }
+
+  /* ── Destination sub-table label ── */
+  .ad-dest-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #B0A99F;
+    margin-bottom: 6px;
+  }
 {% endblock %}
 
 {% block content %}
@@ -673,7 +852,9 @@
 <!-- ── Trips ── -->
 <div class="ad-section">
   <div class="ad-section-label">Trips</div>
-  <div class="ad-kpi-grid">
+
+  <!-- Core Metrics — 6-card grid -->
+  <div class="ad-kpi-grid ad-kpi-grid--6col">
 
     <div class="ad-card">
       <div class="ad-card-label">Total Trips</div>
@@ -689,16 +870,219 @@
     </div>
 
     <div class="ad-card">
-      <div class="ad-card-label">Invite Accept Rate</div>
-      <div class="ad-card-value">{{ invite_rate }}%</div>
-      <div class="ad-card-sub">{{ accepted_inv }} of {{ total_inv }} invites</div>
-      <div class="ad-rate-bar-wrap">
-        <div class="ad-rate-bar" style="width: {{ invite_rate }}%"></div>
-      </div>
-      {{ trend(trend_invite_rate) }}
+      <div class="ad-card-label">Upcoming</div>
+      <div class="ad-card-value">{{ upcoming_trips }}</div>
+      <div class="ad-card-sub">start date &ge; today</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Past Trips</div>
+      <div class="ad-card-value">{{ past_trips }}</div>
+      <div class="ad-card-sub">end date &lt; today</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Users With Trips</div>
+      <div class="ad-card-value">{{ users_with_trips }}</div>
+      <div class="ad-card-sub">have &ge;1 trip</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Avg Per User</div>
+      <div class="ad-card-value">{{ avg_trips }}</div>
+      <div class="ad-card-sub">trips per user</div>
     </div>
 
   </div>
+
+  <!-- Destination Intelligence -->
+  <div class="ad-sublabel">Destination Intelligence</div>
+
+  {% if top_planned_resorts %}
+  <div class="ad-dest-label">Top Planned</div>
+  <div class="ad-pass-table" style="margin-bottom:10px;">
+    {% set _tpr_max = [top_planned_resorts | map(attribute='count') | max, 1] | max %}
+    {% for r in top_planned_resorts %}
+    <div class="ad-pass-row">
+      <div class="ad-pass-name">{{ r.name }}</div>
+      <div class="ad-pass-bar-wrap">
+        <div class="ad-pass-bar" style="width:{{ r.pct }}%"></div>
+      </div>
+      <div class="ad-pass-count">{{ r.count }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if trending_resorts_month %}
+  <div class="ad-dest-label">Trending This Month</div>
+  <div class="ad-chip-row">
+    {% for r in trending_resorts_month %}
+    <span class="ad-chip">{{ r.name }}<span class="ad-chip-count">{{ r.count }}</span></span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if top_wishlisted_resorts %}
+  <div class="ad-dest-label">Most Wishlisted</div>
+  <div class="ad-pass-table" style="margin-bottom:4px;">
+    {% for r in top_wishlisted_resorts %}
+    <div class="ad-pass-row">
+      <div class="ad-pass-name">{{ r.name }}</div>
+      <div class="ad-pass-bar-wrap">
+        <div class="ad-pass-bar" style="width:{{ r.pct }}%"></div>
+      </div>
+      <div class="ad-pass-count">{{ r.count }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if not top_planned_resorts and not top_wishlisted_resorts %}
+  <div class="ad-state-empty">No resort-linked trip data yet</div>
+  {% endif %}
+
+  <!-- Group Activity -->
+  <div class="ad-sublabel">Group Activity</div>
+  <div class="ad-kpi-grid ad-kpi-grid--2col">
+
+    <div class="ad-card">
+      <div class="ad-card-label">Trips With Invites</div>
+      <div class="ad-card-value">{{ trips_with_invites }}</div>
+      <div class="ad-card-sub">have &ge;1 invited guest</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Trip Invite Accept %</div>
+      <div class="ad-card-value">{{ trip_invite_accept_pct }}%</div>
+      <div class="ad-card-sub">{{ trips_with_accepted }} trip{{ 's' if trips_with_accepted != 1 }} with accepted guest</div>
+      <div class="ad-rate-bar-wrap">
+        <div class="ad-rate-bar" style="width:{{ trip_invite_accept_pct }}%"></div>
+      </div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Avg Invites / Trip</div>
+      <div class="ad-card-value">{{ avg_invites_per_trip }}</div>
+      <div class="ad-card-sub">guests per social trip</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Avg Participants / Trip</div>
+      <div class="ad-card-value">{{ avg_participants_per_trip }}</div>
+      <div class="ad-card-sub">accepted on group trips</div>
+    </div>
+
+  </div>
+
+  {% if most_social_resorts %}
+  <div class="ad-dest-label" style="margin-top:10px;">Most Social Resorts</div>
+  <div class="ad-pass-table" style="margin-bottom:4px;">
+    {% for r in most_social_resorts %}
+    <div class="ad-pass-row">
+      <div class="ad-pass-name">{{ r.name }}</div>
+      <div class="ad-pass-bar-wrap">
+        <div class="ad-pass-bar" style="width:{{ r.pct }}%"></div>
+      </div>
+      <div class="ad-pass-count">{{ r.count }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Planning Patterns (subordinate visual weight) -->
+  <div class="ad-sublabel">Planning Patterns</div>
+  <div class="ad-kpi-grid ad-kpi-grid--2col">
+
+    <div class="ad-plan-card">
+      <div class="ad-plan-label">Avg Trip Length</div>
+      <div class="ad-plan-value">{{ avg_trip_length }}</div>
+      <div class="ad-plan-sub">nights avg</div>
+    </div>
+
+    <div class="ad-plan-card">
+      <div class="ad-plan-label">Avg Lead Time</div>
+      <div class="ad-plan-value">{{ avg_lead_time }}</div>
+      <div class="ad-plan-sub">days booked ahead</div>
+    </div>
+
+    <div class="ad-plan-card">
+      <div class="ad-plan-label">Most Common Month</div>
+      <div class="ad-plan-value">{{ most_common_month }}</div>
+      <div class="ad-plan-sub">by trip start date</div>
+    </div>
+
+    <div class="ad-plan-card">
+      <div class="ad-plan-label">Most Common Duration</div>
+      <div class="ad-plan-value">{{ most_common_duration }}</div>
+      <div class="ad-plan-sub">by trip duration field</div>
+    </div>
+
+  </div>
+
+  <!-- Operational Tables -->
+  <div class="ad-sublabel">Operational</div>
+
+  <div class="ad-dest-label">Upcoming Trips</div>
+  <div class="ad-op-table">
+    {% if upcoming_trips_table %}
+    <div class="ad-op-header">
+      <span class="ad-op-col-name">Resort</span>
+      <span class="ad-op-col-date">Start</span>
+      <span class="ad-op-col-badge">Status</span>
+    </div>
+    {% for row in upcoming_trips_table %}
+    <div class="ad-op-row">
+      <span class="ad-op-name">{{ row.resort }}</span>
+      <span class="ad-op-date">{{ row.start }}</span>
+      <span class="ad-op-badge">{{ row.status }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="ad-op-empty">No upcoming trips</div>
+    {% endif %}
+  </div>
+
+  <div class="ad-dest-label">Highest Invite Activity</div>
+  <div class="ad-op-table">
+    {% if high_invite_trips %}
+    <div class="ad-op-header">
+      <span class="ad-op-col-name">Resort</span>
+      <span class="ad-op-col-date">Trip Start</span>
+      <span class="ad-op-col-badge">Guests</span>
+    </div>
+    {% for row in high_invite_trips %}
+    <div class="ad-op-row">
+      <span class="ad-op-name">{{ row.resort }}</span>
+      <span class="ad-op-date">{{ row.start }}</span>
+      <span class="ad-op-badge">{{ row.guests }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="ad-op-empty">No trip invite activity yet</div>
+    {% endif %}
+  </div>
+
+  <div class="ad-dest-label">Recently Created</div>
+  <div class="ad-op-table">
+    {% if recent_trips_table %}
+    <div class="ad-op-header">
+      <span class="ad-op-col-name">Resort</span>
+      <span class="ad-op-col-date">Created</span>
+      <span class="ad-op-col-badge">Status</span>
+    </div>
+    {% for row in recent_trips_table %}
+    <div class="ad-op-row">
+      <span class="ad-op-name">{{ row.resort }}</span>
+      <span class="ad-op-date">{{ row.created }}</span>
+      <span class="ad-op-badge">{{ row.status }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="ad-op-empty">No trips yet</div>
+    {% endif %}
+  </div>
+
 </div>
 
 <!-- ── Engagement — 2 cards, 2-col on all widths ── -->

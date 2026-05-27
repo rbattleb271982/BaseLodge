@@ -14697,9 +14697,221 @@ def admin_dashboard():
         for i in range(29, -1, -1)
     ]
 
-    # ── Trip counts ──────────────────────────────────────────────────────────
-    total_trips  = SkiTrip.query.count()
-    trips_month  = SkiTrip.query.filter(SkiTrip.created_at >= first_of_mo).count()
+    # ── Trip counts (core) ───────────────────────────────────────────────────
+    from collections import Counter as _Counter
+    today          = now.date()
+    total_trips    = SkiTrip.query.count()
+    trips_month    = SkiTrip.query.filter(SkiTrip.created_at >= first_of_mo).count()
+    upcoming_trips = SkiTrip.query.filter(SkiTrip.start_date >= today).count()
+    past_trips     = SkiTrip.query.filter(SkiTrip.end_date   <  today).count()
+
+    # ── Destination Intelligence ──────────────────────────────────────────────
+    # Top planned resorts (all-time, resort-linked trips only)
+    _tp_rows = (
+        db.session.query(Resort.name, func.count(SkiTrip.id).label("cnt"))
+        .join(SkiTrip, SkiTrip.resort_id == Resort.id)
+        .filter(SkiTrip.resort_id.isnot(None))
+        .group_by(Resort.id, Resort.name)
+        .order_by(func.count(SkiTrip.id).desc())
+        .limit(5).all()
+    )
+    top_planned_resorts = [{"name": r.name, "count": r.cnt} for r in _tp_rows]
+    _tp_max = max((r["count"] for r in top_planned_resorts), default=1)
+    for r in top_planned_resorts:
+        r["pct"] = round(r["count"] / _tp_max * 100)
+
+    # Trending resorts this month
+    _tr_rows = (
+        db.session.query(Resort.name, func.count(SkiTrip.id).label("cnt"))
+        .join(SkiTrip, SkiTrip.resort_id == Resort.id)
+        .filter(SkiTrip.resort_id.isnot(None), SkiTrip.created_at >= first_of_mo)
+        .group_by(Resort.id, Resort.name)
+        .order_by(func.count(SkiTrip.id).desc())
+        .limit(3).all()
+    )
+    trending_resorts_month = [{"name": r.name, "count": r.cnt} for r in _tr_rows]
+
+    # Most wishlisted resorts (Python aggregation from User.wish_list_resorts JSON)
+    _wish_ctr = _Counter()
+    for (wl,) in db.session.query(User.wish_list_resorts).filter(
+        User.wish_list_resorts.isnot(None)
+    ).all():
+        if isinstance(wl, list):
+            for rid in wl:
+                if rid:
+                    _wish_ctr[int(rid)] += 1
+    _top_wish_ids = [rid for rid, _ in _wish_ctr.most_common(5)]
+    _wish_names   = {}
+    if _top_wish_ids:
+        for _res in Resort.query.filter(Resort.id.in_(_top_wish_ids)).all():
+            _wish_names[_res.id] = _res.name
+    top_wishlisted_resorts = [
+        {"name": _wish_names.get(rid, f"Resort #{rid}"), "count": _wish_ctr[rid]}
+        for rid in _top_wish_ids if rid in _wish_names
+    ]
+    _tw_max = max((r["count"] for r in top_wishlisted_resorts), default=1)
+    for r in top_wishlisted_resorts:
+        r["pct"] = round(r["count"] / _tw_max * 100)
+
+    # ── Group Activity ────────────────────────────────────────────────────────
+    _guest_total    = SkiTripParticipant.query.filter(
+        SkiTripParticipant.role == ParticipantRole.GUEST
+    ).count()
+    _guest_accepted = SkiTripParticipant.query.filter(
+        SkiTripParticipant.role   == ParticipantRole.GUEST,
+        SkiTripParticipant.status == GuestStatus.ACCEPTED,
+    ).count()
+    _trips_with_guests = db.session.query(
+        func.count(func.distinct(SkiTripParticipant.trip_id))
+    ).filter(SkiTripParticipant.role == ParticipantRole.GUEST).scalar() or 0
+
+    trips_with_invites      = _trips_with_guests
+    trips_with_accepted     = db.session.query(
+        func.count(func.distinct(SkiTripParticipant.trip_id))
+    ).filter(
+        SkiTripParticipant.role   == ParticipantRole.GUEST,
+        SkiTripParticipant.status == GuestStatus.ACCEPTED,
+    ).scalar() or 0
+    trip_invite_accept_pct  = round(_guest_accepted / _guest_total * 100) if _guest_total else 0
+    avg_invites_per_trip    = round(_guest_total / _trips_with_guests, 1) if _trips_with_guests else 0
+
+    _accepted_total          = SkiTripParticipant.query.filter(
+        SkiTripParticipant.status == GuestStatus.ACCEPTED
+    ).count()
+    _trips_with_any_accepted = db.session.query(
+        func.count(func.distinct(SkiTripParticipant.trip_id))
+    ).filter(SkiTripParticipant.status == GuestStatus.ACCEPTED).scalar() or 0
+    avg_participants_per_trip = (
+        round(_accepted_total / _trips_with_any_accepted, 1)
+        if _trips_with_any_accepted else 0
+    )
+
+    # Most social resorts (highest total non-owner guest participants)
+    _ms_rows = (
+        db.session.query(Resort.name, func.count(SkiTripParticipant.id).label("cnt"))
+        .join(SkiTrip,  SkiTrip.id    == SkiTripParticipant.trip_id)
+        .join(Resort,   Resort.id     == SkiTrip.resort_id)
+        .filter(
+            SkiTripParticipant.role == ParticipantRole.GUEST,
+            SkiTrip.resort_id.isnot(None),
+        )
+        .group_by(Resort.id, Resort.name)
+        .order_by(func.count(SkiTripParticipant.id).desc())
+        .limit(5).all()
+    )
+    most_social_resorts = [{"name": r.name, "count": r.cnt} for r in _ms_rows]
+    _msr_max = max((r["count"] for r in most_social_resorts), default=1)
+    for r in most_social_resorts:
+        r["pct"] = round(r["count"] / _msr_max * 100)
+
+    # ── Planning Patterns (Python-side date arithmetic, cross-DB safe) ────────
+    _trip_dates_q = db.session.query(
+        SkiTrip.start_date, SkiTrip.end_date,
+        SkiTrip.created_at, SkiTrip.trip_duration,
+    ).filter(SkiTrip.start_date.isnot(None)).all()
+
+    _lengths    = []
+    _lead_times = []
+    _month_ctr2 = _Counter()
+    for _sd, _ed, _cat, _dur in _trip_dates_q:
+        if _sd:
+            _month_ctr2[_sd.month] += 1
+        if _sd and _ed and _ed >= _sd:
+            _lengths.append((_ed - _sd).days)
+        if _sd and _cat:
+            _lead = (_sd - _cat.date()).days
+            if _lead >= 0:
+                _lead_times.append(_lead)
+
+    avg_trip_length  = round(sum(_lengths)    / len(_lengths),    1) if _lengths    else 0
+    avg_lead_time    = round(sum(_lead_times) / len(_lead_times)   ) if _lead_times else 0
+    _MONTH_NAMES     = ["Jan","Feb","Mar","Apr","May","Jun",
+                        "Jul","Aug","Sep","Oct","Nov","Dec"]
+    most_common_month = (
+        _MONTH_NAMES[_month_ctr2.most_common(1)[0][0] - 1] if _month_ctr2 else "—"
+    )
+    _dur_q = (
+        db.session.query(SkiTrip.trip_duration, func.count(SkiTrip.id).label("cnt"))
+        .filter(SkiTrip.trip_duration.isnot(None))
+        .group_by(SkiTrip.trip_duration)
+        .order_by(func.count(SkiTrip.id).desc())
+        .limit(1).all()
+    )
+    _DUR_LABELS = {
+        "day_trip": "Day trip", "one_night": "1 night",
+        "two_nights": "2 nights", "three_plus_nights": "3+ nights",
+    }
+    most_common_duration = (
+        _DUR_LABELS.get(_dur_q[0][0], _dur_q[0][0]) if _dur_q else "—"
+    )
+
+    # ── Operational Tables ────────────────────────────────────────────────────
+    def _fmt_date(d):
+        return d.strftime("%b %d") if d else "—"
+
+    # 1. Upcoming trips
+    _upc_q = (
+        db.session.query(
+            SkiTrip.start_date, SkiTrip.end_date,
+            SkiTrip.trip_status, SkiTrip.mountain,
+            Resort.name.label("resort_name"),
+        )
+        .outerjoin(Resort, Resort.id == SkiTrip.resort_id)
+        .filter(SkiTrip.start_date >= today)
+        .order_by(SkiTrip.start_date.asc())
+        .limit(5).all()
+    )
+    upcoming_trips_table = [
+        {
+            "resort": row.resort_name or row.mountain or "—",
+            "start":  _fmt_date(row.start_date),
+            "end":    _fmt_date(row.end_date),
+            "status": row.trip_status or "planning",
+        }
+        for row in _upc_q
+    ]
+
+    # 2. Highest invite activity
+    _hi_q = (
+        db.session.query(
+            SkiTrip.start_date, SkiTrip.mountain,
+            Resort.name.label("resort_name"),
+            func.count(SkiTripParticipant.id).label("guest_count"),
+        )
+        .join(SkiTripParticipant, SkiTripParticipant.trip_id == SkiTrip.id)
+        .outerjoin(Resort, Resort.id == SkiTrip.resort_id)
+        .filter(SkiTripParticipant.role == ParticipantRole.GUEST)
+        .group_by(SkiTrip.id, SkiTrip.start_date, SkiTrip.mountain, Resort.name)
+        .order_by(func.count(SkiTripParticipant.id).desc())
+        .limit(5).all()
+    )
+    high_invite_trips = [
+        {
+            "resort": row.resort_name or row.mountain or "—",
+            "start":  _fmt_date(row.start_date),
+            "guests": row.guest_count,
+        }
+        for row in _hi_q
+    ]
+
+    # 3. Recently created trips
+    _rec_q = (
+        db.session.query(
+            SkiTrip.created_at, SkiTrip.trip_status, SkiTrip.mountain,
+            Resort.name.label("resort_name"),
+        )
+        .outerjoin(Resort, Resort.id == SkiTrip.resort_id)
+        .order_by(SkiTrip.created_at.desc())
+        .limit(5).all()
+    )
+    recent_trips_table = [
+        {
+            "resort":  row.resort_name or row.mountain or "—",
+            "created": _fmt_date(row.created_at),
+            "status":  row.trip_status or "planning",
+        }
+        for row in _rec_q
+    ]
 
     # ── Opt-in rates ─────────────────────────────────────────────────────────
     push_opt_in  = User.query.filter_by(push_notifications_enabled=True).count()
@@ -15015,6 +15227,29 @@ def admin_dashboard():
         # Geography
         state_breakdown    = state_breakdown,
         total_geo_users    = total_geo_users,
+        # Trips — core extras
+        upcoming_trips     = upcoming_trips,
+        past_trips         = past_trips,
+        # Trips — Destination Intelligence
+        top_planned_resorts      = top_planned_resorts,
+        trending_resorts_month   = trending_resorts_month,
+        top_wishlisted_resorts   = top_wishlisted_resorts,
+        # Trips — Group Activity
+        trips_with_invites       = trips_with_invites,
+        trips_with_accepted      = trips_with_accepted,
+        trip_invite_accept_pct   = trip_invite_accept_pct,
+        avg_invites_per_trip     = avg_invites_per_trip,
+        avg_participants_per_trip= avg_participants_per_trip,
+        most_social_resorts      = most_social_resorts,
+        # Trips — Planning Patterns
+        avg_trip_length      = avg_trip_length,
+        avg_lead_time        = avg_lead_time,
+        most_common_month    = most_common_month,
+        most_common_duration = most_common_duration,
+        # Trips — Operational Tables
+        upcoming_trips_table = upcoming_trips_table,
+        high_invite_trips    = high_invite_trips,
+        recent_trips_table   = recent_trips_table,
     )
 
 
