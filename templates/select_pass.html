@@ -9,24 +9,6 @@
     margin: 0 auto;
     padding: 24px 20px 32px;
 }
-.sp-back {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--bl-color-text-muted);
-    text-decoration: none;
-    font-size: 14px;
-    margin-bottom: 24px;
-}
-.sp-back:hover { color: var(--bl-color-text); }
-.sp-title {
-    font-family: var(--bl-font-serif);
-    font-size: 26px;
-    font-weight: 500;
-    color: var(--bl-color-text);
-    margin-bottom: 6px;
-    line-height: 1.25;
-}
 .sp-subtitle {
     font-size: 14px;
     color: var(--bl-color-text-muted);
@@ -97,6 +79,23 @@
 }
 .sp-check-svg { display: none; }
 .sp-pill.sel .sp-check-svg { display: block; }
+.sp-more-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: var(--bl-color-text-muted);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 6px 0 14px;
+}
+.sp-more-toggle:hover { color: var(--bl-color-text); }
+.sp-more-toggle svg { transition: transform 0.2s; }
+.sp-more-toggle.open svg { transform: rotate(180deg); }
+.sp-more-section { display: none; }
+.sp-more-section.open { display: block; }
 .sp-save-wrap {
     margin-top: 28px;
 }
@@ -132,14 +131,13 @@
     <form method="POST" id="spForm">
         <input type="hidden" name="pass_type" id="sp-pass-hidden" value="">
 
-        {# Normalize legacy pass values to MVP before checking selection state #}
-        {% set _legacy_map = {'freedom': 'other', 'indy': 'other', 'mountain_collective': 'other', 'powder_alliance': 'other', 'ski_california': 'other'} %}
         {% set current_passes = [] %}
         {% for p in (current_user.pass_type or '').split(',') | map('trim') | list %}
-          {% set _np = _legacy_map.get(p, p) %}
+          {% set _np = p | normalize_pass %}
           {% if _np and _np not in current_passes %}{% set _ = current_passes.append(_np) %}{% endif %}
         {% endfor %}
 
+        {# Exclusive group #}
         <button type="button" class="sp-pill {% if 'no_pass' in current_passes %}sel{% endif %}"
                 data-val="no_pass" data-exclusive="1" onclick="spToggle(this)">
             No pass
@@ -153,6 +151,7 @@
 
         <div class="sp-divider"></div>
 
+        {# Main pass group: national + regional with resort coverage #}
         <button type="button" class="sp-pill {% if 'epic' in current_passes %}sel{% endif %}"
                 data-val="epic" onclick="spToggle(this)">
             Epic
@@ -163,11 +162,45 @@
             Ikon
             <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </button>
-        <button type="button" class="sp-pill {% if 'other' in current_passes %}sel{% endif %}"
-                data-val="other" onclick="spToggle(this)">
-            Other pass
+        <button type="button" class="sp-pill {% if 'indy' in current_passes %}sel{% endif %}"
+                data-val="indy" onclick="spToggle(this)">
+            Indy
             <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </button>
+        <button type="button" class="sp-pill {% if 'mountain_collective' in current_passes %}sel{% endif %}"
+                data-val="mountain_collective" onclick="spToggle(this)">
+            Mountain Collective
+            <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+
+        {# More passes toggle #}
+        {% set _has_more = ('powder_alliance' in current_passes or 'freedom' in current_passes or 'ski_california' in current_passes or 'other' in current_passes) %}
+        <button type="button" class="sp-more-toggle {% if _has_more %}open{% endif %}" id="sp-more-toggle" onclick="spToggleMore()">
+            More passes
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="sp-more-section {% if _has_more %}open{% endif %}" id="sp-more-section">
+            <button type="button" class="sp-pill {% if 'powder_alliance' in current_passes %}sel{% endif %}"
+                    data-val="powder_alliance" onclick="spToggle(this)">
+                Powder Alliance
+                <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </button>
+            <button type="button" class="sp-pill {% if 'freedom' in current_passes %}sel{% endif %}"
+                    data-val="freedom" onclick="spToggle(this)">
+                Freedom Pass
+                <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </button>
+            <button type="button" class="sp-pill {% if 'ski_california' in current_passes %}sel{% endif %}"
+                    data-val="ski_california" onclick="spToggle(this)">
+                Ski California
+                <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </button>
+            <button type="button" class="sp-pill {% if 'other' in current_passes %}sel{% endif %}"
+                    data-val="other" onclick="spToggle(this)">
+                Other pass
+                <span class="sp-check"><svg class="sp-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </button>
+        </div>
 
         <div class="sp-save-wrap">
             <button type="submit" class="sp-save-btn" id="sp-save" disabled>Save</button>
@@ -181,12 +214,8 @@
 <script>
 (function() {
     var PASS_REAL_MAX = 3;
-    var _LEGACY_TO_MVP = {freedom:'other',indy:'other',mountain_collective:'other',powder_alliance:'other',ski_california:'other'};
     var selected = new Set(
-        ({{ (current_user.pass_type or '') | tojson }}).split(',').map(function(s){
-            s = s.trim();
-            return _LEGACY_TO_MVP[s] || s;
-        }).filter(Boolean)
+        ({{ (current_user.pass_type or '') | tojson }}).split(',').map(function(s){ return s.trim(); }).filter(Boolean)
     );
 
     function countReal() {
@@ -235,6 +264,13 @@
         }
         syncHidden();
         updateCap();
+    };
+
+    window.spToggleMore = function() {
+        var toggle = document.getElementById('sp-more-toggle');
+        var section = document.getElementById('sp-more-section');
+        toggle.classList.toggle('open');
+        section.classList.toggle('open');
     };
 
     syncHidden();

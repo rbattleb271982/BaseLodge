@@ -1673,6 +1673,80 @@ def run_trip_invite_token_migration():
 run_trip_invite_token_migration()
 
 
+def run_pass_system_expansion_migration():
+    """
+    Full ski pass system expansion (May 2026).
+
+    Three idempotent operations:
+    1. Widen ski_trip.pass_type column to VARCHAR(100) to safely hold
+       multi-pass comma-separated strings (was VARCHAR(50)).
+    2. Normalize two known wrong-case user pass values:
+         'Epic'     → 'epic'
+         'Not Sure' → 'no_pass_yet'
+    3. Backfill ResortPass rows for Indy and MountainCollective resorts
+       that have those values in Resort.pass_brands but only have an
+       'Other' ResortPass row (or none). Inserts are skipped if a row
+       for that resort_id / pass_name already exists.
+    """
+    try:
+        with app.app_context():
+            conn = db.engine.connect()
+            trans = conn.begin()
+            try:
+                # 1. Widen ski_trip.pass_type
+                conn.execute(db.text(
+                    "ALTER TABLE ski_trip "
+                    "ALTER COLUMN pass_type TYPE VARCHAR(100)"
+                ))
+
+                # 2. Normalize bad-case user pass_type values
+                conn.execute(db.text(
+                    "UPDATE \"user\" SET pass_type = 'epic' "
+                    "WHERE pass_type = 'Epic'"
+                ))
+                conn.execute(db.text(
+                    "UPDATE \"user\" SET pass_type = 'no_pass_yet' "
+                    "WHERE pass_type = 'Not Sure'"
+                ))
+
+                # 3a. Backfill Indy ResortPass rows
+                conn.execute(db.text("""
+                    INSERT INTO resort_pass (resort_id, pass_name, is_primary, created_at)
+                    SELECT r.id, 'Indy', FALSE, NOW()
+                    FROM resort r
+                    WHERE r.pass_brands LIKE '%Indy%'
+                      AND NOT EXISTS (
+                          SELECT 1 FROM resort_pass rp
+                          WHERE rp.resort_id = r.id AND rp.pass_name = 'Indy'
+                      )
+                """))
+
+                # 3b. Backfill MountainCollective ResortPass rows
+                conn.execute(db.text("""
+                    INSERT INTO resort_pass (resort_id, pass_name, is_primary, created_at)
+                    SELECT r.id, 'MountainCollective', FALSE, NOW()
+                    FROM resort r
+                    WHERE r.pass_brands LIKE '%MountainCollective%'
+                      AND NOT EXISTS (
+                          SELECT 1 FROM resort_pass rp
+                          WHERE rp.resort_id = r.id AND rp.pass_name = 'MountainCollective'
+                      )
+                """))
+
+                trans.commit()
+                print("pass_system_expansion_migration: complete.")
+            except Exception as inner_e:
+                trans.rollback()
+                print(f"pass_system_expansion_migration inner error (rolled back): {inner_e}")
+            finally:
+                conn.close()
+    except Exception as e:
+        print(f"pass_system_expansion_migration: skipped ({e})")
+
+
+run_pass_system_expansion_migration()
+
+
 # ============================================================================
 # RESORT DISAMBIGUATION — compute once at startup, no N+1 in requests
 # ============================================================================
@@ -2186,6 +2260,11 @@ CANONICAL_PASSES = [
     "no_pass_yet",
     "epic",
     "ikon",
+    "indy",
+    "mountain_collective",
+    "powder_alliance",
+    "freedom",
+    "ski_california",
     "other",
 ]
 
@@ -2194,6 +2273,11 @@ def get_sorted_passes():
     return [
         "epic",
         "ikon",
+        "indy",
+        "mountain_collective",
+        "powder_alliance",
+        "freedom",
+        "ski_california",
         "other",
         "no_pass",
         "no_pass_yet",
@@ -3608,10 +3692,10 @@ def trip_ideas():
 def _ideas_normalize_pass(pt):
     """
     Short real-pass display for Ideas screens.
-    Skips no_pass, no_pass_yet, and other non-real-pass values.
-    Returns the display label for the first real pass found.
+    Skips no_pass and no_pass_yet. Returns the display label for the first
+    real pass found (including indy, mountain_collective, other, etc.).
     """
-    _NON_REAL = frozenset({"no_pass", "no_pass_yet", "other", None, ""})
+    _NON_REAL = frozenset({"no_pass", "no_pass_yet", None, ""})
     if not pt:
         return ""
     for part in str(pt).split(","):
@@ -3638,8 +3722,10 @@ def normalize_pass_family(pass_type):
     """
     Map a user's pass_type to its primary real-pass display name for mountain rows.
     Returns 'No pass' when no real pass is found.
+    Includes all real passes: epic, ikon, indy, mountain_collective, powder_alliance,
+    freedom, ski_california, other.
     """
-    _NON_REAL = frozenset({"no_pass", "no_pass_yet", "other", None, ""})
+    _NON_REAL = frozenset({"no_pass", "no_pass_yet", None, ""})
     if not pass_type:
         return "No pass"
     for part in str(pass_type).split(","):
@@ -11830,7 +11916,7 @@ def backfill_pass_brands(force):
             # Priority 3: Indy
             elif resort.name in INDY_RESORT_NAMES:
                 new_pass_brands = "Indy"
-                resort.brand = "Other"
+                resort.brand = "Indy"
 
             # Priority 4: Existing Ikon (default)
             elif resort.brand == "Ikon":

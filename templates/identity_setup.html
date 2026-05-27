@@ -221,6 +221,21 @@
             cursor: not-allowed;
         }
 
+        /* "More passes" expandable toggle in pass step */
+        .ob-more-toggle {
+            background: none;
+            border: none;
+            color: #9A8F82;
+            font-size: 13px;
+            font-family: inherit;
+            cursor: pointer;
+            padding: 6px 0 4px;
+            flex-shrink: 0;
+            width: 100%;
+            text-align: left;
+        }
+        .ob-more-toggle:hover { color: #3A3025; }
+
         /* Location select wrapper */
         .ob-sel-wrap {
             position: relative;
@@ -502,12 +517,20 @@
                         </div>
                         <div class="ob-options">
                             <p class="ob-pass-cap-hint" id="pass-cap-hint">You can select up to 3 passes.</p>
-                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass"             data-target="h-pass">No pass</button>
-                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass_yet"         data-target="h-pass">Not sure yet</button>
+                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass"            data-target="h-pass">No pass</button>
+                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass_yet"        data-target="h-pass">Not sure yet</button>
                             <div class="ob-divider"></div>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="epic"               data-target="h-pass">Epic</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="ikon"               data-target="h-pass">Ikon</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="other"              data-target="h-pass">Other pass</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="epic"              data-target="h-pass">Epic</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="ikon"              data-target="h-pass">Ikon</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="indy"              data-target="h-pass">Indy</button>
+                            <button type="button" class="ob-pill" data-grp="pass" data-val="mountain_collective" data-target="h-pass">Mountain Collective</button>
+                            <button type="button" class="ob-more-toggle" id="ob-pass-more-toggle" onclick="obToggleMorePasses()">More passes <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="vertical-align:middle;margin-left:3px"><path d="M1.5 3.5L5.5 7.5L9.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                            <div id="ob-pass-more-section" style="display:none">
+                                <button type="button" class="ob-pill" data-grp="pass" data-val="powder_alliance" data-target="h-pass">Powder Alliance</button>
+                                <button type="button" class="ob-pill" data-grp="pass" data-val="freedom"         data-target="h-pass">Freedom Pass</button>
+                                <button type="button" class="ob-pill" data-grp="pass" data-val="ski_california"  data-target="h-pass">Ski California</button>
+                                <button type="button" class="ob-pill" data-grp="pass" data-val="other"           data-target="h-pass">Other pass</button>
+                            </div>
                         </div>
                         <div class="ob-footer">
                             <button type="button" class="ob-btn" id="cta-3" disabled onclick="goNext(3)">Continue</button>
@@ -588,7 +611,15 @@
 
     /* rider is multi-select (unlimited); pass is multi-select with 3-cap on real passes */
     var PASS_REAL_MAX = 3;
-    var OB_PASS_EXCLUSIVE = ['no_pass', 'no_pass_yet', 'other'];
+    var OB_PASS_EXCLUSIVE = ['no_pass', 'no_pass_yet'];
+
+    function obToggleMorePasses() {
+        var section = document.getElementById('ob-pass-more-section');
+        var toggle  = document.getElementById('ob-pass-more-toggle');
+        var open = section.style.display === 'block';
+        section.style.display = open ? 'none' : 'block';
+        toggle.style.color = open ? '' : 'var(--ob-text)';
+    }
 
     function obPassRealCount() {
         var n = 0;

@@ -96,6 +96,18 @@
             color: #fff;
             border-color: #5C1219;
         }
+        .ep-more-toggle {
+            background: none;
+            border: none;
+            color: #9A8F82;
+            font-size: 13px;
+            font-family: inherit;
+            cursor: pointer;
+            padding: 4px 0 2px;
+            width: 100%;
+            text-align: left;
+        }
+        .ep-more-toggle:hover { color: #3A3025; }
         .ep-floating-save {
             position: fixed;
             bottom: calc(64px + env(safe-area-inset-bottom, 0px));
@@ -238,16 +250,58 @@
             <p class="ep-section-label">Pass</p>
             <p class="ep-field-hint" style="margin-bottom:8px;">Select up to 3 passes</p>
             <p class="ep-field-hint" id="pass-cap-hint" style="margin-bottom:12px;display:none;color:#9A8F82;">You've reached the 3-pass limit.</p>
+            {% set user_passes = (current_user.pass_type or '').split(',') | map('trim') | list %}
             <div class="ep-pills" id="pass-pills">
-                {% set user_passes = current_user.pass_type.split(',') if current_user.pass_type else [] %}
-                {% for pass in pass_options %}
+                {# Exclusive group #}
                 <button type="button"
-                        class="ep-pill {% if pass in user_passes %}selected{% endif %}"
-                        data-value="{{ pass }}"
-                        onclick="togglePassPill(this)">
-                    {{ pass | pass_display }}
+                        class="ep-pill {% if 'no_pass' in user_passes %}selected{% endif %}"
+                        data-value="no_pass" data-exclusive="1"
+                        onclick="togglePassPill(this)">No pass</button>
+                <button type="button"
+                        class="ep-pill {% if 'no_pass_yet' in user_passes %}selected{% endif %}"
+                        data-value="no_pass_yet" data-exclusive="1"
+                        onclick="togglePassPill(this)">Not sure yet</button>
+                {# Main pass group #}
+                <button type="button"
+                        class="ep-pill {% if 'epic' in user_passes %}selected{% endif %}"
+                        data-value="epic"
+                        onclick="togglePassPill(this)">Epic</button>
+                <button type="button"
+                        class="ep-pill {% if 'ikon' in user_passes %}selected{% endif %}"
+                        data-value="ikon"
+                        onclick="togglePassPill(this)">Ikon</button>
+                <button type="button"
+                        class="ep-pill {% if 'indy' in user_passes %}selected{% endif %}"
+                        data-value="indy"
+                        onclick="togglePassPill(this)">Indy</button>
+                <button type="button"
+                        class="ep-pill {% if 'mountain_collective' in user_passes %}selected{% endif %}"
+                        data-value="mountain_collective"
+                        onclick="togglePassPill(this)">Mountain Collective</button>
+                {# More passes expandable #}
+                {% set _has_more_ep = ('powder_alliance' in user_passes or 'freedom' in user_passes or 'ski_california' in user_passes or 'other' in user_passes) %}
+                <button type="button" class="ep-more-toggle {% if _has_more_ep %}open{% endif %}" id="ep-pass-more-toggle" onclick="epToggleMorePasses()">
+                    More passes
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="vertical-align:middle;margin-left:3px;transition:transform 0.2s"><path d="M1.5 3.5L5.5 7.5L9.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
-                {% endfor %}
+                <div id="ep-pass-more-section" style="display:{% if _has_more_ep %}block{% else %}none{% endif %}">
+                    <button type="button"
+                            class="ep-pill {% if 'powder_alliance' in user_passes %}selected{% endif %}"
+                            data-value="powder_alliance"
+                            onclick="togglePassPill(this)">Powder Alliance</button>
+                    <button type="button"
+                            class="ep-pill {% if 'freedom' in user_passes %}selected{% endif %}"
+                            data-value="freedom"
+                            onclick="togglePassPill(this)">Freedom Pass</button>
+                    <button type="button"
+                            class="ep-pill {% if 'ski_california' in user_passes %}selected{% endif %}"
+                            data-value="ski_california"
+                            onclick="togglePassPill(this)">Ski California</button>
+                    <button type="button"
+                            class="ep-pill {% if 'other' in user_passes %}selected{% endif %}"
+                            data-value="other"
+                            onclick="togglePassPill(this)">Other pass</button>
+                </div>
             </div>
 
             <div class="ep-field" style="margin-top: 20px; border-top: 1px solid #E5DFD0; padding-top: 20px;">
@@ -368,8 +422,8 @@
         markDirty();
     }
 
-    // ── Pass pills (exclusive: no_pass / no_pass_yet / other vs real passes, max 3 real) ─
-    const EXCLUSIVE_PASSES = new Set(["no_pass", "no_pass_yet", "other"]);
+    // ── Pass pills (exclusive: no_pass / no_pass_yet only; all others are real and combinable) ─
+    const EXCLUSIVE_PASSES = new Set(["no_pass", "no_pass_yet"]);
     const PASS_REAL_MAX = 3;
     let passSelected = new Set(
         (document.getElementById('pass_type_hidden').value || '').split(',').filter(Boolean)
@@ -382,7 +436,7 @@
     function updatePassCap() {
         const atCap = countRealPasses() >= PASS_REAL_MAX;
         document.querySelectorAll('#pass-pills .ep-pill').forEach(p => {
-            const isExcl = EXCLUSIVE_PASSES.has(p.dataset.value);
+            const isExcl = !!p.dataset.exclusive;
             const isSel  = passSelected.has(p.dataset.value);
             if (!isExcl && !isSel) {
                 p.disabled = atCap;
@@ -400,11 +454,12 @@
 
     function togglePassPill(pill) {
         const val = pill.dataset.value;
+        const isExcl = !!pill.dataset.exclusive;
         if (passSelected.has(val)) {
             passSelected.delete(val);
             pill.classList.remove('selected');
         } else {
-            if (EXCLUSIVE_PASSES.has(val)) {
+            if (isExcl) {
                 passSelected.clear();
                 document.querySelectorAll('#pass-pills .ep-pill').forEach(p => {
                     p.classList.remove('selected');
@@ -427,6 +482,16 @@
         document.getElementById('pass_type_hidden').value = Array.from(passSelected).join(',');
         updatePassCap();
         markDirty();
+    }
+
+    function epToggleMorePasses() {
+        const section = document.getElementById('ep-pass-more-section');
+        const toggle  = document.getElementById('ep-pass-more-toggle');
+        const open = section.style.display === 'block';
+        section.style.display = open ? 'none' : 'block';
+        toggle.classList.toggle('open', !open);
+        const svg = toggle.querySelector('svg');
+        if (svg) svg.style.transform = open ? '' : 'rotate(180deg)';
     }
 
     updatePassCap();

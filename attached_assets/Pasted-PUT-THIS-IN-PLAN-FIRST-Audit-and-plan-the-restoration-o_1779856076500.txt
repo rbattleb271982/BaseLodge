@@ -1,0 +1,114 @@
+PUT THIS IN PLAN FIRST
+
+Audit and plan the restoration of the full ski pass system across BaseLodge.
+
+Current state:
+The app currently uses an MVP 5-pass model:
+- no_pass
+- no_pass_yet
+- epic
+- ikon
+- other
+
+Legacy passes like:
+- Indy Pass
+- Mountain Collective
+- Powder Alliance
+- Freedom Pass
+- Ski California
+etc.
+
+were collapsed into “other” via normalize_pass_selection() and LEGACY_TO_MVP mappings.
+
+We now want to restore the full pass ecosystem properly.
+
+This is NOT a simple UI change.
+Do not make code changes yet.
+
+Audit requirements
+
+1. Recoverability
+- Determine whether the old full pass list still exists anywhere in the codebase, constants, templates, commits, seed files, or resort mappings.
+- Identify every previously-supported pass.
+
+2. Resort/mountain relationships
+- Audit how resorts currently map to pass ownership.
+- Determine whether mappings still exist for:
+  - Indy
+  - Mountain Collective
+  - Powder Alliance
+  - Freedom
+  - Ski California
+  - regional passes
+  - partner passes
+- Determine whether current resort pass logic can support multiple pass affiliations per resort.
+
+3. Current normalization damage
+- Audit what happens today when a user selects a legacy pass.
+- Determine:
+  - whether original specificity is lost permanently
+  - whether old users still retain raw legacy values anywhere
+  - whether all legacy users were collapsed into “other”
+- Identify whether restoration requires a migration or only future-facing changes.
+
+4. User model implications
+- Audit whether user.pass_type currently supports:
+  - single value
+  - multi-select
+  - arrays/json
+- Determine safest architecture for supporting multiple passes again.
+
+5. Existing UI surfaces affected
+Inspect:
+- onboarding
+- profile editing
+- pass selection page
+- profile header
+- friend cards
+- friend profile
+- mountains filters
+- ideas engine
+- trip planning
+- admin analytics
+- any “shared pass” logic
+
+6. Matching/intelligence implications
+Determine how the full pass model should affect:
+- friend overlap suggestions
+- mountain recommendations
+- trip ideas
+- pass compatibility
+- destination filtering
+
+7. UX recommendation
+Recommend:
+- full pass taxonomy
+- grouped layout strategy
+- whether “No pass” and “Not sure yet” remain mutually exclusive
+- whether regional passes belong in expandable sections
+- mobile-first presentation
+
+8. Migration strategy
+Recommend safest rollout:
+- preserve current users
+- avoid breaking “other”
+- support future specificity
+- minimize schema risk
+
+Deliverables
+Return:
+- current architecture summary
+- affected files/models/routes/templates
+- whether full restoration is feasible without major rewrites
+- recommended canonical pass model
+- migration strategy
+- implementation phases
+- risks/edge cases
+
+Important:
+Do NOT implement yet.
+Do NOT partially restore passes.
+We want a coherent long-term pass system, not another temporary patch.
+
+Use checkpoints sparingly.
+Do not finish until the full pass ecosystem has been inspected end-to-end.

@@ -1,0 +1,1 @@
+- [Full pass system expansion](pass-system-expansion.md) — canonical slugs now include indy/mountain_collective/powder_alliance/freedom/ski_california; no LEGACY_TO_MVP collapse; resort backfill done.
