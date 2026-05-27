@@ -65,7 +65,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
 from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog
-from services.open_dates import get_open_date_matches
+from services.open_dates import get_open_date_matches, get_available_dates_for_user
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
 from services.message_events import create_message_event, is_duplicate_event, should_retry
 from services.messaging_constants import (
@@ -6495,15 +6495,17 @@ def friend_profile(friend_id):
                     can_ski_user_trips = True
                     break
     
-    # Get friend's open dates from JSON field (filter to future dates only)
-    friend_open_dates_raw = friend.open_dates or []
-    friend_open_dates = sorted([d for d in friend_open_dates_raw if d >= today_str])
+    # Get friend's available dates via canonical resolver (UserAvailability first,
+    # falls back to legacy open_dates JSON). Returns a set of YYYY-MM-DD strings,
+    # already filtered to today and future dates.
+    friend_open_dates_set = get_available_dates_for_user(friend)
+    friend_open_dates = sorted(friend_open_dates_set)
     friend_open_dates_display = format_open_dates_summary(friend_open_dates) if friend_open_dates else None
-    
-    # Compute availability overlaps
-    user_open_dates_raw = user.open_dates or []
-    user_open_dates = sorted([d for d in user_open_dates_raw if d >= today_str])
-    
+
+    # Get current user's available dates via the same canonical resolver.
+    user_open_dates_set = get_available_dates_for_user(user)
+    user_open_dates = sorted(user_open_dates_set)
+
     availability_overlaps = compute_availability_overlaps(user_open_dates, friend_open_dates)
     availability_display, availability_remaining = format_availability_ranges(availability_overlaps)
     
@@ -7149,7 +7151,7 @@ def format_availability_ranges(ranges):
         return None, 0
     
     formatted = []
-    for r in ranges[:2]:  # Only display first 2
+    for r in ranges[:3]:  # Only display first 3
         start_str = r["start_date"].strftime('%b %d').replace(' 0', ' ')
         end_str = r["end_date"].strftime('%d').lstrip('0')
         
@@ -7160,7 +7162,7 @@ def format_availability_ranges(ranges):
             end_full = r["end_date"].strftime('%b %d').replace(' 0', ' ')
             formatted.append(f"{start_str}–{end_full}")
     
-    remaining_count = max(0, len(ranges) - 2)
+    remaining_count = max(0, len(ranges) - 3)
     return ' · '.join(formatted), remaining_count
 
 def build_trip_overlap_today_card(user, today, friend_ids):
