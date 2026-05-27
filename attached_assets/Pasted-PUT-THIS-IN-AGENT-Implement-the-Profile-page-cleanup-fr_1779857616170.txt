@@ -1,0 +1,63 @@
+PUT THIS IN AGENT
+
+Implement the Profile page cleanup from the audit.
+
+Goal:
+Make the Profile page match the newer Home identity structure and remove redundant words/information.
+
+Use the audit as the source of truth.
+
+Key changes:
+
+1. Profile top should mimic Home identity structure
+- Replace the current inline identity summary and old profile stat row with a compact identity card.
+- Use stacked identity metadata like Home:
+  - Rider type(s)
+  - Skill level
+  - Pass
+  - Gear CTA or gear summary
+- No icons.
+- Keep it compact.
+
+2. Move shared Home card CSS
+- Move the reusable .hc-* identity/stat card classes from templates/home.html into static/styles.css.
+- Do not move home-specific classes.
+- Home should render exactly the same after this move.
+
+3. Profile stats should appear once
+- Replace the old .prof-stat-row with the shared .hc-stat-band style.
+- Use:
+  - Upcoming Trips
+  - Mountains Visited
+  - Wishlist Mountains
+- Fix Profile route if needed so “Upcoming Trips” uses upcoming trips only, not all-time trips.
+
+4. Clean redundant row subtitles
+- “Profile details” should not repeat rider type / skill / pass.
+  Use a static descriptor like:
+  “Riding preferences, home mountain, terrain”
+- “Gear” can keep its gear summary because that is useful context.
+- “Mountains visited” should not repeat the count.
+- “Wish list” should not repeat the count.
+
+5. Remove dead CSS
+- Remove unused .prof-stat-* styles after the old stat row is removed.
+
+Do not change:
+- backend profile data model
+- rider type logic
+- pass logic
+- gear routes
+- mountain/wishlist routes
+- account settings behavior
+
+Verify:
+1. Home still looks unchanged.
+2. Profile top now visually matches Home’s structure, minus the Home white-card context if appropriate.
+3. No repeated rider/skill/pass sentence appears below the identity area.
+4. Mountains and wishlist counts appear only in the stat band.
+5. “Gear” label appears correctly.
+6. Mobile layout stays compact and readable.
+
+Use checkpoints sparingly.
+Do not finish until verified on mobile width.

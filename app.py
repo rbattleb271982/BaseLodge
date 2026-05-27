@@ -8233,8 +8233,7 @@ def profile():
     wish_list_count = len(wish_list_ids)
     wish_list_resorts = Resort.query.filter(Resort.id.in_(wish_list_ids)).all() if wish_list_ids else []
 
-    # Total trips (all, not just upcoming) — owned by user
-    all_trips_count = SkiTrip.query.filter_by(user_id=current_user.id).count()
+    upcoming_trips_count = get_upcoming_trip_count(current_user)
 
     if app.debug:
         print(f"[ROUTE_PERF] route=profile total={time.perf_counter()-_rp_t0:.4f}s")
@@ -8245,7 +8244,8 @@ def profile():
                            equipment_summary=equipment_summary,
                            wish_list_count=wish_list_count,
                            wish_list_resorts=wish_list_resorts,
-                           all_trips_count=all_trips_count)
+                           upcoming_trips_count=upcoming_trips_count,
+                           primary_equipment=primary_equipment)
 
 @app.route("/notifications")
 @login_required
