@@ -997,52 +997,6 @@
             margin: 3px 0 0 22px;
         }
 
-        /* ── Availability strip (Home — always visible when user has dates) ── */
-        .bl-avail-strip {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 11px 14px 12px;
-            background: var(--bl-color-surface, #ffffff);
-            border: 1px solid var(--bl-color-border-soft);
-            border-left: 3px solid var(--bl-color-primary);
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .bl-avail-strip--empty {
-            border-left-color: var(--bl-color-border-soft);
-            background: transparent;
-        }
-        .bl-avail-strip-body { flex: 1; min-width: 0; }
-        .bl-avail-strip-label {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.07em;
-            text-transform: uppercase;
-            color: var(--bl-color-primary);
-            margin: 0 0 7px 0;
-            line-height: 1;
-        }
-        .bl-avail-strip-label--muted {
-            color: var(--bl-color-text-muted);
-        }
-        .bl-avail-strip-nudge {
-            font-size: 14px;
-            color: var(--bl-color-text-muted);
-            margin: 0;
-            line-height: 1.5;
-        }
-        .bl-avail-strip-edit {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--bl-color-primary);
-            text-decoration: none;
-            flex-shrink: 0;
-            padding: 1px 0;
-            white-space: nowrap;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .bl-avail-strip-edit:active { opacity: 0.7; }
     </style>
 {% endblock %}
 
@@ -1131,37 +1085,6 @@
 
         {# ── Smart action pills ── #}
         {% include 'partials/home/_section_pills.html' %}
-
-        {# ── Availability strip ── always visible; shows dates or nudge ── #}
-        {% if has_availability %}
-        <div class="bl-avail-strip">
-            <div class="bl-avail-strip-body">
-                <p class="bl-avail-strip-label">You're free</p>
-                <div class="bl-avail-range-list" style="margin-bottom:0">
-                    {% for rng in user_avail_ranges %}
-                    <div class="bl-avail-range-row">
-                        <span class="bl-avail-range-icon" aria-hidden="true">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                        </span>
-                        <span class="bl-avail-range-text">{{ rng.display }}</span>
-                    </div>
-                    {% endfor %}
-                    {% if user_avail_overflow > 0 %}
-                    <p class="bl-avail-overflow" style="margin-top:2px">+ {{ user_avail_overflow }} more date{{ 's' if user_avail_overflow != 1 else '' }}</p>
-                    {% endif %}
-                </div>
-            </div>
-            <a href="{{ url_for('add_open_dates') }}" class="bl-avail-strip-edit">Edit →</a>
-        </div>
-        {% elif show_add_dates %}
-        <div class="bl-avail-strip bl-avail-strip--empty">
-            <div class="bl-avail-strip-body">
-                <p class="bl-avail-strip-label bl-avail-strip-label--muted">Availability</p>
-                <p class="bl-avail-strip-nudge">Add free dates to unlock trip ideas and friend overlaps.</p>
-            </div>
-            <a href="{{ url_for('add_open_dates') }}" class="bl-avail-strip-edit">Add →</a>
-        </div>
-        {% endif %}
 
         {# ── Requests (pending trip invites + connect invites) ── #}
         {% if requests_count > 0 %}
