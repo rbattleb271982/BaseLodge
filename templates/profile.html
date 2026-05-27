@@ -171,8 +171,7 @@
 {% block content %}
     <div class="page-container">
 
-        {% set rider_types = current_user.rider_types or [] %}
-        {% set rider_label = (rider_types[0] if rider_types else '') | replace(',', ', ') %}
+        {% set rider_label = current_user.display_rider_type or '' %}
         {% set ctx_parts = [] %}
         {% if rider_label %}{% set _ = ctx_parts.append(rider_label) %}{% endif %}
         {% if current_user.skill_level %}{% set _ = ctx_parts.append(current_user.skill_level | capitalize) %}{% endif %}
@@ -180,13 +179,13 @@
 
         <!-- Identity summary line -->
         {% set id_parts = [] %}
-        {% if current_user.rider_types %}{% set _ = id_parts.append(current_user.rider_types[0] | rider_display) %}{% endif %}
+        {% if current_user.display_rider_type %}{% set _ = id_parts.append(current_user.display_rider_type | rider_display) %}{% endif %}
         {% if current_user.skill_level and not (current_user.rider_types == ['Social']) %}{% set _ = id_parts.append(current_user.skill_level) %}{% endif %}
         {% if current_user.pass_type %}{% set _ = id_parts.append(current_user.pass_type | pass_display) %}{% endif %}
         {% if id_parts %}
         <p style="font-size:14px; margin:0 0 0 0; line-height:1.6;">
-            {%- if current_user.rider_types -%}
-            <a href="{{ url_for('edit_profile') }}" class="prof-meta-link">{{ current_user.rider_types[0] | rider_display }}</a>
+            {%- if current_user.display_rider_type -%}
+            <a href="{{ url_for('edit_profile') }}" class="prof-meta-link">{{ current_user.display_rider_type | rider_display }}</a>
             {%- endif -%}
             {%- if current_user.skill_level and not (current_user.rider_types == ['Social']) -%}
             {%- if current_user.rider_types %}<span style="color:var(--bl-color-text-muted);"> · </span>{% endif -%}

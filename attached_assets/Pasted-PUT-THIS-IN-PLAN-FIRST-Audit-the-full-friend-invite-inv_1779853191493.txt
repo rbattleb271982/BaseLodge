@@ -1,0 +1,82 @@
+PUT THIS IN PLAN FIRST
+
+Audit the full friend invite + invite acceptance system across native app and mobile web flows.
+
+Current issue:
+We are seeing inconsistent behavior between web and app invite flows. Example:
+- User A and User B are already connected on web
+- A new invite is sent again
+- One side may have been logged out or forced through signup again
+- Invite acceptance states may diverge between native app and mobile web
+
+This system needs a full state-flow audit before making changes.
+
+Please map the COMPLETE invite lifecycle across all environments.
+
+Scenarios to audit
+
+1. Existing app user invites someone who does NOT have the app
+2. Existing app user invites someone who already has the app
+3. Mobile web user invites someone who does NOT have the app
+4. Mobile web user invites someone who already has the app
+5. Recipient opens invite link while:
+   - logged out
+   - logged in
+   - logged into the wrong account
+   - partially onboarded
+6. Recipient installs app AFTER clicking invite
+7. Recipient accepts invite on web after invite originated from app
+8. Existing friends receiving duplicate invites
+9. What happens when:
+   - friendship already exists
+   - invite token already consumed
+   - invite token reused
+   - multiple invite links exist between same users
+10. Session persistence differences:
+   - native app
+   - mobile Safari web
+   - PWA/browser cache
+   - Capacitor auth/session behavior
+
+Audit requirements
+
+Please inspect:
+- friend invite token generation
+- invite acceptance routes
+- session storage
+- redirect logic
+- onboarding redirects
+- login/signup redirects
+- existing-friendship checks
+- duplicate-invite suppression
+- native deep link handling
+- web fallback handling
+
+Important:
+I need a deterministic state map.
+
+For each scenario above, document:
+- expected behavior
+- actual current behavior
+- where behavior diverges
+- where users may accidentally create duplicate accounts
+- where invite state becomes confusing
+- where app/web parity breaks
+
+Then recommend:
+1. safest architecture improvements
+2. highest-priority fixes
+3. ideal UX flows
+4. whether app/web should share identical invite handling or intentionally diverge
+
+Do NOT make code changes yet.
+
+Deliverables:
+- flow audit
+- state diagrams/logic summary
+- affected files/routes/services
+- root causes
+- prioritized implementation plan
+
+Use checkpoints sparingly.
+Do not finish until the full invite lifecycle has been inspected end-to-end.
