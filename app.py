@@ -8995,11 +8995,14 @@ def add_open_dates():
     
     # Pre-populate with existing dates
     existing_dates = current_user.open_dates or []
-    
+    _avail_ranges, _avail_overflow = build_home_avail_ranges(set(existing_dates))
+
     return render_template(
         "add_open_dates.html",
         user=current_user,
         existing_dates=existing_dates,
+        avail_ranges=_avail_ranges,
+        avail_overflow=_avail_overflow,
     )
 
 @app.route("/add_trip", methods=["GET", "POST"])
