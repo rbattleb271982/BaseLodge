@@ -1,0 +1,138 @@
+PUT THIS IN AGENT
+
+Implement the approved Messaging admin page plan with the following adjustments:
+
+1. Build Messaging as an operational admin dashboard, not a campaign tool.
+
+2. Use these sections:
+- Push Health
+- Email Preferences
+- Email Delivery
+- Audience Reachability
+- Delivery Health
+- Lifecycle Events
+- Message Log
+
+3. Keep /admin/message-events live as the raw debugging console for now.
+Do not fully absorb or remove it yet.
+Messaging should link to it or include a summary, but preserve the existing route/tooling.
+
+4. Email Preferences should use live User preference fields:
+- email_opt_in
+- email_transactional
+- email_social
+- email_digest
+
+Show:
+- Email Opt-In Count
+- Email Opt-In %
+- Transactional Email Enabled
+- Social Email Enabled
+- Digest Email Enabled
+- Email-only reachable users
+
+5. Email Delivery should be clearly labeled as partially deferred.
+Show placeholders for:
+- Total Emails Sent
+- Emails Sent Last 7 Days
+- Emails Sent Last 30 Days
+- Email Success %
+- Email Failed %
+- Password Reset Emails Sent
+- Password Reset Failures
+- Newsletter Emails Sent
+
+Add clear helper text:
+“Requires EmailLog instrumentation and/or SendGrid delivery webhook setup.”
+
+Do not fake email volume data.
+
+6. Push Health should use OneSignal-related push data that exists today:
+- active push tokens
+- unique users with push tokens
+- push opt-in %
+- push disabled users
+- platform breakdown if available
+- push delivery status from MessageEventLog
+
+7. Add Message Velocity:
+- MEL events last 24 hours
+- MEL events last 7 days
+- push messages last 24 hours
+- failed deliveries last 24 hours
+
+8. Add Silent Failure Risk:
+- users with push enabled but no active token
+- users with multiple active tokens if feasible
+- users with stale tokens if feasible
+- users unreachable by both push and email
+
+If stale token logic is not available, show it as deferred rather than guessing.
+
+9. Add Recent Broadcast/Test Pushes:
+- last 10 push.test.sent or broadcast-style events if available
+- timestamp
+- delivery status
+- provider/channel/category
+- no user PII
+
+10. Delivery Health should use MessageEventLog:
+- sent %
+- failed %
+- skipped %
+- pending %
+- suppression reason breakdown
+- retry count
+- recent failures
+- recent suppressions
+- recent delivery errors
+- last provider error where available
+
+11. Lifecycle Events should use MessageEventLog:
+- friend requests sent
+- friend requests accepted
+- trip invites sent
+- trip invites accepted
+- top event names
+- category breakdown
+- channel breakdown
+- provider breakdown
+
+12. Audience Reachability should show:
+- both push + email
+- email only
+- push only
+- neither / unreachable
+
+Use counts and percentages.
+
+13. Requirements:
+- Reuse the existing admin console architecture
+- Add Messaging sidebar submenu
+- Mobile-safe layout
+- No horizontal overflow
+- Reuse existing admin styles/components
+- Avoid duplicate expensive queries
+- No migrations unless absolutely required
+- Do not add email sending functionality
+- Do not build a campaign composer
+- Do not build a newsletter tool
+- Do not set up SendGrid webhooks in this step
+- Use checkpoints sparingly
+
+14. Files likely affected:
+- app.py or existing admin routes file
+- templates/admin_messaging.html
+- shared admin shell/sidebar template
+- any admin CSS only if needed
+
+15. Testing:
+- Confirm /admin/messaging loads
+- Confirm all submenu anchors work
+- Confirm /admin/message-events still works
+- Confirm no horizontal overflow on mobile
+- Confirm deferred email metrics display honestly as placeholders
+- Confirm no fake email delivery data is shown
+- Confirm MEL queries do not break when there are zero rows
+
+Do not finish until you have tested the route, layout, and existing message-events page.

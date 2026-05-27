@@ -13110,6 +13110,320 @@ def admin_trips():
 
 
 # ============================================================================
+# ADMIN MESSAGING PAGE
+# ============================================================================
+
+@app.route("/admin/messaging")
+@login_required
+@admin_required
+def admin_messaging():
+    """Admin Messaging dashboard — push health, email preferences, delivery health,
+    audience reachability, lifecycle events, and message velocity."""
+    from collections import defaultdict as _dd
+
+    now       = datetime.utcnow()
+    ago_24h   = now - timedelta(hours=24)
+    ago_7d    = now - timedelta(days=7)
+    ago_30d   = now - timedelta(days=30)
+
+    total_users = User.query.count() or 1  # avoid div-by-zero
+
+    # ── Push Health ───────────────────────────────────────────────────────────
+    try:
+        active_tokens      = PushDeviceToken.query.filter_by(active=True).count()
+        push_token_users   = db.session.query(
+            func.count(func.distinct(PushDeviceToken.user_id))
+        ).filter(PushDeviceToken.active == True).scalar() or 0
+
+        push_opt_in        = User.query.filter_by(push_notifications_enabled=True).count()
+        push_disabled      = User.query.filter_by(push_notifications_enabled=False).count()
+        push_opt_in_pct    = round(push_opt_in / total_users * 100)
+
+        _plat_rows = (
+            db.session.query(PushDeviceToken.platform, func.count(PushDeviceToken.id))
+            .filter(PushDeviceToken.active == True)
+            .group_by(PushDeviceToken.platform).all()
+        )
+        platform_breakdown = {r[0]: r[1] for r in _plat_rows}
+
+        # Push-enabled users with NO active token (silent failure risk)
+        _subq_token_users = db.session.query(
+            func.distinct(PushDeviceToken.user_id)
+        ).filter(PushDeviceToken.active == True).subquery()
+        push_enabled_no_token = db.session.query(func.count(User.id)).filter(
+            User.push_notifications_enabled == True,
+            ~User.id.in_(db.session.query(_subq_token_users))
+        ).scalar() or 0
+
+        # Users with multiple active tokens
+        _multi_rows = (
+            db.session.query(PushDeviceToken.user_id, func.count(PushDeviceToken.id).label("cnt"))
+            .filter(PushDeviceToken.active == True)
+            .group_by(PushDeviceToken.user_id)
+            .having(func.count(PushDeviceToken.id) > 1).all()
+        )
+        multi_token_users = len(_multi_rows)
+    except Exception:
+        active_tokens = push_token_users = push_opt_in = push_disabled = 0
+        push_opt_in_pct = push_enabled_no_token = multi_token_users = 0
+        platform_breakdown = {}
+
+    # ── MEL — shared base queries ─────────────────────────────────────────────
+    try:
+        mel_total = MessageEventLog.query.count()
+
+        mel_24h   = MessageEventLog.query.filter(MessageEventLog.created_at >= ago_24h).count()
+        mel_7d    = MessageEventLog.query.filter(MessageEventLog.created_at >= ago_7d).count()
+
+        push_24h  = MessageEventLog.query.filter(
+            MessageEventLog.created_at >= ago_24h,
+            MessageEventLog.channel == Channel.PUSH,
+        ).count()
+        failed_24h = MessageEventLog.query.filter(
+            MessageEventLog.created_at >= ago_24h,
+            MessageEventLog.delivery_status == DeliveryStatus.FAILED,
+        ).count()
+
+        # Delivery status breakdown
+        _ds_rows = (
+            db.session.query(MessageEventLog.delivery_status, func.count(MessageEventLog.id))
+            .group_by(MessageEventLog.delivery_status).all()
+        )
+        ds_map = {r[0]: r[1] for r in _ds_rows}
+        ds_total = mel_total or 1
+        ds_sent    = ds_map.get(DeliveryStatus.SENT,    0)
+        ds_failed  = ds_map.get(DeliveryStatus.FAILED,  0)
+        ds_skipped = ds_map.get(DeliveryStatus.SKIPPED, 0)
+        ds_pending = ds_map.get(DeliveryStatus.PENDING, 0)
+        ds_sent_pct    = round(ds_sent    / ds_total * 100) if mel_total else 0
+        ds_failed_pct  = round(ds_failed  / ds_total * 100) if mel_total else 0
+        ds_skipped_pct = round(ds_skipped / ds_total * 100) if mel_total else 0
+        ds_pending_pct = round(ds_pending / ds_total * 100) if mel_total else 0
+
+        # Suppression reason breakdown
+        _sr_rows = (
+            db.session.query(MessageEventLog.suppression_reason, func.count(MessageEventLog.id).label("cnt"))
+            .filter(MessageEventLog.suppression_reason.isnot(None))
+            .group_by(MessageEventLog.suppression_reason)
+            .order_by(func.count(MessageEventLog.id).desc()).limit(8).all()
+        )
+        suppression_breakdown = [{"reason": r[0], "count": r[1]} for r in _sr_rows]
+        _sr_max = max((r["count"] for r in suppression_breakdown), default=1)
+        for r in suppression_breakdown:
+            r["pct"] = round(r["count"] / _sr_max * 100)
+
+        # Retry stats
+        retry_rows_count = MessageEventLog.query.filter(MessageEventLog.retry_count > 0).count()
+
+        # Recent failures (last 10, no PII)
+        _rf_rows = (
+            MessageEventLog.query
+            .filter(MessageEventLog.delivery_status == DeliveryStatus.FAILED)
+            .order_by(MessageEventLog.created_at.desc()).limit(10).all()
+        )
+        recent_failures = [
+            {"event": r.event_name, "channel": r.channel or "—", "provider": r.provider or "—",
+             "error": (r.error_message or "")[:80], "ts": r.created_at}
+            for r in _rf_rows
+        ]
+
+        # Recent suppressions (last 10)
+        _rsk_rows = (
+            MessageEventLog.query
+            .filter(MessageEventLog.delivery_status == DeliveryStatus.SKIPPED)
+            .order_by(MessageEventLog.created_at.desc()).limit(10).all()
+        )
+        recent_suppressions = [
+            {"event": r.event_name, "channel": r.channel or "—",
+             "reason": r.suppression_reason or "—", "ts": r.created_at}
+            for r in _rsk_rows
+        ]
+
+        # Category breakdown
+        _cat_rows = (
+            db.session.query(MessageEventLog.category, func.count(MessageEventLog.id).label("cnt"))
+            .filter(MessageEventLog.category.isnot(None))
+            .group_by(MessageEventLog.category)
+            .order_by(func.count(MessageEventLog.id).desc()).all()
+        )
+        category_breakdown = [{"name": r[0], "count": r[1]} for r in _cat_rows]
+        _cat_max = max((c["count"] for c in category_breakdown), default=1)
+        for c in category_breakdown:
+            c["pct"] = round(c["count"] / _cat_max * 100)
+
+        # Top event names (top 8)
+        _en_rows = (
+            db.session.query(MessageEventLog.event_name, func.count(MessageEventLog.id).label("cnt"))
+            .group_by(MessageEventLog.event_name)
+            .order_by(func.count(MessageEventLog.id).desc()).limit(8).all()
+        )
+        top_event_names = [{"name": r[0], "count": r[1]} for r in _en_rows]
+        _en_max = max((e["count"] for e in top_event_names), default=1)
+        for e in top_event_names:
+            e["pct"] = round(e["count"] / _en_max * 100)
+
+        # Channel breakdown
+        _ch_rows = (
+            db.session.query(MessageEventLog.channel, func.count(MessageEventLog.id).label("cnt"))
+            .filter(MessageEventLog.channel.isnot(None))
+            .group_by(MessageEventLog.channel)
+            .order_by(func.count(MessageEventLog.id).desc()).all()
+        )
+        channel_breakdown = [{"name": r[0], "count": r[1]} for r in _ch_rows]
+
+        # Provider breakdown
+        _pv_rows = (
+            db.session.query(MessageEventLog.provider, func.count(MessageEventLog.id).label("cnt"))
+            .filter(MessageEventLog.provider.isnot(None))
+            .group_by(MessageEventLog.provider)
+            .order_by(func.count(MessageEventLog.id).desc()).all()
+        )
+        provider_breakdown = [{"name": r[0], "count": r[1]} for r in _pv_rows]
+
+        # Lifecycle event specifics
+        _lc_counts = {}
+        for en in [EventName.FRIEND_REQUEST_CREATED, EventName.FRIEND_REQUEST_ACCEPTED,
+                   EventName.TRIP_INVITE_CREATED, EventName.TRIP_INVITE_ACCEPTED]:
+            _lc_counts[en] = MessageEventLog.query.filter_by(event_name=en).count()
+        lifecycle_counts = {
+            "friend_req_sent":     _lc_counts.get(EventName.FRIEND_REQUEST_CREATED, 0),
+            "friend_req_accepted": _lc_counts.get(EventName.FRIEND_REQUEST_ACCEPTED, 0),
+            "trip_invite_sent":    _lc_counts.get(EventName.TRIP_INVITE_CREATED, 0),
+            "trip_invite_accepted":_lc_counts.get(EventName.TRIP_INVITE_ACCEPTED, 0),
+        }
+
+        # Recent broadcast / test pushes (last 10)
+        _bc_rows = (
+            MessageEventLog.query
+            .filter(MessageEventLog.event_name.in_([
+                EventName.PUSH_TEST_SENT, EventName.PUSH_BROADCAST_SENT
+            ]))
+            .order_by(MessageEventLog.created_at.desc()).limit(10).all()
+        )
+        recent_broadcasts = [
+            {"event": r.event_name, "channel": r.channel or "—",
+             "provider": r.provider or "—", "status": r.delivery_status,
+             "category": r.category or "—", "ts": r.created_at}
+            for r in _bc_rows
+        ]
+
+    except Exception:
+        mel_total = mel_24h = mel_7d = push_24h = failed_24h = 0
+        ds_sent = ds_failed = ds_skipped = ds_pending = 0
+        ds_sent_pct = ds_failed_pct = ds_skipped_pct = ds_pending_pct = 0
+        ds_total = 1
+        retry_rows_count = 0
+        suppression_breakdown = []
+        recent_failures = []
+        recent_suppressions = []
+        category_breakdown = []
+        top_event_names = []
+        channel_breakdown = []
+        provider_breakdown = []
+        lifecycle_counts = {"friend_req_sent": 0, "friend_req_accepted": 0,
+                            "trip_invite_sent": 0, "trip_invite_accepted": 0}
+        recent_broadcasts = []
+
+    # ── Email Preferences ─────────────────────────────────────────────────────
+    try:
+        email_opt_in_count      = User.query.filter_by(email_opt_in=True).count()
+        email_transactional_cnt = User.query.filter_by(email_transactional=True).count()
+        email_social_cnt        = User.query.filter_by(email_social=True).count()
+        email_digest_cnt        = User.query.filter_by(email_digest=True).count()
+        email_opt_out_count     = User.query.filter_by(email_opt_in=False).count()
+        email_opt_in_pct        = round(email_opt_in_count / total_users * 100)
+
+        # Email-only reachable: email opted in, push disabled
+        email_only_reachable = db.session.query(func.count(User.id)).filter(
+            User.email_opt_in == True,
+            User.push_notifications_enabled == False,
+        ).scalar() or 0
+    except Exception:
+        email_opt_in_count = email_transactional_cnt = email_social_cnt = 0
+        email_digest_cnt = email_opt_out_count = email_only_reachable = 0
+        email_opt_in_pct = 0
+
+    # ── Audience Reachability ─────────────────────────────────────────────────
+    try:
+        reach_both = db.session.query(func.count(User.id)).filter(
+            User.push_notifications_enabled == True,
+            User.email_opt_in == True,
+        ).scalar() or 0
+        reach_push_only = db.session.query(func.count(User.id)).filter(
+            User.push_notifications_enabled == True,
+            User.email_opt_in == False,
+        ).scalar() or 0
+        reach_email_only = db.session.query(func.count(User.id)).filter(
+            User.push_notifications_enabled == False,
+            User.email_opt_in == True,
+        ).scalar() or 0
+        reach_neither = db.session.query(func.count(User.id)).filter(
+            User.push_notifications_enabled == False,
+            User.email_opt_in == False,
+        ).scalar() or 0
+
+        reach_both_pct       = round(reach_both       / total_users * 100)
+        reach_push_only_pct  = round(reach_push_only  / total_users * 100)
+        reach_email_only_pct = round(reach_email_only / total_users * 100)
+        reach_neither_pct    = round(reach_neither    / total_users * 100)
+    except Exception:
+        reach_both = reach_push_only = reach_email_only = reach_neither = 0
+        reach_both_pct = reach_push_only_pct = reach_email_only_pct = reach_neither_pct = 0
+
+    return render_template('admin_messaging.html',
+        active_tab='messaging',
+        total_users=total_users,
+        # Push Health
+        active_tokens=active_tokens,
+        push_token_users=push_token_users,
+        push_opt_in=push_opt_in,
+        push_disabled=push_disabled,
+        push_opt_in_pct=push_opt_in_pct,
+        platform_breakdown=platform_breakdown,
+        push_enabled_no_token=push_enabled_no_token,
+        multi_token_users=multi_token_users,
+        # Message velocity
+        mel_total=mel_total,
+        mel_24h=mel_24h,
+        mel_7d=mel_7d,
+        push_24h=push_24h,
+        failed_24h=failed_24h,
+        # Delivery health
+        ds_sent=ds_sent, ds_failed=ds_failed, ds_skipped=ds_skipped, ds_pending=ds_pending,
+        ds_sent_pct=ds_sent_pct, ds_failed_pct=ds_failed_pct,
+        ds_skipped_pct=ds_skipped_pct, ds_pending_pct=ds_pending_pct,
+        suppression_breakdown=suppression_breakdown,
+        retry_rows_count=retry_rows_count,
+        recent_failures=recent_failures,
+        recent_suppressions=recent_suppressions,
+        # Lifecycle Events
+        category_breakdown=category_breakdown,
+        top_event_names=top_event_names,
+        channel_breakdown=channel_breakdown,
+        provider_breakdown=provider_breakdown,
+        lifecycle_counts=lifecycle_counts,
+        recent_broadcasts=recent_broadcasts,
+        # Email Preferences
+        email_opt_in_count=email_opt_in_count,
+        email_opt_in_pct=email_opt_in_pct,
+        email_opt_out_count=email_opt_out_count,
+        email_transactional_cnt=email_transactional_cnt,
+        email_social_cnt=email_social_cnt,
+        email_digest_cnt=email_digest_cnt,
+        email_only_reachable=email_only_reachable,
+        # Audience Reachability
+        reach_both=reach_both,
+        reach_push_only=reach_push_only,
+        reach_email_only=reach_email_only,
+        reach_neither=reach_neither,
+        reach_both_pct=reach_both_pct,
+        reach_push_only_pct=reach_push_only_pct,
+        reach_email_only_pct=reach_email_only_pct,
+        reach_neither_pct=reach_neither_pct,
+    )
+
+
+# ============================================================================
 # ADMIN RESORTS CURATION PAGE
 # ============================================================================
 
