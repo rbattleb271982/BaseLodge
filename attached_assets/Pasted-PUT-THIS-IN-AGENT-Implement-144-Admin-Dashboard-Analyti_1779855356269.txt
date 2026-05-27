@@ -1,0 +1,97 @@
+PUT THIS IN AGENT
+
+Implement #144 - Admin Dashboard Analytics Metrics exactly as defined in the audit.
+
+Use the audit findings as the source of truth.
+
+Goals:
+Add new product/social analytics metrics to the admin dashboard using existing data only. No schema changes, no migrations, no background jobs.
+
+Implement the following metrics:
+
+1. Avg friend connections per user
+- Use Friend table
+- Exclude seeded users
+- Avoid double-counting global friendships
+- Per-user counts are directional rows and already valid
+
+2. Avg trips per user
+- Use SkiTrip.user_id (owner-created trips)
+- Exclude seeded users
+- Include both past and future trips
+- No participant-only trips in this metric
+
+3. Availability adoption
+- Count users with availability entered
+- Use canonical availability logic
+- Include:
+  - UserAvailability rows
+  - legacy User.open_dates fallback users if possible
+- Show:
+  - raw user count
+  - percentage of active/onboarded users
+- Exclude seeded users
+
+4. Avg invites sent per user
+- Use Invitation rows where trip_id IS NULL
+- Exclude seeded users
+- Friend invites only (not trip invites)
+
+5. Signups by state
+- Use User.home_state
+- Exclude seeded users
+- Show:
+  - state code
+  - user count
+  - % of geo-tagged users
+- Cap table at top 15 states
+
+Dashboard requirements
+
+Add a new section:
+“Platform Engagement”
+
+Use stat tiles matching the existing admin dashboard KPI visual style.
+
+Tiles:
+- Avg connections/user
+- Avg trips/user
+- Availability adoption
+- Avg invites/user
+
+Then add:
+“Signups by State”
+
+Simple ranked table:
+State | Users | %
+
+Implementation requirements
+
+- Reuse existing admin dashboard route/template
+- Do not add new routes
+- Do not add charts yet
+- Do not add historical trends
+- Do not add drilldowns
+- Keep queries efficient/simple aggregates
+- Verify numbers against existing totals already on the dashboard
+
+Files likely involved
+- app.py admin_dashboard route
+- templates/admin_dashboard.html
+
+Important:
+- Filter is_seeded=True users everywhere appropriate
+- Keep layout mobile-safe even though admin is desktop-first
+- Match existing admin styling patterns
+- Do not introduce frontend frameworks/charts
+
+Before finishing:
+Verify:
+1. Metrics render without errors
+2. Percentages calculate correctly
+3. Empty-state handling works
+4. State table caps correctly
+5. Dashboard load time remains acceptable
+
+Use checkpoints sparingly.
+Do not finish until verified against real DB values.

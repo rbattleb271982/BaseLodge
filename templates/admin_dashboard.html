@@ -441,6 +441,99 @@
     }
   }
 
+  /* ── State table ── */
+  .ad-state-table {
+    background: #FFFFFF;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    overflow: hidden;
+  }
+  .ad-state-header {
+    display: flex;
+    align-items: center;
+    padding: 7px 14px;
+    border-bottom: 1px solid #F0EAE0;
+    background: #FDFAF6;
+  }
+  .ad-state-col-state {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9E958A;
+    width: 80px;
+    flex-shrink: 0;
+  }
+  .ad-state-col-bar { flex: 1; }
+  .ad-state-col-count {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9E958A;
+    width: 32px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .ad-state-col-pct {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9E958A;
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .ad-state-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 14px;
+    border-bottom: 1px solid #F0EAE0;
+    gap: 10px;
+  }
+  .ad-state-row:last-child { border-bottom: none; }
+  .ad-state-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1C1917;
+    width: 80px;
+    flex-shrink: 0;
+  }
+  .ad-state-bar-wrap {
+    flex: 1;
+    background: #F0EAE0;
+    border-radius: 4px;
+    height: 5px;
+    overflow: hidden;
+  }
+  .ad-state-bar {
+    height: 100%;
+    background: #5C1219;
+    border-radius: 4px;
+  }
+  .ad-state-count {
+    font-size: 12px;
+    font-weight: 700;
+    color: #5C1219;
+    width: 32px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .ad-state-pct {
+    font-size: 11px;
+    color: #9E958A;
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .ad-state-empty {
+    padding: 18px 14px;
+    font-size: 13px;
+    color: #B0A99F;
+    text-align: center;
+  }
+
   /* ── Mobile card overrides ── */
   @media (max-width: 640px) {
     .ad-section       { margin-bottom: 18px; }
@@ -451,6 +544,10 @@
     .ad-trend         { font-size: 10px; margin-top: 4px; }
     .ad-pass-name     { width: 90px; font-size: 11px; }
     .ad-pass-count    { font-size: 11px; }
+    .ad-state-col-state { width: 54px; }
+    .ad-state-name      { width: 54px; font-size: 11px; }
+    .ad-state-count     { font-size: 11px; }
+    .ad-state-pct       { font-size: 10px; }
   }
 
   /* ── Timestamp ── */
@@ -650,6 +747,72 @@
       {%- endif -%}
     </div>
   </div>
+</div>
+
+<!-- ── Platform Engagement ── -->
+<div class="ad-section">
+  <div class="ad-section-label">Platform Engagement</div>
+  <div class="ad-kpi-grid" style="grid-template-columns: repeat(4,1fr);">
+
+    <div class="ad-card">
+      <div class="ad-card-label">Avg Connections</div>
+      <div class="ad-card-value">{{ avg_connections }}</div>
+      <div class="ad-card-sub">friends per user</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Avg Trips</div>
+      <div class="ad-card-value">{{ avg_trips }}</div>
+      <div class="ad-card-sub">trips per user</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Availability</div>
+      <div class="ad-card-value">{{ avail_rate }}%</div>
+      <div class="ad-card-sub">{{ avail_total }} of {{ avail_denom }} onboarded</div>
+      <div class="ad-rate-bar-wrap">
+        <div class="ad-rate-bar" style="width: {{ [avail_rate, 100] | min }}%"></div>
+      </div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Avg Invites Sent</div>
+      <div class="ad-card-value">{{ avg_invites }}</div>
+      <div class="ad-card-sub">friend invites per user</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Signups by State ── -->
+<div class="ad-section">
+  <div class="ad-section-label">Signups by State</div>
+  {% if state_breakdown %}
+  {% set _st_max = [state_breakdown | map(attribute='count') | max, 1] | max %}
+  <div class="ad-state-table">
+    <div class="ad-state-header">
+      <span class="ad-state-col-state">State</span>
+      <span class="ad-state-col-bar"></span>
+      <span class="ad-state-col-count">Users</span>
+      <span class="ad-state-col-pct">Share</span>
+    </div>
+    {% for row in state_breakdown %}
+    <div class="ad-state-row">
+      <span class="ad-state-name">{{ row.state }}</span>
+      <div class="ad-state-bar-wrap">
+        <div class="ad-state-bar" style="width: {{ ((row.count / _st_max) * 100) | int }}%"></div>
+      </div>
+      <span class="ad-state-count">{{ row.count }}</span>
+      <span class="ad-state-pct">{{ row.pct }}%</span>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="ad-card-sub" style="margin-top:8px;">{{ total_geo_users }} users with location set{% if state_breakdown | length == 15 %} · showing top 15{% endif %}</div>
+  {% else %}
+  <div class="ad-state-table">
+    <div class="ad-state-empty">No location data yet</div>
+  </div>
+  {% endif %}
 </div>
 
 <!-- ── Analytics ── -->

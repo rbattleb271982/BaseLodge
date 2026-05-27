@@ -14786,6 +14786,87 @@ def admin_dashboard():
         unit="pct", invert=True, label="prior week",
     )
 
+    # ── Platform Engagement Metrics ──────────────────────────────────────────
+    non_seeded_total = User.query.filter_by(is_seeded=False).count() or 1  # guard /0
+
+    # 1. Avg friend connections per user (non-seeded users, both sides of friendship)
+    #    Friend rows are bidirectional (A→B and B→A), so unique connections = count / 2.
+    #    Filter both endpoints to non-seeded so seeded seed-friends don't inflate counts.
+    _ns_id_q = db.session.query(User.id).filter(User.is_seeded == False)
+    _friend_rows = Friend.query.filter(
+        Friend.user_id.in_(_ns_id_q),
+        Friend.friend_id.in_(_ns_id_q),
+        Friend.is_seeded == False,
+    ).count()
+    _unique_friendships = _friend_rows // 2
+    avg_connections = round(_unique_friendships / non_seeded_total, 1)
+
+    # 2. Avg trips per user (non-seeded, owner-created only)
+    _ns_trips = db.session.query(func.count(SkiTrip.id)).join(
+        User, User.id == SkiTrip.user_id
+    ).filter(User.is_seeded == False).scalar() or 0
+    avg_trips = round(_ns_trips / non_seeded_total, 1)
+
+    # 3. Availability adoption
+    #    Denominator: non-seeded users who've progressed past new lifecycle stage
+    avail_denom = User.query.filter(
+        User.is_seeded == False,
+        User.lifecycle_stage.in_(["onboarding", "active"]),
+    ).count() or 1  # guard /0
+    #    Primary count: users with UserAvailability table rows (canonical source)
+    avail_ua_count = db.session.query(
+        func.count(func.distinct(UserAvailability.user_id))
+    ).join(User, User.id == UserAvailability.user_id).filter(
+        User.is_seeded == False
+    ).scalar() or 0
+    #    Secondary: users with legacy open_dates JSON only (no UserAvailability rows)
+    _ua_ids = {r[0] for r in db.session.query(UserAvailability.user_id.distinct()).all()}
+    _legacy_candidates = User.query.filter(
+        User.is_seeded == False,
+        User.open_dates.isnot(None),
+        ~User.id.in_(_ua_ids) if _ua_ids else db.false(),
+    ).all()
+    _legacy_avail_count = sum(
+        1 for u in _legacy_candidates if u.open_dates and len(u.open_dates) > 0
+    )
+    avail_total = avail_ua_count + _legacy_avail_count
+    avail_rate = round(avail_total / avail_denom * 100)
+
+    # 4. Avg friend invites sent per user (Invitation rows with trip_id IS NULL)
+    _total_friend_invites = db.session.query(func.count(Invitation.id)).join(
+        User, User.id == Invitation.sender_id
+    ).filter(
+        User.is_seeded == False,
+        Invitation.trip_id == None,
+    ).scalar() or 0
+    avg_invites = round(_total_friend_invites / non_seeded_total, 1)
+
+    # 5. Signups by state (top 15, geo-tagged non-seeded users)
+    _total_geo_users = db.session.query(func.count(User.id)).filter(
+        User.is_seeded == False,
+        User.home_state.isnot(None),
+        User.home_state != "",
+    ).scalar() or 0
+    _state_rows = db.session.query(
+        User.home_state,
+        func.count(User.id).label("cnt"),
+    ).filter(
+        User.is_seeded == False,
+        User.home_state.isnot(None),
+        User.home_state != "",
+    ).group_by(User.home_state).order_by(
+        func.count(User.id).desc()
+    ).limit(15).all()
+    state_breakdown = [
+        {
+            "state": r.home_state,
+            "count": r.cnt,
+            "pct": round(r.cnt / _total_geo_users * 100) if _total_geo_users else 0,
+        }
+        for r in _state_rows
+    ]
+    total_geo_users = _total_geo_users
+
     return render_template(
         "admin_dashboard.html",
         active_tab        = "dashboard",
@@ -14823,6 +14904,16 @@ def admin_dashboard():
         trend_push_rate    = trend_push_rate,
         trend_email_rate   = trend_email_rate,
         trend_mel_failed   = trend_mel_failed,
+        # Platform Engagement
+        avg_connections    = avg_connections,
+        avg_trips          = avg_trips,
+        avail_total        = avail_total,
+        avail_rate         = avail_rate,
+        avail_denom        = avail_denom,
+        avg_invites        = avg_invites,
+        # Geography
+        state_breakdown    = state_breakdown,
+        total_geo_users    = total_geo_users,
     )
 
 

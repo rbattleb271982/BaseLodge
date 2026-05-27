@@ -1,0 +1,93 @@
+PUT THIS IN PLAN FIRST
+
+Audit the data and implementation path for new BaseLodge analytics and friend-profile overlap features.
+
+Do not make code changes yet.
+
+There are two separate feature areas to investigate:
+
+A) Admin Dashboard Metrics
+
+I need to understand whether the data already exists, where it lives, and the safest way to surface it on the admin dashboard.
+
+Metrics requested:
+
+1. Invites per user
+- How many friend invites each user has sent.
+- Clarify whether this can be measured from InviteToken, Invitation, MessageEventLog, Activity, or another table.
+- Identify whether we can distinguish friend invites from trip invites.
+- Identify whether link shares that are generated but never accepted are trackable.
+
+2. Number of connections per user
+- Count accepted friend connections for each user.
+- Confirm whether Friend rows are directional or one row per connection.
+- Confirm how to avoid double-counting.
+
+3. Average trips made per user
+- Define “trips made” as SkiTrip records created by a user unless a better existing definition exists.
+- Identify whether cancelled/deleted trips should be excluded.
+- Identify whether participant-only trips should count separately from owner-created trips.
+
+4. States where people are signing up
+- Identify where user state/location is stored.
+- Confirm whether it is required or optional.
+- Determine whether this should count all users, only onboarded users, or only active users.
+- Recommend the best default.
+
+5. Availability adoption
+- Count how many users have entered availability.
+- Show both raw count and percentage of total users.
+- Confirm whether availability lives in UserAvailability, User.open_dates, or both.
+- Use the canonical resolver if one exists.
+- Clarify denominator: total users, onboarded users, or active users.
+- Recommend the best denominator for admin dashboard.
+
+For each admin metric, return:
+- existing table/model/source
+- whether data exists today
+- exact calculation logic
+- edge cases
+- recommended dashboard placement
+- whether this belongs in the existing admin dashboard or a new analytics section/card/table
+
+B) Friend Profile Date Overlap
+
+Feature request:
+When I visit a friend’s profile page, I should see whether we have availability dates that overlap.
+
+Desired user-facing behavior:
+- If we have overlapping dates, show a small section on the friend profile:
+  “You’re both free”
+  Then list overlapping date ranges, capped at 3.
+  Example:
+  Jan 12–14
+  Feb 8
+  + 2 more dates
+
+- If no overlap exists, either show nothing or show a subtle prompt. Recommend the best UX.
+
+Audit requirements:
+1. Identify the route/template for friend profile pages.
+2. Identify how the current user’s availability is retrieved.
+3. Identify how the friend’s availability is retrieved.
+4. Confirm whether availability should use UserAvailability, User.open_dates, or the canonical helper.
+5. Determine whether there is already overlap logic in services/open_dates.py or ideas_engine.py that can be reused.
+6. Determine whether existing date range formatting helpers from Home availability summary can be reused.
+7. Recommend where this section should appear on the friend profile page.
+8. Recommend whether overlap should include only future dates.
+9. Confirm privacy implications:
+   - Should friends be allowed to see exact overlapping dates?
+   - Should they only see overlaps after both users are connected?
+   - Confirm the friend profile route already enforces friendship access.
+
+Return:
+- affected files/routes/templates
+- existing helpers we can reuse
+- implementation plan
+- recommended UX placement
+- any privacy or data-quality concerns
+
+Do not make code changes yet.
+
+Use checkpoints sparingly.
+Do not finish until you have inspected the admin dashboard route/template, User/Friend/SkiTrip/Invite/Availability models, and friend profile route/template.
