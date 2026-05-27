@@ -15652,7 +15652,7 @@ def admin_dashboard():
         .limit(5).all()
     )
     mtn_upcoming_table = [
-        {"resort": row.name, "next": _fmt_date(row.next_date), "trips": row.cnt}
+        {"resort": row.name, "next": row.next_date.strftime('%b %-d') if row.next_date else '—', "trips": row.cnt}
         for row in _mtn_upc_rows
     ]
 
