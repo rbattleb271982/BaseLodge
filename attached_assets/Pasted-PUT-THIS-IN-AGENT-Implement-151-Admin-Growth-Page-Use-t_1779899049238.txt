@@ -1,0 +1,82 @@
+PUT THIS IN AGENT
+
+Implement #151 Admin Growth Page.
+
+Use the approved plan exactly.
+
+Goal:
+Add a new /admin/growth page that surfaces acquisition funnel, activation, virality, and retention signals using existing models only.
+
+Requirements:
+- Activate the Growth sidebar link
+- Add GET /admin/growth with @admin_required
+- Set active_tab = "growth"
+- Add templates/admin_growth.html
+- Extend admin_console.html
+- Follow existing admin page conventions
+- Use .ad-section, .ad-card, .ad-kpi-grid, bar/table components, timestamps
+- No new tables
+- No migrations
+- No write actions
+- No PostHog integration
+- No external analytics
+- No email campaign metrics
+- No cohort tables requiring new schema
+
+Sections:
+
+1. Funnel
+Show:
+- Signup → onboarding rate
+- Onboarding → first trip rate
+- Signup → first friend rate
+- Avg time to first trip
+- Avg time to first friend
+
+2. Activation
+Show:
+- lifecycle stage breakdown
+- pass on file %
+- wishlist set %
+- availability set %
+- mountains logged %
+
+Reuse the same authoritative calculations already used by User Insights where possible.
+
+3. Virality
+Show:
+- total invitations sent
+- invitation acceptance rate all-time
+- invitation acceptance rate last 30 days
+- % users who sent at least one invitation
+- organic vs referred split, if invited_by_user_id exists
+- K-factor proxy:
+  avg invites sent per user × acceptance rate
+  Label clearly as an estimate.
+
+4. Retention Proxy
+Show:
+- Day-1 retention proxy
+- Day-7 retention proxy
+- Day-30 retention proxy
+
+Use last_active_at against created_at cohorts if available.
+Clearly label these as:
+“Proxy — based on last_active_at, not session-level analytics.”
+
+Important:
+Avoid duplicating detailed metrics that now belong to Dashboard, Messaging, Trips, Mountains, or User Insights.
+
+Testing:
+- /admin/growth returns 200
+- Sidebar Growth link works
+- All section anchors work if submenu is added
+- Dashboard still returns 200
+- Trips/User Insights/Mountains/Messaging still return 200
+- Zero-row safe
+- No missing Jinja variables
+- No horizontal overflow on mobile
+
+Use checkpoints sparingly.
+
+Do not finish until fully tested.

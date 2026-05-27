@@ -16026,5 +16026,187 @@ def admin_user_insights():
     )
 
 
+@app.route("/admin/growth")
+@login_required
+@admin_required
+def admin_growth():
+    """Admin Growth — acquisition funnel, activation, virality, retention proxy."""
+    from collections import Counter as _GCtr
+    from sqlalchemy import func
+    from services.pass_utils import normalize_pass
+
+    now_dt      = datetime.utcnow()
+    thirty_ago  = now_dt - timedelta(days=30)
+    _no_pass    = frozenset({"no_pass", "no_pass_yet"})
+
+    # ── Base cohort: non-seeded users ─────────────────────────────────────────
+    all_users = User.query.filter_by(is_seeded=False).all()
+    total     = len(all_users) or 1
+
+    def _pct(n, d=None):
+        d = d if d is not None else total
+        return round(n / d * 100) if d else 0
+
+    # ── 1. Funnel ─────────────────────────────────────────────────────────────
+    users_onboarded   = sum(1 for u in all_users if u.onboarding_completed_at)
+    users_first_trip  = sum(1 for u in all_users if u.first_trip_created_at)
+
+    # Users with at least one non-seeded Friend edge on either side
+    _friend_uids = {
+        r[0] for r in db.session.query(Friend.user_id).filter_by(is_seeded=False).all()
+    } | {
+        r[0] for r in db.session.query(Friend.friend_id).filter_by(is_seeded=False).all()
+    }
+    users_first_friend = len(_friend_uids & {u.id for u in all_users})
+
+    # Avg days from signup → first trip
+    trip_deltas = [
+        (u.first_trip_created_at - u.created_at).days
+        for u in all_users
+        if u.first_trip_created_at and u.created_at
+        and (u.first_trip_created_at - u.created_at).days >= 0
+    ]
+    avg_days_to_trip = round(sum(trip_deltas) / len(trip_deltas)) if trip_deltas else None
+
+    # Avg days from signup → first friend (earliest Friend edge where user is owner)
+    _first_friend_map = {
+        uid: ts
+        for uid, ts in db.session.query(
+            Friend.user_id, func.min(Friend.created_at)
+        ).filter_by(is_seeded=False).group_by(Friend.user_id).all()
+    }
+    friend_deltas = [
+        (ts - u.created_at).days
+        for u in all_users
+        for ts in [_first_friend_map.get(u.id)]
+        if ts and u.created_at and (ts - u.created_at).days >= 0
+    ]
+    avg_days_to_friend = round(sum(friend_deltas) / len(friend_deltas)) if friend_deltas else None
+
+    funnel = dict(
+        total              = total,
+        onboarded          = users_onboarded,
+        onboarding_rate    = _pct(users_onboarded),
+        first_trip         = users_first_trip,
+        first_trip_rate    = _pct(users_first_trip),
+        first_friend       = users_first_friend,
+        first_friend_rate  = _pct(users_first_friend),
+        avg_days_to_trip   = avg_days_to_trip,
+        avg_days_to_friend = avg_days_to_friend,
+    )
+
+    # ── 2. Activation ─────────────────────────────────────────────────────────
+    _stage_order  = ["new", "onboarding", "active"]
+    _stage_labels = {"new": "New", "onboarding": "Onboarding", "active": "Active"}
+    stage_ctr     = _GCtr(u.lifecycle_stage or "new" for u in all_users)
+    lifecycle_rows = [
+        (_stage_labels.get(s, s.title()), stage_ctr.get(s, 0), _pct(stage_ctr.get(s, 0)))
+        for s in _stage_order
+    ]
+    for s, cnt in stage_ctr.items():
+        if s not in _stage_order:
+            lifecycle_rows.append((s.title(), cnt, _pct(cnt)))
+
+    pass_on_file = 0
+    for u in all_users:
+        if not u.pass_type:
+            continue
+        for raw in str(u.pass_type).split(","):
+            raw = raw.strip()
+            if not raw:
+                continue
+            norm = normalize_pass(raw)
+            if norm and norm not in _no_pass:
+                pass_on_file += 1
+                break
+
+    avail_uids    = {r[0] for r in db.session.query(UserAvailability.user_id).distinct().all()}
+    users_avail   = len(avail_uids & {u.id for u in all_users})
+    users_wishlist = sum(1 for u in all_users if u.wish_list_resorts and len(u.wish_list_resorts) > 0)
+    users_visited  = sum(1 for u in all_users if u.visited_resort_ids and len(u.visited_resort_ids) > 0)
+
+    activation = dict(
+        lifecycle_rows  = lifecycle_rows,
+        pass_on_file    = pass_on_file,
+        pass_pct        = _pct(pass_on_file),
+        wishlist        = users_wishlist,
+        wishlist_pct    = _pct(users_wishlist),
+        avail           = users_avail,
+        avail_pct       = _pct(users_avail),
+        mountains       = users_visited,
+        mountains_pct   = _pct(users_visited),
+    )
+
+    # ── 3. Virality ───────────────────────────────────────────────────────────
+    total_invites    = Invitation.query.count()
+    accepted_invites = Invitation.query.filter_by(status="accepted").count()
+    inv_accept_rate  = _pct(accepted_invites, total_invites)
+
+    inv_30d          = Invitation.query.filter(Invitation.created_at >= thirty_ago).count()
+    inv_30d_accepted = Invitation.query.filter(
+        Invitation.created_at >= thirty_ago,
+        Invitation.status == "accepted",
+    ).count()
+    inv_accept_rate_30d = _pct(inv_30d_accepted, inv_30d)
+
+    senders          = db.session.query(Invitation.sender_id.distinct()).count()
+    pct_sent_invite  = _pct(senders)
+
+    referred         = sum(1 for u in all_users if u.invited_by_user_id)
+    organic          = total - referred
+    avg_inv_per_user = round(total_invites / total, 2)
+    k_factor         = round(avg_inv_per_user * (inv_accept_rate / 100), 3)
+
+    virality = dict(
+        total_invites       = total_invites,
+        accepted_invites    = accepted_invites,
+        inv_accept_rate     = inv_accept_rate,
+        inv_30d             = inv_30d,
+        inv_30d_accepted    = inv_30d_accepted,
+        inv_accept_rate_30d = inv_accept_rate_30d,
+        senders             = senders,
+        pct_sent_invite     = pct_sent_invite,
+        organic             = organic,
+        referred            = referred,
+        organic_pct         = _pct(organic),
+        referred_pct        = _pct(referred),
+        avg_inv_per_user    = avg_inv_per_user,
+        k_factor            = k_factor,
+    )
+
+    # ── 4. Retention proxy ────────────────────────────────────────────────────
+    def _ret(n_days):
+        cutoff  = now_dt - timedelta(days=n_days)
+        cohort  = [u for u in all_users if u.created_at and u.created_at <= cutoff]
+        if not cohort:
+            return None, 0, 0
+        retained = sum(
+            1 for u in cohort
+            if u.last_active_at
+            and u.last_active_at >= (u.created_at + timedelta(days=n_days))
+        )
+        return round(retained / len(cohort) * 100), retained, len(cohort)
+
+    d1_pct,  d1_ret,  d1_coh  = _ret(1)
+    d7_pct,  d7_ret,  d7_coh  = _ret(7)
+    d30_pct, d30_ret, d30_coh = _ret(30)
+
+    retention = dict(
+        d1  = dict(pct=d1_pct,  retained=d1_ret,  cohort=d1_coh),
+        d7  = dict(pct=d7_pct,  retained=d7_ret,  cohort=d7_coh),
+        d30 = dict(pct=d30_pct, retained=d30_ret, cohort=d30_coh),
+    )
+
+    return render_template(
+        "admin_growth.html",
+        active_tab = "growth",
+        now        = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        funnel     = funnel,
+        activation = activation,
+        virality   = virality,
+        retention  = retention,
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

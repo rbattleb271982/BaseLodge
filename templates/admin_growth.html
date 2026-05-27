@@ -1,0 +1,386 @@
+{% extends "admin_console.html" %}
+{% block title %}Growth{% endblock %}
+{% block page_title %}Growth{% endblock %}
+
+{% block head_styles %}
+  .ad-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: #6B6157;
+    margin: 0 0 10px;
+  }
+  .ad-section { margin-bottom: 28px; }
+
+  .ad-updated {
+    font-size: 11px;
+    color: #9E958A;
+    margin-bottom: 20px;
+  }
+
+  /* ── KPI grid ── */
+  .ad-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .ad-kpi-grid--2col { grid-template-columns: repeat(2, 1fr); }
+  .ad-kpi-grid--3col { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 700px) {
+    .ad-kpi-grid           { grid-template-columns: repeat(2, 1fr); }
+    .ad-kpi-grid--2col     { grid-template-columns: repeat(2, 1fr); }
+    .ad-kpi-grid--3col     { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ── KPI card ── */
+  .ad-card {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 14px 16px 12px;
+    min-width: 0;
+  }
+  .ad-card-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #9E958A;
+    margin-bottom: 6px;
+  }
+  .ad-card-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1C1917;
+    line-height: 1;
+  }
+  .ad-card-sub {
+    font-size: 12px;
+    color: #9E958A;
+    margin-top: 4px;
+  }
+  .ad-card-note {
+    font-size: 11px;
+    color: #B0A69B;
+    margin-top: 6px;
+    font-style: italic;
+  }
+
+  /* ── Funnel table ── */
+  .gr-funnel-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    overflow: hidden;
+  }
+  .gr-funnel-table th {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #9E958A;
+    text-align: left;
+    padding: 10px 16px 8px;
+    border-bottom: 1px solid #E4DDD2;
+    background: #FDFAF6;
+  }
+  .gr-funnel-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid #F0EBE3;
+    color: #1C1917;
+    vertical-align: middle;
+  }
+  .gr-funnel-table tr:last-child td { border-bottom: none; }
+  .gr-funnel-table td:nth-child(2) { color: #6B6560; font-variant-numeric: tabular-nums; }
+  .gr-funnel-table td:nth-child(3) { text-align: right; color: #9E958A; font-size: 12px; }
+
+  /* ── Bar wrap ── */
+  .gr-bar-wrap {
+    background: #F5F1E8;
+    border-radius: 4px;
+    height: 6px;
+    width: 100%;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+  .gr-bar {
+    height: 100%;
+    background: #5C1219;
+    border-radius: 4px;
+  }
+  .gr-bar--green  { background: #4A7C59; }
+  .gr-bar--purple { background: #9B7EBD; }
+
+  /* ── Stage badges ── */
+  .gr-stage-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #F0EBE3;
+    font-size: 13px;
+  }
+  .gr-stage-row:last-child { border-bottom: none; }
+  .gr-stage-name { width: 100px; color: #1C1917; font-weight: 500; }
+  .gr-stage-bar-wrap {
+    flex: 1;
+    background: #F5F1E8;
+    border-radius: 4px;
+    height: 6px;
+    overflow: hidden;
+    min-width: 40px;
+  }
+  .gr-stage-bar { height: 100%; border-radius: 4px; background: #5C1219; }
+  .gr-stage-cnt { width: 36px; text-align: right; color: #6B6560; font-size: 12px; }
+  .gr-stage-pct { width: 36px; text-align: right; color: #9E958A; font-size: 11px; }
+
+  /* ── Proxy disclaimer ── */
+  .gr-proxy-note {
+    font-size: 11px;
+    color: #A09690;
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: #F5F1E8;
+    border-left: 3px solid #D4C8B8;
+    border-radius: 0 6px 6px 0;
+    line-height: 1.6;
+  }
+
+  /* ── Inline metric pair ── */
+  .gr-pair {
+    display: flex;
+    gap: 10px;
+  }
+  .gr-pair > .ad-card { flex: 1; }
+
+  /* ── K-factor card accent ── */
+  .ad-card--accent {
+    border-color: #C9B5A5;
+    background: #FDFAF6;
+  }
+{% endblock %}
+
+{% block content %}
+<div class="ad-updated">Loaded {{ now }}</div>
+
+<!-- ── 1. Funnel ─────────────────────────────────────────────────────── -->
+<div class="ad-section" id="gr-funnel">
+  <div class="ad-section-label">Acquisition Funnel</div>
+
+  <table class="gr-funnel-table">
+    <thead>
+      <tr>
+        <th>Stage</th>
+        <th>Users</th>
+        <th>Conversion</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="font-weight:600;">Signed up</td>
+        <td>{{ funnel.total }}</td>
+        <td>100%</td>
+      </tr>
+      <tr>
+        <td>Completed onboarding</td>
+        <td>{{ funnel.onboarded }}</td>
+        <td>{{ funnel.onboarding_rate }}%</td>
+      </tr>
+      <tr>
+        <td>Created first trip</td>
+        <td>{{ funnel.first_trip }}</td>
+        <td>{{ funnel.first_trip_rate }}%</td>
+      </tr>
+      <tr>
+        <td>Connected first friend</td>
+        <td>{{ funnel.first_friend }}</td>
+        <td>{{ funnel.first_friend_rate }}%</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="ad-kpi-grid ad-kpi-grid--2col" style="margin-top:10px;">
+    <div class="ad-card">
+      <div class="ad-card-label">Avg Days → First Trip</div>
+      <div class="ad-card-value">
+        {% if funnel.avg_days_to_trip is not none %}{{ funnel.avg_days_to_trip }}{% else %}—{% endif %}
+      </div>
+      <div class="ad-card-sub">from signup to first trip created</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Avg Days → First Friend</div>
+      <div class="ad-card-value">
+        {% if funnel.avg_days_to_friend is not none %}{{ funnel.avg_days_to_friend }}{% else %}—{% endif %}
+      </div>
+      <div class="ad-card-sub">from signup to first friendship</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 2. Activation ──────────────────────────────────────────────────── -->
+<div class="ad-section" id="gr-activation">
+  <div class="ad-section-label">Activation</div>
+
+  <!-- Lifecycle stage breakdown -->
+  <div class="ad-card" style="padding: 12px 16px; margin-bottom: 10px;">
+    <div class="ad-card-label" style="margin-bottom: 10px;">Lifecycle Stage</div>
+    {% set lc_max = [activation.lifecycle_rows | map(attribute=1) | max, 1] | max %}
+    {% for label, cnt, p in activation.lifecycle_rows %}
+    <div class="gr-stage-row">
+      <span class="gr-stage-name">{{ label }}</span>
+      <div class="gr-stage-bar-wrap">
+        <div class="gr-stage-bar" style="width:{{ ((cnt / lc_max) * 100)|int }}%"></div>
+      </div>
+      <span class="gr-stage-cnt">{{ cnt }}</span>
+      <span class="gr-stage-pct">{{ p }}%</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Activation KPIs -->
+  <div class="ad-kpi-grid" style="grid-template-columns: repeat(2, 1fr);">
+    <div class="ad-card">
+      <div class="ad-card-label">Pass On File</div>
+      <div class="ad-card-value">{{ activation.pass_pct }}%</div>
+      <div class="ad-card-sub">{{ activation.pass_on_file }} of {{ funnel.total }} users</div>
+      <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ activation.pass_pct }}%"></div></div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Wish List Set</div>
+      <div class="ad-card-value">{{ activation.wishlist_pct }}%</div>
+      <div class="ad-card-sub">{{ activation.wishlist }} saved a resort</div>
+      <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ activation.wishlist_pct }}%"></div></div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Availability Set</div>
+      <div class="ad-card-value">{{ activation.avail_pct }}%</div>
+      <div class="ad-card-sub">{{ activation.avail }} added open dates</div>
+      <div class="gr-bar-wrap"><div class="gr-bar gr-bar--green" style="width:{{ activation.avail_pct }}%"></div></div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Mountains Logged</div>
+      <div class="ad-card-value">{{ activation.mountains_pct }}%</div>
+      <div class="ad-card-sub">{{ activation.mountains }} logged a visit</div>
+      <div class="gr-bar-wrap"><div class="gr-bar gr-bar--purple" style="width:{{ activation.mountains_pct }}%"></div></div>
+    </div>
+  </div>
+  <a href="/admin/user-insights" style="display:inline-block;margin-top:10px;font-size:12px;color:#9B8D80;text-decoration:none;" onmouseover="this.style.color='#5C1219'" onmouseout="this.style.color='#9B8D80'">Full profile completion breakdown → User Insights</a>
+</div>
+
+<!-- ── 3. Virality ────────────────────────────────────────────────────── -->
+<div class="ad-section" id="gr-virality">
+  <div class="ad-section-label">Virality</div>
+
+  <div class="ad-kpi-grid ad-kpi-grid--3col" style="margin-bottom:10px;">
+    <div class="ad-card">
+      <div class="ad-card-label">Invitations Sent</div>
+      <div class="ad-card-value">{{ virality.total_invites }}</div>
+      <div class="ad-card-sub">{{ virality.accepted_invites }} accepted all-time</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Accept Rate (All-time)</div>
+      <div class="ad-card-value">{{ virality.inv_accept_rate }}%</div>
+      <div class="ad-card-sub">{{ virality.accepted_invites }} of {{ virality.total_invites }}</div>
+      <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ virality.inv_accept_rate }}%"></div></div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Accept Rate (Last 30d)</div>
+      <div class="ad-card-value">{{ virality.inv_accept_rate_30d }}%</div>
+      <div class="ad-card-sub">{{ virality.inv_30d_accepted }} of {{ virality.inv_30d }}</div>
+      <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ virality.inv_accept_rate_30d }}%"></div></div>
+    </div>
+  </div>
+
+  <div class="ad-kpi-grid ad-kpi-grid--3col" style="margin-bottom:10px;">
+    <div class="ad-card">
+      <div class="ad-card-label">Users Who Invited</div>
+      <div class="ad-card-value">{{ virality.pct_sent_invite }}%</div>
+      <div class="ad-card-sub">{{ virality.senders }} of {{ funnel.total }} sent ≥1 invite</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Organic Signups</div>
+      <div class="ad-card-value">{{ virality.organic_pct }}%</div>
+      <div class="ad-card-sub">{{ virality.organic }} — no referrer on file</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Referred Signups</div>
+      <div class="ad-card-value">{{ virality.referred_pct }}%</div>
+      <div class="ad-card-sub">{{ virality.referred }} joined via invite link</div>
+    </div>
+  </div>
+
+  <div class="ad-card ad-card--accent">
+    <div class="ad-card-label">K-Factor Proxy</div>
+    <div class="ad-card-value">{{ virality.k_factor }}</div>
+    <div class="ad-card-sub">
+      {{ virality.avg_inv_per_user }} avg invites/user &times; {{ virality.inv_accept_rate }}% acceptance
+    </div>
+    <div class="ad-card-note">Estimate only — based on invitation records, not session-level referral tracking. &gt;1.0 = viral growth.</div>
+  </div>
+</div>
+
+<!-- ── 4. Retention Proxy ─────────────────────────────────────────────── -->
+<div class="ad-section" id="gr-retention">
+  <div class="ad-section-label">Retention Proxy</div>
+
+  <div class="gr-proxy-note">
+    Proxy — based on <code>last_active_at</code>, not session-level analytics. A user is counted as "retained" if their last active timestamp is at or after signup + N days. Cohort = users registered more than N days ago.
+  </div>
+
+  <div class="ad-kpi-grid ad-kpi-grid--3col" style="margin-top:10px;">
+    <div class="ad-card">
+      <div class="ad-card-label">Day-1 Retention</div>
+      <div class="ad-card-value">
+        {% if retention.d1.pct is not none %}{{ retention.d1.pct }}%{% else %}—{% endif %}
+      </div>
+      <div class="ad-card-sub">
+        {% if retention.d1.cohort > 0 %}
+          {{ retention.d1.retained }} of {{ retention.d1.cohort }} eligible
+        {% else %}
+          No eligible cohort yet
+        {% endif %}
+      </div>
+      {% if retention.d1.cohort > 0 %}
+      <div class="gr-bar-wrap"><div class="gr-bar gr-bar--green" style="width:{{ retention.d1.pct or 0 }}%"></div></div>
+      {% endif %}
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Day-7 Retention</div>
+      <div class="ad-card-value">
+        {% if retention.d7.pct is not none %}{{ retention.d7.pct }}%{% else %}—{% endif %}
+      </div>
+      <div class="ad-card-sub">
+        {% if retention.d7.cohort > 0 %}
+          {{ retention.d7.retained }} of {{ retention.d7.cohort }} eligible
+        {% else %}
+          No eligible cohort yet
+        {% endif %}
+      </div>
+      {% if retention.d7.cohort > 0 %}
+      <div class="gr-bar-wrap"><div class="gr-bar gr-bar--green" style="width:{{ retention.d7.pct or 0 }}%"></div></div>
+      {% endif %}
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Day-30 Retention</div>
+      <div class="ad-card-value">
+        {% if retention.d30.pct is not none %}{{ retention.d30.pct }}%{% else %}—{% endif %}
+      </div>
+      <div class="ad-card-sub">
+        {% if retention.d30.cohort > 0 %}
+          {{ retention.d30.retained }} of {{ retention.d30.cohort }} eligible
+        {% else %}
+          No eligible cohort yet
+        {% endif %}
+      </div>
+      {% if retention.d30.cohort > 0 %}
+      <div class="gr-bar-wrap"><div class="gr-bar gr-bar--green" style="width:{{ retention.d30.pct or 0 }}%"></div></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
