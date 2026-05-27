@@ -133,11 +133,11 @@
 {# Buddy Pass Modals (owner only) #}
 {% if is_owner %}
     {% set buddy_pass_supported = ['Epic', 'Ikon', 'Other'] %}
-    {% set user_passes = (profile_user.pass_type or '')|replace(' Pass', '')|replace(' pass', '') %}
+    {% set user_passes_norm = (profile_user.pass_type or '').split(',') | map('normalize_pass') | list %}
     {% set buddy_passes_data = profile_user.buddy_passes or {} %}
     {% for pass_name in buddy_pass_supported %}
         {% set pass_key = pass_name|lower|replace(' ', '_') %}
-        {% if pass_name|lower in user_passes|lower %}
+        {% if pass_key in user_passes_norm %}
         <div class="bl-modal-overlay bl-buddy-modal" id="buddy-modal-{{ profile_user.id }}-{{ pass_key }}" aria-hidden="true">
             <div class="bl-modal bl-modal-small" role="dialog" aria-labelledby="buddy-title-{{ pass_key }}">
                 <div class="bl-modal-header">
