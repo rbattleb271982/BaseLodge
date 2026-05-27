@@ -1,0 +1,87 @@
+PUT THIS IN PLAN FIRST
+
+Add email analytics to the Messaging admin plan.
+
+Messaging should cover both push and email communication health.
+
+In addition to push stats, inspect existing email infrastructure:
+- EmailLog model
+- password reset email flow
+- SendGrid integration
+- newsletter/email preference fields
+- email opt-in / unsubscribe fields
+- existing email routes/services
+- any current or planned email categories
+- any existing admin email/debug tooling
+
+Email stats should include:
+
+1. Email Overview
+Metrics to evaluate:
+- Total Emails Sent
+- Emails Sent Last 7 Days
+- Emails Sent Last 30 Days
+- Email Success %
+- Email Failed %
+- Email Skipped %
+- Email Opt-In %
+- Email-Only Reachable Users
+
+2. Forgot Password Emails
+Metrics to evaluate:
+- Password Reset Emails Sent
+- Password Reset Emails Delivered if available
+- Password Reset Email Failures
+- Password Reset Requests Last 7 Days
+- Password Reset Requests Last 30 Days
+- Most Recent Password Reset Emails
+- Recent Password Reset Failures
+
+3. Newsletter / Broadcast Email Readiness
+Metrics to evaluate now if feasible:
+- Newsletter Opt-Ins
+- Newsletter Opt-Outs
+- Newsletter Opt-In %
+- Users reachable by newsletter email
+- Users not reachable by newsletter email
+
+If newsletter emails are not implemented yet, mark these as deferred unless the data fields already exist.
+
+4. Future Email Categories
+Plan the structure so future emails can be added without redesigning the page, including:
+- onboarding emails
+- trip reminder emails
+- friend/trip activity emails
+- newsletter emails
+- operational/admin emails
+
+Do not implement new email sending functionality.
+Do not build a campaign composer.
+Do not build a newsletter tool.
+Do not add migrations unless absolutely required.
+
+Update the Messaging page plan so the admin area can support:
+- Push Health
+- Email Health
+- Lifecycle Events
+- Delivery Health
+- Audience Reachability
+- Message Log
+
+The page should clearly distinguish:
+- Push
+- Email
+- In-app/message event logs if applicable
+- Transactional vs broadcast
+- Current metrics vs deferred metrics
+
+After investigation, include:
+1. Which email metrics are currently feasible.
+2. Which email metrics require future EmailLog/category work.
+3. Whether forgot password emails are already logged.
+4. Whether SendGrid delivery status is available or only “sent/error” is available.
+5. How EmailLog should relate to MessageEventLog.
+6. Exact models, routes, templates, and services affected.
+7. Safest implementation sequence.
+
+Do not implement until I approve the plan.
