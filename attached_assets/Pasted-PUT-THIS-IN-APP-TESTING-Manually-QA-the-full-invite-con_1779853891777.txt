@@ -1,0 +1,131 @@
+PUT THIS IN APP TESTING
+
+Manually QA the full invite + connection lifecycle flows across web and native app after the #143 fixes.
+
+Focus:
+We recently fixed:
+- Google OAuth trip invite redirect preservation
+- partially-onboarded friend invite redirect
+- QR connect login redirect persistence
+- invite landing wrong-account UX
+- before_request nav gate interception for /trip-invite and /connect
+
+We now need end-to-end manual verification.
+
+Test environments
+1. Desktop web
+2. Mobile Safari web
+3. Native iOS app (Capacitor/TestFlight build)
+4. If available: Android app
+
+Accounts needed
+- User A = existing fully onboarded user
+- User B = existing fully onboarded user
+- User C = new/unregistered user
+- Optional User D = partially onboarded user
+
+QA Scenarios
+
+SECTION 1 — Friend invite links
+
+1. Existing user → existing app user
+- User A sends friend invite link
+- User B opens while logged out
+- Log in
+- Confirm invite
+- Verify friendship created
+- Verify redirect behavior
+- Verify no duplicate friendship rows
+
+2. Existing user → brand-new user
+- User A sends invite
+- User C signs up via email
+- Complete onboarding
+- Verify redirect to Friends
+- Verify friendship exists automatically
+
+3. Existing user → Google OAuth login
+- User A sends invite
+- User B clicks invite
+- Choose “Continue with Google”
+- Verify invite context survives
+- Verify redirect does NOT go to /home prematurely
+- Verify friendship created
+
+4. Wrong-account UX
+- User C logged in
+- Open User A invite link
+- Verify “Logged in as…” warning appears
+- Verify logout link works
+
+5. Existing friends re-clicking invite
+- Already-connected users open invite link again
+- Verify clean behavior
+- No duplicate friendship
+- No errors
+- No broken state
+
+SECTION 2 — Trip invite links
+
+6. Existing user → existing Google user
+- Open trip invite
+- Sign in with Google
+- Verify redirect returns to trip invite flow
+- Verify trip acceptance works
+
+7. Brand-new user → trip invite
+- Open trip invite
+- Create account
+- Complete onboarding
+- Verify redirect back to trip invite flow
+- Verify trip join works
+
+SECTION 3 — QR connect flow
+
+8. Logged-out QR scan
+- Open /connect/<id>
+- Get redirected to login
+- Log in
+- Verify return to connect confirmation flow
+- Verify connection succeeds
+
+9. Logged-in QR scan
+- Open QR connect while already logged in
+- Verify direct connect flow works
+- Verify duplicate friendship prevention
+
+SECTION 4 — Cross-platform/session behavior
+
+10. Mobile Safari → native app edge case
+- Open invite in Safari
+- Then manually open app
+- Verify/document current behavior
+- Confirm no misleading UI occurs
+
+11. Native app direct invite flow
+- Open invite link directly inside app if supported
+- Verify session preservation
+- Verify redirect behavior
+
+Regression checks
+- No auth redirect loops
+- No onboarding loops
+- No silent redirect to /home when context exists
+- No duplicate friendships
+- No expired-token errors on valid first use
+- No broken back button behavior
+
+Deliverables
+For each scenario:
+- PASS / FAIL
+- exact redirect path observed
+- screenshots for failures
+- whether issue is:
+  - frontend
+  - backend/session
+  - native/webview
+  - OAuth redirect handling
+  - UX copy/confusion
+
+Do not make code changes during QA.
+Only document findings clearly and completely.
