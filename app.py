@@ -13147,12 +13147,12 @@ def admin_messaging():
         platform_breakdown = {r[0]: r[1] for r in _plat_rows}
 
         # Push-enabled users with NO active token (silent failure risk)
-        _subq_token_users = db.session.query(
-            func.distinct(PushDeviceToken.user_id)
-        ).filter(PushDeviceToken.active == True).subquery()
+        _token_user_ids = db.session.query(
+            PushDeviceToken.user_id
+        ).filter(PushDeviceToken.active == True).distinct()
         push_enabled_no_token = db.session.query(func.count(User.id)).filter(
             User.push_notifications_enabled == True,
-            ~User.id.in_(db.session.query(_subq_token_users))
+            ~User.id.in_(_token_user_ids)
         ).scalar() or 0
 
         # Users with multiple active tokens
