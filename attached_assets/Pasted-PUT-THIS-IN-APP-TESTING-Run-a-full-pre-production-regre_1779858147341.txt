@@ -1,0 +1,157 @@
+PUT THIS IN APP TESTING
+
+Run a full pre-production regression test for BaseLodge.
+
+Goal:
+Confirm the app is safe to push to production after the recent Home, Profile, pass, invite, admin, and friend-overlap changes.
+
+Do not make code changes during this test. Only document PASS / FAIL, screenshots, exact URLs, account used, and suspected root cause.
+
+Test on:
+1. Desktop web
+2. Mobile Safari web
+3. Native iOS app / TestFlight if available
+4. Android if available
+
+1. Auth / onboarding basics
+- Signup works.
+- Login works.
+- Logout works.
+- Onboarding completes.
+- No auth redirect loops.
+- No unexpected 403/500 errors.
+
+2. Home
+- Home loads.
+- Home identity card still looks correct after shared CSS move.
+- Identity metadata stacks vertically:
+  - rider type(s)
+  - skill level
+  - pass
+  - Add your gear →
+- Single rider type looks clean.
+- Multiple rider types show all values.
+- Stats section remains unchanged.
+- User with no availability sees “Add dates to unlock trip ideas.”
+- User with saved availability sees “You’re free:” with up to 3 ranges.
+- More than 3 ranges shows “+ N more dates.”
+- “Edit availability” opens calendar editor.
+- Calendar saves dates correctly.
+- Home updates after saving dates.
+
+3. Profile
+- Profile loads.
+- Profile top card matches Home identity structure.
+- Rider type / skill / pass are not repeated in row subtitles.
+- “Profile details” subtitle says: “Riding preferences, home mountain, terrain.”
+- “Gear” label appears instead of “Equipment.”
+- Mountains visited and wishlist counts appear only in the stat band.
+- Upcoming Trips count is actually upcoming trips, not all-time trips.
+- Account actions still work: push notifications, change password, logout, delete account page/link.
+
+4. Pass system
+- All 10 pass options are visible without a “More passes” toggle:
+  - No pass
+  - Not sure yet
+  - Epic
+  - Ikon
+  - Indy
+  - Mountain Collective
+  - Powder Alliance
+  - Freedom Pass
+  - Ski California
+  - Other pass
+- Same pass list appears in onboarding, select pass, and edit profile.
+- No pass and Not sure yet are mutually exclusive.
+- Real passes are combinable.
+- 3-real-pass cap still works.
+- Indy saves as indy and displays as Indy.
+- Mountain Collective saves as mountain_collective and displays as Mountain Collective.
+- Other pass is selectable and combinable.
+- No raw backend values appear, e.g. no_pass_yet or mountain_collective.
+
+5. Rider type display
+- Profile shows all selected rider types.
+- Friends list shows all selected rider types.
+- Friend profile shows all selected rider types.
+- Single-type users still render normally.
+- Multi-type example displays like: Skier + Snowboarder + Telemark.
+
+6. Gear
+- Gear page loads.
+- Add your gear CTA works from Home and Profile.
+- Existing gear summary displays correctly if present.
+- “Gear” terminology is used in user-facing profile navigation.
+
+7. Friends / friend profile overlap
+- Friends page loads.
+- Friend profile loads for confirmed friends.
+- Non-friends cannot view private friend profile data.
+- For friends with overlapping availability, “You’re both free —” appears.
+- Up to 3 overlap ranges display.
+- Extra ranges show “+ N more.”
+- If no overlap exists, the overlap section stays hidden.
+- Trip overlap and wishlist overlap rows still behave normally.
+
+8. Invite and connection lifecycle
+- Friend invite link from existing user to existing user works.
+- Friend invite link from existing user to new user works.
+- Existing friends re-clicking invite behaves cleanly.
+- Wrong-account warning appears on invite landing when logged in:
+  “Logged in as [Name]. Not you? Log out and switch accounts.”
+- QR connect while logged out returns to connect confirmation after login.
+- QR connect while logged in works.
+- Trip invite while logged out preserves context through login/signup.
+- Skip Google OAuth scenarios if Google OAuth is not enabled. Mark them N/A, not FAIL.
+
+9. Trips
+- Plan a Trip loads.
+- My Trips loads.
+- Trip detail loads.
+- Creating a trip still works.
+- Trip cards still render pass/rider data correctly.
+- Existing trip invite behavior still works.
+
+10. Mountains
+- Mountains page loads.
+- Mountain detail pages load.
+- Pass-related filtering/matching does not error with new pass slugs.
+- Indy / Mountain Collective data does not break mountain rendering.
+
+11. Admin dashboard
+- Admin dashboard loads with no errors.
+- Platform Engagement section appears.
+- Confirm these tiles render:
+  - Avg Connections/user
+  - Avg Trips/user
+  - Availability adoption
+  - Avg Invites Sent/user
+- Signups by State table appears.
+- Admin pass distribution does not break after new pass slugs.
+- Layout works on desktop and does not break on mobile.
+
+12. General regression checks
+- No raw backend enum values appear in user-facing UI.
+- No broken links from Home/Profile/Friends/Trips/Mountains.
+- No blank screens.
+- No console errors that affect core flows.
+- No layout overflow on 390px mobile width.
+- Bottom navigation still works.
+- Back buttons still work.
+
+Deliverable:
+Return a QA report with:
+
+- PASS / FAIL by section
+- Device/browser used
+- Account used
+- Screenshot notes for failures
+- Exact error messages or routes for failures
+- Whether each failure is blocking production or can wait
+- Final recommendation:
+  - Safe to deploy
+  - Deploy with known non-blocking issues
+  - Do not deploy
+
+Do not make code changes.
+Do not finish until the full checklist has been tested or clearly marked N/A with reason.
