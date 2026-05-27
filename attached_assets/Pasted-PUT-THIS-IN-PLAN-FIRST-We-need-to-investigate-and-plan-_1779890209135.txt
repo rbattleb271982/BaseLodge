@@ -1,0 +1,87 @@
+PUT THIS IN PLAN FIRST
+
+We need to investigate and plan improvements for the Admin Mountains section before implementing anything.
+
+Context:
+The current Mountains admin area appears to serve two purposes:
+1. Resort/mountain data curation and editing, likely connected to Supabase
+2. Future/admin metrics about mountain activity in BaseLodge
+
+The existing UI is not mobile-safe. On iPhone, the resort table horizontally overflows and becomes hard to use. However, I still need the ability to edit individual mountain/resort records without going into Replit.
+
+Do not implement yet. First inspect the current routes, templates, models, database fields, and any Supabase/data-curation logic.
+
+Investigation goals:
+1. Identify the current admin routes used for Mountains / Resort Data Curation.
+2. Identify whether resort edits are saved directly to the app database/Supabase.
+3. Identify what fields can currently be edited per resort.
+4. Identify whether add/edit/delete/status actions already exist.
+5. Identify why the current mobile UI horizontally overflows.
+6. Identify whether the current table is necessary on mobile or should become cards/list rows.
+7. Identify what mountain metrics can be derived from existing data.
+
+Requirements to preserve:
+- Admin must still be able to add/edit individual resorts/mountains.
+- Admin must still be able to activate/inactivate resorts.
+- Admin should not need Replit to update resort details.
+- Do not remove export/import functionality unless there is a safer replacement.
+- Do not change user-facing mountain pages yet.
+- Do not change production data structure without approval.
+- No migrations unless absolutely necessary.
+- Use checkpoints sparingly.
+
+For mountain metrics, evaluate feasibility for:
+- Total active resorts
+- Total inactive resorts
+- Resorts by country
+- Resorts by state/region
+- Resorts by pass brand
+- Most planned resorts
+- Most wishlisted resorts
+- Resorts with upcoming trips
+- Resorts with no trips
+- Top resorts by unique users
+- Top resorts by friend/group activity
+- Recently added resorts
+- Recently updated resorts, if timestamps exist
+
+Planning deliverables:
+1. Map the current Mountains admin architecture:
+   - routes
+   - templates
+   - models
+   - forms/actions
+   - database fields
+2. Explain what editing functionality currently works.
+3. Explain what is broken or weak in the mobile UI.
+4. Recommend the safest mobile UI pattern:
+   - responsive table
+   - card list
+   - searchable list + detail editor
+   - or desktop table / mobile cards
+5. Identify feasible mountain metrics from current data.
+6. Identify metrics that should be deferred.
+7. Propose a phased implementation plan:
+   Phase 1: fix mobile usability while preserving editing
+   Phase 2: add mountain metrics
+   Phase 3: improve search/filter/detail editing if needed
+8. Do not implement until I approve the plan.
+
+Also investigate the existing Resort Audit tool.
+
+Clarify the relationship between:
+1. Mountains / Resort Data Curation
+2. Resort Audit
+
+Expected distinction:
+- Mountains / Resort Data Curation should be the admin editing interface.
+- Resort Audit should be a diagnostic/audit interface for validating resort data quality, duplicates, missing fields, pass brand issues, and sync/import problems.
+- Resort Audit should not dump raw JSON directly to the browser as the primary UI.
+
+Please inspect the Resort Audit route/template and explain:
+- what route is rendering the raw JSON
+- what data source it uses
+- whether it overlaps with the Mountains editor
+- whether it should remain separate, be renamed, or be folded into the Mountains admin area later
+
+After the investigation, stop and wait for approval.

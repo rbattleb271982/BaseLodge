@@ -1,0 +1,118 @@
+PUT THIS IN AGENT
+
+Approved:
+- Phase 1 — Mountains mobile usability improvements
+- Phase 2 — Mountains metrics section
+
+Defer:
+- Phase 3 Resort Audit UI conversion
+
+PHASE 1 — MOBILE USABILITY (preserve all existing editing functionality)
+
+Goal:
+Make the Mountains admin section usable on iPhone/mobile web without removing any current editing capabilities.
+
+Important:
+Do NOT rebuild the resort management system.
+The current editing functionality already works and should be preserved.
+
+Preserve:
+- add resort
+- inline editing
+- activate/deactivate
+- pass brand editing
+- merge duplicates
+- delete
+- Excel import/export
+- bulk actions
+- canonical export
+- all existing AJAX endpoints
+
+Desktop behavior:
+- keep the existing table-based experience on desktop
+
+Mobile behavior:
+- replace the full table with a mobile-safe resort card list
+- no horizontal page scrolling
+- no clipped content
+- no giant overflow table on iPhone
+
+Recommended mobile pattern:
+- hide the 9-column table on mobile
+- render resort cards/list rows from the same Jinja data loop
+- each mobile card should show:
+  - resort name
+  - country/state
+  - pass brands
+  - active/inactive status
+  - activate/deactivate action
+  - overflow/actions menu if needed
+- preserve all existing save/update logic
+- reuse the existing AJAX handlers
+
+Also:
+- add overflow-x: auto to the desktop table container as a fallback safety net
+- fix any toolbar/input min-width issues causing overflow
+- keep desktop layout visually unchanged
+
+PHASE 2 — MOUNTAINS METRICS
+
+Add a Mountains section to the admin dashboard.
+
+Metrics to implement:
+1. Core Metrics
+- Total Active Resorts
+- Total Inactive Resorts
+- Resorts With Trips
+- Resorts With No Trips
+- Pass Coverage %
+
+2. Destination Intelligence
+- Resorts by Country
+- Resorts by Pass Brand
+- Most Planned Resorts
+- Most Wishlisted Resorts
+- Resorts With Upcoming Trips
+
+Important:
+- Reuse metrics already computed for Trips where possible
+- Avoid duplicate expensive queries
+- Keep mobile-safe layouts
+- Reuse existing admin dashboard card/table styling patterns
+
+Do NOT implement:
+- Recently added resorts
+- Recently updated resorts
+- Resort Audit redesign
+- Funnel/cohort analytics
+- Heavy charts
+- New models/migrations
+
+MOBILE REQUIREMENTS
+- No horizontal scrolling on iPhone
+- Card grids collapse correctly
+- Tables truncate safely
+- Toolbar/search/filter controls wrap safely
+- Admin nav still works on mobile
+
+FILES EXPECTED
+- templates/admin_resorts.html
+- templates/admin_dashboard.html
+- app.py
+- minimal CSS only where needed
+
+After implementation:
+1. Test desktop + iPhone viewport
+2. Take screenshots of:
+   - Mountains admin desktop
+   - Mountains admin mobile card view
+   - Mountains metrics section
+3. Confirm:
+   - no mobile overflow
+   - all editing actions still work
+   - desktop table still works
+4. Summarize:
+   - files changed
+   - metrics implemented
+   - any deferred items
+   - any performance considerations

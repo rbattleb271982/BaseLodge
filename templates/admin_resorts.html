@@ -93,6 +93,7 @@
             font-size: 14px;
             flex: 1;
             min-width: 200px;
+            min-width: 0;
         }
         
         .toolbar select {
@@ -148,7 +149,7 @@
         .table-container {
             background: white;
             border-radius: 8px;
-            overflow: hidden;
+            overflow-x: auto;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         
@@ -553,9 +554,155 @@
         .btn-add:hover {
             background: #2f855a;
         }
+
+        /* ── Back nav ── */
+        .admin-back-nav {
+            margin-bottom: 12px;
+        }
+        .admin-back-nav a {
+            font-size: 13px;
+            color: #718096;
+            text-decoration: none;
+        }
+        .admin-back-nav a:hover { color: #2d3748; }
+
+        /* ── Mobile resort cards (hidden by default, shown ≤767px) ── */
+        #mobile-resort-list { display: none; }
+
+        @media (max-width: 767px) {
+            body { padding: 12px; }
+            .table-container { display: none; }
+            #mobile-resort-list { display: block; }
+
+            .toolbar { gap: 8px; }
+            .toolbar input[type="text"],
+            .toolbar select { font-size: 13px; padding: 8px 10px; }
+
+            .resort-card {
+                background: white;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 12px 14px;
+                margin-bottom: 8px;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+            }
+            .resort-card.rc-inactive { background: #fff5f5; border-color: #fed7d7; }
+
+            .rc-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                margin-bottom: 5px;
+            }
+            .rc-name-btn {
+                font-size: 15px;
+                font-weight: 600;
+                color: #1a202c;
+                background: none;
+                border: none;
+                padding: 0;
+                text-align: left;
+                cursor: pointer;
+                flex: 1;
+                line-height: 1.3;
+            }
+            .rc-name-btn:active { opacity: 0.7; }
+            .rc-status-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                flex-shrink: 0;
+            }
+            .rc-active   { background: #38a169; }
+            .rc-inactive { background: #e53e3e; }
+
+            .rc-meta {
+                font-size: 12px;
+                color: #718096;
+                margin-bottom: 6px;
+            }
+            .rc-pass-tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px;
+                margin-bottom: 10px;
+                cursor: pointer;
+            }
+            .rc-actions {
+                display: flex;
+                gap: 8px;
+            }
+            .rc-toggle-btn, .rc-delete-btn {
+                flex: 1;
+                padding: 8px 0;
+                border: none;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 500;
+                cursor: pointer;
+            }
+            .rc-btn-danger  { background: #e53e3e; color: white; }
+            .rc-btn-success { background: #38a169; color: white; }
+            .rc-delete-btn  { background: #edf2f7; color: #4a5568; flex: 0 0 auto; padding: 8px 16px; }
+
+            /* Name-edit overlay */
+            #rc-name-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.45);
+                z-index: 500;
+                align-items: flex-end;
+            }
+            #rc-name-overlay.open { display: flex; }
+            #rc-name-box {
+                background: white;
+                width: 100%;
+                padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+                border-radius: 16px 16px 0 0;
+            }
+            #rc-name-box label {
+                display: block;
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                color: #718096;
+                margin-bottom: 8px;
+            }
+            #rc-name-input {
+                width: 100%;
+                padding: 10px 12px;
+                border: 2px solid #e2e8f0;
+                border-radius: 8px;
+                font-size: 16px;
+                box-sizing: border-box;
+                margin-bottom: 12px;
+            }
+            #rc-name-input:focus { border-color: #4299e1; outline: none; }
+            .rc-name-actions {
+                display: flex;
+                gap: 10px;
+            }
+            .rc-name-actions button {
+                flex: 1;
+                padding: 12px;
+                border: none;
+                border-radius: 8px;
+                font-size: 15px;
+                font-weight: 500;
+                cursor: pointer;
+            }
+            #rc-name-save   { background: #2d3748; color: white; }
+            #rc-name-cancel { background: #edf2f7; color: #4a5568; }
+        }
     </style>
 </head>
 <body>
+    <div class="admin-back-nav">
+        <a href="/admin">← Admin Console</a>
+    </div>
     <div class="admin-header">
         <h1>Resort Data Curation</h1>
         <p>Resort data is now managed via Supabase.</p>
@@ -794,7 +941,59 @@
             </tbody>
         </table>
     </div>
-    
+
+    <!-- ── Mobile card list (hidden on desktop via CSS) ── -->
+    <div id="mobile-resort-list">
+        {% for resort in resorts %}
+        <div class="resort-card{% if not resort.is_active %} rc-inactive{% endif %}"
+             data-id="{{ resort.id }}"
+             data-name="{{ resort.name|lower }}"
+             data-country="{{ resort.country_code or '' }}"
+             data-country-name="{{ resort.country_name or '' }}"
+             data-state="{{ resort.state_code or resort.state or '' }}"
+             data-pass="{{ resort.get_pass_brands_list()|join(',') or 'None' }}"
+             data-active="{{ 'true' if resort.is_active else 'false' }}">
+            <div class="rc-header">
+                <button class="rc-name-btn" onclick="rcOpenNameEdit({{ resort.id }}, this)">{{ resort.name }}</button>
+                <span class="rc-status-dot {{ 'rc-active' if resort.is_active else 'rc-inactive' }}" title="{{ 'Active' if resort.is_active else 'Inactive' }}"></span>
+            </div>
+            <div class="rc-meta">
+                {{ resort.country_name or resort.country_code or '' }}{% if resort.state_code or resort.state %} · {{ resort.state_code or resort.state }}{% endif %}
+            </div>
+            <div class="rc-pass-tags" data-id="{{ resort.id }}" onclick="openPassEditor(this)">
+                {% set brands = resort.get_pass_brands_list() %}
+                {% if brands %}
+                    {% for brand in resort.get_pass_brands_display() %}
+                    <span class="pass-tag pass-{{ brand|lower|replace(' ', '-') }}">{{ brand[:4] if brand == 'Mountain Collective' else brand }}</span>
+                    {% endfor %}
+                {% else %}
+                <span class="pass-tag pass-none">None</span>
+                {% endif %}
+            </div>
+            <div class="rc-actions">
+                {% if resort.is_active %}
+                <button class="rc-toggle-btn rc-btn-danger" onclick="toggleActive({{ resort.id }}, false)">Deactivate</button>
+                {% else %}
+                <button class="rc-toggle-btn rc-btn-success" onclick="toggleActive({{ resort.id }}, true)">Activate</button>
+                {% endif %}
+                <button class="rc-delete-btn" onclick="deleteResort({{ resort.id }}, '{{ resort.name|e }}')">Delete</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- ── Mobile name-edit overlay ── -->
+    <div id="rc-name-overlay">
+        <div id="rc-name-box">
+            <label>Resort Name</label>
+            <input type="text" id="rc-name-input" autocorrect="off" autocapitalize="words">
+            <div class="rc-name-actions">
+                <button id="rc-name-cancel" onclick="rcCancelNameEdit()">Cancel</button>
+                <button id="rc-name-save" onclick="rcSaveNameEdit()">Save</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="export-modal">
         <div class="modal">
             <h3>Export to Canonical JSON</h3>
@@ -1049,6 +1248,7 @@
                         </td>
                     `;
                     tbody.prepend(row);
+                    addCardToMobileList(resort);
                     filterResorts();
                 } else {
                     showToast(data.message || 'Failed to add resort', 'error');
@@ -1074,9 +1274,12 @@
                     showToast('Field updated', 'success');
                     // Update data attributes for filtering
                     const row = input.closest('tr');
-                    if (field === 'name') row.dataset.name = value.toLowerCase();
-                    if (field === 'country_code') row.dataset.country = value;
-                    if (field === 'state_code') row.dataset.state = value;
+                    if (row) {
+                        if (field === 'name') row.dataset.name = value.toLowerCase();
+                        if (field === 'country_code') row.dataset.country = value;
+                        if (field === 'state_code') row.dataset.state = value;
+                    }
+                    syncCardWithRow(parseInt(id));
                 } else {
                     showToast(data.message || 'Update failed', 'error');
                 }
@@ -1147,6 +1350,7 @@
                             }
                         }
                     }
+                    syncCardWithRow(resortId);
                     filterResorts();
                 } else {
                     showToast(data.message || 'Toggle failed', 'error');
@@ -1172,6 +1376,7 @@
                     showToast('Resort deleted', 'success');
                     const row = document.querySelector(`tr[data-id="${resortId}"]`);
                     if (row) row.remove();
+                    removeCard(resortId);
                     selectedResorts.delete(resortId);
                     syncSelectAllState();
                     updateSelectionDisplay();
@@ -1348,31 +1553,32 @@
             const state = document.getElementById('state-filter').value.toLowerCase();
             const status = document.getElementById('status-filter').value;
             const passBrand = document.getElementById('pass-brand-filter').value.toLowerCase();
-            
-            document.querySelectorAll('#resort-table tr').forEach(row => {
-                const name = row.dataset.name;
-                const rowCountry = row.dataset.country;
-                const rowState = (row.dataset.state || '').toLowerCase();
-                const rowPass = (row.dataset.pass || '').toLowerCase();
-                const isActive = row.dataset.active === 'true';
-                
-                let show = true;
-                if (search && !name.includes(search) && !rowState.includes(search)) show = false;
-                if (country && rowCountry !== country) show = false;
-                if (state && rowState !== state) show = false;
-                if (status === 'active' && !isActive) show = false;
-                if (status === 'inactive' && isActive) show = false;
+
+            function matchesFilters(el) {
+                const name = (el.dataset.name || '');
+                const rowCountry = el.dataset.country || '';
+                const rowState = (el.dataset.state || '').toLowerCase();
+                const rowPass = (el.dataset.pass || '').toLowerCase();
+                const isActive = el.dataset.active === 'true';
+                if (search && !name.includes(search) && !rowState.includes(search)) return false;
+                if (country && rowCountry !== country) return false;
+                if (state && rowState !== state) return false;
+                if (status === 'active' && !isActive) return false;
+                if (status === 'inactive' && isActive) return false;
                 if (passBrand) {
                     if (passBrand === 'none') {
-                        if (rowPass && rowPass !== 'none') show = false;
+                        if (rowPass && rowPass !== 'none') return false;
                     } else if (!rowPass.includes(passBrand)) {
-                        show = false;
+                        return false;
                     }
                 }
-                
+                return true;
+            }
+
+            // Filter table rows
+            document.querySelectorAll('#resort-table tr').forEach(row => {
+                const show = matchesFilters(row);
                 row.style.display = show ? '' : 'none';
-                
-                // Deselect if row is now hidden
                 if (!show) {
                     const cb = row.querySelector('.resort-checkbox');
                     if (cb && cb.checked) {
@@ -1381,6 +1587,12 @@
                     }
                 }
             });
+
+            // Filter mobile cards
+            document.querySelectorAll('.resort-card').forEach(card => {
+                card.style.display = matchesFilters(card) ? '' : 'none';
+            });
+
             syncSelectAllState();
             updateSelectionDisplay();
         }
@@ -1565,6 +1777,7 @@
                         resortIds.forEach(id => {
                             const row = document.querySelector(`tr[data-id="${id}"]`);
                             if (row) row.remove();
+                            removeCard(id);
                         });
                     } else {
                         const isActive = action === 'activate';
@@ -1582,6 +1795,7 @@
                                     statusBadge.className = 'status-badge ' + (isActive ? 'status-active' : 'status-inactive');
                                     statusBadge.textContent = isActive ? 'Active' : 'Inactive';
                                 }
+                                syncCardWithRow(id);
                             }
                         });
                     }
@@ -1630,7 +1844,7 @@
             closePassEditor(); // Close any existing editor
             
             const resortId = passTags.dataset.id;
-            const row = passTags.closest('tr');
+            const row = passTags.closest('tr') || passTags.closest('.resort-card');
             const currentPasses = (row.dataset.pass || '').split(',').map(p => p.trim()).filter(p => p && p !== 'none');
             
             const popup = document.createElement('div');
@@ -1722,6 +1936,7 @@
                         }
                     }
                     
+                    syncCardWithRow(resortId);
                     closePassEditor();
                     filterResorts();
                 } else {
@@ -1776,6 +1991,7 @@
                                     `<span class="pass-tag pass-${b.toLowerCase().replace(' ', '-')}">${b === 'Mountain Collective' ? 'MC' : b}</span>`
                                 ).join('');
                             }
+                            syncCardWithRow(id);
                         }
                     });
                     selectedResorts.clear();
@@ -1880,6 +2096,7 @@
                                     actionBtn.classList.add('btn-success');
                                     actionBtn.setAttribute('onclick', `toggleActive(${id}, true)`);
                                 }
+                                syncCardWithRow(id);
                             }
                         });
                     }
@@ -1970,6 +2187,165 @@
         }
         
         
+        /* ── Mobile card helpers ─────────────────────────────────── */
+
+        function syncCardWithRow(resortId) {
+            const row = document.querySelector(`tr[data-id="${resortId}"]`);
+            const card = document.querySelector(`.resort-card[data-id="${resortId}"]`);
+            if (!row || !card) return;
+
+            const isActive = row.dataset.active === 'true';
+
+            // Sync data attributes
+            card.dataset.active = row.dataset.active;
+            card.dataset.name   = row.dataset.name;
+            card.dataset.pass   = row.dataset.pass;
+
+            // Sync card class
+            if (isActive) { card.classList.remove('rc-inactive'); }
+            else           { card.classList.add('rc-inactive'); }
+
+            // Sync status dot
+            const dot = card.querySelector('.rc-status-dot');
+            if (dot) {
+                dot.className = 'rc-status-dot ' + (isActive ? 'rc-active' : 'rc-inactive');
+                dot.title = isActive ? 'Active' : 'Inactive';
+            }
+
+            // Sync name
+            const nameBtn = card.querySelector('.rc-name-btn');
+            if (nameBtn) {
+                const nameInput = row.querySelector('input[data-field="name"]');
+                if (nameInput) nameBtn.textContent = nameInput.value;
+            }
+
+            // Sync pass tags (copy innerHTML from table row's .pass-tags)
+            const cardPassTags = card.querySelector('.rc-pass-tags');
+            const rowPassTags  = row.querySelector('.pass-tags');
+            if (cardPassTags && rowPassTags) {
+                cardPassTags.innerHTML = rowPassTags.innerHTML;
+            }
+
+            // Sync toggle button
+            const toggleBtn = card.querySelector('.rc-toggle-btn');
+            if (toggleBtn) {
+                if (isActive) {
+                    toggleBtn.className = 'rc-toggle-btn rc-btn-danger';
+                    toggleBtn.textContent = 'Deactivate';
+                    toggleBtn.setAttribute('onclick', `toggleActive(${resortId}, false)`);
+                } else {
+                    toggleBtn.className = 'rc-toggle-btn rc-btn-success';
+                    toggleBtn.textContent = 'Activate';
+                    toggleBtn.setAttribute('onclick', `toggleActive(${resortId}, true)`);
+                }
+            }
+        }
+
+        function removeCard(resortId) {
+            const card = document.querySelector(`.resort-card[data-id="${resortId}"]`);
+            if (card) card.remove();
+        }
+
+        function addCardToMobileList(resort) {
+            const list = document.getElementById('mobile-resort-list');
+            if (!list) return;
+            const passBrandsList = Array.isArray(resort.pass_brands_json) ? resort.pass_brands_json : [];
+            const passTagsHtml = passBrandsList.length > 0
+                ? passBrandsList.map(b => `<span class="pass-tag pass-${b.toLowerCase().replace(' ', '-')}">${b === 'Mountain Collective' ? 'MC' : b}</span>`).join('')
+                : '<span class="pass-tag pass-none">None</span>';
+            const div = document.createElement('div');
+            div.className = 'resort-card';
+            div.dataset.id      = resort.id;
+            div.dataset.name    = resort.name.toLowerCase();
+            div.dataset.country = resort.country_code || '';
+            div.dataset.state   = (resort.state_code || resort.state || '').toLowerCase();
+            div.dataset.pass    = normalizePassBrands(resort.pass_brands || '') || 'none';
+            div.dataset.active  = resort.is_active ? 'true' : 'false';
+            div.innerHTML = `
+                <div class="rc-header">
+                    <button class="rc-name-btn" onclick="rcOpenNameEdit(${resort.id}, this)">${resort.name}</button>
+                    <span class="rc-status-dot rc-active" title="Active"></span>
+                </div>
+                <div class="rc-meta">${resort.country_code || ''}${resort.state_code ? ' · ' + resort.state_code : ''}</div>
+                <div class="rc-pass-tags" data-id="${resort.id}" onclick="openPassEditor(this)">${passTagsHtml}</div>
+                <div class="rc-actions">
+                    <button class="rc-toggle-btn rc-btn-danger" onclick="toggleActive(${resort.id}, false)">Deactivate</button>
+                    <button class="rc-delete-btn" onclick="deleteResort(${resort.id}, '${resort.name.replace(/'/g, "\\'")}')">Delete</button>
+                </div>`;
+            list.prepend(div);
+        }
+
+        /* ── Mobile name-edit overlay ─────────────────────────────── */
+        let _rcEditId = null;
+
+        function rcOpenNameEdit(resortId, btnEl) {
+            _rcEditId = resortId;
+            const input = document.getElementById('rc-name-input');
+            if (input) input.value = btnEl.textContent;
+            const overlay = document.getElementById('rc-name-overlay');
+            if (overlay) {
+                overlay.classList.add('open');
+                setTimeout(() => input && input.focus(), 80);
+            }
+        }
+
+        function rcCancelNameEdit() {
+            _rcEditId = null;
+            const overlay = document.getElementById('rc-name-overlay');
+            if (overlay) overlay.classList.remove('open');
+        }
+
+        async function rcSaveNameEdit() {
+            if (!_rcEditId) return;
+            const input = document.getElementById('rc-name-input');
+            const value = input ? input.value.trim() : '';
+            if (!value) { showToast('Name cannot be empty', 'error'); return; }
+
+            const id = _rcEditId;
+            try {
+                const response = await fetch('/api/admin/resorts/update-field', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ resort_id: id, field: 'name', value: value })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showToast('Name updated', 'success');
+                    // Update row
+                    const row = document.querySelector(`tr[data-id="${id}"]`);
+                    if (row) {
+                        row.dataset.name = value.toLowerCase();
+                        const nameInput = row.querySelector('input[data-field="name"]');
+                        if (nameInput) nameInput.value = value;
+                    }
+                    // Update card name button directly
+                    const card = document.querySelector(`.resort-card[data-id="${id}"]`);
+                    if (card) {
+                        card.dataset.name = value.toLowerCase();
+                        const btn = card.querySelector('.rc-name-btn');
+                        if (btn) btn.textContent = value;
+                    }
+                    rcCancelNameEdit();
+                    filterResorts();
+                } else {
+                    showToast(data.message || 'Update failed', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
+
+        // Close name overlay on backdrop tap
+        document.getElementById('rc-name-overlay') && document.getElementById('rc-name-overlay').addEventListener('click', function(e) {
+            if (e.target === this) rcCancelNameEdit();
+        });
+
+        // Save name on Enter key
+        document.getElementById('rc-name-input') && document.getElementById('rc-name-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') rcSaveNameEdit();
+            if (e.key === 'Escape') rcCancelNameEdit();
+        });
+
         function closeExportModal() {
             document.getElementById('export-modal').classList.remove('visible');
         }

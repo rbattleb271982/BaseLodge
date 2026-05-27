@@ -1085,6 +1085,147 @@
 
 </div>
 
+<!-- ── Mountains ── -->
+<div class="ad-section">
+  <div class="ad-section-label">Mountains</div>
+
+  <!-- Core Metrics — 5-card grid -->
+  <div class="ad-kpi-grid" style="grid-template-columns: repeat(5, minmax(0,1fr));">
+
+    <div class="ad-card">
+      <div class="ad-card-label">Active Resorts</div>
+      <div class="ad-card-value">{{ total_active_resorts }}</div>
+      <div class="ad-card-sub">visible to users</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Inactive</div>
+      <div class="ad-card-value">{{ total_inactive_resorts }}</div>
+      <div class="ad-card-sub">hidden from users</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Resorts With Trips</div>
+      <div class="ad-card-value">{{ mtn_resorts_with_trips }}</div>
+      <div class="ad-card-sub">have &ge;1 trip booked</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">No Trips Yet</div>
+      <div class="ad-card-value">{{ mtn_resorts_no_trips }}</div>
+      <div class="ad-card-sub">active, no bookings</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Pass Coverage</div>
+      <div class="ad-card-value">{{ mtn_pass_coverage_pct }}%</div>
+      <div class="ad-card-sub">active with a pass brand</div>
+      <div class="ad-rate-bar-wrap">
+        <div class="ad-rate-bar" style="width:{{ mtn_pass_coverage_pct }}%"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Destination Intelligence -->
+  <div class="ad-sublabel">Destination Intelligence</div>
+
+  <div class="ad-kpi-grid ad-kpi-grid--2col">
+    <div>
+      {% if mtn_by_country %}
+      <div class="ad-dest-label">Resorts by Country</div>
+      <div class="ad-pass-table" style="margin-bottom:10px;">
+        {% set _rbc_max = [mtn_by_country | map(attribute='count') | max, 1] | max %}
+        {% for r in mtn_by_country %}
+        <div class="ad-pass-row">
+          <div class="ad-pass-name">{{ r.name }}</div>
+          <div class="ad-pass-bar-wrap">
+            <div class="ad-pass-bar" style="width:{{ r.pct }}%"></div>
+          </div>
+          <div class="ad-pass-count">{{ r.count }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if top_planned_resorts %}
+      <div class="ad-dest-label">Most Planned</div>
+      <div class="ad-pass-table" style="margin-bottom:10px;">
+        {% for r in top_planned_resorts %}
+        <div class="ad-pass-row">
+          <div class="ad-pass-name">{{ r.name }}</div>
+          <div class="ad-pass-bar-wrap">
+            <div class="ad-pass-bar" style="width:{{ r.pct }}%"></div>
+          </div>
+          <div class="ad-pass-count">{{ r.count }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div>
+      {% if mtn_by_pass_brand %}
+      <div class="ad-dest-label">Resorts by Pass Brand</div>
+      <div class="ad-pass-table" style="margin-bottom:10px;">
+        {% set _pbr_max = [mtn_by_pass_brand | map(attribute='count') | max, 1] | max %}
+        {% for r in mtn_by_pass_brand %}
+        <div class="ad-pass-row{% if r.count == 0 %} ad-pass-row--zero{% endif %}">
+          <div class="ad-pass-name">{{ r.name }}</div>
+          <div class="ad-pass-bar-wrap">
+            <div class="ad-pass-bar" style="width:{{ r.pct }}%"></div>
+          </div>
+          <div class="ad-pass-count">{{ r.count }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if top_wishlisted_resorts %}
+      <div class="ad-dest-label">Most Wishlisted</div>
+      <div class="ad-pass-table" style="margin-bottom:10px;">
+        {% for r in top_wishlisted_resorts %}
+        <div class="ad-pass-row">
+          <div class="ad-pass-name">{{ r.name }}</div>
+          <div class="ad-pass-bar-wrap">
+            <div class="ad-pass-bar" style="width:{{ r.pct }}%"></div>
+          </div>
+          <div class="ad-pass-count">{{ r.count }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Resorts With Upcoming Trips -->
+  {% if mtn_upcoming_table %}
+  <div class="ad-dest-label">Resorts With Upcoming Trips
+    <span style="font-weight:400; color:#B0A99F; font-size:10px; margin-left:6px;">{{ mtn_upcoming_count }} total</span>
+  </div>
+  <div class="ad-op-table">
+    <div class="ad-op-header">
+      <span class="ad-op-col-name">Resort</span>
+      <span class="ad-op-col-date">Next Trip</span>
+      <span class="ad-op-col-badge">Trips</span>
+    </div>
+    {% for row in mtn_upcoming_table %}
+    <div class="ad-op-row">
+      <span class="ad-op-name">{{ row.resort }}</span>
+      <span class="ad-op-date">{{ row.next }}</span>
+      <span class="ad-op-badge">{{ row.trips }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="ad-dest-label">Resorts With Upcoming Trips</div>
+  <div class="ad-op-table"><div class="ad-op-empty">No upcoming trips booked yet</div></div>
+  {% endif %}
+
+  <a href="/admin/resorts" style="display:inline-block;margin-top:10px;font-size:12px;color:#9B8D80;text-decoration:none;" onmouseover="this.style.color='#5C1219'" onmouseout="this.style.color='#9B8D80'">Manage resorts ↗</a>
+
+</div>
+
 <!-- ── Engagement — 2 cards, 2-col on all widths ── -->
 <div class="ad-section">
   <div class="ad-section-label">Engagement</div>

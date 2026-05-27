@@ -14913,6 +14913,92 @@ def admin_dashboard():
         for row in _rec_q
     ]
 
+    # ── Mountains ─────────────────────────────────────────────────────────────
+    from collections import Counter as _ResortCtr
+    total_active_resorts   = Resort.query.filter_by(is_active=True).count()
+    total_inactive_resorts = Resort.query.filter_by(is_active=False).count()
+
+    # Resorts with / without any trips (active resorts only)
+    _rids_with_trips = {
+        r[0] for r in db.session.query(SkiTrip.resort_id.distinct())
+        .filter(SkiTrip.resort_id.isnot(None)).all()
+    }
+    mtn_resorts_with_trips = db.session.query(func.count(Resort.id)).filter(
+        Resort.is_active == True,
+        Resort.id.in_(_rids_with_trips) if _rids_with_trips else db.false(),
+    ).scalar() or 0
+    mtn_resorts_no_trips = total_active_resorts - mtn_resorts_with_trips
+
+    # Pass coverage — active resorts with at least one real (non-None) pass brand
+    _pbj_rows = db.session.query(Resort.pass_brands_json).filter(Resort.is_active == True).all()
+    _pass_ctr2 = _ResortCtr()
+    _resorts_with_pass = 0
+    for (pbj,) in _pbj_rows:
+        if pbj and isinstance(pbj, list):
+            real_brands = [b for b in pbj if b and b.lower() not in ('none', '')]
+            if real_brands:
+                _resorts_with_pass += 1
+                for b in real_brands:
+                    _pass_ctr2[b] += 1
+    mtn_pass_coverage_pct = round(_resorts_with_pass / total_active_resorts * 100) if total_active_resorts else 0
+
+    # Resorts by country (top 8 active)
+    _rbc_rows = (
+        db.session.query(
+            Resort.country_code, Resort.country_name,
+            func.count(Resort.id).label("cnt")
+        )
+        .filter(Resort.is_active == True)
+        .group_by(Resort.country_code, Resort.country_name)
+        .order_by(func.count(Resort.id).desc())
+        .limit(8).all()
+    )
+    _rbc_max = max((row.cnt for row in _rbc_rows), default=1)
+    mtn_by_country = [
+        {
+            "name":  row.country_name or row.country_code or "Unknown",
+            "count": row.cnt,
+            "pct":   round(row.cnt / _rbc_max * 100),
+        }
+        for row in _rbc_rows
+    ]
+
+    # Resorts by pass brand (from Python counter built above)
+    _PASS_DISP_ORDER = ['Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other']
+    _pc2_max = max(_pass_ctr2.values()) if _pass_ctr2 else 1
+    mtn_by_pass_brand = [
+        {
+            "name":  p,
+            "count": _pass_ctr2.get(p, 0),
+            "pct":   round(_pass_ctr2.get(p, 0) / _pc2_max * 100) if _pass_ctr2 else 0,
+        }
+        for p in _PASS_DISP_ORDER
+    ]
+
+    # Resorts with upcoming trips (distinct count + top-5 listing)
+    mtn_upcoming_count = db.session.query(
+        func.count(func.distinct(SkiTrip.resort_id))
+    ).filter(
+        SkiTrip.start_date >= today,
+        SkiTrip.resort_id.isnot(None),
+    ).scalar() or 0
+    _mtn_upc_rows = (
+        db.session.query(
+            Resort.name,
+            func.count(SkiTrip.id).label("cnt"),
+            func.min(SkiTrip.start_date).label("next_date"),
+        )
+        .join(SkiTrip, SkiTrip.resort_id == Resort.id)
+        .filter(SkiTrip.start_date >= today, SkiTrip.resort_id.isnot(None))
+        .group_by(Resort.id, Resort.name)
+        .order_by(func.min(SkiTrip.start_date).asc())
+        .limit(5).all()
+    )
+    mtn_upcoming_table = [
+        {"resort": row.name, "next": _fmt_date(row.next_date), "trips": row.cnt}
+        for row in _mtn_upc_rows
+    ]
+
     # ── Opt-in rates ─────────────────────────────────────────────────────────
     push_opt_in  = User.query.filter_by(push_notifications_enabled=True).count()
     email_opt_in = User.query.filter_by(email_opt_in=True).count()
@@ -15250,6 +15336,16 @@ def admin_dashboard():
         upcoming_trips_table = upcoming_trips_table,
         high_invite_trips    = high_invite_trips,
         recent_trips_table   = recent_trips_table,
+        # Mountains
+        total_active_resorts   = total_active_resorts,
+        total_inactive_resorts = total_inactive_resorts,
+        mtn_resorts_with_trips = mtn_resorts_with_trips,
+        mtn_resorts_no_trips   = mtn_resorts_no_trips,
+        mtn_pass_coverage_pct  = mtn_pass_coverage_pct,
+        mtn_by_country         = mtn_by_country,
+        mtn_by_pass_brand      = mtn_by_pass_brand,
+        mtn_upcoming_count     = mtn_upcoming_count,
+        mtn_upcoming_table     = mtn_upcoming_table,
     )
 
 
