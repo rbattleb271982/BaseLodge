@@ -1,0 +1,52 @@
+PUT THIS IN AGENT
+
+Implement the high-priority friend/trip invite lifecycle fixes from #143.
+
+Scope for this patch:
+Fix only the confirmed broken redirect and wrong-account UX issues.
+
+Implement:
+
+1. Google OAuth trip invite preservation
+- In auth_google_callback, handle session["trip_invite_token"] after Google login.
+- Existing Google users who clicked a trip invite link should be redirected back to the trip invite landing/accept flow, not /home.
+- New Google users going through onboarding should preserve the trip invite via post_onboarding_redirect.
+
+2. Partially-onboarded friend invite redirect
+- In invite_token_confirm, if the user is authenticated but not core-profile-complete, set:
+  session["post_onboarding_redirect"] = url_for("friends")
+- Then continue the existing invite application flow.
+- After onboarding, the user should land on /friends.
+
+3. QR connect login redirect
+- Fix /connect/<user_id> for unauthenticated users so login returns them to the connect confirmation flow.
+- Either make auth honor request.args.get("next") after login, or store the intended connect URL in session before redirecting to auth.
+- Choose the safest approach consistent with existing auth flow.
+
+4. Logged-in-as warning on invite landing
+- On invite_landing.html, when current_user.is_authenticated, show a small line:
+  “Logged in as [First Last]. Not you? Log out and switch accounts.”
+- Link “Log out” to the existing logout route.
+- Keep styling subtle and mobile-friendly.
+
+Do NOT change in this patch:
+- InviteToken single-use behavior
+- InviteToken schema
+- TripInviteToken schema
+- friendship database constraints
+- push notification behavior
+- native deep link architecture
+- Safari/Capacitor session architecture
+
+Add comments only where helpful, especially around session-token preservation.
+
+Verify:
+1. Existing Google user opens trip invite, signs in, returns to trip invite flow.
+2. New Google user opens trip invite, signs up/onboards, returns to trip invite flow.
+3. Partially-onboarded user accepts friend invite, completes onboarding, lands on Friends.
+4. Logged-out user opens QR connect link, logs in, returns to connect confirmation.
+5. Logged-in user opening invite landing sees “Logged in as…” warning.
+6. Existing friend re-clicking invite still behaves cleanly.
+
+Use checkpoints sparingly.
+Do not finish until these flows are tested or clearly documented if a flow cannot be fully tested locally.

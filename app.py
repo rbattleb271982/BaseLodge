@@ -726,6 +726,8 @@ def before_request_handlers():
     if (path.startswith("/static/") or
             path.startswith("/api/") or
             path.startswith("/invite/") or
+            path.startswith("/trip-invite/") or   # handles own auth-gate + session storage
+            path.startswith("/connect/") or        # handles own auth-gate + post_login_redirect
             path.startswith("/auth/google") or
             path.startswith("/auth/apple") or
             path.startswith("/auth/logout") or
@@ -2652,6 +2654,11 @@ def auth():
                     _ttok = session["trip_invite_token"]
                     return redirect(url_for("trip_invite_token_landing", token=_ttok))
 
+                # Return to any pending post-login destination (e.g. QR connect flow)
+                _post_login = session.pop("post_login_redirect", None)
+                if _post_login:
+                    return redirect(_post_login)
+
                 return redirect(url_for("home"))
             
             flash("Invalid email or password.", "error")
@@ -2923,6 +2930,12 @@ def invite_token_confirm(token):
             db.session.commit()
             flash(f"You're already connected with {inviter.first_name}.", "info")
             return redirect(url_for("friends"))
+
+        # If the user is mid-onboarding, create the friendship now but let
+        # before_request gate send them back to /onboarding first.
+        # post_onboarding_redirect ensures they land on /friends after setup.
+        if not current_user.is_core_profile_complete:
+            session["post_onboarding_redirect"] = url_for("friends")
 
         _apply_invite_token(invite, current_user)
         flash(f"You're now connected with {inviter.first_name}!", "success")
@@ -6889,7 +6902,10 @@ def connect_via_qr(user_id):
     inviter = User.query.get_or_404(user_id)
     
     if not current_user.is_authenticated:
-        return redirect(url_for("auth", next=url_for("connect_via_qr", user_id=user_id)))
+        # Store the destination in session so it survives the OAuth redirect cycle.
+        # URL params passed to /auth are not consumed after Google OAuth callbacks.
+        session["post_login_redirect"] = url_for("connect_via_qr", user_id=user_id)
+        return redirect(url_for("auth"))
     
     if current_user.id == inviter.id:
         return render_template("connect_self.html")
@@ -10616,6 +10632,25 @@ def auth_google_callback():
             if not user.is_core_profile_complete:
                 return redirect(url_for("onboarding"))
             return redirect(url_for("friends"))
+
+        # Preserve trip invite context through the Google OAuth round-trip.
+        # The OAuth redirect cycle discards URL params, so the token was stored
+        # in the session by trip_invite_token_landing before sending to /auth.
+        # Mirror the identical handling in the email-login path (~L2651).
+        if "trip_invite_token" in session:
+            _ttok = session["trip_invite_token"]
+            if not user.is_core_profile_complete:
+                # New Google user — finish onboarding first, then return to trip invite.
+                session["post_onboarding_redirect"] = url_for(
+                    "trip_invite_token_landing", token=_ttok
+                )
+                return redirect(url_for("onboarding"))
+            return redirect(url_for("trip_invite_token_landing", token=_ttok))
+
+        # Return to any pending post-login destination (e.g. QR connect flow).
+        _post_login = session.pop("post_login_redirect", None)
+        if _post_login:
+            return redirect(_post_login)
 
         if not user.is_core_profile_complete:
             return redirect(url_for("onboarding"))

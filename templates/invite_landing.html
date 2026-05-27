@@ -140,6 +140,20 @@
         }
         .il-btn-secondary:active { opacity: 0.72; }
 
+        /* ── Logged-in-as notice ──────────────────────────────────────────── */
+        .il-logged-in-as {
+            font-size: 13px;
+            color: #888;
+            text-align: center;
+            line-height: 1.5;
+            margin-bottom: 24px;
+        }
+        .il-logged-in-as a {
+            color: #5C1219;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
         /* ── Footer note ──────────────────────────────────────────────────── */
         .il-footer {
             margin-top: 40px;
@@ -174,6 +188,13 @@
         <p class="il-body">
             See trips, coordinate ski weekends, and connect with friends heading to the mountains.
         </p>
+    {% endif %}
+
+    {% if current_user.is_authenticated %}
+    <p class="il-logged-in-as">
+        Logged in as {{ current_user.first_name }}{% if current_user.last_name %} {{ current_user.last_name }}{% endif %}.
+        Not you? <a href="{{ url_for('logout') }}">Log out</a> and switch accounts.
+    </p>
     {% endif %}
 
     <div class="il-divider"></div>
