@@ -16,8 +16,11 @@ Inputs:
     [].considering_count int
     [].signal_type   int (1=friend trip, 2=overlap, 3=wishlist)
     []._card_key     string — for dismissal
-  ideas_count    int
-  show_add_dates bool
+  ideas_count        int
+  show_add_dates     bool
+  has_availability   bool
+  user_avail_ranges  list of dicts — up to 3 items, each with 'display' key
+  user_avail_overflow int — number of ranges beyond the 3 shown
 -->
 
 <div class="bl-section" id="section-opportunities">
@@ -73,11 +76,46 @@ Inputs:
 
     {% else %}
 
+        {% if has_availability %}
+
+        {# ── User has dates saved but no ideas to surface yet ── #}
+        <div class="bl-opp-empty-card bl-avail-summary-card">
+            <p class="bl-opp-empty-title" style="margin-bottom: 4px;">You're free:</p>
+            <p class="bl-opp-empty-body" style="margin-bottom: 14px;">These dates help us find trips and overlaps with your friends.</p>
+
+            <div class="bl-avail-range-list">
+                {% for range in user_avail_ranges %}
+                <div class="bl-avail-range-row">
+                    <span class="bl-avail-range-icon" aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="3"/>
+                            <line x1="16" y1="2" x2="16" y2="6"/>
+                            <line x1="8" y1="2" x2="8" y2="6"/>
+                            <line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                    </span>
+                    <span class="bl-avail-range-text">{{ range.display }}</span>
+                </div>
+                {% endfor %}
+                {% if user_avail_overflow > 0 %}
+                <p class="bl-avail-overflow">+ {{ user_avail_overflow }} more date{{ 's' if user_avail_overflow != 1 else '' }}</p>
+                {% endif %}
+            </div>
+
+            <a href="{{ url_for('add_open_dates') }}" class="bl-opp-empty-cta" style="margin-top: 14px; display: inline-block;">Edit availability</a>
+        </div>
+
+        {% else %}
+
+        {# ── User has no dates saved ── #}
         <div class="bl-opp-empty-card">
             <p class="bl-opp-empty-title">Add dates to unlock trip ideas</p>
             <p class="bl-opp-empty-body">Enter dates so BaseLodge can surface better mountain suggestions and friend overlaps.</p>
             <a href="{{ url_for('add_open_dates') }}" class="bl-opp-empty-cta">Add availability</a>
         </div>
+
+        {% endif %}
 
     {% endif %}
 

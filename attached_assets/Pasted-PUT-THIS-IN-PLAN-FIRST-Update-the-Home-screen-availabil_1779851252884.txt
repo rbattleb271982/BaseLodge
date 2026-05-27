@@ -1,0 +1,68 @@
+PUT THIS IN PLAN FIRST
+
+Update the Home screen availability UX so the Ideas section reflects whether the user already added dates.
+
+Goal:
+Right now, users who already added availability can still see the empty-state card that says “Add dates to unlock trip ideas.” This is confusing because the system is using “no ideas available” as a proxy for “no availability exists.”
+
+We need to separate these states.
+
+Desired behavior
+
+1. If the user has NO availability:
+- Keep the current empty state card exactly as it is:
+  - Heading: “Add dates to unlock trip ideas”
+  - Body copy about mountain suggestions and friend overlaps
+  - CTA button: “Add availability”
+
+2. If the user HAS availability:
+- Replace the empty-state card with an availability summary card.
+- Do NOT show any “Find friends” section or CTA.
+- The purpose is simply to reassure the user that their dates were saved and are powering recommendations.
+
+Card content
+
+Heading:
+“You’re free:”
+
+Subtext:
+“These dates help us find trips and overlaps with your friends.”
+
+Then render up to 3 availability ranges as a vertical list with a small calendar icon on the left.
+
+Example:
+Dec 14 – Dec 18
+Jan 3 – Jan 5
+Feb 9 – Feb 12
+
+If there are more than 3 ranges, show:
+“+ X more dates”
+
+Below the list:
+Button:
+“Edit availability”
+
+Technical requirements
+
+1. Audit and reuse existing availability logic where possible.
+2. Pass a formatted availability summary/list into the Home template.
+3. Reuse existing styling patterns and color system already used on Home.
+4. Keep this mobile-first.
+5. Do not modify the ideas engine itself.
+6. Do not change database structure or availability storage.
+7. Do not add new routes.
+8. Only update the Home screen rendering logic/templates.
+
+Implementation notes
+- The current Home route already computes has_availability.
+- The actual availability dates are currently not passed into the template.
+- Reuse existing formatting helpers if available.
+- The summary card should visually feel like part of the Ideas section, not a settings panel.
+
+Before coding:
+- Confirm which templates and route variables will change.
+- Confirm how the availability dates will be grouped/formatted into ranges.
+- Then implement.
+
+Use checkpoints sparingly.
+Do not finish until fully tested on mobile web layout.

@@ -7010,6 +7010,33 @@ def dates_to_ranges(date_strings):
     return ranges
 
 
+def build_home_avail_ranges(date_set, cap=3):
+    """
+    Converts a set of YYYY-MM-DD availability strings into display-ready range dicts
+    for the Home screen availability summary card.
+
+    Returns (capped_ranges, overflow_count) where:
+      capped_ranges  — list of up to `cap` dicts, each with a 'display' key
+                       e.g. [{'display': 'Dec 14 – Dec 18'}, {'display': 'Jan 3'}]
+      overflow_count — int, number of additional ranges beyond the cap
+    """
+    if not date_set:
+        return [], 0
+
+    _SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+    raw = dates_to_ranges(sorted(date_set))
+    display_ranges = []
+    for r in raw:
+        s, e = r['start_date'], r['end_date']
+        s_str = f"{_SHORT[s.month - 1]} {s.day}"
+        e_str = f"{_SHORT[e.month - 1]} {e.day}"
+        display_ranges.append({'display': s_str if s == e else f"{s_str} – {e_str}"})
+
+    overflow = max(0, len(display_ranges) - cap)
+    return display_ranges[:cap], overflow
+
+
 def check_trip_invite_eligibility(user_id, friend_id):
     """
     Check if user can invite friend to a trip.
@@ -7682,6 +7709,7 @@ def home():
     # _user_avail_home was fetched once before the coordination feed above.
     has_availability = bool(_user_avail_home)
     show_add_dates = not has_availability
+    _home_avail_ranges, _home_avail_overflow = build_home_avail_ranges(_user_avail_home)
 
     # Admin flag for Ideas diagnostic block
     _admin_emails_home = set(
@@ -7735,6 +7763,8 @@ def home():
         requests_count=requests_count,
         show_add_dates=show_add_dates,
         has_availability=has_availability,
+        user_avail_ranges=_home_avail_ranges,
+        user_avail_overflow=_home_avail_overflow,
         stat_mountains=user.visited_resorts_count,
         stat_trips_total=len(my_trips),
         stat_wishlist=len(user.wish_list_resorts or []),
