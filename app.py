@@ -13802,6 +13802,9 @@ def admin_resorts():
         from collections import defaultdict as _mpv_dd
         _six_months_ago  = datetime.utcnow() - timedelta(days=182)
         _first_of_mo_mpv = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        _mpv_ago_7d      = datetime.utcnow() - timedelta(days=7)
+        _mpv_ago_30d     = datetime.utcnow() - timedelta(days=30)
+        _mpv_ago_60d     = datetime.utcnow() - timedelta(days=60)
 
         mtn_traffic_total    = db.session.query(func.count(MountainPageView.id)).scalar() or 0
         mtn_traffic_loggedin = db.session.query(func.count(MountainPageView.id)).filter(
@@ -13809,12 +13812,20 @@ def admin_resorts():
         ).scalar() or 0
         mtn_traffic_anon = mtn_traffic_total - mtn_traffic_loggedin
 
-        # Top 10 most viewed resorts (all-time)
+        # Windowed visit counts
+        mtn_traffic_7d = db.session.query(func.count(MountainPageView.id)).filter(
+            MountainPageView.viewed_at >= _mpv_ago_7d
+        ).scalar() or 0
+        mtn_traffic_30d = db.session.query(func.count(MountainPageView.id)).filter(
+            MountainPageView.viewed_at >= _mpv_ago_30d
+        ).scalar() or 0
+
+        # All viewed resorts ranked (all-time), capped at 20
         _tv_rows = (
             db.session.query(Resort.name, func.count(MountainPageView.id).label("cnt"))
             .join(MountainPageView, MountainPageView.resort_id == Resort.id)
             .group_by(Resort.id, Resort.name)
-            .order_by(func.count(MountainPageView.id).desc()).limit(10).all()
+            .order_by(func.count(MountainPageView.id).desc()).limit(20).all()
         )
         _tv_max = max((r.cnt for r in _tv_rows), default=1)
         mtn_top_viewed = [{"name": r.name, "count": r.cnt,
@@ -13843,7 +13854,7 @@ def admin_resorts():
         for m in mtn_monthly_views:
             m["pct"] = round(m["count"] / _mv_max * 100) if _mv_max > 0 else 0
 
-        # Top 5 resorts table: total views + unique logged-in users
+        # Top resorts table: total views + unique logged-in users (top 10)
         _top5_rows = (
             db.session.query(
                 Resort.name,
@@ -13852,7 +13863,7 @@ def admin_resorts():
             )
             .join(MountainPageView, MountainPageView.resort_id == Resort.id)
             .group_by(Resort.id, Resort.name)
-            .order_by(func.count(MountainPageView.id).desc()).limit(5).all()
+            .order_by(func.count(MountainPageView.id).desc()).limit(10).all()
         )
         mtn_top5_traffic = [
             {"name": r.name, "total": r.total, "uniq_users": r.uniq_users}
@@ -13869,16 +13880,43 @@ def admin_resorts():
         )
         mtn_most_viewed_month     = _mvm_row.name if _mvm_row else None
         mtn_most_viewed_month_cnt = _mvm_row.cnt  if _mvm_row else 0
+
+        # Fastest Rising: top 5 resorts by 30d view delta vs prior 30d (positive only)
+        _fr_cur = (
+            db.session.query(Resort.id, Resort.name, func.count(MountainPageView.id).label("cur"))
+            .join(MountainPageView, MountainPageView.resort_id == Resort.id)
+            .filter(MountainPageView.viewed_at >= _mpv_ago_30d)
+            .group_by(Resort.id, Resort.name).all()
+        )
+        _fr_prev = (
+            db.session.query(Resort.id, func.count(MountainPageView.id).label("prev"))
+            .join(MountainPageView, MountainPageView.resort_id == Resort.id)
+            .filter(MountainPageView.viewed_at >= _mpv_ago_60d,
+                    MountainPageView.viewed_at < _mpv_ago_30d)
+            .group_by(Resort.id).all()
+        )
+        _fr_prev_map = {r.id: r.prev for r in _fr_prev}
+        _fr_deltas = []
+        for r in _fr_cur:
+            delta = r.cur - _fr_prev_map.get(r.id, 0)
+            if delta > 0:
+                _fr_deltas.append({"name": r.name, "delta": delta, "cur": r.cur})
+        _fr_deltas.sort(key=lambda x: x["delta"], reverse=True)
+        mtn_fastest_rising = _fr_deltas[:5]
+
         mtn_traffic_ready = True
     except Exception:
         mtn_top_viewed            = []
         mtn_monthly_views         = []
         mtn_traffic_total         = 0
+        mtn_traffic_7d            = 0
+        mtn_traffic_30d           = 0
         mtn_traffic_loggedin      = 0
         mtn_traffic_anon          = 0
         mtn_top5_traffic          = []
         mtn_most_viewed_month     = None
         mtn_most_viewed_month_cnt = 0
+        mtn_fastest_rising        = []
         mtn_traffic_ready         = False
 
     return render_template('admin_resorts.html',
@@ -13905,13 +13943,16 @@ def admin_resorts():
                          mtn_no_country=mtn_no_country,
                          mtn_traffic_ready=mtn_traffic_ready,
                          mtn_traffic_total=mtn_traffic_total,
+                         mtn_traffic_7d=mtn_traffic_7d,
+                         mtn_traffic_30d=mtn_traffic_30d,
                          mtn_traffic_loggedin=mtn_traffic_loggedin,
                          mtn_traffic_anon=mtn_traffic_anon,
                          mtn_top_viewed=mtn_top_viewed,
                          mtn_monthly_views=mtn_monthly_views,
                          mtn_top5_traffic=mtn_top5_traffic,
                          mtn_most_viewed_month=mtn_most_viewed_month,
-                         mtn_most_viewed_month_cnt=mtn_most_viewed_month_cnt)
+                         mtn_most_viewed_month_cnt=mtn_most_viewed_month_cnt,
+                         mtn_fastest_rising=mtn_fastest_rising)
 
 
 @app.route("/admin/resorts/export-excel")

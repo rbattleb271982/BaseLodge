@@ -488,10 +488,172 @@
 
 {% block content %}
 
-<!-- ── Overview ── -->
-<div class="ad-section" id="mtn-overview">
-  <div class="ad-section-label">Overview</div>
+<!-- ── A: Resort Traffic ── -->
+<div class="ad-section" id="mtn-traffic">
+  <div class="ad-section-label">Resort Traffic</div>
+  {% if not mtn_traffic_ready %}
+  <div style="color:#9A9186;font-size:13px;font-style:italic;padding:8px 0;">Traffic data not yet available — appears after the first mountain detail page visit.</div>
+  {% else %}
+  <div class="ad-kpi-grid" style="margin-bottom:20px;">
+    <div class="ad-card">
+      <div class="ad-card-label">Total Page Views</div>
+      <div class="ad-card-value">{{ mtn_traffic_total }}</div>
+      <div class="ad-card-sub">all-time</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Last 7 Days</div>
+      <div class="ad-card-value">{{ mtn_traffic_7d }}</div>
+      <div class="ad-card-sub">resort page visits</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Last 30 Days</div>
+      <div class="ad-card-value">{{ mtn_traffic_30d }}</div>
+      <div class="ad-card-sub">resort page visits</div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Logged-In %</div>
+      <div class="ad-card-value">{{ ((mtn_traffic_loggedin / mtn_traffic_total * 100) | round | int) if mtn_traffic_total else 0 }}%</div>
+      <div class="ad-card-sub">{{ mtn_traffic_loggedin }} of {{ mtn_traffic_total }} views</div>
+    </div>
+    {% if mtn_most_viewed_month %}
+    <div class="ad-card">
+      <div class="ad-card-label">Top This Month</div>
+      <div class="ad-card-value" style="font-size:16px;line-height:1.2;">{{ mtn_most_viewed_month }}</div>
+      <div class="ad-card-sub">{{ mtn_most_viewed_month_cnt }} view{{ 's' if mtn_most_viewed_month_cnt != 1 else '' }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── B: Most Viewed Resorts ── -->
+<div class="ad-section" id="mtn-most-viewed">
+  <div class="ad-section-label">Most Viewed Resorts</div>
+  {% if not mtn_traffic_ready or not mtn_top_viewed %}
+  <div style="color:#9A9186;font-size:13px;font-style:italic;padding:8px 0;">No resort page views recorded yet.</div>
+  {% else %}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+    <div>
+      <div style="font-size:12px;font-weight:600;color:#3A3028;margin-bottom:10px;">All-Time Rankings</div>
+      <ul class="ad-bar-list">
+        {% for r in mtn_top_viewed %}
+        <li class="ad-bar-row">
+          <span class="ad-bar-name" title="{{ r.name }}">{{ r.name }}</span>
+          <span class="ad-bar-track"><span class="ad-bar-fill" style="width:{{ r.pct }}%;"></span></span>
+          <span class="ad-bar-count">{{ r.count }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div>
+      <div style="font-size:12px;font-weight:600;color:#3A3028;margin-bottom:10px;">Monthly Volume (Last 6 Months)</div>
+      {% if mtn_monthly_views %}
+      <div style="display:flex;align-items:flex-end;gap:8px;height:70px;margin-bottom:4px;">
+        {% for m in mtn_monthly_views %}
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;">
+          <span style="font-size:9px;color:#6B6157;font-weight:600;">{{ m.count }}</span>
+          <div style="width:100%;background:#5C1219;border-radius:2px 2px 0 0;min-height:2px;height:{{ [m.pct * 0.6, 2] | max }}px;"></div>
+          <span style="font-size:9px;color:#9A9186;">{{ m.month }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% if mtn_top5_traffic %}
+  <div style="font-size:12px;font-weight:600;color:#3A3028;margin-bottom:10px;">Views &amp; Unique Users</div>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <thead>
+      <tr>
+        <th style="text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6157;padding:6px 8px;border-bottom:1px solid #EAE4D8;">Resort</th>
+        <th style="text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6157;padding:6px 8px;border-bottom:1px solid #EAE4D8;">Total Views</th>
+        <th style="text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6157;padding:6px 8px;border-bottom:1px solid #EAE4D8;">Unique Users</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in mtn_top5_traffic %}
+      <tr>
+        <td style="padding:8px;color:#3A3028;border-bottom:1px solid #F0EBE3;">{{ r.name }}</td>
+        <td style="padding:8px;color:#3A3028;border-bottom:1px solid #F0EBE3;text-align:right;font-weight:600;">{{ r.total }}</td>
+        <td style="padding:8px;color:#6B6157;border-bottom:1px solid #F0EBE3;text-align:right;">{{ r.uniq_users }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  {% endif %}
+</div>
+
+<!-- ── C: Demand Signals ── -->
+<div class="ad-section" id="mtn-demand">
+  <div class="ad-section-label">Demand Signals</div>
+  <div class="ar-dest-grid">
+
+    <div class="ad-card">
+      <div class="ad-card-label" style="margin-bottom:10px;">Most Planned Resorts</div>
+      {% if mtn_top_planned %}
+        {% for row in mtn_top_planned %}
+        <div class="ar-bar-row">
+          <div class="ar-bar-label">{{ row.name }}</div>
+          <div class="ar-bar-track"><div class="ar-bar-fill" style="width: {{ row.pct }}%;"></div></div>
+          <div class="ar-bar-count">{{ row.count }}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="font-size:12px;color:#C4B8A8;padding:8px 0;">No trips planned yet</div>
+      {% endif %}
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label" style="margin-bottom:10px;">Most Wishlisted Resorts</div>
+      {% if mtn_top_wishlisted %}
+        {% for row in mtn_top_wishlisted %}
+        <div class="ar-bar-row">
+          <div class="ar-bar-label">{{ row.name }}</div>
+          <div class="ar-bar-track"><div class="ar-bar-fill ar-bar-fill--wish" style="width: {{ row.pct }}%;"></div></div>
+          <div class="ar-bar-count">{{ row.count }}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="font-size:12px;color:#C4B8A8;padding:8px 0;">No wishlist saves yet</div>
+      {% endif %}
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label" style="margin-bottom:10px;">Fastest Rising (30d vs prior 30d)</div>
+      {% if mtn_fastest_rising %}
+        {% set _fr_max = mtn_fastest_rising[0].delta %}
+        {% for row in mtn_fastest_rising %}
+        <div class="ar-bar-row">
+          <div class="ar-bar-label">{{ row.name }}</div>
+          <div class="ar-bar-track"><div class="ar-bar-fill" style="width:{{ (row.delta / _fr_max * 100) | round | int }}%;background:#22C55E;"></div></div>
+          <div class="ar-bar-count">+{{ row.delta }}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="font-size:12px;color:#C4B8A8;padding:8px 0;">No rising resorts yet — needs 60+ days of view data</div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+<!-- ── D: Upcoming Activity ── -->
+<div class="ad-section" id="mtn-upcoming">
+  <div class="ad-section-label">Upcoming Activity</div>
   <div class="ad-kpi-grid">
+    <div class="ad-card">
+      <div class="ad-card-label">Resorts With Upcoming Trips</div>
+      <div class="ad-card-value">{{ mtn_upcoming_resort_count }}</div>
+      <div class="ad-card-sub">distinct resorts planned</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── E: Catalog ── -->
+<div class="ad-section" id="mtn-catalog">
+  <div class="ad-section-label">Catalog</div>
+  <div class="ad-kpi-grid" style="margin-bottom:20px;">
     <div class="ad-card">
       <div class="ad-card-label">Total Resorts</div>
       <div class="ad-card-value">{{ total_count }}</div>
@@ -508,48 +670,19 @@
       <div class="ad-card-sub">hidden from product</div>
     </div>
     <div class="ad-card">
-      <div class="ad-card-label">With Upcoming Trips</div>
-      <div class="ad-card-value">{{ mtn_upcoming_resort_count }}</div>
-      <div class="ad-card-sub">resorts planned now</div>
-    </div>
-    <div class="ad-card">
-      <div class="ad-card-label">On Pass Networks</div>
+      <div class="ad-card-label">Resorts With Pass Data</div>
       <div class="ad-card-value">{{ mtn_resorts_on_pass }}</div>
-      <div class="ad-card-sub">active resorts w/ pass</div>
+      <div class="ad-card-sub">active resorts w/ pass set</div>
     </div>
     <div class="ad-card">
       <div class="ad-card-label">Countries</div>
       <div class="ad-card-value">{{ mtn_by_country | length }}</div>
       <div class="ad-card-sub">active resort countries</div>
     </div>
-    <div class="ad-card">
-      <div class="ad-card-label">Most Planned</div>
-      <div class="ad-card-value" style="font-size: {{ '13px' if mtn_most_planned and mtn_most_planned|length > 14 else '18px' }}; margin-top: 2px;">{{ mtn_most_planned or '—' }}</div>
-      {% if mtn_most_planned %}<div class="ad-card-sub">{{ mtn_most_planned_count }} trip{{ 's' if mtn_most_planned_count != 1 else '' }} all-time</div>{% endif %}
-    </div>
-    <div class="ad-card">
-      <div class="ad-card-label">Most Wishlisted</div>
-      <div class="ad-card-value" style="font-size: {{ '13px' if mtn_most_wishlisted and mtn_most_wishlisted|length > 14 else '18px' }}; margin-top: 2px;">{{ mtn_most_wishlisted or '—' }}</div>
-      {% if mtn_most_wishlisted %}<div class="ad-card-sub">{{ mtn_most_wishlisted_count }} user{{ 's' if mtn_most_wishlisted_count != 1 else '' }}</div>{% endif %}
-    </div>
   </div>
-  <div class="ar-sync-bar">
-    <span>System of record: <strong style="color: #1C1917;">Supabase</strong></span>
-    {% if last_export_info %}
-    <span>Last canonical export: <strong style="color: #1C1917;">v{{ last_export_info.version }}</strong> · {{ last_export_info.exported_at[:10] if last_export_info.exported_at and last_export_info.exported_at != 'unknown' else '—' }} · {{ last_export_info.count }} resorts</span>
-    {% else %}
-    <span style="color: #DC2626;">No canonical export found</span>
-    {% endif %}
-  </div>
-</div>
-
-<!-- ── Destination Intelligence ── -->
-<div class="ad-section" id="mtn-dest-intel">
-  <div class="ad-section-label">Destination Intelligence</div>
-  <div class="ar-dest-grid">
-
+  <div class="ar-dest-grid" style="margin-bottom:20px;">
     <div class="ad-card">
-      <div class="ad-card-label" style="margin-bottom: 10px;">Resorts by Pass Brand</div>
+      <div class="ad-card-label" style="margin-bottom:10px;">Resorts by Pass Brand</div>
       {% for row in mtn_by_pass_brand %}
       <div class="ar-bar-row">
         <div class="ar-bar-label">{{ row.name }}</div>
@@ -558,9 +691,8 @@
       </div>
       {% endfor %}
     </div>
-
     <div class="ad-card">
-      <div class="ad-card-label" style="margin-bottom: 10px;">Resorts by Country</div>
+      <div class="ad-card-label" style="margin-bottom:10px;">Resorts by Country</div>
       {% for row in mtn_by_country %}
       <div class="ar-bar-row">
         <div class="ar-bar-label">{{ row.name }}</div>
@@ -569,37 +701,36 @@
       </div>
       {% endfor %}
     </div>
-
+  </div>
+  <div style="font-size:11px;font-weight:600;color:#6B6157;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Data Quality</div>
+  <div class="ar-qual-grid" style="margin-bottom:16px;">
     <div class="ad-card">
-      <div class="ad-card-label" style="margin-bottom: 10px;">Most Planned Resorts</div>
-      {% if mtn_top_planned %}
-        {% for row in mtn_top_planned %}
-        <div class="ar-bar-row">
-          <div class="ar-bar-label">{{ row.name }}</div>
-          <div class="ar-bar-track"><div class="ar-bar-fill" style="width: {{ row.pct }}%;"></div></div>
-          <div class="ar-bar-count">{{ row.count }}</div>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div style="font-size: 12px; color: #C4B8A8; padding: 8px 0;">No trips planned yet</div>
-      {% endif %}
+      <div class="ad-card-label">Missing Pass Brand</div>
+      <div class="ad-card-value" style="color: {{ '#DC2626' if mtn_no_pass > 0 else '#22C55E' }};">{{ mtn_no_pass }}</div>
+      <div class="ad-card-sub">resorts w/ no pass set</div>
     </div>
-
     <div class="ad-card">
-      <div class="ad-card-label" style="margin-bottom: 10px;">Most Wishlisted Resorts</div>
-      {% if mtn_top_wishlisted %}
-        {% for row in mtn_top_wishlisted %}
-        <div class="ar-bar-row">
-          <div class="ar-bar-label">{{ row.name }}</div>
-          <div class="ar-bar-track"><div class="ar-bar-fill ar-bar-fill--wish" style="width: {{ row.pct }}%;"></div></div>
-          <div class="ar-bar-count">{{ row.count }}</div>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div style="font-size: 12px; color: #C4B8A8; padding: 8px 0;">No wishlist saves yet</div>
-      {% endif %}
+      <div class="ad-card-label">Missing State/Region</div>
+      <div class="ad-card-value">{{ mtn_no_state }}</div>
+      <div class="ad-card-sub">resorts w/o state</div>
     </div>
-
+    <div class="ad-card">
+      <div class="ad-card-label">Missing Country</div>
+      <div class="ad-card-value" style="color: {{ '#DC2626' if mtn_no_country > 0 else '#22C55E' }};">{{ mtn_no_country }}</div>
+      <div class="ad-card-sub">resorts w/o country code</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+    <a href="/admin/resorts-audit" style="display:inline-flex;align-items:center;padding:9px 14px;background:#FFFFFF;border:1px solid #E4DDD2;border-radius:7px;font-size:13px;color:#5C1219;text-decoration:none;font-weight:500;">Resort Audit →</a>
+    <a href="/admin/debug-resort-duplicates" style="display:inline-flex;align-items:center;padding:9px 14px;background:#FFFFFF;border:1px solid #E4DDD2;border-radius:7px;font-size:13px;color:#6B6157;text-decoration:none;font-weight:500;">Debug Duplicates →</a>
+  </div>
+  <div class="ar-sync-bar">
+    <span>System of record: <strong style="color:#1C1917;">Supabase</strong></span>
+    {% if last_export_info %}
+    <span>Last canonical export: <strong style="color:#1C1917;">v{{ last_export_info.version }}</strong> · {{ last_export_info.exported_at[:10] if last_export_info.exported_at and last_export_info.exported_at != 'unknown' else '—' }} · {{ last_export_info.count }} resorts</span>
+    {% else %}
+    <span style="color:#DC2626;">No canonical export found</span>
+    {% endif %}
   </div>
 </div>
 
@@ -919,122 +1050,6 @@
 
 </div><!-- end #mtn-operations -->
 
-<!-- ── Data Quality ── -->
-<div class="ad-section" id="mtn-data-quality">
-  <div class="ad-section-label">Data Quality</div>
-  <div class="ar-qual-grid">
-    <div class="ad-card">
-      <div class="ad-card-label">Missing Pass Brand</div>
-      <div class="ad-card-value" style="color: {{ '#DC2626' if mtn_no_pass > 0 else '#22C55E' }};">{{ mtn_no_pass }}</div>
-      <div class="ad-card-sub">resorts w/ no pass set</div>
-    </div>
-    <div class="ad-card">
-      <div class="ad-card-label">Missing State/Region</div>
-      <div class="ad-card-value">{{ mtn_no_state }}</div>
-      <div class="ad-card-sub">resorts w/o state</div>
-    </div>
-    <div class="ad-card">
-      <div class="ad-card-label">Missing Country</div>
-      <div class="ad-card-value" style="color: {{ '#DC2626' if mtn_no_country > 0 else '#22C55E' }};">{{ mtn_no_country }}</div>
-      <div class="ad-card-sub">resorts w/o country code</div>
-    </div>
-  </div>
-  <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-    <a href="/admin/resorts-audit" style="display: inline-flex; align-items: center; padding: 9px 14px; background: #FFFFFF; border: 1px solid #E4DDD2; border-radius: 7px; font-size: 13px; color: #5C1219; text-decoration: none; font-weight: 500;">Resort Audit →</a>
-    <a href="/admin/debug-resort-duplicates" style="display: inline-flex; align-items: center; padding: 9px 14px; background: #FFFFFF; border: 1px solid #E4DDD2; border-radius: 7px; font-size: 13px; color: #6B6157; text-decoration: none; font-weight: 500;">Debug Duplicates →</a>
-  </div>
-</div>
-
-<!-- ── Destination Traffic ─────────────────────────────────────────── -->
-<div class="ad-section" id="mtn-traffic">
-  <div class="ad-section-label">Destination Traffic</div>
-
-  {% if not mtn_traffic_ready %}
-  <div style="color:#9A9186;font-size:13px;font-style:italic;padding:8px 0;">
-    Traffic data not yet available — table will be ready after first mountain page visit.
-  </div>
-  {% else %}
-
-  <div class="ar-qual-grid" style="margin-bottom:20px;">
-    <div class="ad-card">
-      <div class="ad-card-label">Total Page Views</div>
-      <div class="ad-card-value">{{ mtn_traffic_total }}</div>
-      <div class="ad-card-sub">all-time</div>
-    </div>
-    <div class="ad-card">
-      <div class="ad-card-label">Logged-In Views</div>
-      <div class="ad-card-value">{{ mtn_traffic_loggedin }}</div>
-      <div class="ad-card-sub">{{ ((mtn_traffic_loggedin / mtn_traffic_total * 100) | round | int) if mtn_traffic_total else 0 }}% of total</div>
-    </div>
-    <div class="ad-card">
-      <div class="ad-card-label">Anonymous Views</div>
-      <div class="ad-card-value">{{ mtn_traffic_anon }}</div>
-      <div class="ad-card-sub">{{ ((mtn_traffic_anon / mtn_traffic_total * 100) | round | int) if mtn_traffic_total else 0 }}% of total</div>
-    </div>
-    {% if mtn_most_viewed_month %}
-    <div class="ad-card">
-      <div class="ad-card-label">Top This Month</div>
-      <div class="ad-card-value" style="font-size:16px;line-height:1.2;">{{ mtn_most_viewed_month }}</div>
-      <div class="ad-card-sub">{{ mtn_most_viewed_month_cnt }} view{{ 's' if mtn_most_viewed_month_cnt != 1 else '' }}</div>
-    </div>
-    {% endif %}
-  </div>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-    <div>
-      <div style="font-size:12px;font-weight:600;color:#3A3028;margin-bottom:10px;">Top Viewed Mountains (All-Time)</div>
-      {% if mtn_top_viewed %}
-      <ul class="ad-bar-list">
-        {% for r in mtn_top_viewed %}
-        <li class="ad-bar-row">
-          <span class="ad-bar-name" title="{{ r.name }}">{{ r.name }}</span>
-          <span class="ad-bar-track"><span class="ad-bar-fill" style="width:{{ r.pct }}%;"></span></span>
-          <span class="ad-bar-count">{{ r.count }}</span>
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}<div style="font-size:13px;color:#9A9186;font-style:italic;">No views recorded yet.</div>{% endif %}
-    </div>
-    <div>
-      <div style="font-size:12px;font-weight:600;color:#3A3028;margin-bottom:10px;">Monthly View Volume (Last 6 Months)</div>
-      {% if mtn_monthly_views %}
-      <div style="display:flex;align-items:flex-end;gap:8px;height:70px;margin-bottom:4px;">
-        {% for m in mtn_monthly_views %}
-        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;">
-          <span style="font-size:9px;color:#6B6157;font-weight:600;">{{ m.count }}</span>
-          <div style="width:100%;background:#5C1219;border-radius:2px 2px 0 0;min-height:2px;height:{{ [m.pct * 0.6, 2] | max }}px;"></div>
-          <span style="font-size:9px;color:#9A9186;">{{ m.month }}</span>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
-  </div>
-
-  {% if mtn_top5_traffic %}
-  <div style="font-size:12px;font-weight:600;color:#3A3028;margin-bottom:10px;">Top Resorts — Views &amp; Unique Users</div>
-  <table style="width:100%;border-collapse:collapse;font-size:13px;">
-    <thead>
-      <tr>
-        <th style="text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6157;padding:6px 8px;border-bottom:1px solid #EAE4D8;">Resort</th>
-        <th style="text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6157;padding:6px 8px;border-bottom:1px solid #EAE4D8;">Total Views</th>
-        <th style="text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6157;padding:6px 8px;border-bottom:1px solid #EAE4D8;">Unique Users</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in mtn_top5_traffic %}
-      <tr>
-        <td style="padding:8px;color:#3A3028;border-bottom:1px solid #F0EBE3;">{{ r.name }}</td>
-        <td style="padding:8px;color:#3A3028;border-bottom:1px solid #F0EBE3;text-align:right;font-weight:600;">{{ r.total }}</td>
-        <td style="padding:8px;color:#6B6157;border-bottom:1px solid #F0EBE3;text-align:right;">{{ r.uniq_users }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% endif %}
-
-  {% endif %}
-</div><!-- end #mtn-traffic -->
 
 <div class="toast" id="toast"></div>
 

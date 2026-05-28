@@ -1,0 +1,152 @@
+PUT THIS IN AGENT
+
+Implement #156 Refactor Admin Mountains — Demand-First.
+
+Goal:
+Refactor /admin/mountains so it answers:
+“Which resorts are users engaging with?”
+
+The page should lead with demand and engagement signals, not static catalog counts.
+
+Scope:
+- /admin/mountains route/data
+- templates/admin_resorts.html
+- Mountains sidebar submenu in admin_console.html
+
+Do NOT modify:
+- Dashboard
+- Growth
+- Messaging
+- Trips
+- User Insights
+- Message Events
+
+Do NOT add:
+- new DB models
+- migrations
+- chart libraries
+- sparklines
+- JavaScript
+- new tracking systems
+
+Implementation requirements:
+
+1. Add missing traffic metrics
+
+Inside the existing MountainPageView logic, add:
+- Total visits
+- Visits last 7 days
+- Visits last 30 days
+- Logged-in visit %
+- Most Viewed This Month
+
+Also add Fastest Rising Resorts:
+- compare current 30d visits vs prior 30d visits
+- compute delta per resort
+- show top 5 by positive delta
+- if no positive deltas, show an intentional empty state
+
+2. Reorder page hierarchy
+
+New section order:
+
+A. Resort Traffic
+Top of page.
+Show:
+- Total Visits
+- Visits Last 7d
+- Visits Last 30d
+- Logged-In %
+- Most Viewed This Month
+
+B. Most Viewed Resorts
+Ranked list/table of resort detail page visits.
+This should show every resort that has received visits, not just a tiny subset if feasible.
+At minimum, show a ranked list with enough rows to be useful.
+
+C. Demand Signals
+Show:
+- Most Planned Resorts
+- Most Wishlisted Resorts
+- Fastest Rising Resorts
+
+D. Upcoming Activity
+Show:
+- Resorts with upcoming trips count
+- upcoming resort/trip activity if already available
+
+E. Catalog
+Demote static catalog metrics here:
+- Total Resorts
+- Active Resorts
+- Inactive Resorts
+- Countries
+- Resorts With Pass Data / pass network mapping, if currently available
+
+Rename unclear label:
+- “On Pass Networks”
+to:
+- “Resorts With Pass Data”
+or a more accurate label based on the actual data.
+
+F. Resort Operations
+Keep the existing full catalog/operations table unchanged at the bottom.
+
+3. Move Data Quality lower
+
+Data quality / catalog QA metrics should not lead the Mountains page.
+Keep them lower, inside Catalog or near Resort Operations.
+
+Do not remove them unless they are already duplicated elsewhere.
+Do not move them to Tools in this task unless it is trivial and safe.
+This task is primarily hierarchy/order.
+
+4. Sidebar submenu
+
+Update the Mountains submenu in admin_console.html to match the new anchors.
+
+Recommended submenu:
+- Traffic
+- Demand
+- Upcoming
+- Catalog
+- Operations
+
+Remove dead/stale submenu anchors.
+
+5. UI requirements
+
+- Reuse existing admin styles/components
+- No redesign
+- Mobile-safe
+- No horizontal overflow
+- Demand/traffic content should appear above static catalog content
+- Avoid duplicate hero metrics and ranked lists feeling redundant
+- Use clear empty states where data is missing
+
+6. Query/performance requirements
+
+- Keep MountainPageView queries performant
+- Use grouped COUNT queries
+- Avoid N+1 queries
+- Use existing indexes where possible
+- Zero-row safe
+
+7. Testing
+
+Verify:
+- /admin/mountains returns 200
+- /admin/resorts returns 200 if that is the actual route alias
+- all 7 admin pages return 200
+- sidebar submenu anchors work
+- no dead anchors
+- no missing Jinja variables
+- no horizontal overflow on iPhone 15 Pro width
+- Resort Traffic appears first
+- static catalog metrics are no longer the lead story
+- Data Quality/Operations are lower on the page
+- MountainPageView zero-state does not break the page
+
+Use checkpoints sparingly.
+
+Do not finish until fully tested.

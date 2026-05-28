@@ -1,0 +1,141 @@
+PUT THIS IN PLAN FIRST
+
+Refactor the Admin Mountains page around demand and engagement signals, not catalog maintenance.
+
+Do not implement yet.
+
+Goal:
+The Mountains page should answer:
+“Which resorts are users actually engaging with?”
+
+It should NOT focus on:
+- resort operations
+- inactive resort maintenance
+- backend catalog quality
+- pass-network mapping completeness
+
+Those operational/data-quality concerns belong under Tools or a separate admin maintenance surface later.
+
+Critical new requirement:
+We need visibility into Mountain Detail Page traffic.
+
+Specifically:
+- every resort detail page visit should be tracked
+- visits should be viewable/admin-queryable
+- we need aggregated totals by:
+  - last 7 days
+  - last 30 days
+  - all-time
+- we also need ranked “most viewed resorts”
+
+Investigate existing MountainPageView implementation:
+- Is tracking already firing from mountain detail pages?
+- Are anonymous users tracked?
+- Are duplicate refreshes counted?
+- Is viewed_at reliable?
+- Is resort_id populated consistently?
+- Is there enough data integrity to build rankings?
+
+Planning deliverables:
+
+1. Define the new Mountains page hierarchy
+
+The page should prioritize:
+- Most Viewed Resorts
+- Most Planned Resorts
+- Most Wishlisted Resorts
+- Resorts With Upcoming Trips
+- Visits Last 7d / 30d
+- Total Resort Page Visits
+
+Static operational metrics should move lower or leave the page entirely:
+- Total Resorts
+- Active Resorts
+- Inactive Resorts
+- On Pass Networks / Pass Mapping
+
+Recommend where those operational metrics should move:
+- Tools
+- Resort Audit
+- separate “Catalog Health” section
+- etc.
+
+2. Recommend exact KPI ordering
+
+Need:
+- top hero metrics
+- secondary ranked lists
+- lower-priority operational metrics
+
+Avoid duplication between:
+- hero cards
+- ranked lists
+
+3. Investigate visit tracking integrity
+
+Confirm:
+- whether every mountain detail page hit creates a MountainPageView row
+- whether tracking exists on web + iOS + Android
+- whether duplicate refresh spam is possible
+- whether deduping is needed
+- whether logged-in vs anonymous traffic can be separated
+
+4. Define exact visit metrics
+
+Need recommendations for:
+- Total Visits (all-time)
+- Visits Last 7 Days
+- Visits Last 30 Days
+- Most Viewed Resorts
+- Fastest Rising Resorts (if feasible)
+- Avg visits/day (optional)
+
+5. Recommend exact queries
+
+Need:
+- performant GROUP BY queries
+- top viewed resorts
+- rolling windows
+- rankings
+- totals
+
+6. Recommend exact UI structure
+
+Need:
+- cleaner hierarchy
+- executive-style layout
+- demand-first ordering
+- behavior signals above infrastructure metrics
+
+7. Recommend whether a dedicated “Traffic” section should exist
+
+Potential section:
+- Resort Traffic
+- Demand Signals
+- Discovery
+- etc.
+
+8. Identify what belongs in Tools instead
+
+Operational/admin-only metrics:
+- inactive resorts
+- missing pass mappings
+- catalog QA
+- duplicate resorts
+- metadata completeness
+
+should likely leave the Mountains page.
+
+Recommend exact placement.
+
+9. No implementation yet
+
+Stop after:
+- investigation
+- architecture recommendation
+- KPI hierarchy recommendation
+- query feasibility analysis
+
+Wait for approval before coding.
+
+Use checkpoints sparingly.
