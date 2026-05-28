@@ -77,6 +77,25 @@
     overflow-wrap: break-word;
     word-break: break-word;
   }
+
+  /* ── Mobile scale-up (≤ 540px) ── */
+  @media (max-width: 540px) {
+    .ad-kpi-grid        { gap: 12px; }
+    .ad-card            { padding: 16px 16px 14px; }
+    .ad-card-label      {
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      margin-bottom: 7px;
+    }
+    .ad-card-value      {
+      font-size: 48px;
+      line-height: 1;
+    }
+    .ad-card-sub        { font-size: 14px; margin-top: 5px; }
+    .ad-trend           { font-size: 13px; margin-top: 6px; }
+    .ad-spark           { margin-top: 10px; }
+    .ad-updated         { font-size: 12px; margin-bottom: 14px; }
+  }
 {% endblock %}
 
 {% block content %}
@@ -91,8 +110,8 @@
 {%- set _max = series | max -%}
 {%- if _max > 0 -%}
 {%- set ns  = namespace(pts='') -%}
-{%- set W   = 56 -%}
-{%- set H   = 18 -%}
+{%- set W   = 60 -%}
+{%- set H   = 24 -%}
 {%- set n   = series | length -%}
 {%- for v in series -%}
   {%- set x = ((loop.index0 / (n - 1)) * W) | round(1) -%}
