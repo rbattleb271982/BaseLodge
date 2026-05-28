@@ -8850,8 +8850,9 @@ def track_mountain_view():
             return jsonify({"ok": False, "reason": "missing resort_id"}), 200
 
         user_id     = current_user.id if current_user.is_authenticated else None
-        raw_sid     = session.get("_id") or ""
-        session_key = str(raw_sid)[:32] or None
+        # session_key is a client-generated UUID sent in the payload (sessionStorage-based)
+        raw_sid     = data.get("session_key") or ""
+        session_key = str(raw_sid)[:64].strip() or None
 
         # Dedup: skip if same session viewed this resort within 30 minutes
         if session_key:

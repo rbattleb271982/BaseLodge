@@ -317,10 +317,15 @@
 
 (function() {
     try {
+        var sid = sessionStorage.getItem('bl_sid');
+        if (!sid) {
+            sid = 'bl-' + Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
+            sessionStorage.setItem('bl_sid', sid);
+        }
         fetch('/api/mountain/track-view', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({resort_id: {{ resort.id }}})
+            body: JSON.stringify({resort_id: {{ resort.id }}, session_key: sid})
         }).catch(function() {});
     } catch(e) {}
 })();

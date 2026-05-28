@@ -1,0 +1,62 @@
+PUT THIS IN AGENT
+
+Investigate why /admin/mountains shows only 3 total resort page views.
+
+I believe this is too low and may indicate MountainPageView tracking is incomplete or only recently started.
+
+Do NOT redesign anything.
+
+Focus only on tracking correctness and query correctness.
+
+Investigate:
+
+1. MountainPageView data
+- total rows in mountain_page_view
+- earliest viewed_at
+- latest viewed_at
+- counts by day
+- counts by resort
+- logged-in vs anonymous counts
+- rows with NULL user_id
+- rows with NULL session_key
+- duplicate/dedup behavior
+
+2. Tracking implementation
+- confirm mountain_detail.html fires the tracking fetch on every resort detail page load
+- confirm the fetch URL is correct
+- confirm CSRF/auth requirements do not block it
+- confirm anonymous users can trigger tracking
+- confirm native iOS/Android WebView can trigger tracking
+- confirm the route returns success
+- check if browser/network errors occur
+
+3. Dedup logic
+- inspect the 30-minute dedup logic
+- confirm it does not suppress legitimate visits across different resorts
+- confirm it does not suppress all visits when session_key is missing
+- confirm it counts repeat visits after 30 minutes
+
+4. Query logic
+- confirm Total Page Views query is counting all MountainPageView rows
+- confirm Last 7 Days and Last 30 Days use viewed_at correctly
+- confirm no seeded/dev/test filters are incorrectly excluding visits
+- confirm route alias /admin/resorts vs /admin/mountains is not querying a different dataset
+
+5. Backfill reality
+- determine whether MountainPageView tracking was only added recently
+- if tracking is new, explain that historic page views before tracking cannot be recovered unless logs exist
+- do not fake backfill page views
+
+Deliverables:
+1. Explain why total page views is only 3.
+2. Identify whether tracking is working now.
+3. Identify whether historical views are simply unavailable.
+4. Fix any real bug found.
+5. Re-test by visiting at least 3 different mountain detail pages and confirming MountainPageView rows increase appropriately.
+6. Verify /admin/mountains updates accordingly.
+7. Confirm all 7 admin pages return 200.
+
+No migrations.
+No new models.
+No fake data.
+Use checkpoints sparingly.
