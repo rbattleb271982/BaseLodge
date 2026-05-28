@@ -13724,32 +13724,12 @@ def admin_resorts():
                 for b in real:
                     _mtn_pass_ctr[b] += 1
 
-    _mp_row = (
-        db.session.query(Resort.name, func.count(SkiTrip.id).label('cnt'))
-        .join(SkiTrip, SkiTrip.resort_id == Resort.id)
-        .filter(SkiTrip.resort_id.isnot(None))
-        .group_by(Resort.id, Resort.name)
-        .order_by(func.count(SkiTrip.id).desc())
-        .first()
-    )
-    mtn_most_planned       = _mp_row.name if _mp_row else None
-    mtn_most_planned_count = _mp_row.cnt  if _mp_row else 0
-
     _mtn_wl_rows = db.session.query(User.wish_list_resorts).filter(User.wish_list_resorts.isnot(None)).all()
     _mtn_wish_ctr = _MtnCtr()
     for (wl,) in _mtn_wl_rows:
         if wl and isinstance(wl, list):
             for rid in wl:
                 _mtn_wish_ctr[rid] += 1
-    _top1_wish = _mtn_wish_ctr.most_common(1)
-    mtn_most_wishlisted       = None
-    mtn_most_wishlisted_count = 0
-    if _top1_wish:
-        _mwid = _top1_wish[0][0]
-        _mwr  = db.session.get(Resort, _mwid)
-        if _mwr:
-            mtn_most_wishlisted       = _mwr.name
-            mtn_most_wishlisted_count = _top1_wish[0][1]
 
     _PASS_ORDER = ['Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other']
     _pc_max = max(_mtn_pass_ctr.values()) if _mtn_pass_ctr else 1
@@ -13772,24 +13752,6 @@ def admin_resorts():
         for r in _rbc
     ]
 
-    _tp = (
-        db.session.query(Resort.name, func.count(SkiTrip.id).label('cnt'))
-        .join(SkiTrip, SkiTrip.resort_id == Resort.id)
-        .filter(SkiTrip.resort_id.isnot(None))
-        .group_by(Resort.id, Resort.name)
-        .order_by(func.count(SkiTrip.id).desc()).limit(5).all()
-    )
-    _tp_max = max((r.cnt for r in _tp), default=1)
-    mtn_top_planned = [{"name": r.name, "count": r.cnt, "pct": round(r.cnt / _tp_max * 100)} for r in _tp]
-
-    _tw_ids = _mtn_wish_ctr.most_common(5)
-    mtn_top_wishlisted = []
-    if _tw_ids:
-        _tw_map = {r.id: r.name for r in Resort.query.filter(Resort.id.in_([w for w, _ in _tw_ids])).all()}
-        _tw_max = _tw_ids[0][1] if _tw_ids else 1
-        for wid, wcnt in _tw_ids:
-            mtn_top_wishlisted.append({"name": _tw_map.get(wid, f'Resort {wid}'),
-                                       "count": wcnt, "pct": round(wcnt / _tw_max * 100)})
 
     mtn_no_pass = sum(
         1 for r in resorts
@@ -13905,6 +13867,30 @@ def admin_resorts():
         _fr_deltas.sort(key=lambda x: x["delta"], reverse=True)
         mtn_fastest_rising = _fr_deltas[:5]
 
+        # ── Resort Interest Snapshot: top 5 by combined funnel activity ──────
+        _snap_impr = (
+            db.session.query(Resort.id, Resort.name, func.count(MountainPageView.id).label("impr"))
+            .join(MountainPageView, MountainPageView.resort_id == Resort.id)
+            .group_by(Resort.id, Resort.name)
+            .order_by(func.count(MountainPageView.id).desc()).limit(20).all()
+        )
+        _snap_trip_map = {
+            r.resort_id: r.trips for r in (
+                db.session.query(SkiTrip.resort_id, func.count(SkiTrip.id).label("trips"))
+                .filter(SkiTrip.resort_id.isnot(None))
+                .group_by(SkiTrip.resort_id).all()
+            )
+        }
+        _snap_rows = []
+        for _sr in _snap_impr:
+            _wl  = _mtn_wish_ctr.get(_sr.id, 0)
+            _tr  = _snap_trip_map.get(_sr.id, 0)
+            _score = _sr.impr + (_wl * 3) + (_tr * 5)
+            _snap_rows.append({"name": _sr.name, "impressions": _sr.impr,
+                                "wishlists": _wl, "trips": _tr, "score": _score})
+        _snap_rows.sort(key=lambda x: x["score"], reverse=True)
+        mtn_interest_snapshot = _snap_rows[:5]
+
         mtn_traffic_ready = True
     except Exception:
         mtn_top_viewed            = []
@@ -13918,6 +13904,7 @@ def admin_resorts():
         mtn_most_viewed_month     = None
         mtn_most_viewed_month_cnt = 0
         mtn_fastest_rising        = []
+        mtn_interest_snapshot     = []
         mtn_traffic_ready         = False
 
     return render_template('admin_resorts.html',
@@ -13931,14 +13918,8 @@ def admin_resorts():
                          mtn_inactive_count=mtn_inactive_count,
                          mtn_upcoming_resort_count=mtn_upcoming_resort_count,
                          mtn_resorts_on_pass=_mtn_on_pass,
-                         mtn_most_planned=mtn_most_planned,
-                         mtn_most_planned_count=mtn_most_planned_count,
-                         mtn_most_wishlisted=mtn_most_wishlisted,
-                         mtn_most_wishlisted_count=mtn_most_wishlisted_count,
                          mtn_by_pass_brand=mtn_by_pass_brand,
                          mtn_by_country=mtn_by_country,
-                         mtn_top_planned=mtn_top_planned,
-                         mtn_top_wishlisted=mtn_top_wishlisted,
                          mtn_no_pass=mtn_no_pass,
                          mtn_no_state=mtn_no_state,
                          mtn_no_country=mtn_no_country,
@@ -13953,7 +13934,8 @@ def admin_resorts():
                          mtn_top5_traffic=mtn_top5_traffic,
                          mtn_most_viewed_month=mtn_most_viewed_month,
                          mtn_most_viewed_month_cnt=mtn_most_viewed_month_cnt,
-                         mtn_fastest_rising=mtn_fastest_rising)
+                         mtn_fastest_rising=mtn_fastest_rising,
+                         mtn_interest_snapshot=mtn_interest_snapshot)
 
 
 @app.route("/admin/resort-operations")
