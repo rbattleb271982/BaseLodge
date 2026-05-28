@@ -1,0 +1,82 @@
+PUT THIS IN AGENT
+
+Refine the top KPI section on /admin/dashboard.
+
+Scope:
+Dashboard-only.
+
+Goal:
+Make the top dashboard KPIs more useful as an executive snapshot.
+
+Changes:
+
+1. Add WAU / Active (7d)
+Add a new KPI card:
+- Label: Active (7d)
+- Value: unique active users in the last 7 days
+- Supporting text: unique active users
+- Optional sparkline only if cheap and consistent with existing active-user series
+
+2. Remove Upcoming Trips from the top KPI section
+Upcoming Trips does not currently provide enough executive signal on the Dashboard.
+This metric should remain available on /admin/trips, but not in the Dashboard top KPI grid.
+
+3. Add platform breakdown somewhere on the Dashboard
+Add a compact section or tile showing the breakdown of users/devices by:
+- iPhone / iOS
+- Android
+- Web
+
+Use the most reliable existing data source available.
+Possibilities to inspect:
+- push device token platform fields
+- user agent/device fields if stored
+- Capacitor/native app tracking fields if present
+- any existing platform analytics field
+
+Important:
+If true web/iOS/Android user breakdown is not reliably available yet, do not fake it.
+Instead, show the best available proxy clearly labeled, such as:
+“Push-token platform mix”
+or defer this metric with honest helper text.
+
+Preferred placement:
+- Either as a compact Dashboard summary tile
+- Or as a small “Platform mix” card below the top KPIs
+
+Do not make this a large section.
+
+Final top KPI set should likely be:
+- Total Users
+- New This Month
+- Active (7d)
+- Active (30d)
+- Trips This Month
+
+Do not add:
+- chart libraries
+- JS
+- modals
+- drilldowns
+- migrations
+- new models
+- PostHog
+- external analytics
+
+Do not modify:
+- Growth
+- Messaging
+- Trips
+- User Insights
+- Resorts
+- Message Events
+
+Testing:
+- /admin/dashboard returns 200
+- Upcoming Trips no longer appears in the top KPI section
+- Active (7d) appears
+- Platform breakdown appears only if reliable or clearly labeled as a proxy/deferred
+- No horizontal overflow on iPhone 15 Pro width
+- All 7 admin pages still return 200
+
+Use checkpoints sparingly.

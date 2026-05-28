@@ -15492,16 +15492,17 @@ def admin_dashboard():
     prior_mtd_end  = first_of_prior + timedelta(days=days_elapsed)
 
     # ── User counts ──────────────────────────────────────────────────────────
+    seven_ago       = now - timedelta(days=7)
     total_users     = User.query.count()
+    wau             = User.query.filter(User.last_active_at >= seven_ago).count()
     mau             = User.query.filter(User.last_active_at >= thirty_ago).count()
     new_users_month = User.query.filter(User.created_at >= first_of_mo).count()
 
     # ── Trip counts (core) ───────────────────────────────────────────────────
-    today          = now.date()
-    total_trips    = SkiTrip.query.count()
-    trips_month    = SkiTrip.query.filter(SkiTrip.created_at >= first_of_mo).count()
-    upcoming_trips = SkiTrip.query.filter(SkiTrip.start_date >= today).count()
-    past_trips     = SkiTrip.query.filter(SkiTrip.end_date   <  today).count()
+    today       = now.date()
+    total_trips = SkiTrip.query.count()
+    trips_month = SkiTrip.query.filter(SkiTrip.created_at >= first_of_mo).count()
+    past_trips  = SkiTrip.query.filter(SkiTrip.end_date   <  today).count()
 
     # ── Mountains ─────────────────────────────────────────────────────────────
     total_active_resorts = Resort.query.filter_by(is_active=True).count()
@@ -15521,6 +15522,16 @@ def admin_dashboard():
     email_opt_in = User.query.filter_by(email_opt_in=True).count()
     push_rate    = round(push_opt_in  / total_users * 100) if total_users else 0
     email_rate   = round(email_opt_in / total_users * 100) if total_users else 0
+
+    # ── Platform mix (push-token proxy) ──────────────────────────────────────
+    # PushDeviceToken.platform is 'ios' or 'android'; users without any active
+    # token are likely web-only or haven't granted push permission.
+    push_ios     = PushDeviceToken.query.filter_by(active=True, platform='ios').count()
+    push_android = PushDeviceToken.query.filter_by(active=True, platform='android').count()
+    _users_with_push = db.session.query(
+        PushDeviceToken.user_id.distinct()
+    ).filter_by(active=True).count()
+    push_web_proxy = max(total_users - _users_with_push, 0)
 
     # ── Pass on file — single headline KPI ────────────────────────────────────
     _no_pass_slugs = frozenset({"no_pass", "no_pass_yet"})
@@ -15567,8 +15578,10 @@ def admin_dashboard():
         .group_by(_func.date(User.last_active_at))
         .all()
     )
-    _mau_map  = {str(r.d): r.n for r in _mau_rows}
+    _mau_map   = {str(r.d): r.n for r in _mau_rows}
     mau_series = [_mau_map.get(d, 0) for d in _date_spine]
+    # 7-day slice — last 7 elements of the 14-day series, free
+    wau_series = mau_series[-7:]
 
     # Trips created: trips where created_at falls on each day
     _trips_rows = (
@@ -15637,7 +15650,6 @@ def admin_dashboard():
         new_users_month    = new_users_month,
         total_trips        = total_trips,
         trips_month        = trips_month,
-        upcoming_trips     = upcoming_trips,
         past_trips         = past_trips,
         push_opt_in        = push_opt_in,
         email_opt_in       = email_opt_in,
@@ -15650,10 +15662,15 @@ def admin_dashboard():
         trend_new_users    = trend_new_users,
         trend_mau          = trend_mau,
         trend_trips_month  = trend_trips_month,
+        wau                = wau,
+        wau_series         = wau_series,
         total_users_series = total_users_series,
         mau_series         = mau_series,
         trips_series       = trips_series,
         new_users_series   = new_users_series,
+        push_ios           = push_ios,
+        push_android       = push_android,
+        push_web_proxy     = push_web_proxy,
     )
 
 

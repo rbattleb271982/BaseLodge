@@ -20,15 +20,53 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
   }
-  .ad-kpi-grid--2col {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  .ad-kpi-grid--2col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ad-kpi-grid--4col { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   @media (max-width: 1100px) {
     .ad-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 640px) {
     .ad-kpi-grid       { grid-template-columns: minmax(0, 1fr); gap: 8px; }
     .ad-kpi-grid--2col { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .ad-kpi-grid--4col { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  }
+
+  /* ── Platform mix row ── */
+  .ad-platform-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .ad-platform-cell {
+    background: #FFFFFF;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 10px 12px 9px;
+  }
+  .ad-platform-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9E958A;
+    margin-bottom: 3px;
+  }
+  .ad-platform-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #5C1219;
+    font-family: Georgia, serif;
+    line-height: 1;
+  }
+  .ad-platform-value--zero { color: #B0A99F; }
+  .ad-platform-note {
+    font-size: 10px;
+    color: #B0A99F;
+    margin-top: 2px;
+  }
+  @media (max-width: 640px) {
+    .ad-platform-cell { padding: 9px 11px 8px; }
+    .ad-platform-value { font-size: 18px; }
   }
 
   /* ── KPI cards ── */
@@ -206,10 +244,10 @@
   Live data — refreshed on page load &nbsp;·&nbsp; {{ now }}
 </div>
 
-<!-- ── Snapshot: Users (3-up) ── -->
+<!-- ── Snapshot: Users (4-up) ── -->
 <div class="ad-section">
   <div class="ad-section-label">Users</div>
-  <div class="ad-kpi-grid">
+  <div class="ad-kpi-grid ad-kpi-grid--4col">
 
     <div class="ad-card">
       <div class="ad-card-label">Total Users</div>
@@ -227,6 +265,13 @@
     </div>
 
     <div class="ad-card">
+      <div class="ad-card-label">Active (7d)</div>
+      <div class="ad-card-value{% if wau == 0 %} ad-card-value--zero{% endif %}">{{ wau }}</div>
+      <div class="ad-card-sub">unique active users</div>
+      {{ sparkline(wau_series) }}
+    </div>
+
+    <div class="ad-card">
       <div class="ad-card-label">Active (30d)</div>
       <div class="ad-card-value{% if mau == 0 %} ad-card-value--zero{% endif %}">{{ mau }}</div>
       <div class="ad-card-sub">unique active users</div>
@@ -237,25 +282,37 @@
   </div>
 </div>
 
-<!-- ── Snapshot: Trips (2-up) ── -->
+<!-- ── Snapshot: Trips (full-width) ── -->
 <div class="ad-section">
   <div class="ad-section-label">Trips</div>
-  <div class="ad-kpi-grid ad-kpi-grid--2col">
+  <div class="ad-card">
+    <div class="ad-card-label">Trips This Month</div>
+    <div class="ad-card-value{% if trips_month == 0 %} ad-card-value--zero{% endif %}">{{ trips_month }}</div>
+    <div class="ad-card-sub">{{ month_label }}</div>
+    {{ trend(trend_trips_month) }}
+    {{ sparkline(trips_series) }}
+  </div>
+</div>
 
-    <div class="ad-card">
-      <div class="ad-card-label">Trips This Month</div>
-      <div class="ad-card-value{% if trips_month == 0 %} ad-card-value--zero{% endif %}">{{ trips_month }}</div>
-      <div class="ad-card-sub">{{ month_label }}</div>
-      {{ trend(trend_trips_month) }}
-      {{ sparkline(trips_series) }}
+<!-- ── Platform mix (push-token proxy) ── -->
+<div class="ad-section">
+  <div class="ad-section-label">Platform mix <span style="font-weight:400;letter-spacing:0;text-transform:none;color:#B0A99F;">&nbsp;·&nbsp; push-token proxy</span></div>
+  <div class="ad-platform-row">
+    <div class="ad-platform-cell">
+      <div class="ad-platform-label">iOS</div>
+      <div class="ad-platform-value{% if push_ios == 0 %} ad-platform-value--zero{% endif %}">{{ push_ios }}</div>
+      <div class="ad-platform-note">active tokens</div>
     </div>
-
-    <div class="ad-card">
-      <div class="ad-card-label">Upcoming</div>
-      <div class="ad-card-value{% if upcoming_trips == 0 %} ad-card-value--zero{% endif %}">{{ upcoming_trips }}</div>
-      <div class="ad-card-sub">start date &ge; today</div>
+    <div class="ad-platform-cell">
+      <div class="ad-platform-label">Android</div>
+      <div class="ad-platform-value{% if push_android == 0 %} ad-platform-value--zero{% endif %}">{{ push_android }}</div>
+      <div class="ad-platform-note">active tokens</div>
     </div>
-
+    <div class="ad-platform-cell">
+      <div class="ad-platform-label">No push token</div>
+      <div class="ad-platform-value{% if push_web_proxy == 0 %} ad-platform-value--zero{% endif %}">{{ push_web_proxy }}</div>
+      <div class="ad-platform-note">web / unregistered</div>
+    </div>
   </div>
 </div>
 
