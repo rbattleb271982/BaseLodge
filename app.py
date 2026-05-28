@@ -15549,6 +15549,14 @@ def admin_dashboard():
         for i in range(13, -1, -1)
     ]
 
+    # Cumulative total users: for each day, count users created on or before that day
+    _total_users_series = []
+    for _d in _date_spine:
+        _cutoff = _d + " 23:59:59"
+        _count  = User.query.filter(User.created_at <= _cutoff).count()
+        _total_users_series.append(_count)
+    total_users_series = _total_users_series
+
     # Active users: users whose last_active_at falls on each day
     _mau_rows = (
         db.session.query(
@@ -15642,6 +15650,7 @@ def admin_dashboard():
         trend_new_users    = trend_new_users,
         trend_mau          = trend_mau,
         trend_trips_month  = trend_trips_month,
+        total_users_series = total_users_series,
         mau_series         = mau_series,
         trips_series       = trips_series,
         new_users_series   = new_users_series,
