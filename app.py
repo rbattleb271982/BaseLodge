@@ -13367,16 +13367,22 @@ def admin_messaging():
         push_optin_delta_30d = _poi_30d - _poi_prev30d
 
         # Format trend strings: (text, sentiment_class)
-        def _msg_delta(d, label):
+        # noun describes WHAT is being counted so wording matches the KPI.
+        def _msg_delta(d, label, noun=""):
             if d == 0:
-                return "No change vs " + label, ""
+                return f"No change vs {label}", ""
             s = "+" if d > 0 else ""
-            return f"{s}{d} vs {label}", ("am-trend--pos" if d > 0 else "am-trend--neg")
+            noun_str = f" {noun}" if noun else ""
+            return f"{s}{d}{noun_str} vs {label}", ("am-trend--pos" if d > 0 else "am-trend--neg")
 
-        tokens_trend_7d       = _msg_delta(tokens_delta_7d,      "last week")
-        tokens_trend_30d      = _msg_delta(tokens_delta_30d,     "last month")
-        token_users_trend_30d = _msg_delta(token_users_delta_30d,"last month")
-        push_optin_trend_30d  = _msg_delta(push_optin_delta_30d, "last month")
+        # "new registrations" makes clear this counts token creation events,
+        # not the net active-token count (which can't be snapshotted historically).
+        tokens_trend_7d       = _msg_delta(tokens_delta_7d,       "last week",  "new registrations")
+        tokens_trend_30d      = _msg_delta(tokens_delta_30d,      "last month", "new registrations")
+        # "users who registered a token" distinguishes from current active-token holders.
+        token_users_trend_30d = _msg_delta(token_users_delta_30d, "last month", "users registered a token")
+        # Opt-in delta compares new-user cohorts by signup date — label makes that clear.
+        push_optin_trend_30d  = _msg_delta(push_optin_delta_30d,  "last month", "new opted-in signups")
 
     except Exception:
         active_tokens = push_token_users = push_opt_in = push_disabled = 0
