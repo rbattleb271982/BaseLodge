@@ -1,0 +1,132 @@
+PUT THIS IN AGENT
+
+Implement the approved Dashboard KPI refinement plan.
+
+Scope:
+Dashboard-only.
+
+Goal:
+Make the /admin/dashboard top section more readable and more strategically useful.
+
+Changes to implement:
+
+1. Increase dashboard font sizes slightly
+
+Update only the Dashboard page typography:
+
+- .ad-section-label: 10px → 11px
+- .ad-card-label: 11px → 12px
+- .ad-card-value: 28px → 32px
+- .ad-card-sub: 12px → 13px
+- .ad-trend: 11px → 12px
+
+Mobile:
+- .ad-section-label: 10px → 11px
+- .ad-card-label: 11px → 12px
+- .ad-card-value: 24px → 28px
+- .ad-card-sub: 11px → 12px
+- .ad-trend: 10px → 11px
+
+Do not change card padding unless needed for overflow.
+
+2. Remove Platform Mix from Dashboard
+
+Remove the entire Platform Mix section from /admin/dashboard.
+
+Do not delete backend platform-mix query code yet unless it is clearly unused and safe.
+Platform mix belongs in Messaging/User Insights later, not the executive Dashboard.
+
+3. Rename Trips section to Planning
+
+Change section label:
+- “Trips” → “Planning”
+
+4. Rename existing trip KPI
+
+Change:
+- “Trips This Month”
+to:
+- “Trips Planned This Month”
+
+Meaning:
+- trips created/planned during the current month
+
+5. Add Trips Planned This Week
+
+Add a new KPI card in the Planning section:
+- Label: Trips Planned This Week
+- Value: trips_week
+- Supporting text: current 7-day period or “last 7 days”
+- Sparkline: use existing trips_series[-7:] if safe, or omit if not straightforward
+
+Backend:
+Add:
+trips_week = SkiTrip.query.filter(SkiTrip.created_at >= seven_ago).count()
+
+Pass trips_week into render_template.
+
+6. Add Total Trips Planned
+
+Add a KPI card:
+- Label: Total Trips Planned
+- Value: total_trips
+- Supporting text: all-time
+
+Use the existing total_trips variable.
+
+7. Planning grid layout
+
+Planning section should include:
+- Trips Planned This Week
+- Trips Planned This Month
+- Total Trips Planned
+
+Use existing .ad-kpi-grid behavior.
+No horizontal overflow.
+No new CSS framework.
+No JS.
+
+8. Keep existing sections summary tiles
+
+Keep the section summary tiles for:
+- Growth
+- Trips
+- Messaging
+- User Insights
+- Resorts
+
+Do not redesign them in this task.
+
+9. Do not modify other admin pages
+
+Do not change:
+- /admin/growth
+- /admin/messaging
+- /admin/trips
+- /admin/user-insights
+- /admin/resorts
+- /admin/message-events
+
+No migrations.
+No new models.
+No chart libraries.
+No JavaScript changes.
+
+10. Testing
+
+Verify:
+- /admin/dashboard returns 200
+- all 7 admin pages return 200
+- Platform Mix no longer appears on Dashboard
+- Planning section shows exactly:
+  - Trips Planned This Week
+  - Trips Planned This Month
+  - Total Trips Planned
+- Font sizes are visibly larger but not cramped
+- No horizontal overflow on iPhone 15 Pro width
+- Sparklines still render correctly where present
+- Dashboard remains short, readable, and executive-level
+
+Use checkpoints sparingly.
+
+Do not finish until fully tested.

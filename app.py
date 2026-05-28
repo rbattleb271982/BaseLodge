@@ -15661,6 +15661,7 @@ def admin_dashboard():
     # ── Trip counts (core) ───────────────────────────────────────────────────
     today       = now.date()
     total_trips = SkiTrip.query.count()
+    trips_week  = SkiTrip.query.filter(SkiTrip.created_at >= seven_ago).count()
     trips_month = SkiTrip.query.filter(SkiTrip.created_at >= first_of_mo).count()
     past_trips  = SkiTrip.query.filter(SkiTrip.end_date   <  today).count()
 
@@ -15809,6 +15810,7 @@ def admin_dashboard():
         mau                = mau,
         new_users_month    = new_users_month,
         total_trips        = total_trips,
+        trips_week         = trips_week,
         trips_month        = trips_month,
         past_trips         = past_trips,
         push_opt_in        = push_opt_in,
