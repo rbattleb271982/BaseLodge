@@ -13817,9 +13817,10 @@ def admin_resorts():
         for m in mtn_monthly_views:
             m["pct"] = round(m["count"] / _mv_max * 100) if _mv_max > 0 else 0
 
-        # Top resorts table: total views + unique logged-in users (top 10)
+        # Resort Demand Overview: impressions + engagement + planning + visitation (top 10)
         _top5_rows = (
             db.session.query(
+                Resort.id,
                 Resort.name,
                 func.count(MountainPageView.id).label("total"),
                 func.count(func.distinct(MountainPageView.user_id)).label("uniq_users"),
@@ -13828,8 +13829,30 @@ def admin_resorts():
             .group_by(Resort.id, Resort.name)
             .order_by(func.count(MountainPageView.id).desc()).limit(10).all()
         )
+        _today_date = datetime.utcnow().date()
+        _trip_planned_map = {
+            r.resort_id: r.cnt for r in (
+                db.session.query(SkiTrip.resort_id, func.count(SkiTrip.id).label("cnt"))
+                .filter(SkiTrip.resort_id.isnot(None))
+                .group_by(SkiTrip.resort_id).all()
+            )
+        }
+        _mtn_visited_map = {
+            r.resort_id: r.cnt for r in (
+                db.session.query(SkiTrip.resort_id, func.count(SkiTrip.id).label("cnt"))
+                .filter(SkiTrip.resort_id.isnot(None), SkiTrip.end_date < _today_date)
+                .group_by(SkiTrip.resort_id).all()
+            )
+        }
         mtn_top5_traffic = [
-            {"name": r.name, "total": r.total, "uniq_users": r.uniq_users}
+            {
+                "name": r.name,
+                "total": r.total,
+                "uniq_users": r.uniq_users,
+                "wishlists": _mtn_wish_ctr.get(r.id, 0),
+                "trips_planned": _trip_planned_map.get(r.id, 0),
+                "mountains_visited": _mtn_visited_map.get(r.id, 0),
+            }
             for r in _top5_rows
         ]
 
@@ -13844,53 +13867,6 @@ def admin_resorts():
         mtn_most_viewed_month     = _mvm_row.name if _mvm_row else None
         mtn_most_viewed_month_cnt = _mvm_row.cnt  if _mvm_row else 0
 
-        # Fastest Rising: top 5 resorts by 30d view delta vs prior 30d (positive only)
-        _fr_cur = (
-            db.session.query(Resort.id, Resort.name, func.count(MountainPageView.id).label("cur"))
-            .join(MountainPageView, MountainPageView.resort_id == Resort.id)
-            .filter(MountainPageView.viewed_at >= _mpv_ago_30d)
-            .group_by(Resort.id, Resort.name).all()
-        )
-        _fr_prev = (
-            db.session.query(Resort.id, func.count(MountainPageView.id).label("prev"))
-            .join(MountainPageView, MountainPageView.resort_id == Resort.id)
-            .filter(MountainPageView.viewed_at >= _mpv_ago_60d,
-                    MountainPageView.viewed_at < _mpv_ago_30d)
-            .group_by(Resort.id).all()
-        )
-        _fr_prev_map = {r.id: r.prev for r in _fr_prev}
-        _fr_deltas = []
-        for r in _fr_cur:
-            delta = r.cur - _fr_prev_map.get(r.id, 0)
-            if delta > 0:
-                _fr_deltas.append({"name": r.name, "delta": delta, "cur": r.cur})
-        _fr_deltas.sort(key=lambda x: x["delta"], reverse=True)
-        mtn_fastest_rising = _fr_deltas[:5]
-
-        # ── Resort Interest Snapshot: top 5 by combined funnel activity ──────
-        _snap_impr = (
-            db.session.query(Resort.id, Resort.name, func.count(MountainPageView.id).label("impr"))
-            .join(MountainPageView, MountainPageView.resort_id == Resort.id)
-            .group_by(Resort.id, Resort.name)
-            .order_by(func.count(MountainPageView.id).desc()).limit(20).all()
-        )
-        _snap_trip_map = {
-            r.resort_id: r.trips for r in (
-                db.session.query(SkiTrip.resort_id, func.count(SkiTrip.id).label("trips"))
-                .filter(SkiTrip.resort_id.isnot(None))
-                .group_by(SkiTrip.resort_id).all()
-            )
-        }
-        _snap_rows = []
-        for _sr in _snap_impr:
-            _wl  = _mtn_wish_ctr.get(_sr.id, 0)
-            _tr  = _snap_trip_map.get(_sr.id, 0)
-            _score = _sr.impr + (_wl * 3) + (_tr * 5)
-            _snap_rows.append({"name": _sr.name, "impressions": _sr.impr,
-                                "wishlists": _wl, "trips": _tr, "score": _score})
-        _snap_rows.sort(key=lambda x: x["score"], reverse=True)
-        mtn_interest_snapshot = _snap_rows[:5]
-
         mtn_traffic_ready = True
     except Exception:
         mtn_top_viewed            = []
@@ -13903,8 +13879,6 @@ def admin_resorts():
         mtn_top5_traffic          = []
         mtn_most_viewed_month     = None
         mtn_most_viewed_month_cnt = 0
-        mtn_fastest_rising        = []
-        mtn_interest_snapshot     = []
         mtn_traffic_ready         = False
 
     return render_template('admin_resorts.html',
@@ -13933,9 +13907,7 @@ def admin_resorts():
                          mtn_monthly_views=mtn_monthly_views,
                          mtn_top5_traffic=mtn_top5_traffic,
                          mtn_most_viewed_month=mtn_most_viewed_month,
-                         mtn_most_viewed_month_cnt=mtn_most_viewed_month_cnt,
-                         mtn_fastest_rising=mtn_fastest_rising,
-                         mtn_interest_snapshot=mtn_interest_snapshot)
+                         mtn_most_viewed_month_cnt=mtn_most_viewed_month_cnt)
 
 
 @app.route("/admin/resort-operations")

@@ -1,0 +1,88 @@
+PUT THIS IN AGENT
+
+Refine /admin/mountains to remove repetitive demand widgets and consolidate resort engagement into a single primary table.
+
+Current issue:
+Both “Trending Resorts” and “Resort Interest Snapshot” duplicate information already shown elsewhere and do not add enough analytical value.
+
+Goal:
+Create a cleaner destination-intelligence page centered around:
+- impressions
+- engagement
+- planning intent
+- actual resort visitation
+
+Changes:
+
+1. Remove the entire “Trending Resorts” section/card.
+Remove:
+- card markup
+- helper variables used only for Trending Resorts
+- fastest-rising query logic if only used here
+
+2. Remove the entire “Resort Interest Snapshot” section/card.
+Remove:
+- card markup
+- subtitle
+- table markup
+- helper vars used only for this component
+
+3. Expand the existing “Impressions & Unique Users” table.
+
+Rename it to:
+“Resort Demand Overview”
+
+Columns:
+- Resort
+- Impressions
+- Unique Users
+- Wishlists
+- Trips Planned
+- Mountains Visited
+
+4. Mountains Visited definition
+This should represent:
+“How many users actually visited/skied this mountain”
+
+Use the best existing signal already available in the system.
+
+Preferred priority:
+- completed/past trips tied to the resort
+OR
+- UserPastTournament-style equivalent for ski resorts if present
+OR
+- trips whose end date is in the past
+
+Do NOT invent fake visitation logic.
+If no trustworthy signal exists, explain in the output summary and leave the column out rather than fabricating.
+
+5. Keep these sections:
+- Resort Impressions
+- Most Viewed Resorts
+- Monthly Volume
+- Resort Demand Overview
+- Upcoming Activity
+
+6. Preserve current metrics:
+- Total Resort Impressions
+- Impressions Last 7d
+- Impressions Last 30d
+- Logged-In %
+- Top This Month
+
+7. Mobile requirements:
+- table scroll-wraps correctly
+- no horizontal overflow
+- readable on iPhone 15 Pro width
+
+8. Testing:
+- /admin/mountains returns 200
+- no dead references
+- no UndefinedError
+- all columns populate correctly
+- all admin pages return 200
+
+No migrations.
+No new models unless absolutely required.
+No fake data.
+Use checkpoints sparingly.

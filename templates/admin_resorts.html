@@ -199,83 +199,35 @@
     </div>
   </div>
   {% if mtn_top5_traffic %}
-  <div style="font-size:12px;font-weight:600;color:#3A3028;margin-bottom:10px;">Impressions &amp; Unique Users</div>
-  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+  <div style="font-size:12px;font-weight:600;color:#3A3028;margin-bottom:10px;">Resort Demand Overview</div>
+  <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+  <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:520px;">
     <thead>
       <tr>
-        <th style="text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6157;padding:6px 8px;border-bottom:1px solid #EAE4D8;">Resort</th>
-        <th style="text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6157;padding:6px 8px;border-bottom:1px solid #EAE4D8;">Total Views</th>
-        <th style="text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6157;padding:6px 8px;border-bottom:1px solid #EAE4D8;">Unique Users</th>
+        <th style="text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6157;padding:6px 8px;border-bottom:1px solid #EAE4D8;white-space:nowrap;">Resort</th>
+        <th style="text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6157;padding:6px 8px;border-bottom:1px solid #EAE4D8;white-space:nowrap;">Impressions</th>
+        <th style="text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6157;padding:6px 8px;border-bottom:1px solid #EAE4D8;white-space:nowrap;">Unique Users</th>
+        <th style="text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6157;padding:6px 8px;border-bottom:1px solid #EAE4D8;white-space:nowrap;">Wishlists</th>
+        <th style="text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6157;padding:6px 8px;border-bottom:1px solid #EAE4D8;white-space:nowrap;">Trips Planned</th>
+        <th style="text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6B6157;padding:6px 8px;border-bottom:1px solid #EAE4D8;white-space:nowrap;">Mtn Visited</th>
       </tr>
     </thead>
     <tbody>
       {% for r in mtn_top5_traffic %}
       <tr>
-        <td style="padding:8px;color:#3A3028;border-bottom:1px solid #F0EBE3;">{{ r.name }}</td>
-        <td style="padding:8px;color:#3A3028;border-bottom:1px solid #F0EBE3;text-align:right;font-weight:600;">{{ r.total }}</td>
-        <td style="padding:8px;color:#6B6157;border-bottom:1px solid #F0EBE3;text-align:right;">{{ r.uniq_users }}</td>
+        <td style="padding:8px;color:#3A3028;border-bottom:1px solid #F0EBE3;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis;">{{ r.name }}</td>
+        <td style="padding:8px;color:#3A3028;border-bottom:1px solid #F0EBE3;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">{{ r.total }}</td>
+        <td style="padding:8px;color:#6B6157;border-bottom:1px solid #F0EBE3;text-align:right;font-variant-numeric:tabular-nums;">{{ r.uniq_users }}</td>
+        <td style="padding:8px;color:#6B6157;border-bottom:1px solid #F0EBE3;text-align:right;font-variant-numeric:tabular-nums;">{{ r.wishlists }}</td>
+        <td style="padding:8px;color:#6B6157;border-bottom:1px solid #F0EBE3;text-align:right;font-variant-numeric:tabular-nums;">{{ r.trips_planned }}</td>
+        <td style="padding:8px;color:#6B6157;border-bottom:1px solid #F0EBE3;text-align:right;font-variant-numeric:tabular-nums;">{{ r.mountains_visited }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
-  {% endif %}
-  {% endif %}
-</div>
-
-<!-- ── C: Demand Signals ── -->
-<div class="ad-section" id="mtn-demand">
-  <div class="ad-section-label">Demand Signals</div>
-  <div class="ar-dest-grid">
-
-    <div class="ad-card">
-      <div class="ad-card-label" style="margin-bottom:3px;">Trending Resorts</div>
-      <div style="font-size:11px;color:#9E958A;margin-bottom:11px;">30d growth vs prior 30d</div>
-      {% if mtn_fastest_rising %}
-        {% set _fr_max = mtn_fastest_rising[0].delta %}
-        {% for row in mtn_fastest_rising %}
-        <div class="ar-bar-row">
-          <div class="ar-bar-label">{{ row.name }}</div>
-          <div class="ar-bar-track"><div class="ar-bar-fill" style="width:{{ (row.delta / _fr_max * 100) | round | int }}%;background:#22C55E;"></div></div>
-          <div class="ar-bar-count" style="color:#22C55E;font-weight:600;">↑{{ row.delta }}</div>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div style="font-size:12px;color:#C4B8A8;padding:8px 0;">No trending data yet — needs 60+ days of view data</div>
-      {% endif %}
-    </div>
-
-    <div class="ad-card">
-      <div class="ad-card-label" style="margin-bottom:3px;">Resort Interest Snapshot</div>
-      <div style="font-size:11px;color:#9E958A;margin-bottom:10px;">awareness → consideration → commitment</div>
-      {% if mtn_interest_snapshot %}
-      <div style="overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:12px;">
-          <thead>
-            <tr style="border-bottom:1px solid #E4DDD2;">
-              <th style="text-align:left;padding:0 8px 6px 0;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#9E958A;font-weight:600;white-space:nowrap;">Resort</th>
-              <th style="text-align:right;padding:0 4px 6px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#9E958A;font-weight:600;white-space:nowrap;">Impr.</th>
-              <th style="text-align:right;padding:0 4px 6px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#9E958A;font-weight:600;white-space:nowrap;">Wishlists</th>
-              <th style="text-align:right;padding:0 0 6px 4px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#9E958A;font-weight:600;white-space:nowrap;">Trips</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in mtn_interest_snapshot %}
-            <tr style="border-bottom:1px solid #F0EAE0;">
-              <td style="padding:6px 8px 6px 0;color:#1C1917;font-weight:500;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ row.name }}</td>
-              <td style="text-align:right;padding:6px 4px;color:#6B6157;font-variant-numeric:tabular-nums;">{{ row.impressions }}</td>
-              <td style="text-align:right;padding:6px 4px;color:#6B6157;font-variant-numeric:tabular-nums;">{{ row.wishlists }}</td>
-              <td style="text-align:right;padding:6px 0 6px 4px;color:#6B6157;font-variant-numeric:tabular-nums;">{{ row.trips }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-        <div style="font-size:12px;color:#C4B8A8;padding:8px 0;">No activity data yet</div>
-      {% endif %}
-    </div>
-
   </div>
+  {% endif %}
+  {% endif %}
 </div>
 
 <!-- ── D: Upcoming Activity ── -->
