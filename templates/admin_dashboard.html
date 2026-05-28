@@ -3,32 +3,11 @@
 {% block page_title %}Dashboard{% endblock %}
 
 {% block head_styles %}
-  /* ── Section headers ── */
-  .ad-section-label {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.11em;
-    text-transform: uppercase;
-    color: #6B6157;
-    margin: 0 0 10px;
-  }
-  .ad-section { margin-bottom: 24px; }
-
-  /* ── KPI grid ── */
+  /* ── KPI grid — always 2 columns ── */
   .ad-kpi-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
-  }
-  .ad-kpi-grid--2col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ad-kpi-grid--4col { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  @media (max-width: 1100px) {
-    .ad-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
-  @media (max-width: 640px) {
-    .ad-kpi-grid       { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-    .ad-kpi-grid--2col { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-    .ad-kpi-grid--4col { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   }
 
   /* ── KPI cards ── */
@@ -36,70 +15,65 @@
     background: #FFFFFF;
     border: 1px solid #E4DDD2;
     border-radius: 9px;
-    padding: 14px 16px 12px;
+    padding: 12px 14px 10px;
   }
+  .ad-card--link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.12s ease, border-color 0.12s ease;
+  }
+  .ad-card--link:hover  { background: #FAF7F2; border-color: #C9BFB2; }
+  .ad-card--link:active { background: #F3EDE3; }
+
   .ad-card-label {
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
-    color: #9E958A;
-    margin-bottom: 6px;
+    color: #4E473F;
+    margin-bottom: 5px;
   }
   .ad-card-value {
-    font-size: 32px;
+    font-size: 30px;
     font-weight: 700;
     color: #5C1219;
     line-height: 1;
     font-family: Georgia, serif;
     letter-spacing: -0.02em;
   }
-  .ad-card-value--zero {
-    color: #B0A99F;
-  }
+  .ad-card-value--zero { color: #B0A99F; }
   .ad-card-sub {
-    font-size: 13px;
-    color: #9E958A;
-    margin-top: 4px;
+    font-size: 11px;
+    color: #6B665A;
+    margin-top: 3px;
   }
 
   /* ── Trend indicators ── */
   .ad-trend {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
-    margin-top: 5px;
+    margin-top: 4px;
     line-height: 1.3;
-    color: #B0A99F;
+    color: #9A9186;
   }
   .ad-trend--pos  { color: #16A34A; }
   .ad-trend--neg  { color: #DC2626; }
-  .ad-trend--flat { color: #B0A99F; }
-
-  /* ── Mobile overrides ── */
-  @media (max-width: 640px) {
-    .ad-section       { margin-bottom: 18px; }
-    .ad-section-label { margin-bottom: 8px; font-size: 11px; }
-    .ad-card          { padding: 11px 14px 9px; }
-    .ad-card-label    { font-size: 12px; }
-    .ad-card-value    { font-size: 28px; }
-    .ad-card-sub      { font-size: 12px; }
-    .ad-trend         { font-size: 11px; margin-top: 4px; }
-
-  }
+  .ad-trend--flat { color: #9A9186; }
 
   /* ── Sparklines ── */
   .ad-spark {
     display: block;
-    margin-top: 7px;
+    margin-top: 6px;
     overflow: visible;
-    flex-shrink: 0;
   }
 
   /* ── Timestamp ── */
   .ad-updated {
     font-size: 11px;
-    color: #B0A99F;
-    margin-bottom: 14px;
+    color: #6B665A;
+    margin-bottom: 12px;
     overflow-wrap: break-word;
     word-break: break-word;
   }
@@ -111,17 +85,14 @@
 {%- if t -%}<div class="ad-trend {{ t[1] }}">{{ t[0] }}</div>{%- endif -%}
 {%- endmacro -%}
 
-{#- sparkline(series) — 14-point inline SVG polyline.
-    Omitted cleanly when all values are zero.
-    1 non-zero day renders as a single spike (operational signal, not clutter).
--#}
+{#- sparkline(series) — compact 14-point inline SVG polyline -#}
 {%- macro sparkline(series) -%}
 {%- if series -%}
 {%- set _max = series | max -%}
 {%- if _max > 0 -%}
 {%- set ns  = namespace(pts='') -%}
-{%- set W   = 64 -%}
-{%- set H   = 24 -%}
+{%- set W   = 56 -%}
+{%- set H   = 18 -%}
 {%- set n   = series | length -%}
 {%- for v in series -%}
   {%- set x = ((loop.index0 / (n - 1)) * W) | round(1) -%}
@@ -133,74 +104,70 @@
 {%- endif -%}
 {%- endmacro -%}
 
-<div class="ad-updated">
-  Live data — refreshed on page load &nbsp;·&nbsp; {{ now }}
-</div>
+<div class="ad-updated">Live data · {{ now }}</div>
 
-<!-- ── Snapshot: Users (4-up) ── -->
-<div class="ad-section" id="dash-users">
-  <div class="ad-section-label">Users</div>
-  <div class="ad-kpi-grid ad-kpi-grid--4col">
+<div class="ad-kpi-grid">
 
-    <div class="ad-card">
-      <div class="ad-card-label">Total Users</div>
-      <div class="ad-card-value{% if total_users == 0 %} ad-card-value--zero{% endif %}">{{ total_users }}</div>
-      <div class="ad-card-sub">all-time signups</div>
-      {{ sparkline(total_users_series) }}
-    </div>
+  <!-- Row 1: Total Users | New This Month -->
+  <a href="/admin/user-insights" class="ad-card ad-card--link">
+    <div class="ad-card-label">Total Users</div>
+    <div class="ad-card-value{% if total_users == 0 %} ad-card-value--zero{% endif %}">{{ total_users }}</div>
+    <div class="ad-card-sub">all-time signups</div>
+    {{ sparkline(total_users_series) }}
+  </a>
 
-    <div class="ad-card">
-      <div class="ad-card-label">New This Month</div>
-      <div class="ad-card-value{% if new_users_month == 0 %} ad-card-value--zero{% endif %}">{{ new_users_month }}</div>
-      <div class="ad-card-sub">{{ month_label }}</div>
-      {{ trend(trend_new_users) }}
-      {{ sparkline(new_users_series) }}
-    </div>
+  <a href="/admin/user-insights" class="ad-card ad-card--link">
+    <div class="ad-card-label">New This Month</div>
+    <div class="ad-card-value{% if new_users_month == 0 %} ad-card-value--zero{% endif %}">{{ new_users_month }}</div>
+    <div class="ad-card-sub">{{ month_label }}</div>
+    {{ trend(trend_new_users) }}
+    {{ sparkline(new_users_series) }}
+  </a>
 
-    <div class="ad-card">
-      <div class="ad-card-label">Active (7d)</div>
-      <div class="ad-card-value{% if wau == 0 %} ad-card-value--zero{% endif %}">{{ wau }}</div>
-      <div class="ad-card-sub">unique active users</div>
-      {{ sparkline(wau_series) }}
-    </div>
+  <!-- Row 2: WAU | MAU -->
+  <a href="/admin/user-insights" class="ad-card ad-card--link">
+    <div class="ad-card-label">WAU</div>
+    <div class="ad-card-value{% if wau == 0 %} ad-card-value--zero{% endif %}">{{ wau }}</div>
+    <div class="ad-card-sub">active L7</div>
+    {{ sparkline(wau_series) }}
+  </a>
 
-    <div class="ad-card">
-      <div class="ad-card-label">Active (30d)</div>
-      <div class="ad-card-value{% if mau == 0 %} ad-card-value--zero{% endif %}">{{ mau }}</div>
-      <div class="ad-card-sub">unique active users</div>
-      {{ trend(trend_mau) }}
-      {{ sparkline(mau_series) }}
-    </div>
+  <a href="/admin/user-insights" class="ad-card ad-card--link">
+    <div class="ad-card-label">MAU</div>
+    <div class="ad-card-value{% if mau == 0 %} ad-card-value--zero{% endif %}">{{ mau }}</div>
+    <div class="ad-card-sub">active L30</div>
+    {{ trend(trend_mau) }}
+    {{ sparkline(mau_series) }}
+  </a>
 
-  </div>
-</div>
+  <!-- Row 3: Trips L7 | Trips L30 -->
+  <a href="/admin/trips" class="ad-card ad-card--link">
+    <div class="ad-card-label">Trips L7</div>
+    <div class="ad-card-value{% if trips_week == 0 %} ad-card-value--zero{% endif %}">{{ trips_week }}</div>
+    <div class="ad-card-sub">new trips</div>
+    {{ sparkline(trips_series[-7:]) }}
+  </a>
 
-<!-- ── Snapshot: Planning (3-up) ── -->
-<div class="ad-section" id="dash-planning">
-  <div class="ad-section-label">Planning</div>
-  <div class="ad-kpi-grid">
+  <a href="/admin/trips" class="ad-card ad-card--link">
+    <div class="ad-card-label">Trips L30</div>
+    <div class="ad-card-value{% if trips_30d == 0 %} ad-card-value--zero{% endif %}">{{ trips_30d }}</div>
+    <div class="ad-card-sub">rolling 30 days</div>
+    {{ sparkline(trips_series) }}
+  </a>
 
-    <div class="ad-card">
-      <div class="ad-card-label">Trips L7</div>
-      <div class="ad-card-value{% if trips_week == 0 %} ad-card-value--zero{% endif %}">{{ trips_week }}</div>
-      {{ sparkline(trips_series[-7:]) }}
-    </div>
+  <!-- Row 4: Mountain Page Views | Avg. Friends / User -->
+  <a href="/admin/resorts" class="ad-card ad-card--link">
+    <div class="ad-card-label">Mtn Page Views</div>
+    <div class="ad-card-value{% if mtn_page_views == 0 %} ad-card-value--zero{% endif %}">{{ mtn_page_views }}</div>
+    <div class="ad-card-sub">all-time imps</div>
+  </a>
 
-    <div class="ad-card">
-      <div class="ad-card-label">Trips MTD</div>
-      <div class="ad-card-value{% if trips_month == 0 %} ad-card-value--zero{% endif %}">{{ trips_month }}</div>
-      <div class="ad-card-sub">{{ month_label }}</div>
-      {{ trend(trend_trips_month) }}
-      {{ sparkline(trips_series) }}
-    </div>
+  <a href="/admin/growth" class="ad-card ad-card--link">
+    <div class="ad-card-label">Avg. Friends</div>
+    <div class="ad-card-value{% if avg_friends_per_user == 0 %} ad-card-value--zero{% endif %}">{{ avg_friends_per_user }}</div>
+    <div class="ad-card-sub">per user</div>
+  </a>
 
-    <div class="ad-card">
-      <div class="ad-card-label">Total Trips</div>
-      <div class="ad-card-value{% if total_trips == 0 %} ad-card-value--zero{% endif %}">{{ total_trips }}</div>
-      <div class="ad-card-sub">all-time</div>
-    </div>
-
-  </div>
 </div>
 
 {% endblock %}

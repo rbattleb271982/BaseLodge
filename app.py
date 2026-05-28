@@ -15833,8 +15833,15 @@ def admin_dashboard():
     trips_month = SkiTrip.query.filter(SkiTrip.created_at >= first_of_mo).count()
     past_trips  = SkiTrip.query.filter(SkiTrip.end_date   <  today).count()
 
+    # ── Trips — rolling 30d (distinct from MTD) ──────────────────────────────
+    trips_30d = SkiTrip.query.filter(SkiTrip.created_at >= thirty_ago).count()
+
     # ── Mountains ─────────────────────────────────────────────────────────────
     total_active_resorts = Resort.query.filter_by(is_active=True).count()
+    mtn_page_views = db.session.query(MountainPageView.id).count()
+
+    # ── Social — avg accepted friend connections per user ─────────────────────
+    avg_friends_per_user = round(Friend.query.count() / total_users, 1) if total_users else 0.0
 
     # Pass coverage — active resorts with at least one real (non-None) pass brand
     _pbj_rows = db.session.query(Resort.pass_brands_json).filter(Resort.is_active == True).all()
@@ -15998,9 +16005,12 @@ def admin_dashboard():
         mau_series         = mau_series,
         trips_series       = trips_series,
         new_users_series   = new_users_series,
-        push_ios           = push_ios,
-        push_android       = push_android,
-        push_web_proxy     = push_web_proxy,
+        push_ios             = push_ios,
+        push_android         = push_android,
+        push_web_proxy       = push_web_proxy,
+        trips_30d            = trips_30d,
+        mtn_page_views       = mtn_page_views,
+        avg_friends_per_user = avg_friends_per_user,
     )
 
 
