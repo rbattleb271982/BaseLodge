@@ -185,6 +185,7 @@
     1 non-zero day renders as a single spike (operational signal, not clutter).
 -#}
 {%- macro sparkline(series) -%}
+{%- if series -%}
 {%- set _max = series | max -%}
 {%- if _max > 0 -%}
 {%- set ns  = namespace(pts='') -%}
@@ -197,6 +198,7 @@
   {%- set ns.pts = ns.pts ~ ' ' ~ x ~ ',' ~ y -%}
 {%- endfor -%}
 <svg class="ad-spark" width="{{ W }}" height="{{ H }}" viewBox="0 0 {{ W }} {{ H }}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><polyline points="{{ ns.pts | trim }}" fill="none" stroke="#C4A882" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+{%- endif -%}
 {%- endif -%}
 {%- endmacro -%}
 
