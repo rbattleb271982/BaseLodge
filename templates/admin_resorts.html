@@ -175,33 +175,19 @@
   {% if not mtn_traffic_ready or not mtn_top_viewed %}
   <div style="color:#9A9186;font-size:13px;font-style:italic;padding:8px 0;">No resort impressions recorded yet.</div>
   {% else %}
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-    <div>
-      <div style="font-size:12px;font-weight:600;color:#3A3028;margin-bottom:10px;">All-Time Rankings</div>
-      <ul class="ad-bar-list">
-        {% for r in mtn_top_viewed %}
-        <li class="ad-bar-row">
-          <span class="ad-bar-name" title="{{ r.name }}">{{ r.name }}</span>
-          <span class="ad-bar-track"><span class="ad-bar-fill" style="width:{{ r.pct }}%;"></span></span>
-          <span class="ad-bar-count">{{ r.count }}</span>
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-    <div>
-      <div style="font-size:12px;font-weight:600;color:#3A3028;margin-bottom:10px;">Monthly Volume (Last 6 Months)</div>
-      {% if mtn_monthly_views %}
-      <div style="display:flex;align-items:flex-end;gap:8px;height:70px;margin-bottom:4px;">
-        {% for m in mtn_monthly_views %}
-        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;">
-          <span style="font-size:9px;color:#6B6157;font-weight:600;">{{ m.count }}</span>
-          <div style="width:100%;background:#5C1219;border-radius:2px 2px 0 0;min-height:2px;height:{{ [m.pct * 0.6, 2] | max }}px;"></div>
-          <span style="font-size:9px;color:#9A9186;">{{ m.month }}</span>
-        </div>
-        {% endfor %}
+  <div style="margin-bottom:20px;">
+    <div style="font-size:12px;font-weight:600;color:#3A3028;margin-bottom:10px;">Monthly Resort Impressions</div>
+    {% if mtn_monthly_views %}
+    <div style="display:flex;align-items:flex-end;gap:8px;height:70px;margin-bottom:4px;">
+      {% for m in mtn_monthly_views %}
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <span style="font-size:9px;color:#6B6157;font-weight:600;">{{ m.count }}</span>
+        <div style="width:100%;background:#5C1219;border-radius:2px 2px 0 0;min-height:2px;height:{{ [m.pct * 0.6, 2] | max }}px;"></div>
+        <span style="font-size:9px;color:#9A9186;">{{ m.month }}</span>
       </div>
-      {% endif %}
+      {% endfor %}
     </div>
+    {% endif %}
   </div>
   {% if mtn_top5_traffic %}
   <div style="font-size:12px;font-weight:600;color:#3A3028;margin-bottom:10px;">Resort Demand Overview</div>
