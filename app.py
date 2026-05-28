@@ -694,10 +694,26 @@ def set_security_headers(response):
 
 
 @app.before_request
-# NOTE: This function is lightweight — zero DB queries. Navigation gate only.
+# NOTE: This function is lightweight — zero DB queries for most requests.
 # Home-specific DB work lives in the home() route handler, not here.
 def before_request_handlers():
     import sys
+
+    # ── Activity heartbeat (throttled to 1 DB write per user per hour) ────────
+    # Uses a session timestamp so no extra SELECT is needed; just one UPDATE
+    # at most once per hour. Skips static assets. Runs for all authenticated
+    # users including admin so metrics reflect real usage accurately.
+    if (current_user.is_authenticated
+            and not request.path.startswith('/static/')):
+        _now_ts = time.time()
+        if _now_ts - session.get('_last_active_stamp', 0) > 3600:
+            try:
+                current_user.last_active_at = datetime.utcnow()
+                db.session.commit()
+                session['_last_active_stamp'] = _now_ts
+                session.modified = True
+            except Exception:
+                db.session.rollback()
 
     # ── Navigation timing (BL_NAV_DEBUG) ─────────────────────────────────────
     # Records wall-clock start and initialises a per-request query counter.
@@ -2609,6 +2625,7 @@ def reset_password(token=None):
 
         user.set_password(password)
         user.password_changed_at = datetime.utcnow()
+        user.last_active_at = datetime.utcnow()
         db.session.commit()
 
         login_user(user)
@@ -2752,7 +2769,9 @@ def auth():
             
             user = User.query.filter_by(email=email).first()
             if user and user.check_password(password):
+                user.last_active_at = datetime.utcnow()
                 login_user(user, remember=True)
+                session['_last_active_stamp'] = time.time()
                 session.modified = True
                 db.session.commit()
 
@@ -10794,7 +10813,10 @@ def auth_google_callback():
             db.session.add(user)
             db.session.commit()
 
+        user.last_active_at = datetime.utcnow()
+        db.session.commit()
         login_user(user, remember=True)
+        session['_last_active_stamp'] = time.time()
         session.modified = True
 
         if "invite_token" in session:
