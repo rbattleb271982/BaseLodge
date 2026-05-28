@@ -1,0 +1,85 @@
+PUT THIS IN AGENT
+
+Update MountainPageView tracking to behave like standard digital-marketing impressions/pageviews.
+
+Goal:
+Count essentially every meaningful resort detail page load as an impression.
+
+Current issue:
+The existing 10-minute/30-minute dedup behavior is too conservative and undercounts legitimate exploration behavior.
+
+Desired behavior:
+If a user opens a resort page, leaves, and comes back shortly after, that should count again — similar to standard web analytics/pageview systems.
+
+Changes:
+
+1. Replace the current 10-minute dedup logic
+
+Instead of:
+- same session + same resort dedup for 10/30 minutes
+
+Use:
+- ultra-short refresh-spam protection only
+
+Recommended:
+- dedup only exact same resort + same session within 15–30 seconds
+
+Purpose:
+Prevent:
+- accidental double-fire
+- rapid refresh spam
+- duplicate JS-trigger fires
+
+But allow:
+- legitimate revisits
+- comparison shopping behavior
+- normal navigation behavior
+
+2. Update terminology
+
+Continue using:
+- Resort Impressions
+- Total Resort Impressions
+- Impressions Last 7d
+- Impressions Last 30d
+
+This now aligns properly with the tracking philosophy.
+
+3. Update helper/disclaimer copy
+
+Replace any language referencing:
+- 10-minute dedup
+- 30-minute dedup
+
+With something like:
+“Resort impressions are counted when a resort detail page is viewed. Very rapid repeat requests from the same session may be deduped to prevent refresh spam.”
+
+4. Keep the existing infrastructure
+
+Do NOT rename:
+- MountainPageView model
+- mountain_page_view table
+- viewed_at column
+
+No migrations.
+No new models.
+
+5. Verify behavior
+
+Test:
+- open Beaver Creek → increments
+- reopen Beaver Creek 1 minute later → increments again
+- immediate hard refresh spam within a few seconds → deduped if applicable
+- different resort → increments immediately
+- different session → increments immediately
+
+6. Verification
+
+Confirm:
+- /admin/mountains returns 200
+- all 7 admin pages return 200
+- impression totals increase naturally with browsing
+- no JS errors
+- no horizontal overflow
+
+Use checkpoints sparingly.

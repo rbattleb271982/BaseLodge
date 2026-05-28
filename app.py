@@ -8854,13 +8854,13 @@ def track_mountain_view():
         raw_sid     = data.get("session_key") or ""
         session_key = str(raw_sid)[:64].strip() or None
 
-        # Dedup: skip if same session viewed this resort within 30 minutes
+        # Dedup: refresh-spam protection only — same session + same resort within 30 seconds
         if session_key:
-            thirty_min_ago = datetime.utcnow() - timedelta(minutes=30)
+            spam_cutoff = datetime.utcnow() - timedelta(seconds=30)
             already = db.session.query(MountainPageView.id).filter(
                 MountainPageView.resort_id  == resort_id,
                 MountainPageView.session_key == session_key,
-                MountainPageView.viewed_at  >= thirty_min_ago,
+                MountainPageView.viewed_at  >= spam_cutoff,
             ).first()
             if already:
                 return jsonify({"ok": True, "deduped": True})
