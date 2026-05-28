@@ -15890,6 +15890,34 @@ def admin_dashboard():
     from sqlalchemy import func as _func
 
     _fourteen_ago = now - timedelta(days=14)
+
+    # ── Prior-period deltas for dashboard KPI tiles ───────────────────────────
+    prior_wau = User.query.filter(
+        User.last_active_at >= _fourteen_ago,
+        User.last_active_at <  seven_ago,
+    ).count()
+    trend_wau = _trend(wau, prior_wau, label="prior L7")
+
+    prior_trips_week = SkiTrip.query.filter(
+        SkiTrip.created_at >= _fourteen_ago,
+        SkiTrip.created_at <  seven_ago,
+    ).count()
+    trend_trips_week = _trend(trips_week, prior_trips_week, label="prior L7")
+
+    prior_trips_30d_val = SkiTrip.query.filter(
+        SkiTrip.created_at >= sixty_ago,
+        SkiTrip.created_at <  thirty_ago,
+    ).count()
+    trend_trips_30d = _trend(trips_30d, prior_trips_30d_val, label="prior L30")
+
+    mtn_views_30d = db.session.query(MountainPageView.id).filter(
+        MountainPageView.viewed_at >= thirty_ago,
+    ).count()
+    prior_mtn_views_30d = db.session.query(MountainPageView.id).filter(
+        MountainPageView.viewed_at >= sixty_ago,
+        MountainPageView.viewed_at <  thirty_ago,
+    ).count()
+    trend_mtn_views = _trend(mtn_views_30d, prior_mtn_views_30d, label="prior L30")
     # Build an ordered date spine: oldest first → today
     _date_spine = [
         (now - timedelta(days=i)).strftime('%Y-%m-%d')
@@ -16011,6 +16039,11 @@ def admin_dashboard():
         trips_30d            = trips_30d,
         mtn_page_views       = mtn_page_views,
         avg_friends_per_user = avg_friends_per_user,
+        trend_wau            = trend_wau,
+        trend_trips_week     = trend_trips_week,
+        trend_trips_30d      = trend_trips_30d,
+        trend_mtn_views      = trend_mtn_views,
+        mtn_views_30d        = mtn_views_30d,
     )
 
 

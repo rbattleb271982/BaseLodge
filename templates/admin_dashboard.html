@@ -80,20 +80,20 @@
 
   /* ── Mobile scale-up (≤ 540px) ── */
   @media (max-width: 540px) {
-    .ad-kpi-grid        { gap: 12px; }
-    .ad-card            { padding: 16px 16px 14px; }
+    .ad-kpi-grid        { gap: 10px; }
+    .ad-card            { padding: 12px 14px 10px; }
     .ad-card-label      {
-      font-size: 13px;
-      letter-spacing: 0.05em;
-      margin-bottom: 7px;
+      font-size: 15px;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
     }
     .ad-card-value      {
-      font-size: 48px;
+      font-size: 44px;
       line-height: 1;
     }
-    .ad-card-sub        { font-size: 14px; margin-top: 5px; }
-    .ad-trend           { font-size: 13px; margin-top: 6px; }
-    .ad-spark           { margin-top: 10px; }
+    .ad-card-sub        { font-size: 16px; margin-top: 3px; }
+    .ad-trend           { font-size: 14px; margin-top: 4px; }
+    .ad-spark           { margin-top: 7px; }
     .ad-updated         { font-size: 12px; margin-bottom: 14px; }
   }
 {% endblock %}
@@ -148,6 +148,7 @@
     <div class="ad-card-label">WAU</div>
     <div class="ad-card-value{% if wau == 0 %} ad-card-value--zero{% endif %}">{{ wau }}</div>
     <div class="ad-card-sub">active L7</div>
+    {{ trend(trend_wau) }}
     {{ sparkline(wau_series) }}
   </a>
 
@@ -164,6 +165,7 @@
     <div class="ad-card-label">Trips L7</div>
     <div class="ad-card-value{% if trips_week == 0 %} ad-card-value--zero{% endif %}">{{ trips_week }}</div>
     <div class="ad-card-sub">new trips</div>
+    {{ trend(trend_trips_week) }}
     {{ sparkline(trips_series[-7:]) }}
   </a>
 
@@ -171,14 +173,16 @@
     <div class="ad-card-label">Trips L30</div>
     <div class="ad-card-value{% if trips_30d == 0 %} ad-card-value--zero{% endif %}">{{ trips_30d }}</div>
     <div class="ad-card-sub">rolling 30 days</div>
+    {{ trend(trend_trips_30d) }}
     {{ sparkline(trips_series) }}
   </a>
 
   <!-- Row 4: Mountain Page Views | Avg. Friends / User -->
   <a href="/admin/resorts" class="ad-card ad-card--link">
     <div class="ad-card-label">Mtn Page Views</div>
-    <div class="ad-card-value{% if mtn_page_views == 0 %} ad-card-value--zero{% endif %}">{{ mtn_page_views }}</div>
-    <div class="ad-card-sub">all-time imps</div>
+    <div class="ad-card-value{% if mtn_views_30d == 0 %} ad-card-value--zero{% endif %}">{{ mtn_views_30d }}</div>
+    <div class="ad-card-sub">L30 views</div>
+    {{ trend(trend_mtn_views) }}
   </a>
 
   <a href="/admin/growth" class="ad-card ad-card--link">
