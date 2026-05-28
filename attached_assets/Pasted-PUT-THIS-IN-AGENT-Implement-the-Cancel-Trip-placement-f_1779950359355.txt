@@ -1,0 +1,102 @@
+PUT THIS IN AGENT
+
+Implement the Cancel Trip placement fix on the trip detail page.
+
+Goal:
+Make the owner-only “Cancel trip” action visible and discoverable at the bottom of the trip detail page.
+
+Root cause:
+The Cancel Trip button already exists and works, but it is currently placed mid-page between the People card and the Who’s Going section. On normal trips, it gets buried and does not feel like a terminal/destructive action.
+
+Scope:
+Template/CSS only.
+
+Files:
+- templates/trip_detail.html
+
+Do NOT change:
+- backend routes
+- delete_trip_form
+- API delete route
+- JS confirmation functions
+- database models
+- migrations
+
+Implementation:
+
+1. Move the existing owner-only cancel block
+
+Move the existing `{% if is_owner %}` cancel button block from its current mid-page position to the bottom of `.page-container`.
+
+Place it after:
+- Who’s Going section
+- Pending Invites section
+
+And immediately before:
+- closing `</div><!-- /page-container -->`
+
+2. Add clearer destructive-action framing
+
+Use this structure:
+
+{% if is_owner %}
+<div class="td-cancel-trip-wrap">
+    <p class="td-cancel-trip-label">Danger Zone</p>
+    <button type="button" class="td-cancel-trip-link" onclick="openCancelTripSheet()">
+        Cancel trip
+    </button>
+    <p class="td-cancel-trip-sub">This removes the trip for everyone going.</p>
+</div>
+{% endif %}
+
+3. Preserve existing confirmation flow
+
+Keep using:
+- openCancelTripSheet()
+- closeCancelTripSheet()
+- existing bottom confirmation sheet
+- existing POST form to delete_trip_form
+
+Do not change the confirmation sheet unless required for compatibility.
+
+4. Styling
+
+Keep existing:
+- .td-cancel-trip-wrap
+- .td-cancel-trip-link
+
+Add lightweight styles for:
+- .td-cancel-trip-label
+- .td-cancel-trip-sub
+
+Style direction:
+- subtle
+- destructive but not alarmist
+- visually separated from normal actions
+- safe-area aware at bottom
+- mobile-friendly
+
+5. Owner-only behavior
+
+Confirm:
+- trip owner sees Danger Zone / Cancel trip at bottom
+- non-owner does not see it
+
+6. Testing
+
+Verify:
+- owner trip detail page shows Cancel trip at the bottom
+- Cancel trip opens the existing confirmation sheet
+- Cancel confirmation still posts to the existing route
+- non-owner trip detail page does not show Cancel trip
+- no duplicate Cancel trip button exists
+- no mobile overflow
+- page still renders correctly when:
+  - trip has participants
+  - trip has pending invites
+  - trip has no participants
+  - trip has no pending invites
+
+No backend changes.
+No migrations.
+Use checkpoints sparingly.

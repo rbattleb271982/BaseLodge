@@ -240,6 +240,20 @@
             letter-spacing: 0.01em;
         }
         .td-cancel-trip-link:active { opacity: 0.6; }
+        .td-cancel-trip-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #B5888E;
+            margin: 0 0 10px;
+        }
+        .td-cancel-trip-sub {
+            font-size: 12px;
+            color: #B5AFA5;
+            margin: 8px 0 0;
+            line-height: 1.4;
+        }
 
         /* ── Mountain name link ── */
         .td-header-mountain-link {
@@ -1276,12 +1290,6 @@
         </div>
         {% endif %}
 
-        {% if is_owner %}
-        <div class="td-cancel-trip-wrap">
-            <button type="button" class="td-cancel-trip-link" onclick="openCancelTripSheet()">Cancel trip</button>
-        </div>
-        {% endif %}
-
         <!-- Who's Going -->
         {% if all_participants or invited_participants %}
         <p class="td-section-label">Who's Going</p>
@@ -1350,6 +1358,16 @@
                 </div>
             </div>
             {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if is_owner %}
+        <div class="td-cancel-trip-wrap">
+            <p class="td-cancel-trip-label">Danger Zone</p>
+            <button type="button" class="td-cancel-trip-link" onclick="openCancelTripSheet()">
+                Cancel trip
+            </button>
+            <p class="td-cancel-trip-sub">This removes the trip for everyone going.</p>
         </div>
         {% endif %}
 

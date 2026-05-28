@@ -1,0 +1,92 @@
+PUT THIS IN AGENT
+
+Implement #157 Admin Analytics Shorthand Terminology exactly as planned.
+
+Goal:
+Standardize KPI/time-window labels across the admin console using concise internal operator-dashboard shorthand.
+
+Scope:
+Display-copy only.
+
+Do NOT change:
+- backend variables
+- DB columns
+- route names
+- API responses
+- query logic
+- metrics
+- navigation labels
+- button labels
+- descriptive body copy
+- explanatory notes
+- footnotes
+- tooltips
+
+Do NOT modify:
+- admin_resort_ops.html unless absolutely necessary
+- admin_message_events.html
+
+Shorthand standards:
+
+Time windows:
+- “Last 7 Days” / “last 7 days” → “L7”
+- “Last 30 Days” / “last 30 days” / “(Last 30d)” → “L30”
+- “Last 12 Months” → “L12”
+- “This Month” can remain if calendar month context is clearer
+- “Month-to-date” → “MTD” where appropriate
+
+Metrics:
+- “Impressions” in KPI/card/table/chart contexts → “Imps”
+- “Unique Users” → “(U)Users”
+- “Wishlists” in table headers → “Wish”
+- “Trips Planned” in compact KPI/table contexts → “Trips”
+- “Mountains Visited” in table headers → “Visited”
+
+Specific required changes:
+
+1. templates/admin_dashboard.html
+- “Trips Planned This Week” → “Trips L7”
+- remove redundant “last 7 days” supporting text
+- “Trips Planned This Month” → “Trips MTD”
+- “Total Trips Planned” → “Total Trips”
+
+2. templates/admin_resorts.html
+- “Total Resort Impressions” → “Total Imps”
+- “Impressions Last 7d” → “Imps L7”
+- “Impressions Last 30d” → “Imps L30”
+- keep descriptive sub-labels and footnotes unchanged
+
+3. templates/admin_messaging.html
+- “Last 7 Days” → “L7”
+- “Last 30 Days” → “L30”
+- “unique users” sub-label → “(U)Users”
+
+4. templates/admin_trips.html
+- “Last 7 days: X new trips” → “L7: X new trips”
+- “Last 30 days: X new trips” → “L30: X new trips”
+- “New Trips — Last 12 Months” → “New Trips — L12”
+
+5. templates/admin_growth.html
+- “Accept Rate (Last 30d)” → “Accept Rate L30”
+
+6. templates/admin_user_insights.html
+- No changes expected unless matching KPI shorthand is found during implementation.
+
+Requirements:
+- Preserve readability
+- Do not abbreviate normal explanatory sentences
+- Do not abbreviate public/user-facing pages
+- Do not introduce layout overflow
+- No redesign
+- No migrations
+- No new models
+
+Testing:
+- all admin pages return 200
+- no broken labels
+- no stale “Last 7 Days” / “Last 30 Days” / “Last 12 Months” in KPI contexts
+- no stale “Impressions” in KPI/table/chart contexts where shorthand applies
+- no mobile or desktop layout overflow
+- no console errors
+
+Use checkpoints sparingly.
