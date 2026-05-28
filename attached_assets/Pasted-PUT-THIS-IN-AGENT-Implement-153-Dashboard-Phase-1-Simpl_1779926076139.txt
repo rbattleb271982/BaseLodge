@@ -1,0 +1,178 @@
+PUT THIS IN AGENT
+
+Implement #153 Dashboard Phase 1 Simplification exactly as planned.
+
+Goal:
+Transform /admin/dashboard into a minimal executive snapshot + navigation hub.
+
+Important:
+This is a Dashboard-only change.
+Do NOT modify:
+- /admin/growth
+- /admin/messaging
+- /admin/trips
+- /admin/user-insights
+- /admin/resorts
+- /admin/message-events
+
+Do NOT add:
+- sparklines
+- period switchers
+- health scoring
+- alert engines
+- new analytics logic
+- PostHog
+- migrations
+- new models
+- new integrations
+
+Dashboard philosophy:
+- short
+- skimmable
+- executive-level
+- mobile-first
+- summary-only
+- detailed analysis belongs on specialized pages
+
+Implementation requirements
+
+1. Keep ONLY these 5 core KPI cards
+
+Row 1 (3-up desktop, responsive mobile):
+- Total Users
+- New This Month
+- Active (30d)
+
+Row 2 (2-up):
+- Trips This Month
+- Upcoming Trips
+
+Use existing variables already identified in the approved plan.
+
+Visual rules:
+- Only these 5 KPI numerals use the brand red accent
+- Zero values should render muted/secondary, not alarming red
+- Remove excessive caption clutter
+- No "View trend ↗" affordances
+- Keep existing trends only if already computed at zero extra cost
+
+2. Remove the following Dashboard sections entirely
+
+- DAU / WAU cards
+- Users With Trips card
+- Active Users Trend modal
+- Trips detail cards (Total Trips / Past Trips)
+- Entire Mountains section
+- Engagement section
+- Platform Engagement section
+- Signups by State section
+- Old User Insights tile
+- Passes section
+
+3. Add 5 section-summary tiles
+
+Tiles:
+- Growth
+- Trips
+- Messaging
+- User Insights
+- Resorts
+
+Each tile must contain:
+- section name
+- one headline metric
+- one supporting metric
+- right-arrow affordance
+- full-tile tap target
+
+Reuse:
+- existing .ad-card styles
+- existing clickable card patterns
+
+Do NOT create an entirely new tile system.
+
+Tile visual rules:
+- neutral/dark numerals
+- NOT red
+- concise
+- one-row summary feel
+- no verbose copy
+- no mini dashboards inside the tiles
+
+Layout:
+- single-column stack on mobile
+- 2-column only on larger widths if already supported naturally
+
+4. Route cleanup
+
+Remove all unused query blocks and render variables listed in the approved plan.
+
+Important:
+Template-first sequence:
+- remove template references FIRST
+- then remove route variables
+
+Avoid UndefinedError issues.
+
+Keep only the approved remaining variables:
+- now
+- month_label
+- total_users
+- new_users_month
+- mau
+- trips_month
+- upcoming_trips
+- total_trips
+- past_trips
+- push_rate
+- email_rate
+- push_opt_in
+- email_opt_in
+- pass_on_file_count
+- pass_on_file_pct
+- total_active_resorts
+- mtn_pass_coverage_pct
+- trend_new_users
+- trend_mau
+- trend_trips_month
+
+5. CSS cleanup
+
+Prune orphaned CSS related to removed sections:
+- ad-mel-*
+- ad-state-*
+- ad-op-*
+- ad-plan-*
+- ad-pass-table
+- ad-chip-*
+- modal-related styles
+
+Do NOT aggressively refactor unrelated admin CSS.
+
+6. Mobile requirements
+
+Critical:
+- no horizontal overflow at iPhone 15 Pro width (393px)
+- dashboard should feel substantially shorter
+- tiles should remain compact
+- avoid tall stacked verbose cards
+- maintain comfortable spacing hierarchy
+
+Target:
+~1.5–2 viewport heights max on iPhone 15 Pro.
+
+7. Testing requirements
+
+Verify:
+- /admin/dashboard returns 200
+- no UndefinedError
+- no missing variables
+- all summary tiles navigate correctly
+- all other admin pages still return 200
+- no mobile overflow
+- dashboard visually feels lighter and faster to scan
+- removed sections no longer appear anywhere on Dashboard
+
+Use checkpoints sparingly.
+
+Do not finish until fully tested.

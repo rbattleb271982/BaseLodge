@@ -15478,8 +15478,6 @@ def admin_dashboard():
     now          = datetime.utcnow()
     thirty_ago   = now - timedelta(days=30)
     sixty_ago    = now - timedelta(days=60)
-    seven_ago    = now - timedelta(days=7)
-    fourteen_ago = now - timedelta(days=14)
     first_of_mo  = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     month_label  = now.strftime("%B %Y")
 
@@ -15494,167 +15492,29 @@ def admin_dashboard():
     prior_mtd_end  = first_of_prior + timedelta(days=days_elapsed)
 
     # ── User counts ──────────────────────────────────────────────────────────
-    one_day_ago  = now - timedelta(days=1)
-    seven_ago    = now - timedelta(days=7)
-    total_users      = User.query.count()
-    dau              = User.query.filter(User.last_active_at >= one_day_ago).count()
-    wau              = User.query.filter(User.last_active_at >= seven_ago).count()
-    mau              = User.query.filter(User.last_active_at >= thirty_ago).count()
-    new_users_month  = User.query.filter(User.created_at >= first_of_mo).count()
-    users_with_trips = db.session.query(
-        db.func.count(db.func.distinct(SkiTrip.user_id))
-    ).scalar() or 0
-
-    # ── Daily active series — last 30 days (1 query, Python bucketing) ───────
-    from collections import defaultdict as _dd
-    _thirty_floor = (now - timedelta(days=30)).replace(
-        hour=0, minute=0, second=0, microsecond=0)
-    _active_ts = db.session.query(User.last_active_at).filter(
-        User.last_active_at >= _thirty_floor
-    ).all()
-    _day_ct = _dd(int)
-    for (_ts,) in _active_ts:
-        if _ts:
-            _day_ct[_ts.strftime("%Y-%m-%d")] += 1
-    daily_active_series = [
-        _day_ct.get((now - timedelta(days=i)).strftime("%Y-%m-%d"), 0)
-        for i in range(29, -1, -1)
-    ]
+    total_users     = User.query.count()
+    mau             = User.query.filter(User.last_active_at >= thirty_ago).count()
+    new_users_month = User.query.filter(User.created_at >= first_of_mo).count()
 
     # ── Trip counts (core) ───────────────────────────────────────────────────
-    from collections import Counter as _Counter
     today          = now.date()
     total_trips    = SkiTrip.query.count()
     trips_month    = SkiTrip.query.filter(SkiTrip.created_at >= first_of_mo).count()
     upcoming_trips = SkiTrip.query.filter(SkiTrip.start_date >= today).count()
     past_trips     = SkiTrip.query.filter(SkiTrip.end_date   <  today).count()
 
-    # ── Destination Intelligence ──────────────────────────────────────────────
-    # Top planned resorts (all-time, resort-linked trips only)
-    _tp_rows = (
-        db.session.query(Resort.name, func.count(SkiTrip.id).label("cnt"))
-        .join(SkiTrip, SkiTrip.resort_id == Resort.id)
-        .filter(SkiTrip.resort_id.isnot(None))
-        .group_by(Resort.id, Resort.name)
-        .order_by(func.count(SkiTrip.id).desc())
-        .limit(5).all()
-    )
-    top_planned_resorts = [{"name": r.name, "count": r.cnt} for r in _tp_rows]
-    _tp_max = max((r["count"] for r in top_planned_resorts), default=1)
-    for r in top_planned_resorts:
-        r["pct"] = round(r["count"] / _tp_max * 100)
-
-
-    # Most wishlisted resorts (Python aggregation from User.wish_list_resorts JSON)
-    _wish_ctr = _Counter()
-    for (wl,) in db.session.query(User.wish_list_resorts).filter(
-        User.wish_list_resorts.isnot(None)
-    ).all():
-        if isinstance(wl, list):
-            for rid in wl:
-                if rid:
-                    _wish_ctr[int(rid)] += 1
-    _top_wish_ids = [rid for rid, _ in _wish_ctr.most_common(5)]
-    _wish_names   = {}
-    if _top_wish_ids:
-        for _res in Resort.query.filter(Resort.id.in_(_top_wish_ids)).all():
-            _wish_names[_res.id] = _res.name
-    top_wishlisted_resorts = [
-        {"name": _wish_names.get(rid, f"Resort #{rid}"), "count": _wish_ctr[rid]}
-        for rid in _top_wish_ids if rid in _wish_names
-    ]
-    _tw_max = max((r["count"] for r in top_wishlisted_resorts), default=1)
-    for r in top_wishlisted_resorts:
-        r["pct"] = round(r["count"] / _tw_max * 100)
-
-
-
-
     # ── Mountains ─────────────────────────────────────────────────────────────
-    from collections import Counter as _ResortCtr
-    total_active_resorts   = Resort.query.filter_by(is_active=True).count()
-    total_inactive_resorts = Resort.query.filter_by(is_active=False).count()
-
-    # Resorts with / without any trips (active resorts only)
-    _rids_with_trips = {
-        r[0] for r in db.session.query(SkiTrip.resort_id.distinct())
-        .filter(SkiTrip.resort_id.isnot(None)).all()
-    }
-    mtn_resorts_with_trips = db.session.query(func.count(Resort.id)).filter(
-        Resort.is_active == True,
-        Resort.id.in_(_rids_with_trips) if _rids_with_trips else db.false(),
-    ).scalar() or 0
-    mtn_resorts_no_trips = total_active_resorts - mtn_resorts_with_trips
+    total_active_resorts = Resort.query.filter_by(is_active=True).count()
 
     # Pass coverage — active resorts with at least one real (non-None) pass brand
     _pbj_rows = db.session.query(Resort.pass_brands_json).filter(Resort.is_active == True).all()
-    _pass_ctr2 = _ResortCtr()
     _resorts_with_pass = 0
     for (pbj,) in _pbj_rows:
         if pbj and isinstance(pbj, list):
             real_brands = [b for b in pbj if b and b.lower() not in ('none', '')]
             if real_brands:
                 _resorts_with_pass += 1
-                for b in real_brands:
-                    _pass_ctr2[b] += 1
     mtn_pass_coverage_pct = round(_resorts_with_pass / total_active_resorts * 100) if total_active_resorts else 0
-
-    # Resorts by country (top 8 active)
-    _rbc_rows = (
-        db.session.query(
-            Resort.country_code, Resort.country_name,
-            func.count(Resort.id).label("cnt")
-        )
-        .filter(Resort.is_active == True)
-        .group_by(Resort.country_code, Resort.country_name)
-        .order_by(func.count(Resort.id).desc())
-        .limit(8).all()
-    )
-    _rbc_max = max((row.cnt for row in _rbc_rows), default=1)
-    mtn_by_country = [
-        {
-            "name":  row.country_name or row.country_code or "Unknown",
-            "count": row.cnt,
-            "pct":   round(row.cnt / _rbc_max * 100),
-        }
-        for row in _rbc_rows
-    ]
-
-    # Resorts by pass brand (from Python counter built above)
-    _PASS_DISP_ORDER = ['Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other']
-    _pc2_max = max(_pass_ctr2.values()) if _pass_ctr2 else 1
-    mtn_by_pass_brand = [
-        {
-            "name":  p,
-            "count": _pass_ctr2.get(p, 0),
-            "pct":   round(_pass_ctr2.get(p, 0) / _pc2_max * 100) if _pass_ctr2 else 0,
-        }
-        for p in _PASS_DISP_ORDER
-    ]
-
-    # Resorts with upcoming trips (distinct count + top-5 listing)
-    mtn_upcoming_count = db.session.query(
-        func.count(func.distinct(SkiTrip.resort_id))
-    ).filter(
-        SkiTrip.start_date >= today,
-        SkiTrip.resort_id.isnot(None),
-    ).scalar() or 0
-    _mtn_upc_rows = (
-        db.session.query(
-            Resort.name,
-            func.count(SkiTrip.id).label("cnt"),
-            func.min(SkiTrip.start_date).label("next_date"),
-        )
-        .join(SkiTrip, SkiTrip.resort_id == Resort.id)
-        .filter(SkiTrip.start_date >= today, SkiTrip.resort_id.isnot(None))
-        .group_by(Resort.id, Resort.name)
-        .order_by(func.min(SkiTrip.start_date).asc())
-        .limit(5).all()
-    )
-    mtn_upcoming_table = [
-        {"resort": row.name, "next": row.next_date.strftime('%b %-d') if row.next_date else '—', "trips": row.cnt}
-        for row in _mtn_upc_rows
-    ]
 
     # ── Opt-in rates ─────────────────────────────────────────────────────────
     push_opt_in  = User.query.filter_by(push_notifications_enabled=True).count()
@@ -15681,15 +15541,11 @@ def admin_dashboard():
 
     # ── Trend calculations ────────────────────────────────────────────────────
 
-    # 1. Total Users — new signups this MTD vs prior MTD
+    # 1. New Users This Month — MTD vs prior MTD
     prior_new_users = User.query.filter(
         User.created_at >= first_of_prior,
         User.created_at <  prior_mtd_end,
     ).count()
-    trend_total_users = _trend(
-        new_users_month, prior_new_users,
-        unit="pct", label="prior MTD",
-    )
 
     # 2. MAU — rolling 30d vs prior 30d
     prior_mau = User.query.filter(
@@ -15714,166 +15570,29 @@ def admin_dashboard():
         unit="pct", label="prior MTD",
     )
 
-    # 5. Push Opt-in Rate — rate excl. this month's users vs current rate (pts)
-    users_pre_mo     = User.query.filter(User.created_at < first_of_mo).count()
-    push_pre_mo      = User.query.filter(
-        User.created_at < first_of_mo,
-        User.push_notifications_enabled == True,
-    ).count()
-    prior_push_rate  = (round(push_pre_mo / users_pre_mo * 100)
-                        if users_pre_mo else None)
-    trend_push_rate  = (
-        _trend(push_rate, prior_push_rate, unit="pts", label="prior mo.")
-        if prior_push_rate is not None else None
-    )
-
-    # 7. Email Opt-in Rate — same approach (pts)
-    email_pre_mo     = User.query.filter(
-        User.created_at < first_of_mo,
-        User.email_opt_in == True,
-    ).count()
-    prior_email_rate = (round(email_pre_mo / users_pre_mo * 100)
-                        if users_pre_mo else None)
-    trend_email_rate = (
-        _trend(email_rate, prior_email_rate, unit="pts", label="prior mo.")
-        if prior_email_rate is not None else None
-    )
-
-
-    # ── Platform Engagement Metrics ──────────────────────────────────────────
-    non_seeded_total = User.query.filter_by(is_seeded=False).count() or 1  # guard /0
-
-    # 1. Avg friend connections per user (non-seeded users, both sides of friendship)
-    #    Friend rows are bidirectional (A→B and B→A), so unique connections = count / 2.
-    #    Filter both endpoints to non-seeded so seeded seed-friends don't inflate counts.
-    _ns_id_q = db.session.query(User.id).filter(User.is_seeded == False)
-    _friend_rows = Friend.query.filter(
-        Friend.user_id.in_(_ns_id_q),
-        Friend.friend_id.in_(_ns_id_q),
-        Friend.is_seeded == False,
-    ).count()
-    _unique_friendships = _friend_rows // 2
-    avg_connections = round(_unique_friendships / non_seeded_total, 1)
-
-    # 2. Avg trips per user (non-seeded, owner-created only)
-    _ns_trips = db.session.query(func.count(SkiTrip.id)).join(
-        User, User.id == SkiTrip.user_id
-    ).filter(User.is_seeded == False).scalar() or 0
-    avg_trips = round(_ns_trips / non_seeded_total, 1)
-
-    # 3. Availability adoption
-    #    Denominator: non-seeded users who've progressed past new lifecycle stage
-    avail_denom = User.query.filter(
-        User.is_seeded == False,
-        User.lifecycle_stage.in_(["onboarding", "active"]),
-    ).count() or 1  # guard /0
-    #    Primary count: users with UserAvailability table rows (canonical source)
-    avail_ua_count = db.session.query(
-        func.count(func.distinct(UserAvailability.user_id))
-    ).join(User, User.id == UserAvailability.user_id).filter(
-        User.is_seeded == False
-    ).scalar() or 0
-    #    Secondary: users with legacy open_dates JSON only (no UserAvailability rows)
-    _ua_ids = {r[0] for r in db.session.query(UserAvailability.user_id.distinct()).all()}
-    _legacy_candidates = User.query.filter(
-        User.is_seeded == False,
-        User.open_dates.isnot(None),
-        ~User.id.in_(_ua_ids) if _ua_ids else db.false(),
-    ).all()
-    _legacy_avail_count = sum(
-        1 for u in _legacy_candidates if u.open_dates and len(u.open_dates) > 0
-    )
-    avail_total = avail_ua_count + _legacy_avail_count
-    avail_rate = round(avail_total / avail_denom * 100)
-
-    # 4. Avg friend invites sent per user (Invitation rows with trip_id IS NULL)
-    _total_friend_invites = db.session.query(func.count(Invitation.id)).join(
-        User, User.id == Invitation.sender_id
-    ).filter(
-        User.is_seeded == False,
-        Invitation.trip_id == None,
-    ).scalar() or 0
-    avg_invites = round(_total_friend_invites / non_seeded_total, 1)
-
-    # 5. Signups by state (top 15, geo-tagged non-seeded users)
-    _total_geo_users = db.session.query(func.count(User.id)).filter(
-        User.is_seeded == False,
-        User.home_state.isnot(None),
-        User.home_state != "",
-    ).scalar() or 0
-    _state_rows = db.session.query(
-        User.home_state,
-        func.count(User.id).label("cnt"),
-    ).filter(
-        User.is_seeded == False,
-        User.home_state.isnot(None),
-        User.home_state != "",
-    ).group_by(User.home_state).order_by(
-        func.count(User.id).desc()
-    ).limit(15).all()
-    state_breakdown = [
-        {
-            "state": r.home_state,
-            "count": r.cnt,
-            "pct": round(r.cnt / _total_geo_users * 100) if _total_geo_users else 0,
-        }
-        for r in _state_rows
-    ]
-    total_geo_users = _total_geo_users
-
     return render_template(
         "admin_dashboard.html",
-        active_tab        = "dashboard",
-        now               = now.strftime("%Y-%m-%d %H:%M UTC"),
-        month_label       = month_label,
-        total_users          = total_users,
-        dau                  = dau,
-        wau                  = wau,
-        mau                  = mau,
-        new_users_month      = new_users_month,
-        users_with_trips     = users_with_trips,
-        daily_active_series  = daily_active_series,
-        total_trips       = total_trips,
-        trips_month       = trips_month,
-        push_opt_in       = push_opt_in,
-        email_opt_in      = email_opt_in,
-        push_rate         = push_rate,
-        email_rate        = email_rate,
-        # Pass on file
-        pass_on_file_count = pass_on_file_count,
-        pass_on_file_pct   = pass_on_file_pct,
-        # Trend indicators
-        trend_total_users  = trend_total_users,
-        trend_mau          = trend_mau,
-        trend_new_users    = trend_new_users,
-        trend_trips_month  = trend_trips_month,
-        trend_push_rate    = trend_push_rate,
-        trend_email_rate   = trend_email_rate,
-        # Platform Engagement
-        avg_connections    = avg_connections,
-        avg_trips          = avg_trips,
-        avail_total        = avail_total,
-        avail_rate         = avail_rate,
-        avail_denom        = avail_denom,
-        avg_invites        = avg_invites,
-        # Geography
-        state_breakdown    = state_breakdown,
-        total_geo_users    = total_geo_users,
-        # Trips — core
+        active_tab         = "dashboard",
+        now                = now.strftime("%Y-%m-%d %H:%M UTC"),
+        month_label        = month_label,
+        total_users        = total_users,
+        mau                = mau,
+        new_users_month    = new_users_month,
+        total_trips        = total_trips,
+        trips_month        = trips_month,
         upcoming_trips     = upcoming_trips,
         past_trips         = past_trips,
-        # Mountains
-        total_active_resorts   = total_active_resorts,
-        total_inactive_resorts = total_inactive_resorts,
-        mtn_resorts_with_trips = mtn_resorts_with_trips,
-        mtn_resorts_no_trips   = mtn_resorts_no_trips,
-        mtn_pass_coverage_pct  = mtn_pass_coverage_pct,
-        mtn_by_country         = mtn_by_country,
-        mtn_by_pass_brand      = mtn_by_pass_brand,
-        mtn_upcoming_count     = mtn_upcoming_count,
-        mtn_upcoming_table     = mtn_upcoming_table,
-        top_planned_resorts    = top_planned_resorts,
-        top_wishlisted_resorts = top_wishlisted_resorts,
+        push_opt_in        = push_opt_in,
+        email_opt_in       = email_opt_in,
+        push_rate          = push_rate,
+        email_rate         = email_rate,
+        pass_on_file_count = pass_on_file_count,
+        pass_on_file_pct   = pass_on_file_pct,
+        total_active_resorts = total_active_resorts,
+        mtn_pass_coverage_pct = mtn_pass_coverage_pct,
+        trend_new_users    = trend_new_users,
+        trend_mau          = trend_mau,
+        trend_trips_month  = trend_trips_month,
     )
 
 
