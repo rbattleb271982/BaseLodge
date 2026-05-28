@@ -6,6 +6,9 @@ description: Why WAU/MAU metrics were zero and how the fix works
 ## The problem
 `last_active_at` is a real DB column (`models.py`) but was **never written in app.py** — only in seed scripts. Every login handler called `db.session.commit()` without stamping the field. Result: all production users had `NULL` or stale seed values, so WAU/MAU dashboard counts showed 0.
 
+## PostgreSQL LEAST/NULL gotcha
+`LEAST(NOW(), NULL) = NOW()` in PostgreSQL — LEAST/GREATEST skip NULLs rather than propagating them. When backfilling with `LEAST(NOW(), GREATEST(all_null_signals))`, users with zero evidence got stamped with NOW(). Fix: wrap with `CASE WHEN GREATEST(...) IS NOT NULL THEN LEAST(NOW(), GREATEST(...)) ELSE NULL END`.
+
 ## The fix (three touch points)
 1. **Email login** — stamp `user.last_active_at = datetime.utcnow()` before `db.session.commit()` in the email login branch.
 2. **Google OAuth login** — same stamp before `login_user()` in the `/auth/google/callback` handler.

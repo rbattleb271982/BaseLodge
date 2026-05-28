@@ -1,0 +1,120 @@
+PUT THIS IN AGENT
+
+Implement the approved last_active_at historical backfill plan.
+
+Goal:
+Safely populate User.last_active_at ONLY for users with legitimate historical activity evidence.
+
+Important:
+This is a one-time corrective maintenance task.
+Do NOT fabricate activity.
+Do NOT inflate WAU/MAU.
+Do NOT overwrite existing last_active_at values.
+
+Requirements
+
+1. Create a temporary admin-only backfill route
+
+Route:
+- GET /admin/run-backfill-last-active
+  → dry-run preview only (default)
+- POST /admin/run-backfill-last-active?confirm=yes
+  → executes the write
+
+Requirements:
+- @admin_required
+- JSON response only
+- no template/UI page needed
+
+2. Only backfill users where:
+- user.last_active_at IS NULL
+
+3. Use ONLY approved evidence signals
+
+Included:
+- SkiTrip owner activity
+  MAX(COALESCE(updated_at, created_at))
+- Friend.created_at where user_id = user.id
+- Invitation.created_at where sender_id = user.id
+- EquipmentSetup.created_at
+- MountainPageView.viewed_at
+- Event.created_at
+- TripInviteToken.created_at where inviter_user_id = user.id
+- User.profile_completed_at
+- User.password_changed_at
+
+Excluded:
+- SkiTripParticipant.created_at
+- Invitation.receiver_id
+- MessageEventLog
+- UserAvailability
+- TripInviteToken.used_at
+- onboarding_completed_at
+- first_connection_at
+- first_trip_created_at
+
+Do not add additional signals.
+
+4. Timestamp rules
+
+Use:
+LEAST(NOW(), GREATEST(...))
+
+Requirements:
+- never future-date
+- choose most recent legitimate activity
+- skip users with zero evidence
+
+5. Safety requirements
+
+- Idempotent
+- NULL-only updates
+- no bulk overwrite
+- no migration
+- no schema changes
+- no fake "today" values
+- no backfill for users with no evidence
+
+6. Dry-run output
+
+GET route should return:
+- total NULL users
+- how many would update
+- how many would skip
+- newest inferred timestamp
+- oldest inferred timestamp
+- per-user preview detail
+
+7. POST execution output
+
+POST confirm route should return:
+- how many updated
+- how many skipped
+- timestamps written
+- verification summary
+
+8. After successful execution
+
+After the live backfill succeeds:
+- either remove the route entirely
+OR
+- permanently disable it with a hard guard / feature flag
+
+Do NOT leave an active maintenance backfill route permanently accessible in production.
+
+9. Verification
+
+After execution:
+- verify WAU and MAU increase appropriately
+- verify no existing non-NULL users changed
+- verify no future timestamps
+- verify /admin/dashboard returns 200
+- verify all 7 admin pages still return 200
+
+Use checkpoints sparingly.
+
+Do not finish until:
+- dry-run verified
+- live run verified
+- cleanup/disable complete
+- admin pages fully tested

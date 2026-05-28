@@ -11583,6 +11583,142 @@ def backfill_organizers_as_participants():
         }), 500
 
 
+@app.route("/admin/run-backfill-last-active", methods=["GET", "POST"])
+@login_required
+@admin_required
+def run_backfill_last_active():
+    """
+    One-time corrective backfill of User.last_active_at from historical activity.
+
+    PERMANENTLY DISABLED after execution — the guard below must never be removed.
+    See: .agents/memory/activity-tracking.md for the full audit trail.
+
+    GET  → dry-run preview (no writes)
+    POST ?confirm=yes → live write
+    """
+    # ── Permanent disable guard ───────────────────────────────────────────────
+    # This route executed once on 2026-05-28 and is now locked.
+    # Remove only if a second targeted backfill is explicitly required.
+    _BACKFILL_EXECUTED = True
+    if _BACKFILL_EXECUTED:
+        return jsonify({
+            "status": "disabled",
+            "reason": "One-time backfill already executed on 2026-05-28. Route is permanently locked.",
+        }), 410
+
+    # ── Build the evidence query ──────────────────────────────────────────────
+    # NOTE: LEAST(NOW(), NULL) = NOW() in PostgreSQL (unlike GREATEST).
+    # Use CASE WHEN to ensure users with ALL-NULL signals stay NULL.
+    _SIGNAL_SQL = text("""
+        SELECT u.id, u.first_name, u.is_seeded,
+            CASE
+              WHEN GREATEST(
+                u.profile_completed_at,
+                u.password_changed_at,
+                (SELECT MAX(COALESCE(st.updated_at, st.created_at))
+                 FROM ski_trip st WHERE st.user_id = u.id),
+                (SELECT MAX(f.created_at) FROM friend f
+                 WHERE f.user_id = u.id),
+                (SELECT MAX(i.created_at) FROM invitation i
+                 WHERE i.sender_id = u.id),
+                (SELECT MAX(es.created_at) FROM equipment_setup es
+                 WHERE es.user_id = u.id),
+                (SELECT MAX(mpv.viewed_at) FROM mountain_page_view mpv
+                 WHERE mpv.user_id = u.id),
+                (SELECT MAX(e.created_at) FROM event e
+                 WHERE e.user_id = u.id),
+                (SELECT MAX(tit.created_at) FROM trip_invite_token tit
+                 WHERE tit.inviter_user_id = u.id)
+              ) IS NOT NULL
+              THEN LEAST(NOW(),
+                GREATEST(
+                  u.profile_completed_at,
+                  u.password_changed_at,
+                  (SELECT MAX(COALESCE(st.updated_at, st.created_at))
+                   FROM ski_trip st WHERE st.user_id = u.id),
+                  (SELECT MAX(f.created_at) FROM friend f
+                   WHERE f.user_id = u.id),
+                  (SELECT MAX(i.created_at) FROM invitation i
+                   WHERE i.sender_id = u.id),
+                  (SELECT MAX(es.created_at) FROM equipment_setup es
+                   WHERE es.user_id = u.id),
+                  (SELECT MAX(mpv.viewed_at) FROM mountain_page_view mpv
+                   WHERE mpv.user_id = u.id),
+                  (SELECT MAX(e.created_at) FROM event e
+                   WHERE e.user_id = u.id),
+                  (SELECT MAX(tit.created_at) FROM trip_invite_token tit
+                   WHERE tit.inviter_user_id = u.id)
+                )
+              )
+              ELSE NULL
+            END AS best_ts
+        FROM "user" u
+        WHERE u.last_active_at IS NULL
+        ORDER BY best_ts DESC NULLS LAST
+    """)
+
+    rows = db.session.execute(_SIGNAL_SQL).fetchall()
+    will_update = [(r[0], r[1], r[2], r[3]) for r in rows if r[3] is not None]
+    will_skip   = [(r[0], r[1], r[2])       for r in rows if r[3] is None]
+
+    # ── Dry-run (GET) ─────────────────────────────────────────────────────────
+    if request.method == "GET":
+        timestamps = [row[3] for row in will_update]
+        return jsonify({
+            "mode": "dry_run",
+            "total_null_last_active": len(rows),
+            "will_update": len(will_update),
+            "will_skip":   len(will_skip),
+            "newest_ts": str(max(timestamps)) if timestamps else None,
+            "oldest_ts": str(min(timestamps)) if timestamps else None,
+            "detail": [
+                {"id": uid, "name": name, "is_seeded": seeded, "inferred_ts": str(ts)}
+                for uid, name, seeded, ts in will_update
+            ],
+            "skipped_ids": [uid for uid, _, _ in will_skip],
+        }), 200
+
+    # ── Live write (POST ?confirm=yes) ────────────────────────────────────────
+    if request.args.get("confirm") != "yes":
+        return jsonify({
+            "status": "error",
+            "reason": "POST requires ?confirm=yes query param. Run GET first for preview.",
+        }), 400
+
+    updated = []
+    skipped_count = len(will_skip)
+    try:
+        for uid, name, seeded, best_ts in will_update:
+            user = db.session.get(User, uid)
+            if user and user.last_active_at is None:
+                user.last_active_at = best_ts
+                updated.append({"id": uid, "name": name, "ts": str(best_ts)})
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"status": "error", "reason": str(exc)}), 500
+
+    # ── Post-write verification ───────────────────────────────────────────────
+    now = datetime.utcnow()
+    seven_ago  = now - timedelta(days=7)
+    thirty_ago = now - timedelta(days=30)
+    wau_after = User.query.filter(User.last_active_at >= seven_ago).count()
+    mau_after = User.query.filter(User.last_active_at >= thirty_ago).count()
+    future_ts = User.query.filter(User.last_active_at > now).count()
+
+    return jsonify({
+        "status": "success",
+        "updated":  len(updated),
+        "skipped":  skipped_count,
+        "detail":   updated,
+        "verification": {
+            "wau_after":          wau_after,
+            "mau_after":          mau_after,
+            "future_timestamps":  future_ts,
+        },
+    }), 200
+
+
 @app.route("/open-data-debug")
 @login_required
 @admin_required
