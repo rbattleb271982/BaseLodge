@@ -13956,6 +13956,97 @@ def admin_resorts():
                          mtn_fastest_rising=mtn_fastest_rising)
 
 
+@app.route("/admin/resort-operations")
+@login_required
+@admin_required
+def admin_resort_operations():
+    """Operational resort management: catalog stats, data quality, full CRUD table."""
+    import os
+    import json
+    from collections import Counter as _MtnCtr
+
+    resorts = Resort.query.order_by(Resort.country_code, Resort.state_code, Resort.name).all()
+    resort_countries = db.session.query(Resort.country_code).distinct().order_by(Resort.country_code).all()
+    resort_countries = set(c[0] for c in resort_countries if c[0])
+    dropdown_countries = sorted(COUNTRIES.items(), key=lambda x: x[1])
+    countries = sorted(resort_countries)
+
+    canonical_file = os.path.join(os.path.dirname(__file__), 'data', 'canonical_resorts.json')
+    last_export_info = None
+    if os.path.exists(canonical_file):
+        try:
+            with open(canonical_file, 'r') as f:
+                canonical_data = json.load(f)
+            last_export_info = {
+                'version': canonical_data.get('version', 'unknown'),
+                'exported_at': canonical_data.get('exported_at', 'unknown'),
+                'count': len(canonical_data.get('resorts', []))
+            }
+        except Exception:
+            pass
+
+    total_count        = len(resorts)
+    mtn_active_count   = Resort.query.filter_by(is_active=True).count()
+    mtn_inactive_count = total_count - mtn_active_count
+
+    _mtn_pbj = db.session.query(Resort.pass_brands_json).filter(Resort.is_active == True).all()
+    _mtn_pass_ctr = _MtnCtr()
+    _mtn_on_pass = 0
+    for (pbj,) in _mtn_pbj:
+        if pbj and isinstance(pbj, list):
+            real = [b for b in pbj if b and b.lower() not in ('none', '')]
+            if real:
+                _mtn_on_pass += 1
+                for b in real:
+                    _mtn_pass_ctr[b] += 1
+    mtn_resorts_on_pass = _mtn_on_pass
+
+    _PASS_ORDER = ['Epic', 'Ikon', 'Mountain Collective', 'Indy', 'Other']
+    _pc_max = max(_mtn_pass_ctr.values()) if _mtn_pass_ctr else 1
+    mtn_by_pass_brand = [
+        {"name": p, "count": _mtn_pass_ctr.get(p, 0),
+         "pct": round(_mtn_pass_ctr.get(p, 0) / _pc_max * 100) if _mtn_pass_ctr else 0}
+        for p in _PASS_ORDER
+    ]
+
+    _rbc = (
+        db.session.query(Resort.country_code, Resort.country_name, func.count(Resort.id).label("cnt"))
+        .filter(Resort.is_active == True)
+        .group_by(Resort.country_code, Resort.country_name)
+        .order_by(func.count(Resort.id).desc()).limit(8).all()
+    )
+    _rbc_max = max((r.cnt for r in _rbc), default=1)
+    mtn_by_country = [
+        {"name": r.country_name or r.country_code or "Unknown",
+         "count": r.cnt, "pct": round(r.cnt / _rbc_max * 100)}
+        for r in _rbc
+    ]
+
+    mtn_no_pass = sum(
+        1 for r in resorts
+        if not r.get_pass_brands_list() or all(b.lower() in ('none', '') for b in r.get_pass_brands_list())
+    )
+    mtn_no_state   = sum(1 for r in resorts if not (r.state_code or r.state))
+    mtn_no_country = sum(1 for r in resorts if not r.country_code)
+
+    return render_template('admin_resort_ops.html',
+                           resorts=resorts,
+                           countries=countries,
+                           dropdown_countries=dropdown_countries,
+                           last_export_info=last_export_info,
+                           total_count=total_count,
+                           active_tab='resort-ops',
+                           mtn_active_count=mtn_active_count,
+                           mtn_inactive_count=mtn_inactive_count,
+                           mtn_resorts_on_pass=mtn_resorts_on_pass,
+                           mtn_by_pass_brand=mtn_by_pass_brand,
+                           mtn_by_country=mtn_by_country,
+                           mtn_no_pass=mtn_no_pass,
+                           mtn_no_state=mtn_no_state,
+                           mtn_no_country=mtn_no_country,
+                           COUNTRIES=COUNTRIES)
+
+
 @app.route("/admin/resorts/export-excel")
 @login_required
 @admin_required

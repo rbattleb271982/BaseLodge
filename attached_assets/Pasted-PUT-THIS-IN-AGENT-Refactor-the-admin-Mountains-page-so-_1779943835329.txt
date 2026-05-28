@@ -1,0 +1,131 @@
+PUT THIS IN AGENT
+
+Refactor the admin Mountains page so operational resort-management content is moved out of the Mountains page body, not just the sidebar.
+
+Goal:
+Mountains should be a destination demand analytics page.
+
+It should show:
+- resort impressions
+- most viewed resorts
+- demand signals
+- most planned resorts
+- most wishlisted resorts
+- upcoming resort activity
+
+It should NOT show:
+- resort CRUD
+- add new resort form
+- upload Excel updates
+- export filtered to Excel
+- resort filters/search table
+- data quality cards
+- missing pass brand/state/country cards
+- duplicate debugging
+- catalog maintenance
+
+Those belong under Tools / Resort Audit / Resort Operations / Resort Data Quality.
+
+Required changes:
+
+1. Remove these sections from the visible /admin/mountains page body:
+- Resort Data Quality
+- Resort Operations
+- Add New Resort accordion
+- search/filter controls
+- Export Filtered to Excel
+- Upload Excel Updates
+- full resort operations table
+- Resort Audit / Debug Duplicates buttons
+- any catalog maintenance/data quality cards
+
+Do not delete the functionality. Move or preserve it under Tools.
+
+2. Create or repurpose Tools pages/anchors for operational resort tooling
+
+Preferred structure under TOOLS:
+- Resort Audit
+- Resort Operations
+- Resort Data Quality
+
+If existing Resort Audit route exists, keep it.
+If the operational table/forms currently live only inside /admin/mountains, create a new admin route/page if needed:
+- /admin/resort-operations
+or similar
+
+The moved page should include:
+- Add New Resort
+- search/filter controls
+- Export Filtered to Excel
+- Upload Excel Updates
+- full resort operations table
+
+The Data Quality page/section should include:
+- Missing Pass Brand
+- Missing State/Region
+- Missing Country
+- system-of-record warning
+- duplicate/debug tools if appropriate
+
+3. Update sidebar
+
+Mountains submenu should only show demand sections:
+- Traffic
+- Demand
+- Upcoming
+
+Tools section should include:
+- Message Log
+- Push Diag
+- Resort Audit
+- Resort Operations
+- Resort Data Quality
+
+4. Preserve existing functionality
+
+Do NOT remove:
+- Add New Resort
+- Excel export
+- Excel upload
+- filtering/search
+- resort table
+- Resort Audit
+- duplicate debugging
+- data quality metrics
+
+Only move them to the correct admin area.
+
+5. Keep Mountains page focused
+
+/admin/mountains should end after demand/upcoming analytics.
+It should not continue into maintenance tooling.
+
+6. Avoid breaking routes
+
+If existing forms post back to /admin/mountains, update their action URLs only if needed.
+Preserve CSRF.
+Preserve admin_required.
+Preserve all existing backend behavior.
+
+7. Testing
+
+Verify:
+- /admin/mountains returns 200
+- /admin/mountains no longer shows operations/data quality content
+- /admin/mountains still shows resort impressions, demand, and upcoming activity
+- Resort Operations page/route returns 200
+- Resort Data Quality page/route returns 200
+- Add New Resort still works or at least renders correctly
+- filters/search still render correctly
+- Excel export button still renders correctly
+- Upload Excel Updates still renders correctly
+- Resort Audit still returns 200
+- sidebar links work
+- no dead anchors
+- all 7 existing admin pages return 200
+- no horizontal overflow on mobile
+
+No migrations.
+No new models.
+No redesign beyond moving content to the correct admin area.
+Use checkpoints sparingly.
