@@ -156,6 +156,14 @@
     .ad-nav-tile-headline { font-size: 18px; }
   }
 
+  /* ── Sparklines ── */
+  .ad-spark {
+    display: block;
+    margin-top: 7px;
+    overflow: visible;
+    flex-shrink: 0;
+  }
+
   /* ── Timestamp ── */
   .ad-updated {
     font-size: 11px;
@@ -170,6 +178,26 @@
 
 {%- macro trend(t) -%}
 {%- if t -%}<div class="ad-trend {{ t[1] }}">{{ t[0] }}</div>{%- endif -%}
+{%- endmacro -%}
+
+{#- sparkline(series) — 14-point inline SVG polyline.
+    Omitted cleanly when all values are zero.
+    1 non-zero day renders as a single spike (operational signal, not clutter).
+-#}
+{%- macro sparkline(series) -%}
+{%- set _max = series | max -%}
+{%- if _max > 0 -%}
+{%- set ns  = namespace(pts='') -%}
+{%- set W   = 64 -%}
+{%- set H   = 24 -%}
+{%- set n   = series | length -%}
+{%- for v in series -%}
+  {%- set x = ((loop.index0 / (n - 1)) * W) | round(1) -%}
+  {%- set y = (H - (v / _max * (H * 0.82) + H * 0.09)) | round(1) -%}
+  {%- set ns.pts = ns.pts ~ ' ' ~ x ~ ',' ~ y -%}
+{%- endfor -%}
+<svg class="ad-spark" width="{{ W }}" height="{{ H }}" viewBox="0 0 {{ W }} {{ H }}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><polyline points="{{ ns.pts | trim }}" fill="none" stroke="#C4A882" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+{%- endif -%}
 {%- endmacro -%}
 
 <div class="ad-updated">
@@ -192,6 +220,7 @@
       <div class="ad-card-value{% if new_users_month == 0 %} ad-card-value--zero{% endif %}">{{ new_users_month }}</div>
       <div class="ad-card-sub">{{ month_label }}</div>
       {{ trend(trend_new_users) }}
+      {{ sparkline(new_users_series) }}
     </div>
 
     <div class="ad-card">
@@ -199,6 +228,7 @@
       <div class="ad-card-value{% if mau == 0 %} ad-card-value--zero{% endif %}">{{ mau }}</div>
       <div class="ad-card-sub">unique active users</div>
       {{ trend(trend_mau) }}
+      {{ sparkline(mau_series) }}
     </div>
 
   </div>
@@ -214,6 +244,7 @@
       <div class="ad-card-value{% if trips_month == 0 %} ad-card-value--zero{% endif %}">{{ trips_month }}</div>
       <div class="ad-card-sub">{{ month_label }}</div>
       {{ trend(trend_trips_month) }}
+      {{ sparkline(trips_series) }}
     </div>
 
     <div class="ad-card">

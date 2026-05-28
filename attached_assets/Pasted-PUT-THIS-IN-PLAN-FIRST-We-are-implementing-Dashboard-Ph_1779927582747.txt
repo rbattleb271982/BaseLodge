@@ -1,0 +1,103 @@
+PUT THIS IN PLAN FIRST
+
+We are implementing Dashboard Phase 2: lightweight inline trend visualization.
+
+Goal:
+Add small, mobile-first 14-day trend visuals to ONLY the highest-signal Dashboard KPIs.
+
+This is intentionally lightweight.
+Do NOT turn the Dashboard into a BI tool.
+
+Scope:
+Dashboard-only.
+
+Do NOT modify:
+- Growth
+- Messaging
+- Trips
+- User Insights
+- Resorts
+- Message Events
+
+Do NOT add:
+- chart libraries
+- modals
+- drilldowns
+- tap-to-expand analytics
+- period switchers
+- filters
+- health scoring
+- sparkline dependencies
+- new analytics systems
+- PostHog
+- migrations
+- new models
+
+Only add tiny inline trend visuals where operational momentum matters.
+
+Approved KPIs for Phase 2 trends:
+1. Active (30d)
+2. Trips This Month
+
+Optional:
+3. New This Month
+ONLY if already essentially free from existing route data.
+
+Do NOT add trends to:
+- Total Users
+- Upcoming Trips
+- Messaging tile
+- User Insights tile
+- Resorts tile
+- Pass metrics
+- Opt-in metrics
+- Catalog metrics
+
+Trend philosophy:
+- glanceable
+- subtle
+- lightweight
+- operational pulse
+- mobile-native
+- informational, not analytical
+
+Preferred implementation:
+- inline SVG sparkline
+- ~14 daily data points
+- no external JS/chart libraries
+- no animations
+- no hover interactions
+- no tap interactions
+- no legends
+- no axes
+- no gridlines
+
+Visual requirements:
+- sparkline should feel secondary to the KPI numeral
+- small footprint
+- neutral styling
+- no loud colors
+- no giant chart blocks
+- no increase in dashboard clutter
+- preserve the simplified executive-dashboard feel
+
+Data requirements:
+- use existing data if possible
+- avoid expensive queries
+- avoid complex aggregation
+- 14-day daily trend only
+- safe zero-state handling
+- omit sparkline entirely if insufficient data exists
+
+Planning deliverables:
+1. Identify exact queries required for:
+   - Active (30d)
+   - Trips This Month
+   - optional New This Month
+2. Confirm whether existing query data can be reused.
+3. Propose safest inline SVG implementation.
+4. Identify route/template changes required.
+5. Confirm no chart libraries are needed.
+6. Confirm mobile-safe rendering.
+7. Identify any query-performance risks.
+8. Stop after the plan and wait for approval.

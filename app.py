@@ -15539,6 +15539,55 @@ def admin_dashboard():
     pass_on_file_pct = round(pass_on_file_count / total_users * 100) if total_users else 0
 
 
+    # ── 14-day daily series (for sparklines) ─────────────────────────────────
+    from sqlalchemy import func as _func
+
+    _fourteen_ago = now - timedelta(days=14)
+    # Build an ordered date spine: oldest first → today
+    _date_spine = [
+        (now - timedelta(days=i)).strftime('%Y-%m-%d')
+        for i in range(13, -1, -1)
+    ]
+
+    # Active users: users whose last_active_at falls on each day
+    _mau_rows = (
+        db.session.query(
+            _func.date(User.last_active_at).label('d'),
+            _func.count(User.id).label('n'),
+        )
+        .filter(User.last_active_at >= _fourteen_ago)
+        .group_by(_func.date(User.last_active_at))
+        .all()
+    )
+    _mau_map  = {str(r.d): r.n for r in _mau_rows}
+    mau_series = [_mau_map.get(d, 0) for d in _date_spine]
+
+    # Trips created: trips where created_at falls on each day
+    _trips_rows = (
+        db.session.query(
+            _func.date(SkiTrip.created_at).label('d'),
+            _func.count(SkiTrip.id).label('n'),
+        )
+        .filter(SkiTrip.created_at >= _fourteen_ago)
+        .group_by(_func.date(SkiTrip.created_at))
+        .all()
+    )
+    _trips_map  = {str(r.d): r.n for r in _trips_rows}
+    trips_series = [_trips_map.get(d, 0) for d in _date_spine]
+
+    # New users: users where created_at falls on each day
+    _new_rows = (
+        db.session.query(
+            _func.date(User.created_at).label('d'),
+            _func.count(User.id).label('n'),
+        )
+        .filter(User.created_at >= _fourteen_ago)
+        .group_by(_func.date(User.created_at))
+        .all()
+    )
+    _new_map  = {str(r.d): r.n for r in _new_rows}
+    new_users_series = [_new_map.get(d, 0) for d in _date_spine]
+
     # ── Trend calculations ────────────────────────────────────────────────────
 
     # 1. New Users This Month — MTD vs prior MTD
@@ -15593,6 +15642,9 @@ def admin_dashboard():
         trend_new_users    = trend_new_users,
         trend_mau          = trend_mau,
         trend_trips_month  = trend_trips_month,
+        mau_series         = mau_series,
+        trips_series       = trips_series,
+        new_users_series   = new_users_series,
     )
 
 
