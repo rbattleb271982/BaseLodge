@@ -152,7 +152,7 @@ class User(UserMixin, db.Model):
     buddy_passes_available = db.Column(db.Boolean, default=True, nullable=False, server_default='true')
     
     # Email & lifecycle hygiene (Dec 2025)
-    created_at = db.Column(db.DateTime, nullable=True)  # Set to earliest trip/friend or NOW
+    created_at = db.Column(db.DateTime, nullable=True, default=datetime.utcnow)  # Set at signup; backfilled from earliest evidence
     last_active_at = db.Column(db.DateTime, nullable=True)  # Updated only on login
     lifecycle_stage = db.Column(db.String(20), default='new')  # new, onboarding, active
     onboarding_completed_at = db.Column(db.DateTime, nullable=True)

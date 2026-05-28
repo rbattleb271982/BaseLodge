@@ -2728,7 +2728,8 @@ def auth():
                 last_name=last_name,
                 email=email,
                 auth_provider="email",
-                buddy_passes_available=True
+                buddy_passes_available=True,
+                created_at=datetime.utcnow(),
             )
             new_user.set_password(password)
             
@@ -10809,6 +10810,7 @@ def auth_google_callback():
                 auth_provider="google",
                 provider_id=sub,
                 buddy_passes_available=True,
+                created_at=datetime.utcnow(),
             )
             db.session.add(user)
             db.session.commit()
