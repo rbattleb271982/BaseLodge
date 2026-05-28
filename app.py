@@ -13284,7 +13284,9 @@ def admin_messaging():
     now       = datetime.utcnow()
     ago_24h   = now - timedelta(hours=24)
     ago_7d    = now - timedelta(days=7)
+    ago_14d   = now - timedelta(days=14)
     ago_30d   = now - timedelta(days=30)
+    ago_60d   = now - timedelta(days=60)
 
     total_users = User.query.count() or 1  # avoid div-by-zero
 
@@ -13323,10 +13325,66 @@ def admin_messaging():
             .having(func.count(PushDeviceToken.id) > 1).all()
         )
         multi_token_users = len(_multi_rows)
+
+        # ── Trend context: period-over-period new registrations ───────────────
+        # Active Tokens — new tokens registered in each window
+        _tok_7d       = PushDeviceToken.query.filter(
+            PushDeviceToken.created_at >= ago_7d).count()
+        _tok_prev7d   = PushDeviceToken.query.filter(
+            PushDeviceToken.created_at >= ago_14d,
+            PushDeviceToken.created_at <  ago_7d).count()
+        tokens_delta_7d  = _tok_7d - _tok_prev7d
+
+        _tok_30d      = PushDeviceToken.query.filter(
+            PushDeviceToken.created_at >= ago_30d).count()
+        _tok_prev30d  = PushDeviceToken.query.filter(
+            PushDeviceToken.created_at >= ago_60d,
+            PushDeviceToken.created_at <  ago_30d).count()
+        tokens_delta_30d = _tok_30d - _tok_prev30d
+
+        # Users w/ Token — distinct users who registered a token in each window
+        _tu_30d = db.session.query(
+            func.count(func.distinct(PushDeviceToken.user_id))
+        ).filter(PushDeviceToken.created_at >= ago_30d).scalar() or 0
+        _tu_prev30d = db.session.query(
+            func.count(func.distinct(PushDeviceToken.user_id))
+        ).filter(
+            PushDeviceToken.created_at >= ago_60d,
+            PushDeviceToken.created_at <  ago_30d,
+        ).scalar() or 0
+        token_users_delta_30d = _tu_30d - _tu_prev30d
+
+        # Push Opt-In — new opted-in users by account creation date (best proxy)
+        _poi_30d = User.query.filter(
+            User.created_at >= ago_30d,
+            User.push_notifications_enabled == True,
+        ).count()
+        _poi_prev30d = User.query.filter(
+            User.created_at >= ago_60d,
+            User.created_at <  ago_30d,
+            User.push_notifications_enabled == True,
+        ).count()
+        push_optin_delta_30d = _poi_30d - _poi_prev30d
+
+        # Format trend strings: (text, sentiment_class)
+        def _msg_delta(d, label):
+            if d == 0:
+                return "No change vs " + label, ""
+            s = "+" if d > 0 else ""
+            return f"{s}{d} vs {label}", ("am-trend--pos" if d > 0 else "am-trend--neg")
+
+        tokens_trend_7d       = _msg_delta(tokens_delta_7d,      "last week")
+        tokens_trend_30d      = _msg_delta(tokens_delta_30d,     "last month")
+        token_users_trend_30d = _msg_delta(token_users_delta_30d,"last month")
+        push_optin_trend_30d  = _msg_delta(push_optin_delta_30d, "last month")
+
     except Exception:
         active_tokens = push_token_users = push_opt_in = push_disabled = 0
         push_opt_in_pct = push_enabled_no_token = multi_token_users = 0
         platform_breakdown = {}
+        tokens_delta_7d = tokens_delta_30d = token_users_delta_30d = push_optin_delta_30d = 0
+        tokens_trend_7d = tokens_trend_30d = ("", "")
+        token_users_trend_30d = push_optin_trend_30d = ("", "")
 
     # ── MEL — shared base queries ─────────────────────────────────────────────
     try:
@@ -13542,6 +13600,11 @@ def admin_messaging():
         platform_breakdown=platform_breakdown,
         push_enabled_no_token=push_enabled_no_token,
         multi_token_users=multi_token_users,
+        # Push Health trends
+        tokens_trend_7d=tokens_trend_7d,
+        tokens_trend_30d=tokens_trend_30d,
+        token_users_trend_30d=token_users_trend_30d,
+        push_optin_trend_30d=push_optin_trend_30d,
         # Message velocity
         mel_total=mel_total,
         mel_24h=mel_24h,
