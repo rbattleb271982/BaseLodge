@@ -13867,6 +13867,20 @@ def admin_resorts():
         mtn_most_viewed_month     = _mvm_row.name if _mvm_row else None
         mtn_most_viewed_month_cnt = _mvm_row.cnt  if _mvm_row else 0
 
+        # Avg distinct resorts viewed per unique user
+        _avg_sub = (
+            db.session.query(
+                MountainPageView.user_id,
+                func.count(func.distinct(MountainPageView.resort_id)).label("rc")
+            )
+            .filter(MountainPageView.user_id.isnot(None),
+                    MountainPageView.resort_id.isnot(None))
+            .group_by(MountainPageView.user_id)
+            .subquery()
+        )
+        _avg_val = db.session.query(func.avg(_avg_sub.c.rc)).scalar()
+        mtn_avg_resorts_per_user = round(float(_avg_val), 1) if _avg_val else 0
+
         mtn_traffic_ready = True
     except Exception:
         mtn_top_viewed            = []
@@ -13874,11 +13888,10 @@ def admin_resorts():
         mtn_traffic_total         = 0
         mtn_traffic_7d            = 0
         mtn_traffic_30d           = 0
-        mtn_traffic_loggedin      = 0
-        mtn_traffic_anon          = 0
         mtn_top5_traffic          = []
         mtn_most_viewed_month     = None
         mtn_most_viewed_month_cnt = 0
+        mtn_avg_resorts_per_user  = 0
         mtn_traffic_ready         = False
 
     return render_template('admin_resorts.html',
@@ -13901,13 +13914,12 @@ def admin_resorts():
                          mtn_traffic_total=mtn_traffic_total,
                          mtn_traffic_7d=mtn_traffic_7d,
                          mtn_traffic_30d=mtn_traffic_30d,
-                         mtn_traffic_loggedin=mtn_traffic_loggedin,
-                         mtn_traffic_anon=mtn_traffic_anon,
                          mtn_top_viewed=mtn_top_viewed,
                          mtn_monthly_views=mtn_monthly_views,
                          mtn_top5_traffic=mtn_top5_traffic,
                          mtn_most_viewed_month=mtn_most_viewed_month,
-                         mtn_most_viewed_month_cnt=mtn_most_viewed_month_cnt)
+                         mtn_most_viewed_month_cnt=mtn_most_viewed_month_cnt,
+                         mtn_avg_resorts_per_user=mtn_avg_resorts_per_user)
 
 
 @app.route("/admin/resort-operations")
