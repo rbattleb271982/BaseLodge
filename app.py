@@ -5847,6 +5847,147 @@ def admin_posthog_test():
     return jsonify(results), 200
 
 
+@app.route("/admin/backfill-posthog", methods=["GET"])
+@login_required
+@admin_required
+def admin_backfill_posthog():
+    """Backfill PostHog person properties for all users.
+
+    Uses client.set() only — never capture(). No events, no timeline impact.
+    Idempotent: safe to run multiple times.
+
+    Query params:
+      ?dry_run=1   Build property dicts and return them without sending anything.
+    """
+    dry_run = request.args.get("dry_run", "0") == "1"
+
+    # ── 1. Bulk-fetch supporting data (no N+1 inside the user loop) ──────────
+
+    # Sets of user_ids for boolean flags
+    trip_owner_ids = {
+        r[0] for r in db.session.execute(
+            db.text("SELECT DISTINCT user_id FROM ski_trip")
+        )
+    }
+    trip_guest_ids = {
+        r[0] for r in db.session.execute(
+            db.text("SELECT DISTINCT user_id FROM ski_trip_participant WHERE status = 'accepted'")
+        )
+    }
+    friend_ids = {
+        r[0] for r in db.session.execute(
+            db.text("SELECT DISTINCT user_id FROM friend")
+        )
+    }
+    generic_invite_ids = {
+        r[0] for r in db.session.execute(
+            db.text("SELECT DISTINCT inviter_id FROM invite_token")
+        )
+    }
+    trip_invite_ids = {
+        r[0] for r in db.session.execute(
+            db.text("SELECT DISTINCT inviter_user_id FROM trip_invite_token")
+        )
+    }
+
+    # Integer counts per user
+    friend_counts = {
+        r[0]: r[1] for r in db.session.execute(
+            db.text("SELECT user_id, COUNT(*) FROM friend GROUP BY user_id")
+        )
+    }
+    trip_counts = {
+        r[0]: r[1] for r in db.session.execute(
+            db.text("SELECT user_id, COUNT(*) FROM ski_trip GROUP BY user_id")
+        )
+    }
+
+    all_users = User.query.order_by(User.id).all()
+
+    backfill_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+    # ── 2. Build one property dict per user ──────────────────────────────────
+
+    user_props = []
+    for u in all_users:
+        uid = u.id
+        wl = u.wish_list_resorts or []
+        rt = u.rider_types
+        if isinstance(rt, list):
+            rider_label = ",".join(rt) if rt else "unknown"
+        else:
+            rider_label = str(rt) if rt else "unknown"
+
+        props = {
+            # Activation flags
+            "has_completed_signup":     True,
+            "has_completed_onboarding": u.lifecycle_stage == "active",
+            "has_pass":                 _ph_is_real_pass(u.pass_type),
+            "has_availability":         bool(u.open_dates),
+            "has_wishlist":             bool(wl),
+            "has_trip":                 (uid in trip_owner_ids or uid in trip_guest_ids),
+            "has_friend_connection":    uid in friend_ids,
+            "has_generated_invite":     (uid in generic_invite_ids or uid in trip_invite_ids),
+            # Segmentation helpers (non-PII)
+            "lifecycle_stage":          u.lifecycle_stage or "new",
+            "pass_type":                (u.pass_type or "none").lower(),
+            "rider_type":               rider_label,
+            "friend_count":             friend_counts.get(uid, 0),
+            "trip_count":               trip_counts.get(uid, 0),
+            "wishlist_count":           len(wl),
+            "is_internal":              ph_analytics.is_internal(u.email or ""),
+            # Backfill sentinel
+            "activation_backfilled":    True,
+            "activation_backfilled_at": backfill_date,
+        }
+        user_props.append((uid, props))
+
+    summary = {
+        "total_users":  len(user_props),
+        "dry_run":      dry_run,
+        "sent":         False,
+        "flush_ok":     None,
+        "flush_error":  None,
+        "errors":       [],
+        "sample":       [{"user_id": uid, "props": p} for uid, p in user_props[:3]],
+    }
+
+    if dry_run:
+        app.logger.info("[POSTHOG_BACKFILL] dry_run — %d users, no data sent", len(user_props))
+        return jsonify(summary), 200
+
+    # ── 3. Send: one client.set() per user, one flush at the end ─────────────
+
+    client = ph_analytics._get_client()
+    if not client:
+        summary["errors"].append("PostHog client unavailable — POSTHOG_KEY not set")
+        return jsonify(summary), 200
+
+    set_errors = []
+    for uid, props in user_props:
+        try:
+            client.set(distinct_id=str(uid), properties=props)
+        except Exception as exc:
+            set_errors.append({"user_id": uid, "error": str(exc)})
+            app.logger.warning("[POSTHOG_BACKFILL] set failed user_id=%s error=%s", uid, exc)
+
+    try:
+        client.flush()
+        summary["flush_ok"] = True
+        summary["sent"] = True
+        app.logger.info(
+            "[POSTHOG_BACKFILL] complete — %d users sent, %d errors, flush OK",
+            len(user_props), len(set_errors),
+        )
+    except Exception as exc:
+        summary["flush_ok"] = False
+        summary["flush_error"] = str(exc)
+        app.logger.warning("[POSTHOG_BACKFILL] flush FAILED: %s", exc)
+
+    summary["errors"] = set_errors
+    return jsonify(summary), 200
+
+
 @app.route("/admin/test-push-broadcast", methods=["GET"])
 @login_required
 @admin_required

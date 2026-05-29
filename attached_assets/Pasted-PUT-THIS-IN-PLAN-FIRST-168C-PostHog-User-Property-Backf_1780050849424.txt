@@ -1,0 +1,147 @@
+PUT THIS IN PLAN FIRST
+
+#168C - PostHog User Property Backfill
+
+What & Why
+
+PostHog server delivery is now confirmed working.
+
+Historical activation events were missed because POSTHOG_KEY was not configured when many existing users completed onboarding and activation actions.
+
+We do NOT want to backfill historical events because that would distort timelines and funnels.
+
+Instead, backfill current user state properties so PostHog accurately reflects what is true about each user today.
+
+This is a one-time backfill.
+
+---
+
+## GOAL
+
+Populate PostHog person properties for all existing users.
+
+Examples:
+
+* has_completed_signup
+* has_completed_onboarding
+* has_pass
+* has_availability
+* has_wishlist
+* has_trip
+* has_friend_connection
+* has_generated_invite
+
+Add:
+
+* activation_backfilled = true
+* activation_backfilled_at = current date
+
+Do not create historical events.
+
+Do not create timeline activity.
+
+Do not modify existing PostHog event history.
+
+---
+
+## PHASE 1 — AUDIT
+
+Determine how each property should be calculated.
+
+For each property provide:
+
+* Source model(s)
+* Query approach
+* Expected count
+* Data quality concerns
+
+Audit:
+
+1. has_completed_signup
+2. has_completed_onboarding
+3. has_pass
+4. has_availability
+5. has_wishlist
+6. has_trip
+7. has_friend_connection
+8. has_generated_invite
+
+---
+
+## PHASE 2 — BACKFILL DESIGN
+
+Use PostHog identify()/person-property updates only.
+
+Do not call capture().
+
+Do not generate:
+
+* signup_completed
+* onboarding_completed
+* pass_added
+* availability_added
+* wishlist_added
+* trip_created
+* friend_connected
+* invite_generated
+
+No historical event recreation.
+
+Only update person properties.
+
+---
+
+## PHASE 3 — SAFETY
+
+The backfill must be:
+
+* Idempotent
+* Safe to rerun
+* Non-destructive
+
+Do not overwrite newer values with older values.
+
+Use the user's existing PostHog distinct_id strategy.
+
+Do not send:
+
+* Email
+* Name
+* Phone
+* Precise location
+* Free-text notes
+
+---
+
+## PHASE 4 — EXECUTION PLAN
+
+Recommend:
+
+* Management command
+* Admin-only route
+* One-time script
+* Background task
+
+Identify the safest option.
+
+---
+
+## DELIVERABLE BEFORE BUILDING
+
+Provide:
+
+1. Property definitions
+2. Source models
+3. Estimated user counts
+4. Backfill approach
+5. Idempotency approach
+6. Recommended implementation
+7. Testing plan
+
+STOP AFTER THE AUDIT.
+
+Do not build yet.
+
+Wait for approval before implementation.
+
+Use checkpoints sparingly.
