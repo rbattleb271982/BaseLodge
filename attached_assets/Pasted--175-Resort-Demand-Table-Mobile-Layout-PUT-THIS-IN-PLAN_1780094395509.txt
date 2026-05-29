@@ -1,0 +1,150 @@
+#175 - Resort Demand Table Mobile Layout
+
+PUT THIS IN PLAN FIRST
+
+What & Why
+
+The Resort Demand Table on /admin/resort-intelligence currently has 6 columns and a min-width that forces horizontal scrolling on iPhone-width screens. The WL→Trip column is low-value on mobile and consumes space that should be used for higher-signal metrics.
+
+This is a CSS/HTML-only change within templates/admin_resort_intelligence.html. No backend, database, query, route, metric, or aggregation changes.
+
+Done looks like
+
+- /admin/resort-intelligence loads without horizontal scrolling on iPhone-width screens
+- Mobile table shows exactly 5 columns in this order:
+
+  Resort | Views | Trips | Group | WL
+
+- WL→Trip is completely hidden on mobile
+- Mobile headers read exactly:
+  Resort | Views | Trips | Group | WL
+- Resort column consumes remaining available width
+- Resort names may wrap to two lines
+- Numeric columns are narrow and centered
+- Desktop remains pixel-identical to today:
+  Resort | Wishlists | Trips | Group Trips | Page Views | WL→Trip
+- All values remain unchanged and continue to come from the existing backend data
+
+Out of scope
+
+- Backend changes
+- Query changes
+- Model changes
+- Route changes
+- Demand Funnel section
+- Leaderboards section
+- Any other table on the page
+- Converting the table to cards
+- Dark mode work
+
+Implementation
+
+1. Mobile overflow fix
+
+- Remove the mobile overflow behavior causing horizontal scrolling.
+- Do NOT change desktop layout behavior.
+- If .ri-table currently uses a min-width, keep desktop unchanged and only override that behavior on mobile.
+
+2. Hide WL→Trip on mobile
+
+At @media (max-width: 699px):
+
+- Hide the 6th header cell
+- Hide the 6th data cell
+- WL→Trip should not appear anywhere on mobile
+
+3. Mobile column order
+
+At @media (max-width: 699px):
+
+Render columns in this visual order:
+
+Resort → Views → Trips → Group → WL
+
+Mapping:
+
+- Resort = current column 1
+- Views = current column 5
+- Trips = current column 3
+- Group = current column 4
+- WL = current column 2
+
+Use a mobile-only layout approach that preserves the existing desktop table.
+
+Requirements:
+
+- Resort gets flex: 1 and consumes remaining width
+- Numeric columns use fixed narrow widths
+- Numeric values remain centered
+- Resort names can wrap to two lines
+- No clipping of resort names
+
+4. Mobile header labels
+
+Add desktop/mobile header label support:
+
+Desktop:
+
+- Wishlists
+- Trips
+- Group Trips
+- Page Views
+- WL→Trip
+
+Mobile:
+
+- WL
+- Trips
+- Group
+- Views
+
+WL→Trip remains hidden entirely on mobile.
+
+Recommended implementation:
+
+- Wrap existing header text in .th-full
+- Add .th-short spans
+- Show .th-full on desktop
+- Show .th-short on mobile
+
+5. Mobile spacing
+
+At @media (max-width: 699px):
+
+- Reduce th padding
+- Reduce td padding
+- Tighten spacing enough to fit within iPhone widths
+- Maintain readability
+- Prevent label/value overlap
+
+Files
+
+templates/admin_resort_intelligence.html
+
+Focus areas:
+
+- .ri-table-wrap
+- .ri-table
+- th/td styles
+- Resort Demand Table thead
+- Resort Demand Table tbody
+
+Testing
+
+Do not finish until all testing is complete.
+
+Verify:
+
+- /admin/resort-intelligence returns 200
+- No console errors
+- No template errors
+- iPhone-width viewport (390px) has no horizontal scrolling for the Resort Demand Table
+- Mobile column order is:
+  Resort | Views | Trips | Group | WL
+- WL→Trip is hidden on mobile
+- Desktop remains unchanged
+- All values match existing backend metrics
+- Resort names display correctly
+- Numeric columns remain aligned
+
+Use checkpoints sparingly.
