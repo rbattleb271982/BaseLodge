@@ -1,0 +1,292 @@
+PUT THIS IN AGENT
+
+#170 - Messaging Dashboard v1
+
+What & Why
+
+Build a new admin page at:
+
+/admin/messaging
+
+Growth tells us if users arrive.
+
+Product tells us what they use.
+
+Messaging tells us what drives action.
+
+Goal:
+
+Answer:
+
+- Are messages being sent?
+- Which message types are being used?
+- Which messages drive engagement?
+- Which invitation flows are working?
+- Where are users dropping off?
+
+Use existing production data only.
+
+Do not add:
+
+- New database tables
+- New tracking vendors
+- New event systems
+
+Before implementation, perform a feasibility audit and report findings.
+
+--------------------------------------------------
+PHASE 1 — FEASIBILITY AUDIT
+--------------------------------------------------
+
+Do not build yet.
+
+Audit all messaging-related signals currently available.
+
+Include at minimum:
+
+1. Friend Requests Sent
+2. Friend Requests Accepted
+3. Trip Invites Sent
+4. Trip Invites Accepted
+5. Invite Links Generated
+6. Invite Links Redeemed
+7. Product Push Sent
+8. Product Push Delivered
+9. Product Push Opened
+10. Marketing Push Sent
+11. Marketing Push Delivered
+12. Marketing Push Opened
+13. Push Opt-Outs
+14. Notification Permissions
+15. Email Sends
+16. Email Opens
+17. Email Clicks
+
+For every signal classify:
+
+GREEN
+Directly measurable from production data with no assumptions.
+
+YELLOW
+Measurable using a proxy or approximation.
+
+RED
+Cannot be measured reliably from current production data.
+
+Do not classify a metric as GREEN unless the underlying data is already persisted and queryable.
+
+Provide:
+
+- Classification
+- Source model(s)
+- Query approach
+- Current counts
+- Data quality concerns
+- Recommendation (use / caveat / exclude)
+
+--------------------------------------------------
+SECTION 0 — MESSAGING KPIs
+--------------------------------------------------
+
+Show:
+
+- Messages Sent
+- Invitations Sent
+- Invitations Accepted
+- Acceptance Rate
+- Push Reach
+- Push Opt-Out Rate
+
+Use non-seeded users only.
+
+Only include metrics classified GREEN.
+
+--------------------------------------------------
+SECTION 1 — MESSAGE VOLUME
+--------------------------------------------------
+
+Table:
+
+Message Type
+Sent
+Accepted (if applicable)
+Acceptance Rate
+
+Examples:
+
+Friend Request
+Friend Accepted
+Trip Invite
+Trip Accepted
+Invite Link
+Invite Redeemed
+Push Notification
+Email
+
+Sort by volume descending.
+
+--------------------------------------------------
+SECTION 2 — INVITATION FUNNEL
+--------------------------------------------------
+
+Show:
+
+Invite Links Generated
+↓
+Invite Links Redeemed
+↓
+Friend Connection Created
+
+If data exists.
+
+Otherwise use best GREEN funnel available.
+
+Display conversion rates between steps.
+
+--------------------------------------------------
+SECTION 3 — FRIENDSHIP FUNNEL
+--------------------------------------------------
+
+Show:
+
+Friend Requests Sent
+↓
+Friend Requests Accepted
+
+Display:
+
+- Total
+- Acceptance %
+- Pending %
+
+--------------------------------------------------
+SECTION 4 — TRIP INVITE FUNNEL
+--------------------------------------------------
+
+Show:
+
+Trip Invites Sent
+↓
+Trip Invites Accepted
+
+Display:
+
+- Total
+- Acceptance %
+- Pending %
+
+--------------------------------------------------
+SECTION 5 — MESSAGE EFFECTIVENESS
+--------------------------------------------------
+
+Identify:
+
+Top messaging action by conversion.
+
+Examples:
+
+- Friend Request Acceptance Rate
+- Trip Invite Acceptance Rate
+- Invite Link Redemption Rate
+
+Display:
+
+Action
+Conversion %
+
+Sort descending.
+
+GREEN metrics only.
+
+--------------------------------------------------
+SECTION 6 — UNDERUSED CHANNELS
+--------------------------------------------------
+
+Identify the bottom 5 messaging channels or actions by usage.
+
+Display:
+
+Channel
+Usage %
+
+Highlight opportunities.
+
+--------------------------------------------------
+SECTION 7 — MESSAGING INSIGHT
+--------------------------------------------------
+
+Generate one dynamic insight.
+
+Examples:
+
+"Trip invites convert at 42%."
+
+"Invite links drive 3× more accepted connections than direct requests."
+
+"Only 12% of users have received a push notification."
+
+Automatically select the strongest meaningful insight.
+
+Hide if insufficient data.
+
+--------------------------------------------------
+SECTION 8 — MESSAGING STATUS
+--------------------------------------------------
+
+Display:
+
+- Tracked Signals
+- Signals With Reliable Data
+- Data Confidence
+
+Confidence:
+
+Low
+Growing
+High
+
+Use same visual treatment as:
+
+- Growth
+- Activation
+- Retention
+- Resort Intelligence
+- Product
+
+--------------------------------------------------
+MOBILE REQUIREMENTS
+--------------------------------------------------
+
+Must work on:
+
+- iPhone 15
+
+Requirements:
+
+- KPI cards collapse cleanly
+- Tables scroll horizontally
+- Funnel diagrams remain readable
+- No clipped content
+- No overflow
+
+--------------------------------------------------
+DELIVERABLE BEFORE BUILDING
+--------------------------------------------------
+
+Provide audit findings first.
+
+For every signal indicate:
+
+- GREEN
+- YELLOW
+- RED
+
+Then provide:
+
+- Recommended Messaging KPIs
+- Recommended Messaging Funnels
+- Recommended Messaging Insight
+
+Do not build until audit is complete.
+
+Use checkpoints sparingly.
