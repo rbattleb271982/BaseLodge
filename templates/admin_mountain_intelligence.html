@@ -208,16 +208,89 @@
     padding: 20px 18px; font-size: 13px; color: #6B6560; line-height: 1.6;
   }
   .mi-empty strong { color: #1C1917; display: block; margin-bottom: 4px; }
+
+  /* ── Mobile chip nav ── */
+  .mi-chip-nav {
+    display: none; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    white-space: nowrap; padding: 2px 0 12px; margin-bottom: 8px; gap: 6px;
+  }
+  .mi-chip-nav::-webkit-scrollbar { display: none; }
+  @media (max-width: 768px) { .mi-chip-nav { display: flex; } }
+  .mi-chip {
+    display: inline-flex; align-items: center; padding: 6px 13px;
+    border-radius: 20px; font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
+    background: #fff; border: 1px solid #D4CCC4; color: #4A4238;
+    text-decoration: none; flex-shrink: 0; transition: background 0.12s, border-color 0.12s;
+  }
+  .mi-chip:hover, .mi-chip:active { background: #F5F1E8; border-color: #9E958A; color: #5C1219; }
+
+  /* ── Caveat desktop/mobile variants ── */
+  .mi-caveat--compact {
+    display: none; font-size: 12px; color: #6B6560; background: #FEF9EC;
+    border: 1px solid #F0D885; border-radius: 7px; padding: 8px 14px; margin-bottom: 14px;
+  }
+  @media (max-width: 768px) {
+    .mi-caveat--full    { display: none; }
+    .mi-caveat--compact { display: block; }
+  }
+
+  /* ── Funnel: collapse extras on mobile ── */
+  @media (max-width: 600px) { .mi-funnel-extra { display: none; } }
+  .mi-funnel-toggle {
+    display: none; width: 100%; margin-top: 10px; background: #fff;
+    border: 1px solid #D4CCC4; border-radius: 8px; padding: 10px 14px;
+    font-size: 12px; font-weight: 600; color: #5C1219; cursor: pointer; text-align: center;
+    font-family: inherit;
+  }
+  .mi-funnel-toggle:hover { background: #F5F1E8; }
+  @media (max-width: 600px) { .mi-funnel-toggle { display: block; } }
+
+  /* ── Partnership: hide detail columns on mobile ── */
+  @media (max-width: 768px) {
+    .mi-part-desktop-only { display: none; }
+    #mi-partnership .mi-table { min-width: 0; }
+  }
+
+  /* ── Scroll affordance on tables that still need horizontal scroll on mobile ── */
+  .mi-table-wrap--scroll-hint { position: relative; }
+  @media (max-width: 768px) {
+    .mi-table-wrap--scroll-hint::after {
+      content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 32px;
+      background: linear-gradient(to right, transparent, rgba(255,255,255,0.88));
+      pointer-events: none; border-radius: 0 9px 9px 0;
+    }
+  }
 {% endblock %}
 
 {% block content %}
 <div class="ad-updated">Loaded {{ now }}</div>
-<div class="mi-caveat">
+
+<!-- Full caveat (desktop) -->
+<div class="mi-caveat mi-caveat--full">
   Mountain Intelligence answers where future demand exists — not what users have already done.
   Signals: <strong>Page Views</strong> (tracking launched May 27, 2026 — growing),
   <strong>Wishlist</strong> and <strong>Trip Planning</strong> (both reliable).
   Friend activity and availability overlaps are excluded from v1 — not directly attributable to resorts.
 </div>
+
+<!-- Compact caveat (mobile only) -->
+<div class="mi-caveat--compact">
+  View tracking launched May 27 · Partner signals in progress
+</div>
+
+<!-- Mobile chip nav (hidden on desktop via CSS) -->
+<nav class="mi-chip-nav" aria-label="Jump to section">
+  <a class="mi-chip" href="#mi-kpis">KPIs</a>
+  <a class="mi-chip" href="#mi-insight">Insight</a>
+  <a class="mi-chip" href="#mi-attention">Attention</a>
+  <a class="mi-chip" href="#mi-demand">Demand</a>
+  <a class="mi-chip" href="#mi-funnel">Funnel</a>
+  <a class="mi-chip" href="#mi-latent">Latent</a>
+  <a class="mi-chip" href="#mi-overperform">Overperform</a>
+  <a class="mi-chip" href="#mi-social">Social</a>
+  <a class="mi-chip" href="#mi-partnership">Partner</a>
+  <a class="mi-chip" href="#mi-status">Status</a>
+</nav>
 
 <!-- ─────────────────────────────────────────────────────────────────────── -->
 <!-- SECTION 0: Mountain KPIs                                                -->
@@ -263,6 +336,24 @@
     </div>
 
   </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- SECTION 8: Mountain Insight (moved to top — headline takeaway)          -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="mi-insight">
+  <div class="ad-section-label">Mountain Insight</div>
+  {% if mi_insight %}
+  <div class="mi-insight">
+    <span class="mi-insight-icon">&#9660;</span>
+    <span>{{ mi_insight }}</span>
+  </div>
+  {% else %}
+  <div class="mi-empty">
+    <strong>Not enough data yet.</strong>
+    An insight will appear once wishlist, trip, or view signals are established across multiple resorts.
+  </div>
+  {% endif %}
 </div>
 
 <!-- ─────────────────────────────────────────────────────────────────────── -->
@@ -376,7 +467,7 @@
   {% set max_views_f = (funnel_rows | map(attribute='views') | max) or 1 %}
   <div class="mi-funnel-grid">
     {% for row in funnel_rows %}
-    <div class="mi-funnel-card">
+    <div class="mi-funnel-card{% if loop.index > 5 %} mi-funnel-extra{% endif %}">
       <div class="mi-funnel-name">
         {{ row.name }}
         {% if row.concentration %}<span class="mi-conc-badge">Concentrated</span>{% endif %}
@@ -431,6 +522,12 @@
     </div>
     {% endfor %}
   </div>
+  {% if funnel_rows|length > 5 %}
+  <button class="mi-funnel-toggle"
+          onclick="document.querySelectorAll('.mi-funnel-extra').forEach(function(e){e.style.display='block';});this.style.display='none';">
+    Show all {{ funnel_rows|length - 5 }} more funnel rows
+  </button>
+  {% endif %}
   {% else %}
   <div class="mi-empty">
     <strong>No funnel data yet.</strong>
@@ -543,7 +640,7 @@
   </div>
 
   {% if social_rows %}
-  <div class="mi-table-wrap">
+  <div class="mi-table-wrap mi-table-wrap--scroll-hint">
     <table class="mi-table" style="min-width:440px;">
       <thead>
         <tr>
@@ -597,10 +694,10 @@
           <th>#</th>
           <th>Resort</th>
           <th class="th-r">Score</th>
-          <th class="th-r">Views</th>
-          <th class="th-r">Wish</th>
-          <th class="th-r">Trips</th>
-          <th class="th-r">Grp</th>
+          <th class="th-r mi-part-desktop-only">Views</th>
+          <th class="th-r mi-part-desktop-only">Wish</th>
+          <th class="th-r mi-part-desktop-only">Trips</th>
+          <th class="th-r mi-part-desktop-only">Grp</th>
           <th style="min-width:80px;"></th>
         </tr>
       </thead>
@@ -613,10 +710,10 @@
             {% if row.concentration %}<span class="mi-conc-badge">Concentrated</span>{% endif %}
           </td>
           <td class="td-score">{{ row.score }}</td>
-          <td class="td-muted">{{ row.views if row.views else '—' }}</td>
-          <td class="td-muted">{{ row.wishlists if row.wishlists else '—' }}</td>
-          <td class="td-num">{{ row.trips if row.trips else '—' }}</td>
-          <td class="td-muted">{{ row.group_trips if row.group_trips else '—' }}</td>
+          <td class="td-muted mi-part-desktop-only">{{ row.views if row.views else '—' }}</td>
+          <td class="td-muted mi-part-desktop-only">{{ row.wishlists if row.wishlists else '—' }}</td>
+          <td class="td-num mi-part-desktop-only">{{ row.trips if row.trips else '—' }}</td>
+          <td class="td-muted mi-part-desktop-only">{{ row.group_trips if row.group_trips else '—' }}</td>
           <td style="padding-right:16px;">
             <div class="mi-bar-wrap">
               <div class="mi-bar" style="width:{{ ((row.score / max_score) * 100)|int }}%;"></div>
@@ -631,24 +728,6 @@
   <div class="mi-empty">
     <strong>No resort signals yet.</strong>
     The Partnership Watchlist will populate once users add wishlists or plan trips.
-  </div>
-  {% endif %}
-</div>
-
-<!-- ─────────────────────────────────────────────────────────────────────── -->
-<!-- SECTION 8: Mountain Insight                                             -->
-<!-- ─────────────────────────────────────────────────────────────────────── -->
-<div class="ad-section" id="mi-insight">
-  <div class="ad-section-label">Mountain Insight</div>
-  {% if mi_insight %}
-  <div class="mi-insight">
-    <span class="mi-insight-icon">&#9660;</span>
-    <span>{{ mi_insight }}</span>
-  </div>
-  {% else %}
-  <div class="mi-empty">
-    <strong>Not enough data yet.</strong>
-    An insight will appear once wishlist, trip, or view signals are established across multiple resorts.
   </div>
   {% endif %}
 </div>

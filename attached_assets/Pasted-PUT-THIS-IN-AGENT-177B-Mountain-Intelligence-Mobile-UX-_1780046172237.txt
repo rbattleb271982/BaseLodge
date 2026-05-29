@@ -1,0 +1,97 @@
+PUT THIS IN AGENT
+
+#177B - Mountain Intelligence Mobile UX Refinement
+
+Refine the existing `/admin/mountain-intelligence` page based on App Testing mobile feedback.
+
+Do not change the underlying metrics, queries, models, migrations, or scoring logic.
+
+This is a template/CSS/layout refinement only unless a tiny route variable is needed to support display ordering.
+
+Fix the following:
+
+1. Move Mountain Insight higher
+
+Move the Mountain Insight section so it appears immediately after the KPI cards and before Attention Leaderboard.
+
+The insight is the headline takeaway and should be visible near the top on mobile and desktop.
+
+2. Add mobile section navigation
+
+The desktop sidebar subnav is hidden on mobile, so add a mobile-accessible horizontal chip navigation row.
+
+Requirements:
+
+* Visible on mobile/tablet when sidebar is hidden
+* Horizontally scrollable
+* Links to the existing section anchors
+* Use short labels:
+
+  * KPIs
+  * Insight
+  * Attention
+  * Demand
+  * Funnel
+  * Latent
+  * Overperform
+  * Social
+  * Partner
+  * Status
+* Keep existing desktop sidebar behavior unchanged
+* Do not create duplicate section IDs
+
+3. Reduce Conversion Funnel weight on mobile
+
+The Conversion Funnel is too tall on mobile.
+
+On mobile only:
+
+* Show the top 5 funnel rows/cards by partnership score or strongest available signal
+* Hide the remaining funnel items behind an expandable “Show all funnel rows” control
+* Desktop can continue showing the full funnel
+* Keep threshold guards unchanged
+
+If JS is needed, use minimal progressive enhancement. Page should still render safely if JS fails.
+
+4. Simplify Partnership Watchlist on mobile
+
+On mobile only, reduce visible columns to:
+
+* Resort
+* Score
+* Bar
+
+Hide the detailed Views / Wishlists / Trips / Group columns on mobile.
+
+Keep full details visible on desktop.
+
+Add a subtle right-edge scroll affordance or gradient only where horizontal scroll remains.
+
+5. Collapse the opening caveat on mobile
+
+On mobile only, shorten the top caveat to a compact summary line:
+
+“View tracking launched May 27 · Partner signals in progress”
+
+Move or preserve the detailed caveat language in the Status section.
+
+Desktop can keep the full caveat if it looks good.
+
+Testing requirements:
+
+* `/admin/mountain-intelligence` returns 200
+* `/admin/resort-intelligence` still returns 200
+* Insight appears above Attention Leaderboard
+* Mobile chip nav links jump to the correct anchors
+* No duplicate IDs
+* Funnel shows only 5 items initially on mobile and can expand
+* Partnership Watchlist mobile view shows only Resort / Score / Bar
+* Desktop Partnership Watchlist still shows full columns
+* No clipped content
+* No horizontal page overflow on iPhone 15 Pro viewport
+* Tables that still need horizontal scroll have visible scroll affordance
+* No raw Jinja / no None leaking into output
+
+Use checkpoints sparingly.
+
+Do not finish until the mobile layout has been tested on an iPhone 15 Pro viewport.
