@@ -16400,9 +16400,10 @@ def admin_activation():
     s1 = total
 
     # ── Step 2: Onboarding Completed ─────────────────────────────────────────
+    # Source of truth: lifecycle_stage = 'active' (onboarding_completed_at is never written)
     s2 = db.session.query(User.id).filter(
         User.is_seeded == False,
-        User.onboarding_completed_at.isnot(None),
+        User.lifecycle_stage == 'active',
     ).count()
 
     # ── Step 3: Pass Added ────────────────────────────────────────────────────
@@ -16420,11 +16421,15 @@ def admin_activation():
                 break
 
     # ── Step 4: Availability Added ────────────────────────────────────────────
-    s4 = db.session.query(UserAvailability.user_id.distinct()).filter(
-        UserAvailability.user_id.in_(
-            db.session.query(User.id).filter(User.is_seeded == False)
-        )
-    ).count()
+    # Source of truth: open_dates JSON column (UserAvailability table has 0 rows;
+    # the /add-open-dates route writes to open_dates, matching the service fallback)
+    s4 = 0
+    for (od,) in db.session.query(User.open_dates).filter(User.is_seeded == False).all():
+        try:
+            if isinstance(od, list) and len(od) > 0:
+                s4 += 1
+        except Exception:
+            pass
 
     # ── Step 5: Wishlist Added ────────────────────────────────────────────────
     s5 = 0
@@ -16436,9 +16441,12 @@ def admin_activation():
             pass
 
     # ── Step 6: First Trip Created ────────────────────────────────────────────
-    s6 = db.session.query(User.id).filter(
-        User.is_seeded == False,
-        User.first_trip_created_at.isnot(None),
+    # Source of truth: distinct ski_trip.user_id (first_trip_created_at was never
+    # backfilled for existing users and returns 0 for all current accounts)
+    s6 = db.session.query(SkiTrip.user_id.distinct()).filter(
+        SkiTrip.user_id.in_(
+            db.session.query(User.id).filter(User.is_seeded == False)
+        )
     ).count()
 
     # ── Step 7: First Friend Added ────────────────────────────────────────────
