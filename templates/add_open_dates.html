@@ -361,9 +361,61 @@
             cursor: pointer;
             padding: 4px 0;
             display: none;
+            -webkit-tap-highlight-color: transparent;
         }
         .range-clear-btn.visible {
             display: block;
+        }
+
+        /* ── Committed ranges list ── */
+        .od-committed-section { margin-bottom: 12px; }
+        .od-committed-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 0 0 8px;
+        }
+        .od-committed-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #6B665A;
+        }
+        .od-clear-all-btn {
+            font-size: 13px;
+            font-weight: 500;
+            color: #5C1219;
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .od-committed-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 11px 14px;
+            background: #fff;
+            border: 1px solid #E5DFD0;
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+        .od-committed-text {
+            font-size: 15px;
+            font-weight: 500;
+            color: #1A1A1A;
+        }
+        .od-committed-remove {
+            font-size: 13px;
+            font-weight: 500;
+            color: #8B4A52;
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
         }
 
     </style>
@@ -453,8 +505,16 @@
                 <button type="button" class="range-clear-btn" id="clearBtn" onclick="clearSelection()">Clear</button>
             </div>
 
+            <div id="committedSection" class="od-committed-section" style="display:none;">
+                <div class="od-committed-header">
+                    <span class="od-committed-title">Your dates</span>
+                    <button type="button" class="od-clear-all-btn" onclick="clearAllCommitted()">Clear all</button>
+                </div>
+                <div id="committedRangesList"></div>
+            </div>
+
             <button type="submit" class="bl-btn-primary" id="saveBtn" style="width: 100%; padding: 14px;" disabled>Save availability</button>
-            <p id="save-confirm" style="display:none; text-align:center; color:#3A7D44; font-size:15px; font-weight:500; margin:12px 0 0;">Availability saved ✓</p>
+            <p id="save-confirm" style="display:none; text-align:center; color:#3A7D44; font-size:15px; font-weight:500; margin:12px 0 0;">Availability updated.</p>
         </form>
 
         <a href="{{ url_for('home') }}?tab=open" style="display: block; text-align: center; text-decoration: none; color: #6B665A; margin-top: 16px; font-size: 14px;">
@@ -469,17 +529,14 @@
     <script>
         const existingDates = {{ existing_dates | tojson }};
 
-        let startDate = null;
-        let endDate = null;
-        let selState = 0;
+        // ── State ──────────────────────────────────────────────────────────
+        let startDate = null;   // in-progress start tap
+        let selState = 0;       // 0 = idle, 1 = start tapped (awaiting end)
 
-        if (existingDates && existingDates.length > 0) {
-            const sorted = [...existingDates].sort();
-            startDate = sorted[0];
-            endDate = sorted[sorted.length - 1];
-            selState = startDate === endDate ? 2 : 2;
-        }
+        // committedRanges: [{start: 'YYYY-MM-DD', end: 'YYYY-MM-DD'}]
+        let committedRanges = [];
 
+        // ── Date helpers ───────────────────────────────────────────────────
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -487,14 +544,6 @@
 
         let currentMonth = today.getMonth();
         let currentYear = today.getFullYear();
-
-        if (startDate) {
-            const d = parseDate(startDate);
-            if (d > today) {
-                currentMonth = d.getMonth();
-                currentYear = d.getFullYear();
-            }
-        }
 
         const DOW_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
         const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -517,14 +566,54 @@
             return `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}`;
         }
 
+        function formatRange(start, end) {
+            if (start === end) return fmtShort(start) + ' · day trip';
+            const lo = parseDate(start);
+            const hi = parseDate(end);
+            if (lo.getMonth() === hi.getMonth() && lo.getFullYear() === hi.getFullYear()) {
+                return SHORT_MONTHS[lo.getMonth()] + ' ' + lo.getDate() + '–' + hi.getDate();
+            }
+            return fmtShort(start) + ' – ' + fmtShort(end);
+        }
+
+        // ── Convert flat date list to range objects ─────────────────────
+        function datesToRanges(dateStrings) {
+            if (!dateStrings || !dateStrings.length) return [];
+            const sorted = Array.from(new Set(dateStrings)).sort();
+            const ranges = [];
+            let start = sorted[0], prev = sorted[0];
+            for (let i = 1; i < sorted.length; i++) {
+                const diff = (parseDate(sorted[i]) - parseDate(prev)) / 86400000;
+                if (diff <= 1) {
+                    prev = sorted[i];
+                } else {
+                    ranges.push({start: start, end: prev});
+                    start = sorted[i];
+                    prev = sorted[i];
+                }
+            }
+            ranges.push({start: start, end: prev});
+            return ranges;
+        }
+
+        // ── Pre-populate from existing dates ───────────────────────────
+        if (existingDates && existingDates.length > 0) {
+            committedRanges = datesToRanges(existingDates);
+            const firstD = parseDate(committedRanges[0].start);
+            if (firstD > today) {
+                currentMonth = firstD.getMonth();
+                currentYear = firstD.getFullYear();
+            }
+        }
+
+        // ── Calendar ───────────────────────────────────────────────────
         function buildCalendar() {
             const grid = document.getElementById('calGrid');
             const label = document.getElementById('monthLabel');
-            label.textContent = `${MONTH_NAMES[currentMonth]} ${currentYear}`;
-
+            label.textContent = MONTH_NAMES[currentMonth] + ' ' + currentYear;
             grid.innerHTML = '';
 
-            DOW_LABELS.forEach(dow => {
+            DOW_LABELS.forEach(function(dow) {
                 const h = document.createElement('div');
                 h.className = 'cal-dow';
                 h.textContent = dow;
@@ -551,9 +640,8 @@
                 if (dateObj < today || dateObj > maxDate) {
                     cell.classList.add(dateObj < today ? 'cal-past' : 'cal-disabled');
                 } else {
-                    cell.addEventListener('click', () => handleTap(dateStr));
+                    cell.addEventListener('click', function() { handleTap(dateStr); });
                 }
-
                 grid.appendChild(cell);
             }
 
@@ -563,24 +651,17 @@
 
         function applySelectionClasses() {
             const cells = document.querySelectorAll('#calGrid .cal-day:not(.cal-empty):not(.cal-past):not(.cal-disabled)');
-            cells.forEach(cell => {
+            cells.forEach(function(cell) {
                 cell.classList.remove('is-start', 'is-end', 'is-single', 'is-in-range', 'has-start', 'has-end');
             });
 
-            if (selState === 0) return;
-
-            cells.forEach(cell => {
-                const d = cell.dataset.date;
-                if (!d) return;
-
-                if (selState === 1) {
-                    if (d === startDate) {
-                        cell.classList.add('is-single');
-                    }
-                } else if (selState === 2) {
-                    const lo = startDate <= endDate ? startDate : endDate;
-                    const hi = startDate <= endDate ? endDate : startDate;
-
+            // Mark all committed ranges on the calendar
+            committedRanges.forEach(function(r) {
+                const lo = r.start <= r.end ? r.start : r.end;
+                const hi = r.start <= r.end ? r.end : r.start;
+                cells.forEach(function(cell) {
+                    const d = cell.dataset.date;
+                    if (!d) return;
                     if (d === lo && d === hi) {
                         cell.classList.add('is-single');
                     } else if (d === lo) {
@@ -590,102 +671,121 @@
                     } else if (d > lo && d < hi) {
                         cell.classList.add('is-in-range');
                     }
-                }
+                });
             });
+
+            // Overlay in-progress tap
+            if (selState === 1 && startDate) {
+                cells.forEach(function(cell) {
+                    if (cell.dataset.date === startDate) {
+                        cell.classList.remove('is-start', 'is-end', 'is-in-range', 'has-start', 'has-end');
+                        cell.classList.add('is-single');
+                    }
+                });
+            }
         }
 
+        // ── Tap interaction ────────────────────────────────────────────
         function handleTap(dateStr) {
             if (selState === 0) {
                 startDate = dateStr;
-                endDate = null;
                 selState = 1;
-            } else if (selState === 1) {
-                if (dateStr === startDate) {
-                    endDate = startDate;
-                    selState = 2;
-                } else {
-                    endDate = dateStr;
-                    selState = 2;
-                    if (endDate < startDate) {
-                        [startDate, endDate] = [endDate, startDate];
-                    }
-                }
             } else {
-                startDate = dateStr;
-                endDate = null;
-                selState = 1;
+                // Second tap — commit range
+                let s = startDate, e = dateStr;
+                if (e < s) { var tmp = s; s = e; e = tmp; }
+                committedRanges.push({start: s, end: e});
+                startDate = null;
+                selState = 0;
+                renderCommittedRanges();
+                updateSaveButton();
             }
-
             applySelectionClasses();
             updateSummary();
         }
 
-        function updateSummary() {
-            const summaryEl = document.getElementById('summaryText');
-            const clearBtn = document.getElementById('clearBtn');
-            const saveBtn = document.getElementById('saveBtn');
+        function removeCommitted(idx) {
+            committedRanges.splice(idx, 1);
+            renderCommittedRanges();
+            applySelectionClasses();
+            updateSummary();
+            updateSaveButton();
+        }
 
-            if (selState === 0) {
-                summaryEl.textContent = 'Select your dates';
-                summaryEl.className = 'range-summary-text placeholder';
-                clearBtn.classList.remove('visible');
-                saveBtn.disabled = true;
-                return;
-            }
-
-            summaryEl.className = 'range-summary-text';
-            clearBtn.classList.add('visible');
-            saveBtn.disabled = false;
-
-            if (selState === 1) {
-                summaryEl.textContent = `${fmtShort(startDate)} — pick end date`;
-                saveBtn.disabled = true;
-            } else {
-                if (startDate === endDate) {
-                    summaryEl.textContent = `${fmtShort(startDate)} · day trip`;
-                } else {
-                    const lo = startDate < endDate ? startDate : endDate;
-                    const hi = startDate < endDate ? endDate : startDate;
-                    const loD = parseDate(lo);
-                    const hiD = parseDate(hi);
-                    if (loD.getMonth() === hiD.getMonth() && loD.getFullYear() === hiD.getFullYear()) {
-                        summaryEl.textContent = `${SHORT_MONTHS[loD.getMonth()]} ${loD.getDate()}–${hiD.getDate()}`;
-                    } else {
-                        summaryEl.textContent = `${fmtShort(lo)}–${fmtShort(hi)}`;
-                    }
-                }
-            }
+        function clearAllCommitted() {
+            committedRanges = [];
+            renderCommittedRanges();
+            applySelectionClasses();
+            updateSummary();
+            updateSaveButton();
         }
 
         function clearSelection() {
             startDate = null;
-            endDate = null;
             selState = 0;
             applySelectionClasses();
             updateSummary();
         }
 
+        // ── Summary row ────────────────────────────────────────────────
+        function updateSummary() {
+            const summaryEl = document.getElementById('summaryText');
+            const clearBtn = document.getElementById('clearBtn');
+            if (selState === 0) {
+                summaryEl.textContent = committedRanges.length > 0 ? 'Tap a date to add another range' : 'Select your dates';
+                summaryEl.className = 'range-summary-text placeholder';
+                clearBtn.classList.remove('visible');
+            } else {
+                summaryEl.textContent = fmtShort(startDate) + ' — pick end date';
+                summaryEl.className = 'range-summary-text';
+                clearBtn.classList.add('visible');
+            }
+        }
+
+        function updateSaveButton() {
+            const btn = document.getElementById('saveBtn');
+            // Enable when there are committed dates, or when existing dates can be cleared
+            btn.disabled = committedRanges.length === 0 && existingDates.length === 0;
+        }
+
+        // ── Committed ranges list ──────────────────────────────────────
+        function renderCommittedRanges() {
+            const section = document.getElementById('committedSection');
+            const list = document.getElementById('committedRangesList');
+            if (!section || !list) return;
+            if (committedRanges.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+            section.style.display = 'block';
+            list.innerHTML = '';
+            committedRanges.forEach(function(r, idx) {
+                const row = document.createElement('div');
+                row.className = 'od-committed-row';
+                row.innerHTML =
+                    '<span class="od-committed-text">' + formatRange(r.start, r.end) + '</span>' +
+                    '<button type="button" class="od-committed-remove" onclick="removeCommitted(' + idx + ')">Remove</button>';
+                list.appendChild(row);
+            });
+        }
+
+        // ── Calendar navigation ────────────────────────────────────────
         function canGoPrev() {
             return !(currentYear === today.getFullYear() && currentMonth === today.getMonth());
         }
         function canGoNext() {
             return !(currentYear === 2027 && currentMonth === 4);
         }
-
         function updateNavButtons() {
-            const prev = document.getElementById('prevBtn');
-            const next = document.getElementById('nextBtn');
-            prev.disabled = !canGoPrev();
-            next.disabled = !canGoNext();
+            document.getElementById('prevBtn').disabled = !canGoPrev();
+            document.getElementById('nextBtn').disabled = !canGoNext();
         }
-
         function prevMonth() {
             if (!canGoPrev()) return;
             if (currentMonth === 0) { currentMonth = 11; currentYear--; }
             else { currentMonth--; }
             buildCalendar();
         }
-
         function nextMonth() {
             if (!canGoNext()) return;
             if (currentMonth === 11) { currentMonth = 0; currentYear++; }
@@ -693,27 +793,7 @@
             buildCalendar();
         }
 
-        document.getElementById('openDatesForm').addEventListener('submit', function(e) {
-            if (selState !== 2 || !startDate || !endDate) {
-                e.preventDefault();
-                return;
-            }
-            const lo = startDate < endDate ? startDate : endDate;
-            const hi = startDate < endDate ? endDate : startDate;
-
-            const dates = [];
-            const cur = parseDate(lo);
-            const end = parseDate(hi);
-            while (cur <= end) {
-                dates.push(isoDate(cur));
-                cur.setDate(cur.getDate() + 1);
-            }
-            document.getElementById('selectedDatesInput').value = dates.join(',');
-        });
-
-        buildCalendar();
-        updateSummary();
-
+        // ── How it works sheet ─────────────────────────────────────────
         function openHiw() {
             document.getElementById('hiwBackdrop').classList.add('open');
             document.getElementById('hiwSheet').classList.add('open');
@@ -728,32 +808,51 @@
             if (e.key === 'Escape') closeHiw();
         });
 
+        // ── Form submit ────────────────────────────────────────────────
         document.getElementById('openDatesForm').addEventListener('submit', function(e) {
             e.preventDefault();
+
+            if (committedRanges.length === 0 && existingDates.length === 0) return;
+
+            // Flatten all committed ranges to sorted, deduplicated individual dates
+            const allDates = new Set();
+            committedRanges.forEach(function(r) {
+                const lo = r.start <= r.end ? r.start : r.end;
+                const hi = r.start <= r.end ? r.end : r.start;
+                const cur = parseDate(lo);
+                const end = parseDate(hi);
+                while (cur <= end) {
+                    allDates.add(isoDate(cur));
+                    cur.setDate(cur.getDate() + 1);
+                }
+            });
+            document.getElementById('selectedDatesInput').value =
+                allDates.size > 0 ? Array.from(allDates).sort().join(',') : '';
+
             const btn = document.getElementById('saveBtn');
             const conf = document.getElementById('save-confirm');
-            const form = this;
-
             btn.disabled = true;
-            btn.textContent = 'Saving…';
+            btn.textContent = 'Saved ✓';
+            conf.style.display = 'block';
 
-            fetch(form.action || window.location.pathname, {
+            fetch(window.location.pathname, {
                 method: 'POST',
-                body: new FormData(form),
-                redirect: 'follow'
-            })
-            .then(function(res) {
-                btn.textContent = 'Saved';
-                conf.style.display = 'block';
+                body: new FormData(this),
+            }).then(function() {
                 setTimeout(function() {
-                    window.location.href = res.url || '{{ url_for("home") }}';
-                }, 1200);
-            })
-            .catch(function() {
+                    window.location.href = '{{ url_for("home") }}';
+                }, 1500);
+            }).catch(function() {
                 btn.disabled = false;
                 btn.textContent = 'Save availability';
                 conf.style.display = 'none';
             });
         });
+
+        // ── Init ───────────────────────────────────────────────────────
+        buildCalendar();
+        updateSummary();
+        updateSaveButton();
+        renderCommittedRanges();
     </script>
 {% endblock %}

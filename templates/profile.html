@@ -4,15 +4,23 @@
 <style>
         /* ── Profile groups ───────────────────────────── */
         .profile-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
         .profile-group-label {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 700;
-            color: #4E473F;
+            color: #8A857A;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            margin: 8px 0 6px 0;
+            margin: 0 0 8px 4px;
+        }
+
+        /* ── Profile card container ───────────────────── */
+        .profile-card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.05);
+            overflow: hidden;
         }
 
         /* ── Main profile rows (navigable) ────────────── */
@@ -22,17 +30,27 @@
             justify-content: space-between;
             gap: 12px;
             min-height: 52px;
-            padding: 10px 0;
+            padding: 13px 16px;
             border-bottom: 1px solid var(--bl-color-border-soft);
             text-decoration: none;
             color: inherit;
             -webkit-tap-highlight-color: transparent;
-        }
-        .profile-row:first-child {
-            border-top: 1px solid var(--bl-color-border-soft);
+            box-sizing: border-box;
+            width: 100%;
+            background: none;
+            border-left: none;
+            border-right: none;
+            border-top: none;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
+            font-size: inherit;
         }
         .profile-row:last-child {
             border-bottom: none;
+        }
+        .profile-row:active {
+            background: rgba(0,0,0,0.03);
         }
         .profile-row-left {
             flex: 1;
@@ -60,39 +78,9 @@
         .profile-row-chevron {
             color: var(--bl-color-text-muted);
             font-size: 1.1rem;
-            opacity: 0.4;
+            opacity: 0.35;
         }
-
-        /* ── Account rows (quieter) ───────────────────── */
-        .account-row {
-            display: flex;
-            align-items: center;
-            min-height: 44px;
-            padding: 10px 0;
-            border-bottom: 1px solid var(--bl-color-border-soft);
-            text-decoration: none;
-            color: inherit;
-            -webkit-tap-highlight-color: transparent;
-            width: 100%;
-            background: none;
-            border-left: none;
-            border-right: none;
-            border-top: none;
-            cursor: pointer;
-            text-align: left;
-            font-family: inherit;
-        }
-        .account-row:first-child {
-            border-top: 1px solid var(--bl-color-border-soft);
-        }
-        .account-row:last-child {
-            border-bottom: none;
-        }
-        .account-row-label {
-            font-size: 17px;
-            color: var(--bl-color-text);
-        }
-        .account-row--danger .account-row-label {
+        .profile-row--danger .profile-row-label {
             color: #8B1A1A;
         }
     </style>
@@ -164,67 +152,84 @@
         <!-- Profile section -->
         <div class="profile-group">
             <h2 class="profile-group-label">Profile</h2>
+            <div class="profile-card">
+                <a href="{{ url_for('edit_profile') }}" class="profile-row">
+                    <div class="profile-row-left">
+                        <span class="profile-row-label">Profile details</span>
+                        <span class="profile-row-sub">Riding preferences, home mountain, terrain</span>
+                    </div>
+                    <div class="profile-row-right">
+                        <span class="profile-row-chevron">›</span>
+                    </div>
+                </a>
 
-            <a href="{{ url_for('edit_profile') }}" class="profile-row">
-                <div class="profile-row-left">
-                    <span class="profile-row-label">Profile details</span>
-                    <span class="profile-row-sub">Riding preferences, home mountain, terrain</span>
-                </div>
-                <div class="profile-row-right">
-                    <span class="profile-row-chevron">›</span>
-                </div>
-            </a>
+                <a href="{{ url_for('settings_equipment') }}" class="profile-row">
+                    <div class="profile-row-left">
+                        <span class="profile-row-label">Gear</span>
+                        <span class="profile-row-sub">{% if has_equipment %}{{ equipment_summary }}{% else %}Not added yet{% endif %}</span>
+                    </div>
+                    <div class="profile-row-right">
+                        <span class="profile-row-chevron">›</span>
+                    </div>
+                </a>
 
-            <a href="{{ url_for('settings_equipment') }}" class="profile-row">
-                <div class="profile-row-left">
-                    <span class="profile-row-label">Gear</span>
-                    <span class="profile-row-sub">{% if has_equipment %}{{ equipment_summary }}{% else %}Not added yet{% endif %}</span>
-                </div>
-                <div class="profile-row-right">
-                    <span class="profile-row-chevron">›</span>
-                </div>
-            </a>
+                <a href="{{ url_for('settings_mountains') }}" class="profile-row">
+                    <div class="profile-row-left">
+                        <span class="profile-row-label">Mountains visited</span>
+                        <span class="profile-row-sub">{{ mountains_visited_count }} mountain{{ 's' if mountains_visited_count != 1 else '' }} on your list</span>
+                    </div>
+                    <div class="profile-row-right">
+                        <span class="profile-row-chevron">›</span>
+                    </div>
+                </a>
 
-            <a href="{{ url_for('settings_mountains') }}" class="profile-row">
-                <div class="profile-row-left">
-                    <span class="profile-row-label">Mountains visited</span>
-                </div>
-                <div class="profile-row-right">
-                    <span class="profile-row-chevron">›</span>
-                </div>
-            </a>
-
-            <a href="{{ url_for('settings_wish_list') }}" class="profile-row">
-                <div class="profile-row-left">
-                    <span class="profile-row-label">Wish list</span>
-                </div>
-                <div class="profile-row-right">
-                    <span class="profile-row-chevron">›</span>
-                </div>
-            </a>
+                <a href="{{ url_for('settings_wish_list') }}" class="profile-row">
+                    <div class="profile-row-left">
+                        <span class="profile-row-label">Wish list</span>
+                        <span class="profile-row-sub">{{ wish_list_count }} mountain{{ 's' if wish_list_count != 1 else '' }}</span>
+                    </div>
+                    <div class="profile-row-right">
+                        <span class="profile-row-chevron">›</span>
+                    </div>
+                </a>
+            </div>
         </div>
 
-        <!-- Account section (quieter) -->
+        <!-- Account section -->
         <div class="profile-group">
             <h2 class="profile-group-label">Account</h2>
-            <a href="{{ url_for('push_settings') }}" class="profile-row" style="border-top: 1px solid var(--bl-color-border-soft);">
-                <div class="profile-row-left">
-                    <span class="profile-row-label">Push notifications</span>
-                    <span class="profile-row-sub" id="prof-push-status">{{ 'Push notifications on' if current_user.push_notifications_enabled else 'Push notifications off in BaseLodge' }}</span>
-                </div>
-                <div class="profile-row-right">
-                    <span class="profile-row-chevron">›</span>
-                </div>
-            </a>
-            <a href="{{ url_for('settings_password') }}" class="account-row">
-                <span class="account-row-label">Change password</span>
-            </a>
-            <a href="{{ url_for('logout') }}" class="account-row" id="bl-logout-link">
-                <span class="account-row-label">Log out</span>
-            </a>
-            <button type="button" class="account-row account-row--danger" onclick="document.getElementById('delete-account-modal').style.display='flex'">
-                <span class="account-row-label">Delete account</span>
-            </button>
+            <div class="profile-card">
+                <a href="{{ url_for('push_settings') }}" class="profile-row">
+                    <div class="profile-row-left">
+                        <span class="profile-row-label">Push notifications</span>
+                        <span class="profile-row-sub" id="prof-push-status">{{ 'On' if current_user.push_notifications_enabled else 'Off in BaseLodge' }}</span>
+                    </div>
+                    <div class="profile-row-right">
+                        <span class="profile-row-chevron">›</span>
+                    </div>
+                </a>
+                <a href="{{ url_for('settings_password') }}" class="profile-row">
+                    <div class="profile-row-left">
+                        <span class="profile-row-label">Change password</span>
+                    </div>
+                    <div class="profile-row-right">
+                        <span class="profile-row-chevron">›</span>
+                    </div>
+                </a>
+                <a href="{{ url_for('logout') }}" class="profile-row" id="bl-logout-link">
+                    <div class="profile-row-left">
+                        <span class="profile-row-label">Log out</span>
+                    </div>
+                    <div class="profile-row-right">
+                        <span class="profile-row-chevron">›</span>
+                    </div>
+                </a>
+                <button type="button" class="profile-row profile-row--danger" onclick="document.getElementById('delete-account-modal').style.display='flex'">
+                    <div class="profile-row-left">
+                        <span class="profile-row-label">Delete account</span>
+                    </div>
+                </button>
+            </div>
         </div>
 
     </div>

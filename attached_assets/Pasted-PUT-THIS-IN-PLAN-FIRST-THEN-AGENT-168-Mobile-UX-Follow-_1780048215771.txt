@@ -1,0 +1,146 @@
+PUT THIS IN PLAN FIRST, THEN AGENT.
+
+#168 - Mobile UX Follow-Through: Profile, Availability, Cancel Trip
+
+What & Why
+
+After the mobile performance pass, finish the UX items that directly affect day-to-day app feel:
+
+1. Make Profile sections feel like native grouped settings rows.
+2. Improve Availability so users can select both individual dates and ranges.
+3. Show all saved availability dates/ranges from the Home availability sheet.
+4. Make availability save less jarring.
+5. Make Cancel Trip visible and usable for trip owners.
+6. Preserve the performance improvements from #167.
+
+No new models.
+No migrations.
+No dark mode.
+No major redesign beyond the specified mobile UX polish.
+
+Done looks like
+
+- Profile keeps the same sections and destinations, but visually matches an iOS-style grouped settings layout.
+- Entire profile rows are tappable, not just text or chevrons.
+- Rows have 48px+ tap targets, subtitles where useful, right chevrons, soft grouped cards, and uppercase section labels.
+- Push notifications stay where they are for now.
+- Do not add an email opt-in placeholder yet, but structure the settings area so email preferences can be added later.
+- Availability supports both single dates and date ranges.
+- Users can add multiple dates/ranges before saving.
+- Existing saved availability is shown when reopening the page.
+- Users can remove individual saved ranges/dates.
+- Users can edit an existing range/date if reasonable within current structure; if not, allow remove + recreate.
+- Home availability sheet shows all saved availability dates/ranges.
+- If the list is long, use a scrollable bottom sheet/modal area, not a tiny nested scroll inside a card.
+- Saving availability shows “Saved ✓” and a soft confirmation before redirecting or staying.
+- Cancel Trip is visible to the trip owner on Trip Detail.
+- Cancel Trip is not visible to non-owners.
+- Cancel Trip works end-to-end without FK errors.
+- No regressions to Home, Friends, Mountains, Profile, Trip Detail, or Add Availability.
+
+Profile requirements
+
+Update templates/profile.html and related CSS only as needed.
+
+Keep the existing profile sections and existing routes.
+
+Do not invent new sections.
+
+Use a grouped settings pattern inspired by native iOS:
+
+- Uppercase muted section labels
+- Rounded cream/white group cards
+- Hairline dividers between rows inside a group
+- No divider after the last row in a group
+- Right chevrons
+- Optional subtitle text
+- 48px minimum row height
+- Entire row clickable
+- Delete/destructive rows remain red and visually distinct
+
+Availability requirements
+
+Update templates/add_open_dates.html and route behavior only as needed.
+
+Support both:
+
+- Single dates
+- Date ranges
+
+Interaction model:
+
+- User taps one date and can commit it as a single date.
+- User can tap start date and end date to commit a range.
+- After a single date or range is committed, reset the active selection so the user can add another.
+- Display committed dates/ranges below the calendar.
+- Each committed item should have Remove.
+- If editing an item is straightforward, include Edit. If not, remove + recreate is acceptable for now.
+- Clear should clear the in-progress selection only.
+- Add a separate Clear All option for committed dates/ranges.
+- On submit, flatten all committed dates into sorted, deduplicated comma-separated dates in the existing selected dates input.
+- Pre-populate committed dates/ranges from existing saved dates on page load.
+- Do not change the backend storage model.
+
+Home availability sheet
+
+Update the Home availability bottom sheet/modal.
+
+- Show all saved availability ranges/dates.
+- Do not cap at 3.
+- If there are many dates/ranges, the bottom sheet content can scroll.
+- Keep the sheet clean and readable.
+- Do not add friend profile bubbles or avatar UI.
+- Include an obvious Edit Availability action.
+
+Save confirmation
+
+Make availability saving feel less abrupt.
+
+Preferred:
+
+- On Save, disable the button.
+- Change button text to “Saved ✓”.
+- Show a short confirmation line like “Availability updated.”
+- Either stay on the page or redirect after a brief pause if that is the existing app pattern.
+- Avoid an immediate jump back to Home.
+
+If using fetch submit:
+- Return JSON { ok: true } for fetch requests.
+- Preserve regular form submit fallback.
+
+Cancel Trip
+
+Audit templates/trip_detail.html and the delete/cancel trip route.
+
+Requirements:
+
+- Trip owner can clearly see Cancel Trip on Trip Detail.
+- The button should not be buried so deeply that it feels missing.
+- Keep destructive styling.
+- Use confirmation sheet/modal before deletion.
+- Non-owners never see Cancel Trip.
+- Confirm the route deletes related invite/token/participant records cleanly.
+- If delete functionality already exists, do not rebuild it unnecessarily. Make it reachable and verify it works.
+
+Mobile polish / regression checks
+
+Test at iPhone 15 Pro viewport.
+
+Verify:
+
+- Profile rows navigate correctly.
+- Availability can save multiple individual dates.
+- Availability can save multiple ranges.
+- Availability can save a mix of single dates and ranges.
+- Reopening availability shows saved dates/ranges.
+- Home availability sheet shows all saved dates/ranges.
+- Save confirmation feels softer.
+- Trip owner can cancel trip.
+- Non-owner cannot cancel trip.
+- Home, Friends, Mountains, Profile, Trip Detail still load correctly.
+- No obvious screen-to-screen lag regression from #167.
+- No console errors.
+- No template errors.
+
+Use checkpoints sparingly.
+Do not stop at a plan. Implement and test the changes.

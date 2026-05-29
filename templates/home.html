@@ -1017,9 +1017,13 @@
             background: #fff;
             border-radius: 20px 20px 0 0;
             box-shadow: 0 -4px 28px rgba(0,0,0,0.10);
-            padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 28px) 0;
             transform: translateY(100%);
             transition: transform 0.28s cubic-bezier(0.32,0.72,0,1);
+            max-height: 75vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
         }
         .avail-sheet.open { transform: translateY(0); }
         .avail-sheet-header {
@@ -1048,7 +1052,13 @@
             color: #1A1A1A;
             margin: 0;
         }
-        .avail-sheet-body { padding: 18px 20px 0; }
+        .avail-sheet-body {
+            padding: 18px 20px 0;
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            min-height: 0;
+        }
         .avail-sheet-free-label {
             font-size: 11px;
             font-weight: 700;
@@ -1135,9 +1145,6 @@
                     <span class="avail-sheet-text">{{ rng.display }}</span>
                 </div>
                 {% endfor %}
-                {% if user_avail_overflow > 0 %}
-                <p class="avail-sheet-range-overflow">+ {{ user_avail_overflow }} more date{{ 's' if user_avail_overflow != 1 else '' }}</p>
-                {% endif %}
             </div>
             {% else %}
             <p class="avail-sheet-nudge">Add free dates so BaseLodge can surface trip ideas and overlaps with your friends.</p>

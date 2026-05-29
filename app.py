@@ -7926,7 +7926,7 @@ def home():
     # _user_avail_home was fetched once before the coordination feed above.
     has_availability = bool(_user_avail_home)
     show_add_dates = not has_availability
-    _home_avail_ranges, _home_avail_overflow = build_home_avail_ranges(_user_avail_home)
+    _home_avail_ranges, _home_avail_overflow = build_home_avail_ranges(_user_avail_home, cap=50)
 
     # Admin flag for Ideas diagnostic block
     _admin_emails_home = set(
@@ -9270,14 +9270,14 @@ def add_open_dates():
         emit_availability_overlap_activities_for_user(current_user)
         db.session.commit()
         
-        return redirect(url_for("trip_ideas"))
+        return redirect(url_for("home"))
     
     # Pre-populate with existing dates
     existing_dates = current_user.open_dates or []
 
     from services.open_dates import get_available_dates_for_user as _get_avail_od
     _avail_set = _get_avail_od(current_user)
-    _avail_ranges, _avail_overflow = build_home_avail_ranges(_avail_set)
+    _avail_ranges, _avail_overflow = build_home_avail_ranges(_avail_set, cap=50)
 
     return render_template(
         "add_open_dates.html",
@@ -10686,6 +10686,7 @@ def update_participant_signals(trip_id):
 @app.route("/trips/<int:trip_id>/delete", methods=["POST"])
 @login_required
 def delete_trip_form(trip_id):
+    validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
     if trip.user_id != current_user.id:
         abort(403)
