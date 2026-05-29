@@ -26,13 +26,17 @@ _init_logged = False
 def _get_client():
     global _client, _init_logged
     if not POSTHOG_KEY:
+        logger.warning("PostHog track skipped: POSTHOG_KEY is not set")
         return None
     if _client is None:
         try:
             from posthog import Posthog
             _client = Posthog(project_api_key=POSTHOG_KEY, host=POSTHOG_HOST)
             if not _init_logged:
-                logger.info("PostHog server client initialized (v7)")
+                logger.info(
+                    "PostHog server client initialized (v7) host=%s key_prefix=%s",
+                    POSTHOG_HOST, POSTHOG_KEY[:8] + "…",
+                )
                 _init_logged = True
         except Exception as exc:
             logger.warning("PostHog init failed: %s", exc)
@@ -82,7 +86,6 @@ def track(user_id, event, properties=None, set_props=None, set_once_props=None):
     """
     client = _get_client()
     if not client:
-        logger.debug("PostHog track skipped: client unavailable")
         return
     distinct_id = str(user_id) if user_id is not None else "anonymous"
     props = dict(properties or {})
@@ -90,11 +93,19 @@ def track(user_id, event, properties=None, set_props=None, set_once_props=None):
         props["$set"] = set_props
     if set_once_props:
         props["$set_once"] = set_once_props
+
     try:
         client.capture(event, distinct_id=distinct_id, properties=props)
-        client.flush()
+        logger.info("PostHog capture OK: event=%s distinct_id=%s", event, distinct_id)
     except Exception as exc:
-        logger.warning("PostHog track failed: %s", exc)
+        logger.warning("PostHog capture FAILED: event=%s distinct_id=%s error=%s", event, distinct_id, exc)
+        return
+
+    try:
+        client.flush()
+        logger.info("PostHog flush OK: event=%s", event)
+    except Exception as exc:
+        logger.warning("PostHog flush FAILED: event=%s error=%s", event, exc)
 
 
 def identify(user_id, properties=None, set_once_props=None):
@@ -115,8 +126,9 @@ def identify(user_id, properties=None, set_once_props=None):
             client.set_once(distinct_id=uid, properties=dict(set_once_props))
         if properties or set_once_props:
             client.flush()
+            logger.info("PostHog identify OK: distinct_id=%s", uid)
     except Exception as exc:
-        logger.warning("PostHog identify failed: %s", exc)
+        logger.warning("PostHog identify FAILED: distinct_id=%s error=%s", uid, exc)
 
 
 def alias(anon_id, user_id):
@@ -133,4 +145,4 @@ def alias(anon_id, user_id):
     try:
         client.alias(anon_id, str(user_id))
     except Exception as exc:
-        logger.warning("PostHog alias failed: %s", exc)
+        logger.warning("PostHog alias FAILED: anon_id=%s user_id=%s error=%s", anon_id, user_id, exc)

@@ -5789,6 +5789,64 @@ def admin_test_push_all():
     }), overall_http
 
 
+@app.route("/admin/posthog-test", methods=["GET"])
+@login_required
+@admin_required
+def admin_posthog_test():
+    """Diagnostic: fire one posthog_server_test event and return capture/flush results."""
+    import time as _time
+    results = {}
+
+    key = ph_analytics.POSTHOG_KEY
+    host = ph_analytics.POSTHOG_HOST
+    results["key_set"] = bool(key)
+    results["key_prefix"] = (key[:8] + "…") if key else None
+    results["host"] = host
+
+    if not key:
+        results["outcome"] = "FAIL — POSTHOG_KEY not set"
+        return jsonify(results), 200
+
+    try:
+        from posthog import Posthog
+        _test_client = Posthog(project_api_key=key, host=host)
+        results["client_init"] = "OK"
+    except Exception as exc:
+        results["client_init"] = "FAIL"
+        results["client_init_error"] = str(exc)
+        results["outcome"] = "FAIL — client init error"
+        return jsonify(results), 200
+
+    distinct_id = str(current_user.id)
+    event = "posthog_server_test"
+    props = {
+        "source": "admin_posthog_test",
+        "user_id": current_user.id,
+        "timestamp": _time.time(),
+    }
+
+    try:
+        _test_client.capture(event, distinct_id=distinct_id, properties=props)
+        results["capture"] = "OK"
+    except Exception as exc:
+        results["capture"] = "FAIL"
+        results["capture_error"] = str(exc)
+        results["outcome"] = "FAIL — capture error"
+        return jsonify(results), 200
+
+    try:
+        _test_client.flush()
+        results["flush"] = "OK"
+        results["outcome"] = "SUCCESS"
+    except Exception as exc:
+        results["flush"] = "FAIL"
+        results["flush_error"] = str(exc)
+        results["outcome"] = "FAIL — flush error"
+
+    app.logger.info("[POSTHOG_DIAG] %s", results)
+    return jsonify(results), 200
+
+
 @app.route("/admin/test-push-broadcast", methods=["GET"])
 @login_required
 @admin_required

@@ -1,0 +1,181 @@
+PUT THIS IN PLAN FIRST
+
+#179 - PostHog Activation Event Fixes
+
+What & Why
+
+The PostHog audit showed that only `signup_started` is currently firing.
+
+These activation events are missing or returning 0:
+
+* signup_completed
+* onboarding_completed
+* pass_added
+* availability_added
+* wishlist_added
+* trip_created
+* friend_connected
+* invite_generated
+
+Goal:
+
+Fix activation instrumentation so the admin dashboard and future Growth / Activation Intelligence pages have reliable event data.
+
+Use the existing PostHog implementation only.
+
+Do not add:
+
+* New analytics vendors
+* New databases
+* New event systems
+* New models
+* New migrations
+
+Before implementation, inspect the existing PostHog integration and event helpers.
+
+---
+
+## PHASE 1 — FEASIBILITY AUDIT
+
+Audit where each event should fire.
+
+For each event, provide:
+
+* Current status
+* Existing route or frontend action where it should be emitted
+* Whether a helper already exists
+* Recommended server-side or client-side implementation
+* Properties to include
+* Risk of duplicate firing
+* Testing approach
+
+Events to audit:
+
+1. signup_started
+2. signup_completed
+3. onboarding_completed
+4. pass_added
+5. availability_added
+6. wishlist_added
+7. trip_created
+8. friend_connected
+9. invite_generated
+
+---
+
+## EVENT IMPLEMENTATION GUIDELINES
+
+Prefer server-side tracking for durable product actions:
+
+* signup_completed
+* onboarding_completed
+* pass_added
+* availability_added
+* wishlist_added
+* trip_created
+* friend_connected
+* invite_generated
+
+Client-side tracking is acceptable only where the action starts but may not complete, such as signup_started.
+
+Use existing user identifiers consistently.
+
+Do not log PII.
+
+Do not include:
+
+* Email
+* Full name
+* Phone number
+* Precise location
+* Free-text notes
+
+Include useful non-PII properties where available, such as:
+
+* source_page
+* action_source
+* resort_id
+* trip_id
+* pass_type
+* rider_type
+* invite_type
+* is_group_trip
+* friend_count
+* onboarding_step
+* platform
+* environment
+
+---
+
+## RECOMMENDED EVENT FIRING POINTS
+
+Audit and confirm the right code locations, but likely targets are:
+
+signup_completed:
+
+* After successful account creation and database commit
+
+onboarding_completed:
+
+* After the final onboarding step is saved and user is routed into the app experience
+
+pass_added:
+
+* When user saves ski pass / pass preference during onboarding or profile/settings
+
+availability_added:
+
+* When user successfully saves at least one availability date/range
+
+wishlist_added:
+
+* When user successfully adds a resort/mountain to wishlist
+
+trip_created:
+
+* After successful SkiTrip creation and database commit
+
+friend_connected:
+
+* After a Friend relationship is successfully created or accepted
+
+invite_generated:
+
+* When a friend invite link or trip invite link is successfully generated
+
+---
+
+## DEDUPING / DATA QUALITY
+
+Prevent duplicate event spam where possible.
+
+Examples:
+
+* Do not fire pass_added repeatedly if the same pass is saved unchanged
+* Do not fire availability_added if no dates were added
+* Do not fire wishlist_added for duplicate wishlist entries
+* Do not fire trip_created until the trip commit succeeds
+* Do not fire friend_connected multiple times for the same pair
+* Do not fire invite_generated repeatedly on page load; only when a link is generated or shared intentionally
+
+---
+
+## DELIVERABLE BEFORE BUILDING
+
+Provide:
+
+1. Full audit of the current PostHog setup
+2. Current event firing status
+3. Recommended event locations
+4. Recommended event properties
+5. Duplicate-risk assessment
+6. Implementation plan
+7. Testing plan
+
+STOP AFTER THE AUDIT.
+
+Do not modify files yet.
+
+Wait for approval before implementation.
+
+Use checkpoints sparingly.
