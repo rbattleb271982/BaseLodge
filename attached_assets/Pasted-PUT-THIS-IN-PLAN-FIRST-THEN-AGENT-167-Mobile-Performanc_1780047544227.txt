@@ -1,0 +1,183 @@
+PUT THIS IN PLAN FIRST, THEN AGENT.
+
+#167 - Mobile Performance Audit & Optimization
+
+What & Why
+
+The biggest remaining issue affecting the perceived quality of BaseLodge is screen-to-screen responsiveness.
+
+The app looks good and the Home screen content feels appropriate. The next priority is reducing the feeling that users are navigating a website inside a wrapper.
+
+Focus on real-world perceived performance for iPhone 15 Pro.
+
+No new features.
+No redesigns.
+No model changes.
+No migrations.
+
+Done looks like
+
+- Home feels faster when opening
+- Friends feels faster when opening
+- Mountains feels faster when opening
+- Profile feels faster when opening
+- Trip Detail feels faster when opening
+- No unnecessary loading flashes
+- No duplicate queries
+- No redundant API calls
+- No unnecessary template work
+- Navigation between major tabs feels noticeably more responsive
+- Existing functionality remains unchanged
+
+Out of scope
+
+- New UI
+- New analytics
+- New admin pages
+- New features
+- Messaging work
+- Availability redesign
+- PostHog work
+
+Audit Areas
+
+1. Home
+
+Measure:
+- total route time
+- DB query count
+- slowest queries
+- ideas_engine execution time
+- friend trip feed generation time
+- overlap generation time
+
+Confirm:
+- no duplicate queries
+- no unnecessary relationship loading
+- no repeated calculations already available in memory
+
+2. Friends
+
+Measure:
+- route execution time
+- query count
+- friend lookup cost
+- trip overlap generation cost
+- wishlist overlap cost
+
+Confirm:
+- no N+1 query patterns
+- no repeated user lookups
+
+3. Mountains
+
+Measure:
+- route execution time
+- mountain card generation
+- filtering cost
+
+Confirm:
+- no unnecessary joins
+- no repeated calculations
+
+4. Profile
+
+Measure:
+- route execution time
+- equipment loading
+- stats loading
+- mountain history loading
+
+Confirm:
+- no duplicate fetches
+
+5. Trip Detail
+
+Measure:
+- route execution time
+- participant loading
+- invite loading
+- overlap calculations
+
+Confirm:
+- no duplicated work
+
+Frontend Audit
+
+Review:
+
+- static/js/bl-native.js
+- templates using large inline scripts
+- blocking JS
+- duplicate event listeners
+- unnecessary DOM work on page load
+
+Identify:
+- scripts that can defer
+- scripts that can load after first paint
+
+Navigation Audit
+
+Review:
+
+- tab-to-tab navigation
+- page transitions
+- loading states
+- prefetch behavior
+
+Confirm existing prefetch implementation is functioning correctly.
+
+Images
+
+Audit:
+
+- profile images
+- mountain images
+- destination images
+
+Confirm:
+
+- lazy loading where appropriate
+- no oversized assets
+- no unnecessary image requests
+
+Caching
+
+Review:
+
+- static asset caching
+- template caching opportunities
+- query caching opportunities
+
+Use existing infrastructure only.
+Do not introduce Redis or new services.
+
+Deliverables
+
+Provide:
+
+1. Route timing table
+2. Slowest queries identified
+3. Duplicate query findings
+4. Frontend bottlenecks found
+5. Optimizations implemented
+6. Before vs after timings
+
+Testing
+
+Test on iPhone 15 Pro viewport.
+
+Verify:
+
+- Home
+- Friends
+- Mountains
+- Profile
+- Trip Detail
+
+all continue working correctly.
+
+Use checkpoints sparingly.
+
+Do not stop at observations.
+Implement safe performance improvements that provide measurable gains while preserving behavior.

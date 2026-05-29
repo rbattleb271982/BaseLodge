@@ -142,6 +142,13 @@ if not SUPABASE_URL:
 app = Flask(__name__)
 app.config["PREFERRED_URL_SCHEME"] = "https"
 
+# ── Response compression ───────────────────────────────────────────────────
+# Gzip HTML/JSON responses — typically 60-70% size reduction on page HTML.
+# Skips already-compressed content (images, pre-gzipped assets).
+# Threshold 500 bytes avoids compressing tiny API responses.
+from flask_compress import Compress as _Compress
+_Compress(app)
+
 limiter = Limiter(
     get_remote_address,
     app=app,
@@ -8309,17 +8316,20 @@ def profile():
     _rp_t0 = time.perf_counter()
     mountains_visited_count = current_user.visited_resorts_count
 
-    # Get primary setup: prefer is_primary=True, fallback to first saved
-    primary_equipment = EquipmentSetup.query.filter_by(
-        user_id=current_user.id, is_primary=True
-    ).first()
-    if not primary_equipment:
-        primary_equipment = EquipmentSetup.query.filter_by(user_id=current_user.id).order_by(
-            EquipmentSetup.created_at.asc().nullsfirst(), EquipmentSetup.id.asc()
-        ).first()
-        if primary_equipment:
-            primary_equipment.is_primary = True
-            db.session.commit()
+    # Get primary setup in a single query: is_primary rows first, then oldest by created_at.
+    primary_equipment = (
+        EquipmentSetup.query
+        .filter_by(user_id=current_user.id)
+        .order_by(
+            db.case((EquipmentSetup.is_primary == True, 0), else_=1),
+            EquipmentSetup.created_at.asc().nullsfirst(),
+            EquipmentSetup.id.asc()
+        )
+        .first()
+    )
+    if primary_equipment and not primary_equipment.is_primary:
+        primary_equipment.is_primary = True
+        db.session.commit()
 
     has_equipment = primary_equipment is not None
     equipment_summary = ""
@@ -9840,8 +9850,9 @@ def trip_detail(trip_id):
         if friend_ids:
             friends = User.query.filter(User.id.in_(friend_ids)).all()
             
-            # Check which friends are already invited or accepted
-            existing_participants = {p.user_id: p.status for p in trip.participants}
+            # Check which friends are already invited or accepted.
+            # Use already-loaded lists to avoid a redundant lazy-load of trip.participants.
+            existing_participants = {p.user_id: p.status for p in invited_participants + accepted_participants}
             
             for friend in friends:
                 status = existing_participants.get(friend.id)

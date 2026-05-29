@@ -1,0 +1,98 @@
+PUT THIS IN PLAN FIRST, THEN AGENT.
+
+BaseLodge mobile UX refinement request. Optimize specifically for iPhone 15 Pro.
+
+Goals:
+1. Redesign the Profile screen sections to feel more like native grouped settings.
+2. Fix availability date selection so users can select multiple date ranges/dates before saving.
+3. Improve the Home → Edit Availability bottom sheet so it shows all saved availability dates.
+4. Make save behavior less jarring after availability is saved.
+5. Confirm delete trip functionality exists and is reachable.
+6. Audit screens for unnecessary tiny/accidental scroll and fix where appropriate.
+
+Profile screen changes:
+- Update the Profile screen layout so sections are grouped like a native settings page.
+- Use clear section headers such as:
+  - PROFILE
+  - ACCOUNT
+  - SUPPORT / SETTINGS if applicable
+- Group related rows together visually.
+- Rows should feel tappable, with title, optional subtitle, and right chevron.
+- Keep BaseLodge’s existing cream/bordeaux visual system, not dark mode.
+- Current rows should remain functionally intact:
+  - Profile details
+  - Gear
+  - Mountains visited
+  - Wish list
+  - Push notifications
+  - Change password
+  - Log out
+  - Delete account
+- Preserve all routes and backend behavior.
+- Delete account should remain visually destructive.
+
+Availability calendar:
+- Fix the Edit Availability calendar so users can select multiple dates or date ranges before saving.
+- Users should be able to add more than one availability block in one editing session.
+- Show selected dates/ranges clearly before save.
+- Keep the existing “Clear” behavior, but make sure it clears the current selection safely.
+- Saving should persist all selected availability dates/ranges.
+
+Home Edit Availability bottom sheet:
+- When users tap the Edit Availability pill/card from Home and the bottom sheet opens, it should list all saved availability dates.
+- Do not only show one range.
+- Format the saved dates cleanly and compactly.
+- Include an obvious edit/add path from the sheet.
+- Avoid profile bubbles or friend avatar UI here.
+
+Availability save behavior:
+- Right now after saving, the screen says Saved and immediately jumps back to Home. This feels jarring.
+- Change the behavior so the user gets a softer confirmation.
+- Preferred behavior:
+  - Button changes to “Saved”
+  - Show “Availability saved ✓”
+  - Wait briefly, then either stay on the page or return only if that is the existing intended flow.
+- If returning to Home is necessary, make the transition feel less abrupt.
+- Do not break existing Home availability refresh behavior.
+
+Delete trip functionality:
+- Audit whether trip delete/cancel functionality exists.
+- Confirm it is available from the trip detail page for the trip owner.
+- If missing, add it using the existing safe delete/cancel flow.
+- It should delete/cancel the trip and related invite/token records cleanly without FK errors.
+- Use the existing friendly confirmation/destructive styling pattern.
+- Do not expose delete/cancel to non-owners.
+
+Scrolling audit:
+- Audit key mobile screens for unnecessary “tiny scroll” where the content visually fits but the page still scrolls slightly.
+- Optimize for iPhone 15 Pro viewport.
+- Fix accidental overflow caused by:
+  - min-height issues
+  - bottom nav padding
+  - top bar padding
+  - margins
+  - body/html overflow
+  - cards or containers exceeding viewport by a few pixels
+- Do not remove intentional scrolling from long pages.
+- Only fix screens where the page should not scroll but does.
+- Check at minimum:
+  - Home
+  - Profile
+  - Edit Availability
+  - Trip detail
+  - Friends
+  - Mountains
+  - Settings/Profile-related screens
+
+Testing requirements:
+- Test on mobile viewport approximating iPhone 15 Pro.
+- Verify Profile rows still navigate correctly.
+- Verify multiple availability dates/ranges can be selected and saved.
+- Verify Home bottom sheet lists all saved availability dates.
+- Verify save confirmation is less abrupt.
+- Verify owner can delete/cancel a trip if functionality exists or was added.
+- Verify non-owner cannot delete/cancel a trip.
+- Verify no accidental tiny-scroll on short screens.
+- Use checkpoints sparingly.
+
+Do not finish until you have fully tested the affected flows and confirmed there are no template errors, console errors, or broken routes.
