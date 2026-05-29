@@ -16544,5 +16544,205 @@ def admin_activation():
     )
 
 
+@app.route("/admin/retention")
+@login_required
+@admin_required
+def admin_retention():
+    """Retention Dashboard v1 — proxy metrics from last_active_at and existing models."""
+    from datetime import timedelta
+
+    now_dt     = datetime.utcnow()
+    one_ago    = now_dt - timedelta(days=1)
+    seven_ago  = now_dt - timedelta(days=7)
+    thirty_ago = now_dt - timedelta(days=30)
+    fourteen_ago = now_dt - timedelta(days=14)
+
+    # ── Base cohort ───────────────────────────────────────────────────────────
+    non_seeded = User.query.filter(User.is_seeded == False)
+
+    # ── Section 1: KPIs ──────────────────────────────────────────────────────
+    dau = non_seeded.filter(User.last_active_at >= one_ago).count()
+    wau = non_seeded.filter(User.last_active_at >= seven_ago).count()
+    mau = non_seeded.filter(User.last_active_at >= thirty_ago).count()
+
+    # Prior-period WAU (7-14 days ago)
+    prior_wau = non_seeded.filter(
+        User.last_active_at >= fourteen_ago,
+        User.last_active_at < seven_ago,
+    ).count()
+    wau_delta = wau - prior_wau
+
+    # Prior MAU: suppress if prior window likely has 0 (app < 60 days old)
+    oldest_user = db.session.query(db.func.min(User.created_at)).filter(User.is_seeded == False).scalar()
+    app_age_days = (now_dt - oldest_user).days if oldest_user else 0
+    suppress_mau_delta = app_age_days < 60
+
+    prior_mau = non_seeded.filter(
+        User.last_active_at >= (now_dt - timedelta(days=60)),
+        User.last_active_at < thirty_ago,
+    ).count() if not suppress_mau_delta else None
+
+    stickiness = round(dau / mau * 100) if mau else 0
+
+    returning_l30 = non_seeded.filter(
+        User.last_active_at >= thirty_ago,
+        User.created_at < thirty_ago,
+    ).count()
+
+    # ── Sparkline: 14-day daily active counts ────────────────────────────────
+    from collections import defaultdict
+    sparkline_raw = defaultdict(int)
+    rows = db.session.query(User.last_active_at).filter(
+        User.is_seeded == False,
+        User.last_active_at >= fourteen_ago,
+    ).all()
+    for (ts,) in rows:
+        if ts:
+            sparkline_raw[ts.strftime("%Y-%m-%d")] += 1
+    sparkline = []
+    for i in range(13, -1, -1):
+        day = (now_dt - timedelta(days=i)).strftime("%Y-%m-%d")
+        sparkline.append(sparkline_raw.get(day, 0))
+    spark_max = max(sparkline) if any(sparkline) else 1
+
+    kpis = dict(
+        dau=dau, wau=wau, mau=mau,
+        prior_wau=prior_wau, wau_delta=wau_delta,
+        prior_mau=prior_mau, suppress_mau_delta=suppress_mau_delta,
+        stickiness=stickiness,
+        returning_l30=returning_l30,
+        sparkline=sparkline, spark_max=spark_max,
+    )
+
+    # ── Section 2: D1/D7/D30 return rates ────────────────────────────────────
+    def _ret_window(days):
+        cutoff = now_dt - timedelta(days=days)
+        cohort = non_seeded.filter(User.created_at <= cutoff).count()
+        retained = non_seeded.filter(
+            User.created_at <= cutoff,
+            User.last_active_at >= (User.created_at + timedelta(days=days)),
+        ).count()
+        pct = round(retained / cohort * 100) if cohort else None
+        return dict(cohort=cohort, retained=retained, pct=pct, small_sample=cohort < 5)
+
+    return_rates = dict(d1=_ret_window(1), d7=_ret_window(7), d30=_ret_window(30))
+
+    # ── Section 4: Retention by behavior (D7 proxy) ───────────────────────────
+    def _behavior_ret(q):
+        cohort = q.count()
+        retained = q.filter(User.last_active_at >= User.created_at + timedelta(days=7)).count()
+        pct = round(retained / cohort * 100) if cohort else 0
+        return dict(users=cohort, retained=retained, pct=pct)
+
+    non_seeded_ids = db.session.query(User.id).filter(User.is_seeded == False)
+
+    has_friend_ids   = db.session.query(Friend.user_id.distinct()).filter(Friend.user_id.in_(non_seeded_ids))
+    has_trip_ids     = db.session.query(SkiTrip.user_id.distinct()).filter(SkiTrip.user_id.in_(non_seeded_ids))
+
+    # Availability: open_dates non-empty (canonical write target)
+    avail_rows = db.session.query(User.id, User.open_dates, User.created_at, User.last_active_at).filter(User.is_seeded == False).all()
+    wishlist_rows = db.session.query(User.id, User.wish_list_resorts, User.created_at, User.last_active_at).filter(User.is_seeded == False).all()
+    friend_id_set = {r[0] for r in has_friend_ids}
+    trip_id_set   = {r[0] for r in has_trip_ids}
+
+    def _seg_from_rows(rows):
+        """rows: list of (id, json_col, created_at, last_active_at)"""
+        cohort = retained = 0
+        for uid, jcol, cat, laa in rows:
+            try:
+                has_data = isinstance(jcol, list) and len(jcol) > 0
+            except Exception:
+                has_data = False
+            if has_data:
+                cohort += 1
+                if laa and cat and laa >= cat + timedelta(days=7):
+                    retained += 1
+        pct = round(retained / cohort * 100) if cohort else 0
+        return dict(users=cohort, retained=retained, pct=pct)
+
+    avail_seg    = _seg_from_rows(avail_rows)
+    wishlist_seg = _seg_from_rows(wishlist_rows)
+
+    # friend/trip segments via query
+    def _seg_from_id_set(id_set, all_rows):
+        cohort = retained = 0
+        for uid, _, cat, laa in all_rows:
+            if uid in id_set:
+                cohort += 1
+                if laa and cat and laa >= cat + timedelta(days=7):
+                    retained += 1
+        pct = round(retained / cohort * 100) if cohort else 0
+        return dict(users=cohort, retained=retained, pct=pct)
+
+    # all non-seeded rows for cross-referencing
+    all_ns_rows = db.session.query(User.id, User.open_dates, User.created_at, User.last_active_at).filter(User.is_seeded == False).all()
+
+    friend_seg   = _seg_from_id_set(friend_id_set, all_ns_rows)
+    trip_seg     = _seg_from_id_set(trip_id_set, all_ns_rows)
+
+    # Browse-only: not in any of the above sets, and no availability, no wishlist
+    avail_ids   = {uid for uid, jcol, _, _ in avail_rows if isinstance(jcol, list) and len(jcol) > 0}
+    wishlist_ids = {uid for uid, jcol, _, _ in wishlist_rows if isinstance(jcol, list) and len(jcol) > 0}
+    active_ids  = friend_id_set | trip_id_set | avail_ids | wishlist_ids
+    browse_cohort = retained_browse = 0
+    for uid, _, cat, laa in all_ns_rows:
+        if uid not in active_ids:
+            browse_cohort += 1
+            if laa and cat and laa >= cat + timedelta(days=7):
+                retained_browse += 1
+    browse_pct = round(retained_browse / browse_cohort * 100) if browse_cohort else 0
+    browse_seg = dict(users=browse_cohort, retained=retained_browse, pct=browse_pct)
+
+    by_behavior = [
+        dict(label="Has Friend",      **friend_seg),
+        dict(label="Has Trip",        **trip_seg),
+        dict(label="Has Availability",**avail_seg),
+        dict(label="Has Wishlist",    **wishlist_seg),
+        dict(label="Browse Only",     **browse_seg),
+    ]
+    beh_max_pct = max((r["pct"] for r in by_behavior), default=1) or 1
+
+    # ── Section 6: Biggest retention driver ──────────────────────────────────
+    action_segs = [r for r in by_behavior if r["label"] != "Browse Only"]
+    best_seg    = max(action_segs, key=lambda r: r["pct"]) if action_segs else None
+    driver = None
+    if best_seg and best_seg["pct"] > 0:
+        gap = best_seg["pct"] - browse_pct
+        if gap >= 5:
+            driver = dict(
+                label=best_seg["label"],
+                pct=best_seg["pct"],
+                browse_pct=browse_pct,
+                gap=gap,
+            )
+
+    # ── Section 7: Retention confidence context ───────────────────────────────
+    if app_age_days < 61:
+        confidence = "Low"
+    elif app_age_days < 181:
+        confidence = "Growing"
+    else:
+        confidence = "High"
+    oldest_user_display = oldest_user.strftime("%b %d, %Y") if oldest_user else "—"
+
+    status = dict(
+        app_age_days=app_age_days,
+        oldest_user=oldest_user_display,
+        confidence=confidence,
+    )
+
+    return render_template(
+        "admin_retention.html",
+        active_tab   = "retention",
+        now          = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        kpis         = kpis,
+        return_rates = return_rates,
+        by_behavior  = by_behavior,
+        beh_max_pct  = beh_max_pct,
+        driver       = driver,
+        status       = status,
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

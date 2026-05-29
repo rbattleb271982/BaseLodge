@@ -1,0 +1,373 @@
+PUT THIS IN AGENT
+
+#163 - Retention Dashboard v1
+
+What & Why
+
+Build a new admin page at /admin/retention focused on user return behavior, stickiness, and retention signals.
+
+This dashboard complements Activation.
+
+Activation answers:
+"Did users reach first value?"
+
+Retention answers:
+"Did users come back?"
+
+All data must come from existing production models.
+
+Do not add:
+- New database tables
+- New tracking columns
+- New analytics vendors
+- New event systems
+
+Use only existing production data.
+
+The pre-implementation audit has already been completed and approved.
+
+--------------------------------------------------
+AUDIT FINDINGS (APPROVED)
+--------------------------------------------------
+
+Production state:
+
+- 27 non-seeded users
+- Oldest signup: 2026-04-24
+
+last_active_at
+
+- 19 of 27 users populated
+- 8 users NULL
+- Written by existing heartbeat/login flows
+- Use as source of truth for activity
+
+login_count
+
+- Never incremented
+- Do not use
+
+Retention metrics are proxy-based on last_active_at.
+Display a caveat note on the page.
+
+--------------------------------------------------
+SECTION 1 — RETENTION KPIs
+--------------------------------------------------
+
+Create KPI cards for:
+
+1. DAU
+Formula:
+last_active_at >= NOW() - 1 day
+
+2. WAU
+Formula:
+last_active_at >= NOW() - 7 days
+
+3. MAU
+Formula:
+last_active_at >= NOW() - 30 days
+
+4. DAU / MAU
+Formula:
+DAU ÷ MAU × 100
+
+Display as %
+
+5. Returning L30
+
+Users active in last 30 days AND created_at < NOW() - 30 days
+
+Each KPI card should display:
+
+- Current value
+- Delta vs prior comparable period
+- Small sparkline
+- Short explanatory subtext
+
+WAU delta:
+Current 7-day window vs previous 7-day window
+
+MAU delta:
+Suppress delta if prior window = 0
+
+--------------------------------------------------
+SECTION 2 — RETURN RATES
+--------------------------------------------------
+
+Display:
+
+- D1 Retention
+- D7 Retention
+- D30 Retention
+
+Formula:
+
+Retained:
+last_active_at >= created_at + N days
+
+Cohort:
+created_at <= NOW() - N days
+
+Each card should show:
+
+- Retention %
+- Cohort size
+- Retained count
+
+D30:
+
+If cohort size < 5:
+
+Display small-sample warning:
+
+"Small sample size"
+
+Use italic helper text.
+
+--------------------------------------------------
+SECTION 3 — COHORT RETENTION
+--------------------------------------------------
+
+Build the section framework.
+
+Current state:
+
+Not enough cohort history exists.
+
+Render empty state:
+
+"Not enough cohort history yet. This section will populate as monthly cohorts accumulate."
+
+Still implement the framework so it auto-populates later without redesign.
+
+Section ID:
+
+#ret-cohort
+
+--------------------------------------------------
+SECTION 4 — WHAT DRIVES RETENTION?
+--------------------------------------------------
+
+Build retention-by-behavior table.
+
+Use D7 retention proxy.
+
+Rows:
+
+- Has Friend
+- Has Trip
+- Has Availability
+- Has Wishlist
+- Browse Only
+
+Columns:
+
+Behavior
+Users
+Retained
+D7 Rate
+Progress
+
+Source models:
+
+friend
+ski_trip
+user.open_dates
+user.wish_list_resorts
+
+Users may appear in multiple segments.
+
+Display as a comparison table.
+
+Do NOT display as a funnel.
+
+--------------------------------------------------
+SECTION 5 — SEASONAL RETURN
+--------------------------------------------------
+
+Build framework.
+
+Current state:
+
+No winter history exists.
+
+Render empty state:
+
+"Not enough seasonal history yet. BaseLodge launched April 2026. Seasonal return metrics will populate after a full winter season."
+
+Section ID:
+
+#ret-seasonal
+
+--------------------------------------------------
+SECTION 6 — BIGGEST RETENTION DRIVER
+--------------------------------------------------
+
+Create dynamic callout banner.
+
+Logic:
+
+Find highest D7 retention segment.
+
+Compare against browse-only users.
+
+Examples:
+
+"Users who add availability return at 40% vs 0% for browse-only users."
+
+If browse-only = 0:
+Use gap wording.
+
+Do NOT use infinity multipliers.
+
+Hide banner if:
+
+- All segments are 0%
+- Gap < 5 percentage points
+
+Style:
+
+Same bordeaux accent style used in Activation dashboard.
+
+Section ID:
+
+#ret-driver
+
+--------------------------------------------------
+SECTION 7 — RETENTION STATUS
+--------------------------------------------------
+
+Add a small informational card below KPI cards.
+
+Display:
+
+User Base Age
+35 days
+
+Oldest User
+Apr 24, 2026
+
+Retention Confidence
+
+Rules:
+
+0–60 days:
+Low
+
+61–180 days:
+Growing
+
+180+ days:
+High
+
+Purpose:
+
+Provide context for interpreting retention metrics and prevent over-reading small sample sizes.
+
+--------------------------------------------------
+TOP-OF-PAGE CAVEAT
+--------------------------------------------------
+
+Display note:
+
+"Retention metrics currently use production activity signals based on last_active_at. Session-level analytics are not yet implemented."
+
+Use same visual treatment as the Activation dashboard note.
+
+--------------------------------------------------
+NAVIGATION
+--------------------------------------------------
+
+Add Retention nav item to admin_console.html
+
+Position:
+
+Activation
+Retention
+Tools
+
+Include anchor sub-links:
+
+#ret-kpis
+#ret-return-rates
+#ret-cohort
+#ret-by-behavior
+#ret-seasonal
+#ret-driver
+
+Only modify navigation as required.
+
+--------------------------------------------------
+TEMPLATE
+--------------------------------------------------
+
+Create:
+
+templates/admin_retention.html
+
+Extend:
+
+admin_console.html
+
+Set:
+
+active_tab = 'retention'
+
+Reuse styling patterns from:
+
+- admin_growth.html
+- admin_activation.html
+
+Use:
+
+- ad-section
+- ad-card
+- ad-kpi-grid
+- gr-bar-wrap
+- gr-bar
+
+No charting libraries.
+
+Sparklines should be lightweight inline bar charts using HTML/CSS only.
+
+--------------------------------------------------
+MOBILE REQUIREMENTS
+--------------------------------------------------
+
+Must be fully usable on:
+
+iPhone 15
+
+Requirements:
+
+- KPI cards collapse cleanly
+- Tables do not break layout
+- Horizontal scroll only where absolutely necessary
+- No clipped text
+- No chart overflow
+- Empty-state messages remain readable
+
+--------------------------------------------------
+TESTING REQUIREMENTS
+--------------------------------------------------
+
+Before finishing:
+
+- Verify /admin/retention returns 200
+- Verify non-admin users cannot access
+- Verify sidebar highlighting works
+- Verify all anchor links work
+- Verify KPI cards render
+- Verify D1/D7/D30 render
+- Verify cohort empty state renders
+- Verify seasonal empty state renders
+- Verify behavior table renders
+- Verify retention-driver banner hides correctly when needed
+- Verify mobile layout using iPhone 15 viewport
+- Verify no console errors
+- Verify no template errors
+
+Do not finish until fully tested.
+
+Use checkpoints sparingly.

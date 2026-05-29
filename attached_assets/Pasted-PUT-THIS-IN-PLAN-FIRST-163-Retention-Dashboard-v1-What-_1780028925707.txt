@@ -1,0 +1,226 @@
+PUT THIS IN PLAN FIRST
+
+#163 - Retention Dashboard v1
+
+What & Why
+
+Build a new admin page at /admin/retention focused on user return behavior, stickiness, and cohort health.
+
+Activation tells us whether users reached value.
+Retention tells us whether they came back.
+
+For BaseLodge, retention must account for seasonality. Traditional SaaS retention metrics are useful, but they are not the entire story because skiing and trip planning naturally peak during winter.
+
+Use existing production data only.
+Do not add new analytics vendors.
+Do not add new database tables.
+
+Done looks like
+
+- New admin page at /admin/retention
+- New sidebar navigation item "Retention"
+- Positioned between Activation and Network
+- Extends existing admin console shell
+- Matches current admin styling patterns
+- Works on desktop and iPhone 15
+- No changes to existing dashboard pages
+
+--------------------------------------------------
+SECTION 1 — RETENTION KPIs
+--------------------------------------------------
+
+Display KPI cards:
+
+1. DAU
+Daily Active Users
+
+2. WAU
+Weekly Active Users
+
+3. MAU
+Monthly Active Users
+
+4. DAU / MAU
+Stickiness ratio
+
+Formula:
+DAU ÷ MAU
+
+Display as %
+
+5. Returning Users L30
+
+Users active this month who were also active in a prior month
+
+Each KPI card should include:
+
+- Current value
+- Delta vs prior comparable period
+- Small sparkline
+- Short explanatory subtext
+
+--------------------------------------------------
+SECTION 2 — RETURN RATES
+--------------------------------------------------
+
+Display:
+
+- D1 Retention
+- D7 Retention
+- D30 Retention
+
+Each card should show:
+
+- Current %
+- Prior %
+- Delta
+
+If exact retention windows cannot be calculated reliably from existing production data, output:
+
+"Data not yet available"
+
+Do not fabricate values.
+
+--------------------------------------------------
+SECTION 3 — COHORT RETENTION
+--------------------------------------------------
+
+Create a monthly cohort heatmap.
+
+Rows:
+
+Jan 2026
+Feb 2026
+Mar 2026
+etc.
+
+Columns:
+
+M0
+M1
+M2
+M3
+M4
+M5
+
+Use a color scale:
+
+Darker = weaker retention
+Brighter = stronger retention
+
+If insufficient production history exists, render the section with an informative empty-state message.
+
+--------------------------------------------------
+SECTION 4 — WHAT DRIVES RETENTION?
+--------------------------------------------------
+
+Create a comparison table showing retention by behavior.
+
+Example:
+
+Behavior | Retention
+Added Friend | X%
+Created Trip | X%
+Added Availability | X%
+Added Wishlist | X%
+Browsed Only | X%
+
+Use existing production data only.
+
+This section should help answer:
+
+"What actions predict future engagement?"
+
+--------------------------------------------------
+SECTION 5 — SEASONAL RETURN
+--------------------------------------------------
+
+BaseLodge-specific.
+
+Create a section for seasonal retention.
+
+Examples:
+
+Winter 2025 Users
+→ Returned Winter 2026
+
+Winter 2024 Users
+→ Returned Winter 2025
+
+If there is insufficient historical data, render:
+
+"Not enough seasonal history yet"
+
+Still build the section framework.
+
+--------------------------------------------------
+SECTION 6 — BIGGEST RETENTION DRIVER
+--------------------------------------------------
+
+Create an automated callout banner.
+
+Examples:
+
+"Users with 3+ friends retain 2.8x better."
+
+"Trip creators retain 3.1x better."
+
+"Users who add availability retain 1.9x better."
+
+Calculate dynamically using available production data.
+
+If insufficient data exists, hide the banner.
+
+--------------------------------------------------
+MOBILE REQUIREMENTS
+--------------------------------------------------
+
+Must be readable on iPhone 15.
+
+Requirements:
+
+- KPI cards collapse cleanly
+- Heatmap remains usable
+- No clipped content
+- No broken tables
+- No chart overflow
+- Horizontal scrolling allowed only for heatmap if necessary
+
+--------------------------------------------------
+OUT OF SCOPE
+--------------------------------------------------
+
+- New analytics vendors
+- New database tables
+- Push analytics
+- Messaging metrics
+- Resort metrics
+- New tracking infrastructure
+
+Use existing production data only.
+
+--------------------------------------------------
+RELEVANT FILES
+--------------------------------------------------
+
+app.py
+models.py
+templates/admin_console.html
+templates/admin_dashboard.html
+templates/admin_growth.html
+templates/admin_activation.html
+
+--------------------------------------------------
+DELIVERABLE BEFORE IMPLEMENTATION
+--------------------------------------------------
+
+Before writing code:
+
+1. Identify which metrics can be calculated today from existing production data.
+2. Identify which metrics cannot yet be calculated reliably.
+3. Propose exact formulas and source models for every KPI.
+4. Present findings for approval.
+
+Do not begin implementation until the audit is complete.
+
+Use checkpoints sparingly.
