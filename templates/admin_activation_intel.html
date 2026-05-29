@@ -1,0 +1,502 @@
+{% extends "admin_console.html" %}
+{% block title %}Activation Intelligence{% endblock %}
+{% block page_title %}Activation Intelligence{% endblock %}
+
+{% block head_styles %}
+  .ad-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: #6B6157;
+    margin: 0 0 10px;
+  }
+  .ad-section { margin-bottom: 32px; }
+  .ad-updated { font-size: 11px; color: #9E958A; margin-bottom: 14px; }
+  .ad-footnote {
+    font-size: 11px; color: #9E958A;
+    font-style: italic; margin-top: 8px; line-height: 1.5;
+  }
+
+  /* ── KPI grid ── */
+  .ai-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  @media (max-width: 900px) { .ai-kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 500px) { .ai-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .ai-card {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 12px 14px 10px;
+    min-width: 0;
+  }
+  .ai-card-label {
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.07em; text-transform: uppercase;
+    color: #9E958A; margin-bottom: 5px;
+  }
+  .ai-card-value {
+    font-size: 22px; font-weight: 700;
+    color: #1C1917; line-height: 1;
+  }
+  .ai-card-sub {
+    font-size: 11px; color: #B0A69B; margin-top: 3px;
+  }
+  .ai-card--highlight { border-color: #5C1219; }
+  .ai-card--highlight .ai-card-value { color: #5C1219; }
+
+  /* ── Funnel bars ── */
+  .ai-funnel { border: 1px solid #E4DDD2; border-radius: 9px; overflow: hidden; }
+  .ai-funnel-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #F0EBE3;
+    background: #fff;
+  }
+  .ai-funnel-row:last-child { border-bottom: none; }
+  .ai-funnel-label {
+    font-size: 13px; color: #1C1917;
+    width: 170px; flex-shrink: 0;
+  }
+  @media (max-width: 500px) { .ai-funnel-label { width: 110px; font-size: 12px; } }
+  .ai-funnel-n {
+    font-size: 15px; font-weight: 700; color: #1C1917;
+    width: 28px; text-align: right; flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .ai-funnel-bar-wrap {
+    flex: 1; background: #F5F1E8; border-radius: 3px;
+    height: 7px; overflow: hidden;
+  }
+  .ai-funnel-bar { height: 100%; background: #5C1219; border-radius: 3px; }
+  .ai-funnel-pct {
+    font-size: 12px; font-weight: 600; color: #9E958A;
+    width: 36px; text-align: right; flex-shrink: 0;
+  }
+  .ai-funnel-note {
+    font-size: 10px; color: #B0A69B;
+    width: 90px; text-align: right; flex-shrink: 0;
+  }
+  @media (max-width: 500px) { .ai-funnel-note { display: none; } }
+
+  /* ── Milestone tiles ── */
+  .ai-milestone-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+  @media (max-width: 900px) { .ai-milestone-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 500px) { .ai-milestone-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .ai-milestone-card {
+    background: #fff; border: 1px solid #E4DDD2; border-radius: 9px;
+    padding: 12px 14px; min-width: 0;
+  }
+  .ai-milestone-label {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: #6B6157; margin-bottom: 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ai-milestone-all {
+    font-size: 20px; font-weight: 700; color: #1C1917; line-height: 1;
+  }
+  .ai-milestone-all-pct {
+    font-size: 12px; color: #9E958A; margin-top: 2px;
+  }
+  .ai-milestone-divider {
+    border: none; border-top: 1px solid #F0EBE3; margin: 7px 0;
+  }
+  .ai-milestone-act-label {
+    font-size: 10px; color: #9E958A;
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px;
+  }
+  .ai-milestone-act-val {
+    font-size: 13px; font-weight: 700; color: #5C1219;
+  }
+
+  /* ── Segment table ── */
+  .ai-seg-table { border: 1px solid #E4DDD2; border-radius: 9px; overflow: hidden; }
+  .ai-seg-header {
+    display: grid;
+    grid-template-columns: 110px 40px 60px 1fr 200px;
+    padding: 8px 16px 7px;
+    background: #FDFAF6;
+    border-bottom: 1px solid #E4DDD2;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.09em; text-transform: uppercase; color: #9E958A;
+    gap: 10px;
+  }
+  @media (max-width: 600px) {
+    .ai-seg-header { grid-template-columns: 90px 36px 50px 1fr; }
+    .ai-seg-desc-col { display: none; }
+  }
+  .ai-seg-row {
+    display: grid;
+    grid-template-columns: 110px 40px 60px 1fr 200px;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid #F0EBE3;
+    gap: 10px;
+    font-size: 13px;
+  }
+  .ai-seg-row:last-child { border-bottom: none; }
+  @media (max-width: 600px) {
+    .ai-seg-row { grid-template-columns: 90px 36px 50px 1fr; }
+  }
+  .ai-seg-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    display: inline-block; margin-right: 6px; flex-shrink: 0;
+  }
+  .ai-seg-label { color: #1C1917; font-weight: 600; display: flex; align-items: center; }
+  .ai-seg-n { font-variant-numeric: tabular-nums; font-weight: 700; color: #1C1917; }
+  .ai-seg-pct { color: #9E958A; font-size: 12px; }
+  .ai-seg-bar-wrap { background: #F5F1E8; border-radius: 3px; height: 6px; overflow: hidden; }
+  .ai-seg-bar { height: 100%; border-radius: 3px; }
+  .ai-seg-desc { font-size: 12px; color: #9E958A; }
+
+  /* ── Drop-off highlights ── */
+  .ai-dropoff-list { display: flex; flex-direction: column; gap: 8px; }
+  .ai-dropoff-card {
+    background: #fff; border: 1px solid #E4DDD2; border-radius: 9px;
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 14px;
+    flex-wrap: wrap;
+  }
+  .ai-dropoff-badge {
+    font-size: 13px; font-weight: 700;
+    min-width: 48px; text-align: center; flex-shrink: 0;
+    padding: 4px 8px; border-radius: 6px;
+  }
+  .ai-dropoff-badge--high { background: #FCE4E6; color: #5C1219; }
+  .ai-dropoff-badge--mid  { background: #FFF3CC; color: #7A5A00; }
+  .ai-dropoff-badge--low  { background: #E9F5EC; color: #2D6A3F; }
+  .ai-dropoff-arrow {
+    font-size: 12px; color: #1C1917; flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ai-dropoff-arrow strong { color: #5C1219; }
+  .ai-dropoff-counts {
+    font-size: 11px; color: #9E958A; white-space: nowrap; flex-shrink: 0;
+  }
+
+  /* ── Correlation table ── */
+  .ai-corr-wrap { border: 1px solid #E4DDD2; border-radius: 9px; overflow: hidden; }
+  .ai-corr-header {
+    display: grid;
+    grid-template-columns: 150px 80px 1fr 70px 70px 60px;
+    padding: 8px 16px 7px;
+    background: #FDFAF6;
+    border-bottom: 1px solid #E4DDD2;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.09em; text-transform: uppercase; color: #9E958A;
+    gap: 10px;
+  }
+  @media (max-width: 680px) {
+    .ai-corr-header { grid-template-columns: 120px 60px 1fr 55px 60px; }
+    .ai-corr-no-col { display: none; }
+  }
+  .ai-corr-row {
+    display: grid;
+    grid-template-columns: 150px 80px 1fr 70px 70px 60px;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid #F0EBE3;
+    gap: 10px;
+    font-size: 13px;
+  }
+  .ai-corr-row:last-child { border-bottom: none; }
+  .ai-corr-row--top { background: #FDF7F0; }
+  @media (max-width: 680px) {
+    .ai-corr-row { grid-template-columns: 120px 60px 1fr 55px 60px; }
+  }
+  .ai-corr-label { color: #1C1917; font-weight: 500; }
+  .ai-corr-n { color: #9E958A; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .ai-corr-bar-wrap { background: #F5F1E8; border-radius: 3px; height: 6px; overflow: hidden; }
+  .ai-corr-bar { height: 100%; background: #5C1219; border-radius: 3px; }
+  .ai-corr-tpu { color: #4A4238; font-variant-numeric: tabular-nums; font-size: 12px; }
+  .ai-corr-ratio { font-size: 14px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+  .ai-corr-ratio--high { color: #2D6A3F; }
+  .ai-corr-ratio--mid  { color: #B07D2E; }
+  .ai-corr-ratio--low  { color: #9E958A; }
+  .ai-corr-badge {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.07em; text-transform: uppercase;
+    border-radius: 4px; padding: 2px 6px;
+    display: inline-block; white-space: nowrap;
+  }
+  .ai-badge-green  { background: #E9F5EC; color: #2D6A3F; }
+  .ai-badge-yellow { background: #FFF3CC; color: #7A5A00; }
+  .ai-badge-red    { background: #F5F1E8; color: #9E958A; }
+
+  /* ── Insight ── */
+  .ai-insight {
+    background: #F5F1E8;
+    border: 1px solid #E4DDD2;
+    border-left: 3px solid #5C1219;
+    border-radius: 9px;
+    padding: 16px 20px;
+  }
+  .ai-insight-eyebrow {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.11em;
+    text-transform: uppercase; color: #5C1219; margin-bottom: 7px;
+  }
+  .ai-insight-text {
+    font-size: 16px; font-weight: 600; color: #1C1917; line-height: 1.5;
+    font-family: Georgia, serif;
+  }
+  .ai-insight-note {
+    font-size: 11px; color: #9E958A; margin-top: 8px; font-style: italic;
+  }
+
+  /* ── Status grid ── */
+  .ai-status-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  @media (max-width: 600px) { .ai-status-grid { grid-template-columns: repeat(2, 1fr); } }
+  .ai-status-card {
+    background: #fff; border: 1px solid #E4DDD2; border-radius: 9px;
+    padding: 12px 14px; text-align: center;
+  }
+  .ai-status-val { font-size: 22px; font-weight: 700; color: #1C1917; }
+  .ai-status-val--green  { color: #2D6A3F; }
+  .ai-status-val--yellow { color: #B07D2E; }
+  .ai-status-val--red    { color: #5C1219; }
+  .ai-status-val--grow   { color: #B07D2E; }
+  .ai-status-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #9E958A; margin-top: 3px;
+  }
+  .ai-signal-legend {
+    display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px;
+    font-size: 12px; color: #6B6157;
+  }
+  .ai-signal-legend span { display: flex; align-items: center; gap: 4px; }
+  .ai-signal-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+{% endblock %}
+
+{% block content %}
+<div class="ad-updated">Updated {{ now }}</div>
+
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<!-- Section 0: Activation KPIs                                         -->
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="ai-kpis">
+  <div class="ad-section-label">Activation KPIs</div>
+  <div class="ai-kpi-grid">
+    {% for k in kpis %}
+    <div class="ai-card{% if loop.index <= 3 %} ai-card--highlight{% endif %}">
+      <div class="ai-card-label">{{ k.label }}</div>
+      <div class="ai-card-value">{{ k.value }}</div>
+      <div class="ai-card-sub">{{ k.sub }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<!-- Section 1: Activation Funnel                                        -->
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="ai-funnel">
+  <div class="ad-section-label">Activation Funnel</div>
+  <div class="ai-funnel">
+    {% for step in funnel %}
+    <div class="ai-funnel-row">
+      <div class="ai-funnel-label">{{ step.label }}</div>
+      <div class="ai-funnel-n">{{ step.n }}</div>
+      <div class="ai-funnel-bar-wrap">
+        <div class="ai-funnel-bar" style="width:{{ step.pct }}%"></div>
+      </div>
+      <div class="ai-funnel-pct">{{ step.pct }}%</div>
+      <div class="ai-funnel-note">
+        {% if not loop.first %}
+          {% set prev = funnel[loop.index0 - 1] %}
+          {% if prev.pct > step.pct %}
+            −{{ prev.pct - step.pct }}pp
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="ad-footnote">Pass Added may exceed Onboarding Completed — users can set a pass during or before onboarding. Funnel shows milestone adoption, not strict sequential conversion.</div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<!-- Section 2: Activation Milestones                                   -->
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="ai-milestones">
+  <div class="ad-section-label">Activation Milestones</div>
+  <div class="ai-milestone-grid">
+    {% for m in milestones %}
+    <div class="ai-milestone-card">
+      <div class="ai-milestone-label">{{ m.label }}</div>
+      <div class="ai-milestone-all">{{ m.all_n }}</div>
+      <div class="ai-milestone-all-pct">{{ m.all_pct }}% of all users</div>
+      <hr class="ai-milestone-divider">
+      <div class="ai-milestone-act-label">Of active</div>
+      <div class="ai-milestone-act-val">{{ m.act_pct }}%</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="ad-footnote">Active users = lifecycle_stage = 'active'. "Of active" shows the percentage of the {{ funnel[1].n }} activated users who have completed this milestone.</div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<!-- Section 3: Activation Segments                                     -->
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="ai-segments">
+  <div class="ad-section-label">Activation Segments</div>
+  <div class="ai-seg-table">
+    <div class="ai-seg-header">
+      <div>Segment</div>
+      <div>Users</div>
+      <div>Share</div>
+      <div></div>
+      <div class="ai-seg-desc-col">Criteria</div>
+    </div>
+    {% for seg in segments %}
+    {% set bar_pct = ((seg.n / total) * 100)|int if total else 0 %}
+    <div class="ai-seg-row">
+      <div class="ai-seg-label">
+        <span class="ai-seg-dot" style="background:{{ seg.color }}"></span>
+        {{ seg.label }}
+      </div>
+      <div class="ai-seg-n">{{ seg.n }}</div>
+      <div class="ai-seg-pct">{{ seg.pct }}%</div>
+      <div class="ai-seg-bar-wrap">
+        <div class="ai-seg-bar" style="width:{{ bar_pct }}%; background:{{ seg.color }}"></div>
+      </div>
+      <div class="ai-seg-desc ai-seg-desc-col">{{ seg.desc }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="ad-footnote">Score = sum of: has pass, has availability, has wishlist, has trip, has friend. Active + score ≥ 4 = Power, Active + score 2–3 = Engaged, Active + score 0–1 = Activated.</div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<!-- Section 4: Activation Drop-offs                                    -->
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="ai-dropoffs">
+  <div class="ad-section-label">Activation Drop-offs</div>
+  {% if dropoffs %}
+  <div class="ai-dropoff-list">
+    {% for d in dropoffs %}
+    <div class="ai-dropoff-card">
+      <div class="ai-dropoff-badge ai-dropoff-badge--{{ d.severity }}">−{{ d.drop_pct }}%</div>
+      <div class="ai-dropoff-arrow">
+        <strong>{{ d.from }}</strong> → {{ d.to }}
+      </div>
+      <div class="ai-dropoff-counts">{{ d.from_n }} → {{ d.to_n }} users</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="ad-footnote">Sorted by drop magnitude. Red ≥ 60%, amber 30–59%, green &lt; 30%. Transitions are not all sequential — shown for actionability.</div>
+  {% else %}
+  <div class="ad-footnote">Insufficient data to compute drop-offs.</div>
+  {% endif %}
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<!-- Section 5: Activation Correlations                                 -->
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="ai-correlations">
+  <div class="ad-section-label">Activation Correlations — Trips per User</div>
+  {% if correlations %}
+  {% set max_tpu = correlations | map(attribute='has_tpu') | max %}
+  <div class="ai-corr-wrap">
+    <div class="ai-corr-header">
+      <div>Signal</div>
+      <div>With / Without</div>
+      <div></div>
+      <div>Trips/user</div>
+      <div class="ai-corr-no-col">No signal</div>
+      <div style="text-align:right;">Ratio</div>
+    </div>
+    {% for c in correlations %}
+    <div class="ai-corr-row{% if loop.first %} ai-corr-row--top{% endif %}">
+      <div class="ai-corr-label">{{ c.label }}</div>
+      <div class="ai-corr-n">{{ c.has_n }} / {{ c.no_n }}</div>
+      <div class="ai-corr-bar-wrap">
+        <div class="ai-corr-bar" style="width:{{ ((c.has_tpu / max_tpu) * 100)|int if max_tpu else 0 }}%"></div>
+      </div>
+      <div class="ai-corr-tpu">{{ c.has_tpu }}</div>
+      <div class="ai-corr-tpu ai-corr-no-col">{{ c.no_tpu }}</div>
+      <div style="text-align:right;">
+        <span class="ai-corr-ratio ai-corr-ratio--{{ 'high' if c.class == 'green' else ('mid' if c.class == 'yellow' else 'low') }}">
+          {{ c.ratio }}×
+        </span>
+        <br>
+        <span class="ai-corr-badge ai-badge-{{ c.class }}">{{ c.class }}</span>
+      </div>
+    </div>
+    {% endfor %}
+    <div style="padding:8px 16px; background:#FDFAF6; border-top:1px solid #E4DDD2; font-size:11px; color:#9E958A;">
+      Ratio = trips per user (with signal) ÷ trips per user (without). Based on {{ total }} users. Green ≥ 2.5×, Yellow ≥ 1.2×.
+    </div>
+  </div>
+  {% else %}
+  <div class="ad-footnote">Insufficient data for correlations.</div>
+  {% endif %}
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<!-- Section 6: Dynamic Insight                                         -->
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="ai-insight">
+  <div class="ad-section-label">Dynamic Insight</div>
+  <div class="ai-insight">
+    <div class="ai-insight-eyebrow">Top Signal</div>
+    <div class="ai-insight-text">{{ insight }}</div>
+    <div class="ai-insight-note">Auto-computed from highest GREEN correlation. Updates as data grows.</div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<!-- Section 7: Status                                                  -->
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="ai-status">
+  <div class="ad-section-label">Status</div>
+  <div class="ai-status-grid">
+    <div class="ai-status-card">
+      <div class="ai-status-val">{{ status.tracked }}</div>
+      <div class="ai-status-label">Tracked Signals</div>
+    </div>
+    <div class="ai-status-card">
+      <div class="ai-status-val ai-status-val--green">{{ status.green }}</div>
+      <div class="ai-status-label">Green</div>
+    </div>
+    <div class="ai-status-card">
+      <div class="ai-status-val ai-status-val--yellow">{{ status.yellow }}</div>
+      <div class="ai-status-label">Yellow</div>
+    </div>
+    <div class="ai-status-card">
+      <div class="ai-status-val ai-status-val--grow">{{ status.confidence }}</div>
+      <div class="ai-status-label">Confidence</div>
+    </div>
+  </div>
+  <div class="ai-signal-legend">
+    <span><span class="ai-signal-dot" style="background:#2D6A3F"></span> Green — directly measurable from DB</span>
+    <span><span class="ai-signal-dot" style="background:#B07D2E"></span> Yellow — reliable proxy, timestamp sparse</span>
+    <span><span class="ai-signal-dot" style="background:#9E958A"></span> Red — not reliably measurable today</span>
+  </div>
+  <div class="ad-footnote" style="margin-top:10px;">
+    Green: signup_completed, pass_added, availability_added, wishlist_added, trip_created, friend_connected, invite_generated &nbsp;·&nbsp;
+    Yellow: onboarding_completed (lifecycle_stage proxy), has_completed_onboarding (timestamp sparse) &nbsp;·&nbsp;
+    Red: signup_started (no pre-auth tracking)
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,264 @@
+PUT THIS IN PLAN FIRST
+
+#170 - Activation Intelligence v1
+
+What & Why
+
+BaseLodge now has:
+
+* Working PostHog server delivery
+* Activation events instrumented
+* PostHog user property backfill completed
+* Messaging Intelligence completed
+* User Intelligence completed
+
+We need a single place to understand how users move from signup to activation.
+
+Goal:
+
+Answer:
+
+* Where do users drop off?
+* Which activation steps are most commonly completed?
+* Which activation steps are being skipped?
+* How many users become active?
+* Which activation milestones correlate with trips and friendships?
+* Is activation improving over time?
+
+Use existing production data only.
+
+Do not add:
+
+* New analytics vendors
+* New databases
+* New tracking systems
+* New models
+* New migrations
+
+Reuse existing PostHog and BaseLodge user-state data.
+
+Before implementation, perform a feasibility audit.
+
+---
+
+## PHASE 1 — FEASIBILITY AUDIT
+
+Audit all activation signals.
+
+Inspect:
+
+1. signup_started
+2. signup_completed
+3. onboarding_completed
+4. pass_added
+5. availability_added
+6. wishlist_added
+7. trip_created
+8. friend_connected
+9. invite_generated
+
+Also inspect user-state properties:
+
+* has_completed_signup
+* has_completed_onboarding
+* has_pass
+* has_availability
+* has_wishlist
+* has_trip
+* has_friend_connection
+* has_generated_invite
+
+For each signal classify:
+
+GREEN
+Directly measurable today
+
+YELLOW
+Approximation available
+
+RED
+Not reliably measurable
+
+Provide:
+
+* Source
+* Query approach
+* Current counts
+* Data quality concerns
+* Recommendation
+
+Do not build until audit is complete.
+
+---
+
+## SECTION 0 — ACTIVATION KPIs
+
+Recommend reliable KPIs.
+
+Potential examples:
+
+* Total Users
+* Activated Users
+* Activation Rate
+* Onboarding Completion Rate
+* Pass Adoption Rate
+* Availability Adoption Rate
+* Wishlist Adoption Rate
+* Trip Creation Rate
+* Friend Connection Rate
+
+Recommend only those supported by production data.
+
+---
+
+## SECTION 1 — ACTIVATION FUNNEL
+
+Audit feasibility of:
+
+Signup Started
+↓
+Signup Completed
+↓
+Onboarding Completed
+↓
+Pass Added
+↓
+Availability Added
+↓
+Wishlist Added
+↓
+Trip Created
+↓
+Friend Connected
+
+Recommend:
+
+* Funnel methodology
+* Data source
+* Confidence level
+* Thresholds
+
+---
+
+## SECTION 2 — ACTIVATION MILESTONES
+
+Recommend milestone cards.
+
+Examples:
+
+* Users With Pass
+* Users With Availability
+* Users With Wishlist
+* Users With Trip
+* Users With Friends
+
+Identify which are strongest indicators of activation.
+
+---
+
+## SECTION 3 — ACTIVATION SEGMENTS
+
+Audit whether users can be grouped into:
+
+* New
+* Onboarding
+* Activated
+* Engaged
+* Power Users
+
+Identify exact criteria.
+
+---
+
+## SECTION 4 — ACTIVATION DROP-OFFS
+
+Recommend where to measure drop-off.
+
+Examples:
+
+* Signup → Onboarding
+* Onboarding → Pass
+* Pass → Availability
+* Availability → Wishlist
+* Wishlist → Trip
+* Trip → Friend
+
+Recommend the most meaningful transitions.
+
+---
+
+## SECTION 5 — ACTIVATION CORRELATIONS
+
+Determine whether we can reliably answer:
+
+* Do users with passes create more trips?
+* Do users with availability create more trips?
+* Do users with friends create more trips?
+* Do users who generate invites become more active?
+
+Classify GREEN / YELLOW / RED.
+
+---
+
+## SECTION 6 — ACTIVATION INSIGHT
+
+Recommend a dynamic insight.
+
+Examples:
+
+"82% of active users have added a pass."
+
+"Users with friends create 3x more trips."
+
+"Availability is the largest activation drop-off."
+
+Only recommend insights supported by current data.
+
+---
+
+## SECTION 7 — STATUS
+
+Display:
+
+* Tracked Signals
+* Reliable Signals
+* Data Confidence
+
+Confidence:
+
+Low
+Growing
+High
+
+---
+
+## MOBILE REQUIREMENTS
+
+Must work on:
+
+* iPhone 15 Pro
+
+---
+
+## DELIVERABLE BEFORE BUILDING
+
+Provide:
+
+1. Full feasibility audit
+2. GREEN / YELLOW / RED classification
+3. Recommended KPIs
+4. Recommended activation funnel
+5. Recommended activation segments
+6. Recommended dynamic insight
+7. Recommended implementation approach
+
+STOP AFTER THE AUDIT.
+
+Do not create routes.
+Do not modify templates.
+Do not add models.
+Do not add migrations.
+
+Wait for approval before implementation.
+
+Use checkpoints sparingly.

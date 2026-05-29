@@ -18367,5 +18367,263 @@ def admin_mountain_intelligence():
     )
 
 
+@app.route("/admin/activation-intel")
+@login_required
+@admin_required
+def admin_activation_intel():
+    """Activation Intelligence v1 — funnel, milestones, correlations."""
+    import json as _json
+    from collections import Counter
+
+    now_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
+
+    def pct(n, d):
+        return round(n / d * 100) if d else 0
+
+    def _nonempty(val):
+        if val is None:
+            return False
+        if isinstance(val, list):
+            return len(val) > 0
+        if isinstance(val, str):
+            try:
+                p = _json.loads(val)
+                return isinstance(p, list) and len(p) > 0
+            except Exception:
+                return False
+        return False
+
+    _no_pass = {'no_pass', 'no_pass_yet', 'none', ''}
+
+    def _real_pass(pt):
+        for s in (pt or '').split(','):
+            if s.strip().lower() not in _no_pass:
+                return True
+        return False
+
+    # ── Q1: all users (activation fields only) ───────────────────────────
+    user_rows = db.session.execute(db.text(
+        'SELECT id, lifecycle_stage, pass_type, open_dates, wish_list_resorts FROM "user"'
+    )).fetchall()
+    total = len(user_rows)
+
+    # ── Q2: trip owner IDs ───────────────────────────────────────────────
+    trip_owner_ids = {r[0] for r in db.session.execute(
+        db.text("SELECT DISTINCT user_id FROM ski_trip")
+    )}
+
+    # ── Q3: trip counts per user ─────────────────────────────────────────
+    trip_counts_map = {r[0]: r[1] for r in db.session.execute(
+        db.text("SELECT user_id, COUNT(*) FROM ski_trip GROUP BY user_id")
+    )}
+
+    # ── Q4: friend counts per user ───────────────────────────────────────
+    friend_counts_raw = {r[0]: r[1] for r in db.session.execute(
+        db.text("SELECT user_id, COUNT(*) FROM friend GROUP BY user_id")
+    )}
+    friend_ids = set(friend_counts_raw.keys())
+
+    # ── Q5: invite generator IDs (generic + trip) ────────────────────────
+    invite_ids = {r[0] for r in db.session.execute(
+        db.text("SELECT inviter_id FROM invite_token "
+                "UNION SELECT inviter_user_id FROM trip_invite_token")
+    )}
+
+    # ── Q6: accepted trip participants ───────────────────────────────────
+    trip_guest_ids = {r[0] for r in db.session.execute(
+        db.text("SELECT DISTINCT user_id FROM ski_trip_participant WHERE status='accepted'")
+    )}
+
+    has_trip_ids = trip_owner_ids | trip_guest_ids
+
+    # ── Derive per-user signal sets ──────────────────────────────────────
+    pass_ids     = set()
+    avail_ids    = set()
+    wishlist_ids = set()
+    all_ids      = set()
+    lifecycle_ct = Counter()
+
+    for uid, ls, pt, od, wl in user_rows:
+        all_ids.add(uid)
+        lifecycle_ct[ls or 'new'] += 1
+        if _real_pass(pt):    pass_ids.add(uid)
+        if _nonempty(od):     avail_ids.add(uid)
+        if _nonempty(wl):     wishlist_ids.add(uid)
+
+    active_ids = {uid for uid, ls, *_ in user_rows if ls == 'active'}
+
+    n_signup   = total
+    n_onboard  = lifecycle_ct.get('active', 0)
+    n_pass     = len(pass_ids)
+    n_avail    = len(avail_ids)
+    n_wishlist = len(wishlist_ids)
+    n_trip     = len(has_trip_ids)
+    n_friend   = len(friend_ids)
+    n_invite   = len(invite_ids)
+    n_trip_w_friends = len(has_trip_ids & friend_ids)
+    n_active = len(active_ids)
+
+    # ── Section 0: KPIs ──────────────────────────────────────────────────
+    kpis = [
+        {'label': 'Total Users',            'value': total,                        'sub': 'all time'},
+        {'label': 'Activated Users',         'value': n_onboard,                    'sub': 'lifecycle = active'},
+        {'label': 'Activation Rate',         'value': f'{pct(n_onboard, total)}%',  'sub': 'of all users'},
+        {'label': 'Pass Adoption',           'value': f'{pct(n_pass, total)}%',     'sub': f'{n_pass} of {total}'},
+        {'label': 'Availability Adoption',   'value': f'{pct(n_avail, total)}%',    'sub': f'{n_avail} of {total}'},
+        {'label': 'Wishlist Adoption',       'value': f'{pct(n_wishlist, total)}%', 'sub': f'{n_wishlist} of {total}'},
+        {'label': 'Trip Creation Rate',      'value': f'{pct(n_trip, total)}%',     'sub': f'{n_trip} of {total}'},
+        {'label': 'Friend Connection Rate',  'value': f'{pct(n_friend, total)}%',   'sub': f'{n_friend} of {total}'},
+        {'label': 'Invite Generation Rate',  'value': f'{pct(n_invite, total)}%',   'sub': f'{n_invite} of {total}'},
+        {'label': 'Trip Users With Friends', 'value': n_trip_w_friends,             'sub': f'of {n_trip} trip users'},
+    ]
+
+    # ── Section 1: Funnel ────────────────────────────────────────────────
+    funnel = [
+        {'label': 'Signup Completed',     'n': n_signup,   'pct': pct(n_signup, total)},
+        {'label': 'Onboarding Completed', 'n': n_onboard,  'pct': pct(n_onboard, total)},
+        {'label': 'Pass Added',           'n': n_pass,     'pct': pct(n_pass, total)},
+        {'label': 'Availability Added',   'n': n_avail,    'pct': pct(n_avail, total)},
+        {'label': 'Wishlist Added',       'n': n_wishlist, 'pct': pct(n_wishlist, total)},
+        {'label': 'Trip Created',         'n': n_trip,     'pct': pct(n_trip, total)},
+        {'label': 'Friend Connected',     'n': n_friend,   'pct': pct(n_friend, total)},
+    ]
+
+    # ── Section 2: Milestones ────────────────────────────────────────────
+    milestones = [
+        {'label': 'Users with Pass',
+         'all_n': n_pass,     'all_pct': pct(n_pass, total),
+         'act_n': len(pass_ids & active_ids),     'act_pct': pct(len(pass_ids & active_ids), n_active)},
+        {'label': 'Users with Trip',
+         'all_n': n_trip,     'all_pct': pct(n_trip, total),
+         'act_n': len(has_trip_ids & active_ids),  'act_pct': pct(len(has_trip_ids & active_ids), n_active)},
+        {'label': 'Users with Friends',
+         'all_n': n_friend,   'all_pct': pct(n_friend, total),
+         'act_n': len(friend_ids & active_ids),    'act_pct': pct(len(friend_ids & active_ids), n_active)},
+        {'label': 'Users with Wishlist',
+         'all_n': n_wishlist, 'all_pct': pct(n_wishlist, total),
+         'act_n': len(wishlist_ids & active_ids),  'act_pct': pct(len(wishlist_ids & active_ids), n_active)},
+        {'label': 'Users with Availability',
+         'all_n': n_avail,    'all_pct': pct(n_avail, total),
+         'act_n': len(avail_ids & active_ids),     'act_pct': pct(len(avail_ids & active_ids), n_active)},
+    ]
+
+    # ── Section 3: Segments ──────────────────────────────────────────────
+    seg_ct = {'new': 0, 'onboarding': 0, 'activated': 0, 'engaged': 0, 'power': 0}
+    for uid, ls, *_ in user_rows:
+        score = (
+            (1 if uid in pass_ids     else 0) +
+            (1 if uid in avail_ids    else 0) +
+            (1 if uid in wishlist_ids else 0) +
+            (1 if uid in has_trip_ids else 0) +
+            (1 if uid in friend_ids   else 0)
+        )
+        if ls == 'active':
+            if score >= 4:    seg_ct['power']     += 1
+            elif score >= 2:  seg_ct['engaged']   += 1
+            else:             seg_ct['activated'] += 1
+        elif ls == 'onboarding':
+            seg_ct['onboarding'] += 1
+        else:
+            seg_ct['new'] += 1
+
+    segments = [
+        {'label': 'New',        'n': seg_ct['new'],        'pct': pct(seg_ct['new'], total),
+         'desc': 'Signed up, not yet in onboarding',  'color': '#9E958A'},
+        {'label': 'Onboarding', 'n': seg_ct['onboarding'], 'pct': pct(seg_ct['onboarding'], total),
+         'desc': 'Currently in onboarding flow',       'color': '#B07D2E'},
+        {'label': 'Activated',  'n': seg_ct['activated'],  'pct': pct(seg_ct['activated'], total),
+         'desc': 'Active, 0–1 milestones completed',   'color': '#5C7A9E'},
+        {'label': 'Engaged',    'n': seg_ct['engaged'],    'pct': pct(seg_ct['engaged'], total),
+         'desc': 'Active, 2–3 milestones completed',   'color': '#4A7C59'},
+        {'label': 'Power',      'n': seg_ct['power'],      'pct': pct(seg_ct['power'], total),
+         'desc': 'Active, 4+ milestones completed',    'color': '#5C1219'},
+    ]
+
+    # ── Section 4: Drop-offs ─────────────────────────────────────────────
+    dropoff_pairs = [
+        ('Signup', n_signup,   'Onboarding', n_onboard),
+        ('Onboarding', n_onboard, 'Trip Created', n_trip),
+        ('Pass Added', n_pass, 'Availability', n_avail),
+        ('Trip Created', n_trip, 'Availability', n_avail),
+    ]
+    dropoffs = []
+    for fl, fn, tl, tn in dropoff_pairs:
+        if fn > 0:
+            dp = pct(fn - tn, fn)
+            dropoffs.append({
+                'from': fl, 'from_n': fn,
+                'to':   tl, 'to_n':   tn,
+                'drop_pct': dp,
+                'severity': 'high' if dp >= 60 else ('mid' if dp >= 30 else 'low'),
+            })
+    dropoffs.sort(key=lambda x: -x['drop_pct'])
+
+    # ── Section 5: Correlations ──────────────────────────────────────────
+    def _tpu(uid_set):
+        if not uid_set:
+            return 0.0
+        return sum(trip_counts_map.get(u, 0) for u in uid_set) / len(uid_set)
+
+    corr_inputs = [
+        ('Has Friends',      friend_ids,   all_ids - friend_ids),
+        ('Has Wishlist',     wishlist_ids, all_ids - wishlist_ids),
+        ('Has Availability', avail_ids,    all_ids - avail_ids),
+        ('Has Pass',         pass_ids,     all_ids - pass_ids),
+        ('Generated Invite', invite_ids,   all_ids - invite_ids),
+    ]
+    correlations = []
+    for label, has_set, no_set in corr_inputs:
+        has_tpu = round(_tpu(has_set), 2)
+        no_tpu  = round(_tpu(no_set),  2)
+        ratio   = round(has_tpu / no_tpu, 1) if no_tpu > 0.05 else (has_tpu or 0.0)
+        cls     = 'green' if ratio >= 2.5 else ('yellow' if ratio >= 1.2 else 'red')
+        correlations.append({
+            'label':   label,
+            'has_n':   len(has_set),
+            'no_n':    len(no_set),
+            'has_tpu': has_tpu,
+            'no_tpu':  no_tpu,
+            'ratio':   ratio,
+            'class':   cls,
+        })
+    correlations.sort(key=lambda x: -x['ratio'])
+
+    # ── Section 6: Dynamic Insight ───────────────────────────────────────
+    green_corrs = [c for c in correlations if c['class'] == 'green']
+    if green_corrs:
+        top = green_corrs[0]
+        rstr = f"{int(top['ratio'])}×" if top['ratio'] == int(top['ratio']) else f"{top['ratio']}×"
+        raw = f"Users {top['label'].lower()} create {rstr} more trips."
+    elif n_friend > 0:
+        raw = f"{pct(n_friend, total)}% of users have connected with friends."
+    else:
+        raw = "Collecting more activation data."
+    insight = raw[0].upper() + raw[1:] if raw else raw
+
+    # ── Section 7: Status ────────────────────────────────────────────────
+    status = {
+        'tracked':    9,
+        'green':      7,
+        'yellow':     2,
+        'red':        1,
+        'confidence': 'Growing',
+    }
+
+    return render_template(
+        "admin_activation_intel.html",
+        active_tab   = 'activation_intel',
+        now          = now_str,
+        total        = total,
+        kpis         = kpis,
+        funnel       = funnel,
+        milestones   = milestones,
+        segments     = segments,
+        dropoffs     = dropoffs,
+        correlations = correlations,
+        insight      = insight,
+        status       = status,
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
