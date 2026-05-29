@@ -1,0 +1,129 @@
+#172 - Guest Trip Experience & Owner Cleanup
+
+What & Why
+
+Two refinements to trip detail pages:
+
+Owner trips:
+The current Cancel Trip section creates unnecessary visual noise. The "Danger Zone" heading and explanatory sentence add weight without adding value. Simplify this area so it feels more consistent with a premium consumer travel app.
+
+Guest trips:
+When viewing a trip they joined via invitation, guests currently receive no explanation for why editing controls are missing and have no way to remove themselves from the trip. Add a lightweight guest state and a Leave Trip flow without introducing additional cards, banners, or visual clutter.
+
+Design Constraint (Important)
+
+Do NOT add:
+- New cards
+- New banners
+- New callout boxes
+- New info panels
+- New section containers
+- Profile bubbles
+- Avatar stacks
+
+Favor subtle text and existing typography patterns over new UI elements.
+
+Done Looks Like
+
+OWNER TRIPS
+
+Trip detail page:
+
+- Invite Friends remains unchanged.
+- Cancel Trip functionality remains unchanged.
+- Remove:
+  - "Danger Zone" heading
+  - "This removes the trip for everyone going." sentence
+- Keep only a simple text link:
+  "Cancel trip"
+- Existing confirmation sheet/modal remains unchanged and continues to contain the explanatory copy.
+
+GUEST TRIPS
+
+Trip detail page:
+
+- Show a single muted line directly beneath the trip dates/header area:
+  "Guest trip · Only the owner can edit or cancel"
+- Visible only when is_guest = True.
+- No banner styling.
+- No card styling.
+- Use existing muted text styles.
+
+Bottom of trip detail page:
+
+- At the bottom of the trip detail content, INSIDE the main page container and parallel to the owner Cancel Trip location, show:
+  "Leave trip"
+- Same visual treatment as the simplified Cancel Trip link.
+- Clicking opens a confirmation sheet.
+- Confirming removes only the current user from the trip.
+
+MY TRIPS PAGE
+
+Accepted guest trips:
+
+- Show a small muted label:
+  "Guest trip"
+- Place beneath the existing date/status row.
+- Do not materially increase row height.
+- Do not add buttons or additional actions on the list page.
+- User can leave the trip from the detail page only.
+
+Backend Requirements
+
+Create:
+
+POST /trips/<trip_id>/leave
+
+Rules:
+
+- User must be an accepted guest participant.
+- Owners receive 403.
+- Users without a participant record receive 403.
+- Delete only the current user's SkiTripParticipant row.
+- Never delete the SkiTrip.
+- Never affect other participants.
+- CSRF validation required.
+- Flash success message:
+  "You've left this trip."
+- Redirect to my_trips.
+
+Confirmation Sheet
+
+Create a leave-trip confirmation sheet modeled after the existing Cancel Trip sheet.
+
+Example copy:
+
+Title:
+Leave trip?
+
+Body:
+You'll be removed from this trip, but the trip will remain available to everyone else.
+
+Actions:
+- Leave trip
+- Keep trip
+
+Testing
+
+Verify:
+
+- Owners see Invite Friends.
+- Owners see Cancel Trip.
+- Owners do NOT see Leave Trip.
+- Guests see the guest-state line.
+- Guests see Leave Trip.
+- Guests do NOT see Cancel Trip.
+- Guests do NOT see Invite Friends.
+- Leaving removes only the guest participant record.
+- Leaving never deletes the trip.
+- Other participants remain.
+- My Trips updates immediately after leaving.
+
+Files Likely Involved
+
+templates/trip_detail.html
+templates/my_trips.html
+app.py
+static/styles.css
+
+Do not create checkpoints unless explicitly required.

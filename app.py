@@ -10073,8 +10073,8 @@ def trip_detail(trip_id):
     participant = SkiTripParticipant.query.filter_by(
         trip_id=trip_id, user_id=current_user.id
     ).first()
-    is_guest = participant and participant.status == GuestStatus.ACCEPTED
-    is_invited = participant and participant.status == GuestStatus.INVITED
+    is_guest = not is_owner and participant and participant.status == GuestStatus.ACCEPTED
+    is_invited = not is_owner and participant and participant.status == GuestStatus.INVITED
     
     # Owner, accepted guests, and invited users can view the trip detail
     if not is_owner and not is_guest and not is_invited:
@@ -10960,6 +10960,37 @@ def delete_trip_form(trip_id):
         )
         flash("Something went wrong while cancelling the trip. Please try again.", "error")
         return redirect(url_for("trip_detail", trip_id=trip_id))
+
+@app.route("/trips/<int:trip_id>/leave", methods=["POST"])
+@login_required
+def leave_trip(trip_id):
+    validate_csrf_request()
+    trip = SkiTrip.query.get_or_404(trip_id)
+    if trip.user_id == current_user.id:
+        abort(403)
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, user_id=current_user.id, status=GuestStatus.ACCEPTED
+    ).first()
+    if not participant:
+        abort(403)
+    try:
+        db.session.delete(participant)
+        db.session.commit()
+        app.logger.info(
+            "[leave_trip] success trip_id=%s user_id=%s",
+            trip_id, current_user.id
+        )
+        flash("You've left this trip.", "trip")
+        return redirect(url_for("my_trips"))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(
+            "[leave_trip] error trip_id=%s user_id=%s exc=%s",
+            trip_id, current_user.id, e
+        )
+        flash("Something went wrong. Please try again.", "error")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
+
 
 @app.route("/mountains-visited", methods=["GET", "POST"])
 @login_required

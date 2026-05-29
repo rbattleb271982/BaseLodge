@@ -240,18 +240,10 @@
             letter-spacing: 0.01em;
         }
         .td-cancel-trip-link:active { opacity: 0.6; }
-        .td-cancel-trip-label {
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.8px;
-            text-transform: uppercase;
-            color: #B5888E;
-            margin: 0 0 10px;
-        }
-        .td-cancel-trip-sub {
+        .td-guest-note {
             font-size: 12px;
-            color: #B5AFA5;
-            margin: 8px 0 0;
+            color: var(--bl-color-text-muted, #8A857A);
+            margin: 6px 0 0;
             line-height: 1.4;
         }
 
@@ -1055,6 +1047,9 @@
             {% if is_invited %}
             <p class="td-header-notice">{{ (owner.first_name if owner else 'Someone') | format_name }} invited you</p>
             {% endif %}
+            {% if is_guest %}
+            <p class="td-guest-note">Guest trip · Only the owner can edit or cancel</p>
+            {% endif %}
             {% if friends_wishlist_count > 0 %}
             <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(92,18,25,0.07);border-radius:20px;padding:5px 12px;margin:6px 0 0;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5C1219" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
@@ -1366,11 +1361,17 @@
 
         {% if is_owner %}
         <div class="td-cancel-trip-wrap">
-            <p class="td-cancel-trip-label">Danger Zone</p>
             <button type="button" class="td-cancel-trip-link" onclick="openCancelTripSheet()">
                 Cancel trip
             </button>
-            <p class="td-cancel-trip-sub">This removes the trip for everyone going.</p>
+        </div>
+        {% endif %}
+
+        {% if is_guest %}
+        <div class="td-cancel-trip-wrap">
+            <button type="button" class="td-cancel-trip-link" onclick="openLeaveSheet()">
+                Leave trip
+            </button>
         </div>
         {% endif %}
 
@@ -1538,6 +1539,21 @@
     </div>
     {% endif %}
 
+    {% if is_guest %}
+    <div class="td-date-sheet-overlay" id="td-leave-trip-sheet" onclick="if(event.target===this)closeLeaveSheet()">
+        <div class="td-date-sheet">
+            <div class="td-date-sheet-handle"></div>
+            <p class="td-date-sheet-title">Leave trip?</p>
+            <p style="font-size:14px;color:var(--bl-color-text-muted);line-height:1.5;margin:0 0 18px 0;">You'll be removed from this trip, but the trip will remain available to everyone else.</p>
+            <form method="POST" action="{{ url_for('leave_trip', trip_id=trip.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="td-date-sheet-save" style="background:#8B4A52;">Leave trip</button>
+            </form>
+            <button type="button" class="td-date-sheet-cancel" onclick="closeLeaveSheet()">Keep trip</button>
+        </div>
+    </div>
+    {% endif %}
+
     <script>
         function dismissSuccess() {
             var m = document.getElementById('td-success-modal');
@@ -1550,6 +1566,16 @@
         }
         function closeCancelTripSheet() {
             document.getElementById('td-cancel-trip-sheet').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        {% endif %}
+        {% if is_guest %}
+        function openLeaveSheet() {
+            document.getElementById('td-leave-trip-sheet').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeLeaveSheet() {
+            document.getElementById('td-leave-trip-sheet').classList.remove('active');
             document.body.style.overflow = '';
         }
         {% endif %}
