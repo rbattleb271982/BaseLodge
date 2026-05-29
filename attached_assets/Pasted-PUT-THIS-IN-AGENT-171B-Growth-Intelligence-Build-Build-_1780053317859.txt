@@ -1,0 +1,241 @@
+PUT THIS IN AGENT
+
+#171B - Growth Intelligence Build
+
+Build the Growth Intelligence page based on the approved audit.
+
+Create:
+
+* Route: `/admin/growth-intel`
+* Template: `templates/admin_growth_intel.html`
+* Sidebar entry under Intelligence
+
+Reuse existing admin console patterns.
+
+Do not add:
+
+* New analytics vendors
+* New databases
+* New tracking systems
+* New models
+* New migrations
+* PostHog API calls
+
+Use DB-backed calculations only.
+
+---
+
+## SECTIONS TO BUILD
+
+1. Growth KPIs
+2. User Growth
+3. Network Growth
+4. Invite Performance
+5. Network Density
+6. Growth Signal Chain
+7. Dynamic Insight
+8. Status
+
+Add one additional metric:
+
+* Most Connected User
+* Friend count for that user
+
+Use the audited calculations and confidence classifications.
+
+---
+
+## SECTION 0 — GROWTH KPIs
+
+Show:
+
+* Total Users
+* New Users L30
+* WAU
+* MAU
+* MAU/WAU Stickiness
+* Connected Users
+* Friend Connections
+* Avg Friends Per User
+* Invite Acceptance Rate
+* Referred Signups
+
+Display confidence badges where appropriate.
+
+---
+
+## SECTION 1 — USER GROWTH
+
+Show:
+
+* New Users L7
+* New Users L30
+* New Users L90
+
+Monthly cohort chart using CSS bars only.
+
+Requirements:
+
+* Include an "Undated" cohort bar for users with NULL created_at
+* Do not interpolate or estimate missing dates
+* Surface the data quality note explaining the 8 undated accounts
+
+---
+
+## SECTION 2 — NETWORK GROWTH
+
+Show:
+
+* Total friend connections (unique pairs)
+* Connected users count
+* Connected user %
+* Avg friends per user
+* Avg friends per connected user
+* Monthly connection growth
+
+Use the friend table as the authoritative source.
+
+---
+
+## SECTION 3 — INVITE PERFORMANCE
+
+Show:
+
+Friend invites:
+
+* Generated
+* Accepted
+* Acceptance rate
+
+Trip invites:
+
+* Generated
+* Accepted
+* Acceptance rate
+
+Participant acceptance:
+
+* Accepted participants
+* Acceptance %
+
+Label MEL-derived metrics as recent-period metrics where applicable.
+
+---
+
+## SECTION 4 — NETWORK DENSITY
+
+Show:
+
+* Connected User Rate
+* Avg Friends Per User
+* Avg Friends Per Connected User
+* Friend Distribution
+
+Add:
+
+* Most Connected User
+* Friend count
+
+Do not attempt a graph-theory density score.
+
+Use the audit recommendation instead.
+
+---
+
+## SECTION 5 — GROWTH SIGNAL CHAIN
+
+Render as a signal chain, NOT a funnel.
+
+Display:
+
+Invite
+→ Signup
+→ Friend
+→ Trip
+
+Show counts at each stage.
+
+Do not imply sequential dependency.
+
+Include a short explanation:
+
+"Signals are shown independently and do not represent a strict funnel."
+
+---
+
+## SECTION 6 — DYNAMIC INSIGHT
+
+Default insight:
+
+"72% of users have at least one friend connection."
+
+If future data changes, automatically select the strongest GREEN growth signal.
+
+Compute the insight in the route, not the template.
+
+---
+
+## SECTION 7 — STATUS
+
+Show:
+
+* Signals Audited: 15
+* GREEN: 9
+* YELLOW: 5
+* RED: 1
+* Confidence: Growing
+
+Include key caveats:
+
+* 8 undated accounts
+* 9 users with NULL last_active_at
+* MEL invite metrics are May 2026 only
+* Viral coefficient intentionally omitted
+
+---
+
+## IMPLEMENTATION REQUIREMENTS
+
+Use:
+
+* Bulk SQL queries
+* No N+1 queries
+* Server-side calculations
+* Existing admin CSS conventions
+
+Do not add:
+
+* JS charting libraries
+* External APIs
+* New analytics systems
+
+Mobile-first:
+
+* iPhone 15 Pro compatible
+* Tables scroll horizontally when necessary
+* No clipped content
+* No overflow
+
+---
+
+## TESTING REQUIREMENTS
+
+Verify:
+
+* `/admin/growth-intel` returns 200
+* Sidebar link works
+* KPI counts match DB
+* User growth counts match DB
+* Network metrics match DB
+* Invite metrics match DB
+* Dynamic insight computes correctly
+* Monthly cohort chart renders
+* Undated cohort renders
+* Mobile layout works
+* No overflow
+* No raw Jinja
+* No None leakage
+
+Use checkpoints sparingly.
+
+Do not finish until all testing passes.

@@ -18625,5 +18625,230 @@ def admin_activation_intel():
     )
 
 
+@app.route("/admin/growth-intel")
+@login_required
+@admin_required
+def admin_growth_intel():
+    """Growth Intelligence v1 — network, invite, and growth signals."""
+    from datetime import datetime as _dt, timedelta
+    from collections import defaultdict, Counter
+
+    now_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
+    now = _dt.utcnow()
+    l7_cutoff  = now - timedelta(days=7)
+    l30_cutoff = now - timedelta(days=30)
+    l90_cutoff = now - timedelta(days=90)
+
+    def pct(n, d):
+        return round(n / d * 100) if d else 0
+
+    def _month_sort_key(k):
+        if k == 'Undated':
+            return (9999, 99)
+        try:
+            d = _dt.strptime(k, "%b %Y")
+            return (d.year, d.month)
+        except Exception:
+            return (9998, 0)
+
+    # ── Q1: user growth fields ────────────────────────────────────────────
+    user_rows = db.session.execute(db.text(
+        'SELECT id, created_at, last_active_at, invited_by_user_id, '
+        'first_connection_at, first_trip_created_at FROM "user"'
+    )).fetchall()
+    total = len(user_rows)
+
+    new_l7         = sum(1 for r in user_rows if r[1] and r[1] >= l7_cutoff)
+    new_l30        = sum(1 for r in user_rows if r[1] and r[1] >= l30_cutoff)
+    new_l90        = sum(1 for r in user_rows if r[1] and r[1] >= l90_cutoff)
+    null_created   = sum(1 for r in user_rows if r[1] is None)
+    wau            = sum(1 for r in user_rows if r[2] and r[2] >= l7_cutoff)
+    mau            = sum(1 for r in user_rows if r[2] and r[2] >= l30_cutoff)
+    null_last_active = sum(1 for r in user_rows if r[2] is None)
+    referred       = sum(1 for r in user_rows if r[3] is not None)
+    fly_friend_users = sum(1 for r in user_rows if r[4] is not None)
+    fly_trip_users   = sum(1 for r in user_rows if r[5] is not None)
+
+    # Monthly user cohorts
+    monthly_cohorts = defaultdict(int)
+    for r in user_rows:
+        key = r[1].strftime("%b %Y") if r[1] else 'Undated'
+        monthly_cohorts[key] += 1
+    cohort_max = max(monthly_cohorts.values()) if monthly_cohorts else 1
+    cohort_list = [
+        {'label': k, 'count': v, 'pct': pct(v, cohort_max), 'is_undated': k == 'Undated'}
+        for k, v in sorted(monthly_cohorts.items(), key=lambda x: _month_sort_key(x[0]))
+    ]
+
+    # ── Q2: friend network ────────────────────────────────────────────────
+    friend_rows = db.session.execute(db.text(
+        "SELECT user_id, created_at FROM friend"
+    )).fetchall()
+    total_friend_rows  = len(friend_rows)
+    unique_pairs       = total_friend_rows // 2
+    friend_counts      = defaultdict(int)
+    for r in friend_rows:
+        friend_counts[r[0]] += 1
+    connected_users        = len(friend_counts)
+    avg_friends_all        = round(total_friend_rows / total, 2) if total else 0
+    avg_friends_connected  = round(total_friend_rows / connected_users, 2) if connected_users else 0
+
+    monthly_friends = defaultdict(int)
+    for r in friend_rows:
+        if r[1]:
+            monthly_friends[r[1].strftime("%b %Y")] += 1
+    f_monthly_max = max((v // 2 for v in monthly_friends.values()), default=1)
+    friend_monthly_list = [
+        {'label': k, 'pairs': v // 2, 'pct': pct(v // 2, max(f_monthly_max, 1))}
+        for k, v in sorted(monthly_friends.items(), key=lambda x: _month_sort_key(x[0]))
+    ]
+
+    dist_raw = Counter(friend_counts.values())
+    friend_dist = [{'friends': k, 'users': v} for k, v in sorted(dist_raw.items())]
+    dist_max = max((d['users'] for d in friend_dist), default=1)
+    for d in friend_dist:
+        d['pct'] = pct(d['users'], dist_max)
+
+    if friend_counts:
+        mc_id  = max(friend_counts, key=lambda u: friend_counts[u])
+        mc_ct  = friend_counts[mc_id]
+        mc_row = db.session.execute(
+            db.text('SELECT first_name, last_name FROM "user" WHERE id = :uid'),
+            {'uid': mc_id}
+        ).fetchone()
+        most_connected_name = f"{mc_row[0]} {mc_row[1]}" if mc_row else f"User {mc_id}"
+    else:
+        most_connected_name, mc_ct = "—", 0
+
+    # ── Q3: invite performance ────────────────────────────────────────────
+    inv_total, inv_used = db.session.execute(db.text(
+        "SELECT COUNT(*), COUNT(used_at) FROM invite_token"
+    )).fetchone()
+    inv_total = inv_total or 0
+    inv_used  = inv_used  or 0
+
+    trip_inv_total, trip_inv_used = db.session.execute(db.text(
+        "SELECT COUNT(*), COUNT(used_at) FROM trip_invite_token"
+    )).fetchone()
+    trip_inv_total = trip_inv_total or 0
+    trip_inv_used  = trip_inv_used  or 0
+
+    mel_row = db.session.execute(db.text(
+        "SELECT "
+        "  COUNT(*) FILTER (WHERE event_name = 'trip.invite.created'), "
+        "  COUNT(*) FILTER (WHERE event_name = 'trip.invite.accepted'), "
+        "  COUNT(*) FILTER (WHERE event_name = 'friend.request.created'), "
+        "  COUNT(*) FILTER (WHERE event_name = 'friend.request.accepted') "
+        "FROM message_event_log"
+    )).fetchone()
+    mel_trip_created  = mel_row[0] or 0
+    mel_trip_accepted = mel_row[1] or 0
+    mel_fr_created    = mel_row[2] or 0
+    mel_fr_accepted   = mel_row[3] or 0
+
+    part_accepted, part_total = db.session.execute(db.text(
+        "SELECT COUNT(*) FILTER (WHERE status = 'accepted'), COUNT(*) "
+        "FROM ski_trip_participant"
+    )).fetchone()
+    part_accepted = part_accepted or 0
+    part_total    = part_total    or 0
+
+    # Flywheel invite count = total invite_token rows
+    fly_invite = inv_total
+    fly_signup = referred
+
+    # ── Section 0: KPIs ──────────────────────────────────────────────────
+    stickiness_val = pct(wau, mau)
+    kpis = [
+        {'label': 'Total Users',       'value': total,
+         'sub': 'all time'},
+        {'label': 'New Users L30',     'value': new_l30,
+         'sub': 'last 30 days',        'conf': 'yellow'},
+        {'label': 'WAU',               'value': wau,
+         'sub': 'active last 7 days',  'conf': 'yellow'},
+        {'label': 'MAU',               'value': mau,
+         'sub': 'active last 30 days', 'conf': 'yellow'},
+        {'label': 'MAU/WAU Stickiness','value': f'{stickiness_val}%',
+         'sub': f'{wau} of {mau} MAU', 'conf': 'yellow'},
+        {'label': 'Connected Users',   'value': f'{connected_users} ({pct(connected_users, total)}%)',
+         'sub': 'have ≥1 friend',      'highlight': True},
+        {'label': 'Friend Connections','value': unique_pairs,
+         'sub': 'unique pairs'},
+        {'label': 'Avg Friends / User','value': avg_friends_all,
+         'sub': f'{avg_friends_connected} per connected user'},
+        {'label': 'Invite Acceptance', 'value': f'{pct(inv_used, inv_total)}%',
+         'sub': f'{inv_used} of {inv_total} used'},
+        {'label': 'Referred Signups',  'value': f'{referred} ({pct(referred, total)}%)',
+         'sub': 'via friend invite',   'conf': 'yellow'},
+    ]
+
+    # ── Section 6: Dynamic Insight ───────────────────────────────────────
+    conn_pct = pct(connected_users, total)
+    if conn_pct >= 50:
+        insight = f"{conn_pct}% of users have at least one friend connection."
+    elif avg_friends_all >= 1.0:
+        insight = f"The average BaseLodge user now has {avg_friends_all} friends."
+    elif inv_total > 0:
+        insight = f"{pct(inv_used, inv_total)}% of friend invitations are accepted."
+    else:
+        insight = "Collecting more growth data."
+
+    # ── Section 7: Status ────────────────────────────────────────────────
+    status = {
+        'tracked':    15,
+        'green':       9,
+        'yellow':      5,
+        'red':         1,
+        'confidence': 'Growing',
+        'caveats': [
+            f'{null_created} accounts have no signup date (Oct 2024 cohort — never backfilled)',
+            f'{null_last_active} accounts have no session activity recorded (WAU/MAU undercount possible)',
+            'MEL invite metrics cover May 2026 only — historical data not available',
+            'Viral coefficient (K-factor) intentionally omitted — cannot be reliably computed from current schema',
+        ],
+    }
+
+    return render_template(
+        "admin_growth_intel.html",
+        active_tab            = 'growth_intel',
+        now                   = now_str,
+        total                 = total,
+        kpis                  = kpis,
+        new_l7                = new_l7,
+        new_l30               = new_l30,
+        new_l90               = new_l90,
+        null_created          = null_created,
+        cohort_list           = cohort_list,
+        unique_pairs          = unique_pairs,
+        connected_users       = connected_users,
+        avg_friends_all       = avg_friends_all,
+        avg_friends_connected = avg_friends_connected,
+        friend_monthly_list   = friend_monthly_list,
+        friend_dist           = friend_dist,
+        most_connected_name   = most_connected_name,
+        most_connected_ct     = mc_ct,
+        inv_total             = inv_total,
+        inv_used              = inv_used,
+        trip_inv_total        = trip_inv_total,
+        trip_inv_used         = trip_inv_used,
+        mel_trip_created      = mel_trip_created,
+        mel_trip_accepted     = mel_trip_accepted,
+        mel_fr_created        = mel_fr_created,
+        mel_fr_accepted       = mel_fr_accepted,
+        part_accepted         = part_accepted,
+        part_total            = part_total,
+        fly_invite            = fly_invite,
+        fly_signup            = fly_signup,
+        fly_friend            = fly_friend_users,
+        fly_trip              = fly_trip_users,
+        wau                   = wau,
+        mau                   = mau,
+        null_last_active      = null_last_active,
+        referred              = referred,
+        insight               = insight,
+        status                = status,
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

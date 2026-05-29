@@ -1,0 +1,463 @@
+{% extends "admin_console.html" %}
+{% block title %}Growth Intelligence{% endblock %}
+{% block page_title %}Growth Intelligence{% endblock %}
+
+{% block head_styles %}
+  .ad-section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.11em;
+    text-transform: uppercase; color: #6B6157; margin: 0 0 10px;
+  }
+  .ad-section { margin-bottom: 32px; }
+  .ad-updated { font-size: 11px; color: #9E958A; margin-bottom: 14px; }
+  .ad-footnote {
+    font-size: 11px; color: #9E958A;
+    font-style: italic; margin-top: 8px; line-height: 1.5;
+  }
+
+  /* ── KPI grid ── */
+  .gi-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px; margin-bottom: 4px;
+  }
+  @media (max-width: 900px) { .gi-kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 500px) { .gi-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .gi-card {
+    background: #fff; border: 1px solid #E4DDD2;
+    border-radius: 9px; padding: 12px 14px 10px; min-width: 0;
+  }
+  .gi-card-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #9E958A; margin-bottom: 5px;
+  }
+  .gi-card-value {
+    font-size: 22px; font-weight: 700; color: #1C1917; line-height: 1;
+  }
+  .gi-card-sub { font-size: 11px; color: #B0A69B; margin-top: 3px; }
+  .gi-card--highlight { border-color: #5C1219; }
+  .gi-card--highlight .gi-card-value { color: #5C1219; }
+
+  /* ── Confidence badges ── */
+  .gi-conf {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 1px 5px; border-radius: 3px; margin-top: 4px;
+  }
+  .gi-conf--yellow { background: #FFF8E1; color: #B07D2E; }
+  .gi-conf--green  { background: #E8F5E9; color: #2E7D32; }
+
+  /* ── Bar chart rows ── */
+  .gi-bar-list { display: flex; flex-direction: column; gap: 6px; }
+  .gi-bar-row  { display: flex; align-items: center; gap: 10px; }
+  .gi-bar-label {
+    font-size: 11px; color: #6B6157; min-width: 72px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .gi-bar-track {
+    flex: 1; height: 8px; background: #F0EBE3;
+    border-radius: 4px; overflow: hidden; min-width: 0;
+  }
+  .gi-bar-fill  { height: 100%; border-radius: 4px; background: #5C1219; }
+  .gi-bar-fill--alt { background: #9E958A; }
+  .gi-bar-fill--undated { background: #D4B896; }
+  .gi-bar-count { font-size: 11px; color: #9E958A; min-width: 28px; text-align: right; }
+
+  /* ── Two-column stat grid ── */
+  .gi-stat-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  @media (max-width: 500px) { .gi-stat-grid { grid-template-columns: 1fr; } }
+
+  .gi-stat {
+    background: #fff; border: 1px solid #E4DDD2;
+    border-radius: 9px; padding: 12px 14px;
+  }
+  .gi-stat-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #9E958A; margin-bottom: 4px;
+  }
+  .gi-stat-value { font-size: 20px; font-weight: 700; color: #1C1917; line-height: 1; }
+  .gi-stat-sub   { font-size: 11px; color: #B0A69B; margin-top: 3px; }
+
+  /* ── Three-column stat row ── */
+  .gi-3col {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  }
+  @media (max-width: 500px) { .gi-3col { grid-template-columns: 1fr; } }
+
+  /* ── Invite performance table ── */
+  .gi-invite-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .gi-invite-table th {
+    text-align: left; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.09em; text-transform: uppercase;
+    color: #9E958A; padding: 6px 10px 6px 0; border-bottom: 1px solid #E4DDD2;
+  }
+  .gi-invite-table td {
+    padding: 9px 10px 9px 0; color: #1C1917;
+    border-bottom: 1px solid #F5F1E8;
+  }
+  .gi-invite-table td.num { font-weight: 600; }
+  .gi-invite-table td.rate { color: #5C1219; font-weight: 700; }
+  .gi-invite-table td.note { font-size: 10px; color: #9E958A; font-style: italic; }
+  .gi-tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* ── Signal chain ── */
+  .gi-chain { display: flex; align-items: flex-start; gap: 0; flex-wrap: wrap; }
+  .gi-chain-node {
+    display: flex; flex-direction: column; align-items: center;
+    min-width: 80px; padding: 14px 10px 12px;
+    background: #fff; border: 1px solid #E4DDD2; border-radius: 9px;
+  }
+  .gi-chain-node-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: #9E958A; margin-bottom: 6px;
+  }
+  .gi-chain-node-value {
+    font-size: 22px; font-weight: 700; color: #5C1219; line-height: 1;
+  }
+  .gi-chain-node-sub { font-size: 10px; color: #B0A69B; margin-top: 3px; text-align: center; }
+  .gi-chain-arrow {
+    font-size: 18px; color: #D4B896; padding: 0 6px;
+    align-self: center; line-height: 1;
+  }
+  @media (max-width: 500px) {
+    .gi-chain { gap: 4px; }
+    .gi-chain-node { min-width: 68px; padding: 10px 6px 9px; }
+    .gi-chain-node-value { font-size: 18px; }
+    .gi-chain-arrow { padding: 0 2px; font-size: 14px; }
+  }
+
+  /* ── Insight block ── */
+  .gi-insight-block {
+    background: #FAF7F2; border: 1px solid #E4DDD2; border-radius: 10px;
+    padding: 20px 20px 18px;
+  }
+  .gi-insight-eyebrow {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: #9E958A; margin-bottom: 8px;
+  }
+  .gi-insight-text {
+    font-family: Georgia, serif; font-size: 18px;
+    color: #5C1219; line-height: 1.4; font-style: italic;
+  }
+
+  /* ── Status block ── */
+  .gi-status-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .gi-status-chip {
+    background: #fff; border: 1px solid #E4DDD2; border-radius: 7px;
+    padding: 8px 14px; display: flex; flex-direction: column; align-items: center;
+    min-width: 72px;
+  }
+  .gi-status-chip-value { font-size: 20px; font-weight: 700; color: #1C1917; line-height: 1; }
+  .gi-status-chip-label {
+    font-size: 9px; font-weight: 600; letter-spacing: 0.09em;
+    text-transform: uppercase; color: #9E958A; margin-top: 3px;
+  }
+  .gi-status-chip--green .gi-status-chip-value  { color: #2E7D32; }
+  .gi-status-chip--yellow .gi-status-chip-value { color: #B07D2E; }
+  .gi-status-chip--red .gi-status-chip-value    { color: #B71C1C; }
+
+  .gi-caveats { list-style: none; padding: 0; margin: 0; }
+  .gi-caveats li {
+    font-size: 11px; color: #9E958A; padding: 4px 0;
+    border-bottom: 1px solid #F5F1E8;
+    padding-left: 14px; position: relative;
+  }
+  .gi-caveats li::before {
+    content: '–'; position: absolute; left: 0; color: #D4B896;
+  }
+{% endblock %}
+
+{% block content %}
+<div class="ad-updated">Updated {{ now }}</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 0 — GROWTH KPIs                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="gi-kpis">
+  <div class="ad-section-label">Growth KPIs</div>
+  <div class="gi-kpi-grid">
+    {% for k in kpis %}
+    <div class="gi-card {% if k.get('highlight') %}gi-card--highlight{% endif %}">
+      <div class="gi-card-label">{{ k.label }}</div>
+      <div class="gi-card-value">{{ k.value }}</div>
+      <div class="gi-card-sub">{{ k.sub }}</div>
+      {% if k.get('conf') == 'yellow' %}
+        <div class="gi-conf gi-conf--yellow">approx</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 1 — USER GROWTH                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="gi-user-growth">
+  <div class="ad-section-label">User Growth</div>
+
+  <div class="gi-3col" style="margin-bottom:16px;">
+    <div class="gi-stat">
+      <div class="gi-stat-label">New L7</div>
+      <div class="gi-stat-value">{{ new_l7 }}</div>
+      <div class="gi-stat-sub">last 7 days</div>
+    </div>
+    <div class="gi-stat">
+      <div class="gi-stat-label">New L30</div>
+      <div class="gi-stat-value">{{ new_l30 }}</div>
+      <div class="gi-stat-sub">last 30 days</div>
+      <div class="gi-conf gi-conf--yellow">approx</div>
+    </div>
+    <div class="gi-stat">
+      <div class="gi-stat-label">New L90</div>
+      <div class="gi-stat-value">{{ new_l90 }}</div>
+      <div class="gi-stat-sub">last 90 days</div>
+      <div class="gi-conf gi-conf--yellow">approx</div>
+    </div>
+  </div>
+
+  <div class="ad-section-label" style="margin-top:18px;">Monthly Cohorts</div>
+  <div class="gi-bar-list">
+    {% for c in cohort_list %}
+    <div class="gi-bar-row">
+      <div class="gi-bar-label" title="{{ c.label }}">{{ c.label }}</div>
+      <div class="gi-bar-track">
+        <div class="gi-bar-fill {% if c.is_undated %}gi-bar-fill--undated{% endif %}"
+             style="width:{{ c.pct }}%"></div>
+      </div>
+      <div class="gi-bar-count">{{ c.count }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="ad-footnote">
+    {{ null_created }} accounts have no signup date (Oct 2024 cohort — created_at was not recorded at that time).
+    These are shown as "Undated" and are not interpolated or estimated.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 2 — NETWORK GROWTH                                 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="gi-network">
+  <div class="ad-section-label">Network Growth</div>
+
+  <div class="gi-kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;">
+    <div class="gi-card gi-card--highlight">
+      <div class="gi-card-label">Connected Users</div>
+      <div class="gi-card-value">{{ connected_users }}</div>
+      <div class="gi-card-sub">{{ (connected_users / total * 100) | round | int }}% of all users</div>
+    </div>
+    <div class="gi-card">
+      <div class="gi-card-label">Friend Connections</div>
+      <div class="gi-card-value">{{ unique_pairs }}</div>
+      <div class="gi-card-sub">unique pairs</div>
+    </div>
+    <div class="gi-card">
+      <div class="gi-card-label">Avg Friends / User</div>
+      <div class="gi-card-value">{{ avg_friends_all }}</div>
+      <div class="gi-card-sub">{{ avg_friends_connected }} per connected user</div>
+    </div>
+  </div>
+
+  {% if friend_monthly_list %}
+  <div class="ad-section-label" style="margin-top:18px;">Monthly Connection Growth</div>
+  <div class="gi-bar-list">
+    {% for m in friend_monthly_list %}
+    <div class="gi-bar-row">
+      <div class="gi-bar-label" title="{{ m.label }}">{{ m.label }}</div>
+      <div class="gi-bar-track">
+        <div class="gi-bar-fill" style="width:{{ m.pct }}%"></div>
+      </div>
+      <div class="gi-bar-count">{{ m.pairs }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 3 — INVITE PERFORMANCE                             -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="gi-invites">
+  <div class="ad-section-label">Invite Performance</div>
+  <div class="gi-tbl-wrap">
+    <table class="gi-invite-table">
+      <thead>
+        <tr>
+          <th>Signal</th>
+          <th>Generated</th>
+          <th>Accepted</th>
+          <th>Rate</th>
+          <th>Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Friend Invites</td>
+          <td class="num">{{ inv_total }}</td>
+          <td class="num">{{ inv_used }}</td>
+          <td class="rate">{{ (inv_used / inv_total * 100) | round | int if inv_total else 0 }}%</td>
+          <td class="note">invite_token.used_at</td>
+        </tr>
+        <tr>
+          <td>Trip Invites</td>
+          <td class="num">{{ trip_inv_total }}</td>
+          <td class="num">{{ trip_inv_used }}</td>
+          <td class="rate">{{ (trip_inv_used / trip_inv_total * 100) | round | int if trip_inv_total else 0 }}%</td>
+          <td class="note">trip_invite_token</td>
+        </tr>
+        <tr>
+          <td>Trip Invite (MEL)</td>
+          <td class="num">{{ mel_trip_created }}</td>
+          <td class="num">{{ mel_trip_accepted }}</td>
+          <td class="rate">{{ (mel_trip_accepted / mel_trip_created * 100) | round | int if mel_trip_created else 0 }}%</td>
+          <td class="note">May 2026 only</td>
+        </tr>
+        <tr>
+          <td>Friend Request (MEL)</td>
+          <td class="num">{{ mel_fr_created }}</td>
+          <td class="num">{{ mel_fr_accepted }}</td>
+          <td class="rate">{{ (mel_fr_accepted / mel_fr_created * 100) | round | int if mel_fr_created else 0 }}%</td>
+          <td class="note">May 2026 only</td>
+        </tr>
+        <tr>
+          <td>Trip Participants</td>
+          <td class="num">{{ part_total }}</td>
+          <td class="num">{{ part_accepted }}</td>
+          <td class="rate">{{ (part_accepted / part_total * 100) | round | int if part_total else 0 }}%</td>
+          <td class="note">ski_trip_participant</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 4 — NETWORK DENSITY                                -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="gi-density">
+  <div class="ad-section-label">Network Density</div>
+
+  <div class="gi-stat-grid" style="margin-bottom:16px;">
+    <div class="gi-stat">
+      <div class="gi-stat-label">Connected User Rate</div>
+      <div class="gi-stat-value">{{ (connected_users / total * 100) | round | int }}%</div>
+      <div class="gi-stat-sub">{{ connected_users }} of {{ total }} users have ≥1 friend</div>
+    </div>
+    <div class="gi-stat">
+      <div class="gi-stat-label">Avg Friends / Connected User</div>
+      <div class="gi-stat-value">{{ avg_friends_connected }}</div>
+      <div class="gi-stat-sub">{{ avg_friends_all }} across all users</div>
+    </div>
+    <div class="gi-stat">
+      <div class="gi-stat-label">Most Connected User</div>
+      <div class="gi-stat-value">{{ most_connected_ct }}</div>
+      <div class="gi-stat-sub">{{ most_connected_name }}</div>
+    </div>
+    <div class="gi-stat">
+      <div class="gi-stat-label">Total Connections</div>
+      <div class="gi-stat-value">{{ unique_pairs }}</div>
+      <div class="gi-stat-sub">unique friendship pairs</div>
+    </div>
+  </div>
+
+  {% if friend_dist %}
+  <div class="ad-section-label" style="margin-top:18px;">Friend Distribution</div>
+  <div class="gi-bar-list">
+    {% for d in friend_dist %}
+    <div class="gi-bar-row">
+      <div class="gi-bar-label">{{ d.friends }} friend{{ 's' if d.friends != 1 else '' }}</div>
+      <div class="gi-bar-track">
+        <div class="gi-bar-fill gi-bar-fill--alt" style="width:{{ d.pct }}%"></div>
+      </div>
+      <div class="gi-bar-count">{{ d.users }} user{{ 's' if d.users != 1 else '' }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <div class="ad-footnote">True graph density score omitted — not meaningful at current network size (n={{ total }}).</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 5 — GROWTH SIGNAL CHAIN                            -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="gi-chain">
+  <div class="ad-section-label">Growth Signal Chain</div>
+  <div class="gi-chain" style="margin-bottom:12px;">
+    <div class="gi-chain-node">
+      <div class="gi-chain-node-label">Invite</div>
+      <div class="gi-chain-node-value">{{ fly_invite }}</div>
+      <div class="gi-chain-node-sub">tokens sent</div>
+    </div>
+    <div class="gi-chain-arrow">→</div>
+    <div class="gi-chain-node">
+      <div class="gi-chain-node-label">Signup</div>
+      <div class="gi-chain-node-value">{{ fly_signup }}</div>
+      <div class="gi-chain-node-sub">via referral</div>
+    </div>
+    <div class="gi-chain-arrow">→</div>
+    <div class="gi-chain-node">
+      <div class="gi-chain-node-label">Friend</div>
+      <div class="gi-chain-node-value">{{ fly_friend }}</div>
+      <div class="gi-chain-node-sub">connected</div>
+    </div>
+    <div class="gi-chain-arrow">→</div>
+    <div class="gi-chain-node">
+      <div class="gi-chain-node-label">Trip</div>
+      <div class="gi-chain-node-value">{{ fly_trip }}</div>
+      <div class="gi-chain-node-sub">created trip</div>
+    </div>
+  </div>
+  <div class="ad-footnote">
+    Signals are shown independently and do not represent a strict funnel.
+    Each count is measured separately — users are not required to have followed the same path.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 6 — DYNAMIC INSIGHT                                -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="gi-insight">
+  <div class="ad-section-label">Growth Insight</div>
+  <div class="gi-insight-block">
+    <div class="gi-insight-eyebrow">Top Signal</div>
+    <div class="gi-insight-text">"{{ insight }}"</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 7 — STATUS                                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="gi-status">
+  <div class="ad-section-label">Signal Status</div>
+  <div class="gi-status-grid">
+    <div class="gi-status-chip">
+      <div class="gi-status-chip-value">{{ status.tracked }}</div>
+      <div class="gi-status-chip-label">Tracked</div>
+    </div>
+    <div class="gi-status-chip gi-status-chip--green">
+      <div class="gi-status-chip-value">{{ status.green }}</div>
+      <div class="gi-status-chip-label">Green</div>
+    </div>
+    <div class="gi-status-chip gi-status-chip--yellow">
+      <div class="gi-status-chip-value">{{ status.yellow }}</div>
+      <div class="gi-status-chip-label">Yellow</div>
+    </div>
+    <div class="gi-status-chip gi-status-chip--red">
+      <div class="gi-status-chip-value">{{ status.red }}</div>
+      <div class="gi-status-chip-label">Red</div>
+    </div>
+    <div class="gi-status-chip">
+      <div class="gi-status-chip-value" style="font-size:14px;">{{ status.confidence }}</div>
+      <div class="gi-status-chip-label">Confidence</div>
+    </div>
+  </div>
+  <div class="ad-section-label" style="margin-top:16px;">Data Quality Caveats</div>
+  <ul class="gi-caveats">
+    {% for c in status.caveats %}
+    <li>{{ c }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
