@@ -16715,6 +16715,231 @@ def admin_resort_intelligence():
     )
 
 
+@app.route("/admin/product")
+@login_required
+@admin_required
+def admin_product():
+    """Product Dashboard v1 — feature adoption, activation drivers, power users."""
+    from collections import Counter, defaultdict
+
+    now_dt = datetime.utcnow()
+
+    # ── Base population: non-seeded users ───────────────────────────────
+    ns_users = User.query.filter(User.is_seeded == False).all()
+    ns_ids   = [u.id for u in ns_users]
+    total    = len(ns_users)
+    if total == 0:
+        return render_template("admin_product.html", active_tab="product",
+                               now=now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+                               total=0, kpis={}, adoption_table=[], drivers=[],
+                               journey=[], underused=[], power={}, insight=None, status={})
+
+    # ── Helper: safe pct ─────────────────────────────────────────────────
+    def pct(n, d):
+        return round(n / d * 100) if d else 0
+
+    # ── Pre-compute feature memberships ─────────────────────────────────
+    no_pass_slugs = {'no_pass', 'no_pass_yet', 'none', ''}
+
+    def _has_real_pass(u):
+        pt = u.pass_type or ''
+        for raw in str(pt).split(','):
+            if raw.strip().lower() not in no_pass_slugs:
+                return True
+        return False
+
+    def _has_avail(u):
+        return isinstance(u.open_dates, list) and len(u.open_dates) > 0
+
+    def _has_wl(u):
+        return isinstance(u.wish_list_resorts, list) and len(u.wish_list_resorts) > 0
+
+    # Equipment: users with at least one EquipmentSetup row
+    equip_user_ids = set(
+        r[0] for r in db.session.query(EquipmentSetup.user_id.distinct())
+        .filter(EquipmentSetup.user_id.in_(ns_ids)).all()
+    )
+
+    # Friends
+    friend_user_ids = set(
+        r[0] for r in db.session.query(Friend.user_id.distinct())
+        .filter(Friend.user_id.in_(ns_ids)).all()
+    )
+
+    # Trips
+    trip_rows = db.session.query(
+        SkiTrip.user_id, db.func.count(SkiTrip.id).label('n')
+    ).filter(SkiTrip.user_id.in_(ns_ids)).group_by(SkiTrip.user_id).all()
+    trip_count_map = {r.user_id: r.n for r in trip_rows}
+    trip_user_ids  = set(trip_count_map.keys())
+
+    # Group trips
+    gt_owner_ids = set(
+        r[0] for r in db.session.query(SkiTrip.user_id.distinct())
+        .filter(SkiTrip.user_id.in_(ns_ids), SkiTrip.is_group_trip == True).all()
+    )
+
+    # Invite tokens generated
+    invite_user_ids = set(
+        r[0] for r in db.session.query(InviteToken.inviter_id.distinct())
+        .filter(InviteToken.inviter_id.in_(ns_ids)).all()
+    )
+
+    # ── Section 0: Product KPIs ──────────────────────────────────────────
+    activated_n       = sum(1 for u in ns_users if u.is_active_user)
+    profile_n         = sum(1 for u in ns_users if u.is_core_profile_complete)
+    pass_n            = sum(1 for u in ns_users if _has_real_pass(u))
+    avail_n           = sum(1 for u in ns_users if _has_avail(u))
+    wl_n              = sum(1 for u in ns_users if _has_wl(u))
+    friend_n          = len(friend_user_ids)
+
+    kpis = dict(
+        activated_pct = pct(activated_n, total),
+        activated_n   = activated_n,
+        profile_pct   = pct(profile_n, total),
+        profile_n     = profile_n,
+        pass_pct      = pct(pass_n, total),
+        pass_n        = pass_n,
+        avail_pct     = pct(avail_n, total),
+        avail_n       = avail_n,
+        wl_pct        = pct(wl_n, total),
+        wl_n          = wl_n,
+        friend_pct    = pct(friend_n, total),
+        friend_n      = friend_n,
+    )
+
+    # ── Section 1: Feature Adoption Table ───────────────────────────────
+    trip_n    = len(trip_user_ids)
+    equip_n   = len(equip_user_ids)
+    invite_n  = len(invite_user_ids)
+
+    raw_adoption = [
+        dict(feature='Invite',       users=invite_n,  pct=pct(invite_n, total)),
+        dict(feature='Profile',      users=profile_n, pct=pct(profile_n, total)),
+        dict(feature='Friends',      users=friend_n,  pct=pct(friend_n, total)),
+        dict(feature='Pass',         users=pass_n,    pct=pct(pass_n, total)),
+        dict(feature='Equipment',    users=equip_n,   pct=pct(equip_n, total)),
+        dict(feature='Wishlist',     users=wl_n,      pct=pct(wl_n, total)),
+        dict(feature='Trip',         users=trip_n,    pct=pct(trip_n, total)),
+        dict(feature='Availability', users=avail_n,   pct=pct(avail_n, total)),
+    ]
+    adoption_table = sorted(raw_adoption, key=lambda r: r['pct'], reverse=True)
+
+    # ── Section 2: Activation Drivers ───────────────────────────────────
+    baseline_act = activated_n
+    baseline_pct = pct(activated_n, total)
+
+    def driver_row(label, with_ids):
+        with_u  = [u for u in ns_users if u.id in with_ids]
+        with_n  = len(with_u)
+        act_n   = sum(1 for u in with_u if u.is_active_user)
+        act_pct = pct(act_n, with_n)
+        lift    = round(act_pct / baseline_pct, 1) if baseline_pct else 0
+        return dict(feature=label, with_n=with_n, act_n=act_n,
+                    act_pct=act_pct, lift=lift)
+
+    drivers_raw = [
+        driver_row('Equipment',    equip_user_ids),
+        driver_row('Availability', set(u.id for u in ns_users if _has_avail(u))),
+        driver_row('Wishlist',     set(u.id for u in ns_users if _has_wl(u))),
+        driver_row('Friends',      friend_user_ids),
+    ]
+    drivers = sorted(drivers_raw, key=lambda r: r['lift'], reverse=True)
+
+    # ── Section 3: Product Journey ───────────────────────────────────────
+    onboarding_n = profile_n          # is_core_profile_complete
+    real_pass_n  = pass_n
+    journey = [
+        dict(label='Total Users',        n=total,        pct=100),
+        dict(label='Onboarding Complete', n=onboarding_n, pct=pct(onboarding_n, total)),
+        dict(label='Has Real Pass',       n=real_pass_n,  pct=pct(real_pass_n, total)),
+        dict(label='Availability Added',  n=avail_n,      pct=pct(avail_n, total)),
+        dict(label='Wishlist Added',      n=wl_n,         pct=pct(wl_n, total)),
+        dict(label='Activated User',      n=activated_n,  pct=pct(activated_n, total)),
+    ]
+
+    # ── Section 4: Underused Features (bottom 5) ─────────────────────────
+    underused = sorted(adoption_table, key=lambda r: r['pct'])[:5]
+
+    # ── Section 5: Power Users ───────────────────────────────────────────
+    scores = []
+    for u in ns_users:
+        s = 0
+        if _has_real_pass(u):  s += 1
+        if _has_avail(u):      s += 1
+        if _has_wl(u):         s += 1
+        if u.id in equip_user_ids: s += 1
+        if u.id in friend_user_ids: s += 1
+        tc = trip_count_map.get(u.id, 0)
+        s += tc * 2
+        if u.id in gt_owner_ids: s += 3
+        if tc >= 2:            s += 1
+        scores.append(s)
+
+    avg_score = round(sum(scores) / len(scores), 1) if scores else 0
+    dist = Counter()
+    for s in scores:
+        if s <= 2:   dist['0–2'] += 1
+        elif s <= 5: dist['3–5'] += 1
+        elif s <= 8: dist['6–8'] += 1
+        else:        dist['9+']  += 1
+    dist_max = max(dist.values()) if dist else 1
+
+    power = dict(
+        avg_score = avg_score,
+        dist      = [
+            dict(label='0–2', n=dist.get('0–2', 0), pct=pct(dist.get('0–2',0), total)),
+            dict(label='3–5', n=dist.get('3–5', 0), pct=pct(dist.get('3–5',0), total)),
+            dict(label='6–8', n=dist.get('6–8', 0), pct=pct(dist.get('6–8',0), total)),
+            dict(label='9+',  n=dist.get('9+',  0), pct=pct(dist.get('9+', 0), total)),
+        ],
+        dist_max  = dist_max,
+        total     = total,
+    )
+
+    # ── Section 6: Product Insight ───────────────────────────────────────
+    insight = None
+    if baseline_pct > 0 and total >= 5:
+        best = drivers[0] if drivers else None
+        if best and best['with_n'] >= 3 and best['lift'] >= 1.5:
+            insight = (
+                f"{best['feature']} users activate at {best['lift']}× the baseline rate "
+                f"({best['act_pct']}% vs {baseline_pct}% overall) — "
+                f"yet only {pct(best['with_n'], total)}% of users have used this feature."
+            )
+
+    # ── Section 7: Product Status ─────────────────────────────────────────
+    tracked_features  = 8
+    meaningful_thresh = 20   # > 20% adoption
+    meaningful_n      = sum(1 for r in adoption_table if r['pct'] > meaningful_thresh)
+    # Confidence: Growing — view tracking < 60 days, user base < 100
+    confidence = 'Growing'
+
+    status = dict(
+        tracked_features  = tracked_features,
+        meaningful_n      = meaningful_n,
+        confidence        = confidence,
+        total_users       = total,
+        baseline_pct      = baseline_pct,
+    )
+
+    return render_template(
+        "admin_product.html",
+        active_tab     = "product",
+        now            = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        total          = total,
+        kpis           = kpis,
+        adoption_table = adoption_table,
+        drivers        = drivers,
+        baseline_pct   = baseline_pct,
+        journey        = journey,
+        underused      = underused,
+        power          = power,
+        insight        = insight,
+        status         = status,
+    )
+
+
 @app.route("/admin/retention")
 @login_required
 @admin_required

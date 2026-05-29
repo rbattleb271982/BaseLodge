@@ -1,0 +1,599 @@
+{% extends "admin_console.html" %}
+{% block title %}Product Dashboard{% endblock %}
+{% block page_title %}Product Dashboard{% endblock %}
+
+{% block head_styles %}
+  .ad-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: #6B6157;
+    margin: 0 0 10px;
+  }
+  .ad-section { margin-bottom: 32px; }
+  .ad-updated { font-size: 11px; color: #9E958A; margin-bottom: 8px; }
+
+  /* ── KPI grid ── */
+  .pd-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 700px) { .pd-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .pd-card {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 14px 16px 12px;
+    min-width: 0;
+  }
+  .pd-card-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #9E958A;
+    margin-bottom: 5px;
+  }
+  .pd-card-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1C1917;
+    line-height: 1;
+  }
+  .pd-card-sub {
+    font-size: 11px;
+    color: #B0A69B;
+    margin-top: 4px;
+  }
+
+  /* ── Generic table shell ── */
+  .pd-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 9px; }
+  .pd-table {
+    width: 100%;
+    min-width: 380px;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    overflow: hidden;
+  }
+  .pd-table th {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #9E958A;
+    text-align: left;
+    padding: 10px 16px 8px;
+    border-bottom: 1px solid #E4DDD2;
+    background: #FDFAF6;
+    white-space: nowrap;
+  }
+  .pd-table th.th-right { text-align: right; }
+  .pd-table td {
+    padding: 9px 16px;
+    border-bottom: 1px solid #F0EBE3;
+    color: #1C1917;
+    vertical-align: middle;
+  }
+  .pd-table tr:last-child td { border-bottom: none; }
+  .pd-table td.td-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: #4A4238;
+    white-space: nowrap;
+  }
+  .pd-table td.td-pct {
+    text-align: right;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    min-width: 48px;
+  }
+
+  /* ── Progress bar in table ── */
+  .pd-bar-cell { min-width: 80px; padding-right: 16px !important; }
+  .pd-bar-wrap {
+    background: #F5F1E8;
+    border-radius: 3px;
+    height: 5px;
+    overflow: hidden;
+  }
+  .pd-bar { height: 100%; background: #5C1219; border-radius: 3px; }
+  .pd-bar--low { background: #C4B8AC; }
+
+  /* ── Activation drivers ── */
+  .pd-driver-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 600px) { .pd-driver-grid { grid-template-columns: 1fr; } }
+
+  .pd-driver-card {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 14px 16px 12px;
+    position: relative;
+  }
+  .pd-driver-card--top {
+    border-color: rgba(92,18,25,0.35);
+    background: rgba(92,18,25,0.03);
+  }
+  .pd-driver-badge {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #fff;
+    background: #5C1219;
+    border-radius: 4px;
+    padding: 2px 6px;
+  }
+  .pd-driver-feature {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1C1917;
+    margin-bottom: 8px;
+  }
+  .pd-driver-stat {
+    font-size: 24px;
+    font-weight: 700;
+    color: #5C1219;
+    line-height: 1;
+  }
+  .pd-driver-sub {
+    font-size: 11px;
+    color: #9E958A;
+    margin-top: 3px;
+    margin-bottom: 10px;
+  }
+  .pd-driver-lift {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #4A7C59;
+    background: rgba(74,124,89,0.1);
+    border-radius: 5px;
+    padding: 2px 8px;
+  }
+  .pd-driver-lift--low { color: #9E958A; background: #F5F1E8; }
+
+  /* ── Journey funnel ── */
+  .pd-journey {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 4px 0;
+    overflow: hidden;
+  }
+  .pd-journey-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #F0EBE3;
+  }
+  .pd-journey-row:last-child { border-bottom: none; }
+  .pd-journey-label {
+    font-size: 12px;
+    color: #4A4238;
+    width: 160px;
+    flex-shrink: 0;
+  }
+  .pd-journey-n {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1C1917;
+    width: 32px;
+    text-align: right;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .pd-journey-bar-wrap {
+    flex: 1;
+    background: #F5F1E8;
+    border-radius: 3px;
+    height: 6px;
+    overflow: hidden;
+  }
+  .pd-journey-bar { height: 100%; background: #5C1219; border-radius: 3px; }
+  .pd-journey-pct {
+    font-size: 11px;
+    font-weight: 600;
+    color: #9E958A;
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .pd-journey-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    height: 14px;
+  }
+  .pd-journey-arrow-line {
+    width: 1px;
+    height: 14px;
+    background: #E4DDD2;
+    margin-left: 160px;
+  }
+
+  /* ── Power users ── */
+  .pd-power-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 10px;
+  }
+  @media (max-width: 600px) { .pd-power-grid { grid-template-columns: 1fr; } }
+
+  .pd-power-avg {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    gap: 4px;
+  }
+  .pd-power-avg-val {
+    font-size: 40px;
+    font-weight: 700;
+    color: #5C1219;
+    line-height: 1;
+  }
+  .pd-power-avg-label {
+    font-size: 11px;
+    color: #9E958A;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .pd-power-dist {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 14px 16px;
+  }
+  .pd-power-dist-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #9E958A;
+    margin-bottom: 12px;
+  }
+  .pd-power-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .pd-power-row:last-child { margin-bottom: 0; }
+  .pd-power-band {
+    font-size: 11px;
+    font-weight: 700;
+    color: #6B6157;
+    width: 32px;
+    flex-shrink: 0;
+  }
+  .pd-power-bar-wrap {
+    flex: 1;
+    background: #F5F1E8;
+    border-radius: 3px;
+    height: 6px;
+    overflow: hidden;
+  }
+  .pd-power-bar { height: 100%; background: #5C1219; border-radius: 3px; }
+  .pd-power-count {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1C1917;
+    width: 24px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .pd-power-pct {
+    font-size: 11px;
+    color: #B0A69B;
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* ── Insight banner ── */
+  .pd-insight {
+    background: rgba(92,18,25,0.05);
+    border: 1px solid rgba(92,18,25,0.15);
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    color: #3B0D13;
+    line-height: 1.6;
+  }
+  .pd-insight-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Status block ── */
+  .pd-status {
+    background: #FDFAF6;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 12px 16px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    font-size: 13px;
+  }
+  .pd-status-item { display: flex; flex-direction: column; gap: 2px; }
+  .pd-status-key {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #9E958A;
+  }
+  .pd-status-val { font-size: 14px; font-weight: 600; color: #1C1917; }
+  .pd-conf--growing { color: #B07D2E; }
+  .pd-conf--high    { color: #4A7C59; }
+  .pd-conf--low     { color: #9B3A3A; }
+
+  /* ── Empty state ── */
+  .pd-empty {
+    background: #FDFAF6;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 18px 16px;
+    font-size: 13px;
+    color: #6B6560;
+    line-height: 1.6;
+  }
+  .pd-empty strong { color: #1C1917; display: block; margin-bottom: 3px; }
+{% endblock %}
+
+{% block content %}
+<div class="ad-updated">Loaded {{ now }} &middot; {{ total }} non-seeded users</div>
+
+{% if total == 0 %}
+<div class="pd-empty"><strong>No non-seeded users yet.</strong> This dashboard will populate once real users sign up.</div>
+{% else %}
+
+<!-- ── Section 0: Product KPIs ────────────────────────────────────────── -->
+<div class="ad-section" id="pd-kpis">
+  <div class="ad-section-label">Product KPIs</div>
+  <div class="pd-kpi-grid">
+
+    <div class="pd-card">
+      <div class="pd-card-label">Activated Users</div>
+      <div class="pd-card-value">{{ kpis.activated_pct }}%</div>
+      <div class="pd-card-sub">{{ kpis.activated_n }}/{{ total }} users</div>
+    </div>
+
+    <div class="pd-card">
+      <div class="pd-card-label">Profile Complete</div>
+      <div class="pd-card-value">{{ kpis.profile_pct }}%</div>
+      <div class="pd-card-sub">{{ kpis.profile_n }}/{{ total }} users</div>
+    </div>
+
+    <div class="pd-card">
+      <div class="pd-card-label">Pass Adoption</div>
+      <div class="pd-card-value">{{ kpis.pass_pct }}%</div>
+      <div class="pd-card-sub">{{ kpis.pass_n }}/{{ total }} users</div>
+    </div>
+
+    <div class="pd-card">
+      <div class="pd-card-label">Availability</div>
+      <div class="pd-card-value">{{ kpis.avail_pct }}%</div>
+      <div class="pd-card-sub">{{ kpis.avail_n }}/{{ total }} users</div>
+    </div>
+
+    <div class="pd-card">
+      <div class="pd-card-label">Wishlist</div>
+      <div class="pd-card-value">{{ kpis.wl_pct }}%</div>
+      <div class="pd-card-sub">{{ kpis.wl_n }}/{{ total }} users</div>
+    </div>
+
+    <div class="pd-card">
+      <div class="pd-card-label">Friend Connection</div>
+      <div class="pd-card-value">{{ kpis.friend_pct }}%</div>
+      <div class="pd-card-sub">{{ kpis.friend_n }}/{{ total }} users</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Section 1: Feature Adoption ───────────────────────────────────── -->
+<div class="ad-section" id="pd-adoption">
+  <div class="ad-section-label">Feature Adoption</div>
+  <div class="pd-table-wrap">
+    <table class="pd-table">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th class="th-right">Users</th>
+          <th class="th-right">%</th>
+          <th style="width:120px;padding-right:16px;">Usage</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in adoption_table %}
+        <tr>
+          <td style="font-weight:500;">{{ row.feature }}</td>
+          <td class="td-num">{{ row.users }}</td>
+          <td class="pd-table td-pct" style="color:{% if row.pct >= 50 %}#4A7C59{% elif row.pct >= 25 %}#B07D2E{% else %}#9E958A{% endif %};">
+            {{ row.pct }}%
+          </td>
+          <td class="pd-bar-cell">
+            <div class="pd-bar-wrap">
+              <div class="{{ 'pd-bar' if row.pct >= 25 else 'pd-bar pd-bar--low' }}"
+                   style="width:{{ row.pct }}%;"></div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Section 2: Activation Drivers ─────────────────────────────────── -->
+<div class="ad-section" id="pd-drivers">
+  <div class="ad-section-label">Activation Drivers</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">
+    Activation rate among users who have used each feature vs baseline of {{ baseline_pct }}%.
+  </div>
+  {% if drivers %}
+  <div class="pd-driver-grid">
+    {% for row in drivers %}
+    <div class="pd-driver-card {{ 'pd-driver-card--top' if loop.first else '' }}">
+      {% if loop.first %}<span class="pd-driver-badge">Strongest</span>{% endif %}
+      <div class="pd-driver-feature">{{ row.feature }}</div>
+      <div class="pd-driver-stat">{{ row.act_pct }}%</div>
+      <div class="pd-driver-sub">{{ row.act_n }}/{{ row.with_n }} users activated &middot; {{ row.with_n }} total with feature</div>
+      <span class="{{ 'pd-driver-lift' if row.lift >= 1.5 else 'pd-driver-lift pd-driver-lift--low' }}">
+        {{ row.lift }}× baseline
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="pd-empty"><strong>Not enough data.</strong> Activation driver analysis requires at least 5 users per segment.</div>
+  {% endif %}
+</div>
+
+<!-- ── Section 3: Product Journey ────────────────────────────────────── -->
+<div class="ad-section" id="pd-journey">
+  <div class="ad-section-label">Product Journey</div>
+  <div class="pd-journey">
+    {% for step in journey %}
+    <div class="pd-journey-row">
+      <span class="pd-journey-label">{{ step.label }}</span>
+      <span class="pd-journey-n">{{ step.n }}</span>
+      <div class="pd-journey-bar-wrap">
+        <div class="pd-journey-bar" style="width:{{ step.pct }}%;"></div>
+      </div>
+      <span class="pd-journey-pct">{{ step.pct }}%</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ── Section 4: Underused Features ─────────────────────────────────── -->
+<div class="ad-section" id="pd-underused">
+  <div class="ad-section-label">Underused Features</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">Bottom 5 features by adoption — highest opportunity for product investment.</div>
+  {% if underused %}
+  <div class="pd-table-wrap">
+    <table class="pd-table" style="min-width:280px;">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th class="th-right">Users</th>
+          <th class="th-right">Adoption</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in underused %}
+        <tr>
+          <td style="font-weight:500;">{{ row.feature }}</td>
+          <td class="td-num">{{ row.users }}</td>
+          <td class="pd-table td-pct" style="color:#9B3A3A;">{{ row.pct }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="pd-empty"><strong>No underused features.</strong></div>
+  {% endif %}
+</div>
+
+<!-- ── Section 5: Power Users ─────────────────────────────────────────── -->
+<div class="ad-section" id="pd-power">
+  <div class="ad-section-label">Power Users</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">
+    Score: Pass +1 &middot; Availability +1 &middot; Wishlist +1 &middot; Equipment +1 &middot; Friend +1 &middot; Trip +2 each &middot; Group Trip +3 &middot; 2+ trips +1 bonus
+  </div>
+  {% if power %}
+  <div class="pd-power-grid">
+    <div class="pd-power-avg">
+      <div class="pd-power-avg-val">{{ power.avg_score }}</div>
+      <div class="pd-power-avg-label">Avg Product Score</div>
+    </div>
+    <div class="pd-power-dist">
+      <div class="pd-power-dist-title">Score Distribution ({{ power.total }} users)</div>
+      {% for band in power.dist %}
+      <div class="pd-power-row">
+        <span class="pd-power-band">{{ band.label }}</span>
+        <div class="pd-power-bar-wrap">
+          <div class="pd-power-bar"
+               style="width:{{ (band.n / power.dist_max * 100)|int if power.dist_max else 0 }}%;"></div>
+        </div>
+        <span class="pd-power-count">{{ band.n }}</span>
+        <span class="pd-power-pct">{{ band.pct }}%</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="pd-empty"><strong>No score data.</strong></div>
+  {% endif %}
+</div>
+
+<!-- ── Section 6: Product Insight ─────────────────────────────────────── -->
+<div class="ad-section" id="pd-insight">
+  <div class="ad-section-label">Product Insight</div>
+  {% if insight %}
+  <div class="pd-insight">
+    <span class="pd-insight-icon">&#9654;</span>
+    <span>{{ insight }}</span>
+  </div>
+  {% else %}
+  <div class="pd-empty"><strong>Not enough data yet.</strong> Insight will appear once more users activate across feature segments.</div>
+  {% endif %}
+</div>
+
+<!-- ── Section 7: Product Status ─────────────────────────────────────── -->
+<div class="ad-section" id="pd-status">
+  <div class="ad-section-label">Product Status</div>
+  <div class="pd-status">
+    <div class="pd-status-item">
+      <span class="pd-status-key">Tracked Features</span>
+      <span class="pd-status-val">{{ status.tracked_features }}</span>
+    </div>
+    <div class="pd-status-item">
+      <span class="pd-status-key">Meaningful Adoption (&gt;20%)</span>
+      <span class="pd-status-val">{{ status.meaningful_n }}</span>
+    </div>
+    <div class="pd-status-item">
+      <span class="pd-status-key">Data Confidence</span>
+      <span class="pd-status-val pd-conf--{{ status.confidence | lower }}">{{ status.confidence }}</span>
+    </div>
+    <div class="pd-status-item">
+      <span class="pd-status-key">Non-Seeded Users</span>
+      <span class="pd-status-val">{{ status.total_users }}</span>
+    </div>
+    <div class="pd-status-item">
+      <span class="pd-status-key">Baseline Activation</span>
+      <span class="pd-status-val">{{ status.baseline_pct }}%</span>
+    </div>
+  </div>
+  <div style="font-size:11px;color:#9E958A;margin-top:8px;">2 signals excluded due to insufficient tracking (Home Feed, Notifications).</div>
+</div>
+
+{% endif %}
+{% endblock %}
