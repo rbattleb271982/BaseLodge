@@ -5359,12 +5359,13 @@ def admin_push_diagnostics():
 @login_required
 @admin_required
 def admin_test_push():
-    """Send a test push notification using the most recently updated active token.
+    """Send a test push notification to a specific target user's most recently updated active token.
 
     Routing:
-      - If the latest active token is platform='ios'  → send via APNs (existing behavior,
-        loops over all active iOS tokens matching the current APNs environment).
-      - If the latest active token is platform='android' → send via FCM (single token).
+      - Reads ?user_id=<id> from the query string; defaults to the current admin user.
+      - If the target user's latest active token is platform='android' → FCM (single token).
+      - If the target user's latest active token is platform='ios'  → APNs (all matching
+        active iOS tokens for that user in the current APNs environment).
 
     Title: BaseLodge
     Body:  Test push from BaseLodge
@@ -5372,19 +5373,48 @@ def admin_test_push():
     def _tok_preview(t):
         return t[:8] + "\u2026" + t[-6:] if len(t) > 14 else t[:8] + "\u2026"
 
-    # Determine which platform to use based on the most recently updated active token.
+    # ── Resolve target user (defaults to current admin) ───────────────────────
+    try:
+        target_user_id = int(request.args.get("user_id", current_user.id))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid user_id parameter."}), 400
+
+    target_user = db.session.get(User, target_user_id)
+    if not target_user:
+        return jsonify({"error": f"User {target_user_id} not found."}), 404
+
+    # ── Determine platform from target user's most recently updated active token ──
     latest_token = (
         PushDeviceToken.query
-        .filter_by(active=True)
+        .filter_by(active=True, user_id=target_user_id)
         .order_by(PushDeviceToken.updated_at.desc())
         .first()
     )
 
     current_app.logger.warning(
-        "[TestPush] latest_active_token: id=%s platform=%s",
+        "[TestPush] target_user_id=%d latest_active_token: id=%s platform=%s",
+        target_user_id,
         latest_token.id if latest_token else None,
         latest_token.platform if latest_token else "none",
     )
+
+    # ── Early return when the target user has no active tokens at all ─────────
+    if latest_token is None:
+        total_token_count = PushDeviceToken.query.filter_by(user_id=target_user_id).count()
+        current_app.logger.warning(
+            "[TestPush] target_user_id=%d — no active tokens found (total tokens: %d)",
+            target_user_id, total_token_count,
+        )
+        return jsonify({
+            "success":       False,
+            "final_success": False,
+            "reason":        "no_active_tokens",
+            "error":         f"No active push token found for user {target_user_id}.",
+            "instruction":   "Ask the user to open the BaseLodge app so their device registers a token.",
+            "token_counts":  {"total": total_token_count, "active": 0},
+            "target_user_id": target_user_id,
+            "results_by_token": [],
+        }), 200
 
     # ── Android path ──────────────────────────────────────────────────────────
     if latest_token and latest_token.platform == "android":
@@ -5457,32 +5487,41 @@ def admin_test_push():
         "APNS_KEY_P8_set": bool(os.environ.get("APNS_KEY_P8")),
     }
 
-    # Select active iOS tokens whose stored env matches the current APNs mode.
+    # Select active iOS tokens for the target user whose stored env matches the current APNs mode.
     candidate_rows = (
         PushDeviceToken.query
-        .filter_by(active=True, platform="ios", apns_environment=target_env)
+        .filter_by(active=True, platform="ios", apns_environment=target_env,
+                   user_id=target_user_id)
         .order_by(PushDeviceToken.updated_at.desc())
         .all()
     )
 
     current_app.logger.warning(
-        "[TestPush] provider=apns APNS_USE_SANDBOX=%s target_env=%s active_ios_%s_tokens=%d",
-        use_sandbox_raw, target_env, target_env, len(candidate_rows),
+        "[TestPush] target_user_id=%d provider=apns APNS_USE_SANDBOX=%s target_env=%s active_ios_%s_tokens=%d",
+        target_user_id, use_sandbox_raw, target_env, target_env, len(candidate_rows),
     )
 
     if not candidate_rows:
         current_app.logger.warning(
-            "[TestPush] no active iOS %s tokens found — nothing to send", target_env,
+            "[TestPush] target_user_id=%d no active iOS %s tokens found — nothing to send",
+            target_user_id, target_env,
         )
+        total_token_count = PushDeviceToken.query.filter_by(user_id=target_user_id).count()
         return jsonify({
-            "provider":              "apns",
-            "platform":              "ios",
-            "total_tokens_found":    0,
+            "success":       False,
+            "final_success": False,
+            "provider":      "apns",
+            "platform":      "ios",
+            "total_tokens_found":     0,
             "total_sent_successfully": 0,
-            "total_failed":          0,
-            "apns_env":              apns_env_info,
-            "reason":                "no_active_tokens",
-            "results_by_token":      [],
+            "total_failed":           0,
+            "apns_env":      apns_env_info,
+            "reason":        "no_active_tokens",
+            "error":         f"No active iOS {target_env} token found for user {target_user_id}.",
+            "instruction":   "Ask the user to open the BaseLodge app so their device registers a token.",
+            "token_counts":  {"total": total_token_count, "active": 0},
+            "target_user_id": target_user_id,
+            "results_by_token": [],
         }), 200
 
     def _prefer_sandbox(row):
