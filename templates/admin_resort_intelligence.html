@@ -126,6 +126,64 @@
   .ri-conv--low  { color: #9E958A; }
   .ri-resort-name { font-weight: 500; }
 
+  /* ── Desktop/mobile label toggle ── */
+  .th-short { display: none; }
+  .th-full  { display: inline; }
+
+  /* ── Mobile table: reorder columns, hide WL→Trip, kill min-width ── */
+  @media (max-width: 699px) {
+    .ri-table { min-width: 0; }
+
+    .ri-table thead tr,
+    .ri-table tbody tr { display: flex; align-items: center; }
+
+    /* Resort — fills remaining width, names may wrap */
+    .ri-table th:nth-child(1),
+    .ri-table td:nth-child(1) {
+      order: 1; flex: 1; min-width: 0; white-space: normal;
+    }
+
+    /* Wishlists → WL — shown last (order 5) */
+    .ri-table th:nth-child(2),
+    .ri-table td:nth-child(2) {
+      order: 5; width: 36px; min-width: 36px;
+      flex-shrink: 0; text-align: center;
+    }
+
+    /* Trips — third (order 3) */
+    .ri-table th:nth-child(3),
+    .ri-table td:nth-child(3) {
+      order: 3; width: 40px; min-width: 40px;
+      flex-shrink: 0; text-align: center;
+    }
+
+    /* Group Trips → Group — fourth (order 4) */
+    .ri-table th:nth-child(4),
+    .ri-table td:nth-child(4) {
+      order: 4; width: 44px; min-width: 44px;
+      flex-shrink: 0; text-align: center;
+    }
+
+    /* Page Views → Views — second (order 2) */
+    .ri-table th:nth-child(5),
+    .ri-table td:nth-child(5) {
+      order: 2; width: 44px; min-width: 44px;
+      flex-shrink: 0; text-align: center;
+    }
+
+    /* WL→Trip — hidden entirely on mobile */
+    .ri-table th:nth-child(6),
+    .ri-table td:nth-child(6) { display: none; }
+
+    /* Tighter padding on mobile */
+    .ri-table th { padding: 8px 6px 6px; }
+    .ri-table td { padding: 7px 6px; }
+
+    /* Label swap */
+    .th-full  { display: none; }
+    .th-short { display: inline; }
+  }
+
   /* ── Funnel rows ── */
   .ri-funnel-grid {
     display: grid;
@@ -346,10 +404,10 @@
       <thead>
         <tr>
           <th>Resort</th>
-          <th class="th-right">Wishlists</th>
+          <th class="th-right"><span class="th-full">Wishlists</span><span class="th-short">WL</span></th>
           <th class="th-right">Trips</th>
-          <th class="th-right">Group Trips</th>
-          <th class="th-right">Page Views</th>
+          <th class="th-right"><span class="th-full">Group Trips</span><span class="th-short">Group</span></th>
+          <th class="th-right"><span class="th-full">Page Views</span><span class="th-short">Views</span></th>
           <th class="th-right">WL→Trip</th>
         </tr>
       </thead>
