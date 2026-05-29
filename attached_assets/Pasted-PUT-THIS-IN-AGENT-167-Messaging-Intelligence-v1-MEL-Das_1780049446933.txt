@@ -1,0 +1,221 @@
+PUT THIS IN AGENT
+
+#167 - Messaging Intelligence v1 — MEL Dashboard
+
+What & Why
+
+The existing /admin/messaging dashboard covers invite-link and trip-invite flows using the InviteToken, Invitation, Friend, and PushDeviceToken tables — but it does not query MessageEventLog at all.
+
+The MEL has been recording every push event (friend requests, trip invites, automations, test/broadcast) with full delivery status, suppression reasons, and OneSignal provider IDs since Phase C shipped.
+
+This task surfaces that data in the dashboard so you can see push volume by time window, event-type leaderboard, delivery health breakdown, and suppression analysis without leaving /admin/messaging.
+
+Done looks like
+
+* A new "MEL Volume" row group in the dashboard showing push messages L7 / L30 / L90 (total, sent, skipped, failed)
+* An "Event Type Activity" leaderboard: the most-triggered event_name values ranked by volume, with status breakdown per type
+* A "Delivery Health" funnel using MEL delivery_status counts (sent / skipped / failed) with % rates
+* A "Suppression Breakdown" list showing which suppression_reason values are most common (channel_unavailable, user_opted_out, duplicate_event, etc.)
+* An updated dynamic insight that can reference MEL data (e.g. "friend.request.created accounts for 48% of all push activity")
+* Updated "Messaging Status" block: tracked_signals and reliable_signals counts reflect the completed audit (9 GREEN, 4 YELLOW, 7 RED)
+* All new sections are mobile-friendly, extend the existing .ms-* CSS namespace, and render gracefully when MEL has 0 rows
+
+Out of scope
+
+* Push open / click tracking (RED — requires OneSignal webhooks, not in this task)
+* Email messaging (RED — EmailLog inactive, SendGrid not wired into MEL)
+* Marketing/broadcast MEL category (no events registered under Category.MARKETING)
+* OneSignal subscription metadata per user (would require OneSignal API calls)
+* New models, migrations, or new admin routes
+* Anything requiring a new vendor or external API
+
+Implementation Requirements
+
+Reuse the existing:
+
+* /admin/messaging route
+* admin_messaging.html template
+* MessageEventLog model
+* Existing messaging KPI cards
+* Existing insight generator
+* Existing status section
+
+Do not create:
+
+* New routes
+* New models
+* New migrations
+* New tables
+* New tracking systems
+
+---
+
+## SECTION A — MEL VOLUME
+
+Insert immediately after the KPI section.
+
+Show:
+
+L7
+L30
+L90
+
+For each window display:
+
+* Total MEL rows
+* Sent
+* Skipped
+* Failed
+
+Display caveat:
+
+"Sent = accepted by OneSignal, not confirmed delivered."
+
+---
+
+## SECTION B — EVENT TYPE ACTIVITY
+
+Leaderboard table:
+
+* event_name
+* total
+* sent
+* skipped
+* failed
+* sent %
+
+Sort by total DESC.
+
+This should show which messaging flows are most active.
+
+---
+
+## SECTION C — DELIVERY HEALTH
+
+Build a funnel-style section:
+
+Total Messages
+↓
+Sent
+↓
+Skipped
+↓
+Failed
+
+Show:
+
+* Counts
+* Percentages
+
+Use MEL delivery_status values only.
+
+---
+
+## SECTION D — SUPPRESSION BREAKDOWN
+
+Group by suppression_reason.
+
+Examples:
+
+* channel_unavailable
+* user_opted_out
+* duplicate_event
+
+Display:
+
+Suppression Reason
+Count
+Share %
+
+Sort descending.
+
+---
+
+## SECTION E — NETWORK EFFECT SIGNALS
+
+Add a small table showing messaging events tied to network activity.
+
+Examples:
+
+* Friend Request Created
+* Friend Request Accepted
+* Trip Invite Created
+* Trip Invite Accepted
+
+Use existing data only.
+
+Label this section YELLOW confidence.
+
+---
+
+## MESSAGING INSIGHT
+
+Extend the existing insight generator.
+
+Allow MEL-based insights such as:
+
+* "friend.request.created accounts for 48% of all push activity."
+* "92% of push attempts were accepted by OneSignal."
+* "Trip invite notifications are the second most common message type."
+
+Use the strongest available signal.
+
+Hide if insufficient data.
+
+---
+
+## MESSAGING STATUS
+
+Update the existing status block.
+
+Use:
+
+tracked_signals = 16
+
+reliable_signals = 9
+
+confidence = Growing
+
+Reflect audit results:
+
+GREEN = 9
+YELLOW = 4
+RED = 7
+
+---
+
+## MOBILE REQUIREMENTS
+
+Must work on:
+
+* iPhone 15 Pro
+
+Requirements:
+
+* KPI cards collapse cleanly
+* Tables scroll horizontally
+* No clipped content
+* No overflow
+
+---
+
+## TESTING REQUIREMENTS
+
+Verify:
+
+* /admin/messaging returns 200
+* Existing messaging KPIs still render
+* MEL Volume renders correctly
+* Event Type Activity renders correctly
+* Delivery Health renders correctly
+* Suppression Breakdown renders correctly
+* Insight generator works
+* Empty-state handling works when MEL has 0 rows
+* Mobile layout works
+* No template errors
+* No raw Jinja output
+* No None values leaking into the UI
+
+Use checkpoints sparingly.
+
+Do not finish until all testing passes.

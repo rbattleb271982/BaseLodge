@@ -1,0 +1,268 @@
+PUT THIS IN PLAN FIRST
+
+#178 - Messaging Intelligence v1
+
+What & Why
+
+BaseLodge now has:
+
+* OneSignal push notifications
+* MessageEventLog
+* Transactional messaging
+* Invite flows
+* Friend request flows
+* Trip invite flows
+
+We need visibility into messaging health, delivery volume, user reachability, and engagement.
+
+The goal is to answer:
+
+* How many users can we reach?
+* Which messages are firing most often?
+* Are notifications being delivered?
+* Are users opting out?
+* Which messaging flows are most active?
+* Is messaging helping the network grow?
+
+Use existing production data only.
+
+Do not add:
+
+* New vendors
+* New databases
+* New tracking systems
+* New event systems
+
+Inspect and reuse the existing MessageEventLog, OneSignal, notification, and admin dashboard infrastructure wherever possible.
+
+Before implementation, perform a feasibility audit.
+
+---
+
+## PHASE 1 — FEASIBILITY AUDIT
+
+Audit all available messaging signals.
+
+At minimum inspect:
+
+1. MessageEventLog
+2. Push Notifications Sent
+3. Push Delivery Status
+4. Push Open Status
+5. Push Opt-In Status
+6. Push Opt-Out Status
+7. Friend Request Messages
+8. Friend Accepted Messages
+9. Trip Invite Messages
+10. Trip Invite Accepted Messages
+11. Email Messaging
+12. Marketing Messaging
+13. Transactional Messaging
+14. OneSignal Metadata
+15. Message Failures
+16. Message Suppressions
+
+For each signal classify:
+
+GREEN
+Directly measurable today
+
+YELLOW
+Approximation available
+
+RED
+Not reliably measurable
+
+Provide:
+
+* Source model
+* Query approach
+* Current counts
+* Data quality concerns
+* Recommendation
+
+Return the audit as a table with:
+
+* Signal
+* Classification
+* Source Model
+* Current Count
+* Confidence
+* Data Quality Concerns
+* Recommendation
+
+Do not build until audit is complete.
+
+---
+
+## SECTION 0 — MESSAGING KPIs
+
+Potential KPIs:
+
+* Reachable Users
+* Push Enabled Users
+* Push Disabled Users
+* Messages Sent
+* Messages Delivered
+* Messages Failed
+
+Recommend which KPIs are actually reliable.
+
+---
+
+## SECTION 1 — MESSAGE VOLUME
+
+Audit feasibility of:
+
+* Messages L7
+* Messages L30
+* Messages L90
+
+By:
+
+* Push
+* Email
+* Total
+
+---
+
+## SECTION 2 — MESSAGE TYPES
+
+Audit whether we can reliably break down:
+
+* Friend Request Created
+* Friend Request Accepted
+* Trip Invite Created
+* Trip Invite Accepted
+* Push Tests
+* Admin Broadcasts
+* Other Event Types
+
+---
+
+## SECTION 3 — USER REACHABILITY
+
+Audit feasibility of:
+
+* Push Enabled %
+* Push Disabled %
+* Email Reachable %
+* Users With No Reachable Channel
+
+---
+
+## SECTION 4 — DELIVERY HEALTH
+
+Audit feasibility of:
+
+* Sent
+* Delivered
+* Failed
+* Skipped
+* Suppressed
+
+Identify which statuses are actually stored.
+
+---
+
+## SECTION 5 — ENGAGEMENT
+
+Audit feasibility of:
+
+* Push Opens
+* Notification Clicks
+* Deep Link Opens
+* Return Visits
+
+Identify what is actually measurable today.
+
+---
+
+## SECTION 6 — NETWORK EFFECT SIGNALS
+
+Determine whether messaging can be tied to:
+
+* Friend connections
+* Trip participation
+* Invite acceptance
+* Network growth
+
+Identify GREEN/YELLOW/RED feasibility.
+
+---
+
+## SECTION 7 — TOP MESSAGE FLOWS
+
+Recommend the most useful leaderboard.
+
+Examples:
+
+* Most triggered event types
+* Most delivered event types
+* Most failed event types
+
+---
+
+## SECTION 8 — MESSAGING INSIGHT
+
+Recommend a dynamic insight.
+
+Examples:
+
+"Friend request notifications account for 48% of all messaging activity."
+
+"92% of users are reachable by push."
+
+"Trip invite acceptance notifications increased 35% vs prior L30."
+
+Only recommend insights that can be supported by production data.
+
+---
+
+## SECTION 9 — STATUS
+
+Display:
+
+* Tracked Signals
+* Reliable Signals
+* Data Confidence
+
+Confidence:
+
+Low
+Growing
+High
+
+---
+
+## MOBILE REQUIREMENTS
+
+Must work on:
+
+* iPhone 15 Pro
+
+---
+
+## DELIVERABLE BEFORE BUILDING
+
+Provide:
+
+1. Full feasibility audit
+2. GREEN / YELLOW / RED classification
+3. Recommended KPIs
+4. Recommended messaging dashboard sections
+5. Recommended dynamic insight
+6. Recommended implementation approach
+
+STOP AFTER THE AUDIT.
+
+Do not create routes.
+Do not modify templates.
+Do not add models.
+Do not add migrations.
+
+Return findings and recommendations only.
+
+Wait for approval before implementation.
+
+Use checkpoints sparingly.

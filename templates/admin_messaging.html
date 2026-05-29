@@ -310,6 +310,194 @@
   </div>
 </div>
 
+<!-- ── Section A: MEL Volume ──────────────────────────────────────────── -->
+<div class="ad-section" id="ms-mel-volume">
+  <div class="ad-section-label">MEL Push Volume</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:10px;">
+    Sent = accepted by OneSignal, not confirmed delivered to device.
+  </div>
+  {% if mel_volume.all.total > 0 %}
+  <div class="ms-table-wrap">
+    <table class="ms-table">
+      <thead>
+        <tr>
+          <th>Window</th>
+          <th class="th-right">Total</th>
+          <th class="th-right">Sent</th>
+          <th class="th-right">Skipped</th>
+          <th class="th-right">Failed</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set windows = [('Last 7 days', mel_volume.l7), ('Last 30 days', mel_volume.l30), ('Last 90 days', mel_volume.l90), ('All time', mel_volume.all)] %}
+        {% for label, w in windows %}
+        <tr>
+          <td style="font-weight:500;">{{ label }}</td>
+          <td class="td-num">{{ w.total }}</td>
+          <td class="td-num" style="color:#4A7C59;font-weight:600;">{{ w.sent }}</td>
+          <td class="td-num" style="color:#B07D2E;">{{ w.skipped }}</td>
+          <td class="td-num" style="color:#9B3A3A;">{{ w.failed }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="ms-empty"><strong>No MEL rows yet.</strong> Push events will appear here once friend requests, trip invites, or test pushes fire through the messaging pipeline.</div>
+  {% endif %}
+</div>
+
+<!-- ── Section B: Event Type Activity ────────────────────────────────── -->
+<div class="ad-section" id="ms-mel-events">
+  <div class="ad-section-label">Event Type Activity</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">Most-triggered event types, all time. Sorted by volume.</div>
+  {% if mel_event_leaderboard %}
+  <div class="ms-table-wrap">
+    <table class="ms-table">
+      <thead>
+        <tr>
+          <th>Event</th>
+          <th class="th-right">Total</th>
+          <th class="th-right">Sent</th>
+          <th class="th-right">Skipped</th>
+          <th class="th-right">Failed</th>
+          <th class="th-right">Sent %</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in mel_event_leaderboard %}
+        <tr>
+          <td style="font-family:monospace;font-size:12px;color:#4A4238;">{{ row.event_name }}</td>
+          <td class="td-num">{{ row.total }}</td>
+          <td class="td-num" style="color:#4A7C59;">{{ row.sent }}</td>
+          <td class="td-num" style="color:#B07D2E;">{{ row.skipped }}</td>
+          <td class="td-num" style="color:#9B3A3A;">{{ row.failed }}</td>
+          <td class="td-conv">
+            <span class="{{ 'ms-conv--high' if row.sent_pct >= 50 else ('ms-conv--mid' if row.sent_pct >= 20 else 'ms-conv--low') }}">{{ row.sent_pct }}%</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="ms-empty"><strong>No event activity yet.</strong> This leaderboard populates from MessageEventLog rows.</div>
+  {% endif %}
+</div>
+
+<!-- ── Section C: Delivery Health ────────────────────────────────────── -->
+<div class="ad-section" id="ms-mel-health">
+  <div class="ad-section-label">Delivery Health</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">All-time MEL totals. Percentages of total emitted events.</div>
+  {% if mel_health.total > 0 %}
+  {% set h = mel_health %}
+  {% set h_max = h.total %}
+  <div class="ms-funnel">
+    <div class="ms-funnel-row">
+      <span class="ms-funnel-label">Total Emitted</span>
+      <span class="ms-funnel-n">{{ h.total }}</span>
+      <div class="ms-funnel-bar-wrap"><div class="ms-funnel-bar" style="width:100%;"></div></div>
+      <span class="ms-funnel-conv"></span>
+    </div>
+    <div class="ms-funnel-arrow"><div class="ms-funnel-arrow-line"></div></div>
+    <div class="ms-funnel-row">
+      <span class="ms-funnel-label" style="color:#4A7C59;">Sent (accepted by provider)</span>
+      <span class="ms-funnel-n" style="color:#4A7C59;">{{ h.sent }}</span>
+      <div class="ms-funnel-bar-wrap"><div class="ms-funnel-bar" style="width:{{ (h.sent / h_max * 100)|int }}%;background:#4A7C59;"></div></div>
+      <span class="ms-funnel-conv">{{ h.sent_pct }}%</span>
+    </div>
+    <div class="ms-funnel-arrow"><div class="ms-funnel-arrow-line"></div></div>
+    <div class="ms-funnel-row">
+      <span class="ms-funnel-label" style="color:#B07D2E;">Skipped (suppressed)</span>
+      <span class="ms-funnel-n" style="color:#B07D2E;">{{ h.skipped }}</span>
+      <div class="ms-funnel-bar-wrap"><div class="ms-funnel-bar--mid" style="width:{{ (h.skipped / h_max * 100)|int }}%;"></div></div>
+      <span class="ms-funnel-conv">{{ h.skipped_pct }}%</span>
+    </div>
+    <div class="ms-funnel-arrow"><div class="ms-funnel-arrow-line"></div></div>
+    <div class="ms-funnel-row">
+      <span class="ms-funnel-label" style="color:#9B3A3A;">Failed (provider error)</span>
+      <span class="ms-funnel-n" style="color:#9B3A3A;">{{ h.failed }}</span>
+      <div class="ms-funnel-bar-wrap"><div class="ms-funnel-bar--light" style="width:{{ (h.failed / h_max * 100)|int if h.failed else 0 }}%;background:#E8A0A0;"></div></div>
+      <span class="ms-funnel-conv">{{ h.failed_pct }}%</span>
+    </div>
+  </div>
+  {% else %}
+  <div class="ms-empty"><strong>No delivery data yet.</strong> Funnel will populate once push events fire.</div>
+  {% endif %}
+</div>
+
+<!-- ── Section D: Suppression Breakdown ──────────────────────────────── -->
+<div class="ad-section" id="ms-mel-suppression">
+  <div class="ad-section-label">Suppression Breakdown</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">Why skipped events were suppressed. Sorted by frequency.</div>
+  {% if mel_suppression %}
+  <div class="ms-table-wrap">
+    <table class="ms-table">
+      <thead>
+        <tr>
+          <th>Suppression Reason</th>
+          <th class="th-right">Count</th>
+          <th class="th-right">Share</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in mel_suppression %}
+        <tr>
+          <td style="font-family:monospace;font-size:12px;color:#4A4238;">{{ row.reason }}</td>
+          <td class="td-num">{{ row.count }}</td>
+          <td class="td-num">{{ row.share_pct }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="ms-empty"><strong>No suppressions yet.</strong> Suppression reasons appear once skipped events are logged.</div>
+  {% endif %}
+</div>
+
+<!-- ── Section E: Network Effect Signals ─────────────────────────────── -->
+<div class="ad-section" id="ms-mel-network">
+  <div class="ad-section-label">Network Effect Signals</div>
+  <div style="font-size:11px;color:#B07D2E;margin-bottom:8px;font-weight:600;">YELLOW confidence — correlation only, not causation. Push sent ≠ push delivered.</div>
+  {% if mel_network and mel_network | selectattr('total', 'gt', 0) | list %}
+  <div class="ms-table-wrap">
+    <table class="ms-table">
+      <thead>
+        <tr>
+          <th>Event</th>
+          <th class="th-right">Total</th>
+          <th class="th-right">Sent</th>
+          <th class="th-right">Skipped</th>
+          <th class="th-right">Failed</th>
+          <th class="th-right">Sent %</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in mel_network %}
+        <tr>
+          <td style="font-weight:500;color:#1C1917;">{{ row.label }}</td>
+          <td class="td-num">{{ row.total }}</td>
+          <td class="td-num" style="color:#4A7C59;">{{ row.sent }}</td>
+          <td class="td-num" style="color:#B07D2E;">{{ row.skipped }}</td>
+          <td class="td-num" style="color:#9B3A3A;">{{ row.failed }}</td>
+          <td class="td-conv">
+            {% if row.total > 0 %}
+            <span class="{{ 'ms-conv--high' if row.sent_pct >= 50 else ('ms-conv--mid' if row.sent_pct >= 20 else 'ms-conv--low') }}">{{ row.sent_pct }}%</span>
+            {% else %}
+            <span style="color:#E0DAD3;">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="ms-empty"><strong>No network events yet.</strong> Friend request and trip invite push events will appear here once they fire.</div>
+  {% endif %}
+</div>
+
 <!-- ── Section 1: Message Volume ─────────────────────────────────────── -->
 <div class="ad-section" id="ms-volume">
   <div class="ad-section-label">Message Volume</div>
@@ -533,8 +721,9 @@
     </div>
   </div>
   <div style="font-size:11px;color:#9E958A;margin-top:8px;">
-    7 messaging signals excluded due to missing tracking or inactive systems.
-    <code>EmailLog</code> model is available but currently inactive — 0 emails logged.
+    Audit: 9 GREEN (directly measurable) &middot; 4 YELLOW (approximation) &middot; 7 RED (not measurable today).
+    RED signals include push opens, email, marketing, OS-level opt-out, and deep link attribution.
+    <code>EmailLog</code> model exists but is inactive — 0 emails logged.
   </div>
 </div>
 

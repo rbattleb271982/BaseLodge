@@ -16801,6 +16801,140 @@ def admin_messaging():
         User.push_notifications_enabled == False
     ).count()
 
+    # ── MEL queries (Sections A–E) ───────────────────────────────────────
+    from datetime import timedelta
+    from services.messaging_constants import EventName as _EN
+
+    _now = now_dt
+    _l7  = _now - timedelta(days=7)
+    _l30 = _now - timedelta(days=30)
+    _l90 = _now - timedelta(days=90)
+
+    def _mel_window(cutoff=None):
+        q = db.session.query(
+            MessageEventLog.delivery_status,
+            db.func.count(MessageEventLog.id)
+        )
+        if cutoff:
+            q = q.filter(MessageEventLog.created_at >= cutoff)
+        rows = q.group_by(MessageEventLog.delivery_status).all()
+        d = {s: n for s, n in rows}
+        total = sum(d.values())
+        return dict(
+            total   = total,
+            sent    = d.get('sent', 0),
+            skipped = d.get('skipped', 0),
+            failed  = d.get('failed', 0),
+            pending = d.get('pending', 0),
+        )
+
+    _mel_all = _mel_window()
+    _mel_l7  = _mel_window(_l7)
+    _mel_l30 = _mel_window(_l30)
+    _mel_l90 = _mel_window(_l90)
+
+    mel_volume = dict(
+        all = _mel_all,
+        l7  = _mel_l7,
+        l30 = _mel_l30,
+        l90 = _mel_l90,
+    )
+
+    # Section B: Event Type Activity leaderboard
+    _evt_rows = db.session.query(
+        MessageEventLog.event_name,
+        MessageEventLog.delivery_status,
+        db.func.count(MessageEventLog.id)
+    ).group_by(
+        MessageEventLog.event_name,
+        MessageEventLog.delivery_status,
+    ).all()
+
+    _evt_map = {}
+    for _en, _st, _cnt in _evt_rows:
+        if _en not in _evt_map:
+            _evt_map[_en] = dict(event_name=_en, total=0, sent=0, skipped=0, failed=0, pending=0)
+        _evt_map[_en]['total'] += _cnt
+        if _st in ('sent', 'skipped', 'failed', 'pending'):
+            _evt_map[_en][_st] += _cnt
+        else:
+            _evt_map[_en]['pending'] += _cnt
+
+    mel_event_leaderboard = sorted(_evt_map.values(), key=lambda r: r['total'], reverse=True)
+    for _r in mel_event_leaderboard:
+        _r['sent_pct'] = pct(_r['sent'], _r['total'])
+
+    # Section C: Delivery Health (all-time from MEL)
+    mel_health = dict(
+        total       = _mel_all['total'],
+        sent        = _mel_all['sent'],
+        skipped     = _mel_all['skipped'],
+        failed      = _mel_all['failed'],
+        sent_pct    = pct(_mel_all['sent'],    _mel_all['total']),
+        skipped_pct = pct(_mel_all['skipped'], _mel_all['total']),
+        failed_pct  = pct(_mel_all['failed'],  _mel_all['total']),
+    )
+
+    # Section D: Suppression Breakdown
+    _supp_rows = db.session.query(
+        MessageEventLog.suppression_reason,
+        db.func.count(MessageEventLog.id)
+    ).filter(
+        MessageEventLog.delivery_status == 'skipped',
+        MessageEventLog.suppression_reason.isnot(None),
+    ).group_by(
+        MessageEventLog.suppression_reason,
+    ).order_by(
+        db.func.count(MessageEventLog.id).desc()
+    ).all()
+
+    _total_skipped = _mel_all['skipped'] or 1
+    mel_suppression = [
+        dict(reason=_r, count=_n, share_pct=pct(_n, _total_skipped))
+        for _r, _n in _supp_rows
+    ]
+
+    # Section E: Network Effect Signals
+    _net_event_names = [
+        _EN.FRIEND_REQUEST_CREATED,
+        _EN.FRIEND_REQUEST_ACCEPTED,
+        _EN.TRIP_INVITE_CREATED,
+        _EN.TRIP_INVITE_ACCEPTED,
+    ]
+    _net_label_map = {
+        _EN.FRIEND_REQUEST_CREATED:  'Friend Request Created',
+        _EN.FRIEND_REQUEST_ACCEPTED: 'Friend Request Accepted',
+        _EN.TRIP_INVITE_CREATED:     'Trip Invite Created',
+        _EN.TRIP_INVITE_ACCEPTED:    'Trip Invite Accepted',
+    }
+    _net_rows = db.session.query(
+        MessageEventLog.event_name,
+        MessageEventLog.delivery_status,
+        db.func.count(MessageEventLog.id)
+    ).filter(
+        MessageEventLog.event_name.in_(_net_event_names)
+    ).group_by(
+        MessageEventLog.event_name,
+        MessageEventLog.delivery_status,
+    ).all()
+
+    _net_map = {}
+    for _en, _st, _cnt in _net_rows:
+        if _en not in _net_map:
+            _net_map[_en] = dict(event_name=_en, label=_net_label_map[_en],
+                                 total=0, sent=0, skipped=0, failed=0)
+        _net_map[_en]['total'] += _cnt
+        if _st in ('sent', 'skipped', 'failed'):
+            _net_map[_en][_st] += _cnt
+
+    mel_network = [
+        _net_map.get(_en, dict(event_name=_en, label=_net_label_map[_en],
+                               total=0, sent=0, skipped=0, failed=0))
+        for _en in _net_event_names
+    ]
+    for _r in mel_network:
+        _r['sent_pct'] = pct(_r['sent'], _r['total'])
+
     # ── Section 0: Messaging KPIs ────────────────────────────────────────
     invitations_sent     = it_generated + ti_total_sent
     invitations_accepted = it_redeemed  + ti_total_accepted
@@ -16895,38 +17029,51 @@ def admin_messaging():
         candidates.append((pct(ti_direct_accepted, ti_direct_sent),
             f"Trip invites convert at {pct(ti_direct_accepted, ti_direct_sent)}% — "
             f"{ti_direct_accepted} of {ti_direct_sent} direct invites accepted."))
+    # MEL-based insight candidates
+    if _mel_all['total'] >= 5:
+        _sent_rate = pct(_mel_all['sent'], _mel_all['total'])
+        candidates.append((_sent_rate,
+            f"{_sent_rate}% of push attempts were accepted by OneSignal "
+            f"({_mel_all['sent']} of {_mel_all['total']} total events sent)."))
+    if mel_event_leaderboard and _mel_all['total'] >= 5:
+        _top = mel_event_leaderboard[0]
+        _top_pct = pct(_top['total'], _mel_all['total'])
+        candidates.append((_top_pct,
+            f"{_top['event_name']} accounts for {_top_pct}% of all push activity "
+            f"({_top['total']} of {_mel_all['total']} total events)."))
     if candidates:
         candidates.sort(key=lambda x: x[0], reverse=True)
         insight = candidates[0][1]
 
     # ── Section 8: Messaging Status ──────────────────────────────────────
-    tracked_signals  = 10   # total signals audited and attempted
-    reliable_signals = 6    # GREEN: InviteToken gen/redeemed, Trip sent/accepted, FriendTable, Push reach
-    confidence       = 'Growing'
-
     status = dict(
-        tracked_signals  = tracked_signals,
-        reliable_signals = reliable_signals,
-        confidence       = confidence,
+        tracked_signals  = 16,   # full audit: 9 GREEN + 4 YELLOW + 7 RED = 20 audited, 16 tracked
+        reliable_signals = 9,    # GREEN signals
+        confidence       = 'Growing',
         total_users      = total,
     )
 
     return render_template(
         "admin_messaging.html",
-        active_tab        = "messaging",
-        now               = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
-        total             = total,
-        kpis              = kpis,
-        volume_rows       = volume_rows,
-        invite_funnel     = invite_funnel,
-        invite_overall_conv = invite_overall_conv,
-        friend_growth     = friend_growth,
-        trip_funnel       = trip_funnel,
-        effectiveness     = effectiveness,
-        eff_max           = eff_max,
-        underused_channels= underused_channels,
-        insight           = insight,
-        status            = status,
+        active_tab              = "messaging",
+        now                     = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        total                   = total,
+        kpis                    = kpis,
+        volume_rows             = volume_rows,
+        invite_funnel           = invite_funnel,
+        invite_overall_conv     = invite_overall_conv,
+        friend_growth           = friend_growth,
+        trip_funnel             = trip_funnel,
+        effectiveness           = effectiveness,
+        eff_max                 = eff_max,
+        underused_channels      = underused_channels,
+        insight                 = insight,
+        status                  = status,
+        mel_volume              = mel_volume,
+        mel_event_leaderboard   = mel_event_leaderboard,
+        mel_health              = mel_health,
+        mel_suppression         = mel_suppression,
+        mel_network             = mel_network,
     )
 
 
