@@ -21,7 +21,8 @@ import time
 import json
 import jwt
 import httpx
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
+from zoneinfo import ZoneInfo
 from sqlalchemy.orm import joinedload
 from services.pass_utils import (
     normalize_pass, display_pass_label, normalize_passes_string,
@@ -30,6 +31,30 @@ from services.pass_utils import (
     PASS_NORM_MAP, PASS_DISPLAY_MAP, CANONICAL_PASS_ORDER,
 )
 from constants.equipment import SKI_BRANDS, SNOWBOARD_BRANDS, BOOT_BRANDS, BINDING_TYPES, BINDING_BRANDS_BY_TYPE
+
+# ── Admin timezone helpers — America/Denver display ───────────────────────────
+_ADMIN_TZ = ZoneInfo("America/Denver")
+
+def _admin_now():
+    """Current datetime in America/Denver (timezone-aware)."""
+    return datetime.now(tz=_ADMIN_TZ)
+
+def _admin_today_start_utc():
+    """Naive UTC datetime for the start of today in America/Denver."""
+    denver_midnight = _admin_now().replace(hour=0, minute=0, second=0, microsecond=0)
+    return denver_midnight.astimezone(timezone.utc).replace(tzinfo=None)
+
+def _admin_yesterday_start_utc():
+    """Naive UTC datetime for the start of yesterday in America/Denver."""
+    denver_midnight = _admin_now().replace(hour=0, minute=0, second=0, microsecond=0)
+    return (denver_midnight - timedelta(days=1)).astimezone(timezone.utc).replace(tzinfo=None)
+
+def _fmt_admin_now():
+    """Return formatted Denver timestamp, e.g. '2026-05-29 10:45 MDT'."""
+    n = _admin_now()
+    return n.strftime("%Y-%m-%d %H:%M") + " " + n.strftime("%Z")
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _resolve_base_url():
     """Resolve the base URL for invite links and other absolute URLs.
@@ -16132,8 +16157,8 @@ def admin_dashboard():
     avg_product_score = round(sum(_hub_scores) / len(_hub_scores), 1) if _hub_scores else 0
 
     # ── Founder Pulse — today vs yesterday ───────────────────────────────────
-    _pulse_today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    _pulse_yest_start  = _pulse_today_start - timedelta(days=1)
+    _pulse_today_start = _admin_today_start_utc()
+    _pulse_yest_start  = _admin_yesterday_start_utc()
     _pulse_yest_end    = _pulse_today_start
 
     def _pulse_delta(today_val, yest_val):
@@ -16248,12 +16273,13 @@ def admin_dashboard():
         invites   = (p_invites_today,   _pulse_delta(p_invites_today,   p_invites_yest)),
         pushes    = (p_pushes_today,    _pulse_delta(p_pushes_today,    p_pushes_yest)),
     )
-    pulse_time = now.strftime("%H:%M UTC")
+    _dn = _admin_now()
+    pulse_time = _dn.strftime("%H:%M") + " " + _dn.strftime("%Z")
 
     return render_template(
         "admin_dashboard.html",
         active_tab         = "dashboard",
-        now                = now.strftime("%Y-%m-%d %H:%M UTC"),
+        now                = _fmt_admin_now(),
         month_label        = month_label,
         total_users        = total_users,
         mau                = mau,
@@ -16446,7 +16472,7 @@ def admin_user_insights():
     return render_template(
         "admin_user_insights.html",
         active_tab          = "user_insights",
-        now                 = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+        now                 = _fmt_admin_now(),
         total               = total,
         overview            = overview,
         rider_mix           = rider_mix,
@@ -16634,7 +16660,7 @@ def admin_growth():
     return render_template(
         "admin_growth.html",
         active_tab = "growth",
-        now        = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        now        = _fmt_admin_now(),
         funnel     = funnel,
         activation = activation,
         virality   = virality,
@@ -16790,7 +16816,7 @@ def admin_activation():
     return render_template(
         "admin_activation.html",
         active_tab         = "activation",
-        now                = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        now                = _fmt_admin_now(),
         funnel_steps       = funnel_steps,
         kpis               = kpis,
         dropoff            = dropoff,
@@ -16968,7 +16994,7 @@ def admin_resort_intelligence():
     return render_template(
         "admin_resort_intelligence.html",
         active_tab    = "resort_intelligence",
-        now           = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        now           = _fmt_admin_now(),
         exec_kpis     = exec_kpis,
         demand_table  = demand_table,
         funnel_rows   = funnel_rows,
@@ -16994,7 +17020,7 @@ def admin_product():
     total    = len(ns_users)
     if total == 0:
         return render_template("admin_product.html", active_tab="product",
-                               now=now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+                               now=_fmt_admin_now(),
                                total=0, kpis={}, adoption_table=[], drivers=[],
                                journey=[], underused=[], power={}, insight=None, status={})
 
@@ -17190,7 +17216,7 @@ def admin_product():
     return render_template(
         "admin_product.html",
         active_tab     = "product",
-        now            = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        now            = _fmt_admin_now(),
         total          = total,
         kpis           = kpis,
         adoption_table = adoption_table,
@@ -17532,7 +17558,7 @@ def admin_messaging():
     return render_template(
         "admin_messaging.html",
         active_tab              = "messaging",
-        now                     = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        now                     = _fmt_admin_now(),
         total                   = total,
         kpis                    = kpis,
         volume_rows             = volume_rows,
@@ -17743,7 +17769,7 @@ def admin_retention():
     return render_template(
         "admin_retention.html",
         active_tab   = "retention",
-        now          = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        now          = _fmt_admin_now(),
         kpis         = kpis,
         return_rates = return_rates,
         by_behavior  = by_behavior,
@@ -18096,7 +18122,7 @@ def admin_user_intelligence():
     return render_template(
         "admin_user_intelligence.html",
         active_tab          = "user-intelligence",
-        now                 = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        now                 = _fmt_admin_now(),
         kpis                = kpis,
         top_states          = top_states,
         top_countries       = top_countries,
@@ -18301,7 +18327,7 @@ def admin_posthog_funnels():
     return render_template(
         "admin_posthog_funnels.html",
         active_tab           = "posthog_funnels",
-        now                  = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        now                  = _fmt_admin_now(),
         audit_rows           = audit_rows,
         confidence           = confidence,
         sufficient_data      = sufficient_data,
@@ -18627,7 +18653,7 @@ def admin_mountain_intelligence():
     return render_template(
         "admin_mountain_intelligence.html",
         active_tab         = "mountain_intelligence",
-        now                = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        now                = _fmt_admin_now(),
         mi_kpis            = mi_kpis,
         attention_rows     = attention_rows,
         total_views_sum    = total_views_sum,
@@ -18652,7 +18678,7 @@ def admin_activation_intel():
     import json as _json
     from collections import Counter
 
-    now_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
+    now_str = _admin_now().strftime("%b %d, %Y at %H:%M %Z")
 
     def pct(n, d):
         return round(n / d * 100) if d else 0
@@ -18910,7 +18936,7 @@ def admin_growth_intel():
     from datetime import datetime as _dt, timedelta
     from collections import defaultdict, Counter
 
-    now_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
+    now_str = _admin_now().strftime("%b %d, %Y at %H:%M %Z")
     now = _dt.utcnow()
     l7_cutoff  = now - timedelta(days=7)
     l30_cutoff = now - timedelta(days=30)
@@ -19136,7 +19162,7 @@ def admin_crm_intel():
     from datetime import datetime as _dt, timedelta
     from collections import defaultdict
 
-    now_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
+    now_str = _admin_now().strftime("%b %d, %Y at %H:%M %Z")
     now = _dt.utcnow()
 
     def pct(n, d):

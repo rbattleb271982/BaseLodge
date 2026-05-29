@@ -1,0 +1,261 @@
+#174 - Admin Panel Timezone Standardization: UTC → America/Denver
+
+PUT THIS IN PLAN FIRST
+
+What & Why
+
+Every admin "now" timestamp currently shows UTC. The founder is in Denver. Switching to America/Denver (auto MDT/MST via %Z) aligns admin reporting with the founder's actual business day.
+
+IMPORTANT:
+
+- Database storage remains UTC
+- Only admin-facing display and admin day-boundary calculations change
+- Public/user-facing pages are out of scope
+- Raw UTC audit/event logs remain UTC where appropriate
+
+--------------------------------------------------
+OUT OF SCOPE
+--------------------------------------------------
+
+- Database storage changes
+- Public pages
+- Logged-in user pages
+- Mobile app changes
+- PostHog changes
+- Message event audit tables that intentionally display UTC
+
+--------------------------------------------------
+DONE LOOKS LIKE
+--------------------------------------------------
+
+✓ /admin/dashboard returns 200
+
+✓ Founder Pulse shows:
+Updated 10:45 MDT
+(or MST automatically)
+
+✓ Live data line shows MDT/MST
+
+✓ All admin pages that currently display "UTC" now show MDT/MST
+
+✓ Founder Pulse today/yesterday boundaries use Denver midnight
+
+✓ Existing KPI cards render unchanged
+
+✓ No 500s on admin pages
+
+✓ No template errors
+
+--------------------------------------------------
+STEP 1 — ADD ADMIN TIMEZONE HELPERS
+--------------------------------------------------
+
+Near the top of app.py:
+
+Add:
+
+from zoneinfo import ZoneInfo
+
+Create shared helpers:
+
+_ADMIN_TZ = ZoneInfo("America/Denver")
+
+def _admin_now():
+    """Current Denver datetime."""
+    return datetime.now(tz=_ADMIN_TZ)
+
+def _admin_today_start_utc():
+    """
+    Return naive UTC datetime corresponding
+    to Denver midnight today.
+    """
+    from datetime import timezone
+
+    denver_midnight = _admin_now().replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+
+    return (
+        denver_midnight
+        .astimezone(timezone.utc)
+        .replace(tzinfo=None)
+    )
+
+def _admin_yesterday_start_utc():
+    """
+    Return naive UTC datetime corresponding
+    to Denver midnight yesterday.
+    """
+    from datetime import timezone
+
+    denver_midnight = _admin_now().replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+
+    return (
+        (denver_midnight - timedelta(days=1))
+        .astimezone(timezone.utc)
+        .replace(tzinfo=None)
+    )
+
+def _fmt_admin_now():
+    """
+    Example:
+    2026-05-29 10:45 MDT
+    """
+    n = _admin_now()
+    return n.strftime("%Y-%m-%d %H:%M") + " " + n.strftime("%Z")
+
+--------------------------------------------------
+STEP 2 — UPDATE FOUNDER PULSE
+--------------------------------------------------
+
+Inside admin_dashboard:
+
+Replace UTC display values:
+
+pulse_time = now.strftime("%H:%M UTC")
+
+with:
+
+_admin_now()
+
+and display:
+
+10:45 MDT
+(or MST)
+
+Most important:
+
+Replace Founder Pulse day boundaries.
+
+Current logic uses UTC midnight.
+
+Update to:
+
+_pulse_today_start = _admin_today_start_utc()
+
+_pulse_yest_start = _admin_yesterday_start_utc()
+
+_pulse_yest_end = _pulse_today_start
+
+All Founder Pulse metrics should now use Denver-day boundaries.
+
+This includes:
+
+- Active Today
+- Sessions Today
+- New Users Today
+- Trips Created Today
+- Mountain Views Today
+- Friends Made Today
+- Invites Sent Today
+- Pushes Sent Today
+
+--------------------------------------------------
+STEP 3 — UPDATE ADMIN DISPLAY TIMESTAMPS
+--------------------------------------------------
+
+Audit all admin routes currently passing:
+
+now.strftime("... UTC")
+
+or
+
+datetime.utcnow().strftime("... UTC")
+
+Replace ONLY the display string with:
+
+_fmt_admin_now()
+
+Keep UTC query anchors where appropriate.
+
+If a route currently uses:
+
+now_dt = datetime.utcnow()
+
+for rolling L7/L30/L60 windows,
+
+keep that logic unchanged unless required.
+
+Only replace the displayed timestamp.
+
+--------------------------------------------------
+STEP 4 — ROUTES TO VERIFY
+--------------------------------------------------
+
+Inspect and update all admin routes that pass a formatted UTC timestamp to templates.
+
+Includes pages such as:
+
+- admin_dashboard
+- admin_user_insights
+- admin_growth
+- admin_growth_intel
+- admin_activation
+- admin_product
+- admin_posthog_funnels
+- admin_retention
+- admin_crm_intel
+- admin_messaging
+- admin_user_intelligence
+- admin_activation_intel
+- admin_mountain_intelligence
+- admin_resort_intelligence
+- admin_trips
+
+Verify actual route names before editing.
+
+Do not assume line numbers.
+
+--------------------------------------------------
+STEP 5 — NO TEMPLATE REFACTOR
+--------------------------------------------------
+
+Most admin templates already use:
+
+{{ now }}
+
+The route provides the formatted string.
+
+Prefer updating route logic rather than refactoring templates.
+
+--------------------------------------------------
+TESTING REQUIRED
+--------------------------------------------------
+
+Do not finish until you have tested:
+
+✓ /admin/dashboard returns 200
+
+✓ Founder Pulse shows MDT or MST
+
+✓ Live data timestamp shows MDT or MST
+
+✓ Founder Pulse today/yesterday metrics use Denver day boundaries
+
+✓ Existing KPI cards remain unchanged
+
+✓ User Insights page loads
+
+✓ Messaging page loads
+
+✓ Trips page loads
+
+✓ Resort Intelligence page loads
+
+✓ No UTC timestamps remain on business-facing admin dashboards
+
+✓ No template errors
+
+✓ No route errors
+
+Use checkpoints sparingly.
+
+Before making changes, inspect the codebase and verify actual helper names, route names, and timestamp implementations. Do not assume schema or route structure if the code differs from this plan.

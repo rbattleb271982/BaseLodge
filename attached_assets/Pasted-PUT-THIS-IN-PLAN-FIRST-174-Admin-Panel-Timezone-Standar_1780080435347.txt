@@ -1,0 +1,94 @@
+PUT THIS IN PLAN FIRST
+
+#174 - Admin Panel Timezone Standardization: UTC → America/Denver
+
+What & Why
+
+The admin panel currently displays some timestamps in UTC. Update the admin experience so founder/admin-facing timestamps and “today/yesterday” metrics use America/Denver time instead of UTC.
+
+This should make admin reporting align with the founder’s actual business day.
+
+Scope
+
+Apply to the admin panel only.
+
+Use America/Denver timezone across admin pages for:
+
+- Displayed timestamps
+- “Updated” timestamps
+- “Live data” timestamps
+- Today / yesterday metric boundaries
+- L7 / L30 / month date windows where admin-facing labels imply local calendar days
+
+Do NOT change database storage. Keep stored timestamps as UTC if they are currently UTC.
+
+Do NOT change public/user-facing pages unless they already depend on shared admin helpers.
+
+Implementation Requirements
+
+- Use timezone-aware logic
+- Prefer ZoneInfo("America/Denver")
+- Display MDT/MST automatically depending on daylight savings
+- Convert UTC database timestamps to America/Denver for display
+- Use America/Denver midnight boundaries for admin “today” and “yesterday” calculations
+- Avoid naive datetime comparisons where possible
+- Add helper functions if useful, for example:
+  - admin_now()
+  - admin_today_start()
+  - admin_yesterday_start()
+  - format_admin_datetime()
+  - local_day_bounds()
+
+Admin Display Format
+
+Use:
+
+Updated 12:45 PM MDT
+
+or where a date is needed:
+
+2026-05-29 12:45 PM MDT
+
+Founder Pulse
+
+Update Founder Pulse specifically:
+
+- Timestamp should show MDT/MST, not UTC
+- Today metrics should use America/Denver day boundaries
+- Yesterday deltas should compare against America/Denver yesterday
+
+Existing Admin Dashboard
+
+Update the existing “Live data” timestamp from UTC to MDT/MST.
+
+Audit Admin Pages
+
+Search templates and admin routes for:
+
+- UTC
+- utcnow
+- datetime.utcnow
+- timezone.utc
+- strftime
+- Updated
+- Live data
+- today_start
+- yesterday_start
+- date windows
+
+Update admin-facing timestamps consistently.
+
+Testing Required
+
+Do not finish until you have tested:
+
+- /admin/dashboard returns 200
+- Founder Pulse timestamp shows MDT or MST
+- Live data timestamp shows MDT or MST
+- Today/yesterday Founder Pulse metrics use America/Denver boundaries
+- Existing dashboard KPIs still render correctly
+- Other admin pages with timestamps still load cleanly
+- No template errors
+- No route errors
+
+Use checkpoints sparingly.
